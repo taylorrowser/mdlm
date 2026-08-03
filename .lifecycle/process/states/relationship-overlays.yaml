@@ -23,9 +23,5 @@ rules:
     explanation: A later editable revision exists without changing historical maturity.
   - value: process-drift
     priority: 100
-    when:
-      compare:
-        left: {path: {var: subject, field: provenance.process_ref}}
-        operator: ne
-        right: {path: {var: process, field: current_ref}}
+    when: 'subject.provenance.process_ref != process.current_ref'
     explanation: Current process provenance differs; this is informational and never causes staleness by itself.

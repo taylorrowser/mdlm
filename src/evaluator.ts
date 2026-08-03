@@ -1,3 +1,8 @@
+import {
+  evaluateCompiledTextExpression,
+  expressionValuesEqual,
+  isCompiledTextExpression,
+} from "./expression.js";
 import type {
   ProcessDiagnostic,
   ProcessPackage,
@@ -118,17 +123,6 @@ function getPath(root: unknown, field: string): unknown {
     value = (value as Record<string, unknown>)[segment];
   }
   return value;
-}
-
-function equal(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true;
-  if (
-    (Array.isArray(left) && Array.isArray(right)) ||
-    (object(left) !== undefined && object(right) !== undefined)
-  ) {
-    return JSON.stringify(left) === JSON.stringify(right);
-  }
-  return false;
 }
 
 class LifecycleEvaluator {
@@ -310,6 +304,9 @@ class LifecycleEvaluator {
   }
 
   private expression(value: unknown, context: EvaluationContext): boolean {
+    if (isCompiledTextExpression(value)) {
+      return evaluateCompiledTextExpression(value, context);
+    }
     const expression = object(value);
     if (!expression) throw new Error(`Expected an expression object`);
     if (expression.compare !== undefined) {
@@ -318,15 +315,15 @@ class LifecycleEvaluator {
       const left = this.value(comparison.left, context);
       const right = this.value(comparison.right, context);
       switch (comparison.operator) {
-        case "eq": return equal(left, right);
-        case "ne": return !equal(left, right);
-        case "in": return Array.isArray(right) && right.some((item) => equal(left, item));
-        case "not-in": return Array.isArray(right) && !right.some((item) => equal(left, item));
+        case "eq": return expressionValuesEqual(left, right);
+        case "ne": return !expressionValuesEqual(left, right);
+        case "in": return Array.isArray(right) && right.some((item) => expressionValuesEqual(left, item));
+        case "not-in": return Array.isArray(right) && !right.some((item) => expressionValuesEqual(left, item));
         case "gt": return typeof left === "number" && typeof right === "number" && left > right;
         case "gte": return typeof left === "number" && typeof right === "number" && left >= right;
         case "lt": return typeof left === "number" && typeof right === "number" && left < right;
         case "lte": return typeof left === "number" && typeof right === "number" && left <= right;
-        case "contains": return (Array.isArray(left) && left.some((item) => equal(item, right))) || (typeof left === "string" && typeof right === "string" && left.includes(right));
+        case "contains": return (Array.isArray(left) && left.some((item) => expressionValuesEqual(item, right))) || (typeof left === "string" && typeof right === "string" && left.includes(right));
         case "matches": return typeof left === "string" && typeof right === "string" && new RegExp(right).test(left);
         default: throw new Error(`Unknown comparison operator '${String(comparison.operator)}'`);
       }

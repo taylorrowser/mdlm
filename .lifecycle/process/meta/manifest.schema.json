@@ -4,7 +4,7 @@
   "title": "MDLM process package manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "compatibility", "catalog", "assets", "profiles", "provenance"],
+  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "language", "compatibility", "catalog", "assets", "profiles", "provenance"],
   "properties": {
     "kind": {"const": "process-package-manifest"},
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
@@ -14,6 +14,14 @@
     "kernel_contract": {"type": "object"},
     "artifact_format": {"type": "object"},
     "references": {"type": "object"},
+    "language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expressions"],
+      "properties": {
+        "expressions": {"const": "mdlm-expression@1"}
+      }
+    },
     "compatibility": {"type": "object"},
     "catalog": {"type": "object"},
     "assets": {"type": "object"},

@@ -23,9 +23,10 @@ behavior where possible.
    and promotion still need a complete machine-readable policy.
 9. **Invalid fixtures:** Package validation needs focused invalid fixtures for each
    rejection class, beyond the current unknown-reference and cycle tests.
-10. **Expression parser:** The MDLM Expression Language semantics are chosen, but a
-    CEL-compatible library versus a small purpose-built parser remains an internal
-    implementation choice.
+10. **Expression parser expansion:** The initial comparison slice uses a small
+    purpose-built parser behind the versioned language contract. Reconsider a
+    compatible library only if later syntax makes the internal parser materially
+    harder to maintain without changing observable language behavior.
 11. **Resolver eligibility:** The next result model must expose dispatchability,
     blockers, eventual resolver, actionable resolver, expected outputs, and waiver
     applicability rather than only status and one resolver string.

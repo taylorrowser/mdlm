@@ -7,6 +7,7 @@ import {
 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { parse } from "yaml";
+import { compileStateExpressions } from "./expression.js";
 
 export {
   evaluateLifecycle,
@@ -23,6 +24,9 @@ export interface ProcessDiagnostic {
   code: string;
   message: string;
   path?: string;
+  line?: number;
+  column?: number;
+  source?: string;
 }
 
 export interface ProcessManifest {
@@ -327,6 +331,9 @@ export async function loadProcessPackage(
             message: `Duplicate ${group} definition '${definition.id}'`,
           });
           continue;
+        }
+        if (group === "states") {
+          diagnostics.push(...compileStateExpressions(definition, filePath));
         }
         byId[definition.id] = definition;
       }

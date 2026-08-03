@@ -213,3 +213,24 @@ turning provisional choices into architecture.
 - **Reversibility:** Versioned. Historical v0.8 remains unchanged when superseded.
 - **Evidence/observations:** Acceptance establishes a design baseline, not a claim
   that the v0.2 bootstrap package or complete CLI already implements it.
+
+## D-014 — Start expression compilation with a purpose-built comparison slice
+
+- **Status:** provisional and implemented
+- **Decision:** Compile the first `mdlm-expression@1` comparison with a small
+  purpose-built parser while continuing to accept legacy expression trees during
+  the controlled expansion migration.
+- **Alternatives:** Adopt a CEL-compatible parser before validating the language
+  seam, or migrate the complete package in one change.
+- **Rationale:** The first slice needs only typed variables, paths, scalar literals,
+  comparisons, source spans, and deterministic diagnostics. Keeping the parser
+  behind the versioned language contract makes this implementation choice easy to
+  replace while allowing one end-to-end behavior to validate the seam.
+- **Expected behavior:** Package loading compiles the textual process-drift rule,
+  rejects syntax, binding, path, and operand-type errors before evaluation, and
+  preserves legacy rule behavior elsewhere in the package.
+- **Reversibility:** High. The parser and internal AST are private; only the source
+  language and package-load diagnostics are observable contracts.
+- **Evidence/observations:** Public-seam tests load and evaluate the textual rule,
+  exercise variables, typed paths, and literals, and verify source-oriented
+  diagnostics for invalid syntax, unknown bindings, and incompatible operands.

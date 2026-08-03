@@ -2,12 +2,14 @@
 
 **Version 0.2 — experimental bootstrap implementation reference**
 
-This reference remains normative for the current `.lifecycle/process` package and
-its YAML-AST evaluator. The target architecture is now described by
-`mdlm-process-overview-v0.8.md`, including textual expressions,
-process-neutral core semantics, Kernel Capability bindings, and the V-model as an
-Example Process Package. Those v0.8 changes are specified but are not silently
-claimed as implemented by this v0.2 package.
+This reference records the legacy YAML-AST contract that remains temporarily
+accepted during the controlled expression migration. The `.lifecycle/process`
+package is now version 0.3 and declares `mdlm-expression@1`; its process-drift
+predicate is the first textual expression compiled at package load. The target
+architecture is described by `mdlm-process-overview-v0.8.md`, including complete
+textual expression coverage, process-neutral core semantics, Kernel Capability
+bindings, and the V-model as an Example Process Package. Unmigrated v0.8 behavior
+is not silently claimed as implemented.
 
 ## 1. Purpose
 

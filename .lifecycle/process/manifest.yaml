@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.2.0
+version: 0.3.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -25,6 +25,8 @@ references:
   datum_stable: '<TYPE>-<Crockford-Base32-ID>'
   datum_revision: '<stable-id>-r<five-digit-revision>'
   obligation_instance: '<obligation>@<version>:<subject-revision>:<process-ref>'
+language:
+  expressions: mdlm-expression@1
 compatibility:
   minimum_kernel: 0.2.0
   meta_schema_version: 2
