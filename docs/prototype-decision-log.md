@@ -281,3 +281,26 @@ turning provisional choices into architecture.
   source-oriented diagnostics for unknown Selectors and invalid argument names,
   kinds, lifecycle types, and cardinalities. Migrated candidate Selector and
   review/candidate Obligation rules preserve the behavior suite.
+
+## D-017 — Compose Computed State and typed Policy results through expressions
+
+- **Status:** provisional and implemented
+- **Decision:** Resolve `state(subject, dimension)` against the loaded Computed
+  State catalog and resolve `policy(ref, arguments).field` against versioned,
+  typed Policy definitions through the same closed evaluator host boundary used
+  for Selectors.
+- **Alternatives:** Keep State and Policy reads in the legacy YAML tree, return an
+  untyped Policy object, or defer dependency checks until runtime recursion.
+- **Rationale:** Package-load resolution gives authors source-oriented errors for
+  bad dimensions, subjects, Policy references, arguments, result fields, and
+  result types. Rejecting direct State/Policy call cycles before evaluation keeps
+  valid packages deterministic instead of relying on runtime recursion guards.
+- **Expected behavior:** Exactly-one State dimensions produce strings,
+  zero-or-more dimensions produce arrays, and selected Policy fields carry their
+  declared JSON Schema type into expression checking. Direct dependencies among
+  State and Policy rules must be acyclic.
+- **Reversibility:** High. Catalog resolution, dependency extraction, and host
+  plumbing remain private behind `loadProcessPackage` and `evaluateLifecycle`.
+- **Evidence/observations:** Public-seam tests exercise State and Policy values,
+  reference and type diagnostics, State-only and State/Policy cycle rejection,
+  and review, validity, waiver, process-drift, candidate, and gate regressions.

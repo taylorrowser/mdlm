@@ -295,14 +295,25 @@ class LifecycleEvaluator {
     }
   }
 
-  private policy(reference: string, argumentsValue: unknown, context: EvaluationContext): Record<string, unknown> {
+  private policy(
+    reference: string,
+    argumentsValue: unknown,
+    context: EvaluationContext,
+  ): Record<string, unknown> {
+    return this.policyResult(
+      reference,
+      this.evaluateArguments(argumentsValue, context),
+    );
+  }
+
+  private policyResult(
+    reference: string,
+    argumentsContext: EvaluationContext,
+  ): Record<string, unknown> {
     const id = referenceId(reference);
     const definition = this.processPackage.policies[id];
     if (!definition) throw new Error(`Unknown policy '${reference}'`);
-    const policyContext = {
-      ...this.baseContext,
-      ...this.evaluateArguments(argumentsValue, context),
-    };
+    const policyContext = { ...this.baseContext, ...argumentsContext };
     const rules = array(definition.rules)
       .map(object)
       .filter((rule): rule is Record<string, unknown> => rule !== undefined)
@@ -313,8 +324,16 @@ class LifecycleEvaluator {
 
   private expressionHost() {
     return {
+      policy: (reference: string, argumentsValue: Record<string, unknown>) =>
+        this.policyResult(reference, argumentsValue),
       select: (reference: string, argumentsValue: Record<string, unknown>) =>
         this.select(reference, argumentsValue),
+      state: (subject: unknown, dimension: string) => {
+        if (!this.isEntity(subject)) {
+          throw new Error(`Computed State subject is not an entity`);
+        }
+        return this.state(dimension, subject);
+      },
     };
   }
 

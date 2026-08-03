@@ -8,15 +8,8 @@ result_kind: revision
 query:
   from: {relation: incoming-links, of: {var: candidate}, link: justifies, emit: source, types: [DEC]}
   as: decision
-  where:
-    all:
-      - compare:
-          left: {path: {var: decision, field: payload.kind}}
-          operator: eq
-          right: {literal: gate-signoff}
-      - compare:
-          left: {state: {dimension: validity, subject: {var: decision}}}
-          operator: eq
-          right: {literal: valid}
+  where: >-
+    decision.payload.kind == "gate-signoff"
+    && state(decision, "validity") == "valid"
   distinct: true
   order_by: [identity.revision_id]

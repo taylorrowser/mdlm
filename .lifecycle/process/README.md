@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.5
+# MDLM bootstrap process package v0.6
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -6,11 +6,11 @@ toward the accepted v0.8 design. It remains intentionally limited to `PSP`, `STK
 `SYS`, `REV`, `BSL`, `QST`, and `DEC`. These are a bootstrap subset of the bundled
 V-model Example Process Package, not lifecycle types recognized by MDLM core.
 
-The package declares `mdlm-expression@1`. In addition to textual comparisons and
-Boolean composition, selected review and candidate rules now use typed Selector
-selection and cardinality operations compiled at package load. Legacy expression
-trees remain valid only during the controlled expansion migration. Explicit
-Kernel Capability bindings have not yet been implemented.
+The package declares `mdlm-expression@1`. Selected review, validity, and candidate
+rules now compose typed Selector, Policy, and Computed State values compiled at
+package load. Legacy expression trees remain valid only during the controlled
+expansion migration. Explicit Kernel Capability bindings have not yet been
+implemented.
 
 ## Ownership
 
@@ -55,10 +55,12 @@ paths, states, and policies.
 The accepted authoring surface is the textual MDLM Expression Language. The
 implemented slices support typed bound variables, entity and context paths,
 JSON-like literals, comparisons, membership, Boolean composition, parentheses,
-presence checks, and typed `select`, `exists`, `none`, `count`, and `one` Selector
-operations with package-load diagnostics. Remaining definitions continue to use
-the legacy internal tree during migration. Neither representation can execute
-arbitrary code or produce side effects.
+presence checks, typed `select`, `exists`, `none`, `count`, and `one` Selector
+operations, `state(subject, dimension)`, and typed Policy result-field selection.
+Package loading validates references, arguments, result types, and direct State
+and Policy dependency cycles. Remaining definitions continue to use the legacy
+internal tree during migration. Neither representation can execute arbitrary code
+or produce side effects.
 
 ## Links
 

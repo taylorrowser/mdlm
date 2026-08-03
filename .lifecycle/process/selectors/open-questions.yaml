@@ -7,18 +7,9 @@ result_kind: revision
 query:
   from: {collection: revisions, types: [QST]}
   as: question
-  where:
-    all:
-      - compare:
-          left: {path: {var: question, field: payload.state}}
-          operator: eq
-          right: {literal: open}
-      - none:
-          selector: newer-revisions-for@1
-          arguments: {subject: {var: question}}
-      - compare:
-          left: {state: {dimension: disposition, subject: {var: question}}}
-          operator: eq
-          right: {literal: active}
+  where: >-
+    question.payload.state == "open"
+    && none("newer-revisions-for@1", {subject: question})
+    && state(question, "disposition") == "active"
   distinct: true
   order_by: [identity.id]

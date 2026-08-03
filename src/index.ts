@@ -7,7 +7,10 @@ import {
 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { parse } from "yaml";
-import { compileDefinitionExpressions } from "./expression.js";
+import {
+  compileDefinitionExpressions,
+  validateExpressionDependencyCycles,
+} from "./expression.js";
 
 export {
   evaluateLifecycle,
@@ -354,11 +357,22 @@ export async function loadProcessPackage(
         ...compileDefinitionExpressions(
           definition,
           filePath,
-          definitions.selectors,
+          {
+            selectors: definitions.selectors,
+            states: definitions.states,
+            policies: definitions.policies,
+          },
         ),
       );
     }
 
+    diagnostics.push(
+      ...validateExpressionDependencyCycles({
+        selectors: definitions.selectors,
+        states: definitions.states,
+        policies: definitions.policies,
+      }),
+    );
     diagnostics.push(...validateDefinitionReferences(definitions));
     if (diagnostics.length > 0) return { ok: false, diagnostics };
     if (

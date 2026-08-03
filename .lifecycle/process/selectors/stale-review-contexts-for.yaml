@@ -8,15 +8,8 @@ result_kind: baseline
 query:
   from: {relation: baseline-memberships, of: {var: subject}, emit: entity, types: [BSL]}
   as: context
-  where:
-    all:
-      - compare:
-          left: {path: {var: context, field: payload.kind}}
-          operator: eq
-          right: {literal: review-context}
-      - compare:
-          left: {state: {dimension: validity, subject: {var: context}}}
-          operator: eq
-          right: {literal: stale}
+  where: >-
+    context.payload.kind == "review-context"
+    && state(context, "validity") == "stale"
   distinct: true
   order_by: [identity.revision_id]

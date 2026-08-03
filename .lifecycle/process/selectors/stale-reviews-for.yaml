@@ -8,10 +8,6 @@ result_kind: revision
 query:
   from: {relation: incoming-links, of: {var: subject}, link: reviews, emit: source, types: [REV]}
   as: review
-  where:
-    compare:
-      left: {state: {dimension: validity, subject: {var: review}}}
-      operator: eq
-      right: {literal: stale}
+  where: 'state(review, "validity") == "stale"'
   distinct: true
   order_by: [identity.revision_id]

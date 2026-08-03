@@ -8,10 +8,6 @@ result_kind: revision
 query:
   from: {relation: baseline-members, of: {var: candidate}, emit: entity}
   as: member
-  where:
-    compare:
-      left: {policy: {ref: review-applicability@1, arguments: {subject: {var: member}}, field: required}}
-      operator: eq
-      right: {literal: true}
+  where: 'policy("review-applicability@1", {subject: member}).required == true'
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

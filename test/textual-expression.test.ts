@@ -35,6 +35,41 @@ async function processPackageWithTextualProcessDrift(
   return processRoot;
 }
 
+async function processPackageWithStateCycle(): Promise<string> {
+  const processRoot = await processPackageWithTextualProcessDrift(
+    'state(subject, "validity") == "valid"',
+  );
+  const validityPath = path.join(processRoot, "states/validity.yaml");
+  const validity = await fs.readFile(validityPath, "utf8");
+  await fs.writeFile(
+    validityPath,
+    validity.replace(
+      "    when:\n      exists:\n        selector: dependency-changes-for@1\n        arguments: {subject: {var: subject}}",
+      "    when:\n      compare:\n        left: {state: {dimension: relationship-overlays, subject: {var: subject}}}\n        operator: eq\n        right: {literal: []}",
+    ),
+  );
+  return processRoot;
+}
+
+async function processPackageWithStatePolicyCycle(): Promise<string> {
+  const processRoot = await processPackageWithTextualProcessDrift(
+    'policy("review-applicability@1", {subject: subject}).required == true',
+  );
+  const policyPath = path.join(
+    processRoot,
+    "policies/review-applicability.yaml",
+  );
+  const policy = await fs.readFile(policyPath, "utf8");
+  await fs.writeFile(
+    policyPath,
+    policy.replace(
+      "    when: 'subject.identity.type in [\"PSP\", \"STK\", \"SYS\"]'",
+      "    when: 'state(subject, \"relationship-overlays\") == []'",
+    ),
+  );
+  return processRoot;
+}
+
 function pspCreatedUnder(processRef: string): LifecycleRecord {
   return {
     datum: {
@@ -200,6 +235,217 @@ describe("textual MDLM expressions", () => {
         "relationship-overlays"
       ],
     ).toEqual(["process-drift"]);
+  });
+
+  it("reads a typed Computed State value", async () => {
+    const processRoot = await processPackageWithTextualProcessDrift(
+      'state(subject, "validity") == "valid"',
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(
+      loaded.ok,
+      loaded.diagnostics.map((diagnostic) => diagnostic.message).join("\n"),
+    ).toBe(true);
+    if (!loaded.ok) return;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyChanges: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+  });
+
+  it("reads a typed Policy result field", async () => {
+    const processRoot = await processPackageWithTextualProcessDrift(
+      'policy("review-applicability@1", {subject: subject}).required == true && policy("waiver-applicability@1", {obligation: "review-context-required", subject: subject}).permitted == false',
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(
+      loaded.ok,
+      loaded.diagnostics.map((diagnostic) => diagnostic.message).join("\n"),
+    ).toBe(true);
+    if (!loaded.ok) return;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyChanges: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+  });
+
+  it("rejects Computed State and Policy dependency cycles before evaluation", async () => {
+    const [stateCycle, policyCycle] = await Promise.all([
+      loadProcessPackage(await processPackageWithStateCycle()),
+      loadProcessPackage(await processPackageWithStatePolicyCycle()),
+    ]);
+
+    expect(stateCycle.ok).toBe(false);
+    expect(stateCycle.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-dependency-cycle",
+          message:
+            "Expression dependency cycle: Computed State 'relationship-overlays' -> Computed State 'validity' -> Computed State 'relationship-overlays'",
+        }),
+      ]),
+    );
+    expect(policyCycle.ok).toBe(false);
+    expect(policyCycle.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-dependency-cycle",
+          message:
+            "Expression dependency cycle: Computed State 'relationship-overlays' -> Policy 'review-applicability@1' -> Computed State 'relationship-overlays'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects invalid Policy references, arguments, result fields, and result types", async () => {
+    const sources = {
+      unknown: 'policy("missing@1", {subject: subject}).required == true',
+      missing: 'policy("review-applicability@1", {}).required == true',
+      kind: 'policy("review-applicability@1", {subject: process}).required == true',
+      cardinality:
+        'policy("review-applicability@1", {subject: select("review-required-revisions@1", {})}).required == true',
+      scalar:
+        'policy("waiver-applicability@1", {obligation: 7, subject: subject}).permitted == false',
+      field: 'policy("review-applicability@1", {subject: subject}).missing == true',
+      type: 'policy("review-applicability@1", {subject: subject}).required == "yes"',
+    };
+    const results = await Promise.all(
+      Object.values(sources).map(async (source) =>
+        loadProcessPackage(
+          await processPackageWithTextualProcessDrift(source),
+        ),
+      ),
+    );
+
+    for (const result of results) expect(result.ok).toBe(false);
+    expect(results[0]?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-unknown-policy",
+          source: sources.unknown,
+          message: "Unknown Policy 'missing@1'",
+        }),
+      ]),
+    );
+    expect(results[1]?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-policy-arguments",
+          source: sources.missing,
+          message:
+            "Policy 'review-applicability@1' requires argument 'subject'",
+        }),
+      ]),
+    );
+    expect(results[2]?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-policy-arguments",
+          source: sources.kind,
+          message:
+            "Policy argument 'subject' requires revision, received process",
+        }),
+      ]),
+    );
+    expect(results[3]?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-policy-arguments",
+          source: sources.cardinality,
+          message:
+            "Policy argument 'subject' requires revision, received selection",
+        }),
+      ]),
+    );
+    expect(results[4]?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-policy-arguments",
+          source: sources.scalar,
+          message:
+            "Policy argument 'obligation' requires string, received number",
+        }),
+      ]),
+    );
+    expect(results[5]?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-policy-result",
+          source: sources.field,
+          message:
+            "Policy 'review-applicability@1' has no result field 'missing'",
+        }),
+      ]),
+    );
+    expect(results[6]?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-type",
+          source: sources.type,
+          message: "Cannot compare boolean with string",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects unknown Computed State dimensions and invalid subjects", async () => {
+    const unknownSource = 'state(subject, "missing") == "valid"';
+    const subjectSource = 'state(process, "validity") == "valid"';
+    const [unknown, subject] = await Promise.all([
+      loadProcessPackage(
+        await processPackageWithTextualProcessDrift(unknownSource),
+      ),
+      loadProcessPackage(
+        await processPackageWithTextualProcessDrift(subjectSource),
+      ),
+    ]);
+
+    expect(unknown.ok).toBe(false);
+    expect(unknown.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-unknown-state",
+          source: unknownSource,
+          line: 1,
+          column: 16,
+          message: "Unknown Computed State dimension 'missing'",
+        }),
+      ]),
+    );
+    expect(subject.ok).toBe(false);
+    expect(subject.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-state-subject",
+          source: subjectSource,
+          line: 1,
+          column: 7,
+          message: "Computed State subject must be a revision, received process",
+        }),
+      ]),
+    );
   });
 
   it("rejects unknown Selectors and invalid named arguments at package load", async () => {

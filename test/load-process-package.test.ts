@@ -15,7 +15,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.5.0");
+    expect(result.package.manifest.version).toBe("0.6.0");
     expect(Object.keys(result.package.types)).toHaveLength(7);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(24);
