@@ -373,3 +373,26 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public package-load, type-resolution, and lifecycle
   tests cover the bootstrap binding, incompatible contracts, an unavailable
   capability surface, and all four relation families under a renamed `SNP` type.
+
+## D-021 — Validate a deliberately limited Payload Template narrowing subset
+
+- **Status:** accepted and implemented
+- **Decision:** Top-level payload fields and required sets remain additive. A
+  redeclared inherited property schema is complete and must preserve its type,
+  nested required fields, and inherited constraints. Safe narrowing supports enum
+  subsets, stronger lower and upper bounds, preserved patterns and formats,
+  recursive array-item and object-property schemas, and added constraints.
+- **Alternatives:** Attempt general JSON Schema subsumption, prohibit all inherited
+  property redeclaration, or let child schemas silently replace parent meaning.
+- **Rationale:** The limited comparison is deterministic and explainable while
+  covering the schema constraints used by the bootstrap package. General
+  subsumption would add disproportionate complexity; silent replacement would
+  make inherited contracts unsafe.
+- **Expected behavior:** Package loading rejects nested required-field removal,
+  type changes, weaker constraints, and duplicate inherited outgoing-link IDs.
+  Additive fields and supported narrowing resolve to one flattened payload schema.
+- **Reversibility:** Versioned. The supported subset may grow through explicit
+  rules and fixtures without weakening existing accepted packages.
+- **Evidence/observations:** Focused package fixtures assert stable diagnostics for
+  each rejection class, and public type resolution verifies additive fields plus
+  bound and enum narrowing.

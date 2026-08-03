@@ -11,6 +11,7 @@ import {
   compileDefinitionExpressions,
   validateExpressionDependencyCycles,
 } from "./expression.js";
+import { validatePayloadInheritance } from "./payload-inheritance.js";
 
 export {
   evaluateLifecycle,
@@ -646,6 +647,7 @@ export async function loadProcessPackage(
       }),
     );
     diagnostics.push(...validateDefinitionReferences(definitions));
+    diagnostics.push(...validatePayloadInheritance(definitions));
     if (diagnostics.length > 0) return { ok: false, diagnostics };
     if (
       typeof manifest !== "object" ||

@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.9 — experimental implementation reference**
+**Bootstrap package 0.10 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -106,10 +106,15 @@ titled-datum
 ```
 
 A template or type has at most one parent. Resolution proceeds from root to leaf.
-Payload properties and required fields are additive. A child may tighten a parent
-constraint but may not remove a required field, widen an allowed value, or change
-a field to an incompatible type. Duplicate outgoing-link IDs in one resolved
-chain are rejected rather than overridden.
+Top-level payload properties and required sets are additive. When a child
+redeclares an inherited property schema, that property schema is complete: it
+must preserve nested required fields and inherited constraints. The supported
+narrowing subset is exact type preservation, enum subsets, stronger numeric,
+string, array, and object bounds, preserved patterns and formats, recursive
+array-item and object-property schemas, and added constraints. An inherited
+assertion outside that subset must be preserved exactly when its property is
+redeclared; general JSON Schema subsumption is not attempted. Duplicate outgoing-
+link IDs in one resolved chain are rejected rather than overridden.
 
 The resolved type shown by `req schema <type>` is the kernel envelope plus the
 flattened payload schema and outgoing-link contracts.

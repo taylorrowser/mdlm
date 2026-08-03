@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.9
+# MDLM bootstrap process package v0.10
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -31,10 +31,13 @@ To resolve a lifecycle type:
 1. load the kernel datum envelope;
 2. follow the type's single template chain from root to leaf;
 3. add required payload fields and compatible property constraints;
-4. reject removed requirements, widened constraints, incompatible properties, or
-   duplicate inherited outgoing-link IDs;
-5. add the final type payload fragment and source-owned links;
-6. set the flattened payload schema to reject unknown fields.
+4. reject nested required-field removal, widened constraints, incompatible
+   property types, or duplicate inherited outgoing-link IDs;
+5. allow only deterministic narrowing through enum subsets, stronger lower and
+   upper bounds, preserved patterns and formats, recursive item/object schemas,
+   and added constraints;
+6. add the final type payload fragment and source-owned links;
+7. set the flattened payload schema to reject unknown fields.
 
 `req schema STK` should expose the resulting envelope, payload schema, link
 contracts, lifecycle behavior, and review-policy result.
