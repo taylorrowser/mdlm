@@ -7,7 +7,7 @@ import {
 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { parse } from "yaml";
-import { compileStateExpressions } from "./expression.js";
+import { compileDefinitionExpressions } from "./expression.js";
 
 export {
   evaluateLifecycle,
@@ -332,8 +332,8 @@ export async function loadProcessPackage(
           });
           continue;
         }
-        if (group === "states") {
-          diagnostics.push(...compileStateExpressions(definition, filePath));
+        if (group === "states" || group === "policies") {
+          diagnostics.push(...compileDefinitionExpressions(definition, filePath));
         }
         byId[definition.id] = definition;
       }

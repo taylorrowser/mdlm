@@ -9,28 +9,12 @@ values: [invalid, stale, valid]
 rules:
   - value: invalid
     priority: 300
-    when:
-      any:
-        - compare:
-            left: {path: {var: subject, field: integrity.parseable}}
-            operator: eq
-            right: {literal: false}
-        - compare:
-            left: {path: {var: subject, field: integrity.schema_valid}}
-            operator: eq
-            right: {literal: false}
-        - compare:
-            left: {path: {var: subject, field: integrity.identity_valid}}
-            operator: eq
-            right: {literal: false}
-        - compare:
-            left: {path: {var: subject, field: integrity.references_valid}}
-            operator: eq
-            right: {literal: false}
-        - compare:
-            left: {path: {var: subject, field: integrity.hash_valid}}
-            operator: eq
-            right: {literal: false}
+    when: >-
+      subject.integrity.parseable == false
+      || subject.integrity.schema_valid == false
+      || subject.integrity.identity_valid == false
+      || subject.integrity.references_valid == false
+      || subject.integrity.hash_valid == false
     explanation: Parseability, schema, identity, reference, or frozen-byte integrity is broken.
   - value: stale
     priority: 200

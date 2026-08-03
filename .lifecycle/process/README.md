@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.3
+# MDLM bootstrap process package v0.4
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -6,10 +6,11 @@ toward the accepted v0.8 design. It remains intentionally limited to `PSP`, `STK
 `SYS`, `REV`, `BSL`, `QST`, and `DEC`. These are a bootstrap subset of the bundled
 V-model Example Process Package, not lifecycle types recognized by MDLM core.
 
-The package declares `mdlm-expression@1`. Its process-drift predicate is the first
-textual expression compiled at package load; legacy expression trees remain valid
-only during the controlled expansion migration. Explicit Kernel Capability
-bindings have not yet been implemented.
+The package declares `mdlm-expression@1`. Process-drift, structural-invalidity,
+and review-applicability rules now use textual comparisons, membership, Boolean
+composition, parentheses, and JSON-like values compiled at package load. Legacy
+expression trees remain valid only during the controlled expansion migration.
+Explicit Kernel Capability bindings have not yet been implemented.
 
 ## Ownership
 
@@ -51,11 +52,12 @@ as “passing review,” “current candidate,” and “members missing review�
 selectors assembled from primitive collections, graph relations, integrity
 paths, states, and policies.
 
-The accepted authoring surface is the textual MDLM Expression Language. The first
-implemented slice supports typed bound variables, entity and context paths, scalar
-literals, and comparisons with package-load diagnostics. Remaining definitions
-continue to use the legacy internal tree during migration. Neither representation
-can execute arbitrary code or produce side effects.
+The accepted authoring surface is the textual MDLM Expression Language. The
+implemented slices support typed bound variables, entity and context paths,
+JSON-like literals, comparisons, membership, Boolean composition, parentheses,
+and presence checks with package-load diagnostics. Remaining definitions continue
+to use the legacy internal tree during migration. Neither representation can
+execute arbitrary code or produce side effects.
 
 ## Links
 

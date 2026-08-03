@@ -127,8 +127,148 @@ describe("textual MDLM expressions", () => {
     }
   });
 
+  it("evaluates conjunction, disjunction, negation, presence, and parentheses", async () => {
+    const processRoot = await processPackageWithTextualProcessDrift(
+      "!(subject.integrity.parseable == true) && (present(subject.identity.id) || false) && !present(subject.payload.optional)",
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const record = pspCreatedUnder("git:current");
+    record.integrity.parseable = false;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [record],
+      dependencyChanges: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+  });
+
+  it("types and evaluates every JSON-like literal", async () => {
+    const processRoot = await processPackageWithTextualProcessDrift(
+      'subject.identity.type in ["PSP", "STK"] && 7 > 3 && true != false && null == null && present(null) && {"ok": true, "count": 2} == {"ok": true, "count": 2}',
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyChanges: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+  });
+
+  it("preserves lifecycle behavior for migrated state and Policy rules", async () => {
+    const loaded = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const invalidRecord = pspCreatedUnder("git:current");
+    invalidRecord.integrity.schema_valid = false;
+    const invalidEvaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [invalidRecord],
+      dependencyChanges: [],
+    });
+    const validEvaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyChanges: [],
+    });
+
+    expect(invalidEvaluation.diagnostics).toEqual([]);
+    expect(
+      invalidEvaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states.validity,
+    ).toBe("invalid");
+    expect(
+      validEvaluation.obligations.some(
+        (obligation) =>
+          obligation.obligation === "review-context-required" &&
+          obligation.subject === "PSP-7K3M9Q2D8F-r00001",
+      ),
+    ).toBe(true);
+  });
+
+  it("locates Boolean operator and rule result-type errors", async () => {
+    const operatorSource = "subject.identity.type && true";
+    const membershipSource = 'subject.identity.type in {"PSP": true}';
+    const resultSource = "subject.identity.type";
+
+    const [operatorPackage, membershipPackage, resultPackage] = await Promise.all([
+      loadProcessPackage(
+        await processPackageWithTextualProcessDrift(operatorSource),
+      ),
+      loadProcessPackage(
+        await processPackageWithTextualProcessDrift(membershipSource),
+      ),
+      loadProcessPackage(
+        await processPackageWithTextualProcessDrift(resultSource),
+      ),
+    ]);
+
+    expect(operatorPackage.ok).toBe(false);
+    expect(operatorPackage.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-type",
+          line: 1,
+          column: 23,
+          source: operatorSource,
+          message: "Operator '&&' requires boolean operands, received string",
+        }),
+      ]),
+    );
+    expect(membershipPackage.ok).toBe(false);
+    expect(membershipPackage.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-type",
+          line: 1,
+          column: 23,
+          source: membershipSource,
+          message: "Operator 'in' requires an array on the right, received object",
+        }),
+      ]),
+    );
+    expect(resultPackage.ok).toBe(false);
+    expect(resultPackage.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-result-type",
+          line: 1,
+          column: 1,
+          source: resultSource,
+          message: "Rule condition must return boolean, received string",
+        }),
+      ]),
+    );
+  });
+
   it("rejects invalid syntax at package load with its source location", async () => {
-    const source = "subject.provenance.process_ref ! process.current_ref";
+    const source = "subject.provenance.process_ref ? process.current_ref";
 
     const loaded = await loadProcessPackage(
       await processPackageWithTextualProcessDrift(source),
@@ -145,7 +285,7 @@ describe("textual MDLM expressions", () => {
           line: 1,
           column: 32,
           source,
-          message: "Unexpected character '!'",
+          message: "Unexpected character '?'",
         }),
       ]),
     );

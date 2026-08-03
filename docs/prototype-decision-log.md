@@ -234,3 +234,27 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public-seam tests load and evaluate the textual rule,
   exercise variables, typed paths, and literals, and verify source-oriented
   diagnostics for invalid syntax, unknown bindings, and incompatible operands.
+
+## D-015 — Expand textual expressions through precedence-based composition
+
+- **Status:** provisional and implemented
+- **Decision:** Extend the purpose-built parser with conventional precedence for
+  negation, comparison and membership, conjunction, and disjunction, plus
+  parentheses, presence checks, and recursively evaluated JSON-like values.
+- **Alternatives:** Require explicit grouping around every operation, retain
+  Boolean YAML trees until host functions are available, or adopt a larger parser
+  before validating composed conditions.
+- **Rationale:** Conventional precedence keeps package rules concise while a typed
+  recursive AST preserves deterministic evaluation and source-oriented errors.
+  The slice is sufficient to migrate all current state and Policy rules that do
+  not call Selectors, Policies, or Computed States.
+- **Expected behavior:** Boolean operands and rule results are checked at package
+  load; membership requires a compatible array; `present` distinguishes missing
+  values from present false or null values; logical evaluation short-circuits
+  deterministically.
+- **Reversibility:** High. Parser and AST structure remain private behind
+  `loadProcessPackage` and `evaluateLifecycle`; the versioned source behavior is
+  the compatibility contract.
+- **Evidence/observations:** Public-seam tests cover every JSON-like literal,
+  Boolean operation, grouping, presence, operator/result diagnostics, and the
+  migrated structural-invalidity and review-applicability behavior.

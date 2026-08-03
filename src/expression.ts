@@ -1,7 +1,8 @@
 import type { ProcessDiagnostic, VersionedDefinition } from "./index.js";
 
-type ValueType = "boolean" | "entity" | "null" | "number" | "object" | "string" | "unknown";
-type ComparisonOperator = "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+type ValueType = "array" | "boolean" | "entity" | "null" | "number" | "object" | "string" | "unknown";
+type ComparisonOperator = "eq" | "ne" | "gt" | "gte" | "in" | "lt" | "lte";
+type LogicalOperator = "and" | "or";
 
 interface SourcePosition {
   offset: number;
@@ -14,21 +15,76 @@ interface SourceSpan {
   end: SourcePosition;
 }
 
-interface CompiledValue {
-  kind: "literal" | "path" | "variable";
-  value?: unknown;
-  variable?: string;
-  segments?: string[];
+interface NodeBase {
   valueType: ValueType;
   span: SourceSpan;
 }
 
-export interface CompiledTextExpression {
-  kind: "mdlm-comparison";
-  source: string;
+interface LiteralNode extends NodeBase {
+  kind: "literal";
+  value: unknown;
+}
+
+interface VariableNode extends NodeBase {
+  kind: "variable";
+  variable: string;
+}
+
+interface PathNode extends NodeBase {
+  kind: "path";
+  variable: string;
+  segments: string[];
+}
+
+interface ComparisonNode extends NodeBase {
+  kind: "comparison";
   operator: ComparisonOperator;
-  left: CompiledValue;
-  right: CompiledValue;
+  left: ExpressionNode;
+  right: ExpressionNode;
+}
+
+interface LogicalNode extends NodeBase {
+  kind: "logical";
+  operator: LogicalOperator;
+  left: ExpressionNode;
+  right: ExpressionNode;
+}
+
+interface NegationNode extends NodeBase {
+  kind: "not";
+  operand: ExpressionNode;
+}
+
+interface PresenceNode extends NodeBase {
+  kind: "present";
+  operand: ExpressionNode;
+}
+
+interface ArrayNode extends NodeBase {
+  kind: "array";
+  elements: ExpressionNode[];
+}
+
+interface ObjectNode extends NodeBase {
+  kind: "object";
+  properties: Record<string, ExpressionNode>;
+}
+
+type ExpressionNode =
+  | ArrayNode
+  | ComparisonNode
+  | LiteralNode
+  | LogicalNode
+  | NegationNode
+  | ObjectNode
+  | PathNode
+  | PresenceNode
+  | VariableNode;
+
+export interface CompiledTextExpression {
+  kind: "mdlm-expression";
+  source: string;
+  root: ExpressionNode;
   span: SourceSpan;
 }
 
@@ -41,12 +97,20 @@ type Bindings = Record<string, Binding>;
 
 type TokenKind =
   | "boolean"
+  | "colon"
+  | "comma"
   | "dot"
   | "eof"
   | "identifier"
+  | "left-brace"
+  | "left-bracket"
+  | "left-parenthesis"
   | "null"
   | "number"
   | "operator"
+  | "right-brace"
+  | "right-bracket"
+  | "right-parenthesis"
   | "string";
 
 interface Token {
@@ -92,16 +156,28 @@ function tokenize(source: string): Token[] {
     }
 
     const start = offset;
-    const operator = source.slice(offset).match(/^(==|!=|>=|<=|>|<)/)?.[0];
+    const operator = source.slice(offset).match(/^(==|!=|>=|<=|&&|\|\||>|<|!)/)?.[0];
     if (operator) {
       offset += operator.length;
       tokens.push({ kind: "operator", text: operator, span: span(source, start, offset) });
       continue;
     }
 
-    if (character === ".") {
+    const punctuation: Record<string, TokenKind> = {
+      ":": "colon",
+      ",": "comma",
+      ".": "dot",
+      "{": "left-brace",
+      "[": "left-bracket",
+      "(": "left-parenthesis",
+      "}": "right-brace",
+      "]": "right-bracket",
+      ")": "right-parenthesis",
+    };
+    const punctuationKind = character === undefined ? undefined : punctuation[character];
+    if (punctuationKind) {
       offset += 1;
-      tokens.push({ kind: "dot", text: character, span: span(source, start, offset) });
+      tokens.push({ kind: punctuationKind, text: character ?? "", span: span(source, start, offset) });
       continue;
     }
 
@@ -160,6 +236,8 @@ function tokenize(source: string): Token[] {
         tokens.push({ kind: "boolean", text: identifier, value: identifier === "true", span: tokenSpan });
       } else if (identifier === "null") {
         tokens.push({ kind: "null", text: identifier, value: null, span: tokenSpan });
+      } else if (identifier === "in") {
+        tokens.push({ kind: "operator", text: identifier, span: tokenSpan });
       } else {
         tokens.push({ kind: "identifier", text: identifier, span: tokenSpan });
       }
@@ -177,7 +255,7 @@ function tokenize(source: string): Token[] {
   return tokens;
 }
 
-class ComparisonParser {
+class ExpressionParser {
   private index = 0;
 
   constructor(
@@ -187,23 +265,167 @@ class ComparisonParser {
   ) {}
 
   parse(): CompiledTextExpression {
-    const left = this.parseValue();
-    const operatorToken = this.take("operator", "Expected a comparison operator");
-    const right = this.parseValue();
-    this.take("eof", "Expected the expression to end after the comparison");
-    const operator = this.operator(operatorToken);
-    this.checkOperands(operator, left, right, operatorToken.span);
+    const root = this.parseOr();
+    this.take("eof", "Expected the expression to end");
+    if (root.valueType !== "boolean") {
+      throw new ExpressionFailure(
+        "expression-result-type",
+        `Rule condition must return boolean, received ${root.valueType}`,
+        root.span,
+      );
+    }
     return {
-      kind: "mdlm-comparison",
+      kind: "mdlm-expression",
       source: this.source,
+      root,
+      span: span(this.source, 0, this.source.length),
+    };
+  }
+
+  private parseOr(): ExpressionNode {
+    let left = this.parseAnd();
+    while (this.current().kind === "operator" && this.current().text === "||") {
+      const operator = this.take("operator", "Expected '||'");
+      const right = this.parseAnd();
+      this.requireBoolean(left, operator);
+      this.requireBoolean(right, operator);
+      left = {
+        kind: "logical",
+        operator: "or",
+        left,
+        right,
+        valueType: "boolean",
+        span: { start: left.span.start, end: right.span.end },
+      };
+    }
+    return left;
+  }
+
+  private parseAnd(): ExpressionNode {
+    let left = this.parseComparison();
+    while (this.current().kind === "operator" && this.current().text === "&&") {
+      const operator = this.take("operator", "Expected '&&'");
+      const right = this.parseComparison();
+      this.requireBoolean(left, operator);
+      this.requireBoolean(right, operator);
+      left = {
+        kind: "logical",
+        operator: "and",
+        left,
+        right,
+        valueType: "boolean",
+        span: { start: left.span.start, end: right.span.end },
+      };
+    }
+    return left;
+  }
+
+  private parseComparison(): ExpressionNode {
+    const left = this.parseUnary();
+    const operatorToken = this.current();
+    const operator = operatorToken.kind === "operator"
+      ? this.comparisonOperator(operatorToken.text)
+      : undefined;
+    if (!operator) return left;
+    this.index += 1;
+    const right = this.parseUnary();
+    this.checkComparisonOperands(operator, left, right, operatorToken.span);
+    return {
+      kind: "comparison",
       operator,
       left,
       right,
+      valueType: "boolean",
       span: { start: left.span.start, end: right.span.end },
     };
   }
 
-  private parseValue(): CompiledValue {
+  private parseUnary(): ExpressionNode {
+    const token = this.current();
+    if (token.kind === "operator" && token.text === "!") {
+      this.index += 1;
+      const operand = this.parseUnary();
+      this.requireBoolean(operand, token);
+      return {
+        kind: "not",
+        operand,
+        valueType: "boolean",
+        span: { start: token.span.start, end: operand.span.end },
+      };
+    }
+    return this.parsePrimary();
+  }
+
+  private parsePrimary(): ExpressionNode {
+    const token = this.current();
+    if (token.kind === "left-bracket") return this.parseArray();
+    if (token.kind === "left-brace") return this.parseObject();
+    if (token.kind === "left-parenthesis") {
+      this.index += 1;
+      const expression = this.parseOr();
+      this.take("right-parenthesis", "Expected ')' after expression");
+      return expression;
+    }
+    if (token.kind === "identifier" && token.text === "present") {
+      this.index += 1;
+      this.take("left-parenthesis", "Expected '(' after 'present'");
+      const operand = this.parseOr();
+      const closing = this.take("right-parenthesis", "Expected ')' after presence check");
+      return {
+        kind: "present",
+        operand,
+        valueType: "boolean",
+        span: { start: token.span.start, end: closing.span.end },
+      };
+    }
+    return this.parseValue();
+  }
+
+  private parseArray(): ArrayNode {
+    const opening = this.take("left-bracket", "Expected '['");
+    const elements: ExpressionNode[] = [];
+    while (this.current().kind !== "right-bracket") {
+      elements.push(this.parseOr());
+      if (this.current().kind !== "comma") break;
+      this.index += 1;
+    }
+    const closing = this.take("right-bracket", "Expected ']' after array literal");
+    return {
+      kind: "array",
+      elements,
+      valueType: "array",
+      span: { start: opening.span.start, end: closing.span.end },
+    };
+  }
+
+  private parseObject(): ObjectNode {
+    const opening = this.take("left-brace", "Expected '{'");
+    const properties: Record<string, ExpressionNode> = {};
+    while (this.current().kind !== "right-brace") {
+      const key = this.current();
+      if (key.kind !== "identifier" && key.kind !== "string") {
+        throw new ExpressionFailure(
+          "expression-syntax",
+          "Expected an object property name",
+          key.span,
+        );
+      }
+      this.index += 1;
+      this.take("colon", "Expected ':' after object property name");
+      properties[String(key.value ?? key.text)] = this.parseOr();
+      if (this.current().kind !== "comma") break;
+      this.index += 1;
+    }
+    const closing = this.take("right-brace", "Expected '}' after object literal");
+    return {
+      kind: "object",
+      properties,
+      valueType: "object",
+      span: { start: opening.span.start, end: closing.span.end },
+    };
+  }
+
+  private parseValue(): ExpressionNode {
     const token = this.current();
     if (["boolean", "null", "number", "string"].includes(token.kind)) {
       this.index += 1;
@@ -263,32 +485,49 @@ class ComparisonParser {
     };
   }
 
-  private operator(token: Token): ComparisonOperator {
+  private comparisonOperator(operator: string): ComparisonOperator | undefined {
     const operators: Record<string, ComparisonOperator> = {
       "==": "eq",
       "!=": "ne",
       ">": "gt",
       ">=": "gte",
+      "in": "in",
       "<": "lt",
       "<=": "lte",
     };
-    const operator = operators[token.text];
-    if (!operator) {
-      throw new ExpressionFailure(
-        "expression-syntax",
-        `Unsupported comparison operator '${token.text}'`,
-        token.span,
-      );
-    }
-    return operator;
+    return operators[operator];
   }
 
-  private checkOperands(
+  private checkComparisonOperands(
     operator: ComparisonOperator,
-    left: CompiledValue,
-    right: CompiledValue,
+    left: ExpressionNode,
+    right: ExpressionNode,
     operatorSpan: SourceSpan,
   ): void {
+    if (operator === "in") {
+      if (right.kind !== "array") {
+        throw new ExpressionFailure(
+          "expression-type",
+          `Operator 'in' requires an array on the right, received ${right.valueType}`,
+          operatorSpan,
+        );
+      }
+      const elementTypes = new Set(right.elements.map((element) => element.valueType));
+      if (
+        elementTypes.size > 0 &&
+        left.valueType !== "unknown" &&
+        !elementTypes.has("unknown") &&
+        !elementTypes.has("null") &&
+        !elementTypes.has(left.valueType)
+      ) {
+        throw new ExpressionFailure(
+          "expression-type",
+          `Cannot test ${left.valueType} membership in array of ${[...elementTypes].join(" or ")}`,
+          operatorSpan,
+        );
+      }
+      return;
+    }
     if (["gt", "gte", "lt", "lte"].includes(operator)) {
       if (left.valueType !== "number" || right.valueType !== "number") {
         throw new ExpressionFailure(
@@ -310,6 +549,16 @@ class ComparisonParser {
         "expression-type",
         `Cannot compare ${left.valueType} with ${right.valueType}`,
         operatorSpan,
+      );
+    }
+  }
+
+  private requireBoolean(operand: ExpressionNode, operator: Token): void {
+    if (operand.valueType !== "boolean") {
+      throw new ExpressionFailure(
+        "expression-type",
+        `Operator '${operator.text}' requires boolean operands, received ${operand.valueType}`,
+        operator.span,
       );
     }
   }
@@ -376,7 +625,7 @@ function compile(
 ): { expression?: CompiledTextExpression; diagnostics: ProcessDiagnostic[] } {
   try {
     return {
-      expression: new ComparisonParser(source, tokenize(source), bindings).parse(),
+      expression: new ExpressionParser(source, tokenize(source), bindings).parse(),
       diagnostics: [],
     };
   } catch (error) {
@@ -387,17 +636,36 @@ function compile(
   }
 }
 
-export function compileStateExpressions(
+function definitionBindings(definition: VersionedDefinition): Bindings {
+  const bindings: Bindings = { ...baseBindings };
+  if (typeof definition.subject_as === "string") {
+    bindings[definition.subject_as] = { valueType: "entity", paths: entityPaths };
+  }
+  for (const value of Array.isArray(definition.parameters) ? definition.parameters : []) {
+    if (typeof value !== "object" || value === null) continue;
+    const parameter = value as Record<string, unknown>;
+    if (typeof parameter.name !== "string") continue;
+    const scalarTypes: Record<string, ValueType> = {
+      boolean: "boolean",
+      integer: "number",
+      number: "number",
+      string: "string",
+    };
+    const valueType = parameter.kind === "scalar"
+      ? scalarTypes[String(parameter.scalar_type)] ?? "unknown"
+      : "entity";
+    bindings[parameter.name] = valueType === "entity"
+      ? { valueType, paths: entityPaths }
+      : { valueType };
+  }
+  return bindings;
+}
+
+export function compileDefinitionExpressions(
   definition: VersionedDefinition,
   filePath: string,
 ): ProcessDiagnostic[] {
-  const subjectAs = typeof definition.subject_as === "string"
-    ? definition.subject_as
-    : "subject";
-  const bindings: Bindings = {
-    ...baseBindings,
-    [subjectAs]: { valueType: "entity", paths: entityPaths },
-  };
+  const bindings = definitionBindings(definition);
   const diagnostics: ProcessDiagnostic[] = [];
   const rules = Array.isArray(definition.rules) ? definition.rules : [];
 
@@ -418,7 +686,7 @@ export function isCompiledTextExpression(
   value: unknown,
 ): value is CompiledTextExpression {
   return typeof value === "object" && value !== null &&
-    (value as { kind?: unknown }).kind === "mdlm-comparison";
+    (value as { kind?: unknown }).kind === "mdlm-expression";
 }
 
 function readPath(root: unknown, segments: string[]): unknown {
@@ -430,10 +698,37 @@ function readPath(root: unknown, segments: string[]): unknown {
   return value;
 }
 
-function compiledValue(value: CompiledValue, context: Record<string, unknown>): unknown {
-  if (value.kind === "literal") return value.value;
-  const root = context[value.variable ?? ""];
-  return value.kind === "variable" ? root : readPath(root, value.segments ?? []);
+function evaluateNode(node: ExpressionNode, context: Record<string, unknown>): unknown {
+  switch (node.kind) {
+    case "literal": return node.value;
+    case "array": return node.elements.map((element) => evaluateNode(element, context));
+    case "object": return Object.fromEntries(
+      Object.entries(node.properties).map(([key, value]) => [key, evaluateNode(value, context)]),
+    );
+    case "variable": return context[node.variable];
+    case "path": return readPath(context[node.variable], node.segments);
+    case "not": return !evaluateNode(node.operand, context);
+    case "present": return evaluateNode(node.operand, context) !== undefined;
+    case "logical": {
+      const left = evaluateNode(node.left, context) === true;
+      return node.operator === "and"
+        ? left && evaluateNode(node.right, context) === true
+        : left || evaluateNode(node.right, context) === true;
+    }
+    case "comparison": {
+      const left = evaluateNode(node.left, context);
+      const right = evaluateNode(node.right, context);
+      switch (node.operator) {
+        case "eq": return expressionValuesEqual(left, right);
+        case "ne": return !expressionValuesEqual(left, right);
+        case "gt": return typeof left === "number" && typeof right === "number" && left > right;
+        case "gte": return typeof left === "number" && typeof right === "number" && left >= right;
+        case "in": return Array.isArray(right) && right.some((item) => expressionValuesEqual(left, item));
+        case "lt": return typeof left === "number" && typeof right === "number" && left < right;
+        case "lte": return typeof left === "number" && typeof right === "number" && left <= right;
+      }
+    }
+  }
 }
 
 export function expressionValuesEqual(left: unknown, right: unknown): boolean {
@@ -451,14 +746,5 @@ export function evaluateCompiledTextExpression(
   expression: CompiledTextExpression,
   context: Record<string, unknown>,
 ): boolean {
-  const left = compiledValue(expression.left, context);
-  const right = compiledValue(expression.right, context);
-  switch (expression.operator) {
-    case "eq": return expressionValuesEqual(left, right);
-    case "ne": return !expressionValuesEqual(left, right);
-    case "gt": return typeof left === "number" && typeof right === "number" && left > right;
-    case "gte": return typeof left === "number" && typeof right === "number" && left >= right;
-    case "lt": return typeof left === "number" && typeof right === "number" && left < right;
-    case "lte": return typeof left === "number" && typeof right === "number" && left <= right;
-  }
+  return evaluateNode(expression.root, context) === true;
 }

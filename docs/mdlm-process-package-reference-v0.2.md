@@ -4,9 +4,10 @@
 
 This reference records the legacy YAML-AST contract that remains temporarily
 accepted during the controlled expression migration. The `.lifecycle/process`
-package is now version 0.3 and declares `mdlm-expression@1`; its process-drift
-predicate is the first textual expression compiled at package load. The target
-architecture is described by `mdlm-process-overview-v0.8.md`, including complete
+package is now version 0.4 and declares `mdlm-expression@1`; its process-drift,
+structural-invalidity, and review-applicability rules are textual expressions
+compiled at package load. The target architecture is described by
+`mdlm-process-overview-v0.8.md`, including complete
 textual expression coverage, process-neutral core semantics, Kernel Capability
 bindings, and the V-model as an Example Process Package. Unmigrated v0.8 behavior
 is not silently claimed as implemented.

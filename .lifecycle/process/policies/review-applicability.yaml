@@ -17,39 +17,21 @@ default:
   rubric_ref: null
 rules:
   - priority: 300
-    when:
-      compare:
-        left: {path: {var: subject, field: identity.type}}
-        operator: in
-        right: {literal: [PSP, STK, SYS]}
+    when: 'subject.identity.type in ["PSP", "STK", "SYS"]'
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1
   - priority: 200
-    when:
-      all:
-        - compare:
-            left: {path: {var: subject, field: identity.type}}
-            operator: eq
-            right: {literal: BSL}
-        - compare:
-            left: {path: {var: subject, field: payload.role}}
-            operator: eq
-            right: {literal: candidate}
+    when: >-
+      subject.identity.type == "BSL"
+      && subject.payload.role == "candidate"
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1
   - priority: 100
-    when:
-      all:
-        - compare:
-            left: {path: {var: subject, field: identity.type}}
-            operator: eq
-            right: {literal: DEC}
-        - compare:
-            left: {path: {var: subject, field: payload.kind}}
-            operator: in
-            right: {literal: [scope, waiver, deferral, gate-signoff, retirement, cancellation]}
+    when: >-
+      subject.identity.type == "DEC"
+      && subject.payload.kind in ["scope", "waiver", "deferral", "gate-signoff", "retirement", "cancellation"]
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1
