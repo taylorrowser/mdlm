@@ -29,12 +29,7 @@
         "required": ["priority", "when", "result"],
         "properties": {
           "priority": {"type": "integer"},
-          "when": {
-            "oneOf": [
-              {"type": "string", "minLength": 1},
-              {"$ref": "expression.schema.json"}
-            ]
-          },
+          "when": {"$ref": "expression.schema.json"},
           "result": {"type": "object"}
         }
       }

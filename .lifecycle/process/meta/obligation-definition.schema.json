@@ -11,19 +11,9 @@
     "version": {"type": "integer", "minimum": 1},
     "description": {"type": "string", "minLength": 1},
     "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
-    "for_each": {
-      "oneOf": [
-        {"type": "string", "minLength": 1},
-        {"$ref": "expression.schema.json#/$defs/selectorInvocation"}
-      ]
-    },
+    "for_each": {"$ref": "expression.schema.json"},
     "subject_as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-    "satisfied_when": {
-      "oneOf": [
-        {"type": "string", "minLength": 1},
-        {"$ref": "expression.schema.json"}
-      ]
-    },
+    "satisfied_when": {"$ref": "expression.schema.json"},
     "status_rules": {
       "type": "array",
       "items": {
@@ -33,12 +23,7 @@
         "properties": {
           "status": {"enum": ["ready", "blocked", "awaiting-review", "stale", "failed"]},
           "priority": {"type": "integer"},
-          "when": {
-            "oneOf": [
-              {"type": "string", "minLength": 1},
-              {"$ref": "expression.schema.json"}
-            ]
-          },
+          "when": {"$ref": "expression.schema.json"},
           "reason": {"type": "string", "minLength": 1}
         }
       },
@@ -49,23 +34,7 @@
     "waiver_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}
   },
   "$defs": {
-    "selection": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["selector", "arguments", "cardinality"],
-      "properties": {
-        "selector": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
-        "arguments": {"$ref": "expression.schema.json#/$defs/arguments"},
-        "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]}
-      }
-    },
-    "binding": {
-      "oneOf": [
-        {"type": "string", "minLength": 1},
-        {"$ref": "expression.schema.json#/$defs/value"},
-        {"type": "object", "additionalProperties": false, "required": ["select"], "properties": {"select": {"$ref": "#/$defs/selection"}}}
-      ]
-    },
+    "binding": {"$ref": "expression.schema.json"},
     "resolver": {
       "type": "object",
       "additionalProperties": false,
@@ -77,12 +46,7 @@
           "additionalProperties": false,
           "required": ["for_each", "as"],
           "properties": {
-            "for_each": {
-              "oneOf": [
-                {"type": "string", "minLength": 1},
-                {"$ref": "expression.schema.json#/$defs/selectorInvocation"}
-              ]
-            },
+            "for_each": {"$ref": "expression.schema.json"},
             "as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
           }
         },

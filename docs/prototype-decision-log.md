@@ -328,3 +328,25 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public-seam tests cover successful universal
   evaluation, unknown and wrongly typed bindings, non-Boolean predicates, and the
   complete lifecycle regression suite after package-wide textual migration.
+
+## D-019 — Reject authored YAML expression trees at package load
+
+- **Status:** accepted and implemented
+- **Decision:** `mdlm-expression@1` source strings are the only valid authoring
+  representation for expression-bearing fields. Meta-schemas require strings and
+  semantic validation emits one stable migration diagnostic for any remaining
+  YAML expression object.
+- **Alternatives:** Continue dual authoring indefinitely, silently translate old
+  trees, or rely only on verbose generic meta-schema errors.
+- **Rationale:** One contract removes ambiguous author intent and prevents the
+  private evaluator representation from becoming a second public language. The
+  semantic diagnostic gives a direct repair path while the schema independently
+  enforces the boundary.
+- **Expected behavior:** The manifest pins `mdlm-expression@1`; object-valued
+  expressions and structural Selector invocations fail package loading; valid
+  textual packages compile as before.
+- **Reversibility:** Versioned. A future authored representation requires a new
+  expression-language interface version rather than weakening v1.
+- **Evidence/observations:** Public package-load tests cover every former value and
+  predicate tree family, structural Selector invocation, exact language pinning,
+  and simultaneous semantic and meta-schema rejection.

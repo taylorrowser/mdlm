@@ -1528,32 +1528,6 @@ function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
   }
 }
 
-function legacyExpressionDependencies(value: unknown): ExpressionDependency[] {
-  if (Array.isArray(value)) return value.flatMap(legacyExpressionDependencies);
-  if (typeof value !== "object" || value === null) return [];
-  const expression = value as Record<string, unknown>;
-  const dependencies: ExpressionDependency[] = [];
-  const stateCall = typeof expression.state === "object" &&
-      expression.state !== null
-    ? expression.state as Record<string, unknown>
-    : undefined;
-  if (typeof stateCall?.dimension === "string") {
-    dependencies.push(`state:${stateCall.dimension}`);
-  }
-  const policyCall = typeof expression.policy === "object" &&
-      expression.policy !== null
-    ? expression.policy as Record<string, unknown>
-    : undefined;
-  if (typeof policyCall?.ref === "string") {
-    const id = policyCall.ref.split("@")[0];
-    if (id) dependencies.push(`policy:${id}`);
-  }
-  return [
-    ...dependencies,
-    ...Object.values(expression).flatMap(legacyExpressionDependencies),
-  ];
-}
-
 function definitionDependencies(
   definition: VersionedDefinition,
 ): ExpressionDependency[] {
@@ -1562,10 +1536,10 @@ function definitionDependencies(
   for (const value of rules) {
     if (typeof value !== "object" || value === null) continue;
     const expression = (value as Record<string, unknown>).when;
-    const found = isCompiledTextExpression(expression)
-      ? expressionDependencies(expression.root)
-      : legacyExpressionDependencies(expression);
-    for (const dependency of found) dependencies.add(dependency);
+    if (!isCompiledTextExpression(expression)) continue;
+    for (const dependency of expressionDependencies(expression.root)) {
+      dependencies.add(dependency);
+    }
   }
   return [...dependencies];
 }

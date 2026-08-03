@@ -1,14 +1,12 @@
 # MDLM Declarative Process Package Reference
 
-**Version 0.2 — experimental bootstrap implementation reference**
+**Bootstrap package 0.8 — experimental implementation reference**
 
-This reference records the legacy YAML-AST contract that remains temporarily
-accepted during the controlled expression migration. The `.lifecycle/process`
-package is now version 0.7 and declares `mdlm-expression@1`; all expression-
-bearing definitions in the bootstrap package use textual source compiled at
-package load, including typed Selector, Policy-result, Computed State, and finite
-universal-quantification operations. The target
-architecture is described by
+The `.lifecycle/process` package declares the exact `mdlm-expression@1`
+authoring contract. Every expression-bearing field accepts textual source only;
+package loading rejects authored YAML expression trees before evaluation. The
+language includes typed Selector, Policy-result, Computed State, and finite
+universal-quantification operations. The target architecture is described by
 `mdlm-process-overview-v0.8.md`, including complete
 textual expression coverage, process-neutral core semantics, Kernel Capability
 bindings, and the V-model as an Example Process Package. Unmigrated v0.8 behavior
@@ -181,38 +179,40 @@ use one expression grammar.
 
 ### 6.1 Values
 
-A value is one of:
+Source expressions use JSON-like string, number, Boolean, null, array, and object
+literals; bound variables; and typed dotted paths such as
+`subject.payload.outcome`. Safe value-producing host calls are:
 
-- `literal` — JSON scalar, array, object, or null;
-- `var` — a bound entity or context object;
-- `path` — a typed field beneath a bound variable;
-- `state` — a named computed-state dimension for a subject;
-- `policy` — one field from a policy result;
-- `count` — cardinality of a parameterized selector result.
+```text
+state(subject, "dimension")
+policy("policy-id@1", {subject: subject}).result_field
+select("selector-id@1", {subject: subject})
+count("selector-id@1", {subject: subject})
+one("selector-id@1", {subject: subject})
+```
 
 ### 6.2 Predicates
 
-Predicates support:
+Predicates compose `==`, `!=`, `>`, `>=`, `<`, `<=`, membership with `in`, `&&`,
+`||`, unary `!`, and parentheses. Safe predicate host calls are `present`,
+`exists`, `none`, and finite universal quantification:
 
-- `compare` with `eq`, `ne`, `in`, `not-in`, `gt`, `gte`, `lt`, `lte`,
-  `contains`, and `matches`;
-- `all`, `any`, and `not`;
-- `exists` and `none` over selector results;
-- `every` over selector results with an explicitly bound result variable;
-- `present` for optional values.
+```text
+every("selector-id@1", {candidate: candidate},
+  member => state(member, "validity") == "valid")
+```
 
-Expressions cannot execute arbitrary code, access the filesystem, make network
-requests, mutate data, or invoke undeclared functions.
+The universal binding receives the Selector's declared result kind and its
+predicate must return Boolean. Expressions cannot execute arbitrary code, access
+the filesystem, make network requests, mutate data, or invoke undeclared
+functions.
 
 ### 6.3 Fact-to-fact comparison
 
 Both comparison operands are values, so process drift is declared directly:
 
 ```yaml
-compare:
-  left: {path: {var: subject, field: provenance.process_ref}}
-  operator: ne
-  right: {path: {var: process, field: current_ref}}
+when: 'subject.provenance.process_ref != process.current_ref'
 ```
 
 The kernel does not need a special `process.drift` fact.
@@ -228,21 +228,14 @@ parameters:
 query:
   from:
     relation: incoming-links
-    of: {var: subject}
+    of: subject
     link: reviews
     emit: source
     types: [REV]
   as: review
-  where:
-    all:
-      - compare:
-          left: {path: {var: review, field: payload.outcome}}
-          operator: eq
-          right: {literal: pass}
-      - compare:
-          left: {state: {dimension: validity, subject: {var: review}}}
-          operator: eq
-          right: {literal: valid}
+  where: >-
+    review.payload.outcome == "pass"
+    && state(review, "validity") == "valid"
 ```
 
 Selectors may source a kernel collection, traverse one primitive relation, or
@@ -265,11 +258,7 @@ parameters:
 default: {required: false, rubric_ref: null}
 rules:
   - priority: 300
-    when:
-      compare:
-        left: {path: {var: subject, field: identity.type}}
-        operator: in
-        right: {literal: [PSP, STK, SYS]}
+    when: 'subject.identity.type in ["PSP", "STK", "SYS"]'
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1
@@ -364,7 +353,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Version 0.2 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.8 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

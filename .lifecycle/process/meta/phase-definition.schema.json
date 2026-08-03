@@ -14,12 +14,7 @@
     "purpose": {"type": "string", "minLength": 1},
     "coverage": {"enum": ["complete", "bootstrap-subset"]},
     "omitted_capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
-    "entry": {
-      "oneOf": [
-        {"type": "string", "minLength": 1},
-        {"$ref": "expression.schema.json"}
-      ]
-    },
+    "entry": {"$ref": "expression.schema.json"},
     "scenarios": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "minItems": 1, "uniqueItems": true},
     "obligations": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "uniqueItems": true},
     "outputs": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
@@ -29,19 +24,9 @@
       "required": ["required", "candidate_selector", "candidate_as", "completion"],
       "properties": {
         "required": {"type": "boolean"},
-        "candidate_selector": {
-          "oneOf": [
-            {"type": "string", "minLength": 1},
-            {"$ref": "expression.schema.json#/$defs/selectorInvocation"}
-          ]
-        },
+        "candidate_selector": {"$ref": "expression.schema.json"},
         "candidate_as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-        "completion": {
-          "oneOf": [
-            {"type": "string", "minLength": 1},
-            {"$ref": "expression.schema.json"}
-          ]
-        }
+        "completion": {"$ref": "expression.schema.json"}
       }
     }
   }

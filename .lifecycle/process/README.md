@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.7
+# MDLM bootstrap process package v0.8
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -8,8 +8,8 @@ V-model Example Process Package, not lifecycle types recognized by MDLM core.
 
 The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
 definition now uses textual source compiled at package load, including finite
-universal predicates over typed Selector results. Legacy expression trees remain
-accepted only until the controlled migration rejection slice. Explicit Kernel
+universal predicates over typed Selector results. Authored YAML expression trees
+are rejected by both meta-schema and semantic validation. Explicit Kernel
 Capability bindings have not yet been implemented.
 
 ## Ownership
@@ -44,7 +44,7 @@ All declarative behavior uses:
 
 - the primitive catalog in `primitives/kernel-v1.yaml`;
 - parameterized selectors in `selectors/`;
-- the shared expression grammar in `meta/expression.schema.json`;
+- the textual expression source contract in `meta/expression.schema.json`;
 - machine policies in `policies/*.yaml`.
 
 A process rule must not request a process-specific kernel fact. Conclusions such
@@ -59,9 +59,9 @@ presence checks, typed `select`, `exists`, `none`, `count`, and `one` Selector
 operations, `state(subject, dimension)`, typed Policy result-field selection, and
 `every(selector, arguments, binding => predicate)` over finite Selector results.
 Package loading validates references, arguments, binding and result types, and
-direct State and Policy dependency cycles. The bootstrap package no longer
-authors legacy expression trees. Neither representation can execute arbitrary
-code or produce side effects.
+direct State and Policy dependency cycles. `mdlm-expression@1` textual source is
+the only accepted authoring representation and cannot execute arbitrary code or
+produce side effects.
 
 ## Links
 

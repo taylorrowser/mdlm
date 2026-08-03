@@ -45,7 +45,7 @@ async function processPackageWithStateCycle(): Promise<string> {
     validityPath,
     validity.replace(
       "    when: 'exists(\"dependency-changes-for@1\", {subject: subject})'",
-      "    when:\n      compare:\n        left: {state: {dimension: relationship-overlays, subject: {var: subject}}}\n        operator: eq\n        right: {literal: []}",
+      "    when: 'state(subject, \"relationship-overlays\") == []'",
     ),
   );
   return processRoot;

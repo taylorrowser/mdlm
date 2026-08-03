@@ -8,12 +8,7 @@
   "properties": {
     "from": {"$ref": "#/$defs/source"},
     "as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-    "where": {
-      "oneOf": [
-        {"type": "string", "minLength": 1},
-        {"$ref": "expression.schema.json"}
-      ]
-    },
+    "where": {"$ref": "expression.schema.json"},
     "distinct": {"type": "boolean"},
     "order_by": {
       "type": "array",
@@ -45,12 +40,7 @@
           "required": ["relation", "of", "emit"],
           "properties": {
             "relation": {"enum": ["outgoing-links", "incoming-links", "revisions", "baseline-members", "baseline-evidence", "baseline-memberships", "baseline-composed", "dependency-changes", "scenario-inputs", "scenario-outputs"]},
-            "of": {
-              "oneOf": [
-                {"type": "string", "minLength": 1},
-                {"$ref": "expression.schema.json#/$defs/value"}
-              ]
-            },
+            "of": {"$ref": "expression.schema.json"},
             "link": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
             "emit": {"enum": ["source", "target", "entity", "record"]},
             "types": {"$ref": "#/$defs/types"}
@@ -62,7 +52,10 @@
           "required": ["selector", "arguments"],
           "properties": {
             "selector": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
-            "arguments": {"$ref": "expression.schema.json#/$defs/arguments"}
+            "arguments": {
+              "type": "object",
+              "additionalProperties": {"$ref": "expression.schema.json"}
+            }
           }
         }
       ]

@@ -1,7 +1,6 @@
 import {
   evaluateCompiledTextExpression,
   evaluateCompiledTextValue,
-  expressionValuesEqual,
   isCompiledTextExpression,
 } from "./expression.js";
 import type {
@@ -115,15 +114,6 @@ function referenceId(reference: unknown): string {
   const match = /^(.*)@[1-9][0-9]*$/.exec(value);
   if (!match?.[1]) throw new Error(`Invalid versioned reference '${value}'`);
   return match[1];
-}
-
-function getPath(root: unknown, field: string): unknown {
-  let value = root;
-  for (const segment of field.split(".")) {
-    if (typeof value !== "object" || value === null) return undefined;
-    value = (value as Record<string, unknown>)[segment];
-  }
-  return value;
 }
 
 class LifecycleEvaluator {
@@ -295,17 +285,6 @@ class LifecycleEvaluator {
     }
   }
 
-  private policy(
-    reference: string,
-    argumentsValue: unknown,
-    context: EvaluationContext,
-  ): Record<string, unknown> {
-    return this.policyResult(
-      reference,
-      this.evaluateArguments(argumentsValue, context),
-    );
-  }
-
   private policyResult(
     reference: string,
     argumentsContext: EvaluationContext,
@@ -338,78 +317,21 @@ class LifecycleEvaluator {
   }
 
   private expression(value: unknown, context: EvaluationContext): boolean {
-    if (isCompiledTextExpression(value)) {
-      return evaluateCompiledTextExpression(
-        value,
-        context,
-        this.expressionHost(),
-      );
+    if (!isCompiledTextExpression(value)) {
+      throw new Error(`Expected a compiled mdlm-expression@1 condition`);
     }
-    const expression = object(value);
-    if (!expression) throw new Error(`Expected an expression object`);
-    if (expression.compare !== undefined) {
-      const comparison = object(expression.compare);
-      if (!comparison) return false;
-      const left = this.value(comparison.left, context);
-      const right = this.value(comparison.right, context);
-      switch (comparison.operator) {
-        case "eq": return expressionValuesEqual(left, right);
-        case "ne": return !expressionValuesEqual(left, right);
-        case "in": return Array.isArray(right) && right.some((item) => expressionValuesEqual(left, item));
-        case "not-in": return Array.isArray(right) && !right.some((item) => expressionValuesEqual(left, item));
-        case "gt": return typeof left === "number" && typeof right === "number" && left > right;
-        case "gte": return typeof left === "number" && typeof right === "number" && left >= right;
-        case "lt": return typeof left === "number" && typeof right === "number" && left < right;
-        case "lte": return typeof left === "number" && typeof right === "number" && left <= right;
-        case "contains": return (Array.isArray(left) && left.some((item) => expressionValuesEqual(item, right))) || (typeof left === "string" && typeof right === "string" && left.includes(right));
-        case "matches": return typeof left === "string" && typeof right === "string" && new RegExp(right).test(left);
-        default: throw new Error(`Unknown comparison operator '${String(comparison.operator)}'`);
-      }
-    }
-    if (expression.all !== undefined) return array(expression.all).every((item) => this.expression(item, context));
-    if (expression.any !== undefined) return array(expression.any).some((item) => this.expression(item, context));
-    if (expression.not !== undefined) return !this.expression(expression.not, context);
-    if (expression.exists !== undefined) return this.invokeSelector(expression.exists, context).length > 0;
-    if (expression.none !== undefined) return this.invokeSelector(expression.none, context).length === 0;
-    if (expression.every !== undefined) {
-      const every = object(expression.every);
-      if (!every) return false;
-      const results = this.invokeSelector(every, context);
-      const alias = string(every.as) ?? "item";
-      return results.every((result) => this.expression(every.satisfies, { ...context, [alias]: result }));
-    }
-    if (expression.present !== undefined) return this.value(expression.present, context) !== undefined;
-    throw new Error(`Unknown expression form: ${JSON.stringify(expression)}`);
+    return evaluateCompiledTextExpression(
+      value,
+      context,
+      this.expressionHost(),
+    );
   }
 
   private value(value: unknown, context: EvaluationContext): unknown {
-    if (isCompiledTextExpression(value)) {
-      return evaluateCompiledTextValue(value, context, this.expressionHost());
+    if (!isCompiledTextExpression(value)) {
+      throw new Error(`Expected a compiled mdlm-expression@1 value`);
     }
-    const operand = object(value);
-    if (!operand) throw new Error(`Expected an expression value`);
-    if (Object.prototype.hasOwnProperty.call(operand, "literal")) return operand.literal;
-    if (operand.var !== undefined) return context[String(operand.var)];
-    if (operand.path !== undefined) {
-      const pathValue = object(operand.path);
-      if (!pathValue) return undefined;
-      const root = context[String(pathValue.var)];
-      return getPath(root, String(pathValue.field));
-    }
-    if (operand.state !== undefined) {
-      const stateValue = object(operand.state);
-      const subject = this.value(stateValue?.subject, context);
-      if (!this.isEntity(subject)) throw new Error(`State subject is not an entity`);
-      return this.state(String(stateValue?.dimension), subject);
-    }
-    if (operand.policy !== undefined) {
-      const policyValue = object(operand.policy);
-      if (!policyValue) return undefined;
-      const result = this.policy(String(policyValue.ref), policyValue.arguments, context);
-      return getPath(result, String(policyValue.field));
-    }
-    if (operand.count !== undefined) return this.invokeSelector(operand.count, context).length;
-    throw new Error(`Unknown expression value: ${JSON.stringify(operand)}`);
+    return evaluateCompiledTextValue(value, context, this.expressionHost());
   }
 
   private evaluateArguments(value: unknown, context: EvaluationContext): EvaluationContext {

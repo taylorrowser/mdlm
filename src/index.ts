@@ -129,6 +129,98 @@ function formatAjvErrors(
   }));
 }
 
+function legacyExpressionAuthoringDiagnostics(
+  value: unknown,
+  filePath: string,
+): ProcessDiagnostic[] {
+  if (typeof value !== "object" || value === null) return [];
+  const definition = value as Record<string, unknown>;
+  const diagnostics: ProcessDiagnostic[] = [];
+  const check = (expression: unknown, expressionPath: string): void => {
+    if (typeof expression === "object" && expression !== null) {
+      diagnostics.push({
+        code: "legacy-expression-authoring",
+        path: `${filePath}#${expressionPath}`,
+        message:
+          "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
+      });
+    }
+  };
+  const checkRules = (rules: unknown, prefix: string): void => {
+    if (!Array.isArray(rules)) return;
+    rules.forEach((rule, index) => {
+      if (typeof rule !== "object" || rule === null) return;
+      check(
+        (rule as Record<string, unknown>).when,
+        `${prefix}[${index}].when`,
+      );
+    });
+  };
+  const checkArguments = (argumentsValue: unknown, prefix: string): void => {
+    if (typeof argumentsValue !== "object" || argumentsValue === null) return;
+    for (const [name, argument] of Object.entries(argumentsValue)) {
+      check(argument, `${prefix}.${name}`);
+    }
+  };
+
+  switch (definition.kind) {
+    case "state-definition":
+    case "policy-definition":
+      checkRules(definition.rules, "rules");
+      break;
+    case "selector-definition": {
+      const query = typeof definition.query === "object" && definition.query !== null
+        ? definition.query as Record<string, unknown>
+        : undefined;
+      const from = typeof query?.from === "object" && query.from !== null
+        ? query.from as Record<string, unknown>
+        : undefined;
+      check(query?.where, "query.where");
+      check(from?.of, "query.from.of");
+      checkArguments(from?.arguments, "query.from.arguments");
+      break;
+    }
+    case "obligation-definition": {
+      check(definition.for_each, "for_each");
+      check(definition.satisfied_when, "satisfied_when");
+      checkRules(definition.status_rules, "status_rules");
+      const resolver = typeof definition.resolve_with === "object" &&
+          definition.resolve_with !== null
+        ? definition.resolve_with as Record<string, unknown>
+        : undefined;
+      const dispatch = typeof resolver?.dispatch === "object" &&
+          resolver.dispatch !== null
+        ? resolver.dispatch as Record<string, unknown>
+        : undefined;
+      check(dispatch?.for_each, "resolve_with.dispatch.for_each");
+      checkArguments(resolver?.inputs, "resolve_with.inputs");
+      break;
+    }
+    case "scenario-definition": {
+      check(definition.completion, "completion");
+      const inputs = Array.isArray(definition.inputs) ? definition.inputs : [];
+      inputs.forEach((input, index) => {
+        if (typeof input !== "object" || input === null) return;
+        check(
+          (input as Record<string, unknown>).conditions,
+          `inputs[${index}].conditions`,
+        );
+      });
+      break;
+    }
+    case "phase-definition": {
+      check(definition.entry, "entry");
+      const gate = typeof definition.gate === "object" && definition.gate !== null
+        ? definition.gate as Record<string, unknown>
+        : undefined;
+      check(gate?.candidate_selector, "gate.candidate_selector");
+      check(gate?.completion, "gate.completion");
+      break;
+    }
+  }
+  return diagnostics;
+}
+
 function isVersionedDefinition(value: unknown): value is VersionedDefinition {
   return (
     typeof value === "object" &&
@@ -319,6 +411,9 @@ export async function loadProcessPackage(
       const byId: Record<string, VersionedDefinition> = {};
       for (const filePath of await yamlFiles(path.join(root, group))) {
         const definition = await readYaml(filePath);
+        diagnostics.push(
+          ...legacyExpressionAuthoringDiagnostics(definition, filePath),
+        );
         if (!validator || !validator(definition)) {
           diagnostics.push(...formatAjvErrors(filePath, validator?.errors));
           continue;
@@ -353,6 +448,8 @@ export async function loadProcessPackage(
       }
       definitions[group] = byId;
     }
+
+    if (diagnostics.length > 0) return { ok: false, diagnostics };
 
     for (const { definition, filePath } of expressionDefinitions) {
       diagnostics.push(
