@@ -21,7 +21,7 @@ context_paths:
   - {path: integrity.package_valid, type: boolean, description: Whether the resolved process package passed complete validation.}
   - {path: id, type: string, description: Current phase identifier on the phase context.}
   - {path: integrity.contract_valid, type: boolean, description: Generic input/output/schema/link validation for a scenario execution.}
-collections: [stable-data, revisions, baselines]
+collections: [stable-data, revisions]
 relations:
   - id: outgoing-links
     from: [stable-datum, revision]
@@ -38,26 +38,6 @@ relations:
     emits: exact revision
     supports_link_filter: false
     description: Enumerate exact revisions in stable lineage.
-  - id: baseline-members
-    from: [baseline]
-    emits: exact definition-member revision
-    supports_link_filter: false
-    description: Traverse exact definition membership.
-  - id: baseline-evidence
-    from: [baseline]
-    emits: exact supporting-evidence revision
-    supports_link_filter: false
-    description: Traverse evidence separately from definition membership.
-  - id: baseline-memberships
-    from: [revision]
-    emits: containing baseline revision
-    supports_link_filter: false
-    description: Compute exact baselines containing a revision.
-  - id: baseline-composed
-    from: [baseline]
-    emits: exact composed baseline revision
-    supports_link_filter: false
-    description: Traverse outgoing composes links.
   - id: dependency-changes
     from: [revision]
     emits: change record
@@ -73,3 +53,27 @@ relations:
     emits: declared output entity
     supports_link_filter: false
     description: Enumerate outputs created by one scenario execution.
+capability_surfaces:
+  exact-baseline@1:
+    collections: [baselines]
+    relations:
+      - id: baseline-members
+        from: [baseline]
+        emits: exact definition-member revision
+        supports_link_filter: false
+        description: Traverse exact definition membership.
+      - id: baseline-evidence
+        from: [baseline]
+        emits: exact supporting-evidence revision
+        supports_link_filter: false
+        description: Traverse evidence separately from definition membership.
+      - id: baseline-memberships
+        from: [revision]
+        emits: containing baseline revision
+        supports_link_filter: false
+        description: Compute exact baselines containing a revision.
+      - id: baseline-composed
+        from: [baseline]
+        emits: exact composed baseline revision
+        supports_link_filter: false
+        description: Traverse outgoing composes links.

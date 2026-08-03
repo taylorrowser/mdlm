@@ -1,16 +1,17 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.8 — experimental implementation reference**
+**Bootstrap package 0.9 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
 package loading rejects authored YAML expression trees before evaluation. The
 language includes typed Selector, Policy-result, Computed State, and finite
 universal-quantification operations. The target architecture is described by
-`mdlm-process-overview-v0.8.md`, including complete
-textual expression coverage, process-neutral core semantics, Kernel Capability
-bindings, and the V-model as an Example Process Package. Unmigrated v0.8 behavior
-is not silently claimed as implemented.
+`mdlm-process-overview-v0.8.md`, including complete textual expression coverage,
+process-neutral core semantics, Kernel Capabilities, and the V-model as an
+Example Process Package. The bootstrap now binds a package-defined type to
+`exact-baseline@1`; other unmigrated v0.8 behavior is not silently claimed as
+implemented.
 
 ## 1. Purpose
 
@@ -70,11 +71,27 @@ the kernel, but may not use that declaration to weaken envelope integrity.
 
 ### 2.3 Kernel-managed payload
 
-Some durable claims contain mechanically generated payload sections. For example,
-a frozen BSL snapshot contains member hashes, resolved links, and process
-provenance. A type declares these paths as `kernel_managed_payload_paths`. The
-kernel refuses direct author edits to them and populates them during the relevant
-atomic operation.
+Some durable claims contain mechanically generated payload sections. A type
+declares these paths as `kernel_managed_payload_paths`. The kernel refuses direct
+author edits to them and populates them during the relevant atomic operation.
+The bootstrap baseline type marks definition membership, supporting evidence,
+and snapshot integrity data as managed.
+
+### 2.4 Kernel Capability binding
+
+The manifest opts a compatible package-defined type into fixed exact-baseline
+behavior without giving its type ID kernel meaning:
+
+```yaml
+kernel_capabilities:
+  exact-baseline@1:
+    type: BSL
+```
+
+Package loading validates the capability version, the managed
+`definition_members`, `evidence`, and `snapshot` payload fields, and an exact
+`composes` link back to the bound type. A different package may bind another type
+ID. Without the binding, baseline collections and relations are unavailable.
 
 ## 3. Type templates
 
@@ -121,9 +138,9 @@ ID may appear on several source types with different target constraints. Each
 source definition is authoritative for its own links. Backlinks are always
 computed.
 
-Baseline members, supporting evidence, and composition remain distinct. Ordinary
-members and evidence are BSL payload fields; composition is represented once by
-outgoing `composes` links.
+Baseline members, supporting evidence, and composition remain distinct. Members
+and evidence are capability-managed payload fields on the bound type; composition
+is represented once by outgoing `composes` links.
 
 ## 5. Primitive evaluator interface
 
@@ -149,8 +166,10 @@ errors when their type can be determined statically.
 
 ### 5.2 Collections
 
-The kernel supplies collections of stable data, exact revisions, and baselines.
-A selector narrows a collection by type and expression.
+The kernel supplies collections of stable data and exact revisions. The baseline
+collection is exposed only when `exact-baseline@1` is bound and contains exact
+revisions of that package-defined type. A Selector narrows a collection by type
+and expression.
 
 ### 5.3 Relations
 
@@ -159,10 +178,14 @@ The first relation vocabulary is:
 - `outgoing-links` — from source revision to target;
 - `incoming-links` — from target to source revision;
 - `revisions` — from a stable datum or revision to all exact revisions;
-- `baseline-members` — from BSL to definition-member revisions;
-- `baseline-evidence` — from BSL to supporting-evidence revisions;
-- `baseline-memberships` — from a revision to containing baselines;
-- `baseline-composed` — from BSL to exact BSLs reached by `composes`;
+- `baseline-members` — from a capability-bound baseline to definition-member
+  revisions;
+- `baseline-evidence` — from a capability-bound baseline to supporting-evidence
+  revisions;
+- `baseline-memberships` — from a revision to containing capability-bound
+  baselines;
+- `baseline-composed` — from a capability-bound baseline to exact bound baselines
+  reached by `composes`;
 - `dependency-changes` — from a revision to conservative, kernel-classified
   content, link-resolution, evidence-target, or review-context changes;
 - `scenario-inputs` and `scenario-outputs` — from one scenario execution to its

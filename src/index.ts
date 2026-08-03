@@ -45,9 +45,14 @@ export interface VersionedDefinition {
   [key: string]: unknown;
 }
 
+export interface KernelCapabilityBinding {
+  type: string;
+}
+
 export interface ProcessPackage {
   root: string;
   manifest: ProcessManifest;
+  kernelCapabilities: Record<string, KernelCapabilityBinding>;
   envelopeSchema: Record<string, unknown>;
   templates: Record<string, VersionedDefinition>;
   types: Record<string, VersionedDefinition>;
@@ -77,6 +82,7 @@ export interface ResolvedType {
   outgoingLinks: Record<string, unknown>[];
   lifecycle: Record<string, unknown>;
   kernelManagedPayloadPaths: string[];
+  kernelCapabilities: string[];
 }
 
 export type ResolveTypeResult =
@@ -101,6 +107,164 @@ const definitionSchemas = {
 } as const;
 
 type DefinitionGroup = keyof typeof definitionSchemas;
+
+const exactBaselineCapability = {
+  reference: "exact-baseline@1",
+  managedPayloadPaths: ["definition_members", "evidence", "snapshot"],
+  payloadFields: {
+    definition_members: "array:string",
+    evidence: "array:string",
+    snapshot: "object",
+  },
+} as const;
+
+const exactBaselineRelations = new Set([
+  "baseline-members",
+  "baseline-evidence",
+  "baseline-memberships",
+  "baseline-composed",
+]);
+
+function capabilityPrimitiveDiagnostics(
+  definition: VersionedDefinition,
+  filePath: string,
+  capabilityBindings: unknown,
+): ProcessDiagnostic[] {
+  if (definition.kind !== "selector-definition") return [];
+  if (
+    typeof capabilityBindings === "object" &&
+    capabilityBindings !== null &&
+    Object.keys(capabilityBindings).some((reference) =>
+      reference.startsWith("exact-baseline@")
+    )
+  ) {
+    return [];
+  }
+  const query = typeof definition.query === "object" &&
+      definition.query !== null
+    ? definition.query as Record<string, unknown>
+    : undefined;
+  const from = typeof query?.from === "object" && query.from !== null
+    ? query.from as Record<string, unknown>
+    : undefined;
+  if (from?.collection === "baselines") {
+    return [{
+      code: "capability-required",
+      path: `${filePath}#query.from.collection`,
+      message:
+        "Collection 'baselines' requires Kernel Capability exact-baseline@1",
+    }];
+  }
+  if (
+    typeof from?.relation === "string" &&
+    exactBaselineRelations.has(from.relation)
+  ) {
+    return [{
+      code: "capability-required",
+      path: `${filePath}#query.from.relation`,
+      message: `Relation '${from.relation}' requires Kernel Capability exact-baseline@1`,
+    }];
+  }
+  return [];
+}
+
+function validateKernelCapabilities(
+  processPackage: ProcessPackage,
+): ProcessDiagnostic[] {
+  const diagnostics: ProcessDiagnostic[] = [];
+  for (const [reference, binding] of Object.entries(
+    processPackage.kernelCapabilities,
+  )) {
+    const bindingPath = `manifest.kernel_capabilities.${reference}.type`;
+    if (reference !== exactBaselineCapability.reference) {
+      diagnostics.push({
+        code: "unknown-kernel-capability",
+        path: bindingPath,
+        message: `Unknown Kernel Capability '${reference}'`,
+      });
+      continue;
+    }
+    if (!processPackage.types[binding.type]) {
+      diagnostics.push({
+        code: "unknown-capability-type",
+        path: bindingPath,
+        message: `Kernel Capability '${reference}' binds unknown lifecycle type '${binding.type}'`,
+      });
+      continue;
+    }
+    const resolved = resolveType(processPackage, binding.type);
+    if (!resolved.ok) {
+      diagnostics.push(...resolved.diagnostics);
+      continue;
+    }
+    const properties = resolved.type.payloadSchema.properties;
+    const missingFields = Object.keys(
+      exactBaselineCapability.payloadFields,
+    ).filter((field) => properties[field] === undefined);
+    if (missingFields.length > 0) {
+      diagnostics.push({
+        code: "incompatible-kernel-capability",
+        path: bindingPath,
+        message: `Type '${binding.type}' bound to ${reference} must define capability payload fields: ${missingFields.join(", ")}`,
+      });
+    }
+    for (const [field, expected] of Object.entries(
+      exactBaselineCapability.payloadFields,
+    )) {
+      const schema = properties[field];
+      if (typeof schema !== "object" || schema === null) continue;
+      const fieldSchema = schema as Record<string, unknown>;
+      const items = typeof fieldSchema.items === "object" &&
+          fieldSchema.items !== null
+        ? fieldSchema.items as Record<string, unknown>
+        : undefined;
+      const compatible = expected === "object"
+        ? fieldSchema.type === "object"
+        : fieldSchema.type === "array" && items?.type === "string";
+      if (!compatible) {
+        diagnostics.push({
+          code: "incompatible-kernel-capability",
+          path: `types.${binding.type}.payload_schema.properties.${field}`,
+          message: `${reference} requires '${field}' to be ${expected === "object" ? "an object" : "an array of strings"}`,
+        });
+      }
+    }
+    const compositionLink = resolved.type.outgoingLinks.find(
+      (link) => link.id === "composes",
+    );
+    const compositionTargets =
+      typeof compositionLink === "object" && compositionLink !== null &&
+        Array.isArray(compositionLink.targets)
+        ? compositionLink.targets
+        : [];
+    const supportsExactComposition = compositionTargets.some((target) => {
+      if (typeof target !== "object" || target === null) return false;
+      const contract = target as Record<string, unknown>;
+      return contract.identity === "revision" &&
+        Array.isArray(contract.types) &&
+        contract.types.includes(binding.type);
+    });
+    if (!supportsExactComposition) {
+      diagnostics.push({
+        code: "incompatible-kernel-capability",
+        path: `types.${binding.type}.outgoing_links`,
+        message: `Type '${binding.type}' bound to ${reference} must declare the 'composes' exact-revision link to ${binding.type}`,
+      });
+    }
+    const managedPaths = new Set(resolved.type.kernelManagedPayloadPaths);
+    const missingManagedPaths = exactBaselineCapability.managedPayloadPaths.filter(
+      (payloadPath) => !managedPaths.has(payloadPath),
+    );
+    if (missingManagedPaths.length > 0) {
+      diagnostics.push({
+        code: "incompatible-kernel-capability",
+        path: bindingPath,
+        message: `Type '${binding.type}' bound to ${reference} must declare kernel-managed payload paths: ${missingManagedPaths.join(", ")}`,
+      });
+    }
+  }
+  return diagnostics;
+}
 
 async function readYaml(filePath: string): Promise<unknown> {
   return parse(await fs.readFile(filePath, "utf8"));
@@ -426,6 +590,15 @@ export async function loadProcessPackage(
           });
           continue;
         }
+        diagnostics.push(
+          ...capabilityPrimitiveDiagnostics(
+            definition,
+            filePath,
+            typeof manifest === "object" && manifest !== null
+              ? (manifest as Record<string, unknown>).kernel_capabilities
+              : undefined,
+          ),
+        );
         if (byId[definition.id]) {
           diagnostics.push({
             code: "duplicate-definition",
@@ -492,14 +665,23 @@ export async function loadProcessPackage(
       };
     }
 
+    const processPackage: ProcessPackage = {
+      root,
+      manifest: manifest as ProcessManifest,
+      kernelCapabilities: ((manifest as Record<string, unknown>)
+        .kernel_capabilities ?? {}) as Record<
+        string,
+        KernelCapabilityBinding
+      >,
+      envelopeSchema,
+      ...definitions,
+    };
+    diagnostics.push(...validateKernelCapabilities(processPackage));
+    if (diagnostics.length > 0) return { ok: false, diagnostics };
+
     return {
       ok: true,
-      package: {
-        root,
-        manifest: manifest as ProcessManifest,
-        envelopeSchema,
-        ...definitions,
-      },
+      package: processPackage,
       diagnostics: [],
     };
   } catch (error) {
@@ -661,6 +843,10 @@ export function resolveType(
             (item): item is string => typeof item === "string",
           )
         : [],
+      kernelCapabilities: Object.entries(processPackage.kernelCapabilities)
+        .filter(([, binding]) => binding.type === typeId)
+        .map(([reference]) => reference)
+        .sort(),
     },
     diagnostics: [],
   };

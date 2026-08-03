@@ -34,9 +34,6 @@ behavior where possible.
     and exact phase blockers are specified but not yet returned by the evaluator.
 13. **Performance:** In-memory graph scans are sufficient for the pilot; indexing
     should follow measurements from realistic lifecycle repositories.
-14. **Kernel Capability migration:** The example BSL type needs an explicit
-    `exact-baseline@1` binding and a validated required payload contract without
-    making `BSL` a kernel-recognized type ID.
-15. **Package Command Aliases:** The alias schema must bind arguments only to
+14. **Package Command Aliases:** The alias schema must bind arguments only to
     declared scenarios or generic operations and prove that aliases cannot bypass
     prohibited-input, output-contract, or mutation checks.

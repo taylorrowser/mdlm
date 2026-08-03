@@ -123,11 +123,15 @@ class LifecycleEvaluator {
   private readonly stateStack = new Set<string>();
   private readonly selectorStack = new Set<string>();
   private readonly baseContext: EvaluationContext;
+  private readonly exactBaselineType: string | undefined;
 
   constructor(
     private readonly processPackage: ProcessPackage,
     private readonly snapshot: LifecycleSnapshot,
   ) {
+    this.exactBaselineType = processPackage.kernelCapabilities[
+      "exact-baseline@1"
+    ]?.type;
     this.entities = snapshot.records.map((record) => {
       const entity: Entity = {
         entityKind: "revision",
@@ -378,7 +382,12 @@ class LifecycleEvaluator {
     if (from.collection !== undefined) {
       const collection = String(from.collection);
       results = collection === "baselines"
-        ? this.entities.filter((entity) => entity.identity?.type === "BSL")
+        ? this.entities.filter(
+            (entity) =>
+              entity.identity?.type === this.requireExactBaselineType(
+                "Collection 'baselines'",
+              ),
+          )
         : this.entities;
     } else if (from.selector !== undefined) {
       results = this.invokeSelector(from, context);
@@ -414,13 +423,34 @@ class LifecycleEvaluator {
         return links.map((link) => this.entityForReference(link.target)).filter((entity): entity is Entity => entity !== undefined);
       }
       case "baseline-members":
-        return this.payloadReferences(source, "definition_members");
+        return this.isExactBaseline(source)
+          ? this.payloadReferences(source, "definition_members")
+          : [];
       case "baseline-evidence":
-        return this.payloadReferences(source, "evidence");
-      case "baseline-memberships":
-        return this.entities.filter((entity) => entity.identity?.type === "BSL" && array(entity.payload?.definition_members).includes(source.identity?.revision_id));
+        return this.isExactBaseline(source)
+          ? this.payloadReferences(source, "evidence")
+          : [];
+      case "baseline-memberships": {
+        const baselineType = this.requireExactBaselineType(
+          "Relation 'baseline-memberships'",
+        );
+        return this.entities.filter(
+          (entity) =>
+            entity.identity?.type === baselineType &&
+            array(entity.payload?.definition_members).includes(
+              source.identity?.revision_id,
+            ),
+        );
+      }
       case "baseline-composed":
-        return (source.datum?.links ?? []).filter((link) => link.type === "composes").map((link) => this.entityForReference(link.target)).filter((entity): entity is Entity => entity !== undefined);
+        if (!this.isExactBaseline(source)) return [];
+        return (source.datum?.links ?? [])
+          .filter((link) => link.type === "composes")
+          .map((link) => this.entityForReference(link.target))
+          .filter(
+            (entity): entity is Entity =>
+              entity !== undefined && this.isExactBaseline(entity),
+          );
       case "dependency-changes":
         return this.snapshot.dependencyChanges.filter((change) => change.subject === source.identity?.revision_id).map((change, index) => ({ entityKind: "record" as const, key: `${source.key}:change:${index}`, record: change, ...change }));
       case "scenario-inputs":
@@ -429,6 +459,21 @@ class LifecycleEvaluator {
       default:
         throw new Error(`Unknown primitive relation '${name}'`);
     }
+  }
+
+  private requireExactBaselineType(operation: string): string {
+    if (!this.exactBaselineType) {
+      throw new Error(
+        `${operation} requires Kernel Capability exact-baseline@1`,
+      );
+    }
+    return this.exactBaselineType;
+  }
+
+  private isExactBaseline(entity: Entity): boolean {
+    return entity.identity?.type === this.requireExactBaselineType(
+      "Baseline relation",
+    );
   }
 
   private payloadReferences(source: Entity, field: string): Entity[] {

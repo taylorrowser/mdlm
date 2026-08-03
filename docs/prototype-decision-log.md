@@ -350,3 +350,26 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public package-load tests cover every former value and
   predicate tree family, structural Selector invocation, exact language pinning,
   and simultaneous semantic and meta-schema rejection.
+
+## D-020 — Bind exact-baseline behavior by versioned capability, not type ID
+
+- **Status:** accepted and implemented
+- **Decision:** A Process Package opts one compatible type into the kernel-shipped
+  `exact-baseline@1` contract through its manifest. The capability requires
+  managed definition-member, evidence, and snapshot payload fields plus an exact
+  `composes` link to the bound type.
+- **Alternatives:** Continue recognizing `BSL` in evaluator branches, infer
+  baseline behavior from payload shape, or expose baseline primitives to every
+  package.
+- **Rationale:** An explicit versioned contract keeps integrity behavior fixed and
+  inspectable while allowing packages to choose their own lifecycle vocabulary.
+  Shape inference would be ambiguous, and universal exposure would claim services
+  that an unbound package did not select.
+- **Expected behavior:** The bootstrap explicitly binds `BSL`; a compatible type
+  with another ID receives the same baseline collection, membership, evidence,
+  and composition relations; unbound use fails package validation.
+- **Reversibility:** Versioned. A changed integrity contract requires a new Kernel
+  Capability version; package type names and bindings remain replaceable.
+- **Evidence/observations:** Public package-load, type-resolution, and lifecycle
+  tests cover the bootstrap binding, incompatible contracts, an unavailable
+  capability surface, and all four relation families under a renamed `SNP` type.

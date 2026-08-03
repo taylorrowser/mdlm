@@ -68,4 +68,4 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: superseded-by
-kernel_managed_payload_paths: [snapshot]
+kernel_managed_payload_paths: [definition_members, evidence, snapshot]

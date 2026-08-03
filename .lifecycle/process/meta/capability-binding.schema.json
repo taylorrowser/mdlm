@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v2/capability-binding.schema.json",
+  "title": "MDLM Kernel Capability binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type"],
+  "properties": {
+    "type": {"type": "string", "pattern": "^[A-Z]{3}$"}
+  }
+}

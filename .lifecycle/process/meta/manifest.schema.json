@@ -14,6 +14,11 @@
     "kernel_contract": {"type": "object"},
     "artifact_format": {"type": "object"},
     "references": {"type": "object"},
+    "kernel_capabilities": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+      "additionalProperties": {"$ref": "capability-binding.schema.json"}
+    },
     "language": {
       "type": "object",
       "additionalProperties": false,

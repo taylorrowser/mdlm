@@ -4,7 +4,7 @@
   "title": "MDLM kernel primitive catalog",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "id", "version", "interface_version", "entity_paths", "context_paths", "collections", "relations"],
+  "required": ["kind", "id", "version", "interface_version", "entity_paths", "context_paths", "collections", "relations", "capability_surfaces"],
   "properties": {
     "kind": {"const": "primitive-catalog"},
     "id": {"type": "string", "minLength": 1},
@@ -15,22 +15,39 @@
     "collections": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
     "relations": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "from", "emits", "description"],
-        "properties": {
-          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-          "from": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
-          "emits": {"type": "string", "minLength": 1},
-          "supports_link_filter": {"type": "boolean"},
-          "description": {"type": "string", "minLength": 1}
-        }
-      },
+      "items": {"$ref": "#/$defs/relation"},
       "minItems": 1
+    },
+    "capability_surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact-baseline@1"],
+      "properties": {
+        "exact-baseline@1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["collections", "relations"],
+          "properties": {
+            "collections": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+            "relations": {"type": "array", "items": {"$ref": "#/$defs/relation"}, "minItems": 1}
+          }
+        }
+      }
     }
   },
   "$defs": {
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "emits", "description"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "from": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "emits": {"type": "string", "minLength": 1},
+        "supports_link_filter": {"type": "boolean"},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
     "path": {
       "type": "object",
       "additionalProperties": false,

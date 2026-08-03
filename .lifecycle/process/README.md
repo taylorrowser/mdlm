@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.8
+# MDLM bootstrap process package v0.9
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -9,8 +9,9 @@ V-model Example Process Package, not lifecycle types recognized by MDLM core.
 The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
 definition now uses textual source compiled at package load, including finite
 universal predicates over typed Selector results. Authored YAML expression trees
-are rejected by both meta-schema and semantic validation. Explicit Kernel
-Capability bindings have not yet been implemented.
+are rejected by both meta-schema and semantic validation. The package explicitly
+binds `BSL` to the versioned `exact-baseline@1` Kernel Capability; the kernel does
+not recognize `BSL` by ID.
 
 ## Ownership
 
@@ -62,6 +63,15 @@ Package loading validates references, arguments, binding and result types, and
 direct State and Policy dependency cycles. `mdlm-expression@1` textual source is
 the only accepted authoring representation and cannot execute arbitrary code or
 produce side effects.
+
+## Kernel Capability
+
+The manifest binds `exact-baseline@1` to `BSL`. Package loading validates the
+bound type's managed definition-member, evidence, and snapshot payload paths and
+its exact `composes` contract. Baseline collections and membership, evidence, and
+composition relations are available only through that binding. A compatible
+package may bind a differently named type and receive the same evaluator
+behavior.
 
 ## Links
 
