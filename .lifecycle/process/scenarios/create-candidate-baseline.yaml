@@ -8,28 +8,15 @@ inputs:
     types: [PSP, STK, SYS]
     cardinality: one-or-more
     identity: revision
-    conditions:
-      exists:
-        selector: passing-reviews-for@1
-        arguments: {subject: {var: definition_members}}
+    conditions: 'exists("passing-reviews-for@1", {subject: definition_members})'
 outputs:
   - {name: candidate, types: [BSL], cardinality: one, required_links: []}
 prompt_ref: prompts/create-candidate-baseline.md@1
 review_policy_ref: review-applicability@1
-completion:
-  all:
-    - compare:
-        left: {path: {var: execution, field: integrity.contract_valid}}
-        operator: eq
-        right: {literal: true}
-    - compare:
-        left: {path: {var: candidate, field: payload.role}}
-        operator: eq
-        right: {literal: candidate}
-    - compare:
-        left: {path: {var: candidate, field: storage.frozen}}
-        operator: eq
-        right: {literal: true}
+completion: >-
+  execution.integrity.contract_valid == true
+  && candidate.payload.role == "candidate"
+  && candidate.storage.frozen == true
 resolves: []
 prohibited_inputs: [mutable latest aliases, unreviewed definition revisions, raw evidence as definition membership]
 batching: single

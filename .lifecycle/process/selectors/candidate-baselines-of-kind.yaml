@@ -10,10 +10,6 @@ query:
     selector: candidate-baselines@1
     arguments: {}
   as: candidate
-  where:
-    compare:
-      left: {path: {var: candidate, field: payload.kind}}
-      operator: eq
-      right: {var: baseline_kind}
+  where: 'candidate.payload.kind == baseline_kind'
   distinct: true
   order_by: [payload.scope, payload.group, identity.revision_id]

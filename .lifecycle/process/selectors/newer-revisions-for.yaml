@@ -6,12 +6,8 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {relation: revisions, of: {var: subject}, emit: entity}
+  from: {relation: revisions, of: subject, emit: entity}
   as: revision
-  where:
-    compare:
-      left: {path: {var: revision, field: identity.revision}}
-      operator: gt
-      right: {path: {var: subject, field: identity.revision}}
+  where: 'revision.identity.revision > subject.identity.revision'
   distinct: true
   order_by: [identity.revision]

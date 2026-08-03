@@ -3,33 +3,21 @@ id: open-question-resolution
 version: 2
 description: Every latest open question must be answered, explicitly deferred, or cancelled through an exact decision.
 phases: [phase-0-wayfinding, phase-2-system-definition]
-for_each: {selector: open-questions@1, arguments: {}}
+for_each: 'select("open-questions@1", {})'
 subject_as: question
-satisfied_when:
-  compare:
-    left: {path: {var: question, field: payload.state}}
-    operator: in
-    right: {literal: [answered, deferred, cancelled]}
+satisfied_when: 'question.payload.state in ["answered", "deferred", "cancelled"]'
 status_rules:
   - status: blocked
     priority: 200
-    when:
-      compare:
-        left: {path: {var: question, field: payload.kind}}
-        operator: eq
-        right: {literal: preferential}
+    when: 'question.payload.kind == "preferential"'
     reason: An explicit stakeholder answer is required; the process may not fabricate it.
   - status: ready
     priority: 100
-    when:
-      compare:
-        left: {path: {var: question, field: payload.kind}}
-        operator: eq
-        right: {literal: empirical}
+    when: 'question.payload.kind == "empirical"'
     reason: The empirical question can be resolved when sufficient evidence is available.
 default_status: blocked
 resolve_with:
   scenario: resolve-question@1
   inputs:
-    question: {var: question}
+    question: question
 waiver_policy_ref: waiver-applicability@1

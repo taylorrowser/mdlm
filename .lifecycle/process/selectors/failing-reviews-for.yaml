@@ -6,7 +6,7 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: {var: subject}, link: reviews, emit: source, types: [REV]}
+  from: {relation: incoming-links, of: subject, link: reviews, emit: source, types: [REV]}
   as: review
   where: >-
     review.payload.outcome == "fail"

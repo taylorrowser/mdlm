@@ -61,6 +61,7 @@
     },
     "binding": {
       "oneOf": [
+        {"type": "string", "minLength": 1},
         {"$ref": "expression.schema.json#/$defs/value"},
         {"type": "object", "additionalProperties": false, "required": ["select"], "properties": {"select": {"$ref": "#/$defs/selection"}}}
       ]
@@ -76,7 +77,12 @@
           "additionalProperties": false,
           "required": ["for_each", "as"],
           "properties": {
-            "for_each": {"$ref": "expression.schema.json#/$defs/selectorInvocation"},
+            "for_each": {
+              "oneOf": [
+                {"type": "string", "minLength": 1},
+                {"$ref": "expression.schema.json#/$defs/selectorInvocation"}
+              ]
+            },
             "as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
           }
         },

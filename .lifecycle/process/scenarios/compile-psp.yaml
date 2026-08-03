@@ -10,11 +10,7 @@ outputs:
   - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/compile-psp.md@1
 review_policy_ref: review-applicability@1
-completion:
-  compare:
-    left: {path: {var: execution, field: integrity.contract_valid}}
-    operator: eq
-    right: {literal: true}
+completion: 'execution.integrity.contract_valid == true'
 resolves: []
 prohibited_inputs: [product source code, unstated stakeholder preferences]
 batching: single

@@ -9,17 +9,11 @@ values: [superseded, newer-draft-exists, process-drift]
 rules:
   - value: superseded
     priority: 300
-    when:
-      exists:
-        selector: newer-accepted-revisions-for@1
-        arguments: {subject: {var: subject}}
+    when: 'exists("newer-accepted-revisions-for@1", {subject: subject})'
     explanation: A newer revision of the same stable datum is accepted.
   - value: newer-draft-exists
     priority: 200
-    when:
-      exists:
-        selector: newer-editable-revisions-for@1
-        arguments: {subject: {var: subject}}
+    when: 'exists("newer-editable-revisions-for@1", {subject: subject})'
     explanation: A later editable revision exists without changing historical maturity.
   - value: process-drift
     priority: 100

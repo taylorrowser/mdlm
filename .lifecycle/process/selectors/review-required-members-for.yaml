@@ -6,7 +6,7 @@ parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: revision
 query:
-  from: {relation: baseline-members, of: {var: candidate}, emit: entity}
+  from: {relation: baseline-members, of: candidate, emit: entity}
   as: member
   where: 'policy("review-applicability@1", {subject: member}).required == true'
   distinct: true

@@ -18,8 +18,5 @@ rules:
     explanation: Parseability, schema, identity, reference, or frozen-byte integrity is broken.
   - value: stale
     priority: 200
-    when:
-      exists:
-        selector: dependency-changes-for@1
-        arguments: {subject: {var: subject}}
+    when: 'exists("dependency-changes-for@1", {subject: subject})'
     explanation: At least one conservatively classified dependency change requires reassessment.

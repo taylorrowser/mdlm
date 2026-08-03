@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.6
+# MDLM bootstrap process package v0.7
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -6,11 +6,11 @@ toward the accepted v0.8 design. It remains intentionally limited to `PSP`, `STK
 `SYS`, `REV`, `BSL`, `QST`, and `DEC`. These are a bootstrap subset of the bundled
 V-model Example Process Package, not lifecycle types recognized by MDLM core.
 
-The package declares `mdlm-expression@1`. Selected review, validity, and candidate
-rules now compose typed Selector, Policy, and Computed State values compiled at
-package load. Legacy expression trees remain valid only during the controlled
-expansion migration. Explicit Kernel Capability bindings have not yet been
-implemented.
+The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
+definition now uses textual source compiled at package load, including finite
+universal predicates over typed Selector results. Legacy expression trees remain
+accepted only until the controlled migration rejection slice. Explicit Kernel
+Capability bindings have not yet been implemented.
 
 ## Ownership
 
@@ -56,11 +56,12 @@ The accepted authoring surface is the textual MDLM Expression Language. The
 implemented slices support typed bound variables, entity and context paths,
 JSON-like literals, comparisons, membership, Boolean composition, parentheses,
 presence checks, typed `select`, `exists`, `none`, `count`, and `one` Selector
-operations, `state(subject, dimension)`, and typed Policy result-field selection.
-Package loading validates references, arguments, result types, and direct State
-and Policy dependency cycles. Remaining definitions continue to use the legacy
-internal tree during migration. Neither representation can execute arbitrary code
-or produce side effects.
+operations, `state(subject, dimension)`, typed Policy result-field selection, and
+`every(selector, arguments, binding => predicate)` over finite Selector results.
+Package loading validates references, arguments, binding and result types, and
+direct State and Policy dependency cycles. The bootstrap package no longer
+authors legacy expression trees. Neither representation can execute arbitrary
+code or produce side effects.
 
 ## Links
 

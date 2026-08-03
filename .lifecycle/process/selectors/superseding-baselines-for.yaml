@@ -6,7 +6,7 @@ parameters:
   - {name: baseline, kind: baseline, types: [BSL]}
 result_kind: baseline
 query:
-  from: {relation: incoming-links, of: {var: baseline}, link: supersedes, emit: source, types: [BSL]}
+  from: {relation: incoming-links, of: baseline, link: supersedes, emit: source, types: [BSL]}
   as: successor
   where: >-
     successor.storage.frozen == true

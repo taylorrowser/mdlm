@@ -6,7 +6,7 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: record
 query:
-  from: {relation: dependency-changes, of: {var: subject}, emit: record}
+  from: {relation: dependency-changes, of: subject, emit: record}
   as: change
   distinct: true
   order_by: [kind]

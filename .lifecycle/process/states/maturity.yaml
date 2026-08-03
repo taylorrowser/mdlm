@@ -9,22 +9,19 @@ values: [accepted, candidate, review-frozen, draft]
 rules:
   - value: accepted
     priority: 400
-    when:
-      exists:
-        selector: baselines-containing-with-role@1
-        arguments: {subject: {var: subject}, role: {literal: accepted}}
+    when: >-
+      exists("baselines-containing-with-role@1",
+        {subject: subject, role: "accepted"})
     explanation: The exact revision belongs to a current or historical accepted baseline.
   - value: candidate
     priority: 300
-    when:
-      exists:
-        selector: baselines-containing-with-role@1
-        arguments: {subject: {var: subject}, role: {literal: candidate}}
+    when: >-
+      exists("baselines-containing-with-role@1",
+        {subject: subject, role: "candidate"})
     explanation: The exact revision belongs to a candidate baseline and no accepted rule matched.
   - value: review-frozen
     priority: 200
-    when:
-      exists:
-        selector: baselines-containing-with-role@1
-        arguments: {subject: {var: subject}, role: {literal: review-context}}
+    when: >-
+      exists("baselines-containing-with-role@1",
+        {subject: subject, role: "review-context"})
     explanation: The exact revision is frozen only as review context.

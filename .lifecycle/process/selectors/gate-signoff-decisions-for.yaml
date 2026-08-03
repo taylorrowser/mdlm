@@ -6,7 +6,7 @@ parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: {var: candidate}, link: justifies, emit: source, types: [DEC]}
+  from: {relation: incoming-links, of: candidate, link: justifies, emit: source, types: [DEC]}
   as: decision
   where: >-
     decision.payload.kind == "gate-signoff"

@@ -8,11 +8,7 @@ inputs:
     types: [PSP]
     cardinality: one
     identity: revision
-    conditions:
-      compare:
-        left: {state: {dimension: validity, subject: {var: product_specification}}}
-        operator: eq
-        right: {literal: valid}
+    conditions: 'state(product_specification, "validity") == "valid"'
 outputs:
   - name: requirements
     types: [STK]
@@ -23,11 +19,7 @@ outputs:
   - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/draft-stakeholder-requirements.md@1
 review_policy_ref: review-applicability@1
-completion:
-  compare:
-    left: {path: {var: execution, field: integrity.contract_valid}}
-    operator: eq
-    right: {literal: true}
+completion: 'execution.integrity.contract_valid == true'
 resolves: []
 prohibited_inputs: [product source code, implementation architecture]
 batching: coherent-batch

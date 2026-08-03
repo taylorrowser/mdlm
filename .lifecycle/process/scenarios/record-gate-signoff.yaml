@@ -8,16 +8,9 @@ inputs:
     types: [BSL]
     cardinality: one
     identity: revision
-    conditions:
-      all:
-        - compare:
-            left: {path: {var: candidate, field: payload.role}}
-            operator: eq
-            right: {literal: candidate}
-        - compare:
-            left: {path: {var: candidate, field: storage.frozen}}
-            operator: eq
-            right: {literal: true}
+    conditions: >-
+      candidate.payload.role == "candidate"
+      && candidate.storage.frozen == true
 outputs:
   - name: decision
     types: [DEC]
@@ -27,16 +20,9 @@ outputs:
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/record-gate-signoff.md@1
 review_policy_ref: review-applicability@1
-completion:
-  all:
-    - compare:
-        left: {path: {var: execution, field: integrity.contract_valid}}
-        operator: eq
-        right: {literal: true}
-    - compare:
-        left: {path: {var: decision, field: payload.kind}}
-        operator: eq
-        right: {literal: gate-signoff}
+completion: >-
+  execution.integrity.contract_valid == true
+  && decision.payload.kind == "gate-signoff"
 resolves: [candidate-gate-signoff]
 prohibited_inputs: [unfrozen candidate, mutable latest aliases, implied approval]
 batching: single

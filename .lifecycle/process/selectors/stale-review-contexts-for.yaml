@@ -6,7 +6,7 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: baseline
 query:
-  from: {relation: baseline-memberships, of: {var: subject}, emit: entity, types: [BSL]}
+  from: {relation: baseline-memberships, of: subject, emit: entity, types: [BSL]}
   as: context
   where: >-
     context.payload.kind == "review-context"

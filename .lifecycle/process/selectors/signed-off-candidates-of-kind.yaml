@@ -8,11 +8,8 @@ result_kind: baseline
 query:
   from:
     selector: candidate-baselines-of-kind@1
-    arguments: {baseline_kind: {var: baseline_kind}}
+    arguments: {baseline_kind: baseline_kind}
   as: candidate
-  where:
-    exists:
-      selector: applicable-gate-signoffs-for@1
-      arguments: {candidate: {var: candidate}}
+  where: 'exists("applicable-gate-signoffs-for@1", {candidate: candidate})'
   distinct: true
   order_by: [payload.scope, payload.group, identity.revision_id]

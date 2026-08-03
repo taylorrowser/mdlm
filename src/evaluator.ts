@@ -383,6 +383,9 @@ class LifecycleEvaluator {
   }
 
   private value(value: unknown, context: EvaluationContext): unknown {
+    if (isCompiledTextExpression(value)) {
+      return evaluateCompiledTextValue(value, context, this.expressionHost());
+    }
     const operand = object(value);
     if (!operand) throw new Error(`Expected an expression value`);
     if (Object.prototype.hasOwnProperty.call(operand, "literal")) return operand.literal;

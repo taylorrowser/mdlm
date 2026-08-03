@@ -8,13 +8,10 @@ result_kind: revision
 query:
   from:
     selector: newer-revisions-for@1
-    arguments: {subject: {var: subject}}
+    arguments: {subject: subject}
   as: revision
-  where:
-    exists:
-      selector: baselines-containing-with-role@1
-      arguments:
-        subject: {var: revision}
-        role: {literal: accepted}
+  where: >-
+    exists("baselines-containing-with-role@1",
+      {subject: revision, role: "accepted"})
   distinct: true
   order_by: [identity.revision]

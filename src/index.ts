@@ -343,7 +343,9 @@ export async function loadProcessPackage(
           group === "states" ||
           group === "policies" ||
           group === "selectors" ||
-          group === "obligations"
+          group === "obligations" ||
+          group === "scenarios" ||
+          group === "phases"
         ) {
           expressionDefinitions.push({ definition, filePath });
         }

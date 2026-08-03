@@ -8,12 +8,8 @@ result_kind: revision
 query:
   from:
     selector: newer-revisions-for@1
-    arguments: {subject: {var: subject}}
+    arguments: {subject: subject}
   as: revision
-  where:
-    compare:
-      left: {path: {var: revision, field: storage.editable}}
-      operator: eq
-      right: {literal: true}
+  where: 'revision.storage.editable == true'
   distinct: true
   order_by: [identity.revision]

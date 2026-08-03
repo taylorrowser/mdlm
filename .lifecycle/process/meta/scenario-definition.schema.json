@@ -15,7 +15,12 @@
     "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}, "minItems": 1},
     "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
     "review_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
-    "completion": {"$ref": "expression.schema.json"},
+    "completion": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"$ref": "expression.schema.json"}
+      ]
+    },
     "resolves": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}, "uniqueItems": true},
     "prohibited_inputs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "batching": {"enum": ["single", "coherent-batch", "either"]}
@@ -30,7 +35,12 @@
         "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
         "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]},
         "identity": {"enum": ["stable", "revision", "either"]},
-        "conditions": {"$ref": "expression.schema.json"}
+        "conditions": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {"$ref": "expression.schema.json"}
+          ]
+        }
       }
     },
     "requiredLink": {

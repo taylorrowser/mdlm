@@ -5,7 +5,9 @@ description: Every review-required exact definition member of a current candidat
 phases: [phase-0-wayfinding, phase-2-system-definition]
 for_each: 'select("candidate-baselines@1", {})'
 subject_as: candidate
-satisfied_when: 'none("candidate-members-missing-review@1", {candidate: candidate})'
+satisfied_when: >-
+  every("review-required-members-for@1", {candidate: candidate},
+    member => exists("passing-reviews-for@1", {subject: member}))
 status_rules:
   - status: blocked
     priority: 100
@@ -15,15 +17,9 @@ default_status: blocked
 resolve_with:
   scenario: review-datum-in-context@1
   dispatch:
-    for_each:
-      selector: candidate-members-missing-review@1
-      arguments: {candidate: {var: candidate}}
+    for_each: 'select("candidate-members-missing-review@1", {candidate: candidate})'
     as: member
   inputs:
-    subject: {var: member}
-    review_context:
-      select:
-        selector: valid-review-contexts-for@1
-        arguments: {subject: {var: member}}
-        cardinality: one
+    subject: member
+    review_context: 'one("valid-review-contexts-for@1", {subject: member})'
 waiver_policy_ref: waiver-applicability@1

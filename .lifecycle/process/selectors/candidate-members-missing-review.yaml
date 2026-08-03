@@ -8,7 +8,7 @@ result_kind: revision
 query:
   from:
     selector: review-required-members-for@1
-    arguments: {candidate: {var: candidate}}
+    arguments: {candidate: candidate}
   as: member
   where: 'none("passing-reviews-for@1", {subject: member})'
   distinct: true

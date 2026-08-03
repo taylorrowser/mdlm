@@ -7,7 +7,7 @@ parameters:
   - {name: decision_kind, kind: scalar, scalar_type: string}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: {var: subject}, link: justifies, emit: source, types: [DEC]}
+  from: {relation: incoming-links, of: subject, link: justifies, emit: source, types: [DEC]}
   as: decision
   where: >-
     decision.payload.kind == decision_kind

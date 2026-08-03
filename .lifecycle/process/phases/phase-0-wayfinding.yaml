@@ -10,11 +10,7 @@ omitted_capabilities:
   - exploratory prototype evidence
   - VSP and environment profiles
   - dedicated simplification REV over the complete candidate
-entry:
-  compare:
-    left: {path: {var: process, field: integrity.package_valid}}
-    operator: eq
-    right: {literal: true}
+entry: 'process.integrity.package_valid == true'
 scenarios:
   - compile-psp@1
   - draft-stakeholder-requirements@1
@@ -32,21 +28,12 @@ obligations:
 outputs: [PSP, STK, REV, BSL, QST, DEC]
 gate:
   required: true
-  candidate_selector:
-    selector: candidate-baselines-of-kind@1
-    arguments: {baseline_kind: {literal: intent-level-candidate}}
+  candidate_selector: >-
+    select("candidate-baselines-of-kind@1",
+      {baseline_kind: "intent-level-candidate"})
   candidate_as: candidate
-  completion:
-    all:
-      - none:
-          selector: candidate-members-missing-review@1
-          arguments: {candidate: {var: candidate}}
-      - exists:
-          selector: passing-reviews-for@1
-          arguments: {subject: {var: candidate}}
-      - none:
-          selector: open-blocking-questions@1
-          arguments: {}
-      - exists:
-          selector: applicable-gate-signoffs-for@1
-          arguments: {candidate: {var: candidate}}
+  completion: >-
+    none("candidate-members-missing-review@1", {candidate: candidate})
+    && exists("passing-reviews-for@1", {subject: candidate})
+    && none("open-blocking-questions@1", {})
+    && exists("applicable-gate-signoffs-for@1", {candidate: candidate})

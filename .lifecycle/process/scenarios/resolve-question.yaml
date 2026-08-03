@@ -8,11 +8,7 @@ inputs:
     types: [QST]
     cardinality: one
     identity: revision
-    conditions:
-      compare:
-        left: {path: {var: question, field: payload.state}}
-        operator: eq
-        right: {literal: open}
+    conditions: 'question.payload.state == "open"'
 outputs:
   - name: decision
     types: [DEC]
@@ -22,20 +18,10 @@ outputs:
   - {name: updated_question, types: [QST], cardinality: one, required_links: []}
 prompt_ref: prompts/resolve-question.md@1
 review_policy_ref: review-applicability@1
-completion:
-  all:
-    - compare:
-        left: {path: {var: execution, field: integrity.contract_valid}}
-        operator: eq
-        right: {literal: true}
-    - compare:
-        left: {path: {var: updated_question, field: identity.id}}
-        operator: eq
-        right: {path: {var: question, field: identity.id}}
-    - compare:
-        left: {path: {var: updated_question, field: payload.state}}
-        operator: in
-        right: {literal: [answered, deferred, cancelled]}
+completion: >-
+  execution.integrity.contract_valid == true
+  && updated_question.identity.id == question.identity.id
+  && updated_question.payload.state in ["answered", "deferred", "cancelled"]
 resolves: [open-question-resolution]
 prohibited_inputs: [unstated stakeholder answer, unsupported empirical conclusion]
 batching: single

@@ -7,10 +7,6 @@ result_kind: baseline
 query:
   from: {collection: baselines, types: [BSL]}
   as: baseline
-  where:
-    compare:
-      left: {path: {var: baseline, field: storage.frozen}}
-      operator: eq
-      right: {literal: true}
+  where: 'baseline.storage.frozen == true'
   distinct: true
   order_by: [identity.revision_id]

@@ -44,7 +44,7 @@ async function processPackageWithStateCycle(): Promise<string> {
   await fs.writeFile(
     validityPath,
     validity.replace(
-      "    when:\n      exists:\n        selector: dependency-changes-for@1\n        arguments: {subject: {var: subject}}",
+      "    when: 'exists(\"dependency-changes-for@1\", {subject: subject})'",
       "    when:\n      compare:\n        left: {state: {dimension: relationship-overlays, subject: {var: subject}}}\n        operator: eq\n        right: {literal: []}",
     ),
   );
@@ -235,6 +235,102 @@ describe("textual MDLM expressions", () => {
         "relationship-overlays"
       ],
     ).toEqual(["process-drift"]);
+  });
+
+  it("evaluates a typed predicate for every finite Selector result", async () => {
+    const processRoot = await processPackageWithTextualProcessDrift(
+      'every("review-required-revisions@1", {}, member => state(member, "validity") == "valid")',
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(
+      loaded.ok,
+      loaded.diagnostics.map((diagnostic) => diagnostic.message).join("\n"),
+    ).toBe(true);
+    if (!loaded.ok) return;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyChanges: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+
+    const invalid = pspCreatedUnder("git:current");
+    invalid.datum.id = "STK-X4N7AB2W6J";
+    invalid.datum.revision_id = "STK-X4N7AB2W6J-r00001";
+    invalid.datum.type = "STK";
+    invalid.integrity.schema_valid = false;
+    const failedPredicate = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current"), invalid],
+      dependencyChanges: [],
+    });
+
+    expect(
+      failedPredicate.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual([]);
+  });
+
+  it("checks universal predicate bindings and Boolean return types at package load", async () => {
+    const sources = {
+      unknown:
+        'every("review-required-revisions@1", {}, member => candidate == member)',
+      kind:
+        'every("dependency-changes-for@1", {subject: subject}, change => state(change, "validity") == "valid")',
+      result:
+        'every("review-required-revisions@1", {}, member => member.identity.type)',
+    };
+    const [unknown, kind, result] = await Promise.all(
+      Object.values(sources).map(async (source) =>
+        loadProcessPackage(
+          await processPackageWithTextualProcessDrift(source),
+        ),
+      ),
+    );
+
+    expect(unknown?.ok).toBe(false);
+    expect(unknown?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-unknown-binding",
+          source: sources.unknown,
+          message: "Unknown expression binding 'candidate'",
+        }),
+      ]),
+    );
+    expect(kind?.ok).toBe(false);
+    expect(kind?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-state-subject",
+          source: sources.kind,
+          message:
+            "Computed State subject must be a revision, received record",
+        }),
+      ]),
+    );
+    expect(result?.ok).toBe(false);
+    expect(result?.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-predicate-type",
+          source: sources.result,
+          message:
+            "Universal predicate must return boolean, received string",
+        }),
+      ]),
+    );
   });
 
   it("reads a typed Computed State value", async () => {

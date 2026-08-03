@@ -9,9 +9,6 @@ query:
     selector: open-questions@1
     arguments: {}
   as: question
-  where:
-    exists:
-      selector: blocked-targets-for-question@1
-      arguments: {question: {var: question}}
+  where: 'exists("blocked-targets-for-question@1", {question: question})'
   distinct: true
   order_by: [identity.id]

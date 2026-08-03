@@ -6,7 +6,12 @@
   "$defs": {
     "arguments": {
       "type": "object",
-      "additionalProperties": {"$ref": "#/$defs/value"}
+      "additionalProperties": {
+        "oneOf": [
+          {"type": "string", "minLength": 1},
+          {"$ref": "#/$defs/value"}
+        ]
+      }
     },
     "selectorInvocation": {
       "type": "object",

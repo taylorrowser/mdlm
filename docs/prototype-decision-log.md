@@ -304,3 +304,27 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public-seam tests exercise State and Policy values,
   reference and type diagnostics, State-only and State/Policy cycle rejection,
   and review, validity, waiver, process-drift, candidate, and gate regressions.
+
+## D-018 — Complete textual migration with finite universal quantification
+
+- **Status:** provisional and implemented
+- **Decision:** Add `every(selectorRef, arguments, binding => predicate)` as the
+  sole finite universal form and migrate every expression-bearing field in the
+  bootstrap package from authored YAML trees to `mdlm-expression@1` source.
+- **Alternatives:** Keep candidate coverage as negated missing-result queries,
+  retain structural value trees in queries and resolver bindings, or add a more
+  general lambda and collection language.
+- **Rationale:** A Selector already provides the finite, typed iteration boundary.
+  One scoped binding and a Boolean predicate are sufficient for universal process
+  claims without introducing unbounded iteration or general-purpose functions.
+- **Expected behavior:** The binding receives the Selector's declared result kind
+  and lifecycle types; its predicate must compile to Boolean; evaluation stops on
+  the first false result and is true for an empty finite selection. Query source
+  values, resolver bindings, Scenario conditions and completion, and phase entry,
+  candidate selection, and gate completion compile from textual source as well.
+- **Reversibility:** High for implementation and low for package authoring. The
+  private AST and evaluator host remain replaceable, while textual v1 source is
+  now the package contract ahead of explicit legacy rejection.
+- **Evidence/observations:** Public-seam tests cover successful universal
+  evaluation, unknown and wrongly typed bindings, non-Boolean predicates, and the
+  complete lifecycle regression suite after package-wide textual migration.

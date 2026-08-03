@@ -19,5 +19,5 @@ default_status: ready
 resolve_with:
   scenario: create-review-context@1
   inputs:
-    subject: {var: subject}
+    subject: subject
 waiver_policy_ref: waiver-applicability@1
