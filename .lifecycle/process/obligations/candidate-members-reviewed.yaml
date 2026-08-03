@@ -3,19 +3,13 @@ id: candidate-members-reviewed
 version: 2
 description: Every review-required exact definition member of a current candidate must have a valid passing review.
 phases: [phase-0-wayfinding, phase-2-system-definition]
-for_each: {selector: candidate-baselines@1, arguments: {}}
+for_each: 'select("candidate-baselines@1", {})'
 subject_as: candidate
-satisfied_when:
-  none:
-    selector: candidate-members-missing-review@1
-    arguments: {candidate: {var: candidate}}
+satisfied_when: 'none("candidate-members-missing-review@1", {candidate: candidate})'
 status_rules:
   - status: blocked
     priority: 100
-    when:
-      exists:
-        selector: candidate-members-missing-review@1
-        arguments: {candidate: {var: candidate}}
+    when: 'exists("candidate-members-missing-review@1", {candidate: candidate})'
     reason: One or more exact candidate members still lack valid passing review evidence.
 default_status: blocked
 resolve_with:

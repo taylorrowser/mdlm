@@ -3,26 +3,17 @@ id: review-context-required
 version: 2
 description: Every review-required revision must appear in an exact valid frozen review-context baseline before judgment.
 phases: [phase-0-wayfinding, phase-2-system-definition]
-for_each: {selector: review-required-revisions@1, arguments: {}}
+for_each: 'select("review-required-revisions@1", {})'
 subject_as: subject
-satisfied_when:
-  exists:
-    selector: valid-review-contexts-for@1
-    arguments: {subject: {var: subject}}
+satisfied_when: 'exists("valid-review-contexts-for@1", {subject: subject})'
 status_rules:
   - status: stale
     priority: 200
-    when:
-      exists:
-        selector: stale-review-contexts-for@1
-        arguments: {subject: {var: subject}}
+    when: 'exists("stale-review-contexts-for@1", {subject: subject})'
     reason: Prior context exists but a declared dependency changed.
   - status: ready
     priority: 100
-    when:
-      none:
-        selector: valid-review-contexts-for@1
-        arguments: {subject: {var: subject}}
+    when: 'none("valid-review-contexts-for@1", {subject: subject})'
     reason: A deterministic exact review context can be created now.
 default_status: ready
 resolve_with:

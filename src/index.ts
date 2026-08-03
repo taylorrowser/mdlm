@@ -303,6 +303,10 @@ export async function loadProcessPackage(
       DefinitionGroup,
       Record<string, VersionedDefinition>
     >;
+    const expressionDefinitions: {
+      definition: VersionedDefinition;
+      filePath: string;
+    }[] = [];
 
     for (const [group, schemaName] of Object.entries(definitionSchemas) as [
       DefinitionGroup,
@@ -332,12 +336,27 @@ export async function loadProcessPackage(
           });
           continue;
         }
-        if (group === "states" || group === "policies") {
-          diagnostics.push(...compileDefinitionExpressions(definition, filePath));
+        if (
+          group === "states" ||
+          group === "policies" ||
+          group === "selectors" ||
+          group === "obligations"
+        ) {
+          expressionDefinitions.push({ definition, filePath });
         }
         byId[definition.id] = definition;
       }
       definitions[group] = byId;
+    }
+
+    for (const { definition, filePath } of expressionDefinitions) {
+      diagnostics.push(
+        ...compileDefinitionExpressions(
+          definition,
+          filePath,
+          definitions.selectors,
+        ),
+      );
     }
 
     diagnostics.push(...validateDefinitionReferences(definitions));

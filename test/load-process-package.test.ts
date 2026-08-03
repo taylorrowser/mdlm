@@ -15,7 +15,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.4.0");
+    expect(result.package.manifest.version).toBe("0.5.0");
     expect(Object.keys(result.package.types)).toHaveLength(7);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(24);
@@ -45,8 +45,13 @@ describe("loadProcessPackage", () => {
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          code: "unknown-reference",
-          message: expect.stringContaining("missing-selector@1"),
+          code: "expression-unknown-selector",
+          path: expect.stringContaining(
+            "review-context-required.yaml#for_each",
+          ),
+          line: 1,
+          column: 8,
+          message: "Unknown Selector 'missing-selector@1'",
         }),
       ]),
     );

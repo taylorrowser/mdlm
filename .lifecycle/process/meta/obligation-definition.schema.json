@@ -11,9 +11,19 @@
     "version": {"type": "integer", "minimum": 1},
     "description": {"type": "string", "minLength": 1},
     "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
-    "for_each": {"$ref": "expression.schema.json#/$defs/selectorInvocation"},
+    "for_each": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"$ref": "expression.schema.json#/$defs/selectorInvocation"}
+      ]
+    },
     "subject_as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-    "satisfied_when": {"$ref": "expression.schema.json"},
+    "satisfied_when": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"$ref": "expression.schema.json"}
+      ]
+    },
     "status_rules": {
       "type": "array",
       "items": {
@@ -23,7 +33,12 @@
         "properties": {
           "status": {"enum": ["ready", "blocked", "awaiting-review", "stale", "failed"]},
           "priority": {"type": "integer"},
-          "when": {"$ref": "expression.schema.json"},
+          "when": {
+            "oneOf": [
+              {"type": "string", "minLength": 1},
+              {"$ref": "expression.schema.json"}
+            ]
+          },
           "reason": {"type": "string", "minLength": 1}
         }
       },

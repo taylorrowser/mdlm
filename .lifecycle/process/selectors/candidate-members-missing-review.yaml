@@ -10,9 +10,6 @@ query:
     selector: review-required-members-for@1
     arguments: {candidate: {var: candidate}}
   as: member
-  where:
-    none:
-      selector: passing-reviews-for@1
-      arguments: {subject: {var: member}}
+  where: 'none("passing-reviews-for@1", {subject: member})'
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

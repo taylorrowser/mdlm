@@ -177,6 +177,129 @@ describe("textual MDLM expressions", () => {
     ).toEqual(["process-drift"]);
   });
 
+  it("resolves Selector selection and cardinality operations", async () => {
+    const selector = '"newer-revisions-for@1", {subject: subject}';
+    const processRoot = await processPackageWithTextualProcessDrift(
+      `select(${selector}) == [] && none(${selector}) && count(${selector}) == 0 && !exists(${selector}) && !present(one(${selector})) && present(one("review-required-revisions@1", {}))`,
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyChanges: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+  });
+
+  it("rejects unknown Selectors and invalid named arguments at package load", async () => {
+    const sources = {
+      unknown: 'exists("missing-selector@1", {})',
+      missing: 'exists("newer-revisions-for@1", {})',
+      kind: 'none("candidate-members-missing-review@1", {candidate: subject})',
+      cardinality:
+        'exists("newer-revisions-for@1", {subject: select("candidate-baselines@1", {})})',
+      types:
+        'none("blocked-targets-for-question@1", {question: one("review-required-revisions@1", {})})',
+      extra:
+        'exists("newer-revisions-for@1", {subject: subject, surprise: true})',
+    };
+
+    const results = await Promise.all(
+      Object.values(sources).map(async (source) =>
+        loadProcessPackage(
+          await processPackageWithTextualProcessDrift(source),
+        ),
+      ),
+    );
+    const unknown = results[0]!;
+    const missing = results[1]!;
+    const kind = results[2]!;
+    const cardinality = results[3]!;
+    const types = results[4]!;
+    const extra = results[5]!;
+
+    for (const result of results) {
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            line: 1,
+            column: expect.any(Number),
+          }),
+        ]),
+      );
+    }
+    expect(unknown.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-unknown-selector",
+          source: sources.unknown,
+          message: "Unknown Selector 'missing-selector@1'",
+        }),
+      ]),
+    );
+    expect(missing.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-selector-arguments",
+          source: sources.missing,
+          message:
+            "Selector 'newer-revisions-for@1' requires argument 'subject'",
+        }),
+      ]),
+    );
+    expect(kind.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-selector-arguments",
+          source: sources.kind,
+          message:
+            "Selector argument 'candidate' requires baseline of type BSL, received revision",
+        }),
+      ]),
+    );
+    expect(cardinality.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-selector-arguments",
+          source: sources.cardinality,
+          message: "Selector argument 'subject' requires revision, received selection",
+        }),
+      ]),
+    );
+    expect(types.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-selector-arguments",
+          source: sources.types,
+          message:
+            "Selector argument 'question' requires revision of type QST, received revision of types BSL, DEC, PSP, STK, SYS",
+        }),
+      ]),
+    );
+    expect(extra.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-selector-arguments",
+          source: sources.extra,
+          message:
+            "Selector 'newer-revisions-for@1' has no argument 'surprise'",
+        }),
+      ]),
+    );
+  });
+
   it("preserves lifecycle behavior for migrated state and Policy rules", async () => {
     const loaded = await loadProcessPackage(
       path.join(process.cwd(), ".lifecycle/process"),

@@ -258,3 +258,26 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public-seam tests cover every JSON-like literal,
   Boolean operation, grouping, presence, operator/result diagnostics, and the
   migrated structural-invalidity and review-applicability behavior.
+
+## D-016 — Resolve typed Selector operations through one evaluator host boundary
+
+- **Status:** provisional and implemented
+- **Decision:** Compile `select`, `exists`, `none`, `count`, and `one` against the
+  loaded versioned Selector catalog, then execute them through a fixed evaluator-
+  supplied selection host rather than exposing query internals to expressions.
+- **Alternatives:** Let textual expressions construct query ASTs, defer all
+  Selector calls until complete expression migration, or resolve names only at
+  runtime.
+- **Rationale:** A single host boundary keeps the expression language safe while
+  package-load validation can reject unknown versions, missing or extra named
+  arguments, incompatible domain kinds and lifecycle types, and selection-versus-
+  scalar cardinality mistakes.
+- **Expected behavior:** `select` returns a finite selection; `exists`, `none`, and
+  `count` derive deterministic cardinality values; `one` yields its sole result
+  only for exactly one match. Selector query internals remain private.
+- **Reversibility:** High. Selector execution remains behind
+  `evaluateLifecycle`; parser nodes and host plumbing are private implementation.
+- **Evidence/observations:** Public-seam tests cover all five operations and
+  source-oriented diagnostics for unknown Selectors and invalid argument names,
+  kinds, lifecycle types, and cardinalities. Migrated candidate Selector and
+  review/candidate Obligation rules preserve the behavior suite.

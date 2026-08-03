@@ -8,7 +8,12 @@
   "properties": {
     "from": {"$ref": "#/$defs/source"},
     "as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-    "where": {"$ref": "expression.schema.json"},
+    "where": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"$ref": "expression.schema.json"}
+      ]
+    },
     "distinct": {"type": "boolean"},
     "order_by": {
       "type": "array",

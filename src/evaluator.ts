@@ -1,5 +1,6 @@
 import {
   evaluateCompiledTextExpression,
+  evaluateCompiledTextValue,
   expressionValuesEqual,
   isCompiledTextExpression,
 } from "./expression.js";
@@ -180,9 +181,16 @@ class LifecycleEvaluator {
     const obligations: ObligationEvaluation[] = [];
     for (const definition of Object.values(this.processPackage.obligations)) {
       if (!array(definition.phases).includes(this.snapshot.phaseId)) continue;
-      const forEach = object(definition.for_each);
-      if (!forEach) continue;
-      const subjects = this.invokeSelector(forEach, this.baseContext);
+      const forEach = definition.for_each;
+      const subjects = isCompiledTextExpression(forEach)
+        ? array(
+            evaluateCompiledTextValue(
+              forEach,
+              this.baseContext,
+              this.expressionHost(),
+            ),
+          ).filter((value): value is Entity => this.isEntity(value))
+        : this.invokeSelector(forEach, this.baseContext);
       const subjectAs = string(definition.subject_as) ?? "subject";
       for (const subject of subjects) {
         const context = { ...this.baseContext, [subjectAs]: subject };
@@ -303,9 +311,20 @@ class LifecycleEvaluator {
     return object(match?.result) ?? object(definition.default) ?? {};
   }
 
+  private expressionHost() {
+    return {
+      select: (reference: string, argumentsValue: Record<string, unknown>) =>
+        this.select(reference, argumentsValue),
+    };
+  }
+
   private expression(value: unknown, context: EvaluationContext): boolean {
     if (isCompiledTextExpression(value)) {
-      return evaluateCompiledTextExpression(value, context);
+      return evaluateCompiledTextExpression(
+        value,
+        context,
+        this.expressionHost(),
+      );
     }
     const expression = object(value);
     if (!expression) throw new Error(`Expected an expression object`);
@@ -384,10 +403,19 @@ class LifecycleEvaluator {
     if (!invocation) throw new Error(`Expected selector invocation`);
     const reference = string(invocation.selector);
     if (!reference) throw new Error(`Selector invocation has no selector`);
+    return this.select(
+      reference,
+      this.evaluateArguments(invocation.arguments, context),
+    );
+  }
+
+  private select(
+    reference: string,
+    argumentsContext: EvaluationContext,
+  ): Entity[] {
     const id = referenceId(reference);
     const definition = this.processPackage.selectors[id];
     if (!definition) throw new Error(`Unknown selector '${reference}'`);
-    const argumentsContext = this.evaluateArguments(invocation.arguments, context);
     const recursionKey = `${id}:${Object.values(argumentsContext).map((item) => this.valueKey(item)).join(",")}`;
     if (this.selectorStack.has(recursionKey)) throw new Error(`Selector recursion at ${recursionKey}`);
     this.selectorStack.add(recursionKey);
