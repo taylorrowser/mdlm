@@ -1,0 +1,17 @@
+kind: selector-definition
+id: open-blocking-questions
+version: 1
+description: Latest open questions that explicitly block at least one lifecycle concept.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: open-questions@1
+    arguments: {}
+  as: question
+  where:
+    exists:
+      selector: blocked-targets-for-question@1
+      arguments: {question: {var: question}}
+  distinct: true
+  order_by: [identity.id]

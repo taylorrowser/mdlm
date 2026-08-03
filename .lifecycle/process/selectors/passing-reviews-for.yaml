@@ -1,0 +1,22 @@
+kind: selector-definition
+id: passing-reviews-for
+version: 1
+description: Current valid passing reviews whose exact primary target is the supplied revision.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: {var: subject}, link: reviews, emit: source, types: [REV]}
+  as: review
+  where:
+    all:
+      - compare:
+          left: {path: {var: review, field: payload.outcome}}
+          operator: eq
+          right: {literal: pass}
+      - compare:
+          left: {state: {dimension: validity, subject: {var: review}}}
+          operator: eq
+          right: {literal: valid}
+  distinct: true
+  order_by: [identity.revision_id]

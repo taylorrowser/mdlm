@@ -1,0 +1,29 @@
+kind: type-definition
+id: QST
+version: 2
+name: Question
+description: Preferential or empirical question whose unresolved answer blocks or defers lifecycle work.
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: baseline-frozen
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required: [kind, question, state, blocking_impact]
+  properties:
+    kind: {enum: [preferential, empirical]}
+    question: {type: string, minLength: 1}
+    state: {enum: [open, answered, deferred, cancelled]}
+    blocking_impact: {type: string, minLength: 1}
+    reactivation_condition: {type: string, minLength: 1}
+    owner: {type: string, minLength: 1}
+outgoing_links:
+  - id: blocks
+    description: Lifecycle concepts whose progress depends on this open question.
+    targets:
+      - {kind: datum, types: [PSP, STK, SYS, BSL, QST, DEC], identity: stable}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: exact-revision
+    inverse_label: blocked-by
+kernel_managed_payload_paths: []

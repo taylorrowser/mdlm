@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v2/manifest.schema.json",
+  "title": "MDLM process package manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "compatibility", "catalog", "assets", "profiles", "provenance"],
+  "properties": {
+    "kind": {"const": "process-package-manifest"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "status": {"enum": ["experimental", "supported", "deprecated"]},
+    "description": {"type": "string", "minLength": 1},
+    "kernel_contract": {"type": "object"},
+    "artifact_format": {"type": "object"},
+    "references": {"type": "object"},
+    "compatibility": {"type": "object"},
+    "catalog": {"type": "object"},
+    "assets": {"type": "object"},
+    "profiles": {"type": "object"},
+    "provenance": {"type": "object"}
+  }
+}

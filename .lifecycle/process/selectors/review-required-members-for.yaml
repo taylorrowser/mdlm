@@ -1,0 +1,17 @@
+kind: selector-definition
+id: review-required-members-for
+version: 1
+description: Exact definition members of a baseline for which review policy requires independent review.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-members, of: {var: candidate}, emit: entity}
+  as: member
+  where:
+    compare:
+      left: {policy: {ref: review-applicability@1, arguments: {subject: {var: member}}, field: required}}
+      operator: eq
+      right: {literal: true}
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

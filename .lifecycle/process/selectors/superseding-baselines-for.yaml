@@ -1,0 +1,22 @@
+kind: selector-definition
+id: superseding-baselines-for
+version: 1
+description: Valid frozen baselines explicitly superseding one exact baseline revision.
+parameters:
+  - {name: baseline, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from: {relation: incoming-links, of: {var: baseline}, link: supersedes, emit: source, types: [BSL]}
+  as: successor
+  where:
+    all:
+      - compare:
+          left: {path: {var: successor, field: storage.frozen}}
+          operator: eq
+          right: {literal: true}
+      - compare:
+          left: {state: {dimension: validity, subject: {var: successor}}}
+          operator: eq
+          right: {literal: valid}
+  distinct: true
+  order_by: [identity.revision_id]

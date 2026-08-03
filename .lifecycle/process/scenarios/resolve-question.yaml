@@ -1,0 +1,41 @@
+kind: scenario-definition
+id: resolve-question
+version: 1
+description: Answer, defer, or cancel one exact question through a reasoned decision and a new QST revision.
+phases: [phase-0-wayfinding, phase-2-system-definition]
+inputs:
+  - name: question
+    types: [QST]
+    cardinality: one
+    identity: revision
+    conditions:
+      compare:
+        left: {path: {var: question, field: payload.state}}
+        operator: eq
+        right: {literal: open}
+outputs:
+  - name: decision
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: resolves, target: {input: question}}
+  - {name: updated_question, types: [QST], cardinality: one, required_links: []}
+prompt_ref: prompts/resolve-question.md@1
+review_policy_ref: review-applicability@1
+completion:
+  all:
+    - compare:
+        left: {path: {var: execution, field: integrity.contract_valid}}
+        operator: eq
+        right: {literal: true}
+    - compare:
+        left: {path: {var: updated_question, field: identity.id}}
+        operator: eq
+        right: {path: {var: question, field: identity.id}}
+    - compare:
+        left: {path: {var: updated_question, field: payload.state}}
+        operator: in
+        right: {literal: [answered, deferred, cancelled]}
+resolves: [open-question-resolution]
+prohibited_inputs: [unstated stakeholder answer, unsupported empirical conclusion]
+batching: single

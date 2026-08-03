@@ -1,0 +1,41 @@
+kind: state-definition
+id: validity
+version: 2
+description: Structural integrity and conservative dependency freshness for an exact revision.
+subject_as: subject
+cardinality: exactly-one
+default: valid
+values: [invalid, stale, valid]
+rules:
+  - value: invalid
+    priority: 300
+    when:
+      any:
+        - compare:
+            left: {path: {var: subject, field: integrity.parseable}}
+            operator: eq
+            right: {literal: false}
+        - compare:
+            left: {path: {var: subject, field: integrity.schema_valid}}
+            operator: eq
+            right: {literal: false}
+        - compare:
+            left: {path: {var: subject, field: integrity.identity_valid}}
+            operator: eq
+            right: {literal: false}
+        - compare:
+            left: {path: {var: subject, field: integrity.references_valid}}
+            operator: eq
+            right: {literal: false}
+        - compare:
+            left: {path: {var: subject, field: integrity.hash_valid}}
+            operator: eq
+            right: {literal: false}
+    explanation: Parseability, schema, identity, reference, or frozen-byte integrity is broken.
+  - value: stale
+    priority: 200
+    when:
+      exists:
+        selector: dependency-changes-for@1
+        arguments: {subject: {var: subject}}
+    explanation: At least one conservatively classified dependency change requires reassessment.

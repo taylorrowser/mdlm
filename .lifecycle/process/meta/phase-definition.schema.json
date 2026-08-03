@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v2/phase-definition.schema.json",
+  "title": "MDLM phase definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "order", "name", "purpose", "coverage", "entry", "scenarios", "obligations", "outputs", "gate"],
+  "properties": {
+    "kind": {"const": "phase-definition"},
+    "id": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"},
+    "version": {"type": "integer", "minimum": 1},
+    "order": {"type": "integer", "minimum": 0},
+    "name": {"type": "string", "minLength": 1},
+    "purpose": {"type": "string", "minLength": 1},
+    "coverage": {"enum": ["complete", "bootstrap-subset"]},
+    "omitted_capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "entry": {"$ref": "expression.schema.json"},
+    "scenarios": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "minItems": 1, "uniqueItems": true},
+    "obligations": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "uniqueItems": true},
+    "outputs": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "candidate_selector", "candidate_as", "completion"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "candidate_selector": {"$ref": "expression.schema.json#/$defs/selectorInvocation"},
+        "candidate_as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "completion": {"$ref": "expression.schema.json"}
+      }
+    }
+  }
+}

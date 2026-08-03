@@ -1,0 +1,12 @@
+kind: selector-definition
+id: dependency-changes-for
+version: 1
+description: Conservative kernel-classified dependency changes affecting one exact revision.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: record
+query:
+  from: {relation: dependency-changes, of: {var: subject}, emit: record}
+  as: change
+  distinct: true
+  order_by: [kind]

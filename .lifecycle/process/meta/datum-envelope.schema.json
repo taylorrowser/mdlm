@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+  "title": "Kernel-owned MDLM datum envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "revision", "revision_id", "type", "payload", "links", "created_by", "body"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "revision_id": {"type": "string", "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"},
+    "type": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "payload": {"type": "object"},
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "target"],
+        "properties": {
+          "type": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "target": {"type": "string", "minLength": 1}
+        }
+      },
+      "uniqueItems": true
+    },
+    "created_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario", "prompt_ref", "process_ref", "loaded_skill_refs", "policy_refs"],
+      "properties": {
+        "scenario": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+        "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
+        "process_ref": {"type": "string", "minLength": 1},
+        "loaded_skill_refs": {"type": "array", "items": {"type": "string", "pattern": "^skills/.+\\.md@[1-9][0-9]*$"}, "uniqueItems": true},
+        "policy_refs": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "uniqueItems": true}
+      }
+    },
+    "body": {"type": "string"}
+  },
+  "x-mdlm-kernel-invariants": [
+    "id prefix equals type",
+    "revision_id equals id plus zero-padded revision",
+    "frozen revisions are immutable",
+    "at most one local editable revision exists per stable id"
+  ]
+}

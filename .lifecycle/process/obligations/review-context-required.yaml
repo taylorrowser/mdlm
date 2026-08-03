@@ -1,0 +1,32 @@
+kind: obligation-definition
+id: review-context-required
+version: 2
+description: Every review-required revision must appear in an exact valid frozen review-context baseline before judgment.
+phases: [phase-0-wayfinding, phase-2-system-definition]
+for_each: {selector: review-required-revisions@1, arguments: {}}
+subject_as: subject
+satisfied_when:
+  exists:
+    selector: valid-review-contexts-for@1
+    arguments: {subject: {var: subject}}
+status_rules:
+  - status: stale
+    priority: 200
+    when:
+      exists:
+        selector: stale-review-contexts-for@1
+        arguments: {subject: {var: subject}}
+    reason: Prior context exists but a declared dependency changed.
+  - status: ready
+    priority: 100
+    when:
+      none:
+        selector: valid-review-contexts-for@1
+        arguments: {subject: {var: subject}}
+    reason: A deterministic exact review context can be created now.
+default_status: ready
+resolve_with:
+  scenario: create-review-context@1
+  inputs:
+    subject: {var: subject}
+waiver_policy_ref: waiver-applicability@1

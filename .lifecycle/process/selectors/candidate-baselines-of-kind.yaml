@@ -1,0 +1,19 @@
+kind: selector-definition
+id: candidate-baselines-of-kind
+version: 1
+description: Current frozen candidate baselines with the requested baseline kind.
+parameters:
+  - {name: baseline_kind, kind: scalar, scalar_type: string}
+result_kind: baseline
+query:
+  from:
+    selector: candidate-baselines@1
+    arguments: {}
+  as: candidate
+  where:
+    compare:
+      left: {path: {var: candidate, field: payload.kind}}
+      operator: eq
+      right: {var: baseline_kind}
+  distinct: true
+  order_by: [payload.scope, payload.group, identity.revision_id]

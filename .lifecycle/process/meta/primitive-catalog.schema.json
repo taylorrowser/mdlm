@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v2/primitive-catalog.schema.json",
+  "title": "MDLM kernel primitive catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "interface_version", "entity_paths", "context_paths", "collections", "relations"],
+  "properties": {
+    "kind": {"const": "primitive-catalog"},
+    "id": {"type": "string", "minLength": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "interface_version": {"type": "integer", "minimum": 1},
+    "entity_paths": {"type": "array", "items": {"$ref": "#/$defs/path"}, "minItems": 1},
+    "context_paths": {"type": "array", "items": {"$ref": "#/$defs/path"}, "minItems": 1},
+    "collections": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "from", "emits", "description"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "from": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+          "emits": {"type": "string", "minLength": 1},
+          "supports_link_filter": {"type": "boolean"},
+          "description": {"type": "string", "minLength": 1}
+        }
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "description"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^[a-z][a-z0-9_.*-]*$"},
+        "type": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

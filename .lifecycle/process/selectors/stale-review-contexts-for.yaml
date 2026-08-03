@@ -1,0 +1,22 @@
+kind: selector-definition
+id: stale-review-contexts-for
+version: 1
+description: Review-context baselines containing the subject whose dependency validity is stale.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: baseline
+query:
+  from: {relation: baseline-memberships, of: {var: subject}, emit: entity, types: [BSL]}
+  as: context
+  where:
+    all:
+      - compare:
+          left: {path: {var: context, field: payload.kind}}
+          operator: eq
+          right: {literal: review-context}
+      - compare:
+          left: {state: {dimension: validity, subject: {var: context}}}
+          operator: eq
+          right: {literal: stale}
+  distinct: true
+  order_by: [identity.revision_id]

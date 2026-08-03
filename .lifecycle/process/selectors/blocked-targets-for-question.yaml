@@ -1,0 +1,12 @@
+kind: selector-definition
+id: blocked-targets-for-question
+version: 1
+description: Stable lifecycle data explicitly blocked by one question revision.
+parameters:
+  - {name: question, kind: revision, types: [QST]}
+result_kind: stable-datum
+query:
+  from: {relation: outgoing-links, of: {var: question}, link: blocks, emit: target}
+  as: target
+  distinct: true
+  order_by: [identity.type, identity.id]

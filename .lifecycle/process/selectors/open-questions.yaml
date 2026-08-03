@@ -1,0 +1,24 @@
+kind: selector-definition
+id: open-questions
+version: 1
+description: Latest active QST revisions still awaiting answer, deferral, or cancellation.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST]}
+  as: question
+  where:
+    all:
+      - compare:
+          left: {path: {var: question, field: payload.state}}
+          operator: eq
+          right: {literal: open}
+      - none:
+          selector: newer-revisions-for@1
+          arguments: {subject: {var: question}}
+      - compare:
+          left: {state: {dimension: disposition, subject: {var: question}}}
+          operator: eq
+          right: {literal: active}
+  distinct: true
+  order_by: [identity.id]

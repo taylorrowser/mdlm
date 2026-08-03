@@ -1,0 +1,43 @@
+kind: scenario-definition
+id: review-datum-in-context
+version: 1
+description: Independently review one exact substantive revision in one exact frozen baseline context.
+phases: [phase-0-wayfinding, phase-2-system-definition]
+inputs:
+  - {name: subject, types: [PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision}
+  - name: review_context
+    types: [BSL]
+    cardinality: one
+    identity: revision
+    conditions:
+      all:
+        - compare:
+            left: {path: {var: review_context, field: payload.kind}}
+            operator: eq
+            right: {literal: review-context}
+        - compare:
+            left: {path: {var: review_context, field: storage.frozen}}
+            operator: eq
+            right: {literal: true}
+outputs:
+  - name: review
+    types: [REV]
+    cardinality: one
+    required_links:
+      - {link: reviews, target: {input: subject}}
+      - {link: contextualizes, target: {input: review_context}}
+prompt_ref: prompts/review-datum-in-context.md@1
+review_policy_ref: review-applicability@1
+completion:
+  all:
+    - compare:
+        left: {path: {var: execution, field: integrity.contract_valid}}
+        operator: eq
+        right: {literal: true}
+    - compare:
+        left: {path: {var: review, field: payload.outcome}}
+        operator: in
+        right: {literal: [pass, fail, cancelled]}
+resolves: [passing-review-required, candidate-members-reviewed]
+prohibited_inputs: [unfrozen context, mutable latest aliases, prior review outcome as authority]
+batching: coherent-batch

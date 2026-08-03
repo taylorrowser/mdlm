@@ -1,0 +1,20 @@
+kind: selector-definition
+id: newer-accepted-revisions-for
+version: 1
+description: Later revisions of the same datum that belong to an accepted baseline.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from:
+    selector: newer-revisions-for@1
+    arguments: {subject: {var: subject}}
+  as: revision
+  where:
+    exists:
+      selector: baselines-containing-with-role@1
+      arguments:
+        subject: {var: revision}
+        role: {literal: accepted}
+  distinct: true
+  order_by: [identity.revision]

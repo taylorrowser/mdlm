@@ -1,0 +1,35 @@
+kind: obligation-definition
+id: candidate-members-reviewed
+version: 2
+description: Every review-required exact definition member of a current candidate must have a valid passing review.
+phases: [phase-0-wayfinding, phase-2-system-definition]
+for_each: {selector: candidate-baselines@1, arguments: {}}
+subject_as: candidate
+satisfied_when:
+  none:
+    selector: candidate-members-missing-review@1
+    arguments: {candidate: {var: candidate}}
+status_rules:
+  - status: blocked
+    priority: 100
+    when:
+      exists:
+        selector: candidate-members-missing-review@1
+        arguments: {candidate: {var: candidate}}
+    reason: One or more exact candidate members still lack valid passing review evidence.
+default_status: blocked
+resolve_with:
+  scenario: review-datum-in-context@1
+  dispatch:
+    for_each:
+      selector: candidate-members-missing-review@1
+      arguments: {candidate: {var: candidate}}
+    as: member
+  inputs:
+    subject: {var: member}
+    review_context:
+      select:
+        selector: valid-review-contexts-for@1
+        arguments: {subject: {var: member}}
+        cardinality: one
+waiver_policy_ref: waiver-applicability@1

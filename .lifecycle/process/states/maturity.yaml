@@ -1,0 +1,30 @@
+kind: state-definition
+id: maturity
+version: 2
+description: Historical authorization level derived from exact frozen baseline membership.
+subject_as: subject
+cardinality: exactly-one
+default: draft
+values: [accepted, candidate, review-frozen, draft]
+rules:
+  - value: accepted
+    priority: 400
+    when:
+      exists:
+        selector: baselines-containing-with-role@1
+        arguments: {subject: {var: subject}, role: {literal: accepted}}
+    explanation: The exact revision belongs to a current or historical accepted baseline.
+  - value: candidate
+    priority: 300
+    when:
+      exists:
+        selector: baselines-containing-with-role@1
+        arguments: {subject: {var: subject}, role: {literal: candidate}}
+    explanation: The exact revision belongs to a candidate baseline and no accepted rule matched.
+  - value: review-frozen
+    priority: 200
+    when:
+      exists:
+        selector: baselines-containing-with-role@1
+        arguments: {subject: {var: subject}, role: {literal: review-context}}
+    explanation: The exact revision is frozen only as review context.

@@ -1,0 +1,33 @@
+kind: scenario-definition
+id: derive-system-requirements
+version: 1
+description: Derive a minimal set of solution-independent system requirements covering authorized stakeholder revisions.
+phases: [phase-2-system-definition]
+inputs:
+  - name: stakeholder_requirements
+    types: [STK]
+    cardinality: one-or-more
+    identity: revision
+    conditions:
+      compare:
+        left: {state: {dimension: maturity, subject: {var: stakeholder_requirements}}}
+        operator: in
+        right: {literal: [candidate, accepted]}
+outputs:
+  - name: requirements
+    types: [SYS]
+    cardinality: one-or-more
+    required_links:
+      - {link: derived-from, target: {input: stakeholder_requirements}}
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/derive-system-requirements.md@1
+review_policy_ref: review-applicability@1
+completion:
+  compare:
+    left: {path: {var: execution, field: integrity.contract_valid}}
+    operator: eq
+    right: {literal: true}
+resolves: []
+prohibited_inputs: [product source code, proposed implementation details, unit tests]
+batching: coherent-batch

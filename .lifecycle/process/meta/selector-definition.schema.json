@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v2/selector-definition.schema.json",
+  "title": "MDLM parameterized selector definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "description", "parameters", "result_kind", "query"],
+  "properties": {
+    "kind": {"const": "selector-definition"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "version": {"type": "integer", "minimum": 1},
+    "description": {"type": "string", "minLength": 1},
+    "parameters": {"type": "array", "items": {"$ref": "parameter.schema.json"}, "uniqueItems": true},
+    "result_kind": {"enum": ["stable-datum", "revision", "baseline", "record"]},
+    "query": {"$ref": "query.schema.json"}
+  }
+}

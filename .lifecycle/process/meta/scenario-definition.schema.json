@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v2/scenario-definition.schema.json",
+  "title": "MDLM scenario definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "description", "phases", "inputs", "outputs", "prompt_ref", "review_policy_ref", "completion", "resolves", "prohibited_inputs", "batching"],
+  "properties": {
+    "kind": {"const": "scenario-definition"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "version": {"type": "integer", "minimum": 1},
+    "description": {"type": "string", "minLength": 1},
+    "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
+    "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
+    "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}, "minItems": 1},
+    "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
+    "review_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+    "completion": {"$ref": "expression.schema.json"},
+    "resolves": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}, "uniqueItems": true},
+    "prohibited_inputs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "batching": {"enum": ["single", "coherent-batch", "either"]}
+  },
+  "$defs": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "types", "cardinality", "identity"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
+        "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]},
+        "identity": {"enum": ["stable", "revision", "either"]},
+        "conditions": {"$ref": "expression.schema.json"}
+      }
+    },
+    "requiredLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["link", "target"],
+      "properties": {
+        "link": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "output": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+          },
+          "oneOf": [
+            {"required": ["input"]},
+            {"required": ["output"]}
+          ]
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "types", "cardinality", "required_links"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
+        "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]},
+        "required_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+kind: selector-definition
+id: stale-reviews-for
+version: 1
+description: Reviews of the exact supplied subject whose validity is stale.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: {var: subject}, link: reviews, emit: source, types: [REV]}
+  as: review
+  where:
+    compare:
+      left: {state: {dimension: validity, subject: {var: review}}}
+      operator: eq
+      right: {literal: stale}
+  distinct: true
+  order_by: [identity.revision_id]

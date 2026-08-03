@@ -1,0 +1,76 @@
+processRef: git:prototype
+phaseId: phase-2-system-definition
+dependencyChanges: []
+records:
+  - datum:
+      id: PSP-7K3M9Q2D8F
+      revision: 1
+      revision_id: PSP-7K3M9Q2D8F-r00001
+      type: PSP
+      payload:
+        title: Markdown lifecycle manager
+        rationale: Agents need durable product intent and review evidence.
+        problem: Product intent and assurance context are lost between agent sessions.
+        users: [product owner, engineering agent]
+        goals: [preserve traceable reviewed intent]
+        non_goals: [formal regulatory compliance]
+        success_measures: [every candidate requirement has explainable review obligations]
+      links: []
+      created_by:
+        scenario: compile-psp@1
+        prompt_ref: prompts/compile-psp.md@1
+        process_ref: git:prototype
+        loaded_skill_refs: [skills/product-specification.md@1]
+        policy_refs: [review-applicability@1]
+      body: ''
+    storage: {editable: true, frozen: false}
+    integrity: &valid
+      parseable: true
+      schema_valid: true
+      identity_valid: true
+      references_valid: true
+      hash_valid: true
+  - datum:
+      id: STK-X4N7AB2W6J
+      revision: 1
+      revision_id: STK-X4N7AB2W6J-r00001
+      type: STK
+      payload:
+        title: Explain lifecycle work
+        rationale: Product owners need to understand why agent work is necessary.
+        statement: The product shall explain each outstanding lifecycle obligation to the product owner.
+        verification_intent: Inspect representative loose ends for cause, blockers, and resolver scenario.
+        stakeholder: product owner
+        priority: must
+      links:
+        - {type: derived-from, target: PSP-7K3M9Q2D8F}
+      created_by:
+        scenario: draft-stakeholder-requirements@1
+        prompt_ref: prompts/draft-stakeholder-requirements.md@1
+        process_ref: git:prototype
+        loaded_skill_refs: [skills/requirement-writing.md@1]
+        policy_refs: [review-applicability@1]
+      body: ''
+    storage: {editable: true, frozen: false}
+    integrity: *valid
+  - datum:
+      id: SYS-8ZT5KQ3P9M
+      revision: 1
+      revision_id: SYS-8ZT5KQ3P9M-r00001
+      type: SYS
+      payload:
+        title: Compute loose ends
+        rationale: Explainable work requires deterministic evaluation of process obligations.
+        statement: The system shall compute every unsatisfied process obligation for the selected phase.
+        verification_intent: Evaluate a controlled lifecycle graph and compare the loose ends with expected obligations.
+      links:
+        - {type: derived-from, target: STK-X4N7AB2W6J}
+      created_by:
+        scenario: derive-system-requirements@1
+        prompt_ref: prompts/derive-system-requirements.md@1
+        process_ref: git:prototype
+        loaded_skill_refs: [skills/requirement-writing.md@1]
+        policy_refs: [review-applicability@1]
+      body: ''
+    storage: {editable: true, frozen: false}
+    integrity: *valid

@@ -1,0 +1,26 @@
+kind: selector-definition
+id: applicable-disposition-decisions-for
+version: 1
+description: Reviewed valid disposition decisions justifying one exact subject revision.
+parameters:
+  - {name: subject, kind: revision}
+  - {name: decision_kind, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: {var: subject}, link: justifies, emit: source, types: [DEC]}
+  as: decision
+  where:
+    all:
+      - compare:
+          left: {path: {var: decision, field: payload.kind}}
+          operator: eq
+          right: {var: decision_kind}
+      - compare:
+          left: {state: {dimension: validity, subject: {var: decision}}}
+          operator: eq
+          right: {literal: valid}
+      - exists:
+          selector: passing-reviews-for@1
+          arguments: {subject: {var: decision}}
+  distinct: true
+  order_by: [identity.revision_id]

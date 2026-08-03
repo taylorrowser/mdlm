@@ -1,0 +1,35 @@
+kind: obligation-definition
+id: open-question-resolution
+version: 2
+description: Every latest open question must be answered, explicitly deferred, or cancelled through an exact decision.
+phases: [phase-0-wayfinding, phase-2-system-definition]
+for_each: {selector: open-questions@1, arguments: {}}
+subject_as: question
+satisfied_when:
+  compare:
+    left: {path: {var: question, field: payload.state}}
+    operator: in
+    right: {literal: [answered, deferred, cancelled]}
+status_rules:
+  - status: blocked
+    priority: 200
+    when:
+      compare:
+        left: {path: {var: question, field: payload.kind}}
+        operator: eq
+        right: {literal: preferential}
+    reason: An explicit stakeholder answer is required; the process may not fabricate it.
+  - status: ready
+    priority: 100
+    when:
+      compare:
+        left: {path: {var: question, field: payload.kind}}
+        operator: eq
+        right: {literal: empirical}
+    reason: The empirical question can be resolved when sufficient evidence is available.
+default_status: blocked
+resolve_with:
+  scenario: resolve-question@1
+  inputs:
+    question: {var: question}
+waiver_policy_ref: waiver-applicability@1

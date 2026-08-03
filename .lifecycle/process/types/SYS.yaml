@@ -1,0 +1,22 @@
+kind: type-definition
+id: SYS
+version: 2
+name: System Requirement
+description: Singular solution-independent system behavior or constraint derived from stakeholder requirements.
+extends: requirement@1
+lifecycle:
+  authorship: authored
+  freeze_when: baseline-frozen
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  properties: {}
+outgoing_links:
+  - id: derived-from
+    description: Stakeholder commitments whose necessary system behavior this requirement expresses.
+    targets:
+      - {kind: datum, types: [STK], identity: stable}
+    cardinality: {minimum: 1, maximum: many}
+    freeze_resolution: exact-revision
+    inverse_label: derives
+kernel_managed_payload_paths: []

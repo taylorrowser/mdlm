@@ -1,0 +1,26 @@
+kind: selector-definition
+id: valid-review-contexts-for
+version: 1
+description: Frozen valid review-context baselines containing the exact supplied subject.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: baseline
+query:
+  from: {relation: baseline-memberships, of: {var: subject}, emit: entity, types: [BSL]}
+  as: context
+  where:
+    all:
+      - compare:
+          left: {path: {var: context, field: payload.kind}}
+          operator: eq
+          right: {literal: review-context}
+      - compare:
+          left: {path: {var: context, field: storage.frozen}}
+          operator: eq
+          right: {literal: true}
+      - compare:
+          left: {state: {dimension: validity, subject: {var: context}}}
+          operator: eq
+          right: {literal: valid}
+  distinct: true
+  order_by: [identity.revision_id]

@@ -1,0 +1,75 @@
+kind: primitive-catalog
+id: mdlm-kernel-process-interface
+version: 1
+interface_version: 1
+entity_paths:
+  - {path: identity.id, type: string, description: Stable datum ID.}
+  - {path: identity.revision_id, type: string, description: Exact revision ID.}
+  - {path: identity.type, type: type-id, description: Lifecycle type prefix.}
+  - {path: identity.revision, type: integer, description: Positive revision number.}
+  - {path: payload.*, type: schema-derived, description: Field from the resolved type payload schema.}
+  - {path: storage.editable, type: boolean, description: Whether the exact revision may be edited.}
+  - {path: storage.frozen, type: boolean, description: Whether kernel immutability applies.}
+  - {path: integrity.parseable, type: boolean, description: Whether durable Markdown and frontmatter parse.}
+  - {path: integrity.schema_valid, type: boolean, description: Whether envelope and resolved payload schemas pass.}
+  - {path: integrity.identity_valid, type: boolean, description: Whether identity and lineage invariants pass.}
+  - {path: integrity.references_valid, type: boolean, description: Whether all exact and stable references resolve legally.}
+  - {path: integrity.hash_valid, type: boolean, description: Whether every applicable frozen-byte hash matches.}
+  - {path: provenance.process_ref, type: string, description: Process reference recorded for creation.}
+context_paths:
+  - {path: current_ref, type: string, description: Current resolved process reference on the process context.}
+  - {path: integrity.package_valid, type: boolean, description: Whether the resolved process package passed complete validation.}
+  - {path: id, type: string, description: Current phase identifier on the phase context.}
+  - {path: integrity.contract_valid, type: boolean, description: Generic input/output/schema/link validation for a scenario execution.}
+collections: [stable-data, revisions, baselines]
+relations:
+  - id: outgoing-links
+    from: [stable-datum, revision]
+    emits: target entity or link record
+    supports_link_filter: true
+    description: Traverse validated links from their stored source.
+  - id: incoming-links
+    from: [stable-datum, revision]
+    emits: source revision or link record
+    supports_link_filter: true
+    description: Compute backlinks from stored outgoing links.
+  - id: revisions
+    from: [stable-datum, revision]
+    emits: exact revision
+    supports_link_filter: false
+    description: Enumerate exact revisions in stable lineage.
+  - id: baseline-members
+    from: [baseline]
+    emits: exact definition-member revision
+    supports_link_filter: false
+    description: Traverse exact definition membership.
+  - id: baseline-evidence
+    from: [baseline]
+    emits: exact supporting-evidence revision
+    supports_link_filter: false
+    description: Traverse evidence separately from definition membership.
+  - id: baseline-memberships
+    from: [revision]
+    emits: containing baseline revision
+    supports_link_filter: false
+    description: Compute exact baselines containing a revision.
+  - id: baseline-composed
+    from: [baseline]
+    emits: exact composed baseline revision
+    supports_link_filter: false
+    description: Traverse outgoing composes links.
+  - id: dependency-changes
+    from: [revision]
+    emits: change record
+    supports_link_filter: false
+    description: Conservatively classify changed content, resolved links, evidence targets, and review contexts.
+  - id: scenario-inputs
+    from: [execution]
+    emits: bound input entity
+    supports_link_filter: false
+    description: Enumerate inputs bound to one scenario execution.
+  - id: scenario-outputs
+    from: [execution]
+    emits: declared output entity
+    supports_link_filter: false
+    description: Enumerate outputs created by one scenario execution.

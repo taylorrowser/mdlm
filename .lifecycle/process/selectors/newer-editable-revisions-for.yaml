@@ -1,0 +1,19 @@
+kind: selector-definition
+id: newer-editable-revisions-for
+version: 1
+description: Later editable revisions of the same stable datum.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from:
+    selector: newer-revisions-for@1
+    arguments: {subject: {var: subject}}
+  as: revision
+  where:
+    compare:
+      left: {path: {var: revision, field: storage.editable}}
+      operator: eq
+      right: {literal: true}
+  distinct: true
+  order_by: [identity.revision]

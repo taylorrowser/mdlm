@@ -1,0 +1,57 @@
+kind: obligation-definition
+id: candidate-gate-signoff
+version: 2
+description: A current candidate requires exact reviewed gate approval after member and candidate reviews pass and blocking questions close.
+phases: [phase-0-wayfinding, phase-2-system-definition]
+for_each: {selector: candidate-baselines@1, arguments: {}}
+subject_as: candidate
+satisfied_when:
+  exists:
+    selector: applicable-gate-signoffs-for@1
+    arguments: {candidate: {var: candidate}}
+status_rules:
+  - status: blocked
+    priority: 300
+    when:
+      all:
+        - exists:
+            selector: gate-signoff-decisions-for@1
+            arguments: {candidate: {var: candidate}}
+        - none:
+            selector: applicable-gate-signoffs-for@1
+            arguments: {candidate: {var: candidate}}
+    reason: A gate sign-off decision awaits review; its individual review obligations must resolve before the gate evidence is applicable.
+  - status: blocked
+    priority: 200
+    when:
+      any:
+        - exists:
+            selector: candidate-members-missing-review@1
+            arguments: {candidate: {var: candidate}}
+        - none:
+            selector: passing-reviews-for@1
+            arguments: {subject: {var: candidate}}
+        - exists:
+            selector: open-blocking-questions@1
+            arguments: {}
+    reason: Candidate reviews, member reviews, or blocking questions remain unresolved.
+  - status: ready
+    priority: 100
+    when:
+      all:
+        - none:
+            selector: candidate-members-missing-review@1
+            arguments: {candidate: {var: candidate}}
+        - exists:
+            selector: passing-reviews-for@1
+            arguments: {subject: {var: candidate}}
+        - none:
+            selector: open-blocking-questions@1
+            arguments: {}
+    reason: The exact frozen candidate is ready for an explicit gate decision.
+default_status: blocked
+resolve_with:
+  scenario: record-gate-signoff@1
+  inputs:
+    candidate: {var: candidate}
+waiver_policy_ref: waiver-applicability@1

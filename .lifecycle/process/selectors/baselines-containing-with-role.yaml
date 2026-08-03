@@ -1,0 +1,23 @@
+kind: selector-definition
+id: baselines-containing-with-role
+version: 1
+description: Frozen baselines of a requested role containing one exact revision.
+parameters:
+  - {name: subject, kind: revision}
+  - {name: role, kind: scalar, scalar_type: string}
+result_kind: baseline
+query:
+  from: {relation: baseline-memberships, of: {var: subject}, emit: entity, types: [BSL]}
+  as: baseline
+  where:
+    all:
+      - compare:
+          left: {path: {var: baseline, field: payload.role}}
+          operator: eq
+          right: {var: role}
+      - compare:
+          left: {path: {var: baseline, field: storage.frozen}}
+          operator: eq
+          right: {literal: true}
+  distinct: true
+  order_by: [identity.revision_id]

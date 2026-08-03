@@ -1,0 +1,21 @@
+kind: selector-definition
+id: review-required-revisions
+version: 1
+description: Exact active revisions for which the machine-readable review policy requires independent review.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [PSP, STK, SYS, BSL, DEC]}
+  as: subject
+  where:
+    all:
+      - compare:
+          left: {policy: {ref: review-applicability@1, arguments: {subject: {var: subject}}, field: required}}
+          operator: eq
+          right: {literal: true}
+      - compare:
+          left: {state: {dimension: disposition, subject: {var: subject}}}
+          operator: eq
+          right: {literal: active}
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

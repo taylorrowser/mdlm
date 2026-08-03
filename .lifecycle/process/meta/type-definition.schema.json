@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v2/type-definition.schema.json",
+  "title": "MDLM lifecycle type definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "name", "description", "extends", "lifecycle", "payload_schema", "outgoing_links", "kernel_managed_payload_paths"],
+  "properties": {
+    "kind": {"const": "type-definition"},
+    "id": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "version": {"type": "integer", "minimum": 1},
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "extends": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorship", "freeze_when"],
+      "properties": {
+        "authorship": {"enum": ["authored", "generated", "mixed"]},
+        "freeze_when": {"enum": ["baseline-frozen", "terminal-outcome", "explicit"]},
+        "terminal_payload_field": {"type": "string", "minLength": 1},
+        "terminal_values": {"type": "array", "items": {"type": ["string", "number", "boolean"]}, "uniqueItems": true}
+      }
+    },
+    "payload_schema": {
+      "type": "object",
+      "required": ["$schema", "type", "properties"],
+      "properties": {
+        "$schema": {"const": "https://json-schema.org/draft/2020-12/schema"},
+        "type": {"const": "object"},
+        "required": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "properties": {"type": "object"}
+      }
+    },
+    "outgoing_links": {"type": "array", "items": {"$ref": "link-contract.schema.json"}, "uniqueItems": true},
+    "kernel_managed_payload_paths": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]*$"}, "uniqueItems": true}
+  }
+}

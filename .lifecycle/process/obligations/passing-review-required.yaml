@@ -1,0 +1,51 @@
+kind: obligation-definition
+id: passing-review-required
+version: 2
+description: Every review-required exact revision needs a current valid passing REV in a valid frozen context.
+phases: [phase-0-wayfinding, phase-2-system-definition]
+for_each: {selector: review-required-revisions@1, arguments: {}}
+subject_as: subject
+satisfied_when:
+  exists:
+    selector: passing-reviews-for@1
+    arguments: {subject: {var: subject}}
+status_rules:
+  - status: failed
+    priority: 400
+    when:
+      exists:
+        selector: failing-reviews-for@1
+        arguments: {subject: {var: subject}}
+    reason: A current valid review failed; revise the subject or resolve its findings.
+  - status: stale
+    priority: 300
+    when:
+      exists:
+        selector: stale-reviews-for@1
+        arguments: {subject: {var: subject}}
+    reason: Prior review evidence exists but its subject or context changed.
+  - status: blocked
+    priority: 200
+    when:
+      none:
+        selector: valid-review-contexts-for@1
+        arguments: {subject: {var: subject}}
+    reason: Review cannot begin until an exact valid review context is frozen.
+  - status: awaiting-review
+    priority: 100
+    when:
+      exists:
+        selector: valid-review-contexts-for@1
+        arguments: {subject: {var: subject}}
+    reason: Exact context exists and an independent review is required.
+default_status: blocked
+resolve_with:
+  scenario: review-datum-in-context@1
+  inputs:
+    subject: {var: subject}
+    review_context:
+      select:
+        selector: valid-review-contexts-for@1
+        arguments: {subject: {var: subject}}
+        cardinality: one
+waiver_policy_ref: waiver-applicability@1

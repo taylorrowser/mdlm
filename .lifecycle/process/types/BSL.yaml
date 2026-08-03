@@ -1,0 +1,71 @@
+kind: type-definition
+id: BSL
+version: 2
+name: Baseline
+description: Exact immutable snapshot separating definition members, supporting evidence, composition, and integrity claims.
+extends: titled-datum@1
+lifecycle:
+  authorship: mixed
+  freeze_when: explicit
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required: [kind, role, scope, group, definition_members, evidence]
+  properties:
+    kind: {enum: [review-context, intent-group-candidate, intent-level-candidate, intent-approved, group-candidate, level-candidate, group-accepted, level-accepted]}
+    role: {enum: [review-context, candidate, accepted]}
+    scope: {type: string, minLength: 1}
+    group: {type: string, minLength: 1}
+    definition_members:
+      type: array
+      uniqueItems: true
+      items: {type: string, pattern: '^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+    evidence:
+      type: array
+      uniqueItems: true
+      items: {type: string, pattern: '^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+    snapshot:
+      type: object
+      additionalProperties: false
+      required: [frozen_at, member_hashes, resolved_links, process_provenance]
+      properties:
+        frozen_at: {type: string, format: date-time}
+        member_hashes:
+          type: object
+          additionalProperties: {type: string, pattern: '^sha256:[a-f0-9]{64}$'}
+        resolved_links:
+          type: object
+          additionalProperties:
+            type: array
+            items: {type: string}
+        process_provenance:
+          type: object
+          additionalProperties: false
+          required: [process_ref, manifest_hash, asset_refs]
+          properties:
+            process_ref: {type: string, minLength: 1}
+            manifest_hash: {type: string, pattern: '^sha256:[a-f0-9]{64}$'}
+            asset_refs: {type: array, items: {type: string}, uniqueItems: true}
+outgoing_links:
+  - id: composes
+    description: Exact group baseline revisions composed by this level baseline.
+    targets:
+      - {kind: datum, types: [BSL], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: composed-by
+  - id: promotes
+    description: Exact candidate baseline promoted by this approved or accepted baseline.
+    targets:
+      - {kind: datum, types: [BSL], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: promoted-by
+  - id: supersedes
+    description: Older baseline for the same role and scope explicitly replaced by this baseline.
+    targets:
+      - {kind: datum, types: [BSL], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: superseded-by
+kernel_managed_payload_paths: [snapshot]

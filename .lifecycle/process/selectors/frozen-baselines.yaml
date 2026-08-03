@@ -1,0 +1,16 @@
+kind: selector-definition
+id: frozen-baselines
+version: 1
+description: Every exact frozen baseline subject to immutable integrity verification.
+parameters: []
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: baseline
+  where:
+    compare:
+      left: {path: {var: baseline, field: storage.frozen}}
+      operator: eq
+      right: {literal: true}
+  distinct: true
+  order_by: [identity.revision_id]

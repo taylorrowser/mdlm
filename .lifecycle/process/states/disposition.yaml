@@ -1,0 +1,23 @@
+kind: state-definition
+id: disposition
+version: 2
+description: Intentional terminal treatment derived from reviewed exact decision evidence.
+subject_as: subject
+cardinality: exactly-one
+default: active
+values: [active, retired, cancelled]
+rules:
+  - value: retired
+    priority: 300
+    when:
+      exists:
+        selector: applicable-disposition-decisions-for@1
+        arguments: {subject: {var: subject}, decision_kind: {literal: retirement}}
+    explanation: A reviewed applicable retirement DEC intentionally ends further use while retaining history.
+  - value: cancelled
+    priority: 200
+    when:
+      exists:
+        selector: applicable-disposition-decisions-for@1
+        arguments: {subject: {var: subject}, decision_kind: {literal: cancellation}}
+    explanation: A reviewed applicable cancellation DEC abandons the datum before authority.

@@ -1,0 +1,19 @@
+kind: policy-definition
+id: waiver-applicability
+version: 1
+description: Determines whether the bootstrap profile permits a waiver for one exact obligation and subject.
+parameters:
+  - {name: obligation, kind: scalar, scalar_type: string}
+  - {name: subject, kind: revision}
+result_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  additionalProperties: false
+  required: [permitted, approval_required]
+  properties:
+    permitted: {type: boolean}
+    approval_required: {type: boolean}
+default:
+  permitted: false
+  approval_required: true
+rules: []

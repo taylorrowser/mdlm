@@ -1,0 +1,18 @@
+kind: selector-definition
+id: candidate-members-missing-review
+version: 1
+description: Review-required candidate members with no current valid passing review.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from:
+    selector: review-required-members-for@1
+    arguments: {candidate: {var: candidate}}
+  as: member
+  where:
+    none:
+      selector: passing-reviews-for@1
+      arguments: {subject: {var: member}}
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]
