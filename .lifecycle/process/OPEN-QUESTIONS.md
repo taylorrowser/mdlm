@@ -21,8 +21,10 @@ behavior where possible.
    named historical repository snapshots independently and returning their exact
    Obligation explanations separately from current instances. Durable repository
    history discovery remains an adapter concern rather than a lifecycle type.
-6. **Review-context volume:** When should coherent sibling reviews share one
-   context, and when would sharing obscure the exact judgment?
+6. **Review-context volume:** The narrow Phase 0 pilot shares one frozen intent
+   context across coherent MAP, PSP, and STK subjects while producing one REV per
+   subject. What broader package rule should decide when sharing would obscure
+   the exact judgment?
 7. **Baseline policy:** Role/kind agreement, permitted member types, composition,
    and promotion still need a complete machine-readable policy.
 8. **Invalid fixtures:** Package validation needs focused invalid fixtures for each
@@ -31,11 +33,10 @@ behavior where possible.
     purpose-built parser behind the versioned language contract. Reconsider a
     compatible library only if later syntax makes the internal parser materially
     harder to maintain without changing observable language behavior.
-10. **Resolver eligibility:** Obligation results now separate Dispatchability,
-    exact blocker chains, unresolved bindings, the eventual Resolver Scenario,
-    and the currently actionable resolver, with expected output contracts and
-    exact Waiver Policy applicability. Bound input evidence and dry-run contract
-    validation remain to be exposed.
+10. **Resolver eligibility:** Obligation results separate Dispatchability,
+    exact blocker chains, unresolved bindings, eventual and actionable Resolver
+    Scenarios, expected outputs, Waiver Policy evidence, and dry-run bindings.
+    Repository execution reuses that exact authorization boundary.
 11. **Phase evaluation:** Entry, deterministic exact candidate selection, and
     per-candidate gate completion now retain expression, Policy, Selector, and
     exact blocker evidence. Promotion and historical gate-report persistence

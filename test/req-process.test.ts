@@ -163,7 +163,7 @@ describe("req process package commands", () => {
           binding: { type: "BSL" },
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["BSL@2", "DEC@2", "PSP@2", "QST@2", "REV@2", "STK@2", "SYS@2"],
+          types: ["ART@1", "BSL@2", "DEC@2", "MAP@1", "PSP@2", "QST@2", "REV@2", "STK@2", "SYS@2"],
           phases: ["phase-0-wayfinding@2", "phase-2-system-definition@2"],
         }),
       },
@@ -326,7 +326,7 @@ describe("req process package commands", () => {
           ],
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["BSL@2", "DEC@2", "PSP@2", "QST@2", "REV@2", "STK@2", "SYS@2"],
+          types: ["ART@1", "BSL@2", "DEC@2", "MAP@1", "PSP@2", "QST@2", "REV@2", "STK@2", "SYS@2"],
           phases: ["phase-0-wayfinding@2", "phase-2-system-definition@2"],
         }),
       },
@@ -342,7 +342,7 @@ describe("req process package commands", () => {
       "Host Functions: count, every, exists, none, one, policy, present, select, state",
       "Collections: baselines [exact-baseline@1], revisions",
       "Kernel Capabilities: exact-baseline@1 -> BSL",
-      "Types: BSL@2, DEC@2, PSP@2, QST@2, REV@2, STK@2, SYS@2",
+      "Types: ART@1, BSL@2, DEC@2, MAP@1, PSP@2, QST@2, REV@2, STK@2, SYS@2",
     ]) {
       expect(human.stdout).toContain(semantic);
     }

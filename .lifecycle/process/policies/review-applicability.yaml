@@ -17,7 +17,7 @@ default:
   rubric_ref: null
 rules:
   - priority: 300
-    when: 'subject.identity.type in ["PSP", "STK", "SYS"]'
+    when: 'subject.identity.type in ["MAP", "PSP", "STK", "SYS"]'
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1

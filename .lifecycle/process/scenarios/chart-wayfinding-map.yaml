@@ -1,0 +1,18 @@
+kind: scenario-definition
+id: chart-wayfinding-map
+version: 1
+description: Chart one linked frontier of product decisions, questions, prototype evidence, and intent data without duplicating their claims.
+phases: [phase-0-wayfinding]
+inputs: []
+outputs:
+  - {name: map, types: [MAP], cardinality: one, required_links: []}
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+  - {name: prototype_candidates, types: [ART], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/chart-wayfinding-map.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && map.payload.frontier != []
+resolves: []
+prohibited_inputs: [unstated stakeholder preferences, generated indexes as lifecycle truth]
+batching: single

@@ -6,12 +6,12 @@ name: Wayfinding bootstrap
 purpose: Establish reviewed, scope-challenged product intent and stakeholder commitments for explicit user approval.
 coverage: bootstrap-subset
 omitted_capabilities:
-  - MAP-based frontier management
-  - exploratory prototype evidence
   - VSP and environment profiles
   - dedicated simplification REV over the complete candidate
 entry: 'process.integrity.package_valid == true'
 scenarios:
+  - chart-wayfinding-map@1
+  - build-exploratory-prototype@1
   - compile-psp@1
   - draft-stakeholder-requirements@1
   - create-review-context@1
@@ -25,7 +25,7 @@ obligations:
   - open-question-resolution@2
   - candidate-members-reviewed@2
   - candidate-gate-signoff@2
-outputs: [PSP, STK, REV, BSL, QST, DEC]
+outputs: [MAP, QST, DEC, ART, PSP, STK, REV, BSL]
 gate:
   required: true
   candidate_selector: >-

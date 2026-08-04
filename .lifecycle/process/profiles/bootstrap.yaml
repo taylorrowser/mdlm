@@ -4,7 +4,7 @@ version: 2
 status: experimental
 description: Minimal profile for validating the typed kernel/process seam before adding lifecycle breadth.
 enabled:
-  types: [PSP, STK, SYS, REV, BSL, QST, DEC]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, REV, BSL]
   phases: [phase-0-wayfinding, phase-2-system-definition]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
 disabled_capabilities:
@@ -12,7 +12,6 @@ disabled_capabilities:
   - architecture and interface lifecycle types
   - verification planning and execution lifecycle types
   - implementation and change lifecycle types
-  - automatic scenario execution
 success_criteria:
   - every definition conforms to its versioned meta-schema
   - the kernel envelope cannot be weakened by templates or types
@@ -21,4 +20,5 @@ success_criteria:
   - selector, policy, state, and obligation dependency graphs are acyclic
   - no process-specific computed fact is required by a rule
   - every unsatisfied obligation has a type-correct enabled resolver
+  - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
   - a small PSP-to-STK-to-SYS example produces explainable reviews, candidates, and gate loose ends

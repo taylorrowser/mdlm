@@ -2,9 +2,10 @@
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
-toward the accepted v0.8 design. It remains intentionally limited to `PSP`, `STK`,
-`SYS`, `REV`, `BSL`, `QST`, and `DEC`. These are a bootstrap subset of the bundled
-V-model Example Process Package, not lifecycle types recognized by MDLM core.
+toward the accepted v0.8 design. It remains intentionally limited to `MAP`, `QST`,
+`DEC`, `ART`, `PSP`, `STK`, `SYS`, `REV`, and `BSL`. These are a bootstrap
+subset of the bundled V-model Example Process Package, not lifecycle types
+recognized by MDLM core.
 
 The package can be explicitly installed and selected with the package-neutral
 `req process install` and `req process use` commands. The recorded selection
@@ -17,7 +18,9 @@ Selector, Policy, Computed State, and Obligation evaluation commands expose the
 same deterministic package execution with source-span evidence. Generic Phase
 status, Loose End, and next-work commands retain exact gate, blocker, resolver
 output, Dispatchability, and waiver dimensions without embedding these example
-Phase or type IDs in the executable. `req process init` may copy this package
+Phase or type IDs in the executable. With an explicit `--phase`, those commands
+evaluate durable repository Markdown directly; `--snapshot` retains reproducible
+fixture and historical evaluation. `req process init` may copy this package
 under a new identity with exact source provenance, but that independently
 versioned copy is ordinary package data rather than inherited kernel behavior.
 The same command can create an empty package containing only the supported
@@ -149,9 +152,22 @@ Outgoing link contracts live on their source type. Backlinks are computed. The
 same relationship ID may be declared by several source types with different
 allowed target types; each source definition is authoritative for its own links.
 
+## Phase 0 tracer slice
+
+The package now defines MAP frontier indexes and exact ART prototype pointers in
+addition to its question, decision, product, stakeholder, review, and baseline
+data. `chart-wayfinding-map@1` and `build-exploratory-prototype@1` provide exact
+authoring provenance for that evidence. MAP, PSP, and STK are substantive review
+subjects: their ready Review Context work sorts ahead of blocked Review work; one
+frozen context may contain the coherent small intent slice while each exact
+subject receives its own REV. Candidate and Gate Sign-off review remain separate.
+An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and
+REV make the package-authored gate expression true.
+
 ## Scope
 
-Phase 0 and Phase 2 are marked `bootstrap-subset`. DWP, architecture, interfaces,
-verification, implementation, change, full simplification, and complete promotion
-semantics remain deferred. The package tests the evaluator seam before lifecycle
+Phase 0 and Phase 2 remain marked `bootstrap-subset`. The narrow Phase 0 intent
+slice is executable, but VSP, dedicated simplification, promotion, DWP,
+architecture, interfaces, verification, implementation, and change semantics
+remain deferred. The package tests the evaluator seam before broader lifecycle
 breadth.

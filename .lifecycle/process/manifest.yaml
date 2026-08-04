@@ -5,7 +5,8 @@ status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
-  machine-readable policies, computed states, obligations, and scenario routing.
+  machine-readable policies, computed states, obligations, Scenario routing, and
+  one narrow Phase 0 wayfinding and product-intent slice.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -39,7 +40,7 @@ compatibility:
   template_inheritance: single-parent-additive
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
-  types: [PSP, STK, SYS, REV, BSL, QST, DEC]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, REV, BSL]
   policies: [dependency-reassessment, review-applicability, waiver-applicability]
   states: [maturity, disposition, validity, relationship-overlays]
   selectors:
@@ -75,6 +76,8 @@ catalog:
     - candidate-members-reviewed
     - candidate-gate-signoff
   scenarios:
+    - chart-wayfinding-map
+    - build-exploratory-prototype
     - compile-psp
     - draft-stakeholder-requirements
     - derive-system-requirements
@@ -87,6 +90,8 @@ catalog:
   aliases: [question.resolve]
 assets:
   prompts:
+    - prompts/chart-wayfinding-map.md@1
+    - prompts/build-exploratory-prototype.md@1
     - prompts/compile-psp.md@1
     - prompts/draft-stakeholder-requirements.md@1
     - prompts/derive-system-requirements.md@1
@@ -97,6 +102,8 @@ assets:
     - prompts/record-gate-signoff.md@1
   skills:
     - skills/lifecycle-data.md@1
+    - skills/wayfinding-map.md@1
+    - skills/prototyping.md@1
     - skills/product-specification.md@1
     - skills/requirement-writing.md@1
     - skills/traceability.md@1

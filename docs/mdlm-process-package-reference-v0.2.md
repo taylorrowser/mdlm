@@ -304,7 +304,7 @@ parameters:
 default: { required: false, rubric_ref: null }
 rules:
   - priority: 300
-    when: 'subject.identity.type in ["PSP", "STK", "SYS"]'
+    when: 'subject.identity.type in ["MAP", "PSP", "STK", "SYS"]'
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1
@@ -482,9 +482,13 @@ under `candidate_as`. Each result includes authored expression source, exact
 Policy and Selector invocations, and that exact gate Obligation Instance's status,
 blockers, Dispatchability, eventual resolver, and currently actionable resolver.
 An unreviewed sign-off therefore makes review actionable without dispatching a
-duplicate sign-off. A phase gate is complete only when its expression is true for
-the exact current candidate. Changes produce a new candidate and new gate
-evidence; no candidate or prior result is mutated in place.
+duplicate sign-off. With `--snapshot`, Phase, Loose End, and next-work commands
+evaluate an explicit fixture. With `--phase` and no fixture, the same package-
+neutral projection is built from authoritative repository Markdown and the exact
+selected package reference; generated indexes and reports are not read. A phase
+gate is complete only when its expression is true for the exact current candidate.
+Changes produce a new candidate and new gate evidence; no candidate or prior
+result is mutated in place.
 
 ## 13. Package validation
 
@@ -645,8 +649,17 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.25 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
-and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
-kernel/process seam, schema composition, graph querying, review evidence,
-baselines, policies, obligations, and gate routing before adding architecture,
-verification, implementation, or change types.
+Bootstrap package 0.25 models MAP, QST, DEC, ART, PSP, STK, SYS, REV, and BSL.
+MAP is a linked frontier index and ART records an exact implementation or
+prototype pointer with its supported and intentionally unsupported behavior. The
+narrow repository-backed Phase 0 tracer reviews MAP, PSP, and STK separately in a
+shared exact frozen context, freezes an intent candidate, reviews that candidate,
+records one exact Gate Sign-off, rejects duplicate sign-off while its DEC awaits
+review, and completes the gate only after the DEC's contextual REV passes.
+
+Phase 0 and Phase 2 remain explicit bootstrap subsets. VSP, complete
+simplification and promotion, architecture, verification, implementation, and
+change types remain deferred. The purpose is to validate the kernel/process seam,
+schema composition, graph querying, review evidence, baselines, policies,
+obligations, Scenario execution, and gate routing before broader lifecycle
+breadth.

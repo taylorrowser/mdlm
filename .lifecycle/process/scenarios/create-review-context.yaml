@@ -4,7 +4,7 @@ version: 1
 description: Deterministically freeze one primary subject with the exact parent, sibling, decision, and candidate context needed for review.
 phases: [phase-0-wayfinding, phase-2-system-definition]
 inputs:
-  - {name: subject, types: [PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision}
+  - {name: subject, types: [MAP, PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision}
 outputs:
   - {name: context, types: [BSL], cardinality: one, required_links: []}
 prompt_ref: prompts/create-review-context.md@1

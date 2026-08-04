@@ -25,7 +25,7 @@ describe("loadProcessPackage", () => {
     if (!result.ok) return;
 
     expect(result.package.manifest.version).toBe("0.25.0");
-    expect(Object.keys(result.package.types)).toHaveLength(7);
+    expect(Object.keys(result.package.types)).toHaveLength(9);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(25);
     expect(Object.keys(result.package.policies)).toHaveLength(3);
@@ -262,7 +262,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "types: [PSP, STK, SYS, BSL, DEC]",
+        "types: [MAP, PSP, STK, SYS, BSL, DEC]",
         "types: [QST]",
       ),
     );
@@ -276,7 +276,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-input-type",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
-            "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide BSL, DEC, PSP, STK, SYS",
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide BSL, DEC, MAP, PSP, STK, SYS",
         }),
       ]),
     );
@@ -404,8 +404,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "types: [PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision",
-        "types: [PSP, STK, SYS, BSL, DEC], cardinality: one, identity: stable",
+        "types: [MAP, PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision",
+        "types: [MAP, PSP, STK, SYS, BSL, DEC], cardinality: one, identity: stable",
       ),
     );
 
@@ -435,7 +435,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "types: [PSP, STK, SYS, BSL, DEC]",
+        "types: [MAP, PSP, STK, SYS, BSL, DEC]",
         "types: [QST]",
       ),
     );

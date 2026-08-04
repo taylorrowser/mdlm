@@ -56,6 +56,7 @@ import {
   mutateDatumLink,
   rebuildRepositoryIndex,
   rebuildRepositoryReport,
+  readRepositoryData,
   reviseDatum,
   showDatum,
   traceGraph,
@@ -1480,16 +1481,41 @@ async function selectedLifecycleEvaluation(
       },
     };
   }
-  if (!snapshotPath) {
+  let snapshot: LifecycleSnapshot;
+  if (snapshotPath) {
+    snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
+  } else if (phaseId) {
+    const repositoryData = await readRepositoryData(
+      repositoryRoot,
+      resolved.processPackage,
+    );
+    if (!repositoryData.ok) {
+      return {
+        ok: false,
+        result: {
+          ok: false,
+          command,
+          package: resolved.summary,
+          selected: true,
+          diagnostics: repositoryData.diagnostics,
+        },
+      };
+    }
+    snapshot = {
+      processRef: `${resolved.summary.reference}#${resolved.summary.digest}`,
+      phaseId,
+      records: repositoryData.value.map((item) => item.lifecycleDatum),
+      dependencyComparisons: [],
+    };
+  } else {
     return {
       ok: false,
       result: failure(
-        "snapshot-required",
-        `${command} requires '--snapshot <fixture>'`,
+        "lifecycle-source-required",
+        `${command} requires '--snapshot <fixture>' or '--phase <phase-id>' for repository truth`,
       ),
     };
   }
-  const snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
   const evaluation = evaluateLifecycle(
     resolved.processPackage,
     phaseId === undefined ? snapshot : { ...snapshot, phaseId },

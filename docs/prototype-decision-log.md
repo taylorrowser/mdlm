@@ -1162,3 +1162,54 @@ turning provisional choices into architecture.
   invalid packages for unresolved Scenarios and inputs, unknown argument paths,
   shell/host syntax, executable fields, reserved options, and core-command
   collisions.
+
+## D-043 — Exercise Phase 0 from authoritative repository truth
+
+- **Status:** accepted and implemented
+- **Decision:** The Example Process Package adds MAP and ART as ordinary
+  package-owned lifecycle types plus declarative wayfinding-map and exploratory-
+  prototype Scenario assets. MAP, PSP, and STK are the substantive subjects in
+  the narrow intent slice. One coherent frozen Review Context may contain those
+  exact Revisions, but each subject receives one independent REV. Generic Phase,
+  Loose End, and next-work commands may evaluate authoritative repository
+  Markdown when the caller names an explicit package Phase; explicit fixture
+  snapshots remain supported. Candidate creation and freezing use the selected
+  `exact-baseline@1` capability, while REV and Gate Sign-off creation use the
+  canonical Resolver Scenario boundary.
+- **Alternatives:** Add Wayfinding Map, prototype, intent, or gate commands and
+  nouns to the kernel CLI; encode Phase 0 as an imperative runner; persist task
+  state instead of reevaluating Obligations; use one aggregate review for several
+  subjects; let an existing Gate Sign-off count before review; derive lifecycle
+  truth from generated reports; or require a hand-authored fixture even when a
+  valid durable repository already exists.
+- **Rationale:** A real repository tracer is the smallest evidence that the
+  package/core boundary survives mutation, capability, evaluation, and execution
+  together. Explicit `--phase` selects package data rather than inferring a hidden
+  workflow. Reading the same Markdown records used by Scenario execution keeps
+  generated projections disposable. Separate REV outputs preserve exact judgment
+  even when coherent subjects share context. Routing the gate DEC back through
+  ordinary context and review Obligations prevents duplicate authorization while
+  preserving the package-authored applicability rule.
+- **Expected behavior:** Repository-backed Loose Ends put Dispatchable Review
+  Context work for MAP, PSP, and STK before their blocked Review work. After one
+  exact shared context freezes, `review-datum-in-context@1` produces one REV per
+  subject. An exact intent candidate containing reviewed substantive members may
+  be frozen and reviewed. `record-gate-signoff@1` may then produce one DEC; the
+  candidate gate becomes blocked and the same Obligation Instance cannot dispatch
+  another sign-off while that DEC awaits contextual review. After the DEC review
+  passes, the exact candidate gate is satisfied. Omitted `zero-or-more` Scenario
+  outputs bind as an empty collection during completion evaluation rather than as
+  a missing expression binding.
+- **Reversibility:** A future repository projection module may replace the private
+  CLI assembly and add explicit dependency-comparison inputs or multi-Phase
+  inspection. A larger Example Process Package may revise MAP/ART schemas,
+  distinguish group contexts, or add VSP and promotion. Those changes must retain
+  exact package and Phase selection, Markdown authority, independent REV identity,
+  candidate-specific authorization, and process-neutral generic source.
+- **Evidence/observations:** Public executable coverage initializes a real
+  repository, authors linked QST, DEC, ART, PSP, STK, and MAP data, inspects the
+  initial ready-before-blocked order, freezes three exact Review Contexts and one
+  intent candidate through the capability surface, executes five independent
+  reviews and one Gate Sign-off through capturing adapters, rejects a duplicate
+  sign-off before adapter invocation, verifies the final gate evidence, confirms
+  exact review targets and frozen contexts, and finishes with `req doctor`.

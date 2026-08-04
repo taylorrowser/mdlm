@@ -381,16 +381,13 @@ function expressionBindings(
       ? values[0]
       : values;
   }
-  for (const name of new Set(outputs.filter((output) =>
-    output.proposal.invocation === invocationIndex
-  ).map((output) => output.proposal.name))) {
+  for (const outputContract of dryRun.expectedOutputs) {
     const values = outputs.filter((output) =>
-      output.proposal.invocation === invocationIndex && output.proposal.name === name
+      output.proposal.invocation === invocationIndex &&
+      output.proposal.name === outputContract.name
     ).map((output) => output.datum.revision_id);
-    const cardinality = dryRun.expectedOutputs.find((output) =>
-      output.name === name
-    )?.cardinality;
-    bindings[name] = cardinality === "one" || cardinality === "zero-or-one"
+    bindings[outputContract.name] = outputContract.cardinality === "one" ||
+        outputContract.cardinality === "zero-or-one"
       ? values[0]
       : values;
   }

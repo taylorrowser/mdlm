@@ -20,7 +20,8 @@ types, states, obligations, scenarios, and phases.
   expression fields, Relations, Selectors, Policies, Computed States, and
   Obligations with matching human/JSON evidence and source spans. It also reports
   package-defined Phase status, exact Loose Ends, and only currently Dispatchable
-  next work from explicit snapshots. Process authors can scaffold an empty
+  next work from explicit fixtures or durable repository truth selected by
+  `--phase`. Process authors can scaffold an empty
   case-specific package, derive an independently versioned package with exact
   provenance, add every accepted definition kind, and create executable package
   fixtures without activating the bundled example. The first durable repository
@@ -37,7 +38,11 @@ types, states, obligations, scenarios, and phases.
   Lifecycle Data plus exact execution provenance; failed execution publishes none.
   Selected packages may expose dotted, declarative Package Command Aliases whose
   typed arguments resolve to that identical Scenario execution path without
-  adding shell commands, package code, or host functions.
+  adding shell commands, package code, or host functions. The first repository-
+  backed Example Process Package tracer moves an exact MAP/PSP/STK intent slice
+  through a shared frozen Review Context, one REV per substantive subject, an
+  exact candidate Baseline, and a reviewed Gate Sign-off while prototype ART,
+  QST, and DEC evidence remain distinct.
 
 ## Try it
 
@@ -66,6 +71,9 @@ node ../dist/req.js baseline freeze BSL-0123456789
 node ../dist/req.js baseline verify BSL-0123456789
 node ../dist/req.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
 node ../dist/req.js doctor
+node ../dist/req.js loose-ends --phase phase-0-wayfinding
+node ../dist/req.js next --phase phase-0-wayfinding
+node ../dist/req.js phase status phase-0-wayfinding
 node ../dist/req.js scenario dry-run create-review-context@1 \
   --obligation 'review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype' \
   --snapshot ../examples/psp-to-sys-snapshot.yaml
@@ -93,6 +101,7 @@ creation, revision lineage, local single-draft protection, source-owned link
 mutation, graph inspection, capability-bound exact-baseline freezing and
 verification and diffing, source-backed reads, integrity-aware repository
 inspection, disposable index/report rebuilding, side-effect-free Resolver
-Scenario dry-runs, atomic adapter execution, and safe declarative Scenario aliases
-are implemented; additional concurrency profiles and full lifecycle breadth remain
+Scenario dry-runs, atomic adapter execution, safe declarative Scenario aliases,
+repository-backed Phase evaluation, and the narrow Phase 0 intent pilot are
+implemented; additional concurrency profiles and full lifecycle breadth remain
 deferred.
