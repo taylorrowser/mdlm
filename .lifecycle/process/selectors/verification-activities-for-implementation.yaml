@@ -1,0 +1,12 @@
+kind: selector-definition
+id: verification-activities-for-implementation
+version: 1
+description: Exact verification activity realized by one implementation.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: implementation, link: realizes, emit: target, types: [VER]}
+  as: activity
+  distinct: true
+  order_by: [identity.revision_id]

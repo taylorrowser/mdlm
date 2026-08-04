@@ -1,0 +1,33 @@
+kind: phase-definition
+id: phase-1-product-assurance
+version: 1
+order: 1
+name: Product assurance qualification and pilot
+purpose: Qualify one declared environment and demonstrate that a source-independent pilot design distinguishes supported from intentionally unsupported behavior.
+coverage: bootstrap-subset
+omitted_capabilities:
+  - complete Phase 1 candidate composition and gate
+  - dedicated product simplification review
+  - downstream STK acceptance
+entry: 'process.integrity.package_valid == true'
+scenarios:
+  - define-verification-strategy@1
+  - realize-verification-environment@1
+  - write-verification-activity@1
+  - implement-verification-activity@1
+  - execute-verification-run@1
+  - create-review-context@1
+  - review-datum-in-context@1
+  - resolve-question@1
+obligations:
+  - review-context-required@2
+  - passing-review-required@2
+  - open-question-resolution@2
+  - verification-run-required@1
+outputs: [VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
+gate:
+  required: false
+  candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "group-candidate"})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@2
+  completion: 'false'

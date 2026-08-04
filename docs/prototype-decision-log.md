@@ -1217,3 +1217,63 @@ turning provisional choices into architecture.
   sign-off before adapter invocation, verifies the final gate evidence, confirms
   exact review targets, terminal Review immutability, frozen contexts, exact ART
   provenance, and finishes with `req doctor`.
+
+## D-044 — Scope qualification and pilot evidence through package contracts
+
+- **Status:** accepted and implemented
+- **Decision:** The Example Process Package adds VSP, ENV, VER, VAI, RUN, and RES
+  as ordinary package-owned lifecycle types and adds one declarative Phase 1
+  product-assurance slice. VSP embeds named environment-capability profiles. ENV
+  realizes one exact VSP Revision and explicitly links one passing qualification
+  RES before contextual review. Qualification and pilot implementations derive
+  `verification-run-required@1` Obligation Instances from source-owned exact
+  links. The canonical Scenario execution boundary atomically generates one RUN
+  and one RES. Nested package schemas distinguish qualification
+  `environment-capability`, pilot `verification-design`, and formal `requirement`
+  claims. Types whose package lifecycle declares `authorship: generated` cannot
+  be created through generic direct authoring; only validated Scenario publication
+  may introduce them.
+- **Alternatives:** Add verification nouns or specialized qualification commands
+  to the kernel; store ENV qualification as a mutable Boolean; treat a successful
+  pilot as requirement acceptance; permit direct RUN/RES creation with a Scenario
+  provenance label; rely only on prompt prose for claim scope; use product source
+  or unit tests to author the pilot; require enforced isolation containers in the
+  first slice; or publish RUN and RES in separate mutations.
+- **Rationale:** Exact links and scoped immutable evidence are the narrowest proof
+  that the verification model can remain package data while reusing generic
+  repository, review, Obligation, and Scenario services. A qualification result
+  establishes only that the ENV supplies declared capabilities. Requiring passing
+  contextual Reviews for ENV, pilot VER, and pilot VAI before execution preserves
+  the package's assurance boundary. Schema-valid formal RES data is still
+  rejected by the pilot Scenario completion expression, so output schema and
+  process claim authorization remain distinct. Generic generated-authorship
+  enforcement prevents bypassing the atomic adapter and provenance boundary
+  without recognizing RUN or RES type IDs.
+- **Expected behavior:** One qualification VAI is immediately Dispatchable and
+  produces terminal immutable RUN/RES evidence scoped to environment capability.
+  Linking its passing RES to the ENV enables ENV review but supplies no product
+  requirement verification. A pilot VAI remains blocked until qualification and
+  the required ENV, VER, and VAI Reviews pass. Product source, unit tests, private
+  implementation details, and uncontrolled shortcuts are rejected before adapter
+  invocation. The exact pilot target declares supported and intentionally
+  unsupported behavior. Its successful RES records both expected success and
+  expected discrimination, remains scoped to verification-design suitability,
+  is immediately immutable, and cannot be replaced by a formal claim through the
+  same pilot execution.
+- **Reversibility:** Later package versions may add a Scenario-produced ENV
+  revision that attaches qualification evidence, richer result assessment,
+  formal execution, isolated authoring worktrees, or distinct verification
+  campaigns. They may revise package schemas and Obligations without changing the
+  generated-authorship rule or adding V-model type IDs to generic source. Formal
+  evidence still requires a new authorized formal run against a permitted exact
+  target.
+- **Evidence/observations:** Public executable coverage initializes a real
+  repository; authors one PSP/STK, VSP profile, ENV, qualification VER/VAI, exact
+  pilot target, pilot VER, and source-blind VAI through generic creation and
+  links; executes qualification and pilot RUN/RES pairs through capturing
+  adapters; freezes and independently reviews ENV, VER, and VAI contexts; proves
+  blocked-to-ready Obligation routing; rejects prohibited source input before
+  adapter invocation; rejects a schema-valid formal claim without partial
+  publication; confirms positive and negative-control observations, exact RUN
+  bindings, terminal immutability, no qualification requirement link, and
+  successful repository health validation.

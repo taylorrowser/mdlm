@@ -1,16 +1,16 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 2
+version: 3
 status: experimental
-description: Minimal profile for validating the typed kernel/process seam before adding lifecycle breadth.
+description: Narrow profile validating typed kernel/process seams through reviewed intent and one qualification/pilot verification chain.
 enabled:
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, REV, BSL]
-  phases: [phase-0-wayfinding, phase-2-system-definition]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, VSP, ENV, VER, VAI, RUN, RES, REV, BSL]
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
 disabled_capabilities:
   - specialized DWP commands and rules
   - architecture and interface lifecycle types
-  - verification planning and execution lifecycle types
+  - formal verification execution
   - implementation and change lifecycle types
 success_criteria:
   - every definition conforms to its versioned meta-schema
@@ -21,4 +21,5 @@ success_criteria:
   - no process-specific computed fact is required by a rule
   - every unsatisfied obligation has a type-correct enabled resolver
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
+  - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
   - a small PSP-to-STK-to-SYS example produces explainable reviews, candidates, and gate loose ends

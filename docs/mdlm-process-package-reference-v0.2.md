@@ -652,17 +652,27 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.25 models MAP, QST, DEC, ART, PSP, STK, SYS, REV, and BSL.
-MAP is a linked frontier index and ART records an exact implementation or
-prototype pointer with its supported and intentionally unsupported behavior. The
-narrow repository-backed Phase 0 tracer reviews MAP, PSP, and STK separately in a
-shared exact frozen context, freezes an intent candidate, reviews that candidate,
-records one exact Gate Sign-off, rejects duplicate sign-off while its DEC awaits
-review, and completes the gate only after the DEC's contextual REV passes.
+Bootstrap package 0.26 models MAP, QST, DEC, ART, PSP, STK, SYS, VSP, ENV,
+VER, VAI, RUN, RES, REV, and BSL. MAP is a linked frontier index and ART records
+an exact implementation or prototype pointer with its supported and intentionally
+unsupported behavior. The narrow repository-backed Phase 0 tracer reviews MAP,
+PSP, and STK separately in a shared exact frozen context, freezes and reviews an
+intent candidate, and completes one reviewed exact Gate Sign-off.
 
-Phase 0 and Phase 2 remain explicit bootstrap subsets. VSP, complete
-simplification and promotion, architecture, verification, implementation, and
-change types remain deferred. The purpose is to validate the kernel/process seam,
-schema composition, graph querying, review evidence, baselines, policies,
+The Phase 1 tracer embeds named capability profiles in VSP, realizes and qualifies
+one exact ENV, and runs one source-independent pilot against an exact ART target.
+Package schemas distinguish qualification `environment-capability`, pilot
+`verification-design`, and formal `requirement` claims. RUN and RES are
+package-declared generated terminal types: generic direct authoring is refused,
+validated Scenario execution publishes them atomically, and terminal outcomes are
+immutable. Qualification support artifacts do not link to a requirement. A pilot
+must record positive success and negative discrimination observations; Scenario
+completion rejects a formal claim from that pilot even when the proposed RES is
+otherwise schema-valid.
+
+Phases 0, 1, and 2 remain explicit bootstrap subsets. Complete simplification and
+promotion, DWP, architecture, interfaces, formal verification, implementation,
+and change types remain deferred. The purpose is to validate the kernel/process
+seam, schema composition, graph querying, review evidence, baselines, policies,
 obligations, Scenario execution, and gate routing before broader lifecycle
 breadth.

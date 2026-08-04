@@ -1,11 +1,11 @@
-# MDLM bootstrap process package v0.25
+# MDLM bootstrap process package v0.26
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
-toward the accepted v0.8 design. It remains intentionally limited to `MAP`, `QST`,
-`DEC`, `ART`, `PSP`, `STK`, `SYS`, `REV`, and `BSL`. These are a bootstrap
-subset of the bundled V-model Example Process Package, not lifecycle types
-recognized by MDLM core.
+toward the accepted v0.8 design. It now includes `MAP`, `QST`, `DEC`, `ART`,
+`PSP`, `STK`, `SYS`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`, `RES`, `REV`, and
+`BSL`. These are a bootstrap subset of the bundled V-model Example Process
+Package, not lifecycle types recognized by MDLM core.
 
 The package can be explicitly installed and selected with the package-neutral
 `req process install` and `req process use` commands. The recorded selection
@@ -164,10 +164,27 @@ subject receives its own REV. Candidate and Gate Sign-off review remain separate
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and
 REV make the package-authored gate expression true.
 
+## Phase 1 qualification and pilot tracer slice
+
+The package defines a VSP with embedded environment-capability profiles, an exact
+reproducible ENV, qualification and pilot VER/VAI contracts, and immutable
+generated RUN/RES evidence. `verification-run-required@1` derives execution work
+from exact VAI links. Qualification RES can establish only environment capability
+and is assessed through the containing ENV Review. Pilot execution remains
+blocked until its ENV, VER, and VAI have the package-required Reviews.
+
+Pilot authoring and execution declare product source, unit tests, private
+implementation details, and uncontrolled shortcuts as prohibited inputs. A pilot
+target records both supported and intentionally unsupported behavior, and its RES
+must record both expected success and expected discrimination. Scenario
+completion rejects a formal requirement claim from a pilot run, terminal RUN/RES
+are immediately immutable, and package-declared generated types cannot be created
+through generic direct authoring.
+
 ## Scope
 
-Phase 0 and Phase 2 remain marked `bootstrap-subset`. The narrow Phase 0 intent
-slice is executable, but VSP, dedicated simplification, promotion, DWP,
-architecture, interfaces, verification, implementation, and change semantics
-remain deferred. The package tests the evaluator seam before broader lifecycle
-breadth.
+Phases 0, 1, and 2 remain marked `bootstrap-subset`. The narrow Phase 0 intent and
+Phase 1 qualification/pilot slices are executable, but complete simplification,
+promotion, DWP, architecture, interfaces, formal verification, implementation,
+and change semantics remain deferred. The package tests the evaluator seam before
+broader lifecycle breadth.

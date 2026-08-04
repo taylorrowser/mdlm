@@ -1,0 +1,37 @@
+kind: scenario-definition
+id: realize-verification-environment
+version: 1
+description: Realize one exact strategy profile and author the minimal qualification activity and implementation.
+phases: [phase-1-product-assurance]
+inputs:
+  - {name: strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: environment
+    types: [ENV]
+    cardinality: one
+    required_links:
+      - {link: realizes, target: {input: strategy}}
+  - name: qualification_activity
+    types: [VER]
+    cardinality: one
+    required_links:
+      - {link: governed-by, target: {input: strategy}}
+      - {link: qualifies, target: {output: environment}}
+  - name: qualification_implementation
+    types: [VAI]
+    cardinality: one
+    required_links:
+      - {link: realizes, target: {output: qualification_activity}}
+      - {link: uses, target: {output: environment}}
+      - {link: targets, target: {output: environment}}
+prompt_ref: prompts/realize-verification-environment.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && qualification_activity.payload.kind == "qualification"
+  && qualification_activity.payload.claim.scope == "environment-capability"
+  && qualification_implementation.payload.kind == "qualification"
+  && qualification_implementation.payload.independence_mode == "environment-capability"
+resolves: []
+prohibited_inputs: [undeclared environment capability, product requirement acceptance claim, mutable environment reference]
+batching: single

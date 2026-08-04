@@ -102,6 +102,7 @@ mutation, graph inspection, capability-bound exact-baseline freezing and
 verification and diffing, source-backed reads, integrity-aware repository
 inspection, disposable index/report rebuilding, side-effect-free Resolver
 Scenario dry-runs, atomic adapter execution, safe declarative Scenario aliases,
-repository-backed Phase evaluation, and the narrow Phase 0 intent pilot are
+repository-backed Phase evaluation, the narrow Phase 0 intent pilot, and one
+Phase 1 environment-qualification and source-independent verification pilot are
 implemented; additional concurrency profiles and full lifecycle breadth remain
 deferred.

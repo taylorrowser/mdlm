@@ -16,8 +16,15 @@ default:
   required: false
   rubric_ref: null
 rules:
-  - priority: 300
-    when: 'subject.identity.type in ["MAP", "PSP", "STK", "SYS"]'
+  - priority: 400
+    when: 'subject.identity.type in ["MAP", "PSP", "STK", "SYS", "VSP", "ENV"]'
+    result:
+      required: true
+      rubric_ref: policies/rubrics/bootstrap-review.md@1
+  - priority: 350
+    when: >-
+      subject.identity.type in ["VER", "VAI"]
+      && subject.payload.kind in ["pilot", "formal"]
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1

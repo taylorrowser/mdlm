@@ -54,8 +54,8 @@ async function packageWithRejectedInput(): Promise<string> {
   await fs.writeFile(
     scenarioPath,
     scenario.replace(
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision}",
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
+      "  - {name: subject, types: [MAP, PSP, STK, SYS, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision}",
+      "  - {name: subject, types: [MAP, PSP, STK, SYS, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
     ),
   );
   return processRoot;
@@ -96,7 +96,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.25.0",
+          reference: "mdlm-bootstrap@0.26.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -119,7 +119,18 @@ describe("req scenario dry-run", () => {
                 {
                   name: "subject",
                   contract: {
-                    types: ["BSL", "DEC", "MAP", "PSP", "STK", "SYS"],
+                    types: [
+                      "BSL",
+                      "DEC",
+                      "ENV",
+                      "MAP",
+                      "PSP",
+                      "STK",
+                      "SYS",
+                      "VAI",
+                      "VER",
+                      "VSP",
+                    ],
                     cardinality: "one",
                     identity: "revision",
                   },
@@ -311,7 +322,7 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.25.0",
+        "mdlm-bootstrap@0.26.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(

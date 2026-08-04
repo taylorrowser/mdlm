@@ -644,6 +644,16 @@ export async function createDatum(
 ): Promise<RepositoryResult<CreatedDatum>> {
   const resolved = resolveType(processPackage, typeId);
   if (!resolved.ok) return resolved;
+  if (resolved.type.lifecycle.authorship === "generated") {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "generated-datum-requires-scenario-execution",
+        path: `types.${typeId}.lifecycle.authorship`,
+        message: `Lifecycle type '${typeId}' is generated and may be published only through validated Scenario execution`,
+      }],
+    };
+  }
   if (!scenarioReference) {
     return {
       ok: false,

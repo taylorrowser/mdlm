@@ -47,3 +47,8 @@ behavior where possible.
     cardinality-typed arguments to one exact declared Scenario and routes through
     its canonical execution contract. Allowlisted generic-operation targets and
     richer scalar argument types remain deferred.
+14. **Qualification attachment:** The Phase 1 tracer explicitly links a passing
+    generated qualification RES from the still-editable ENV before freezing and
+    reviewing that ENV. Should a later package Scenario produce an ENV revision
+    with this link, or is the visible generic link mutation preferable for
+    qualification evidence assembly?

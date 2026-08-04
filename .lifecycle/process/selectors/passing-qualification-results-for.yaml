@@ -1,0 +1,18 @@
+kind: selector-definition
+id: passing-qualification-results-for
+version: 1
+description: Exact valid passing qualification results explicitly linked by an environment.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: environment, link: qualified-by, emit: target, types: [RES]}
+  as: result
+  where: >-
+    result.payload.claim.kind == "qualification"
+    && result.payload.claim.scope == "environment-capability"
+    && result.payload.claim.outcome == "pass"
+    && result.payload.claim.formal_evidence_eligible == false
+    && state(result, "validity") == "valid"
+  distinct: true
+  order_by: [identity.revision_id]

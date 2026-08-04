@@ -272,7 +272,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
       expect.objectContaining({
         kind: "process-provenance-change",
         before_process_ref: expect.stringContaining("historical-process@1.0.0"),
-        after_process_ref: expect.stringContaining("mdlm-bootstrap@0.25.0"),
+        after_process_ref: expect.stringContaining("mdlm-bootstrap@0.26.0"),
       }),
     ]));
     expect(output.baselineDiff.processDrift).toEqual([

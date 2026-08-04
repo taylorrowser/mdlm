@@ -1,12 +1,12 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.25.0
+version: 0.26.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
-  one narrow Phase 0 wayfinding and product-intent slice.
+  narrow Phase 0 intent and Phase 1 qualification/pilot slices.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -40,7 +40,7 @@ compatibility:
   template_inheritance: single-parent-additive
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, REV, BSL]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, VSP, ENV, VER, VAI, RUN, RES, REV, BSL]
   policies: [dependency-reassessment, review-applicability, waiver-applicability]
   states: [maturity, disposition, validity, relationship-overlays]
   selectors:
@@ -69,12 +69,20 @@ catalog:
     - applicable-gate-signoffs-for
     - candidate-baselines-of-kind
     - signed-off-candidates-of-kind
+    - verification-implementations-requiring-run
+    - verification-activities-for-implementation
+    - environments-for-implementation
+    - execution-targets-for-implementation
+    - completed-runs-for-implementation
+    - passing-qualification-results-for
+    - qualification-implementations-for-environment
   obligations:
     - review-context-required
     - passing-review-required
     - open-question-resolution
     - candidate-members-reviewed
     - candidate-gate-signoff
+    - verification-run-required
   scenarios:
     - chart-wayfinding-map
     - build-exploratory-prototype
@@ -86,7 +94,12 @@ catalog:
     - resolve-question
     - create-candidate-baseline
     - record-gate-signoff
-  phases: [phase-0-wayfinding, phase-2-system-definition]
+    - define-verification-strategy
+    - realize-verification-environment
+    - write-verification-activity
+    - implement-verification-activity
+    - execute-verification-run
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
   aliases: [question.resolve]
 assets:
   prompts:
@@ -100,6 +113,11 @@ assets:
     - prompts/resolve-question.md@1
     - prompts/create-candidate-baseline.md@1
     - prompts/record-gate-signoff.md@1
+    - prompts/define-verification-strategy.md@1
+    - prompts/realize-verification-environment.md@1
+    - prompts/write-verification-activity.md@1
+    - prompts/implement-verification-activity.md@1
+    - prompts/execute-verification-run.md@1
   skills:
     - skills/lifecycle-data.md@1
     - skills/wayfinding-map.md@1
@@ -112,12 +130,20 @@ assets:
     - skills/contextual-artifact-review.md@1
     - skills/clarification-protocol.md@1
     - skills/gate-protocol.md@1
+    - skills/verification-strategy-specification.md@1
+    - skills/verification-environments.md@1
+    - skills/qualification-verification.md@1
+    - skills/verification-writing.md@1
+    - skills/verification-activity-implementation.md@1
+    - skills/verification-independence.md@1
+    - skills/verification-run-model.md@1
+    - skills/reproducibility.md@1
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@2
+  default: bootstrap@3
   available:
-    - profiles/bootstrap.yaml@2
+    - profiles/bootstrap.yaml@3
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

@@ -1,0 +1,25 @@
+kind: scenario-definition
+id: write-verification-activity
+version: 1
+description: Write a source-independent pilot activity with explicit success and discrimination behavior.
+phases: [phase-1-product-assurance]
+inputs:
+  - {name: requirement, types: [STK], cardinality: one, identity: stable}
+  - {name: strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: activity
+    types: [VER]
+    cardinality: one
+    required_links:
+      - {link: verifies, target: {input: requirement}}
+      - {link: governed-by, target: {input: strategy}}
+prompt_ref: prompts/write-verification-activity.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && activity.payload.kind == "pilot"
+  && activity.payload.claim.scope == "verification-design"
+  && activity.payload.claim.formal_evidence_eligible == false
+resolves: []
+prohibited_inputs: [product source code, product unit tests, private implementation details, formal acceptance conclusion]
+batching: single

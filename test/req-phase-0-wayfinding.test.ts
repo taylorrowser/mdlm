@@ -34,12 +34,18 @@ describe("req Phase 0 wayfinding slice", () => {
       "ART@1",
       "BSL@2",
       "DEC@2",
+      "ENV@1",
       "MAP@1",
       "PSP@2",
       "QST@2",
+      "RES@1",
       "REV@2",
+      "RUN@1",
       "STK@2",
       "SYS@2",
+      "VAI@1",
+      "VER@1",
+      "VSP@1",
     ]);
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
       "build-exploratory-prototype@1",

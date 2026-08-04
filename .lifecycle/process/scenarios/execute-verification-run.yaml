@@ -1,0 +1,43 @@
+kind: scenario-definition
+id: execute-verification-run
+version: 1
+description: Execute one exact qualification or pilot implementation and atomically record its immutable run and scoped result.
+phases: [phase-1-product-assurance]
+inputs:
+  - {name: implementation, types: [VAI], cardinality: one, identity: revision}
+  - {name: activity, types: [VER], cardinality: one, identity: revision}
+  - {name: environment, types: [ENV], cardinality: one, identity: revision}
+  - {name: execution_target, types: [ENV, ART], cardinality: one, identity: revision}
+outputs:
+  - name: run
+    types: [RUN]
+    cardinality: one
+    required_links:
+      - {link: executes, target: {input: implementation}}
+      - {link: uses, target: {input: environment}}
+      - {link: targets, target: {input: execution_target}}
+      - {link: produces, target: {output: result}}
+  - name: result
+    types: [RES]
+    cardinality: one
+    required_links: []
+prompt_ref: prompts/execute-verification-run.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && implementation.payload.kind == activity.payload.kind
+  && run.payload.kind == implementation.payload.kind
+  && run.payload.execution_state == "completed"
+  && ((implementation.payload.kind == "qualification"
+    && execution_target.identity.type == "ENV"
+    && result.payload.claim.kind == "qualification"
+    && result.payload.claim.scope == "environment-capability"
+    && result.payload.claim.outcome in ["pass", "fail"])
+  || (implementation.payload.kind == "pilot"
+    && execution_target.identity.type == "ART"
+    && result.payload.claim.kind == "pilot"
+    && result.payload.claim.scope == "verification-design"
+    && result.payload.claim.outcome in ["suitable", "unsuitable", "inconclusive"]))
+resolves: [verification-run-required]
+prohibited_inputs: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts, mutable latest aliases]
+batching: single

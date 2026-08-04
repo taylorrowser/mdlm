@@ -2,7 +2,7 @@ kind: scenario-definition
 id: resolve-question
 version: 1
 description: Answer, defer, or cancel one exact question through a reasoned decision and a new QST revision.
-phases: [phase-0-wayfinding, phase-2-system-definition]
+phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: question
     types: [QST]
