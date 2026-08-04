@@ -31,8 +31,9 @@ behavior where possible.
 10. **Resolver eligibility:** The next result model must expose dispatchability,
     blockers, eventual resolver, actionable resolver, expected outputs, and waiver
     applicability rather than only status and one resolver string.
-11. **Phase evaluation:** Entry conditions, selected candidates, gate completion,
-    and exact phase blockers are specified but not yet returned by the evaluator.
+11. **Phase evaluation:** Entry conditions and deterministically selected exact
+    candidates now include expression and Selector evidence. Gate completion and
+    exact gate blockers remain to be returned by the evaluator.
 12. **Performance:** In-memory graph scans are sufficient for the pilot; indexing
     should follow measurements from realistic lifecycle repositories.
 13. **Package Command Aliases:** The alias schema must bind arguments only to

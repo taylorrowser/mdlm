@@ -16,10 +16,14 @@ export {
   evaluateLifecycle,
   type ArtifactEvaluation,
   type DatumEnvelope,
+  type ExactTypedEntity,
   type LifecycleEvaluation,
   type LifecycleRecord,
   type LifecycleSnapshot,
   type ObligationEvaluation,
+  type PhaseEvaluation,
+  type PhaseExpressionEvidence,
+  type SelectorEvaluationEvidence,
 } from "./evaluator.js";
 export type {
   BaselineCompositionDependencyChange,

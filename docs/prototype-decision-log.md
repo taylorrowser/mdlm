@@ -492,3 +492,28 @@ turning provisional choices into architecture.
 - **Evidence/observations:** A public evaluator fixture binds `SNP`, compares two
   exact review-context baselines, asserts all four typed variants and their
   explanation, and confirms unrelated evidence remains valid.
+
+## D-026 — Return package-authored Phase entry and candidate evidence
+
+- **Status:** accepted and implemented
+- **Decision:** Lifecycle evaluation resolves the snapshot's Phase from the
+  package catalog, evaluates its compiled textual entry and candidate-selection
+  expressions, and returns exact typed candidate identities plus the authored
+  source and deterministic evidence for every evaluated Selector. Query
+  `order_by` paths are honored with exact entity identity as the final tie-break.
+- **Alternatives:** Hard-code the bootstrap Phase flow or candidate baseline type,
+  return only entry and candidate Booleans/IDs, omit empty Selector results, or
+  trust snapshot record order.
+- **Rationale:** A Phase is declarative scope rather than a kernel workflow.
+  Retaining expression and Selector evidence explains both negative conclusions,
+  while package-authored ordering makes selected exact candidates reproducible.
+- **Expected behavior:** Any loaded Phase ID can be evaluated. Failed entry names
+  the source expression and empty supporting Selector result; candidate selection
+  returns package-typed exact identities in declared order. Reordering equivalent
+  snapshot records does not change the Phase evaluation and evaluation performs
+  no mutation.
+- **Reversibility:** Additive. Gate completion and richer blocker reporting can
+  extend the Phase result without changing Phase authoring or exposing ASTs.
+- **Evidence/observations:** Public lifecycle fixtures exercise failed Phase 2
+  entry, missing candidates, a renamed `SNP` capability type, reversed snapshot
+  order, repeated evaluation, and input immutability.

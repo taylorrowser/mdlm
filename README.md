@@ -9,9 +9,9 @@ types, states, obligations, scenarios, and phases.
 
 - `loadProcessPackage(path)` validates and loads process data.
 - `resolveType(package, typeId)` flattens the kernel envelope and template chain.
-- `evaluateLifecycle(package, snapshot)` computes typed dependency-change records,
-  states, obligations, loose ends, and explanations from primitive graph and
-  integrity data.
+- `evaluateLifecycle(package, snapshot)` computes package-defined phase entry and
+  candidate selection, typed dependency-change records, states, obligations,
+  loose ends, and explanations from primitive graph and integrity data.
 
 ## Try it
 

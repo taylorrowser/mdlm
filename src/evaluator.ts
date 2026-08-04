@@ -62,7 +62,44 @@ export interface ObligationEvaluation {
   explanation: string;
 }
 
+export interface ExactTypedEntity {
+  identity: {
+    id: string;
+    revision_id: string;
+    type: string;
+    revision: number;
+  };
+}
+
+export interface SelectorEvaluationEvidence {
+  selector: string;
+  arguments: Record<string, unknown>;
+  result: ExactTypedEntity[];
+}
+
+export interface PhaseExpressionEvidence {
+  source: string;
+  result: boolean | ExactTypedEntity[];
+  selectors: SelectorEvaluationEvidence[];
+}
+
+export interface PhaseEvaluation {
+  id: string;
+  version: number;
+  entry: {
+    satisfied: boolean;
+    explanation: string;
+    evidence: PhaseExpressionEvidence;
+  };
+  candidateSelection: {
+    entities: ExactTypedEntity[];
+    explanation: string;
+    evidence: PhaseExpressionEvidence;
+  };
+}
+
 export interface LifecycleEvaluation {
+  phase: PhaseEvaluation | null;
   artifacts: Record<string, ArtifactEvaluation>;
   dependencyChanges: DependencyChangeRecord[];
   obligations: ObligationEvaluation[];
@@ -131,6 +168,7 @@ class LifecycleEvaluator {
   private readonly exactBaselineType: string | undefined;
   private readonly dependencyChanges: DependencyChangeRecord[];
   private readonly comparisonDiagnostics: ProcessDiagnostic[];
+  private selectorEvidence: SelectorEvaluationEvidence[] | undefined;
 
   constructor(
     private readonly processPackage: ProcessPackage,
@@ -179,6 +217,7 @@ class LifecycleEvaluator {
   evaluate(): LifecycleEvaluation {
     if (this.comparisonDiagnostics.length > 0) {
       return {
+        phase: null,
         artifacts: {},
         dependencyChanges: [],
         obligations: [],
@@ -186,6 +225,22 @@ class LifecycleEvaluator {
         diagnostics: this.comparisonDiagnostics,
       };
     }
+    const phase = this.evaluatePhase();
+    if (!phase) {
+      return {
+        phase: null,
+        artifacts: {},
+        dependencyChanges: this.dependencyChanges,
+        obligations: [],
+        looseEnds: [],
+        diagnostics: [{
+          code: "unknown-phase",
+          path: "phaseId",
+          message: `Unknown Phase '${this.snapshot.phaseId}'`,
+        }],
+      };
+    }
+
     const artifacts: Record<string, ArtifactEvaluation> = {};
     for (const entity of this.entities) {
       const revisionId = entity.identity?.revision_id;
@@ -252,12 +307,102 @@ class LifecycleEvaluator {
       );
 
     return {
+      phase,
       artifacts,
       dependencyChanges: this.dependencyChanges,
       obligations,
       looseEnds,
       diagnostics: this.comparisonDiagnostics,
     };
+  }
+
+  private evaluatePhase(): PhaseEvaluation | undefined {
+    const definition = this.processPackage.phases[this.snapshot.phaseId];
+    if (!definition) return undefined;
+    const entry = this.evaluateWithSelectorEvidence(
+      definition.entry,
+      () => this.expression(definition.entry, this.baseContext),
+    );
+    const gate = object(definition.gate);
+    if (!gate) return undefined;
+    const selection = this.evaluateWithSelectorEvidence(
+      gate.candidate_selector,
+      () => array(this.value(gate.candidate_selector, this.baseContext))
+        .filter((value): value is Entity => this.isEntity(value)),
+    );
+    const candidates = selection.result
+      .map((entity) => this.exactTypedEntity(entity))
+      .filter((entity): entity is ExactTypedEntity => entity !== undefined);
+    return {
+      id: definition.id,
+      version: number(definition.version),
+      entry: {
+        satisfied: entry.result,
+        explanation: entry.result
+          ? "The package-defined phase entry expression is satisfied."
+          : "The package-defined phase entry expression is not satisfied.",
+        evidence: {
+          source: entry.source,
+          result: entry.result,
+          selectors: entry.selectors,
+        },
+      },
+      candidateSelection: {
+        entities: candidates,
+        explanation: candidates.length > 0
+          ? `The package-defined candidate selection expression returned ${candidates.length} exact ${candidates.length === 1 ? "entity" : "entities"}.`
+          : "The package-defined candidate selection expression returned no exact entities.",
+        evidence: {
+          source: selection.source,
+          result: candidates,
+          selectors: selection.selectors,
+        },
+      },
+    };
+  }
+
+  private evaluateWithSelectorEvidence<T>(
+    expression: unknown,
+    evaluate: () => T,
+  ): { source: string; result: T; selectors: SelectorEvaluationEvidence[] } {
+    if (!isCompiledTextExpression(expression)) {
+      throw new Error("Expected a compiled mdlm-expression@1 value");
+    }
+    const previousEvidence = this.selectorEvidence;
+    const selectors: SelectorEvaluationEvidence[] = [];
+    this.selectorEvidence = selectors;
+    try {
+      const result = evaluate();
+      selectors.sort((left, right) => {
+        const leftKey = JSON.stringify(left);
+        const rightKey = JSON.stringify(right);
+        return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+      });
+      return { source: expression.source, result, selectors };
+    } finally {
+      this.selectorEvidence = previousEvidence;
+    }
+  }
+
+  private exactTypedEntity(entity: Entity): ExactTypedEntity | undefined {
+    const { id, revision_id: revisionId, type, revision } = entity.identity ?? {};
+    return id && revisionId && type && revision !== undefined
+      ? { identity: { id, revision_id: revisionId, type, revision } }
+      : undefined;
+  }
+
+  private evidenceValue(value: unknown): unknown {
+    if (this.isEntity(value)) return this.exactTypedEntity(value) ?? { key: value.key };
+    if (Array.isArray(value)) return value.map((item) => this.evidenceValue(item));
+    const asObject = object(value);
+    return asObject
+      ? Object.fromEntries(
+          Object.entries(asObject).map(([key, item]) => [
+            key,
+            this.evidenceValue(item),
+          ]),
+        )
+      : value;
   }
 
   private obligationStatus(
@@ -448,7 +593,20 @@ class LifecycleEvaluator {
     if (this.selectorStack.has(recursionKey)) throw new Error(`Selector recursion at ${recursionKey}`);
     this.selectorStack.add(recursionKey);
     try {
-      return this.query(definition.query, { ...this.baseContext, ...argumentsContext });
+      const result = this.query(definition.query, {
+        ...this.baseContext,
+        ...argumentsContext,
+      });
+      if (this.selectorEvidence) {
+        this.selectorEvidence.push({
+          selector: reference,
+          arguments: this.evidenceValue(argumentsContext) as Record<string, unknown>,
+          result: result
+            .map((entity) => this.exactTypedEntity(entity))
+            .filter((entity): entity is ExactTypedEntity => entity !== undefined),
+        });
+      }
+      return result;
     } finally {
       this.selectorStack.delete(recursionKey);
     }
@@ -488,7 +646,40 @@ class LifecycleEvaluator {
     if (query.distinct === true) {
       results = [...new Map(results.map((result) => [result.key, result])).values()];
     }
+    const orderBy = array(query.order_by).filter(
+      (item): item is string => typeof item === "string",
+    );
+    if (orderBy.length > 0) {
+      results = [...results].sort((left, right) => {
+        for (const path of orderBy) {
+          const comparison = this.compareOrderedValues(
+            this.entityPath(left, path),
+            this.entityPath(right, path),
+          );
+          if (comparison !== 0) return comparison;
+        }
+        return left.key < right.key ? -1 : left.key > right.key ? 1 : 0;
+      });
+    }
     return results;
+  }
+
+  private entityPath(entity: Entity, path: string): unknown {
+    return path.split(".").reduce<unknown>((value, segment) => {
+      return object(value)?.[segment];
+    }, entity);
+  }
+
+  private compareOrderedValues(left: unknown, right: unknown): number {
+    if (left === right) return 0;
+    if (left === undefined || left === null) return 1;
+    if (right === undefined || right === null) return -1;
+    if (typeof left === "number" && typeof right === "number") {
+      return left - right;
+    }
+    const leftText = String(left);
+    const rightText = String(right);
+    return leftText < rightText ? -1 : leftText > rightText ? 1 : 0;
   }
 
   private relation(name: string, source: Entity, options: Record<string, unknown>): Entity[] {
@@ -609,6 +800,7 @@ export function evaluateLifecycle(
     return new LifecycleEvaluator(processPackage, snapshot).evaluate();
   } catch (error) {
     return {
+      phase: null,
       artifacts: {},
       dependencyChanges: [],
       obligations: [],

@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.14
+# MDLM bootstrap process package v0.15
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -55,6 +55,11 @@ A process rule must not request a process-specific kernel fact. Conclusions such
 as “passing review,” “current candidate,” and “members missing review” are named
 selectors assembled from primitive collections, graph relations, integrity
 paths, states, and policies.
+
+Phase entry and candidate selection are evaluated directly from each selected
+Phase's textual expressions. Results include exact typed candidate identities and
+deterministically ordered Selector evidence without recognizing a Phase ID or
+candidate lifecycle type in the evaluator.
 
 The accepted authoring surface is the textual MDLM Expression Language. The
 implemented slices support typed bound variables, entity and context paths,

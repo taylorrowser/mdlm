@@ -8,6 +8,7 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
 const processRoot = path.resolve(".lifecycle/process");
 let processPackage: ProcessPackage;
@@ -17,24 +18,6 @@ beforeAll(async () => {
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   processPackage = loaded.package;
 });
-
-async function renamedBaselineProcessPackage(): Promise<string> {
-  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
-  const copiedRoot = path.join(temporaryRoot, "process");
-  await fs.cp(processRoot, copiedRoot, { recursive: true });
-  const replaceInYamlFiles = async (directory: string): Promise<void> => {
-    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
-      const entryPath = path.join(directory, entry.name);
-      if (entry.isDirectory()) await replaceInYamlFiles(entryPath);
-      else if (entry.name.endsWith(".yaml")) {
-        const source = await fs.readFile(entryPath, "utf8");
-        await fs.writeFile(entryPath, source.replaceAll("BSL", "SNP"));
-      }
-    }
-  };
-  await replaceInYamlFiles(copiedRoot);
-  return copiedRoot;
-}
 
 function revision(
   id: string,
