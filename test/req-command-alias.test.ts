@@ -203,9 +203,9 @@ describe("req Package Command Alias", () => {
 
     expect(direct.status, direct.stderr).toBe(0);
     expect(aliased.status, aliased.stderr).toBe(0);
-    const directRequest = JSON.parse(await fs.readFile(directAdapter.capture, "utf8"));
-    const aliasRequest = JSON.parse(await fs.readFile(aliasAdapter.capture, "utf8"));
-    expect(aliasRequest).toEqual(directRequest);
+    const directRequestSource = await fs.readFile(directAdapter.capture, "utf8");
+    const aliasRequestSource = await fs.readFile(aliasAdapter.capture, "utf8");
+    expect(aliasRequestSource).toBe(directRequestSource);
     expect(JSON.parse(aliased.stdout)).toEqual(expect.objectContaining({
       command: "scenario.execute",
       execution: expect.objectContaining({
