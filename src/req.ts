@@ -107,9 +107,9 @@ interface CommandResult {
   tests?: FixtureTestSummary;
   repository?: RepositorySummary;
   created?: CreatedDatum;
-  record?: StoredDatum["record"];
+  lifecycleDatum?: StoredDatum["lifecycleDatum"];
   projections?: DatumProjections;
-  records?: ListedDatum[];
+  data?: ListedDatum[];
   index?: RepositoryIndexSummary;
   diagnostics: ProcessDiagnostic[];
 }
@@ -580,7 +580,7 @@ async function showStoredDatum(
     ok: true,
     command: "show",
     package: selected.summary,
-    record: shown.value.record,
+    lifecycleDatum: shown.value.lifecycleDatum,
     projections: shown.value.projections,
     diagnostics: [],
   };
@@ -614,7 +614,7 @@ async function listStoredData(repositoryRoot: string): Promise<CommandResult> {
     ok: true,
     command: "list",
     package: selected.summary,
-    records: listed.value,
+    data: listed.value,
     diagnostics: [],
   };
 }
@@ -1241,7 +1241,7 @@ function humanOutput(result: CommandResult): string {
   if (result.index) {
     return [
       `Repository: healthy`,
-      `Lifecycle Data: ${result.index.records}`,
+      `Lifecycle Data: ${result.index.data}`,
       `Index: ${result.index.rebuilt ? "rebuilt" : "current"}`,
       `Index Path: ${result.index.path}`,
     ].join("\n");
@@ -1254,8 +1254,8 @@ function humanOutput(result: CommandResult): string {
       `Path: ${result.created.path}`,
     ].join("\n");
   }
-  if (result.record && result.projections) {
-    const datum = result.record.datum;
+  if (result.lifecycleDatum && result.projections) {
+    const datum = result.lifecycleDatum.datum;
     return [
       `Lifecycle Datum: ${datum.id}`,
       `Revision: ${datum.revision_id}`,
@@ -1264,8 +1264,8 @@ function humanOutput(result: CommandResult): string {
       `Links: ${JSON.stringify(datum.links)}`,
       `Created By: ${JSON.stringify(datum.created_by)}`,
       `Body: ${datum.body}`,
-      `Storage: ${JSON.stringify(result.record.storage)}`,
-      `Integrity: ${JSON.stringify(result.record.integrity)}`,
+      `Storage: ${JSON.stringify(result.lifecycleDatum.storage)}`,
+      `Integrity: ${JSON.stringify(result.lifecycleDatum.integrity)}`,
       ...Object.entries(result.projections.states).map(([dimension, value]) =>
         `${dimension[0]?.toUpperCase() ?? ""}${dimension.slice(1)}: ${Array.isArray(value) ? value.join(", ") || "none" : value}`
       ),
@@ -1277,12 +1277,12 @@ function humanOutput(result: CommandResult): string {
       `Kernel Capabilities: ${result.projections.kernelCapabilities.join(", ") || "none"}`,
     ].join("\n");
   }
-  if (result.records) {
+  if (result.data) {
     return [
-      `Lifecycle Data: ${result.records.length}`,
-      ...result.records.flatMap(({ record, projections }) => [
-        `${record.datum.revision_id} [${record.datum.type}] ${typeof record.datum.payload.title === "string" ? record.datum.payload.title : "untitled"}`,
-        `  Durable: ${JSON.stringify(record)}`,
+      `Lifecycle Data: ${result.data.length}`,
+      ...result.data.flatMap(({ lifecycleDatum, projections }) => [
+        `${lifecycleDatum.datum.revision_id} [${lifecycleDatum.datum.type}] ${typeof lifecycleDatum.datum.payload.title === "string" ? lifecycleDatum.datum.payload.title : "untitled"}`,
+        `  Durable: ${JSON.stringify(lifecycleDatum)}`,
         `  Projections: ${JSON.stringify(projections)}`,
       ]),
     ].join("\n");

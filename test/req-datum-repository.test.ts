@@ -217,7 +217,7 @@ describe("req durable Lifecycle Datum repository", () => {
 
     const listed = req(repositoryRoot, "list", "--json");
     expect(listed.status, listed.stderr).toBe(0);
-    expect(JSON.parse(listed.stdout).records).toEqual([]);
+    expect(JSON.parse(listed.stdout).data).toEqual([]);
   });
 
   it("rebuilds disposable indexes from Markdown truth", async () => {
@@ -230,7 +230,7 @@ describe("req durable Lifecycle Datum repository", () => {
     expect(initialDoctor.status, initialDoctor.stderr).toBe(0);
     expect(JSON.parse(initialDoctor.stdout).index).toEqual({
       rebuilt: true,
-      records: 1,
+      data: 1,
       path: ".lifecycle/generated/indexes/data.json",
     });
     await fs.rm(path.join(repositoryRoot, ".lifecycle/generated/indexes"), {
@@ -242,7 +242,7 @@ describe("req durable Lifecycle Datum repository", () => {
     const listed = req(repositoryRoot, "list", "--json");
     expect(shown.status, shown.stderr).toBe(0);
     expect(listed.status, listed.stderr).toBe(0);
-    expect(JSON.parse(listed.stdout).records).toHaveLength(1);
+    expect(JSON.parse(listed.stdout).data).toHaveLength(1);
 
     const rebuilt = req(repositoryRoot, "doctor", "--json");
     expect(rebuilt.status, rebuilt.stderr).toBe(0);
@@ -251,7 +251,7 @@ describe("req durable Lifecycle Datum repository", () => {
       command: "doctor",
       index: {
         rebuilt: true,
-        records: 1,
+        data: 1,
         path: ".lifecycle/generated/indexes/data.json",
       },
       diagnostics: [],
@@ -324,7 +324,7 @@ describe("req durable Lifecycle Datum repository", () => {
       package: expect.objectContaining({
         reference: "mdlm-bootstrap@0.24.0",
       }),
-      record: {
+      lifecycleDatum: {
         datum: expect.objectContaining({
           id: creation.created.id,
           revision: 1,
@@ -378,15 +378,17 @@ describe("req durable Lifecycle Datum repository", () => {
       "--json",
     );
     expect(shownRevision.status, shownRevision.stderr).toBe(0);
-    expect(JSON.parse(shownRevision.stdout).record).toEqual(showResult.record);
+    expect(JSON.parse(shownRevision.stdout).lifecycleDatum).toEqual(
+      showResult.lifecycleDatum,
+    );
 
     const listed = req(repositoryRoot, "list", "--json");
     expect(listed.status, listed.stderr).toBe(0);
     expect(JSON.parse(listed.stdout)).toEqual(expect.objectContaining({
       ok: true,
       command: "list",
-      records: [{
-        record: showResult.record,
+      data: [{
+        lifecycleDatum: showResult.lifecycleDatum,
         projections: showResult.projections,
       }],
     }));

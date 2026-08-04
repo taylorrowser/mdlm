@@ -36,18 +36,18 @@ export interface DatumProjections {
 }
 
 export interface StoredDatum {
-  record: LifecycleRecord;
+  lifecycleDatum: LifecycleRecord;
   projections: DatumProjections;
 }
 
 export interface RepositoryIndexSummary {
   rebuilt: boolean;
-  records: number;
+  data: number;
   path: ".lifecycle/generated/indexes/data.json";
 }
 
 export interface ListedDatum {
-  record: LifecycleRecord;
+  lifecycleDatum: LifecycleRecord;
   projections: DatumProjections;
 }
 
@@ -56,7 +56,7 @@ export type RepositoryResult<T> =
   | { ok: false; diagnostics: ProcessDiagnostic[] };
 
 interface ParsedDatum {
-  record: LifecycleRecord;
+  lifecycleDatum: LifecycleRecord;
   relativePath: string;
 }
 
@@ -130,7 +130,7 @@ function parseDatum(source: string, relativePath: string): RepositoryResult<Pars
       ok: true,
       value: {
         relativePath,
-        record: {
+        lifecycleDatum: {
           datum,
           storage: { editable: true, frozen: false },
           integrity: {
@@ -219,19 +219,19 @@ function resolveScenario(
   return { ok: true, value: scenario, diagnostics: [] };
 }
 
-function targetRecord(
-  records: LifecycleRecord[],
+function targetDatum(
+  lifecycleData: LifecycleRecord[],
   target: string,
 ): LifecycleRecord | undefined {
   return revisionIdentity.test(target)
-    ? records.find((record) => record.datum.revision_id === target)
-    : records.find((record) => record.datum.id === target);
+    ? lifecycleData.find((datum) => datum.datum.revision_id === target)
+    : lifecycleData.find((datum) => datum.datum.id === target);
 }
 
 function linkDiagnostics(
   resolvedType: ResolvedType,
   links: DatumEnvelope["links"],
-  records: LifecycleRecord[],
+  lifecycleData: LifecycleRecord[],
 ): ProcessDiagnostic[] {
   const diagnostics: ProcessDiagnostic[] = [];
   const contracts = new Map(resolvedType.outgoingLinks.map((contract) => [
@@ -248,7 +248,7 @@ function linkDiagnostics(
       });
       continue;
     }
-    const target = targetRecord(records, link.target);
+    const target = targetDatum(lifecycleData, link.target);
     if (!target) {
       diagnostics.push({
         code: "unknown-link-target",
@@ -301,7 +301,7 @@ function linkDiagnostics(
 function validateDatum(
   processPackage: ProcessPackage,
   datum: DatumEnvelope,
-  records: LifecycleRecord[],
+  lifecycleData: LifecycleRecord[],
 ): ProcessDiagnostic[] {
   const resolved = resolveType(processPackage, datum.type);
   if (!resolved.ok) return resolved.diagnostics;
@@ -325,7 +325,11 @@ function validateDatum(
       message: "Lifecycle Datum identity must match its type, Stable ID, and revision number",
     });
   }
-  diagnostics.push(...linkDiagnostics(resolved.type, datum.links, records));
+  diagnostics.push(...linkDiagnostics(
+    resolved.type,
+    datum.links,
+    lifecycleData,
+  ));
   return diagnostics;
 }
 
@@ -343,9 +347,13 @@ export async function readRepositoryData(
     if (!result.ok) diagnostics.push(...result.diagnostics);
     else parsed.push(result.value);
   }
-  const records = parsed.map((item) => item.record);
+  const lifecycleData = parsed.map((item) => item.lifecycleDatum);
   for (const item of parsed) {
-    diagnostics.push(...validateDatum(processPackage, item.record.datum, records).map(
+    diagnostics.push(...validateDatum(
+      processPackage,
+      item.lifecycleDatum.datum,
+      lifecycleData,
+    ).map(
       (diagnostic) => ({
         ...diagnostic,
         path: `${item.relativePath}#${diagnostic.path ?? ""}`,
@@ -462,7 +470,7 @@ export async function createDatum(
   const diagnostics = validateDatum(
     processPackage,
     datum,
-    loaded.value.map((item) => item.record),
+    loaded.value.map((item) => item.lifecycleDatum),
   );
   if (diagnostics.length > 0) return { ok: false, diagnostics };
 
@@ -506,7 +514,7 @@ export async function createDatum(
 
 function projections(
   processPackage: ProcessPackage,
-  records: LifecycleRecord[],
+  lifecycleData: LifecycleRecord[],
   subject: LifecycleRecord,
   processReference: string,
 ): DatumProjections {
@@ -516,7 +524,7 @@ function projections(
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: processReference,
       phaseId,
-      records,
+      records: lifecycleData,
       dependencyComparisons: [],
     });
     states = evaluation.artifacts[subject.datum.revision_id]?.states ?? states;
@@ -526,11 +534,11 @@ function projections(
       }
     }
   }
-  const backlinks = records.flatMap((record) => record.datum.links
+  const backlinks = lifecycleData.flatMap((datum) => datum.datum.links
     .filter((link) =>
       link.target === subject.datum.id || link.target === subject.datum.revision_id
     )
-    .map((link) => ({ source: record.datum.revision_id, type: link.type })))
+    .map((link) => ({ source: datum.datum.revision_id, type: link.type })))
     .sort((left, right) =>
       left.source.localeCompare(right.source) || left.type.localeCompare(right.type)
     );
@@ -560,10 +568,10 @@ export async function rebuildRepositoryIndex(
       package: packageReference,
       source: ".lifecycle/data",
     },
-    records: loaded.value.map((item) => ({
-      id: item.record.datum.id,
-      revisionId: item.record.datum.revision_id,
-      type: item.record.datum.type,
+    data: loaded.value.map((item) => ({
+      id: item.lifecycleDatum.datum.id,
+      revisionId: item.lifecycleDatum.datum.revision_id,
+      type: item.lifecycleDatum.datum.type,
       path: item.relativePath,
     })).sort((left, right) =>
       left.type.localeCompare(right.type) ||
@@ -592,7 +600,7 @@ export async function rebuildRepositoryIndex(
   }
   return {
     ok: true,
-    value: { rebuilt, records: value.records.length, path: relativePath },
+    value: { rebuilt, data: value.data.length, path: relativePath },
     diagnostics: [],
   };
 }
@@ -606,10 +614,11 @@ export async function showDatum(
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
   const candidates = loaded.value.filter((item) =>
-    item.record.datum.id === identity || item.record.datum.revision_id === identity
+    item.lifecycleDatum.datum.id === identity ||
+    item.lifecycleDatum.datum.revision_id === identity
   );
   candidates.sort((left, right) =>
-    right.record.datum.revision - left.record.datum.revision
+    right.lifecycleDatum.datum.revision - left.lifecycleDatum.datum.revision
   );
   const selected = candidates[0];
   if (!selected) {
@@ -622,15 +631,15 @@ export async function showDatum(
       }],
     };
   }
-  const records = loaded.value.map((item) => item.record);
+  const lifecycleData = loaded.value.map((item) => item.lifecycleDatum);
   return {
     ok: true,
     value: {
-      record: selected.record,
+      lifecycleDatum: selected.lifecycleDatum,
       projections: projections(
         processPackage,
-        records,
-        selected.record,
+        lifecycleData,
+        selected.lifecycleDatum,
         processReference,
       ),
     },
@@ -647,24 +656,27 @@ export async function listData(
   if (!loaded.ok) return loaded;
   const selected = new Map<string, ParsedDatum>();
   for (const item of loaded.value) {
-    const current = selected.get(item.record.datum.id);
-    if (!current || current.record.datum.revision < item.record.datum.revision) {
-      selected.set(item.record.datum.id, item);
+    const current = selected.get(item.lifecycleDatum.datum.id);
+    if (
+      !current ||
+      current.lifecycleDatum.datum.revision < item.lifecycleDatum.datum.revision
+    ) {
+      selected.set(item.lifecycleDatum.datum.id, item);
     }
   }
-  const records = loaded.value.map((item) => item.record);
+  const lifecycleData = loaded.value.map((item) => item.lifecycleDatum);
   const result = [...selected.values()].map((item) => ({
-    record: item.record,
+    lifecycleDatum: item.lifecycleDatum,
     projections: projections(
       processPackage,
-      records,
-      item.record,
+      lifecycleData,
+      item.lifecycleDatum,
       processReference,
     ),
   }));
   result.sort((left, right) =>
-    left.record.datum.type.localeCompare(right.record.datum.type) ||
-    left.record.datum.id.localeCompare(right.record.datum.id)
+    left.lifecycleDatum.datum.type.localeCompare(right.lifecycleDatum.datum.type) ||
+    left.lifecycleDatum.datum.id.localeCompare(right.lifecycleDatum.datum.id)
   );
   return { ok: true, value: result, diagnostics: [] };
 }
