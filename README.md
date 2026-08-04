@@ -15,6 +15,9 @@ types, states, obligations, scenarios, and phases.
   bindings, Dispatchability, Resolver Scenario output contracts, exact Waiver
   Policy applicability, generated historical Obligation explanations from explicit
   repository snapshots, and explanations from primitive graph and integrity data.
+- The `req` executable explicitly installs and selects exact Process Packages and
+  provides package-neutral `process show`, `validate`, and `capabilities` output in
+  matching human-readable and JSON forms.
 
 ## Try it
 

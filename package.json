@@ -3,9 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "req": "./dist/req.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prototype": "npm run build --silent && node dist/prototype.js",
+    "pretest": "npm run build --silent",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

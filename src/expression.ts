@@ -8,6 +8,41 @@ type ComparisonOperator = "eq" | "ne" | "gt" | "gte" | "in" | "lt" | "lte";
 type LogicalOperator = "and" | "or";
 type SelectorOperation = "count" | "exists" | "none" | "one" | "select";
 
+const comparisonOperatorByToken: Record<string, ComparisonOperator> = {
+  "==": "eq",
+  "!=": "ne",
+  ">": "gt",
+  ">=": "gte",
+  "in": "in",
+  "<": "lt",
+  "<=": "lte",
+};
+
+const expressionOperators = [
+  "!",
+  "!=",
+  "&&",
+  "<",
+  "<=",
+  "==",
+  ">",
+  ">=",
+  "in",
+  "||",
+] as const;
+
+const expressionHostFunctions = [
+  "count",
+  "every",
+  "exists",
+  "none",
+  "one",
+  "policy",
+  "present",
+  "select",
+  "state",
+] as const;
+
 interface SourcePosition {
   offset: number;
   line: number;
@@ -923,16 +958,7 @@ class ExpressionParser {
   }
 
   private comparisonOperator(operator: string): ComparisonOperator | undefined {
-    const operators: Record<string, ComparisonOperator> = {
-      "==": "eq",
-      "!=": "ne",
-      ">": "gt",
-      ">=": "gte",
-      "in": "in",
-      "<": "lt",
-      "<=": "lte",
-    };
-    return operators[operator];
+    return comparisonOperatorByToken[operator];
   }
 
   private checkComparisonOperands(
@@ -1045,6 +1071,30 @@ const baseBindings: Bindings = {
     paths: { "integrity.contract_valid": "boolean" },
   },
 };
+
+export interface ExpressionLanguageCapabilities {
+  contextRoots: {
+    id: string;
+    paths: { path: string; type: ValueType }[];
+  }[];
+  operators: string[];
+  hostFunctions: string[];
+}
+
+export function expressionLanguageCapabilities(): ExpressionLanguageCapabilities {
+  return {
+    contextRoots: Object.entries(baseBindings)
+      .map(([id, binding]) => ({
+        id,
+        paths: Object.entries(binding.paths ?? {})
+          .map(([path, type]) => ({ path, type }))
+          .sort((left, right) => left.path.localeCompare(right.path)),
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    operators: [...expressionOperators],
+    hostFunctions: [...expressionHostFunctions],
+  };
+}
 
 function diagnostic(
   failure: ExpressionFailure,

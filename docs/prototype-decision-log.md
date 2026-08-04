@@ -628,3 +628,35 @@ turning provisional choices into architecture.
   Revision. The old exact context obligation remains `ready` in history, is
   `satisfied` in the current graph, and the new Revision receives its own `ready`
   instance without mutating the earlier explanation.
+
+## D-031 — Select immutable package installs explicitly at the CLI seam
+
+- **Status:** accepted and implemented
+- **Decision:** `req process install` validates and atomically copies a local
+  compatible Process Package into a content-checked `<id>@<version>` install slot
+  without activating it. `req process use` separately records the exact package
+  reference, expression-language version, install path, and SHA-256 digest.
+  Package show, validation, and capability commands project one package-neutral
+  semantic result into either JSON or human-readable output.
+- **Alternatives:** Implicitly activate the bundled Example Process Package, select
+  a mutable source directory, record only a package ID, duplicate inspection logic
+  in every renderer, or embed V-model types and phases in the executable.
+- **Rationale:** Package and language versions are reproducibility inputs, while a
+  content digest prevents mutable reuse of one semantic version. Separating
+  installation from selection makes activation deliberate. A shared projection
+  keeps agent-facing JSON and human output semantically aligned and lets all
+  compatible packages expose the same kernel and language capabilities.
+- **Expected behavior:** Commands requiring a selected package fail explicitly
+  when none exists. A conflicting install under the same exact version is refused.
+  Validation reports compilation, reference, capability-binding, and source
+  diagnostics. Capabilities enumerate context roots, paths, operators, host
+  functions, primitive and capability-gated collections and relations, bound
+  Kernel Capabilities, and exact definition catalogs without package-specific IDs
+  in CLI implementation.
+- **Reversibility:** The selection file and install directory are initial adapter
+  formats. A registry or remote resolver can replace local copying while preserving
+  exact package summary, validation, and capability projections.
+- **Evidence/observations:** Public executable tests cover absent selection,
+  install-versus-use separation, exact selection-file content, selected and
+  explicit invalid validation, manifest/catalog inspection, and equivalent human
+  and JSON capability output.

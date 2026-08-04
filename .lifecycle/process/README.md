@@ -1,10 +1,17 @@
-# MDLM bootstrap process package v0.19
+# MDLM bootstrap process package v0.20
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
 toward the accepted v0.8 design. It remains intentionally limited to `PSP`, `STK`,
 `SYS`, `REV`, `BSL`, `QST`, and `DEC`. These are a bootstrap subset of the bundled
 V-model Example Process Package, not lifecycle types recognized by MDLM core.
+
+The package can be explicitly installed and selected with the package-neutral
+`req process install` and `req process use` commands. The recorded selection
+includes its exact package version, expression-language version, and content
+digest. `req process show`, `validate`, and `capabilities` expose the same semantic
+projection in human-readable or JSON form without implicitly selecting this
+Example Process Package.
 
 The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
 definition now uses textual source compiled at package load, including finite
