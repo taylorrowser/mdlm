@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.16 — experimental implementation reference**
+**Bootstrap package 0.17 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -390,9 +390,15 @@ which package expression and Selector results blocked progress. Selector
 `order_by` paths, followed by exact entity identity, define stable ordering; the
 evaluator recognizes neither Phase IDs nor candidate lifecycle types.
 
-A phase gate is complete only when its expression is true for the exact current
-candidate. Changes produce a new candidate and new gate evidence; no candidate is
-mutated in place.
+A Phase gate names the versioned Obligation that controls gate action. Its
+completion expression is evaluated separately for every selected exact candidate
+under `candidate_as`. Each result includes authored expression source, exact
+Policy and Selector invocations, and that exact gate Obligation Instance's status,
+blockers, Dispatchability, eventual resolver, and currently actionable resolver.
+An unreviewed sign-off therefore makes review actionable without dispatching a
+duplicate sign-off. A phase gate is complete only when its expression is true for
+the exact current candidate. Changes produce a new candidate and new gate
+evidence; no candidate or prior result is mutated in place.
 
 ## 13. Package validation
 
@@ -418,7 +424,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.16 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.17 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

@@ -544,3 +544,29 @@ turning provisional choices into architecture.
   a review blocked on its exact context Obligation, and a gate whose eventual
   sign-off resolver differs from the currently Dispatchable review resolver.
   Reversing snapshot record order preserves the same exact blocker result.
+
+## D-028 — Evaluate each Phase gate against one exact selected candidate
+
+- **Status:** accepted and implemented
+- **Decision:** A Phase gate names its controlling versioned Obligation and its
+  completion expression is evaluated once for every exact entity returned by the
+  package-authored candidate selector. The gate result combines that expression's
+  authored source and exact Policy and Selector invocations with the matching
+  exact Obligation Instance's blockers, Dispatchability, and resolvers.
+- **Alternatives:** Return one aggregate Phase Boolean, infer the gate Obligation
+  from a lifecycle type or ID, reuse sign-off evidence across revisions of one
+  Stable Datum, or dispatch the gate Scenario whenever completion is false.
+- **Rationale:** Gate authorization applies to an immutable candidate Revision.
+  The package must own both candidate selection and gate meaning, while the
+  evaluator can safely join their exact identities to generic Obligation results.
+- **Expected behavior:** An existing unreviewed Gate Sign-off blocks duplicate
+  sign-off dispatch and makes its review the next action. Once valid passing review
+  evidence exists, the same exact candidate gate completes. A new candidate
+  Revision receives a distinct incomplete evaluation and leaves prior returned
+  evidence unchanged.
+- **Reversibility:** Additive to Phase evaluation and one required versioned gate
+  Obligation reference in the Phase schema. Later persisted gate reports can store
+  the same evidence without changing the read-only evaluator contract.
+- **Evidence/observations:** Public lifecycle tests exercise exact candidate and
+  member Policy evidence, complete blocker chains, unreviewed and reviewed Gate
+  Sign-offs, and a changed candidate Revision under the same Stable Datum ID.

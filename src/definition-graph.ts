@@ -237,6 +237,19 @@ function validateReferences(
   }
 
   for (const [id, definition] of Object.entries(definitions.phases)) {
+    const gate = typeof definition.gate === "object" && definition.gate !== null
+      ? definition.gate as Record<string, unknown>
+      : undefined;
+    if (typeof gate?.obligation === "string") {
+      diagnostics.push(
+        ...validateVersionedReference(
+          gate.obligation,
+          definitions.obligations,
+          `phases.${id}.gate.obligation`,
+          "Obligation",
+        ),
+      );
+    }
     for (const [field, catalog, kind] of [
       ["scenarios", definitions.scenarios, "Scenario"],
       ["obligations", definitions.obligations, "Obligation"],

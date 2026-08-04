@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.16
+# MDLM bootstrap process package v0.17
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -63,10 +63,13 @@ status permits action, every binding resolves, and no exact blocker remains.
 Blocker chains use exact Obligation Instance identities; presentation still puts
 ready work before blocked work without changing Obligation truth.
 
-Phase entry and candidate selection are evaluated directly from each selected
-Phase's textual expressions. Results include exact typed candidate identities and
-deterministically ordered Selector evidence without recognizing a Phase ID or
-candidate lifecycle type in the evaluator.
+Phase entry, candidate selection, and gate completion are evaluated directly
+from each selected Phase's textual expressions. Each selected exact candidate
+receives an independent gate result with authored expression source, exact Policy
+and Selector evidence, and the blocker and Resolver Scenario evidence from the
+package-declared gate Obligation. Candidate revisions therefore never inherit or
+mutate earlier gate evidence. The evaluator recognizes neither a Phase ID nor a
+candidate lifecycle type.
 
 The accepted authoring surface is the textual MDLM Expression Language. The
 implemented slices support typed bound variables, entity and context paths,

@@ -21,11 +21,12 @@
     "gate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["required", "candidate_selector", "candidate_as", "completion"],
+      "required": ["required", "candidate_selector", "candidate_as", "obligation", "completion"],
       "properties": {
         "required": {"type": "boolean"},
         "candidate_selector": {"$ref": "expression.schema.json"},
         "candidate_as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "obligation": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
         "completion": {"$ref": "expression.schema.json"}
       }
     }

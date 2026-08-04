@@ -24,7 +24,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.16.0");
+    expect(result.package.manifest.version).toBe("0.17.0");
     expect(Object.keys(result.package.types)).toHaveLength(7);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(25);
@@ -687,6 +687,32 @@ describe("loadProcessPackage", () => {
           path:
             "obligations.passing-review-required.status_rules[1].blocked_by[0].obligation",
           message: "Unknown Obligation reference 'missing-obligation@2'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an unknown gate Obligation reference in a Phase", async () => {
+    const processRoot = await copiedProcessPackage();
+    const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+    const phase = await fs.readFile(phasePath, "utf8");
+    await fs.writeFile(
+      phasePath,
+      phase.replace(
+        "  obligation: candidate-gate-signoff@2",
+        "  obligation: missing-gate-obligation@2",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "phases.phase-0-wayfinding.gate.obligation",
+          message: "Unknown Obligation reference 'missing-gate-obligation@2'",
         }),
       ]),
     );

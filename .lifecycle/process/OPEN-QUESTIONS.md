@@ -32,9 +32,10 @@ behavior where possible.
     exact blocker chains, unresolved bindings, the eventual Resolver Scenario,
     and the currently actionable resolver. Expected outputs, required links, and
     waiver applicability remain to be exposed.
-11. **Phase evaluation:** Entry conditions and deterministically selected exact
-    candidates now include expression and Selector evidence. Gate completion and
-    exact gate blockers remain to be returned by the evaluator.
+11. **Phase evaluation:** Entry, deterministic exact candidate selection, and
+    per-candidate gate completion now retain expression, Policy, Selector, and
+    exact blocker evidence. Promotion and historical gate-report persistence
+    remain outside the evaluator prototype.
 12. **Performance:** In-memory graph scans are sufficient for the pilot; indexing
     should follow measurements from realistic lifecycle repositories.
 13. **Package Command Aliases:** The alias schema must bind arguments only to

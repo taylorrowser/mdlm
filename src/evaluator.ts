@@ -88,6 +88,30 @@ export interface PhaseExpressionEvidence {
   selectors: SelectorEvaluationEvidence[];
 }
 
+export interface PolicyEvaluationEvidence {
+  policy: string;
+  arguments: Record<string, unknown>;
+  result: Record<string, unknown>;
+}
+
+export interface PhaseGateEvaluation {
+  candidate: ExactTypedEntity;
+  complete: boolean;
+  explanation: string;
+  obligationInstance: string;
+  status: string;
+  eventualResolver: string;
+  actionableResolver: string | null;
+  dispatchable: boolean;
+  blockedBy: string[];
+  blockerChains: string[][];
+  unresolvedBindings: string[];
+  evidence: PhaseExpressionEvidence & {
+    result: boolean;
+    policies: PolicyEvaluationEvidence[];
+  };
+}
+
 export interface PhaseEvaluation {
   id: string;
   version: number;
@@ -100,6 +124,10 @@ export interface PhaseEvaluation {
     entities: ExactTypedEntity[];
     explanation: string;
     evidence: PhaseExpressionEvidence;
+  };
+  gate: {
+    required: boolean;
+    evaluations: PhaseGateEvaluation[];
   };
 }
 
@@ -181,6 +209,7 @@ class LifecycleEvaluator {
   private readonly dependencyChanges: DependencyChangeRecord[];
   private readonly comparisonDiagnostics: ProcessDiagnostic[];
   private selectorEvidence: SelectorEvaluationEvidence[] | undefined;
+  private policyEvidence: PolicyEvaluationEvidence[] | undefined;
 
   constructor(
     private readonly processPackage: ProcessPackage,
@@ -237,8 +266,7 @@ class LifecycleEvaluator {
         diagnostics: this.comparisonDiagnostics,
       };
     }
-    const phase = this.evaluatePhase();
-    if (!phase) {
+    if (!this.processPackage.phases[this.snapshot.phaseId]) {
       return {
         phase: null,
         artifacts: {},
@@ -349,6 +377,7 @@ class LifecycleEvaluator {
       );
     }
     const obligations = pendingObligations.map((pending) => pending.evaluation);
+    const phase = this.evaluatePhase(obligations);
 
     const statusOrder: Record<string, number> = {
       ready: 0,
@@ -376,15 +405,15 @@ class LifecycleEvaluator {
     };
   }
 
-  private evaluatePhase(): PhaseEvaluation | undefined {
-    const definition = this.processPackage.phases[this.snapshot.phaseId];
-    if (!definition) return undefined;
+  private evaluatePhase(
+    obligations: ObligationEvaluation[],
+  ): PhaseEvaluation {
+    const definition = this.processPackage.phases[this.snapshot.phaseId]!;
     const entry = this.evaluateWithSelectorEvidence(
       definition.entry,
       () => this.expression(definition.entry, this.baseContext),
     );
-    const gate = object(definition.gate);
-    if (!gate) return undefined;
+    const gate = object(definition.gate)!;
     const selection = this.evaluateWithSelectorEvidence(
       gate.candidate_selector,
       () => array(this.value(gate.candidate_selector, this.baseContext))
@@ -393,6 +422,45 @@ class LifecycleEvaluator {
     const candidates = selection.result
       .map((entity) => this.exactTypedEntity(entity))
       .filter((entity): entity is ExactTypedEntity => entity !== undefined);
+    const candidateAs = string(gate.candidate_as) ?? "candidate";
+    const gateObligation = string(gate.obligation) ?? "";
+    const gateEvaluations = selection.result.flatMap((candidate) => {
+      const exactCandidate = this.exactTypedEntity(candidate);
+      const candidateRevision = candidate.identity?.revision_id;
+      if (!exactCandidate || !candidateRevision) return [];
+      const completion = this.evaluateWithGateEvidence(
+        gate.completion,
+        () => this.expression(gate.completion, {
+          ...this.baseContext,
+          [candidateAs]: candidate,
+        }),
+      );
+      const obligationInstance = this.obligationInstanceId(
+        gateObligation,
+        candidateRevision,
+      );
+      const obligation = obligations.find(
+        (item) => item.id === obligationInstance,
+      );
+      return [{
+        candidate: exactCandidate,
+        complete: completion.result,
+        explanation: completion.result
+          ? "The package-defined gate completion expression is satisfied for this exact candidate."
+          : "The package-defined gate completion expression is not satisfied for this exact candidate.",
+        obligationInstance,
+        status: obligation?.status ?? "unresolved",
+        eventualResolver: obligation?.eventualResolver ?? "",
+        actionableResolver: obligation?.actionableResolver ?? null,
+        dispatchable: obligation?.dispatchable ?? false,
+        blockedBy: obligation?.blockedBy ?? [],
+        blockerChains: obligation?.blockerChains ?? [],
+        unresolvedBindings: obligation?.unresolvedBindings ?? [
+          "obligation-instance",
+        ],
+        evidence: completion,
+      }];
+    });
     return {
       id: definition.id,
       version: number(definition.version),
@@ -418,6 +486,10 @@ class LifecycleEvaluator {
           selectors: selection.selectors,
         },
       },
+      gate: {
+        required: gate.required === true,
+        evaluations: gateEvaluations,
+      },
     };
   }
 
@@ -441,6 +513,29 @@ class LifecycleEvaluator {
       return { source: expression.source, result, selectors };
     } finally {
       this.selectorEvidence = previousEvidence;
+    }
+  }
+
+  private evaluateWithGateEvidence(
+    expression: unknown,
+    evaluate: () => boolean,
+  ): PhaseExpressionEvidence & {
+    result: boolean;
+    policies: PolicyEvaluationEvidence[];
+  } {
+    const previousPolicyEvidence = this.policyEvidence;
+    const policies: PolicyEvaluationEvidence[] = [];
+    this.policyEvidence = policies;
+    try {
+      const evidence = this.evaluateWithSelectorEvidence(expression, evaluate);
+      policies.sort((left, right) => {
+        const leftKey = JSON.stringify(left);
+        const rightKey = JSON.stringify(right);
+        return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+      });
+      return { ...evidence, policies };
+    } finally {
+      this.policyEvidence = previousPolicyEvidence;
     }
   }
 
@@ -699,7 +794,15 @@ class LifecycleEvaluator {
       .filter((rule): rule is Record<string, unknown> => rule !== undefined)
       .sort((left, right) => number(right.priority) - number(left.priority));
     const match = rules.find((rule) => this.expression(rule.when, policyContext));
-    return object(match?.result) ?? object(definition.default) ?? {};
+    const result = object(match?.result) ?? object(definition.default) ?? {};
+    if (this.policyEvidence) {
+      this.policyEvidence.push({
+        policy: reference,
+        arguments: this.evidenceValue(argumentsContext) as Record<string, unknown>,
+        result: this.evidenceValue(result) as Record<string, unknown>,
+      });
+    }
+    return result;
   }
 
   private expressionHost() {

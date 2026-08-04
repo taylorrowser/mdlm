@@ -9,6 +9,46 @@ import {
 } from "../src/index.js";
 import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
+function record(
+  type: string,
+  id: string,
+  payload: Record<string, unknown>,
+  options: {
+    frozen?: boolean;
+    scenario?: string;
+    links?: { type: string; target: string }[];
+    revision?: number;
+  } = {},
+): LifecycleRecord {
+  const revision = options.revision ?? 1;
+  return {
+    datum: {
+      id,
+      revision,
+      revision_id: `${id}-r${String(revision).padStart(5, "0")}`,
+      type,
+      payload,
+      links: options.links ?? [],
+      created_by: {
+        process_ref: "git:phase-gate",
+        ...(options.scenario ? { scenario: options.scenario } : {}),
+      },
+      body: "",
+    },
+    storage: {
+      editable: options.frozen === false,
+      frozen: options.frozen !== false,
+    },
+    integrity: {
+      parseable: true,
+      schema_valid: true,
+      identity_valid: true,
+      references_valid: true,
+      hash_valid: true,
+    },
+  };
+}
+
 function candidate(id: string, scope: string): LifecycleRecord {
   return {
     datum: {
@@ -96,7 +136,308 @@ describe("phase evaluation", () => {
           ]),
         },
       },
+      gate: { required: true, evaluations: [] },
     });
+  });
+
+  it("evaluates the gate for one exact candidate with package expression, Policy, Selector, and blocker evidence", () => {
+    const member = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Product intent",
+      rationale: "Define the intended outcome.",
+      problem: "Users need an evaluated gate.",
+      users: ["maintainer"],
+      desired_outcomes: ["Gate evidence is exact."],
+      success_measures: ["Gate evaluation is deterministic."],
+      scope: {in: ["gate evaluation"], out: ["scenario execution"]},
+      constraints: ["Keep process meaning declarative."],
+      assumptions: ["The package is valid."],
+      risks: ["Evidence could bind the wrong candidate."],
+    });
+    const exactCandidate = record(
+      "BSL",
+      "BSL-7K3M9Q2D8F",
+      {
+        title: "Intent candidate",
+        kind: "intent-level-candidate",
+        role: "candidate",
+        scope: "intent",
+        group: "DEFAULT",
+        definition_members: [member.datum.revision_id],
+        evidence: [],
+      },
+      { scenario: "create-candidate-baseline@1" },
+    );
+
+    const result = evaluateLifecycle(processPackage, {
+      processRef: "git:phase-gate",
+      phaseId: "phase-0-wayfinding",
+      records: [exactCandidate, member],
+      dependencyComparisons: [],
+    });
+
+    const candidateIdentity = {
+      identity: {
+        id: exactCandidate.datum.id,
+        revision_id: exactCandidate.datum.revision_id,
+        type: "BSL",
+        revision: 1,
+      },
+    };
+    const memberIdentity = {
+      identity: {
+        id: member.datum.id,
+        revision_id: member.datum.revision_id,
+        type: "PSP",
+        revision: 1,
+      },
+    };
+    expect(result.diagnostics).toEqual([]);
+    expect(result.phase?.gate).toEqual({
+      required: true,
+      evaluations: [
+        {
+          candidate: candidateIdentity,
+          complete: false,
+          explanation:
+            "The package-defined gate completion expression is not satisfied for this exact candidate.",
+          obligationInstance:
+            `candidate-gate-signoff@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
+          status: "blocked",
+          eventualResolver: "record-gate-signoff@1",
+          actionableResolver: "create-review-context@1",
+          dispatchable: false,
+          blockedBy: [
+            `candidate-members-reviewed@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
+            `passing-review-required@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
+          ],
+          blockerChains: expect.arrayContaining([
+            [
+              `candidate-members-reviewed@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
+              `passing-review-required@2:${member.datum.revision_id}:git:phase-gate`,
+              `review-context-required@2:${member.datum.revision_id}:git:phase-gate`,
+            ],
+            [
+              `passing-review-required@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
+              `review-context-required@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
+            ],
+          ]),
+          unresolvedBindings: [],
+          evidence: {
+            source:
+              'none("candidate-members-missing-review@1", {candidate: candidate}) && exists("passing-reviews-for@1", {subject: candidate}) && none("open-blocking-questions@1", {}) && exists("applicable-gate-signoffs-for@1", {candidate: candidate})',
+            result: false,
+            selectors: expect.arrayContaining([
+              {
+                selector: "candidate-members-missing-review@1",
+                arguments: { candidate: candidateIdentity },
+                result: [memberIdentity],
+              },
+              {
+                selector: "review-required-members-for@1",
+                arguments: { candidate: candidateIdentity },
+                result: [memberIdentity],
+              },
+            ]),
+            policies: [
+              {
+                policy: "review-applicability@1",
+                arguments: { subject: memberIdentity },
+                result: {
+                  required: true,
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it("blocks duplicate sign-off, completes after review, and reevaluates a changed exact candidate without rewriting prior evidence", () => {
+    const firstCandidate = record("BSL", "BSL-4K3M9Q2D8F", {
+      title: "First intent candidate",
+      kind: "intent-level-candidate",
+      role: "candidate",
+      scope: "intent",
+      group: "DEFAULT",
+      definition_members: [],
+      evidence: [],
+    });
+    const candidateContext = record("BSL", "BSL-4K3M9Q2D8G", {
+      title: "Candidate review context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "intent",
+      group: "DEFAULT",
+      definition_members: [firstCandidate.datum.revision_id],
+      evidence: [],
+    });
+    const candidateReview = record(
+      "REV",
+      "REV-4K3M9Q2D8F",
+      {
+        title: "Candidate review",
+        review_kind: "independent",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        summary: "The exact candidate passes review.",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        links: [
+          { type: "reviews", target: firstCandidate.datum.revision_id },
+          { type: "contextualizes", target: candidateContext.datum.revision_id },
+        ],
+      },
+    );
+    const signoff = record(
+      "DEC",
+      "DEC-4K3M9Q2D8F",
+      {
+        title: "Intent gate sign-off",
+        rationale: "Authorize this exact candidate.",
+        kind: "gate-signoff",
+        decision: "Approve.",
+        alternatives: ["Revise."],
+        effective_scope: firstCandidate.datum.revision_id,
+      },
+      {
+        links: [
+          { type: "justifies", target: firstCandidate.datum.revision_id },
+        ],
+      },
+    );
+    const signoffContext = record("BSL", "BSL-4K3M9Q2D8H", {
+      title: "Sign-off review context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "intent",
+      group: "DEFAULT",
+      definition_members: [signoff.datum.revision_id],
+      evidence: [],
+    });
+    const signoffReview = record(
+      "REV",
+      "REV-4K3M9Q2D8G",
+      {
+        title: "Sign-off review",
+        review_kind: "independent",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        summary: "The exact sign-off passes review.",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        links: [
+          { type: "reviews", target: signoff.datum.revision_id },
+          { type: "contextualizes", target: signoffContext.datum.revision_id },
+        ],
+      },
+    );
+    const beforeReviewRecords = [
+      firstCandidate,
+      candidateContext,
+      candidateReview,
+      signoff,
+      signoffContext,
+    ];
+
+    const beforeReview = evaluateLifecycle(processPackage, {
+      processRef: "git:exact-gate",
+      phaseId: "phase-0-wayfinding",
+      records: beforeReviewRecords,
+      dependencyComparisons: [],
+    });
+    const blockedGate = beforeReview.phase?.gate.evaluations[0];
+    expect(blockedGate).toEqual(expect.objectContaining({
+      complete: false,
+      status: "blocked",
+      eventualResolver: "record-gate-signoff@1",
+      actionableResolver: "review-datum-in-context@1",
+      dispatchable: false,
+      blockedBy: [
+        `passing-review-required@2:${signoff.datum.revision_id}:git:exact-gate`,
+      ],
+    }));
+
+    const reviewed = evaluateLifecycle(processPackage, {
+      processRef: "git:exact-gate",
+      phaseId: "phase-0-wayfinding",
+      records: [...beforeReviewRecords, signoffReview],
+      dependencyComparisons: [],
+    });
+    const completedGate = reviewed.phase?.gate.evaluations[0];
+    expect(completedGate).toEqual(expect.objectContaining({
+      candidate: {
+        identity: {
+          id: firstCandidate.datum.id,
+          revision_id: firstCandidate.datum.revision_id,
+          type: "BSL",
+          revision: 1,
+        },
+      },
+      complete: true,
+      status: "satisfied",
+      actionableResolver: null,
+      dispatchable: false,
+      blockedBy: [],
+      blockerChains: [],
+    }));
+    expect(completedGate?.evidence.selectors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          selector: "applicable-gate-signoffs-for@1",
+          result: [{
+            identity: {
+              id: signoff.datum.id,
+              revision_id: signoff.datum.revision_id,
+              type: "DEC",
+              revision: 1,
+            },
+          }],
+        }),
+      ]),
+    );
+
+    const preservedCompletedGate = structuredClone(completedGate);
+    const changedCandidate = record(
+      "BSL",
+      firstCandidate.datum.id,
+      {
+        ...firstCandidate.datum.payload,
+        title: "Changed intent candidate",
+      },
+      { revision: 2 },
+    );
+    const changed = evaluateLifecycle(processPackage, {
+      processRef: "git:exact-gate",
+      phaseId: "phase-0-wayfinding",
+      records: [
+        changedCandidate,
+        candidateContext,
+        candidateReview,
+        signoff,
+        signoffContext,
+        signoffReview,
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(changed.phase?.gate.evaluations).toEqual([
+      expect.objectContaining({
+        candidate: {
+          identity: {
+            id: changedCandidate.datum.id,
+            revision_id: changedCandidate.datum.revision_id,
+            type: "BSL",
+            revision: 2,
+          },
+        },
+        complete: false,
+      }),
+    ]);
+    expect(completedGate).toEqual(preservedCompletedGate);
   });
 
   it("returns exact package-typed candidates in declared order without mutating the snapshot", async () => {
