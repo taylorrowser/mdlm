@@ -441,6 +441,27 @@ Instances obtained by reevaluating the resulting Lifecycle Data. `req scenario
 execution show <execution-id>` reads that provenance; no hidden sequence selects
 follow-on work.
 
+A Package Command Alias is a dotted command ID whose declared string arguments
+have exact cardinality and whose `inputs` fields are compiled
+`mdlm-expression@1` values. In the implemented Scenario slice, each expression
+may use only `args.<declared-name>` and safe literals and must return one identity
+string or an array according to the target Scenario input cardinality. Kernel-
+owned `--obligation`, `--adapter`, `--input`, and `--json` controls cannot be
+redeclared as package arguments. Alias IDs that collide with generic commands,
+unknown Scenario versions or inputs, unknown argument paths, wrong expression
+result types, evaluator host calls, and executable/package-code fields fail
+package validation.
+
+For example, the bootstrap `question.resolve@1` definition makes `req question
+resolve --question <exact-revision> --obligation <exact-instance> --adapter
+<executable>` resolve to `resolve-question@1` with the same requested input as
+`req scenario execute ... --input question=<exact-revision>`. Alias resolution
+then calls the canonical execution operation; it has no adapter, Dispatchability,
+prohibited-input, output-validation, mutation, or renderer override. The durable
+execution record therefore captures the canonical Scenario request and exact
+package digest rather than inventing a second execution contract. `req process
+show` discovers the exact alias definition in the selected package catalog.
+
 ## 12. Phases and gates
 
 Phases list applicable scenarios and obligations and declare entry and gate
@@ -482,6 +503,9 @@ evidence; no candidate or prior result is mutated in place.
 - policies with duplicate priorities;
 - scenario outputs without a resolvable type;
 - obligations without an enabled resolver;
+- Package Command Alias command/argument conflicts, unresolved Scenario or input
+  references, unknown argument paths, host calls, or wrong typed binding
+  cardinality; and
 - attempts to redefine the kernel envelope or primitive catalog.
 
 Package fixtures should include both valid examples and one focused invalid fixture

@@ -186,6 +186,7 @@ export interface ExpressionDefinitionCatalogs {
   selectors: DefinitionCatalog;
   states: DefinitionCatalog;
   policies: DefinitionCatalog;
+  scenarios: DefinitionCatalog;
 }
 
 type TokenKind =
@@ -1539,6 +1540,87 @@ function compileScenarioDefinition(
   );
 }
 
+function compileAliasDefinition(
+  definition: VersionedDefinition,
+  filePath: string,
+  catalogs: ExpressionDefinitionCatalogs,
+  diagnostics: ProcessDiagnostic[],
+): void {
+  const argumentsValue = typeof definition.arguments === "object" &&
+      definition.arguments !== null && !Array.isArray(definition.arguments)
+    ? definition.arguments as Record<string, unknown>
+    : {};
+  const argumentPaths: Record<string, ValueType> = {};
+  const reservedArguments = new Set(["adapter", "input", "json", "obligation"]);
+  for (const [name, value] of Object.entries(argumentsValue)) {
+    if (reservedArguments.has(name)) {
+      diagnostics.push({
+        code: "alias-reserved-argument",
+        path: `${filePath}#arguments.${name}`,
+        message: `Package Command Alias argument '${name}' conflicts with a kernel-owned invocation option`,
+      });
+    }
+    const argument = typeof value === "object" && value !== null
+      ? value as Record<string, unknown>
+      : {};
+    argumentPaths[name] = ["one-or-more", "zero-or-more"].includes(
+        String(argument.cardinality),
+      )
+      ? "array"
+      : "string";
+  }
+  const bindings: Bindings = {
+    args: { valueType: "object", domainKind: "command-arguments", paths: argumentPaths },
+  };
+  const scenarioMatch = typeof definition.scenario === "string"
+    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(definition.scenario)
+    : undefined;
+  const scenario = scenarioMatch?.[1]
+    ? catalogs.scenarios[scenarioMatch[1]]
+    : undefined;
+  if (!scenario || scenario.version !== Number(scenarioMatch?.[2])) return;
+  const scenarioInputs = new Map(
+    (Array.isArray(scenario.inputs) ? scenario.inputs : []).flatMap((value) => {
+      if (typeof value !== "object" || value === null) return [];
+      const input = value as Record<string, unknown>;
+      return typeof input.name === "string" ? [[input.name, input] as const] : [];
+    }),
+  );
+  const inputs = typeof definition.inputs === "object" &&
+      definition.inputs !== null && !Array.isArray(definition.inputs)
+    ? definition.inputs as Record<string, unknown>
+    : {};
+  for (const name of Object.keys(inputs)) {
+    const contract = scenarioInputs.get(name);
+    if (!contract) {
+      diagnostics.push({
+        code: "alias-unknown-scenario-input",
+        path: `${filePath}#inputs.${name}`,
+        message: `Package Command Alias '${definition.id}' binds unknown Scenario input '${name}'`,
+      });
+      continue;
+    }
+    const compiled = compileField(
+      inputs,
+      name,
+      `${filePath}#inputs.${name}`,
+      bindings,
+      catalogs,
+      diagnostics,
+      ["one-or-more", "zero-or-more"].includes(String(contract.cardinality))
+        ? "array"
+        : "string",
+    );
+    if (compiled && expressionDependencies(compiled.root).length > 0) {
+      diagnostics.push({
+        code: "alias-host-function-forbidden",
+        path: `${filePath}#inputs.${name}`,
+        message: "Package Command Alias expressions may bind declared arguments and literals but may not invoke evaluator host functions",
+      });
+    }
+  }
+}
+
 function compilePhaseDefinition(
   definition: VersionedDefinition,
   filePath: string,
@@ -1596,6 +1678,8 @@ export function compileDefinitionExpressions(
     compileScenarioDefinition(definition, filePath, catalogs, diagnostics);
   } else if (definition.kind === "phase-definition") {
     compilePhaseDefinition(definition, filePath, catalogs, diagnostics);
+  } else if (definition.kind === "command-alias-definition") {
+    compileAliasDefinition(definition, filePath, catalogs, diagnostics);
   } else {
     compileRules(
       definition,

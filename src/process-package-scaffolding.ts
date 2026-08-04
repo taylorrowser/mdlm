@@ -410,6 +410,7 @@ function definitionSkeleton(kind: DefinitionKind, id: string): Record<string, un
         version: 1,
         description: `Describe ${id}.`,
         scenario: "replace-with-scenario@1",
+        arguments: {},
         inputs: {},
       };
   }

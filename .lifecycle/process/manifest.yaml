@@ -84,7 +84,7 @@ catalog:
     - create-candidate-baseline
     - record-gate-signoff
   phases: [phase-0-wayfinding, phase-2-system-definition]
-  aliases: []
+  aliases: [question.resolve]
 assets:
   prompts:
     - prompts/compile-psp.md@1

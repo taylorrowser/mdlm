@@ -404,6 +404,9 @@ function legacyExpressionAuthoringDiagnostics(
       });
       break;
     }
+    case "command-alias-definition":
+      checkArguments(definition.inputs, "inputs");
+      break;
     case "phase-definition": {
       check(definition.entry, "entry");
       const gate = typeof definition.gate === "object" && definition.gate !== null
@@ -533,7 +536,8 @@ export async function loadProcessPackage(
           group === "selectors" ||
           group === "obligations" ||
           group === "scenarios" ||
-          group === "phases"
+          group === "phases" ||
+          group === "aliases"
         ) {
           expressionDefinitions.push({ definition, filePath });
         }
@@ -553,6 +557,7 @@ export async function loadProcessPackage(
             selectors: definitions.selectors,
             states: definitions.states,
             policies: definitions.policies,
+            scenarios: definitions.scenarios,
           },
         ),
       );

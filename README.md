@@ -35,6 +35,9 @@ types, states, obligations, scenarios, and phases.
   and executes those same validated projections through an explicitly configured
   agent adapter. Successful execution atomically publishes only contract-conforming
   Lifecycle Data plus exact execution provenance; failed execution publishes none.
+  Selected packages may expose dotted, declarative Package Command Aliases whose
+  typed arguments resolve to that identical Scenario execution path without
+  adding shell commands, package code, or host functions.
 
 ## Try it
 
@@ -66,6 +69,10 @@ node ../dist/req.js doctor
 node ../dist/req.js scenario dry-run create-review-context@1 \
   --obligation 'review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype' \
   --snapshot ../examples/psp-to-sys-snapshot.yaml
+# Selected package convenience over the same generic Scenario execution contract:
+node ../dist/req.js question resolve --question QST-0123456789-r00001 \
+  --obligation '<exact-open-question-obligation-instance>' \
+  --adapter ./configured-agent-adapter
 ```
 
 `npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
@@ -85,6 +92,7 @@ This is not yet the complete durable repository kernel or `req` CLI. Markdown
 creation, revision lineage, local single-draft protection, source-owned link
 mutation, graph inspection, capability-bound exact-baseline freezing and
 verification and diffing, source-backed reads, integrity-aware repository
-inspection, disposable index/report rebuilding, and side-effect-free Resolver
-Scenario dry-runs are implemented; adapter invocation, additional concurrency
-profiles, and full lifecycle breadth remain deferred.
+inspection, disposable index/report rebuilding, side-effect-free Resolver
+Scenario dry-runs, atomic adapter execution, and safe declarative Scenario aliases
+are implemented; additional concurrency profiles and full lifecycle breadth remain
+deferred.

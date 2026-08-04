@@ -38,7 +38,8 @@ not recognize `BSL` by ID.
 The kernel owns the datum envelope, identity, revisions, immutability, graph
 storage, hashing, primitive relations, and deterministic evaluation. The process
 package owns payload templates and types, outgoing-link contracts, policies,
-states, selectors, obligations, scenarios, phases, prompts, and skills.
+states, selectors, obligations, scenarios, phases, prompts, skills, and safe
+Package Command Aliases.
 
 The compatibility copy at `meta/datum-envelope.schema.json` cannot redefine the
 kernel. A kernel accepts it only when its known schema ID and contract version
@@ -123,6 +124,12 @@ that record kind from its reassessment selector. The package's
 `dependency-reassessment@1` Policy, not the kernel, decides whether classified
 records imply Staleness, and Computed State explanations identify the exact
 structural evidence selected by the package rule.
+The package's `question.resolve@1` alias binds one cardinality-typed
+`--question` argument to the exact `resolve-question@1` input assertion. Alias
+expressions compile during package loading and cannot invoke host functions or
+supply adapter, Obligation, generic-command, or mutation behavior; invocation
+enters the same Dispatchability, prohibited-input, output-contract, completion,
+and atomic publication path as generic Scenario execution.
 `mdlm-expression@1` textual source is
 the only accepted authoring representation and cannot execute arbitrary code or
 produce side effects.

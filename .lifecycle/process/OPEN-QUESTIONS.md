@@ -42,6 +42,7 @@ behavior where possible.
     remain outside the evaluator prototype.
 12. **Performance:** In-memory graph scans are sufficient for the pilot; indexing
     should follow measurements from realistic lifecycle repositories.
-13. **Package Command Aliases:** The alias schema must bind arguments only to
-    declared scenarios or generic operations and prove that aliases cannot bypass
-    prohibited-input, output-contract, or mutation checks.
+13. **Package Command Aliases:** The first Scenario-targeting slice now compiles
+    cardinality-typed arguments to one exact declared Scenario and routes through
+    its canonical execution contract. Allowlisted generic-operation targets and
+    richer scalar argument types remain deferred.

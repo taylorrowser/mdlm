@@ -75,6 +75,10 @@ import {
   type ScenarioDryRun,
 } from "./scenario-dry-run.js";
 import {
+  bindCommandAlias,
+  matchingCommandAlias,
+} from "./command-alias.js";
+import {
   executeResolverScenario,
   readScenarioExecution,
   type ScenarioExecution,
@@ -1727,6 +1731,33 @@ async function executeScenario(
       };
 }
 
+async function executePackageAlias(
+  repositoryRoot: string,
+  arguments_: string[],
+): Promise<CommandResult | undefined> {
+  const selected = await selectedPackage(repositoryRoot);
+  if (!selected.ok) return undefined;
+  const alias = matchingCommandAlias(selected.processPackage, arguments_);
+  if (!alias) return undefined;
+  const binding = bindCommandAlias(alias, arguments_);
+  if (!binding.ok) {
+    return {
+      ok: false,
+      command: `alias.${alias.id}`,
+      package: selected.summary,
+      selected: true,
+      diagnostics: binding.diagnostics,
+    };
+  }
+  return executeScenario(
+    repositoryRoot,
+    binding.value.scenario,
+    optionValue(arguments_, "--obligation"),
+    optionValue(arguments_, "--adapter"),
+    binding.value.inputs.map((input) => `${input.name}=${input.value}`),
+  );
+}
+
 async function showScenarioExecution(
   repositoryRoot: string,
   executionId: string,
@@ -2410,7 +2441,11 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
     );
   }
   if (operands[0] !== "process") {
-    return failure("unknown-command", "Expected a process or definition evaluation command");
+    const aliasResult = await executePackageAlias(repositoryRoot, arguments_);
+    return aliasResult ?? failure(
+      "unknown-command",
+      "Expected a process, definition evaluation, or selected Package Command Alias",
+    );
   }
   if (operands[1] === "init" && operands[2]) {
     return initPackage(

@@ -1111,3 +1111,54 @@ turning provisional choices into architecture.
   Obligation reevaluation. A rejection matrix supplies undeclared, missing,
   schema-invalid, and incorrectly linked outputs and compares repository hashes;
   a prohibited caller input proves the adapter is never invoked.
+
+## D-042 — Resolve declarative aliases into the canonical Scenario operation
+
+- **Status:** accepted and implemented
+- **Decision:** A selected Process Package may declare a dotted Package Command
+  Alias whose arguments are cardinality-typed strings and whose input mappings are
+  compiled `mdlm-expression@1` expressions over one closed `args` object. This
+  first executable slice targets one exact declared Scenario version. Alias
+  expressions may bind declared arguments and literals but may not invoke
+  evaluator host functions. Runtime resolution turns those values into the same
+  requested-input assertions supplied to `req scenario execute`; the canonical
+  Scenario operation remains solely responsible for exact Obligation
+  Dispatchability, adapter selection, prohibited inputs, output contracts,
+  completion, reevaluation, provenance, and atomic publication.
+- **Alternatives:** Implement package aliases as shell snippets, executable files,
+  JavaScript callbacks, package-defined expression host functions, bespoke CLI
+  handlers, or second-class Scenario wrappers; let aliases own adapters or
+  obligation selection; accept untyped arbitrary options; permit aliases to
+  shadow generic commands; duplicate dry-run, output validation, or mutation; or
+  persist a different execution contract for convenience commands.
+- **Rationale:** A convenience command is safe only if it disappears before the
+  authorization and mutation boundary. Compiling mappings during package loading
+  catches unknown Scenario/input references, argument paths, command conflicts,
+  and result-shape errors before package selection. Keeping operator controls out
+  of alias arguments prevents declarative content from selecting executable code
+  or weakening exact dispatch authorization. Reusing the canonical operation
+  means future validation hardening automatically applies to direct and aliased
+  invocation.
+- **Expected behavior:** `question.resolve@1` is discoverable in the bootstrap
+  catalog and maps `--question <revision>` to the `question` assertion of
+  `resolve-question@1`. Direct and aliased commands send byte-equivalent semantic
+  adapter requests for the same repository state. A blocked exact Obligation,
+  unknown or prohibited argument, missing/duplicate typed argument, invalid
+  output, or failed completion reaches no unauthorized adapter or publication.
+  Meta-schema fields for executables, unknown host calls, command collisions,
+  reserved kernel arguments, unknown Scenario/input references, and invalid
+  expression paths fail package validation.
+- **Reversibility:** A later schema version may add an explicit allowlisted generic
+  operation target, richer scalar argument types, or a dry-run alias mode. Those
+  additions must still compile to one kernel-owned canonical operation and may
+  not add package code, package-defined host functions, adapters, implicit
+  Obligation selection, or alternate contract/mutation paths. The durable
+  Scenario record intentionally needs no alias-specific execution semantics.
+- **Evidence/observations:** Public executable tests clone one initialized
+  repository, run direct and `question resolve` invocation independently, and
+  compare the complete captured adapter requests. Additional tests reject an
+  aliased invalid output without changing Lifecycle Data, reject undeclared input
+  and blocked-Obligation attempts before adapter invocation, and validate focused
+  invalid packages for unresolved Scenarios and inputs, unknown argument paths,
+  shell/host syntax, executable fields, reserved options, and core-command
+  collisions.

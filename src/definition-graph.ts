@@ -239,7 +239,38 @@ function validateReferences(
     }
   }
 
+  const coreCommands = new Set([
+    "backlinks",
+    "baseline",
+    "doctor",
+    "history",
+    "init",
+    "link",
+    "list",
+    "loose-ends",
+    "new",
+    "next",
+    "obligation",
+    "phase",
+    "policy",
+    "process",
+    "relation",
+    "revise",
+    "scenario",
+    "selector",
+    "show",
+    "state",
+    "trace",
+    "unlink",
+  ]);
   for (const [id, definition] of Object.entries(definitions.aliases)) {
+    if (coreCommands.has(id.split(".")[0] ?? "")) {
+      diagnostics.push({
+        code: "alias-command-conflict",
+        path: `aliases.${id}.id`,
+        message: `Package Command Alias '${id}' conflicts with a kernel-owned command`,
+      });
+    }
     if (typeof definition.scenario !== "string") continue;
     diagnostics.push(
       ...validateVersionedReference(
@@ -357,6 +388,7 @@ export function validateDefinitionGraph(
       selectors: definitions.selectors,
       states: definitions.states,
       policies: definitions.policies,
+      scenarios: definitions.scenarios,
     }),
   ];
 }

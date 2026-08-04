@@ -1,0 +1,9 @@
+kind: command-alias-definition
+id: question.resolve
+version: 1
+description: Resolve one exact open question through the declared Resolver Scenario.
+scenario: resolve-question@1
+arguments:
+  question: {cardinality: one}
+inputs:
+  question: args.question
