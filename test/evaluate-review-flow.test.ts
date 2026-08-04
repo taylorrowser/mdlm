@@ -34,6 +34,48 @@ function record(
   });
 }
 
+function contextWaiverFor(subject: LifecycleRecord) {
+  const obligationInstance =
+    `review-context-required@2:${subject.datum.revision_id}:git:current`;
+  const waiver = record(
+    "DEC",
+    "DEC-8ZT5KQ3P9M",
+    {
+      title: "Temporary context waiver",
+      rationale: "The context is temporarily disproportionate.",
+      kind: "waiver",
+      decision: "Waive context creation for this exact revision.",
+      alternatives: ["Create the context now."],
+      effective_scope: subject.datum.revision_id,
+      waiver: {
+        obligation: "review-context-required@2",
+        subject: subject.datum.revision_id,
+        scope: "this-revision",
+        expires_when: ["subject-revised"],
+      },
+    },
+    {
+      frozen: true,
+      links: [{ type: "waives", target: obligationInstance }],
+    },
+  );
+  const review = record(
+    "REV",
+    "REV-2BC4DF6GHJ",
+    {
+      title: "Waiver review",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    },
+    {
+      frozen: true,
+      links: [{ type: "reviews", target: waiver.datum.revision_id }],
+    },
+  );
+  return { obligationInstance, waiver, review };
+}
+
 describe("evaluateLifecycle review flow", () => {
   let processPackage: ProcessPackage;
 
@@ -176,30 +218,7 @@ describe("evaluateLifecycle review flow", () => {
       non_goals: [],
       success_measures: ["reviewed intent"],
     });
-    const obligationInstance =
-      `review-context-required@2:${psp.datum.revision_id}:git:current`;
-    const waiver = record(
-      "DEC",
-      "DEC-8ZT5KQ3P9M",
-      {
-        title: "Temporary context waiver",
-        rationale: "The context is temporarily disproportionate.",
-        kind: "waiver",
-        decision: "Waive context creation for this exact revision.",
-        alternatives: ["Create the context now."],
-        effective_scope: psp.datum.revision_id,
-        waiver: {
-          obligation: "review-context-required@2",
-          subject: psp.datum.revision_id,
-          scope: "this-revision",
-          expires_when: ["subject-revised"],
-        },
-      },
-      {
-        frozen: true,
-        links: [{ type: "waives", target: obligationInstance }],
-      },
-    );
+    const { obligationInstance, waiver } = contextWaiverFor(psp);
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
@@ -244,49 +263,12 @@ describe("evaluateLifecycle review flow", () => {
       non_goals: [],
       success_measures: ["reviewed intent"],
     });
-    const obligationInstance =
-      `review-context-required@2:${psp.datum.revision_id}:git:current`;
-    const waiver = record(
-      "DEC",
-      "DEC-8ZT5KQ3P9M",
-      {
-        title: "Approved context waiver",
-        rationale: "The context is temporarily disproportionate.",
-        kind: "waiver",
-        decision: "Waive context creation for this exact revision.",
-        alternatives: ["Create the context now."],
-        effective_scope: psp.datum.revision_id,
-        waiver: {
-          obligation: "review-context-required@2",
-          subject: psp.datum.revision_id,
-          scope: "this-revision",
-          expires_when: ["subject-revised"],
-        },
-      },
-      {
-        frozen: true,
-        links: [{ type: "waives", target: obligationInstance }],
-      },
-    );
-    const waiverReview = record(
-      "REV",
-      "REV-2BC4DF6GHJ",
-      {
-        title: "Waiver review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [],
-        outcome: "pass",
-      },
-      {
-        frozen: true,
-        links: [{ type: "reviews", target: waiver.datum.revision_id }],
-      },
-    );
+    const { obligationInstance, waiver, review } = contextWaiverFor(psp);
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
-      records: [psp, waiver, waiverReview],
+      records: [psp, waiver, review],
       dependencyComparisons: [],
     });
     const waived = evaluation.obligations.find(
@@ -334,49 +316,12 @@ describe("evaluateLifecycle review flow", () => {
     revisedPsp.datum.revision = 2;
     revisedPsp.datum.revision_id = `${psp.datum.id}-r00002`;
     revisedPsp.datum.payload.title = "Revised lifecycle manager";
-    const obligationInstance =
-      `review-context-required@2:${psp.datum.revision_id}:git:current`;
-    const waiver = record(
-      "DEC",
-      "DEC-8ZT5KQ3P9M",
-      {
-        title: "Expired context waiver",
-        rationale: "The original context was temporarily disproportionate.",
-        kind: "waiver",
-        decision: "Waive context creation for the original revision.",
-        alternatives: ["Create the context now."],
-        effective_scope: psp.datum.revision_id,
-        waiver: {
-          obligation: "review-context-required@2",
-          subject: psp.datum.revision_id,
-          scope: "this-revision",
-          expires_when: ["subject-revised"],
-        },
-      },
-      {
-        frozen: true,
-        links: [{ type: "waives", target: obligationInstance }],
-      },
-    );
-    const waiverReview = record(
-      "REV",
-      "REV-2BC4DF6GHJ",
-      {
-        title: "Waiver review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [],
-        outcome: "pass",
-      },
-      {
-        frozen: true,
-        links: [{ type: "reviews", target: waiver.datum.revision_id }],
-      },
-    );
+    const { obligationInstance, waiver, review } = contextWaiverFor(psp);
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
-      records: [psp, revisedPsp, waiver, waiverReview],
+      records: [psp, revisedPsp, waiver, review],
       dependencyComparisons: [],
     });
     const expired = evaluation.looseEnds.find(
