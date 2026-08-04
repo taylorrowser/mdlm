@@ -285,6 +285,22 @@ describe("req exact-baseline@1 capability commands", () => {
       `Baseline Verification: ${baseline.revisionId} [valid]`,
     );
 
+    const productPath = path.join(repositoryRoot, product.path);
+    const productBefore = await fs.readFile(productPath, "utf8");
+    await fs.writeFile(productPath, `${productBefore}changed component member\n`);
+    const invalidNestedComposition = baselineCommand(
+      "verify",
+      baseline.revisionId,
+    );
+    expect(invalidNestedComposition.status).toBe(1);
+    expect(JSON.parse(invalidNestedComposition.stdout).diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({
+        code: "baseline-composition-invalid",
+        path: component.revisionId,
+      })]),
+    );
+    await fs.writeFile(productPath, productBefore);
+
     const newerStableTarget = req(
       repositoryRoot,
       "revise",

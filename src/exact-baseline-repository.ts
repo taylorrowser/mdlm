@@ -567,6 +567,24 @@ export async function freezeExactBaseline(
     ...compositionCycleDiagnostics(loaded.value, datum.revision_id),
   ];
   if (diagnostics.length > 0) return { ok: false, diagnostics };
+  for (const identity of composition) {
+    const verified = await verifyExactBaseline(
+      root,
+      processPackage,
+      processRef,
+      identity,
+    );
+    if (!verified.ok) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "baseline-composition-invalid",
+          path: identity,
+          message: `Composed exact baseline '${identity}' failed verification`,
+        }, ...verified.diagnostics],
+      };
+    }
+  }
   const references = [...new Set([
     ...definitionMembers,
     ...evidence,
@@ -671,6 +689,25 @@ export async function verifyExactBaseline(
     ...baselineReferenceDiagnostics(loaded.value, datum, capability.value),
     ...compositionCycleDiagnostics(loaded.value, datum.revision_id),
   ];
+  if (!diagnostics.some((diagnostic) =>
+    diagnostic.code === "baseline-composition-cycle"
+  )) {
+    for (const identity of composition) {
+      const verified = await verifyExactBaseline(
+        root,
+        processPackage,
+        processRef,
+        identity,
+      );
+      if (!verified.ok) {
+        diagnostics.push({
+          code: "baseline-composition-invalid",
+          path: identity,
+          message: `Composed exact baseline '${identity}' failed verification`,
+        }, ...verified.diagnostics);
+      }
+    }
+  }
   const expectedHashes: Record<string, string> = {};
   for (const identity of references) {
     const item = loaded.value.find((candidate) =>
@@ -755,4 +792,3 @@ export async function verifyExactBaseline(
     diagnostics: [],
   };
 }
-
