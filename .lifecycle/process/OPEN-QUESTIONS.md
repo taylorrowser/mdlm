@@ -16,8 +16,10 @@ behavior where possible.
    be checked for compatible descriptions and historical meaning?
 4. **Collection conditions:** Scenario conditions on `one-or-more` inputs are
    intended to apply to every item; fixtures and diagnostics must confirm this.
-5. **Obligation history:** What generated representation explains obligation
-   instances that fall out of a selector after their subject is revised?
+5. **Obligation history:** Resolved for the prototype by evaluating explicit,
+   named historical repository snapshots independently and returning their exact
+   Obligation explanations separately from current instances. Durable repository
+   history discovery remains an adapter concern rather than a lifecycle type.
 6. **Review-context volume:** When should coherent sibling reviews share one
    context, and when would sharing obscure the exact judgment?
 7. **Baseline policy:** Role/kind agreement, permitted member types, composition,

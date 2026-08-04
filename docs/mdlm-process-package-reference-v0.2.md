@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.18 — experimental implementation reference**
+**Bootstrap package 0.19 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -367,8 +367,15 @@ Obligation identity is:
 ```
 
 When a resolving scenario creates a new subject revision, the former instance is
-historical and the current selector is reevaluated. Historical obligation records
-are explanations, not new lifecycle datum types.
+historical and the current selector is reevaluated. `evaluateLifecycle` accepts
+explicit named historical repository snapshots and evaluates each independently
+through the same Process Package. Their Obligation explanations are returned under
+`obligationHistory`, separate from current `obligations` and `looseEnds`. This
+preserves the exact definition version, subject Revision, process reference,
+status, blockers, resolver, and evidence observed for that snapshot without
+turning generated history into a lifecycle datum type. Repository adapters remain
+responsible for discovering historical snapshots; the evaluator neither stores
+nor mutates them.
 
 ## 11. Scenarios
 
@@ -437,7 +444,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.18 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.19 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

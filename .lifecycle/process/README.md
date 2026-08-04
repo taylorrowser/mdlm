@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.18
+# MDLM bootstrap process package v0.19
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -66,7 +66,11 @@ also exposes the eventual Resolver Scenario's typed output cardinalities and
 required links. Waiver evidence is discovered through package-owned outgoing-link
 contracts targeting exact Obligation Instances, then judged by the referenced
 Waiver Policy. Only an exact, reviewed, unexpired structured waiver suppresses
-work; generic justification remains ordinary evidence.
+work; generic justification remains ordinary evidence. Callers may supply named
+historical repository snapshots alongside the current snapshot. Each is evaluated
+independently through the same package rules and returned under
+`obligationHistory`, preserving exact definition-version, subject-Revision, and
+process-reference identity without introducing a historical lifecycle type.
 
 Phase entry, candidate selection, and gate completion are evaluated directly
 from each selected Phase's textual expressions. Each selected exact candidate

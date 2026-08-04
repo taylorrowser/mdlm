@@ -41,11 +41,20 @@ export interface LifecycleRecord {
   };
 }
 
+export interface HistoricalLifecycleSnapshot {
+  snapshotRef: string;
+  processRef: string;
+  phaseId: string;
+  records: LifecycleRecord[];
+  dependencyComparisons: DependencyComparison[];
+}
+
 export interface LifecycleSnapshot {
   processRef: string;
   phaseId: string;
   records: LifecycleRecord[];
   dependencyComparisons: DependencyComparison[];
+  historicalSnapshots?: HistoricalLifecycleSnapshot[];
 }
 
 export interface ArtifactEvaluation {
@@ -161,11 +170,20 @@ export interface PhaseEvaluation {
   };
 }
 
+export interface ObligationHistoryEvaluation {
+  snapshotRef: string;
+  processRef: string;
+  phaseId: string;
+  instances: ObligationEvaluation[];
+  diagnostics: ProcessDiagnostic[];
+}
+
 export interface LifecycleEvaluation {
   phase: PhaseEvaluation | null;
   artifacts: Record<string, ArtifactEvaluation>;
   dependencyChanges: DependencyChangeRecord[];
   obligations: ObligationEvaluation[];
+  obligationHistory: ObligationHistoryEvaluation[];
   looseEnds: ObligationEvaluation[];
   diagnostics: ProcessDiagnostic[];
 }
@@ -292,6 +310,7 @@ class LifecycleEvaluator {
         artifacts: {},
         dependencyChanges: [],
         obligations: [],
+        obligationHistory: [],
         looseEnds: [],
         diagnostics: this.comparisonDiagnostics,
       };
@@ -302,6 +321,7 @@ class LifecycleEvaluator {
         artifacts: {},
         dependencyChanges: this.dependencyChanges,
         obligations: [],
+        obligationHistory: [],
         looseEnds: [],
         diagnostics: [{
           code: "unknown-phase",
@@ -452,9 +472,28 @@ class LifecycleEvaluator {
       artifacts,
       dependencyChanges: this.dependencyChanges,
       obligations,
+      obligationHistory: this.evaluateObligationHistory(),
       looseEnds,
       diagnostics: this.comparisonDiagnostics,
     };
+  }
+
+  private evaluateObligationHistory(): ObligationHistoryEvaluation[] {
+    return (this.snapshot.historicalSnapshots ?? []).map((snapshot) => {
+      const evaluation = evaluateLifecycle(this.processPackage, {
+        processRef: snapshot.processRef,
+        phaseId: snapshot.phaseId,
+        records: snapshot.records,
+        dependencyComparisons: snapshot.dependencyComparisons,
+      });
+      return {
+        snapshotRef: snapshot.snapshotRef,
+        processRef: snapshot.processRef,
+        phaseId: snapshot.phaseId,
+        instances: evaluation.obligations,
+        diagnostics: evaluation.diagnostics,
+      };
+    });
   }
 
   private evaluatePhase(
@@ -1230,6 +1269,7 @@ export function evaluateLifecycle(
       artifacts: {},
       dependencyChanges: [],
       obligations: [],
+      obligationHistory: [],
       looseEnds: [],
       diagnostics: [
         {

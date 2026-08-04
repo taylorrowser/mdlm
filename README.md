@@ -13,7 +13,8 @@ types, states, obligations, scenarios, and phases.
   exact candidate selection and gate evaluation, typed dependency-change records,
   states, obligations, and Loose Ends with exact blocker chains, unresolved
   bindings, Dispatchability, Resolver Scenario output contracts, exact Waiver
-  Policy applicability, and explanations from primitive graph and integrity data.
+  Policy applicability, generated historical Obligation explanations from explicit
+  repository snapshots, and explanations from primitive graph and integrity data.
 
 ## Try it
 

@@ -599,3 +599,32 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public lifecycle tests assert exact resolver output
   contracts, generic justification rejection, invalid evidence reporting, valid
   suppression, and expiry after a new subject Revision.
+
+## D-030 — Regenerate Obligation history from explicit repository snapshots
+
+- **Status:** accepted and implemented
+- **Decision:** A lifecycle snapshot may include named historical repository
+  snapshots. The evaluator independently applies the same loaded Process Package
+  to each one and returns its exact Obligation explanations under
+  `obligationHistory`, separate from current `obligations` and `looseEnds`.
+- **Alternatives:** Persist Obligation Instances as a new lifecycle type, retain
+  hidden evaluator state between calls, infer an earlier repository from current
+  records alone, or overwrite an old explanation with the current graph result.
+- **Rationale:** Exact historical status can depend on evidence and selectors that
+  changed as well as on the subject Revision. An explicit repository snapshot is
+  the smallest truthful input that can reproduce the earlier conclusion. Keeping
+  snapshot discovery outside the evaluator preserves its deterministic, read-only
+  public seam and keeps generated explanations disposable.
+- **Expected behavior:** Current evaluation may report changed work for a revised
+  subject while a named historical snapshot still reports the earlier exact
+  definition-version, subject-Revision, and process-reference instance with its
+  original status, resolver, blockers, and evidence. Historical diagnostics stay
+  scoped to their snapshot and do not become lifecycle records.
+- **Reversibility:** Additive optional input and output fields. A durable repository
+  adapter can later discover Git snapshots or generated-cache entries without
+  changing Obligation identity or evaluator semantics.
+- **Evidence/observations:** A public lifecycle test evaluates one PSP snapshot,
+  then evaluates a later snapshot containing a review context and a second PSP
+  Revision. The old exact context obligation remains `ready` in history, is
+  `satisfied` in the current graph, and the new Revision receives its own `ready`
+  instance without mutating the earlier explanation.
