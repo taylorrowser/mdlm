@@ -181,14 +181,18 @@ function frozenRevisionMemberships(
     if (typeof snapshot !== "object" || snapshot === null || Array.isArray(snapshot)) {
       continue;
     }
-    memberships.set(baseline.datum.revision_id, []);
+    if (!memberships.has(baseline.datum.revision_id)) {
+      memberships.set(baseline.datum.revision_id, []);
+    }
     for (const field of ["definition_members", "evidence"] as const) {
       const identities = baseline.datum.payload[field];
       if (!Array.isArray(identities)) continue;
       for (const identity of identities) {
         if (typeof identity !== "string") continue;
         const containing = memberships.get(identity) ?? [];
-        containing.push(baseline.datum.revision_id);
+        if (!containing.includes(baseline.datum.revision_id)) {
+          containing.push(baseline.datum.revision_id);
+        }
         memberships.set(identity, containing);
       }
     }
