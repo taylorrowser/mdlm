@@ -18,6 +18,6 @@ rules:
     explanation: Parseability, schema, identity, reference, or frozen-byte integrity is broken.
   - value: stale
     priority: 200
-    when: 'exists("staleness-relevant-dependency-changes-for@1", {subject: subject})'
-    explanation: At least one package-classified dependency change requires reassessment.
+    when: 'policy("dependency-reassessment@1", {subject: subject}).required == true'
+    explanation: Package Policy requires reassessment for at least one classified dependency change.
     explanation_evidence: 'select("staleness-relevant-dependency-changes-for@1", {subject: subject})'

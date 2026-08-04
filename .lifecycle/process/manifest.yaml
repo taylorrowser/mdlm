@@ -40,7 +40,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [PSP, STK, SYS, REV, BSL, QST, DEC]
-  policies: [review-applicability, waiver-applicability]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability]
   states: [maturity, disposition, validity, relationship-overlays]
   selectors:
     - review-required-revisions

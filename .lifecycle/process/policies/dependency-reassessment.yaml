@@ -1,0 +1,20 @@
+kind: policy-definition
+id: dependency-reassessment
+version: 1
+description: Decides whether package-classified typed dependency changes require reassessment.
+parameters:
+  - {name: subject, kind: revision}
+result_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  additionalProperties: false
+  required: [required]
+  properties:
+    required: {type: boolean}
+default:
+  required: false
+rules:
+  - priority: 100
+    when: 'exists("staleness-relevant-dependency-changes-for@1", {subject: subject})'
+    result:
+      required: true

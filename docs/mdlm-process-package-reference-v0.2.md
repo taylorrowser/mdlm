@@ -210,8 +210,9 @@ Revisions use the type selected by `exact-baseline@1`; the kernel never recogniz
 reported as informational Process Drift and the bootstrap selector excludes them
 from reassessment. A package may explicitly select that record kind when its own
 Policy requires reassessment. The package filters records with
-`staleness-relevant-dependency-changes-for`; the `validity` Computed State supplies
-the Stale conclusion and attaches the selected exact records to its explanation.
+`staleness-relevant-dependency-changes-for`; `dependency-reassessment@1` makes the
+Policy decision; and the `validity` Computed State supplies the Stale conclusion
+and attaches the selected exact records to its explanation.
 Unsupported or incomplete comparisons produce evaluation diagnostics and no
 lifecycle conclusions. Traversal is side-effect-free and deterministic. Adding a
 relation primitive requires a kernel interface version; adding a selector over

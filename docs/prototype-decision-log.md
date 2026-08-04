@@ -968,7 +968,8 @@ turning provisional choices into architecture.
   changes. Exact process-reference, manifest-hash, and asset-set differences emit
   a `process-provenance-change` record and are also projected as informational
   Process Drift; the bootstrap reassessment selector intentionally excludes that
-  kind, while another package may select it. `req doctor` validates selected
+  kind, while `dependency-reassessment@1` leaves the final reassessment decision
+  to Package Policy and another package may select it. `req doctor` validates selected
   repository contracts and every frozen capability-bound baseline before it
   atomically rebuilds both an index and lifecycle report under
   `.lifecycle/generated`.

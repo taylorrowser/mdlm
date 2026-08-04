@@ -119,9 +119,10 @@ stable-link-resolution records from exact Revision comparisons. When
 composition, evidence-target, explicitly identified review-context, and process-
 provenance variants for the package-selected type without recognizing its ID.
 Process provenance is informational by default; this package deliberately omits
-that record kind from its reassessment selector. Package selectors, not the
-kernel, decide which typed records imply Staleness, and Computed State explanations
-identify the exact structural evidence selected by the package rule.
+that record kind from its reassessment selector. The package's
+`dependency-reassessment@1` Policy, not the kernel, decides whether classified
+records imply Staleness, and Computed State explanations identify the exact
+structural evidence selected by the package rule.
 `mdlm-expression@1` textual source is
 the only accepted authoring representation and cannot execute arbitrary code or
 produce side effects.

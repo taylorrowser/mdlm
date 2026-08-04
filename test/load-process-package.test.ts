@@ -28,7 +28,7 @@ describe("loadProcessPackage", () => {
     expect(Object.keys(result.package.types)).toHaveLength(7);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(25);
-    expect(Object.keys(result.package.policies)).toHaveLength(2);
+    expect(Object.keys(result.package.policies)).toHaveLength(3);
     expect(result.diagnostics).toEqual([]);
   });
 
@@ -134,7 +134,10 @@ describe("loadProcessPackage", () => {
     const manifest = await fs.readFile(manifestPath, "utf8");
     await fs.writeFile(
       manifestPath,
-      manifest.replace("  policies: [review-applicability, waiver-applicability]", "  policies: [waiver-applicability]"),
+      manifest.replace(
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability]",
+        "  policies: [dependency-reassessment, waiver-applicability]",
+      ),
     );
 
     const result = await loadProcessPackage(processRoot);
