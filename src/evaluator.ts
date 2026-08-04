@@ -306,6 +306,10 @@ class LifecycleEvaluator {
   private policyEvidence: PolicyEvaluationEvidence[] | undefined;
   private definitionEvidence: ProcessDefinitionEvidence[] | undefined;
   private readonly expressionDefinitions = new Map<object, string>();
+  private readonly obligationDefinitionEvidence = new Map<
+    string,
+    ProcessDefinitionEvidence[]
+  >();
 
   constructor(
     private readonly processPackage: ProcessPackage,
@@ -537,9 +541,7 @@ class LifecycleEvaluator {
           reference,
           "Obligation",
         );
-        this.definitionEvidence = undefined;
         const lifecycle = this.evaluate();
-        this.definitionEvidence = evidence;
         const subject = this.isEntity(resolvedArguments.subject)
           ? resolvedArguments.subject.identity?.revision_id
           : undefined;
@@ -548,6 +550,10 @@ class LifecycleEvaluator {
           (subject === undefined || obligation.subject === subject)
         );
         result = subject === undefined ? matches : matches[0] ?? null;
+        const scopedEvidence = matches.flatMap((obligation) =>
+          this.obligationDefinitionEvidence.get(obligation.id) ?? []
+        );
+        evidence.splice(0, evidence.length, ...scopedEvidence);
         evidence.push({
           kind: "obligation",
           definition: reference,
@@ -629,17 +635,17 @@ class LifecycleEvaluator {
     for (const definition of Object.values(this.processPackage.obligations)) {
       if (!array(definition.phases).includes(this.snapshot.phaseId)) continue;
       const forEach = definition.for_each;
+      const selectionEvidenceStart = this.definitionEvidence?.length ?? 0;
       const subjects = isCompiledTextExpression(forEach)
-        ? array(
-            evaluateCompiledTextValue(
-              forEach,
-              this.baseContext,
-              this.expressionHost(),
-            ),
-          ).filter((value): value is Entity => this.isEntity(value))
+        ? array(this.value(forEach, this.baseContext))
+          .filter((value): value is Entity => this.isEntity(value))
         : this.invokeSelector(forEach, this.baseContext);
+      const selectionEvidence = this.definitionEvidence?.slice(
+        selectionEvidenceStart,
+      ) ?? [];
       const subjectAs = string(definition.subject_as) ?? "subject";
       for (const subject of subjects) {
+        const subjectEvidenceStart = this.definitionEvidence?.length ?? 0;
         const context = { ...this.baseContext, [subjectAs]: subject };
         const satisfied = this.expression(definition.satisfied_when, context);
         const resolverObject = object(definition.resolve_with);
@@ -686,6 +692,10 @@ class LifecycleEvaluator {
           context,
           ...(statusResult.rule ? { statusRule: statusResult.rule } : {}),
         });
+        this.obligationDefinitionEvidence.set(instanceId, [
+          ...selectionEvidence,
+          ...(this.definitionEvidence?.slice(subjectEvidenceStart) ?? []),
+        ]);
       }
     }
 
@@ -697,6 +707,7 @@ class LifecycleEvaluator {
         pending.evaluation.satisfied ||
         pending.evaluation.status === "waived"
       ) continue;
+      const resolutionEvidenceStart = this.definitionEvidence?.length ?? 0;
       pending.evaluation.blockedBy = this.blockingInstanceIds(
         pending.statusRule,
         pending.context,
@@ -704,6 +715,9 @@ class LifecycleEvaluator {
       );
       pending.evaluation.unresolvedBindings =
         this.unresolvedResolverBindings(pending.definition, pending.context);
+      this.obligationDefinitionEvidence.get(pending.evaluation.id)?.push(
+        ...(this.definitionEvidence?.slice(resolutionEvidenceStart) ?? []),
+      );
       pending.evaluation.dispatchable =
         ["ready", "awaiting-review", "stale"].includes(
           pending.evaluation.status,

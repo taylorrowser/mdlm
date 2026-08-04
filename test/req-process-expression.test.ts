@@ -1,36 +1,19 @@
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { req, selectProcessPackage } from "./helpers/req.js";
 
-const reqExecutable = path.join(process.cwd(), "dist/req.js");
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 const snapshot = path.join(process.cwd(), "examples/psp-to-sys-snapshot.yaml");
 const subjectRevision = "PSP-7K3M9Q2D8F-r00001";
 
-function req(cwd: string, ...arguments_: string[]) {
-  return spawnSync(process.execPath, [reqExecutable, ...arguments_], {
-    cwd,
-    encoding: "utf8",
-  });
-}
-
 function selectBootstrapPackage(repositoryRoot: string): void {
-  expect(req(
+  selectProcessPackage(
     repositoryRoot,
-    "process",
-    "install",
     bootstrapPackage,
-    "--json",
-  ).status).toBe(0);
-  expect(req(
-    repositoryRoot,
-    "process",
-    "use",
     "mdlm-bootstrap@0.21.0",
-    "--json",
-  ).status).toBe(0);
+  );
 }
 
 describe("req process expression evaluation", () => {
@@ -342,7 +325,8 @@ describe("req process expression evaluation", () => {
         "--json",
       );
       expect(result.status, `${testCase.command}: ${result.stderr}\n${result.stdout}`).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual({
+      const output = JSON.parse(result.stdout);
+      expect(output).toEqual({
         ok: true,
         command: testCase.command,
         package: expect.objectContaining({
@@ -366,6 +350,43 @@ describe("req process expression evaluation", () => {
         },
         diagnostics: [],
       });
+      if (testCase.command === "obligation.evaluate") {
+        expect(output.evaluation.evidence).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            kind: "expression",
+            definition: "review-context-required@2#satisfied_when",
+            source: 'exists("valid-review-contexts-for@1", {subject: subject})',
+            result: false,
+          }),
+          expect.objectContaining({
+            kind: "selector",
+            definition: "valid-review-contexts-for@1",
+          }),
+          expect.objectContaining({
+            kind: "relation",
+            definition:
+              "mdlm-kernel-process-interface@1#relation.baseline-memberships",
+          }),
+        ]));
+      }
     }
+
+    const human = req(
+      repositoryRoot,
+      "state",
+      "evaluate",
+      "validity@2",
+      "--subject",
+      subjectRevision,
+      "--snapshot",
+      snapshot,
+    );
+    expect(human.status, human.stderr).toBe(0);
+    expect(human.stdout).toContain("State: validity@2");
+    expect(human.stdout).toContain("Result: \"valid\"");
+    expect(human.stdout).toContain(
+      "Source: subject.integrity.parseable == false",
+    );
+    expect(human.stdout).toContain("validity@2#rules[0].when");
   });
 });

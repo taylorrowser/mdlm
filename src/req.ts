@@ -550,7 +550,7 @@ function humanOutput(result: CommandResult): string {
     const evidence = evaluation.evidence.map((item) => {
       if (item.kind === "expression" && item.span) {
         const { start, end } = item.span;
-        return `Source: ${item.source} [${start.line}:${start.column}-${end.line}:${end.column}]`;
+        return `Source: ${item.source} [${start.line}:${start.column}-${end.line}:${end.column}] — ${item.definition}`;
       }
       const label = `${item.kind[0]?.toUpperCase() ?? ""}${item.kind.slice(1)}`;
       return `${label} ${item.definition} -> ${JSON.stringify(item.result)}`;

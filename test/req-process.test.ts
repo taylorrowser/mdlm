@@ -2,35 +2,16 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { req, selectProcessPackage } from "./helpers/req.js";
 
-const reqExecutable = path.join(process.cwd(), "dist/req.js");
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 
-function req(cwd: string, ...arguments_: string[]) {
-  return spawnSync(process.execPath, [reqExecutable, ...arguments_], {
-    cwd,
-    encoding: "utf8",
-  });
-}
-
 function selectBootstrapPackage(repositoryRoot: string): void {
-  const installation = req(
+  selectProcessPackage(
     repositoryRoot,
-    "process",
-    "install",
     bootstrapPackage,
-    "--json",
-  );
-  expect(installation.status, installation.stderr).toBe(0);
-  const selection = req(
-    repositoryRoot,
-    "process",
-    "use",
     "mdlm-bootstrap@0.21.0",
-    "--json",
   );
-  expect(selection.status, selection.stderr).toBe(0);
 }
 
 describe("req process package commands", () => {
