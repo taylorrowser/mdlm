@@ -808,3 +808,46 @@ turning provisional choices into architecture.
   without durable records, round-trip one authored Markdown Lifecycle Datum by
   Stable and Revision ID, compare structured and human projections, delete the
   generated indexes without affecting reads, and rebuild them through `req doctor`.
+
+## D-036 — Publish one editable Revision without rewriting frozen lineage
+
+- **Status:** accepted and implemented
+- **Decision:** `req revise <stable-id> [--from <revision-id>]` scans authoritative
+  Markdown lineage, refuses while any local Revision of that Stable Datum remains
+  editable, copies an explicitly selected or most recent frozen source into the
+  next exact sequential Revision, and preserves the Stable Datum ID. A staged
+  Markdown file is published with an exclusive same-filesystem hard link so a
+  competing process cannot replace an exact Revision that won the collision.
+  Frozen storage facts and `req history` classification are derived from snapshot-
+  bearing baselines through the selected `exact-baseline@1` Kernel Capability
+  binding; no baseline lifecycle type ID is built into the repository kernel.
+- **Alternatives:** Treat `revise` as an edit of the prior file, silently freeze an
+  unbaselined draft, renumber a colliding draft, trust generated indexes for the
+  concurrency check, store editable/frozen flags in the Datum Envelope, hard-code
+  the bundled `BSL` type, or add a durable claim datum before the initial local
+  concurrency profile requires one.
+- **Rationale:** Exact frozen Revisions are immutable historical truth. The v1
+  single-draft rule provides a useful local concurrency guard without adding a
+  process-specific claim concept, while exclusive publication closes the race
+  between scanning and writing. Capability-derived membership keeps baseline
+  structure versioned and package-neutral. Generated indexes cannot participate
+  in correctness because they remain disposable and may be stale after a source
+  mutation.
+- **Expected behavior:** A newly created first Revision is the one allowed editable
+  draft and blocks `revise` until frozen or abandoned. Once frozen by an exact
+  baseline snapshot, it can seed `r00002`; the new Revision retains its Stable ID,
+  content, links, and Scenario provenance while recording the currently selected
+  exact package reference. A second `revise` names the competing editable Revision
+  and leaves every prior Markdown byte and generated index byte unchanged. History
+  orders Revision identities and labels frozen history separately from editable
+  work with exact freezing-baseline evidence.
+- **Reversibility:** A later concurrency profile may replace sequential draft
+  allocation with random temporary identities, and history rendering can grow
+  more projections. It must still preserve frozen exact identities, refuse rather
+  than overwrite collisions, identify editable competition, and derive
+  immutability through kernel capabilities rather than package vocabulary.
+- **Evidence/observations:** Executable tests start with the allowed editable first
+  Revision, observe its actionable competing-draft diagnostic, add an exact
+  capability-bound frozen baseline, create the next Revision from the frozen
+  source, distinguish both entries in human and JSON history, then prove a second
+  failed attempt leaves prior Revision and generated-index bytes unchanged.

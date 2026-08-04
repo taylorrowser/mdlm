@@ -500,10 +500,20 @@ generates a random Stable ID and exact first Revision ID, validates the resolved
 payload schema and source-owned outgoing-link cardinalities/targets, captures the
 selected package digest in creation provenance, and atomically renames one staged
 Markdown Stable Datum directory into place. Failed validation writes no Lifecycle
-Datum. `req show` and `req list` scan Markdown truth and add package-derived states,
-Obligation Instances, backlinks, and bound Kernel Capabilities. `req doctor`
-validates that same source and atomically rebuilds a deterministic disposable
-index; reads do not depend on the generated index.
+Datum. `req revise <stable-id> [--from <revision-id>]` copies one exact frozen
+Revision into the next sequential Revision while preserving the Stable Datum ID.
+The initial concurrency profile permits at most one local editable Revision per
+Stable Datum: another `revise` is refused with the exact competing Revision and
+never rewrites or renumbers lineage. Fully staged content is published with an
+exclusive same-filesystem link so a concurrent exact-Revision collision also
+fails without replacement. `req history <stable-id>` orders exact lineage and
+separates `frozen-history` from `editable-work`, including the exact capability-
+bound baselines that freeze each Revision. Storage immutability is derived through
+the selected `exact-baseline@1` binding rather than a lifecycle type ID. `req show`
+and `req list` scan Markdown truth and add package-derived states, Obligation
+Instances, backlinks, and bound Kernel Capabilities. `req doctor` validates that
+same source and atomically rebuilds a deterministic disposable index; reads and
+revision transactions do not depend on or mutate the generated index.
 
 ## 14. Bootstrap scope
 

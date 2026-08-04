@@ -37,10 +37,13 @@ import {
 } from "./lifecycle-output.js";
 import {
   createDatum,
+  datumHistory,
   listData,
   rebuildRepositoryIndex,
+  reviseDatum,
   showDatum,
   type CreatedDatum,
+  type DatumHistory,
   type DatumProjections,
   type ListedDatum,
   type RepositoryIndexSummary,
@@ -110,6 +113,7 @@ interface CommandResult {
   lifecycleDatum?: StoredDatum["lifecycleDatum"];
   projections?: DatumProjections;
   data?: ListedDatum[];
+  history?: DatumHistory;
   index?: RepositoryIndexSummary;
   diagnostics: ProcessDiagnostic[];
 }
@@ -548,6 +552,46 @@ async function newDatum(
   };
 }
 
+async function reviseStoredDatum(
+  repositoryRoot: string,
+  stableId: string,
+  arguments_: string[],
+): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "revise",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const revised = await reviseDatum(
+    repositoryRoot,
+    selected.processPackage,
+    selected.summary.reference,
+    selected.summary.digest,
+    stableId,
+    optionValue(arguments_, "--from"),
+  );
+  if (!revised.ok) {
+    return {
+      ok: false,
+      command: "revise",
+      package: selected.summary,
+      selected: true,
+      diagnostics: revised.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "revise",
+    package: selected.summary,
+    created: revised.value,
+    diagnostics: [],
+  };
+}
+
 async function showStoredDatum(
   repositoryRoot: string,
   identity: string,
@@ -582,6 +626,42 @@ async function showStoredDatum(
     package: selected.summary,
     lifecycleDatum: shown.value.lifecycleDatum,
     projections: shown.value.projections,
+    diagnostics: [],
+  };
+}
+
+async function showDatumHistory(
+  repositoryRoot: string,
+  stableId: string,
+): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "history",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const history = await datumHistory(
+    repositoryRoot,
+    selected.processPackage,
+    stableId,
+  );
+  if (!history.ok) {
+    return {
+      ok: false,
+      command: "history",
+      package: selected.summary,
+      selected: true,
+      diagnostics: history.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "history",
+    package: selected.summary,
+    history: history.value,
     diagnostics: [],
   };
 }
@@ -1254,6 +1334,17 @@ function humanOutput(result: CommandResult): string {
       `Path: ${result.created.path}`,
     ].join("\n");
   }
+  if (result.history) {
+    return [
+      `Stable Datum: ${result.history.id}`,
+      `Type: ${result.history.type}`,
+      ...result.history.revisions.flatMap((revision) => [
+        `${revision.revisionId} [${revision.classification.replace("-", " ")}]`,
+        `  Process: ${revision.processRef}`,
+        `  Frozen By: ${revision.frozenBy.join(", ") || "none"}`,
+      ]),
+    ].join("\n");
+  }
   if (result.lifecycleDatum && result.projections) {
     const datum = result.lifecycleDatum.datum;
     return [
@@ -1432,8 +1523,14 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
   if (operands[0] === "new" && operands[1]) {
     return newDatum(repositoryRoot, operands[1], arguments_);
   }
+  if (operands[0] === "revise" && operands[1]) {
+    return reviseStoredDatum(repositoryRoot, operands[1], arguments_);
+  }
   if (operands[0] === "show" && operands[1]) {
     return showStoredDatum(repositoryRoot, operands[1]);
+  }
+  if (operands[0] === "history" && operands[1]) {
+    return showDatumHistory(repositoryRoot, operands[1]);
   }
   if (operands[0] === "list") return listStoredData(repositoryRoot);
   const directKind = ["relation", "selector", "policy", "state", "obligation"]

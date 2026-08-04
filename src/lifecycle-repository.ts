@@ -51,6 +51,18 @@ export interface ListedDatum {
   projections: DatumProjections;
 }
 
+export interface DatumHistory {
+  id: string;
+  type: string;
+  revisions: {
+    revision: number;
+    revisionId: string;
+    classification: "frozen-history" | "editable-work";
+    frozenBy: string[];
+    processRef: string;
+  }[];
+}
+
 export type RepositoryResult<T> =
   | { ok: true; value: T; diagnostics: [] }
   | { ok: false; diagnostics: ProcessDiagnostic[] };
@@ -154,6 +166,57 @@ function parseDatum(source: string, relativePath: string): RepositoryResult<Pars
       }],
     };
   }
+}
+
+function frozenRevisionMemberships(
+  processPackage: ProcessPackage,
+  lifecycleData: LifecycleRecord[],
+): Map<string, string[]> {
+  const memberships = new Map<string, string[]>();
+  const baselineType = processPackage.kernelCapabilities["exact-baseline@1"]?.type;
+  if (!baselineType) return memberships;
+  for (const baseline of lifecycleData) {
+    if (baseline.datum.type !== baselineType) continue;
+    const snapshot = baseline.datum.payload.snapshot;
+    if (typeof snapshot !== "object" || snapshot === null || Array.isArray(snapshot)) {
+      continue;
+    }
+    memberships.set(baseline.datum.revision_id, []);
+    for (const field of ["definition_members", "evidence"] as const) {
+      const identities = baseline.datum.payload[field];
+      if (!Array.isArray(identities)) continue;
+      for (const identity of identities) {
+        if (typeof identity !== "string") continue;
+        const containing = memberships.get(identity) ?? [];
+        containing.push(baseline.datum.revision_id);
+        memberships.set(identity, containing);
+      }
+    }
+  }
+  for (const containing of memberships.values()) containing.sort();
+  return memberships;
+}
+
+function applyStorageFacts(
+  processPackage: ProcessPackage,
+  parsed: ParsedDatum[],
+): void {
+  const memberships = frozenRevisionMemberships(
+    processPackage,
+    parsed.map((item) => item.lifecycleDatum),
+  );
+  for (const item of parsed) {
+    const frozen = memberships.has(item.lifecycleDatum.datum.revision_id);
+    item.lifecycleDatum.storage = { editable: !frozen, frozen };
+  }
+}
+
+function stableLineage(parsed: ParsedDatum[], stableId: string): ParsedDatum[] {
+  return parsed
+    .filter((item) => item.lifecycleDatum.datum.id === stableId)
+    .sort((left, right) =>
+      left.lifecycleDatum.datum.revision - right.lifecycleDatum.datum.revision
+    );
 }
 
 async function markdownPaths(root: string): Promise<string[]> {
@@ -347,6 +410,7 @@ export async function readRepositoryData(
     if (!result.ok) diagnostics.push(...result.diagnostics);
     else parsed.push(result.value);
   }
+  applyStorageFacts(processPackage, parsed);
   const lifecycleData = parsed.map((item) => item.lifecycleDatum);
   for (const item of parsed) {
     diagnostics.push(...validateDatum(
@@ -512,6 +576,111 @@ export async function createDatum(
   };
 }
 
+export async function reviseDatum(
+  root: string,
+  processPackage: ProcessPackage,
+  packageReference: string,
+  packageDigest: string,
+  stableId: string,
+  fromRevision: string | undefined,
+): Promise<RepositoryResult<CreatedDatum>> {
+  if (revisionIdentity.test(stableId)) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "stable-datum-required",
+        path: stableId,
+        message: `Revision creation requires a Stable Datum ID, received '${stableId}'`,
+      }],
+    };
+  }
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const lineage = stableLineage(loaded.value, stableId);
+  if (lineage.length === 0) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "unknown-datum",
+        path: stableId,
+        message: `Unknown Stable Datum '${stableId}'`,
+      }],
+    };
+  }
+  const editable = lineage.find((item) => item.lifecycleDatum.storage.editable);
+  if (editable) {
+    const revisionId = editable.lifecycleDatum.datum.revision_id;
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "editable-revision-exists",
+        path: revisionId,
+        message: `Stable Datum '${stableId}' already has editable Revision '${revisionId}'. Edit or abandon '${revisionId}' before creating another draft.`,
+      }],
+    };
+  }
+  const source = fromRevision === undefined
+    ? lineage.at(-1)
+    : lineage.find((item) => item.lifecycleDatum.datum.revision_id === fromRevision);
+  if (!source) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "unknown-source-revision",
+        path: fromRevision ?? stableId,
+        message: `Revision source '${fromRevision ?? stableId}' is not in Stable Datum '${stableId}'`,
+      }],
+    };
+  }
+  const sourceDatum = source.lifecycleDatum.datum;
+  const revision = Math.max(...lineage.map((item) =>
+    item.lifecycleDatum.datum.revision
+  )) + 1;
+  const revisionId = `${stableId}-r${String(revision).padStart(5, "0")}`;
+  const datum = structuredClone(sourceDatum);
+  datum.revision = revision;
+  datum.revision_id = revisionId;
+  datum.created_by.process_ref = `${packageReference}#${packageDigest}`;
+  const lifecycleData = loaded.value.map((item) => item.lifecycleDatum);
+  const diagnostics = validateDatum(processPackage, datum, lifecycleData);
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+
+  const relativePath = `.lifecycle/data/${datum.type}/${stableId}/${revisionId.slice(-6)}.md`;
+  const finalPath = path.join(root, relativePath);
+  const temporaryPath = path.join(
+    path.dirname(finalPath),
+    `.${path.basename(finalPath)}.${randomUUID()}.tmp`,
+  );
+  try {
+    await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
+    await fs.link(temporaryPath, finalPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "revision-collision",
+          path: revisionId,
+          message: `Exact Revision '${revisionId}' already exists; history was not rewritten or renumbered`,
+        }],
+      };
+    }
+    throw error;
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
+  }
+  return {
+    ok: true,
+    value: {
+      id: stableId,
+      revisionId,
+      type: datum.type,
+      path: relativePath,
+    },
+    diagnostics: [],
+  };
+}
+
 function projections(
   processPackage: ProcessPackage,
   lifecycleData: LifecycleRecord[],
@@ -642,6 +811,51 @@ export async function showDatum(
         selected.lifecycleDatum,
         processReference,
       ),
+    },
+    diagnostics: [],
+  };
+}
+
+export async function datumHistory(
+  root: string,
+  processPackage: ProcessPackage,
+  stableId: string,
+): Promise<RepositoryResult<DatumHistory>> {
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const lineage = stableLineage(loaded.value, stableId);
+  const first = lineage[0];
+  if (!first) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "unknown-datum",
+        path: stableId,
+        message: `Unknown Stable Datum '${stableId}'`,
+      }],
+    };
+  }
+  const memberships = frozenRevisionMemberships(
+    processPackage,
+    loaded.value.map((item) => item.lifecycleDatum),
+  );
+  return {
+    ok: true,
+    value: {
+      id: stableId,
+      type: first.lifecycleDatum.datum.type,
+      revisions: lineage.map((item) => {
+        const datum = item.lifecycleDatum.datum;
+        return {
+          revision: datum.revision,
+          revisionId: datum.revision_id,
+          classification: item.lifecycleDatum.storage.frozen
+            ? "frozen-history" as const
+            : "editable-work" as const,
+          frozenBy: memberships.get(datum.revision_id) ?? [],
+          processRef: datum.created_by.process_ref,
+        };
+      }),
     },
     diagnostics: [],
   };
