@@ -47,12 +47,8 @@ export interface RepositoryIndexSummary {
 }
 
 export interface ListedDatum {
-  id: string;
-  revisionId: string;
-  type: string;
-  title: string | null;
-  states: Record<string, string | string[]>;
-  obligations: ObligationEvaluation[];
+  record: LifecycleRecord;
+  projections: DatumProjections;
 }
 
 export type RepositoryResult<T> =
@@ -657,26 +653,18 @@ export async function listData(
     }
   }
   const records = loaded.value.map((item) => item.record);
-  const result = [...selected.values()].map((item) => {
-    const computed = projections(
+  const result = [...selected.values()].map((item) => ({
+    record: item.record,
+    projections: projections(
       processPackage,
       records,
       item.record,
       processReference,
-    );
-    return {
-      id: item.record.datum.id,
-      revisionId: item.record.datum.revision_id,
-      type: item.record.datum.type,
-      title: typeof item.record.datum.payload.title === "string"
-        ? item.record.datum.payload.title
-        : null,
-      states: computed.states,
-      obligations: computed.obligations,
-    };
-  });
+    ),
+  }));
   result.sort((left, right) =>
-    left.type.localeCompare(right.type) || left.id.localeCompare(right.id)
+    left.record.datum.type.localeCompare(right.record.datum.type) ||
+    left.record.datum.id.localeCompare(right.record.datum.id)
   );
   return { ok: true, value: result, diagnostics: [] };
 }

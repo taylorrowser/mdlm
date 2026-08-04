@@ -386,12 +386,8 @@ describe("req durable Lifecycle Datum repository", () => {
       ok: true,
       command: "list",
       records: [{
-        id: creation.created.id,
-        revisionId: creation.created.revisionId,
-        type: "PSP",
-        title: "Repository round trip",
-        states: showResult.projections.states,
-        obligations: showResult.projections.obligations,
+        record: showResult.record,
+        projections: showResult.projections,
       }],
     }));
 
@@ -408,8 +404,9 @@ describe("req durable Lifecycle Datum repository", () => {
     expect(humanList.stdout).toContain("Lifecycle Data: 1");
     expect(humanList.stdout).toContain(creation.created.revisionId);
     expect(humanList.stdout).toContain("Repository round trip");
-    expect(humanList.stdout).toContain("States:");
-    expect(humanList.stdout).toContain("review-context-required:");
+    expect(humanList.stdout).toContain("Durable:");
+    expect(humanList.stdout).toContain("Projections:");
+    expect(humanList.stdout).toContain('"obligation":"review-context-required"');
     expect(humanList.stdout).toContain('"status":"ready"');
   });
 });

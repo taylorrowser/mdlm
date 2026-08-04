@@ -1280,10 +1280,10 @@ function humanOutput(result: CommandResult): string {
   if (result.records) {
     return [
       `Lifecycle Data: ${result.records.length}`,
-      ...result.records.flatMap((record) => [
-        `${record.revisionId} [${record.type}] ${record.title ?? "untitled"}`,
-        `  States: ${JSON.stringify(record.states)}`,
-        `  Obligations: ${record.obligations.map((obligation) => `${obligation.obligation}:${JSON.stringify(obligation)}`).join(", ") || "none"}`,
+      ...result.records.flatMap(({ record, projections }) => [
+        `${record.datum.revision_id} [${record.datum.type}] ${typeof record.datum.payload.title === "string" ? record.datum.payload.title : "untitled"}`,
+        `  Durable: ${JSON.stringify(record)}`,
+        `  Projections: ${JSON.stringify(projections)}`,
       ]),
     ].join("\n");
   }
