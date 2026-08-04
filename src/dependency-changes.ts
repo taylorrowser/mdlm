@@ -74,6 +74,17 @@ export interface ReviewContextDependencyChange extends DependencyChangeBase {
   after_context_revision: string;
 }
 
+export interface ProcessProvenanceDependencyChange
+  extends DependencyChangeBase {
+  kind: "process-provenance-change";
+  before_process_ref: string;
+  after_process_ref: string;
+  before_manifest_hash: string;
+  after_manifest_hash: string;
+  removed_asset_refs: string[];
+  added_asset_refs: string[];
+}
+
 export type DependencyChangeRecord =
   | ContentDependencyChange
   | OutboundLinkDependencyChange
@@ -81,7 +92,8 @@ export type DependencyChangeRecord =
   | BaselineMembershipDependencyChange
   | BaselineCompositionDependencyChange
   | EvidenceTargetDependencyChange
-  | ReviewContextDependencyChange;
+  | ReviewContextDependencyChange
+  | ProcessProvenanceDependencyChange;
 
 export const dependencyChangeExpressionPaths = {
   record_version: "string",
@@ -108,6 +120,12 @@ export const dependencyChangeExpressionPaths = {
   added_evidence: "array",
   before_context_revision: "string",
   after_context_revision: "string",
+  before_process_ref: "string",
+  after_process_ref: "string",
+  before_manifest_hash: "string",
+  after_manifest_hash: "string",
+  removed_asset_refs: "array",
+  added_asset_refs: "array",
 } as const;
 
 export interface DependencyComparisonDiagnostic {
@@ -164,9 +182,17 @@ function payloadContent(
   capabilityBoundBaseline: boolean,
 ): Record<string, unknown> {
   if (!capabilityBoundBaseline) return record.datum.payload;
-  const { definition_members: _members, evidence: _evidence, ...content } =
-    record.datum.payload;
+  const {
+    definition_members: _members,
+    evidence: _evidence,
+    snapshot: _snapshot,
+    ...content
+  } = record.datum.payload;
   return content;
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return isObject(value) ? value : {};
 }
 
 function stringValues(value: unknown): string[] {
@@ -420,6 +446,42 @@ function compareOne(
           after_context_revision: after.datum.revision_id,
         }]
       : [];
+  const beforeProvenance = objectValue(
+    objectValue(before.datum.payload.snapshot).process_provenance,
+  );
+  const afterProvenance = objectValue(
+    objectValue(after.datum.payload.snapshot).process_provenance,
+  );
+  const beforeProcessRef = typeof beforeProvenance.process_ref === "string"
+    ? beforeProvenance.process_ref
+    : "";
+  const afterProcessRef = typeof afterProvenance.process_ref === "string"
+    ? afterProvenance.process_ref
+    : "";
+  const beforeManifestHash = typeof beforeProvenance.manifest_hash === "string"
+    ? beforeProvenance.manifest_hash
+    : "";
+  const afterManifestHash = typeof afterProvenance.manifest_hash === "string"
+    ? afterProvenance.manifest_hash
+    : "";
+  const beforeAssetRefs = stringValues(beforeProvenance.asset_refs);
+  const afterAssetRefs = stringValues(afterProvenance.asset_refs);
+  const provenanceChanges: DependencyChangeRecord[] =
+    capabilityBoundBaseline && !structuralValuesEqual(
+      beforeProvenance,
+      afterProvenance,
+    )
+      ? [{
+          ...common,
+          kind: "process-provenance-change",
+          before_process_ref: beforeProcessRef,
+          after_process_ref: afterProcessRef,
+          before_manifest_hash: beforeManifestHash,
+          after_manifest_hash: afterManifestHash,
+          removed_asset_refs: setDifference(beforeAssetRefs, afterAssetRefs),
+          added_asset_refs: setDifference(afterAssetRefs, beforeAssetRefs),
+        }]
+      : [];
 
   return {
     changes: [
@@ -430,6 +492,7 @@ function compareOne(
       ...compositionChanges,
       ...evidenceChanges,
       ...reviewContextChanges,
+      ...provenanceChanges,
     ],
     diagnostics: [],
   };

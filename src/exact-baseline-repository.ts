@@ -2,10 +2,16 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
+  evaluateLifecycle,
   resolveType,
+  type ArtifactEvaluation,
   type DatumEnvelope,
+  type DependencyChangeRecord,
+  type DependencyComparison,
   type ProcessDiagnostic,
   type ProcessPackage,
+  type ProcessProvenanceDependencyChange,
+  type StableLinkResolution,
 } from "./index.js";
 import {
   createDatum,
@@ -46,6 +52,23 @@ export interface BaselineVerification {
   composition: string[];
   checkedHashes: number;
   checkedResolutions: number;
+}
+
+export interface BaselineDiffSubject extends ArtifactEvaluation {
+  subjectRevision: string;
+  changes: DependencyChangeRecord[];
+}
+
+export interface BaselineDiff {
+  beforeBaseline: string;
+  afterBaseline: string;
+  changes: DependencyChangeRecord[];
+  processDrift: ProcessProvenanceDependencyChange[];
+  subjects: BaselineDiffSubject[];
+}
+
+export interface BaselineRepositoryVerification {
+  verifiedBaselines: number;
 }
 
 const stableIdentity = /^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
@@ -788,6 +811,243 @@ export async function verifyExactBaseline(
       composition,
       checkedHashes: references.length,
       checkedResolutions: resolutionSources.length,
+    },
+    diagnostics: [],
+  };
+}
+
+function frozenStableLinkResolutions(
+  baseline: DatumEnvelope,
+  source: DatumEnvelope,
+): StableLinkResolution[] {
+  const snapshot = objectRecord(baseline.payload.snapshot);
+  const resolvedLinks = objectRecord(snapshot.resolved_links);
+  const resolvedTargets = resolvedLinks[source.revision_id];
+  const targets = Array.isArray(resolvedTargets)
+    ? resolvedTargets.filter(
+      (target): target is string => typeof target === "string",
+    )
+    : [];
+  return source.links.flatMap((link) => {
+    if (!stableIdentity.test(link.target)) return [];
+    const targetRevision = targets.find((target) =>
+      revisionIdentity.exec(target)?.[1] === link.target
+    );
+    return targetRevision
+      ? [{
+          link: link.type,
+          stableTarget: link.target,
+          targetRevision,
+        }]
+      : [];
+  }).sort((left, right) =>
+    left.link.localeCompare(right.link) ||
+    left.stableTarget.localeCompare(right.stableTarget)
+  );
+}
+
+function comparedBaselineReferences(datum: DatumEnvelope): string[] {
+  return [...new Set([
+    ...exactRevisionList(datum.payload.definition_members),
+    ...exactRevisionList(datum.payload.evidence),
+  ])].sort();
+}
+
+function referencesByStableDatum(
+  parsed: ParsedDatum[],
+  references: string[],
+): Map<string, ParsedDatum[]> {
+  const result = new Map<string, ParsedDatum[]>();
+  for (const reference of references) {
+    const item = parsed.find((candidate) =>
+      candidate.lifecycleDatum.datum.revision_id === reference
+    );
+    if (!item) continue;
+    const stableId = item.lifecycleDatum.datum.id;
+    result.set(stableId, [...(result.get(stableId) ?? []), item]);
+  }
+  return result;
+}
+
+export async function verifyRepositoryBaselines(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+): Promise<RepositoryResult<BaselineRepositoryVerification>> {
+  const capability = exactBaselineType(processPackage);
+  if (!capability.ok) {
+    return { ok: true, value: { verifiedBaselines: 0 }, diagnostics: [] };
+  }
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const baselines = loaded.value.filter((item) =>
+    item.lifecycleDatum.datum.type === capability.value &&
+    Object.keys(objectRecord(item.lifecycleDatum.datum.payload.snapshot)).length > 0
+  ).sort((left, right) =>
+    left.lifecycleDatum.datum.revision_id.localeCompare(
+      right.lifecycleDatum.datum.revision_id,
+    )
+  );
+  const diagnostics: ProcessDiagnostic[] = [];
+  for (const baseline of baselines) {
+    const verified = await verifyExactBaseline(
+      root,
+      processPackage,
+      processRef,
+      baseline.lifecycleDatum.datum.revision_id,
+    );
+    if (!verified.ok) diagnostics.push(...verified.diagnostics);
+  }
+  if (diagnostics.length > 0) {
+    const unique = new Map(diagnostics.map((diagnostic) => [
+      `${diagnostic.code}\0${diagnostic.path ?? ""}\0${diagnostic.message}`,
+      diagnostic,
+    ]));
+    return { ok: false, diagnostics: [...unique.values()] };
+  }
+  return {
+    ok: true,
+    value: { verifiedBaselines: baselines.length },
+    diagnostics: [],
+  };
+}
+
+export async function diffExactBaselines(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  beforeIdentity: string,
+  afterIdentity: string,
+): Promise<RepositoryResult<BaselineDiff>> {
+  const capability = exactBaselineType(processPackage);
+  if (!capability.ok) return capability;
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const before = exactBaselineSubject(
+    loaded.value,
+    beforeIdentity,
+    capability.value,
+    false,
+  );
+  if (!before.ok) return before;
+  const after = exactBaselineSubject(
+    loaded.value,
+    afterIdentity,
+    capability.value,
+    false,
+  );
+  if (!after.ok) return after;
+  for (const item of [before.value, after.value]) {
+    if (Object.keys(objectRecord(item.lifecycleDatum.datum.payload.snapshot)).length === 0) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "baseline-not-frozen",
+          path: item.lifecycleDatum.datum.revision_id,
+          message: `Exact baseline '${item.lifecycleDatum.datum.revision_id}' has not been frozen`,
+        }],
+      };
+    }
+  }
+
+  const beforeDatum = before.value.lifecycleDatum.datum;
+  const afterDatum = after.value.lifecycleDatum.datum;
+  const comparisons: DependencyComparison[] = [{
+    subjectRevision: afterDatum.revision_id,
+    beforeRevision: beforeDatum.revision_id,
+    afterRevision: afterDatum.revision_id,
+    beforeStableLinkResolutions: frozenStableLinkResolutions(
+      beforeDatum,
+      beforeDatum,
+    ),
+    afterStableLinkResolutions: frozenStableLinkResolutions(
+      afterDatum,
+      afterDatum,
+    ),
+  }];
+  const beforeReferences = referencesByStableDatum(
+    loaded.value,
+    comparedBaselineReferences(beforeDatum),
+  );
+  const afterReferences = referencesByStableDatum(
+    loaded.value,
+    comparedBaselineReferences(afterDatum),
+  );
+  for (const stableId of [...beforeReferences.keys()].filter((identity) =>
+    afterReferences.has(identity)
+  ).sort()) {
+    const beforeItems = beforeReferences.get(stableId) ?? [];
+    const afterItems = afterReferences.get(stableId) ?? [];
+    if (beforeItems.length !== 1 || afterItems.length !== 1) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "unsupported-baseline-comparison",
+          path: stableId,
+          message: `Baseline comparison requires at most one exact Revision of Stable Datum '${stableId}' in each definition/evidence set`,
+        }],
+      };
+    }
+    const beforeItem = beforeItems[0];
+    const afterItem = afterItems[0];
+    if (!beforeItem || !afterItem) continue;
+    comparisons.push({
+      subjectRevision: afterItem.lifecycleDatum.datum.revision_id,
+      beforeRevision: beforeItem.lifecycleDatum.datum.revision_id,
+      afterRevision: afterItem.lifecycleDatum.datum.revision_id,
+      beforeStableLinkResolutions: frozenStableLinkResolutions(
+        beforeDatum,
+        beforeItem.lifecycleDatum.datum,
+      ),
+      afterStableLinkResolutions: frozenStableLinkResolutions(
+        afterDatum,
+        afterItem.lifecycleDatum.datum,
+      ),
+    });
+  }
+
+  const phaseId = Object.keys(processPackage.phases).sort()[0];
+  if (!phaseId) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "baseline-diff-phase-unavailable",
+        path: "phases",
+        message: "Package-derived baseline reassessment requires at least one Phase",
+      }],
+    };
+  }
+  const evaluation = evaluateLifecycle(processPackage, {
+    processRef,
+    phaseId,
+    records: loaded.value.map((item) => item.lifecycleDatum),
+    dependencyComparisons: comparisons,
+  });
+  if (evaluation.diagnostics.length > 0) {
+    return { ok: false, diagnostics: evaluation.diagnostics };
+  }
+  const subjects = [...new Set(evaluation.dependencyChanges.map((change) =>
+    change.subject_revision
+  ))].sort().map((subjectRevision) => ({
+    subjectRevision,
+    changes: evaluation.dependencyChanges.filter((change) =>
+      change.subject_revision === subjectRevision
+    ),
+    states: evaluation.artifacts[subjectRevision]?.states ?? {},
+    stateExplanations:
+      evaluation.artifacts[subjectRevision]?.stateExplanations ?? {},
+  }));
+  return {
+    ok: true,
+    value: {
+      beforeBaseline: beforeDatum.revision_id,
+      afterBaseline: afterDatum.revision_id,
+      changes: evaluation.dependencyChanges,
+      processDrift: evaluation.dependencyChanges.filter(
+        (change): change is ProcessProvenanceDependencyChange =>
+          change.kind === "process-provenance-change",
+      ),
+      subjects,
     },
     diagnostics: [],
   };

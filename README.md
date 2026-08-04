@@ -28,8 +28,9 @@ types, states, obligations, scenarios, and phases.
   and revises typed Markdown Lifecycle Data, preserves immutable exact history,
   diagnoses competing editable drafts, validates atomic source-owned link
   mutations, computes backlinks and identity-preserving graph traces, reads
-  durable content and lineage with computed projections, and rebuilds disposable
-  indexes from Markdown truth.
+  durable content and lineage with computed projections, compares exact baselines
+  through their capability binding, and rebuilds disposable indexes and reports
+  from Markdown truth.
 
 ## Try it
 
@@ -56,6 +57,8 @@ node ../dist/req.js baseline add BSL-0123456789 STK-0123456789-r00001
 node ../dist/req.js baseline evidence add BSL-0123456789 REV-0123456789-r00001
 node ../dist/req.js baseline freeze BSL-0123456789
 node ../dist/req.js baseline verify BSL-0123456789
+node ../dist/req.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
+node ../dist/req.js doctor
 ```
 
 `npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
@@ -74,6 +77,6 @@ resolver scenarios.
 This is not yet the complete durable repository kernel or `req` CLI. Markdown
 creation, revision lineage, local single-draft protection, source-owned link
 mutation, graph inspection, capability-bound exact-baseline freezing and
-verification, source-backed reads, and index rebuilding are implemented;
-baseline diffing, additional concurrency profiles, and full lifecycle breadth
-remain deferred.
+verification and diffing, source-backed reads, integrity-aware repository
+inspection, and disposable index/report rebuilding are implemented; additional
+concurrency profiles and full lifecycle breadth remain deferred.

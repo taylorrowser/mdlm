@@ -9,7 +9,8 @@
     {"$ref": "#/$defs/baseline-membership-change"},
     {"$ref": "#/$defs/baseline-composition-change"},
     {"$ref": "#/$defs/evidence-target-change"},
-    {"$ref": "#/$defs/review-context-change"}
+    {"$ref": "#/$defs/review-context-change"},
+    {"$ref": "#/$defs/process-provenance-change"}
   ],
   "$defs": {
     "revision-id": {
@@ -162,6 +163,29 @@
             "after_revision": {"type": "string"},
             "before_context_revision": {"$ref": "#/$defs/revision-id"},
             "after_context_revision": {"$ref": "#/$defs/revision-id"}
+          }
+        }
+      ]
+    },
+    "process-provenance-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "before_process_ref", "after_process_ref", "before_manifest_hash", "after_manifest_hash", "removed_asset_refs", "added_asset_refs"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "process-provenance-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "before_process_ref": {"type": "string"},
+            "after_process_ref": {"type": "string"},
+            "before_manifest_hash": {"type": "string"},
+            "after_manifest_hash": {"type": "string"},
+            "removed_asset_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+            "added_asset_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
           }
         }
       ]

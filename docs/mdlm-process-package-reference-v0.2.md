@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.24 — experimental implementation reference**
+**Bootstrap package 0.25 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -194,20 +194,24 @@ The first relation vocabulary is:
 - `dependency-changes` — from a revision to deterministic structural
   `dependency-change@1` records for exact content, outbound-link, stable-link-
   resolution, capability-bound baseline membership and composition, evidence-
-  target, and explicitly identified review-context comparisons;
+  target, explicitly identified review-context, and baseline process-provenance
+  comparisons;
 - `scenario-inputs` and `scenario-outputs` — from one scenario execution to its
   declared bound data.
 
 Relations return typed entities or typed change records. Every
 `dependency-change@1` record names the subject and exact before/after Revisions;
 variant fields describe a changed content path, an outbound link target set, a
-stable link's changed exact resolution, exact member/component/evidence sets, or
-changed exact review contexts. Baseline-specific variants are available only when
-both compared Revisions use the type selected by `exact-baseline@1`; the kernel
-never recognizes `BSL`. These records never contain a Stale Boolean. The package
-filters them with `staleness-relevant-dependency-changes-for`; the `validity`
-Computed State supplies the Stale conclusion and attaches the selected structural
-records to its explanation.
+stable link's changed exact resolution, exact member/component/evidence sets,
+changed exact review contexts, or exact process references, manifest hashes, and
+asset sets. Baseline-specific variants are available only when both compared
+Revisions use the type selected by `exact-baseline@1`; the kernel never recognizes
+`BSL`. These records never contain a Stale Boolean. Process-provenance records are
+reported as informational Process Drift and the bootstrap selector excludes them
+from reassessment. A package may explicitly select that record kind when its own
+Policy requires reassessment. The package filters records with
+`staleness-relevant-dependency-changes-for`; the `validity` Computed State supplies
+the Stale conclusion and attaches the selected exact records to its explanation.
 Unsupported or incomplete comparisons produce evaluation diagnostics and no
 lifecycle conclusions. Traversal is side-effect-free and deterministic. Adding a
 relation primitive requires a kernel interface version; adding a selector over
@@ -555,15 +559,27 @@ return typed diagnostics. Packages without a compatible binding receive
 `kernel-capability-unavailable`; the executable does not recognize a lifecycle
 type ID as a baseline.
 
+`req baseline diff <old> <new>` pairs exact definition/evidence Revisions by Stable
+Datum identity and submits those comparisons plus the capability-bound baseline
+comparison to the ordinary lifecycle evaluator. It returns deterministic typed
+content, outbound-link, Stable-link-resolution, membership, composition, evidence,
+and Process Drift records. Each changed exact subject retains the package-derived
+Computed States and explanations that selected those exact records; the CLI does
+not manufacture a Stale Boolean or recognize a State dimension name. Snapshot
+integrity fields are not misreported as authored content.
+
 `req show` and `req list` scan Markdown truth and add package-derived states,
-Obligation Instances, backlinks, and bound Kernel Capabilities. `req doctor`
-validates that same source and atomically rebuilds a deterministic disposable
-index; reads and revision/link transactions do not depend on or mutate the
-generated index.
+Obligation Instances, backlinks, and bound Kernel Capabilities. Before publishing
+any generated output, `req doctor` validates repository/package compatibility,
+all Markdown envelopes and references, and every frozen capability-bound baseline
+hash, resolution, composition, and provenance claim. It then atomically rebuilds
+a deterministic disposable index and lifecycle projection report. Reads and
+revision/link transactions never depend on generated output; deleting or
+corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.24 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.25 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

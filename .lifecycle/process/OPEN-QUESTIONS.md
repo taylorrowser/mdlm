@@ -9,7 +9,8 @@ behavior where possible.
    polymorphic variable can refer to types with different payload fields?
 2. **Dependency changes beyond v1:** `dependency-change@1` now covers exact
    content, outbound-link, stable-link-resolution, capability-bound baseline
-   membership and composition, evidence-target, and review-context comparisons.
+   membership and composition, evidence-target, review-context, and informational
+   process-provenance comparisons.
    What typed records should later versions emit for execution-target and
    environment changes?
 3. **Repeated link IDs:** Should source-local contracts sharing a relationship ID

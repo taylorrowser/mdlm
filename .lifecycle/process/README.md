@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.24
+# MDLM bootstrap process package v0.25
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -116,10 +116,13 @@ also validated before the package is exposed. The kernel's `dependency-changes`
 relation emits deterministic `dependency-change@1` content, outbound-link, and
 stable-link-resolution records from exact Revision comparisons. When
 `exact-baseline@1` is bound, the same comparison service adds membership,
-composition, evidence-target, and explicitly identified review-context variants
-for the package-selected type without recognizing its ID. Package selectors, not
-the kernel, decide which typed records imply Staleness, and Computed State
-explanations identify the exact structural evidence selected by the package rule. `mdlm-expression@1` textual source is
+composition, evidence-target, explicitly identified review-context, and process-
+provenance variants for the package-selected type without recognizing its ID.
+Process provenance is informational by default; this package deliberately omits
+that record kind from its reassessment selector. Package selectors, not the
+kernel, decide which typed records imply Staleness, and Computed State explanations
+identify the exact structural evidence selected by the package rule.
+`mdlm-expression@1` textual source is
 the only accepted authoring representation and cannot execute arbitrary code or
 produce side effects.
 

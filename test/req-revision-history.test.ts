@@ -1,15 +1,10 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req } from "./helpers/req.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-
-function frontmatter(value: Record<string, unknown>): string {
-  return `---\n${stringify(value).trimEnd()}\n---\n`;
-}
 
 describe("req revision lineage", () => {
   let repositoryRoot: string;
@@ -58,53 +53,46 @@ describe("req revision lineage", () => {
   }
 
   async function freezeRevision(revisionId: string): Promise<string> {
-    const baselineId = "BSL-0123456789";
-    const baselineRevisionId = `${baselineId}-r00001`;
-    const baselineDirectory = path.join(
+    const created = req(
       repositoryRoot,
-      ".lifecycle/data/BSL",
-      baselineId,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Frozen revision history",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      "scope=revision history test",
+      "--set",
+      "group=DEFAULT",
+      "--json",
     );
-    await fs.mkdir(baselineDirectory, { recursive: true });
-    await fs.writeFile(
-      path.join(baselineDirectory, "r00001.md"),
-      frontmatter({
-        id: baselineId,
-        revision: 1,
-        revision_id: baselineRevisionId,
-        type: "BSL",
-        payload: {
-          title: "Frozen revision history",
-          kind: "review-context",
-          role: "review-context",
-          scope: "revision history test",
-          group: "DEFAULT",
-          definition_members: [revisionId],
-          evidence: [],
-          snapshot: {
-            frozen_at: "2026-08-04T17:00:00.000Z",
-            member_hashes: {
-              [revisionId]: `sha256:${"0".repeat(64)}`,
-            },
-            resolved_links: {},
-            process_provenance: {
-              process_ref: "mdlm-bootstrap@0.24.0",
-              manifest_hash: `sha256:${"1".repeat(64)}`,
-              asset_refs: [],
-            },
-          },
-        },
-        links: [],
-        created_by: {
-          scenario: "create-review-context@1",
-          prompt_ref: "prompts/create-review-context.md@1",
-          process_ref: "mdlm-bootstrap@0.24.0",
-          loaded_skill_refs: [],
-          policy_refs: [],
-        },
-      }),
+    expect(created.status, created.stderr).toBe(0);
+    const baseline = JSON.parse(created.stdout).created;
+    const added = req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      baseline.id,
+      revisionId,
+      "--json",
     );
-    return baselineRevisionId;
+    expect(added.status, added.stderr).toBe(0);
+    const frozen = req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      baseline.id,
+      "--json",
+    );
+    expect(frozen.status, frozen.stderr).toBe(0);
+    return baseline.revisionId;
   }
 
   it("creates the next exact Revision while preserving frozen history", async () => {
@@ -185,14 +173,14 @@ describe("req revision lineage", () => {
             revisionId: first.revisionId,
             classification: "frozen-history",
             frozenBy: [baselineRevisionId],
-            processRef: expect.stringContaining("mdlm-bootstrap@0.24.0#sha256:"),
+            processRef: expect.stringContaining("mdlm-bootstrap@0.25.0#sha256:"),
           },
           {
             revision: 2,
             revisionId: `${first.id}-r00002`,
             classification: "editable-work",
             frozenBy: [],
-            processRef: expect.stringContaining("mdlm-bootstrap@0.24.0#sha256:"),
+            processRef: expect.stringContaining("mdlm-bootstrap@0.25.0#sha256:"),
           },
         ],
       },

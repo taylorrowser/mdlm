@@ -86,6 +86,12 @@ export interface RepositoryIndexSummary {
   path: ".lifecycle/generated/indexes/data.json";
 }
 
+export interface RepositoryReportSummary {
+  rebuilt: boolean;
+  data: number;
+  path: ".lifecycle/generated/reports/lifecycle.json";
+}
+
 export interface ListedDatum {
   lifecycleDatum: LifecycleRecord;
   projections: DatumProjections;
@@ -1099,7 +1105,8 @@ export async function rebuildRepositoryIndex(
     const existing = JSON.parse(await fs.readFile(indexPath, "utf8")) as unknown;
     rebuilt = !structuralValuesEqual(existing, value);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== undefined && code !== "ENOENT") throw error;
   }
   if (rebuilt) {
     await fs.mkdir(path.dirname(indexPath), { recursive: true });
@@ -1116,6 +1123,50 @@ export async function rebuildRepositoryIndex(
   return {
     ok: true,
     value: { rebuilt, data: value.data.length, path: relativePath },
+    diagnostics: [],
+  };
+}
+
+export async function rebuildRepositoryReport(
+  root: string,
+  processPackage: ProcessPackage,
+  processReference: string,
+): Promise<RepositoryResult<RepositoryReportSummary>> {
+  const listed = await listData(root, processPackage, processReference);
+  if (!listed.ok) return listed;
+  const relativePath = ".lifecycle/generated/reports/lifecycle.json" as const;
+  const reportPath = path.join(root, relativePath);
+  const value = {
+    schemaVersion: 1,
+    generatedFrom: {
+      package: processReference,
+      source: ".lifecycle/data",
+    },
+    data: listed.value,
+  };
+  let rebuilt = true;
+  try {
+    const existing = JSON.parse(await fs.readFile(reportPath, "utf8")) as unknown;
+    rebuilt = !structuralValuesEqual(existing, value);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== undefined && code !== "ENOENT") throw error;
+  }
+  if (rebuilt) {
+    await fs.mkdir(path.dirname(reportPath), { recursive: true });
+    const temporaryPath = `${reportPath}.${randomUUID()}.tmp`;
+    try {
+      await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+        flag: "wx",
+      });
+      await fs.rename(temporaryPath, reportPath);
+    } finally {
+      await fs.rm(temporaryPath, { force: true });
+    }
+  }
+  return {
+    ok: true,
+    value: { rebuilt, data: listed.value.length, path: relativePath },
     diagnostics: [],
   };
 }

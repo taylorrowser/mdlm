@@ -37,11 +37,15 @@ import {
 } from "./lifecycle-output.js";
 import {
   createExactBaseline,
+  diffExactBaselines,
   freezeExactBaseline,
   mutateExactBaseline,
   verifyExactBaseline,
+  verifyRepositoryBaselines,
+  type BaselineDiff,
   type BaselineFreeze,
   type BaselineMutation,
+  type BaselineRepositoryVerification,
   type BaselineVerification,
 } from "./exact-baseline-repository.js";
 import {
@@ -51,6 +55,7 @@ import {
   listData,
   mutateDatumLink,
   rebuildRepositoryIndex,
+  rebuildRepositoryReport,
   reviseDatum,
   showDatum,
   traceGraph,
@@ -62,6 +67,7 @@ import {
   type LinkMutation,
   type ListedDatum,
   type RepositoryIndexSummary,
+  type RepositoryReportSummary,
   type StoredDatum,
 } from "./lifecycle-repository.js";
 import {
@@ -133,9 +139,12 @@ interface CommandResult {
   baselineMutation?: BaselineMutation;
   baselineFreeze?: BaselineFreeze;
   baselineVerification?: BaselineVerification;
+  baselineDiff?: BaselineDiff;
+  baselineRepositoryVerification?: BaselineRepositoryVerification;
   backlinks?: BacklinkInspection;
   trace?: GraphTrace;
   index?: RepositoryIndexSummary;
+  report?: RepositoryReportSummary;
   diagnostics: ProcessDiagnostic[];
 }
 
@@ -764,6 +773,46 @@ async function verifyBaseline(
   };
 }
 
+async function diffBaselines(
+  repositoryRoot: string,
+  beforeIdentity: string,
+  afterIdentity: string,
+): Promise<CommandResult> {
+  const command = "baseline.diff";
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command,
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const diff = await diffExactBaselines(
+    repositoryRoot,
+    selected.processPackage,
+    `${selected.summary.reference}#${selected.summary.digest}`,
+    beforeIdentity,
+    afterIdentity,
+  );
+  if (!diff.ok) {
+    return {
+      ok: false,
+      command,
+      package: selected.summary,
+      selected: true,
+      diagnostics: diff.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command,
+    package: selected.summary,
+    baselineDiff: diff.value,
+    diagnostics: [],
+  };
+}
+
 async function reviseStoredDatum(
   repositoryRoot: string,
   stableId: string,
@@ -1050,6 +1099,22 @@ async function doctorRepository(repositoryRoot: string): Promise<CommandResult> 
       diagnostics: selected.diagnostics,
     };
   }
+  const processReference =
+    `${selected.summary.reference}#${selected.summary.digest}`;
+  const verified = await verifyRepositoryBaselines(
+    repositoryRoot,
+    selected.processPackage,
+    processReference,
+  );
+  if (!verified.ok) {
+    return {
+      ok: false,
+      command: "doctor",
+      package: selected.summary,
+      selected: true,
+      diagnostics: verified.diagnostics,
+    };
+  }
   const rebuilt = await rebuildRepositoryIndex(
     repositoryRoot,
     selected.processPackage,
@@ -1064,11 +1129,27 @@ async function doctorRepository(repositoryRoot: string): Promise<CommandResult> 
       diagnostics: rebuilt.diagnostics,
     };
   }
+  const report = await rebuildRepositoryReport(
+    repositoryRoot,
+    selected.processPackage,
+    processReference,
+  );
+  if (!report.ok) {
+    return {
+      ok: false,
+      command: "doctor",
+      package: selected.summary,
+      selected: true,
+      diagnostics: report.diagnostics,
+    };
+  }
   return {
     ok: true,
     command: "doctor",
     package: selected.summary,
+    baselineRepositoryVerification: verified.value,
     index: rebuilt.value,
+    report: report.value,
     diagnostics: [],
   };
 }
@@ -1663,8 +1744,11 @@ function humanOutput(result: CommandResult): string {
     return [
       `Repository: healthy`,
       `Lifecycle Data: ${result.index.data}`,
+      `Verified Baselines: ${result.baselineRepositoryVerification?.verifiedBaselines ?? 0}`,
       `Index: ${result.index.rebuilt ? "rebuilt" : "current"}`,
       `Index Path: ${result.index.path}`,
+      `Report: ${result.report?.rebuilt ? "rebuilt" : "current"}`,
+      `Report Path: ${result.report?.path ?? "none"}`,
     ].join("\n");
   }
   if (result.linkMutation) {
@@ -1701,6 +1785,26 @@ function humanOutput(result: CommandResult): string {
       `Composition: ${result.baselineVerification.composition.join(", ") || "none"}`,
       `Checked Hashes: ${result.baselineVerification.checkedHashes}`,
       `Checked Resolutions: ${result.baselineVerification.checkedResolutions}`,
+    ].join("\n");
+  }
+  if (result.baselineDiff) {
+    const drift = new Set<object>(result.baselineDiff.processDrift);
+    return [
+      `Baseline Diff: ${result.baselineDiff.beforeBaseline} → ${result.baselineDiff.afterBaseline}`,
+      `Changes: ${result.baselineDiff.changes.length}`,
+      ...result.baselineDiff.changes.map((change) =>
+        `${change.kind}${drift.has(change) ? " [informational]" : ""}: ${change.before_revision} → ${change.after_revision}`
+      ),
+      ...result.baselineDiff.subjects.flatMap((subject) => [
+        `Subject: ${subject.subjectRevision}`,
+        ...Object.entries(subject.states).map(([dimension, value]) =>
+          `  ${dimension}: ${Array.isArray(value) ? value.join(", ") : value}`
+        ),
+        ...Object.entries(subject.stateExplanations).map(
+          ([dimension, explanation]) =>
+            `  ${dimension} explanation: ${Array.isArray(explanation) ? explanation.join("; ") : explanation}`,
+        ),
+      ]),
     ].join("\n");
   }
   if (result.backlinks) {
@@ -1968,6 +2072,12 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
     operands[0] === "baseline" && operands[1] === "verify" && operands[2]
   ) {
     return verifyBaseline(repositoryRoot, operands[2]);
+  }
+  if (
+    operands[0] === "baseline" && operands[1] === "diff" &&
+    operands[2] && operands[3]
+  ) {
+    return diffBaselines(repositoryRoot, operands[2], operands[3]);
   }
   if (
     (operands[0] === "link" || operands[0] === "unlink") &&

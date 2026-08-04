@@ -35,6 +35,7 @@ export type {
   DependencyComparison,
   EvidenceTargetDependencyChange,
   OutboundLinkDependencyChange,
+  ProcessProvenanceDependencyChange,
   ReviewContextDependencyChange,
   StableLinkResolution,
   StableLinkResolutionDependencyChange,
