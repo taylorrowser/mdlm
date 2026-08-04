@@ -13,6 +13,7 @@ import {
 } from "./index.js";
 import { evaluateProcessExpression } from "./evaluator.js";
 import {
+  deriveDatumStorage,
   publishScenarioMutation,
   readRepositoryData,
 } from "./lifecycle-repository.js";
@@ -535,7 +536,7 @@ export async function executeResolverScenario(
 
   const outputRecords: LifecycleRecord[] = outputData.map(({ datum }) => ({
     datum,
-    storage: { editable: true, frozen: false },
+    storage: deriveDatumStorage(processPackage, datum, false),
     integrity: {
       parseable: true,
       schema_valid: true,

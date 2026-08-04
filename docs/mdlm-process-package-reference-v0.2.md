@@ -638,7 +638,10 @@ not manufacture a Stale Boolean or recognize a State dimension name. Snapshot
 integrity fields are not misreported as authored content.
 
 `req show` and `req list` scan Markdown truth and add package-derived states,
-Obligation Instances, backlinks, and bound Kernel Capabilities. Before publishing
+Obligation Instances, backlinks, and bound Kernel Capabilities. Storage
+immutability is derived generically from exact frozen-baseline memberships and a
+resolved type's `terminal-outcome` lifecycle declaration; the repository does not
+recognize the Review type ID. Before publishing
 any generated output, `req doctor` validates repository/package compatibility,
 all Markdown envelopes and references, and every frozen capability-bound baseline
 hash, resolution, and composition claim. Provenance divergence is counted as

@@ -49,6 +49,32 @@ describe("req Phase 0 wayfinding slice", () => {
     ]));
   });
 
+  it("rejects a mutable prototype repository reference", () => {
+    const created = req(
+      repositoryRoot,
+      "new",
+      "ART",
+      "--scenario",
+      "build-exploratory-prototype@1",
+      "--set",
+      "title=Mutable prototype pointer",
+      "--set",
+      "kind=prototype",
+      "--set",
+      "repository_ref=git:main",
+      "--set",
+      'supported_behavior=["one experiment"]',
+      "--set",
+      "unsupported_behavior=[]",
+      "--json",
+    );
+
+    expect(created.status).toBe(1);
+    expect(JSON.parse(created.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "datum-payload" }),
+    ]);
+  });
+
   it("moves one exact intent slice through contextual review and reviewed gate sign-off", async () => {
     let adapterSequence = 0;
     const create = (...arguments_: string[]) => {
@@ -228,7 +254,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "--set",
       "kind=prototype",
       "--set",
-      "repository_ref=git:phase-0-spike",
+      "repository_ref=git:0123456789abcdef0123456789abcdef01234567",
       "--set",
       'supported_behavior=["export one representative report"]',
       "--set",
@@ -507,6 +533,10 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(reviews.map((item: any) =>
       item.lifecycleDatum.datum.links.find((link: any) => link.type === "reviews").target
     ).sort()).toEqual(expectedReviewTargets);
+    expect(reviews.every((item: any) =>
+      item.lifecycleDatum.storage.frozen === true &&
+      item.lifecycleDatum.storage.editable === false
+    )).toBe(true);
     const exactContexts = [
       intentContext.revisionId,
       candidateContext.revisionId,

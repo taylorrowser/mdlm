@@ -254,6 +254,36 @@ function frozenRevisionMemberships(
   return memberships;
 }
 
+function payloadPathValue(
+  payload: Record<string, unknown>,
+  field: string,
+): unknown {
+  return field.split(".").reduce<unknown>((value, segment) =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)[segment]
+      : undefined, payload);
+}
+
+export function deriveDatumStorage(
+  processPackage: ProcessPackage,
+  datum: DatumEnvelope,
+  frozenByBaseline: boolean,
+): LifecycleRecord["storage"] {
+  const resolved = resolveType(processPackage, datum.type);
+  const lifecycle = resolved.ok ? resolved.type.lifecycle : {};
+  const terminalField = typeof lifecycle.terminal_payload_field === "string"
+    ? lifecycle.terminal_payload_field
+    : undefined;
+  const terminalValues = Array.isArray(lifecycle.terminal_values)
+    ? lifecycle.terminal_values
+    : [];
+  const frozenByTerminalOutcome = lifecycle.freeze_when === "terminal-outcome" &&
+    terminalField !== undefined &&
+    terminalValues.includes(payloadPathValue(datum.payload, terminalField));
+  const frozen = frozenByBaseline || frozenByTerminalOutcome;
+  return { editable: !frozen, frozen };
+}
+
 function applyStorageFacts(
   processPackage: ProcessPackage,
   parsed: ParsedDatum[],
@@ -263,8 +293,11 @@ function applyStorageFacts(
     parsed.map((item) => item.lifecycleDatum),
   );
   for (const item of parsed) {
-    const frozen = memberships.has(item.lifecycleDatum.datum.revision_id);
-    item.lifecycleDatum.storage = { editable: !frozen, frozen };
+    item.lifecycleDatum.storage = deriveDatumStorage(
+      processPackage,
+      item.lifecycleDatum.datum,
+      memberships.has(item.lifecycleDatum.datum.revision_id),
+    );
   }
 }
 

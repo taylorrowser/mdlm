@@ -1175,7 +1175,9 @@ turning provisional choices into architecture.
   Markdown when the caller names an explicit package Phase; explicit fixture
   snapshots remain supported. Candidate creation and freezing use the selected
   `exact-baseline@1` capability, while REV and Gate Sign-off creation use the
-  canonical Resolver Scenario boundary.
+  canonical Resolver Scenario boundary. The repository derives terminal-outcome
+  immutability from each resolved type's package lifecycle declaration rather
+  than from a Review type ID.
 - **Alternatives:** Add Wayfinding Map, prototype, intent, or gate commands and
   nouns to the kernel CLI; encode Phase 0 as an imperative runner; persist task
   state instead of reevaluating Obligations; use one aggregate review for several
@@ -1199,7 +1201,8 @@ turning provisional choices into architecture.
   another sign-off while that DEC awaits contextual review. After the DEC review
   passes, the exact candidate gate is satisfied. Omitted `zero-or-more` Scenario
   outputs bind as an empty collection during completion evaluation rather than as
-  a missing expression binding.
+  a missing expression binding. Each terminal REV is immediately non-editable,
+  and prototype ART accepts only an exact Git commit reference.
 - **Reversibility:** A future repository projection module may replace the private
   CLI assembly and add explicit dependency-comparison inputs or multi-Phase
   inspection. A larger Example Process Package may revise MAP/ART schemas,
@@ -1212,4 +1215,5 @@ turning provisional choices into architecture.
   intent candidate through the capability surface, executes five independent
   reviews and one Gate Sign-off through capturing adapters, rejects a duplicate
   sign-off before adapter invocation, verifies the final gate evidence, confirms
-  exact review targets and frozen contexts, and finishes with `req doctor`.
+  exact review targets, terminal Review immutability, frozen contexts, exact ART
+  provenance, and finishes with `req doctor`.
