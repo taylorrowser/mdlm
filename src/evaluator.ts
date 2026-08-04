@@ -353,21 +353,23 @@ class LifecycleEvaluator {
       },
       phase: { id: snapshot.phaseId },
     };
-    for (const catalog of [
-      processPackage.selectors,
-      processPackage.policies,
-      processPackage.states,
-      processPackage.obligations,
-      processPackage.scenarios,
-      processPackage.phases,
-    ]) {
-      for (const definition of Object.values(catalog)) {
-        this.indexDefinitionExpressions(
-          definition,
-          `${definition.id}@${definition.version}`,
-        );
-      }
+    for (const definition of this.expressionBearingDefinitions()) {
+      this.indexDefinitionExpressions(
+        definition,
+        `${definition.id}@${definition.version}`,
+      );
     }
+  }
+
+  private expressionBearingDefinitions(): VersionedDefinition[] {
+    return [
+      ...Object.values(this.processPackage.selectors),
+      ...Object.values(this.processPackage.policies),
+      ...Object.values(this.processPackage.states),
+      ...Object.values(this.processPackage.obligations),
+      ...Object.values(this.processPackage.scenarios),
+      ...Object.values(this.processPackage.phases),
+    ];
   }
 
   evaluateExpressionTarget(
@@ -383,14 +385,9 @@ class LifecycleEvaluator {
     const id = match[1];
     const version = Number(match[2]);
     const field = match[3];
-    const definitions = [
-      ...Object.values(this.processPackage.selectors),
-      ...Object.values(this.processPackage.policies),
-      ...Object.values(this.processPackage.states),
-      ...Object.values(this.processPackage.obligations),
-      ...Object.values(this.processPackage.scenarios),
-      ...Object.values(this.processPackage.phases),
-    ].filter((definition) => definition.id === id && definition.version === version);
+    const definitions = this.expressionBearingDefinitions().filter(
+      (definition) => definition.id === id && definition.version === version,
+    );
     if (definitions.length !== 1) {
       throw new Error(`Unknown or ambiguous definition '${id}@${version}'`);
     }

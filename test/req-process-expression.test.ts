@@ -2,26 +2,17 @@ import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { req, selectProcessPackage } from "./helpers/req.js";
+import { req, selectBootstrapProcessPackage } from "./helpers/req.js";
 
-const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 const snapshot = path.join(process.cwd(), "examples/psp-to-sys-snapshot.yaml");
 const subjectRevision = "PSP-7K3M9Q2D8F-r00001";
-
-function selectBootstrapPackage(repositoryRoot: string): void {
-  selectProcessPackage(
-    repositoryRoot,
-    bootstrapPackage,
-    "mdlm-bootstrap@0.21.0",
-  );
-}
 
 describe("req process expression evaluation", () => {
   let repositoryRoot: string;
 
   beforeEach(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-req-expression-"));
-    selectBootstrapPackage(repositoryRoot);
+    selectBootstrapProcessPackage(repositoryRoot);
   });
 
   afterEach(async () => {

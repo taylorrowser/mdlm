@@ -2,17 +2,9 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { req, selectProcessPackage } from "./helpers/req.js";
+import { req, selectBootstrapProcessPackage } from "./helpers/req.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-
-function selectBootstrapPackage(repositoryRoot: string): void {
-  selectProcessPackage(
-    repositoryRoot,
-    bootstrapPackage,
-    "mdlm-bootstrap@0.21.0",
-  );
-}
 
 describe("req process package commands", () => {
   let repositoryRoot: string;
@@ -103,7 +95,7 @@ describe("req process package commands", () => {
   });
 
   it("validates the selected package and reports every validation surface", () => {
-    selectBootstrapPackage(repositoryRoot);
+    selectBootstrapProcessPackage(repositoryRoot);
 
     const validation = req(
       repositoryRoot,
@@ -141,7 +133,7 @@ describe("req process package commands", () => {
   });
 
   it("inspects the exact selected manifest and definition catalogs", () => {
-    selectBootstrapPackage(repositoryRoot);
+    selectBootstrapProcessPackage(repositoryRoot);
 
     const result = req(repositoryRoot, "process", "show", "--json");
     expect(result.status, result.stderr).toBe(0);
@@ -250,7 +242,7 @@ describe("req process package commands", () => {
   });
 
   it("enumerates the selected package and kernel expression capabilities", () => {
-    selectBootstrapPackage(repositoryRoot);
+    selectBootstrapProcessPackage(repositoryRoot);
 
     const result = req(
       repositoryRoot,

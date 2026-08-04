@@ -40,3 +40,11 @@ export function selectProcessPackage(
     );
   }
 }
+
+export function selectBootstrapProcessPackage(repositoryRoot: string): void {
+  selectProcessPackage(
+    repositoryRoot,
+    path.join(process.cwd(), ".lifecycle/process"),
+    "mdlm-bootstrap@0.21.0",
+  );
+}
