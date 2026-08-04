@@ -1277,3 +1277,62 @@ turning provisional choices into architecture.
   publication; confirms positive and negative-control observations, exact RUN
   bindings, terminal immutability, no qualification requirement link, and
   successful repository health validation.
+
+
+## D-045 — Derive one bounded system decomposition entirely from package data
+
+- **Status:** accepted and implemented
+- **Decision:** The Example Process Package adds ASP, ICSP, and DWP as ordinary
+  package-owned lifecycle types and expands Phase 2 with one bounded system
+  decomposition tracer. A DWP planning Revision records exact parent,
+  architecture-element, interface, verification, exclusion, dependency, and
+  review-policy context. Package Selectors and Obligations derive reviewed-plan
+  execution, exact open-question blockers, output Reviews, separate requirement
+  and architecture/interface simplification Reviews, completion, and parent
+  coverage. The completion Scenario publishes the next Revision in the same DWP
+  lineage. A reviewed group candidate contains the exact DWP completion, SYS,
+  ASP, and ICSP Revisions; the reviewed level candidate composes that group and
+  retains VSP, ASP, and ICSP as shared definition context before exact reviewed
+  gate authorization. Generic type-prefix syntax accepts three through eight
+  uppercase characters, and Scenario required-link checks normalize an input
+  Revision to Stable identity only when the resolved source-owned link contract
+  requires Stable identity.
+- **Alternatives:** Add DWP commands, architecture-element lookup, parent coverage,
+  simplification, or SYS gate behavior to the kernel; abbreviate ICSP to fit the
+  earlier three-character prototype syntax; store mutable progress flags instead
+  of deriving Obligation Instances; collapse both simplification passes into an
+  ordinary candidate Review; complete the DWP before exact output Reviews; infer
+  candidate composition from a phase name; or require a hidden workflow to move
+  from plan through gate.
+- **Rationale:** Exact package data and existing generic repository, graph,
+  baseline, Review, Obligation, and Scenario services are sufficient to express
+  the bounded slice. Widening the generic type-prefix grammar preserves the
+  accepted ICSP vocabulary without teaching the kernel that vocabulary. Required
+  links must follow the source type's declared identity contract: a Scenario may
+  consume an exact parent Revision while authoring a Stable `derived-from` edge.
+  Resolving that identity generically avoids both an impossible output contract
+  and package-specific special cases.
+- **Expected behavior:** An open QST produces an exact blocker chain and prevents
+  DWP execution. After exact resolution and planning Review, execution produces
+  one linked SYS Revision. Output Review and two dedicated simplification
+  Obligation Instances block completion until their exact evidence exists. The
+  completion Revision accounts for every parent and is independently reviewed.
+  Frozen group and level candidates verify recursively, preserve distinct
+  definition members and evidence, and the exact level candidate reaches gate
+  completion only after its own Review and a reviewed Gate Sign-off.
+- **Reversibility:** Later package versions may add multiple groups, richer
+  coverage records, overlap detection, collateral-finding triage, candidate
+  reservation, cross-group review, formal SYS verification, or component/design
+  DWP types without changing the generic evaluator. The type-prefix upper bound
+  may be revised through a future kernel contract version if real packages need a
+  broader identifier grammar.
+- **Evidence/observations:** Public executable coverage initializes a real
+  repository; authorizes exact intent; creates VSP, ASP, ICSP, and a DWP plan;
+  freezes and reviews planning context; proves exact QST blocking and resolution;
+  executes the Dispatchable DWP through an adapter; derives and resolves output
+  Review and both simplification Obligations; atomically publishes DWP r00002;
+  freezes and reviews its completion; verifies exact group and composed level
+  candidates with shared context; and records a reviewed exact SYS Gate Sign-off.
+  The same test proves four-character ICSP identities through the public CLI and
+  validates Stable required-link normalization without a V-model noun in generic
+  source.

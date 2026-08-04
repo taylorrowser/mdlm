@@ -1,0 +1,12 @@
+kind: selector-definition
+id: architectures-for-decomposition
+version: 1
+description: Exact architecture revisions whose governs link names the supplied DWP plan.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: plan, link: governs, emit: source, types: [ASP]}
+  as: architecture
+  distinct: true
+  order_by: [identity.revision_id]

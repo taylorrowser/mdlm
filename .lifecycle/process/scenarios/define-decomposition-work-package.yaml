@@ -1,0 +1,28 @@
+kind: scenario-definition
+id: define-decomposition-work-package
+version: 1
+description: Plan one bounded decomposition from exact stakeholder requirements in architecture, interface, and verification context.
+phases: [phase-2-system-definition]
+inputs:
+  - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: plan
+    types: [DWP]
+    cardinality: one
+    required_links:
+      - {link: decomposes, target: {input: parents}}
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/define-decomposition-work-package.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && plan.payload.stage == "planning"
+  && plan.payload.architecture_context.revision == architecture.identity.revision_id
+  && plan.payload.verification_strategy_revision == verification_strategy.identity.revision_id
+resolves: []
+prohibited_inputs: [mutable latest aliases, product source code, proposed implementation details]
+batching: single

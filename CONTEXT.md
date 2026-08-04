@@ -105,6 +105,24 @@ _Avoid_: Workflow step, command
 A declarative scope that selects applicable obligations, scenarios, entry conditions, and gate conditions without prescribing an imperative sequence.
 _Avoid_: Pipeline stage when sequential execution is implied
 
+## Definition and decomposition
+
+**Decomposition Work Package (DWP)**:
+The durable planning and completion lineage for one bounded many-to-many decomposition from exact parent requirement Revisions to exact child requirement Revisions.
+_Avoid_: Task, batch, decomposition document
+
+**Architecture Specification (ASP)**:
+An exact definition of architecture elements, responsibilities, interactions, constraints, and nominated risks used to organize decomposition.
+_Avoid_: Implementation design when the claim is architectural context
+
+**Architecture Element**:
+A stable opaque identity embedded in an ASP Revision and used for allocation independently of its changeable human-facing alias.
+_Avoid_: Component requirement, alias when identity matters
+
+**Interface Control Specification (ICSP)**:
+A normative externally observable contract across a controlled architecture boundary, including operations, schemas, units, timing, errors, security, ordering, compatibility, and versioning.
+_Avoid_: Private API, implementation interface
+
 ## Review and authorization
 
 **Review Context**:

@@ -89,7 +89,7 @@ describe("phase evaluation", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.phase).toEqual({
       id: "phase-2-system-definition",
-      version: 2,
+      version: 3,
       entry: {
         satisfied: false,
         explanation: "The package-defined phase entry expression is not satisfied.",

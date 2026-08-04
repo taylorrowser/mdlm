@@ -19,7 +19,7 @@
   "$defs": {
     "types": {
       "type": "array",
-      "items": {"type": "string", "pattern": "^[A-Z]{3}$"},
+      "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"},
       "minItems": 1,
       "uniqueItems": true
     },

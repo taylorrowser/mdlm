@@ -77,7 +77,7 @@ describe("req lifecycle status and next work", () => {
       command: "phase.status",
       phaseStatus: expect.objectContaining({
         id: "phase-2-system-definition",
-        version: 2,
+        version: 3,
         entry: expect.objectContaining({ satisfied: false }),
         candidateSelection: expect.objectContaining({ entities: [] }),
         obligations: {
@@ -109,7 +109,7 @@ describe("req lifecycle status and next work", () => {
       prototypeSnapshot,
     );
     expect(human.status, human.stderr).toBe(0);
-    expect(human.stdout).toContain("Phase: phase-2-system-definition@2");
+    expect(human.stdout).toContain("Phase: phase-2-system-definition@3");
     expect(human.stdout).toContain("Entry Satisfied: false");
     expect(human.stdout).toContain("Candidates: none");
     expect(human.stdout).toContain("Obligations: total=6");
@@ -197,7 +197,7 @@ describe("req lifecycle status and next work", () => {
       ok: true,
       command: "next",
       next: {
-        phase: "phase-2-system-definition@2",
+        phase: "phase-2-system-definition@3",
         item: expect.objectContaining({
           id: "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype",
           dispatchable: true,
@@ -223,7 +223,7 @@ describe("req lifecycle status and next work", () => {
     );
     expect(none.status, none.stderr).toBe(0);
     expect(JSON.parse(none.stdout).next).toEqual({
-      phase: "phase-2-system-definition@2",
+      phase: "phase-2-system-definition@3",
       item: null,
     });
   });

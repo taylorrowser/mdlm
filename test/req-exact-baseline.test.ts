@@ -208,7 +208,7 @@ describe("req exact-baseline@1 capability commands", () => {
         evidence: [evidence.revisionId],
         composition: [component.revisionId],
         hashes: 3,
-        processRef: expect.stringMatching(/^mdlm-bootstrap@0\.26\.0#sha256:/),
+        processRef: expect.stringMatching(/^mdlm-bootstrap@0\.27\.0#sha256:/),
         frozenAt: expect.any(String),
       },
     }));
@@ -243,7 +243,7 @@ describe("req exact-baseline@1 capability commands", () => {
         [component.revisionId]: [],
       },
       process_provenance: {
-        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.26\.0#sha256:/),
+        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.27\.0#sha256:/),
         manifest_hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         asset_refs: expect.arrayContaining([
           "create-candidate-baseline@1",

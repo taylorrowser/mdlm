@@ -323,6 +323,7 @@ function outputContractDiagnostics(
 }
 
 function requiredLinkDiagnostics(
+  processPackage: ProcessPackage,
   scenario: VersionedDefinition,
   dryRun: ScenarioDryRun,
   outputs: { proposal: AdapterOutputProposal; datum: DatumEnvelope }[],
@@ -338,16 +339,29 @@ function requiredLinkDiagnostics(
       const required = object(requiredValue);
       const target = object(required?.target);
       const linkType = typeof required?.link === "string" ? required.link : "";
+      const outputType = processPackage.types[output.datum.type];
+      const linkContract = array(outputType?.outgoing_links)
+        .map(object)
+        .find((candidate) => candidate?.id === linkType);
+      const linkTargets = array(linkContract?.targets).map(object);
+      const requiredIdentity = (type: string): unknown =>
+        linkTargets.find((candidate) =>
+          candidate?.kind === "datum" && array(candidate.types).includes(type)
+        )?.identity;
       const invocation = dryRun.invocations[output.proposal.invocation];
       const expected = typeof target?.input === "string"
         ? invocation?.inputs.find((input) => input.name === target.input)?.values.map(
-          (value) => value.identity.revision_id ?? value.identity.id,
+          (value) => requiredIdentity(value.identity.type) === "stable"
+            ? value.identity.id
+            : value.identity.revision_id ?? value.identity.id,
         ) ?? []
         : typeof target?.output === "string"
           ? outputs.filter((candidate) =>
             candidate.proposal.invocation === output.proposal.invocation &&
             candidate.proposal.name === target.output
-          ).map((candidate) => candidate.datum.revision_id)
+          ).map((candidate) => requiredIdentity(candidate.datum.type) === "stable"
+            ? candidate.datum.id
+            : candidate.datum.revision_id)
           : [];
       const actual = output.datum.links
         .filter((link) => link.type === linkType)
@@ -531,7 +545,12 @@ export async function executeResolverScenario(
     };
     return { proposal, datum };
   });
-  const linkDiagnostics = requiredLinkDiagnostics(scenario, dryRun, outputData);
+  const linkDiagnostics = requiredLinkDiagnostics(
+    processPackage,
+    scenario,
+    dryRun,
+    outputData,
+  );
   if (linkDiagnostics.length > 0) return { ok: false, diagnostics: linkDiagnostics };
 
   const outputRecords: LifecycleRecord[] = outputData.map(({ datum }) => ({

@@ -1,10 +1,10 @@
-# MDLM bootstrap process package v0.26
+# MDLM bootstrap process package v0.27
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
 toward the accepted v0.8 design. It now includes `MAP`, `QST`, `DEC`, `ART`,
-`PSP`, `STK`, `SYS`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`, `RES`, `REV`, and
-`BSL`. These are a bootstrap subset of the bundled V-model Example Process
+`PSP`, `STK`, `SYS`, `ASP`, `ICSP`, `DWP`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`,
+`RES`, `REV`, and `BSL`. These are a bootstrap subset of the bundled V-model Example Process
 Package, not lifecycle types recognized by MDLM core.
 
 The package can be explicitly installed and selected with the package-neutral
@@ -181,10 +181,29 @@ completion rejects a formal requirement claim from a pilot run, terminal RUN/RES
 are immediately immutable, and package-declared generated types cannot be created
 or revised through generic direct authoring.
 
+## Phase 2 system decomposition tracer slice
+
+The package defines exact DWP planning and completion Revisions, stable ASP
+architecture elements, normative ICSP boundaries, and allocated SYS outputs.
+Package-authored Selectors and Obligations derive reviewed-plan execution, exact
+question blockers, child Review completion, parent coverage, and separate
+requirement-set and architecture/interface simplification work. The completion
+Scenario publishes the next DWP Revision in the same Stable Datum lineage only
+after those exact obligations resolve. A frozen SYS group candidate contains the
+reviewed completion, output, architecture, and interface Revisions; the reviewed
+level candidate composes that exact group and retains VSP, ASP, and ICSP as shared
+context before exact reviewed gate authorization.
+
+Scenario required-link validation follows the source type's identity contract, so
+an exact Revision input is normalized to its Stable Datum ID only when the
+package-owned outgoing link requires Stable identity. Generic type identifiers
+accept three through eight uppercase characters, permitting `ICSP` without core
+recognition of that or any other V-model noun.
+
 ## Scope
 
-Phases 0, 1, and 2 remain marked `bootstrap-subset`. The narrow Phase 0 intent and
-Phase 1 qualification/pilot slices are executable, but complete simplification,
-promotion, DWP, architecture, interfaces, formal verification, implementation,
-and change semantics remain deferred. The package tests the evaluator seam before
-broader lifecycle breadth.
+Phases 0, 1, and 2 remain marked `bootstrap-subset`. Their narrow intent,
+qualification/pilot, and one-group system-decomposition slices are executable,
+but complete promotion, formal verification, component/design decomposition,
+implementation, and change semantics remain deferred. The package tests the
+evaluator seam before broader lifecycle breadth.

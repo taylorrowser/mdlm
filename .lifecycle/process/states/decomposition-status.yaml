@@ -1,0 +1,62 @@
+kind: state-definition
+id: decomposition-status
+version: 1
+description: Package-authored progress of exact Decomposition Work Package revisions.
+subject_as: subject
+cardinality: exactly-one
+default: not-applicable
+values: [not-applicable, planned, in-progress, blocked, awaiting-output-reviews, awaiting-simplification, awaiting-completion-review, complete]
+rules:
+  - value: complete
+    priority: 700
+    when: >-
+      subject.identity.type == "DWP"
+      && subject.payload.stage == "completion"
+      && subject.payload.parent_coverage_status in ["complete", "waived"]
+      && subject.payload.output_reviews_complete == true
+      && exists("passing-reviews-for@1", {subject: subject})
+    explanation: Exact parent coverage, output Reviews, simplification, and completion Review are recorded.
+  - value: awaiting-completion-review
+    priority: 600
+    when: >-
+      subject.identity.type == "DWP"
+      && subject.payload.stage == "completion"
+      && none("passing-reviews-for@1", {subject: subject})
+    explanation: The completion Revision requires independent contextual Review.
+  - value: blocked
+    priority: 500
+    when: >-
+      subject.identity.type == "DWP"
+      && subject.payload.stage == "planning"
+      && exists("blocking-questions-for-decomposition@1", {plan: subject})
+    explanation: An exact open Question blocks this decomposition.
+  - value: awaiting-simplification
+    priority: 400
+    when: >-
+      subject.identity.type == "DWP"
+      && subject.payload.stage == "planning"
+      && exists("decomposition-outputs-for@1", {plan: subject})
+      && none("unreviewed-decomposition-outputs-for@1", {plan: subject})
+      && (none("requirement-simplification-reviews-for@1", {plan: subject})
+        || none("architecture-simplification-reviews-for@1", {plan: subject}))
+    explanation: Reviewed outputs await dedicated requirement and architecture/interface simplification.
+  - value: awaiting-output-reviews
+    priority: 300
+    when: >-
+      subject.identity.type == "DWP"
+      && subject.payload.stage == "planning"
+      && exists("unreviewed-decomposition-outputs-for@1", {plan: subject})
+    explanation: One or more exact child revisions still require contextual Review.
+  - value: in-progress
+    priority: 200
+    when: >-
+      subject.identity.type == "DWP"
+      && subject.payload.stage == "planning"
+      && exists("decomposition-outputs-for@1", {plan: subject})
+    explanation: Exact decomposition outputs exist but completion evidence is not yet recorded.
+  - value: planned
+    priority: 100
+    when: >-
+      subject.identity.type == "DWP"
+      && subject.payload.stage == "planning"
+    explanation: The exact planning Revision bounds decomposition work.

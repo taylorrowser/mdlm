@@ -16,7 +16,7 @@
       "additionalProperties": false,
       "required": ["types", "phases", "obligation_statuses"],
       "properties": {
-        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "uniqueItems": true},
+        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "uniqueItems": true},
         "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "uniqueItems": true},
         "obligation_statuses": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
       }

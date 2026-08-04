@@ -1,0 +1,33 @@
+kind: obligation-definition
+id: architecture-interface-simplification-required
+version: 1
+description: Every executed DWP requires one passing dedicated architecture/interface simplification Review.
+phases: [phase-2-system-definition]
+for_each: 'select("decomposition-plans@1", {})'
+subject_as: plan
+satisfied_when: 'exists("architecture-simplification-reviews-for@1", {plan: plan})'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: >-
+      none("decomposition-outputs-for@1", {plan: plan})
+      || none("decomposition-simplification-contexts-for@1", {plan: plan})
+    reason: Architecture simplification waits for exact outputs and one frozen definition-set context.
+    blocked_by:
+      - obligation: decomposition-execution-required@1
+        subjects: '[plan]'
+      - obligation: review-context-required@2
+        subjects: '[plan]'
+  - status: awaiting-review
+    priority: 100
+    when: >-
+      exists("decomposition-outputs-for@1", {plan: plan})
+      && exists("decomposition-simplification-contexts-for@1", {plan: plan})
+    reason: The frozen architecture and interfaces are ready for adversarial simplification Review.
+default_status: blocked
+resolve_with:
+  scenario: simplify-architecture-and-interfaces@1
+  inputs:
+    plan: plan
+    subject_context: 'one("decomposition-simplification-contexts-for@1", {plan: plan})'
+waiver_policy_ref: waiver-applicability@1

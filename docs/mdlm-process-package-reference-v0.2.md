@@ -652,8 +652,8 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.26 models MAP, QST, DEC, ART, PSP, STK, SYS, VSP, ENV,
-VER, VAI, RUN, RES, REV, and BSL. MAP is a linked frontier index and ART records
+Bootstrap package 0.27 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+DWP, VSP, ENV, VER, VAI, RUN, RES, REV, and BSL. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. The narrow repository-backed Phase 0 tracer reviews MAP,
 PSP, and STK separately in a shared exact frozen context, freezes and reviews an
@@ -670,9 +670,19 @@ must record positive success and negative discrimination observations; Scenario
 completion rejects a formal claim from that pilot even when the proposed RES is
 otherwise schema-valid.
 
-Phases 0, 1, and 2 remain explicit bootstrap subsets. Complete simplification and
-promotion, DWP, architecture, interfaces, formal verification, implementation,
-and change types remain deferred. The purpose is to validate the kernel/process
-seam, schema composition, graph querying, review evidence, baselines, policies,
-obligations, Scenario execution, and gate routing before broader lifecycle
-breadth.
+The Phase 2 tracer records one reviewed DWP plan in exact ASP, ICSP, and VSP
+context, derives exact question, execution, output-Review, parent-coverage, and
+dedicated simplification Obligations, and publishes a completion Revision in the
+same DWP lineage. Its reviewed group candidate contains exact DWP, SYS, ASP, and
+ICSP Revisions. The reviewed SYS level candidate composes that exact group while
+retaining shared VSP, ASP, and ICSP members, then reaches exact reviewed gate
+authorization. Required Scenario links normalize an input Revision to Stable
+identity only when the package-owned source contract requires it. Kernel identity
+syntax permits three-to-eight-character uppercase type prefixes, but the kernel
+recognizes none of these example IDs.
+
+Phases 0, 1, and 2 remain explicit bootstrap subsets. Complete promotion, formal
+verification, component/design decomposition, implementation, and change types
+remain deferred. The purpose is to validate the kernel/process seam, schema
+composition, graph querying, review evidence, baselines, policies, obligations,
+Scenario execution, and gate routing before broader lifecycle breadth.

@@ -6,10 +6,10 @@
   "additionalProperties": false,
   "required": ["id", "revision", "revision_id", "type", "payload", "links", "created_by", "body"],
   "properties": {
-    "id": {"type": "string", "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
+    "id": {"type": "string", "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
     "revision": {"type": "integer", "minimum": 1},
-    "revision_id": {"type": "string", "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"},
-    "type": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "revision_id": {"type": "string", "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"},
+    "type": {"type": "string", "pattern": "^[A-Z]{3,8}$"},
     "payload": {"type": "object"},
     "links": {
       "type": "array",

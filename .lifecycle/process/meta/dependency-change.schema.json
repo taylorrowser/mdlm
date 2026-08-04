@@ -15,7 +15,7 @@
   "$defs": {
     "revision-id": {
       "type": "string",
-      "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"
+      "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"
     },
     "base": {
       "type": "object",
@@ -84,7 +84,7 @@
             "before_revision": {"type": "string"},
             "after_revision": {"type": "string"},
             "link_type": {"type": "string"},
-            "stable_target": {"type": "string", "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
+            "stable_target": {"type": "string", "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
             "before_target_revision": {"$ref": "#/$defs/revision-id"},
             "after_target_revision": {"$ref": "#/$defs/revision-id"}
           }

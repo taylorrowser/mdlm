@@ -1,12 +1,13 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.26.0
+version: 0.27.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
-  narrow Phase 0 intent and Phase 1 qualification/pilot slices.
+  narrow Phase 0 intent, Phase 1 qualification/pilot, and Phase 2 system
+  decomposition slices.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -40,9 +41,9 @@ compatibility:
   template_inheritance: single-parent-additive
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, VSP, ENV, VER, VAI, RUN, RES, REV, BSL]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL]
   policies: [dependency-reassessment, review-applicability, waiver-applicability]
-  states: [maturity, disposition, validity, relationship-overlays]
+  states: [maturity, disposition, validity, relationship-overlays, decomposition-status]
   selectors:
     - review-required-revisions
     - newer-revisions-for
@@ -76,6 +77,19 @@ catalog:
     - completed-runs-for-implementation
     - passing-qualification-results-for
     - qualification-implementations-for-environment
+    - decomposition-plans
+    - decomposition-completions-for
+    - decomposition-parents-for
+    - decomposition-outputs-for
+    - unreviewed-decomposition-outputs-for
+    - decomposition-review-contexts-for
+    - decomposition-simplification-contexts-for
+    - matching-decomposition-context-for-output
+    - requirement-simplification-reviews-for
+    - architecture-simplification-reviews-for
+    - blocking-questions-for-decomposition
+    - architectures-for-decomposition
+    - interfaces-for-decomposition
   obligations:
     - review-context-required
     - passing-review-required
@@ -83,6 +97,12 @@ catalog:
     - candidate-members-reviewed
     - candidate-gate-signoff
     - verification-run-required
+    - decomposition-execution-required
+    - decomposition-output-reviews-required
+    - decomposition-simplification-required
+    - architecture-interface-simplification-required
+    - decomposition-completion-required
+    - decomposition-parent-coverage-required
   scenarios:
     - chart-wayfinding-map
     - build-exploratory-prototype
@@ -99,6 +119,13 @@ catalog:
     - write-verification-activity
     - implement-verification-activity
     - execute-verification-run
+    - define-system-architecture
+    - define-interface-control-specification
+    - define-decomposition-work-package
+    - execute-decomposition-work-package
+    - simplify-requirement-set
+    - simplify-architecture-and-interfaces
+    - complete-decomposition-work-package
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
   aliases: [question.resolve]
 assets:
@@ -118,6 +145,13 @@ assets:
     - prompts/write-verification-activity.md@1
     - prompts/implement-verification-activity.md@1
     - prompts/execute-verification-run.md@1
+    - prompts/define-system-architecture.md@1
+    - prompts/define-interface-control-specification.md@1
+    - prompts/define-decomposition-work-package.md@1
+    - prompts/execute-decomposition-work-package.md@1
+    - prompts/simplify-requirement-set.md@1
+    - prompts/simplify-architecture-and-interfaces.md@1
+    - prompts/complete-decomposition-work-package.md@1
   skills:
     - skills/lifecycle-data.md@1
     - skills/wayfinding-map.md@1
@@ -138,12 +172,20 @@ assets:
     - skills/verification-independence.md@1
     - skills/verification-run-model.md@1
     - skills/reproducibility.md@1
+    - skills/architecture-specification.md@1
+    - skills/architecture-elements.md@1
+    - skills/interface-control-specification.md@1
+    - skills/boundary-definition.md@1
+    - skills/dwp-planning.md@1
+    - skills/decomposition.md@1
+    - skills/coverage-analysis.md@1
+    - skills/dwp-completion.md@1
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@3
+  default: bootstrap@4
   available:
-    - profiles/bootstrap.yaml@3
+    - profiles/bootstrap.yaml@4
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

@@ -1,0 +1,13 @@
+kind: selector-definition
+id: decomposition-completions-for
+version: 1
+description: Exact completion revisions in the supplied DWP plan lineage.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: plan, emit: entity, types: [DWP]}
+  as: completion
+  where: 'completion.payload.stage == "completion"'
+  distinct: true
+  order_by: [identity.revision]

@@ -1,0 +1,46 @@
+kind: obligation-definition
+id: decomposition-completion-required
+version: 1
+description: Every reviewed and simplified DWP plan requires a completion Revision in the same Stable Datum lineage.
+phases: [phase-2-system-definition]
+for_each: 'select("decomposition-plans@1", {})'
+subject_as: plan
+satisfied_when: 'exists("decomposition-completions-for@1", {plan: plan})'
+status_rules:
+  - status: blocked
+    priority: 300
+    when: 'exists("blocking-questions-for-decomposition@1", {plan: plan})'
+    reason: Exact open questions block completion of this decomposition.
+    blocked_by:
+      - obligation: open-question-resolution@2
+        subjects: 'select("blocking-questions-for-decomposition@1", {plan: plan})'
+  - status: blocked
+    priority: 200
+    when: >-
+      none("decomposition-outputs-for@1", {plan: plan})
+      || exists("unreviewed-decomposition-outputs-for@1", {plan: plan})
+      || none("requirement-simplification-reviews-for@1", {plan: plan})
+      || none("architecture-simplification-reviews-for@1", {plan: plan})
+    reason: Exact outputs, output Reviews, and both simplification Reviews must complete first.
+    blocked_by:
+      - obligation: decomposition-output-reviews-required@1
+        subjects: '[plan]'
+      - obligation: decomposition-simplification-required@1
+        subjects: '[plan]'
+      - obligation: architecture-interface-simplification-required@1
+        subjects: '[plan]'
+  - status: ready
+    priority: 100
+    when: >-
+      exists("decomposition-outputs-for@1", {plan: plan})
+      && none("unreviewed-decomposition-outputs-for@1", {plan: plan})
+      && exists("requirement-simplification-reviews-for@1", {plan: plan})
+      && exists("architecture-simplification-reviews-for@1", {plan: plan})
+      && none("blocking-questions-for-decomposition@1", {plan: plan})
+    reason: Coverage evidence can now be recorded in the exact DWP completion Revision.
+default_status: blocked
+resolve_with:
+  scenario: complete-decomposition-work-package@1
+  inputs:
+    plan: plan
+waiver_policy_ref: waiver-applicability@1

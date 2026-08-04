@@ -125,9 +125,9 @@ export interface ParsedDatum {
 }
 
 const base32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const stableIdentity = /^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
-const revisionIdentity = /^([A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
-const obligationInstanceIdentity = /^([a-z][a-z0-9-]*@[1-9][0-9]*):([A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}):(.+)$/;
+const stableIdentity = /^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
+const revisionIdentity = /^([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
+const obligationInstanceIdentity = /^([a-z][a-z0-9-]*@[1-9][0-9]*):([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}):(.+)$/;
 
 function randomStableId(typeId: string): string {
   return `${typeId}-${[...randomBytes(10)]

@@ -8,7 +8,7 @@
   "properties": {
     "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
     "kind": {"enum": ["stable-datum", "revision", "baseline", "execution", "phase", "process", "scalar"]},
-    "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
+    "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
     "scalar_type": {"enum": ["string", "number", "integer", "boolean"]}
   },
   "allOf": [

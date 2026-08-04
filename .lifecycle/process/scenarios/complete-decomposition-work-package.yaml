@@ -1,0 +1,25 @@
+kind: scenario-definition
+id: complete-decomposition-work-package
+version: 1
+description: Record the next exact completion Revision for a reviewed, covered, simplified decomposition plan.
+phases: [phase-2-system-definition]
+inputs:
+  - {name: plan, types: [DWP], cardinality: one, identity: revision}
+outputs:
+  - name: completion
+    types: [DWP]
+    cardinality: one
+    required_links: []
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/complete-decomposition-work-package.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && completion.identity.id == plan.identity.id
+  && completion.payload.stage == "completion"
+  && completion.payload.parent_coverage_status in ["complete", "waived"]
+  && completion.payload.output_reviews_complete == true
+resolves: [decomposition-completion-required, decomposition-parent-coverage-required]
+prohibited_inputs: [unreviewed outputs, unresolved blocking questions, incomplete simplification evidence, mutable latest aliases]
+batching: single

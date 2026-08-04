@@ -27,7 +27,7 @@
       "required": ["name", "types", "cardinality", "identity"],
       "properties": {
         "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
+        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
         "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]},
         "identity": {"enum": ["stable", "revision", "either"]},
         "conditions": {"$ref": "expression.schema.json"}
@@ -59,7 +59,7 @@
       "required": ["name", "types", "cardinality", "required_links"],
       "properties": {
         "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3}$"}, "minItems": 1, "uniqueItems": true},
+        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
         "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]},
         "required_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}}
       }

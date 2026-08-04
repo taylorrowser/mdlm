@@ -1,0 +1,21 @@
+kind: scenario-definition
+id: define-system-architecture
+version: 1
+description: Define exact system architecture elements and context for one bounded decomposition slice.
+phases: [phase-2-system-definition]
+inputs:
+  - {name: requirements, types: [STK, SYS], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: architecture
+    types: [ASP]
+    cardinality: one
+    required_links:
+      - {link: governs, target: {input: requirements}}
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/define-system-architecture.md@1
+review_policy_ref: review-applicability@1
+completion: 'execution.integrity.contract_valid == true'
+resolves: []
+prohibited_inputs: [product source code, mutable latest aliases, unreviewed architecture assumptions]
+batching: coherent-batch

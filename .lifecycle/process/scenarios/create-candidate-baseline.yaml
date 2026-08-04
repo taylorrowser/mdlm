@@ -5,7 +5,7 @@ description: Freeze exact reviewed definition revisions as a candidate baseline 
 phases: [phase-0-wayfinding, phase-2-system-definition]
 inputs:
   - name: definition_members
-    types: [PSP, STK, SYS]
+    types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP]
     cardinality: one-or-more
     identity: revision
     conditions: 'exists("passing-reviews-for@1", {subject: definition_members})'

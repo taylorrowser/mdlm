@@ -39,10 +39,11 @@ types, states, obligations, scenarios, and phases.
   Selected packages may expose dotted, declarative Package Command Aliases whose
   typed arguments resolve to that identical Scenario execution path without
   adding shell commands, package code, or host functions. The first repository-
-  backed Example Process Package tracer moves an exact MAP/PSP/STK intent slice
-  through a shared frozen Review Context, one REV per substantive subject, an
-  exact candidate Baseline, and a reviewed Gate Sign-off while prototype ART,
-  QST, and DEC evidence remain distinct.
+  backed Example Process Package tracers move an exact MAP/PSP/STK intent slice
+  through a reviewed Gate Sign-off, qualify one environment and run one
+  source-independent verification pilot, and move one reviewed Decomposition Work
+  Package through exact SYS output, architecture/interface simplification,
+  completion Review, composed group/level candidates, and a reviewed SYS gate.
 
 ## Try it
 
@@ -102,7 +103,7 @@ mutation, graph inspection, capability-bound exact-baseline freezing and
 verification and diffing, source-backed reads, integrity-aware repository
 inspection, disposable index/report rebuilding, side-effect-free Resolver
 Scenario dry-runs, atomic adapter execution, safe declarative Scenario aliases,
-repository-backed Phase evaluation, the narrow Phase 0 intent pilot, and one
-Phase 1 environment-qualification and source-independent verification pilot are
-implemented; additional concurrency profiles and full lifecycle breadth remain
-deferred.
+repository-backed Phase evaluation, the narrow Phase 0 intent pilot, one Phase 1
+environment-qualification and source-independent verification pilot, and one
+bounded Phase 2 DWP-to-reviewed-SYS-candidate tracer are implemented; additional
+concurrency profiles and full lifecycle breadth remain deferred.

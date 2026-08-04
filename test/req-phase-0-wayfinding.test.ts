@@ -32,9 +32,12 @@ describe("req Phase 0 wayfinding slice", () => {
     const catalogs = JSON.parse(shown.stdout).inspection.definitionCatalogs;
     expect(catalogs.types).toEqual([
       "ART@1",
+      "ASP@1",
       "BSL@2",
       "DEC@2",
+      "DWP@1",
       "ENV@1",
+      "ICSP@1",
       "MAP@1",
       "PSP@2",
       "QST@2",

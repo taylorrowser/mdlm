@@ -1,25 +1,28 @@
 kind: phase-definition
 id: phase-2-system-definition
-version: 2
+version: 3
 order: 2
-name: System definition bootstrap
-purpose: Test traceable derivation, contextual review, and candidate baselining for solution-independent SYS requirements.
+name: System definition tracer
+purpose: Plan, review, execute, simplify, and complete one bounded decomposition into an exact reviewed SYS candidate with architecture and interface context.
 coverage: bootstrap-subset
 omitted_capabilities:
-  - Phase 1 product assurance
-  - DWP planning and completion
-  - system VSP and verification pilot
-  - ASP and ICSP definition
-  - dedicated requirement and architecture simplification reviews
+  - formal SYS verification execution
   - downstream promotion of STK candidates
+  - multiple architecture groups and cross-group reconciliation
 entry: >-
   process.integrity.package_valid == true
   && exists("signed-off-candidates-of-kind@1",
     {baseline_kind: "intent-level-candidate"})
 scenarios:
-  - derive-system-requirements@1
+  - define-system-architecture@1
+  - define-interface-control-specification@1
+  - define-decomposition-work-package@1
+  - execute-decomposition-work-package@1
   - create-review-context@1
   - review-datum-in-context@1
+  - simplify-requirement-set@1
+  - simplify-architecture-and-interfaces@1
+  - complete-decomposition-work-package@1
   - resolve-question@1
   - create-candidate-baseline@1
   - record-gate-signoff@1
@@ -27,9 +30,15 @@ obligations:
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@2
+  - decomposition-execution-required@1
+  - decomposition-output-reviews-required@1
+  - decomposition-simplification-required@1
+  - architecture-interface-simplification-required@1
+  - decomposition-completion-required@1
+  - decomposition-parent-coverage-required@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@2
-outputs: [SYS, REV, BSL, QST, DEC]
+outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC]
 gate:
   required: true
   candidate_selector: >-

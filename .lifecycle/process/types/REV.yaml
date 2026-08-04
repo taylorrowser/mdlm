@@ -14,6 +14,8 @@ payload_schema:
   type: object
   required: [rubric_ref, findings, outcome]
   properties:
+    review_kind: {enum: [contextual, simplification-requirements, simplification-architecture-interfaces, cross-group, gate]}
+    decomposition_plan_revision: {type: string, pattern: '^DWP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     rubric_ref: {type: string, pattern: '^policies/rubrics/.+\.md@[1-9][0-9]*$'}
     findings:
       type: array
@@ -24,7 +26,7 @@ payload_schema:
         required: [id, target, relationship, severity, summary]
         properties:
           id: {type: string, pattern: '^F-[0-9]{3,}$'}
-          target: {type: string, pattern: '^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+          target: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
           relationship: {enum: [primary, collateral]}
           severity: {enum: [blocking, needs-triage, advisory]}
           summary: {type: string, minLength: 1}
@@ -35,7 +37,7 @@ outgoing_links:
   - id: reviews
     description: The one exact primary artifact revision judged by this review.
     targets:
-      - {kind: datum, types: [MAP, PSP, STK, SYS, VSP, ENV, VER, VAI, BSL, DEC], identity: revision}
+      - {kind: datum, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC], identity: revision}
     cardinality: {minimum: 1, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: reviewed-by

@@ -6,6 +6,6 @@
   "additionalProperties": false,
   "required": ["type"],
   "properties": {
-    "type": {"type": "string", "pattern": "^[A-Z]{3}$"}
+    "type": {"type": "string", "pattern": "^[A-Z]{3,8}$"}
   }
 }

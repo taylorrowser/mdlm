@@ -1,0 +1,18 @@
+kind: selector-definition
+id: decomposition-simplification-contexts-for
+version: 1
+description: Frozen DWP contexts that also contain every exact decomposition output.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: baseline
+query:
+  from:
+    selector: decomposition-review-contexts-for@1
+    arguments: {plan: plan}
+  as: context
+  where: >-
+    every("decomposition-outputs-for@1", {plan: plan},
+      output => exists("matching-decomposition-context-for-output@1",
+        {output: output, context: context}))
+  distinct: true
+  order_by: [identity.revision_id]

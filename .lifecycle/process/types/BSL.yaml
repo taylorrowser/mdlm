@@ -19,11 +19,11 @@ payload_schema:
     definition_members:
       type: array
       uniqueItems: true
-      items: {type: string, pattern: '^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+      items: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     evidence:
       type: array
       uniqueItems: true
-      items: {type: string, pattern: '^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+      items: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     snapshot:
       type: object
       additionalProperties: false

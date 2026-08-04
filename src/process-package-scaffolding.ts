@@ -69,7 +69,7 @@ const definitionGroups: Record<
   { directory: string; catalog?: string; id: RegExp }
 > = {
   template: { directory: "templates", catalog: "templates", id: /^[a-z][a-z0-9-]*$/ },
-  type: { directory: "types", catalog: "types", id: /^[A-Z]{3}$/ },
+  type: { directory: "types", catalog: "types", id: /^[A-Z]{3,8}$/ },
   selector: { directory: "selectors", catalog: "selectors", id: /^[a-z][a-z0-9-]*$/ },
   policy: { directory: "policies", catalog: "policies", id: /^[a-z][a-z0-9-]*$/ },
   state: { directory: "states", catalog: "states", id: /^[a-z][a-z0-9-]*$/ },

@@ -1,0 +1,12 @@
+kind: selector-definition
+id: decomposition-parents-for
+version: 1
+description: Exact stakeholder parent revisions bounded by one DWP plan.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: plan, link: decomposes, emit: target, types: [STK]}
+  as: parent
+  distinct: true
+  order_by: [identity.revision_id]

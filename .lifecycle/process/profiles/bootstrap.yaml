@@ -1,15 +1,14 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 3
+version: 4
 status: experimental
-description: Narrow profile validating typed kernel/process seams through reviewed intent and one qualification/pilot verification chain.
+description: Narrow profile validating typed kernel/process seams through reviewed intent, one qualification/pilot chain, and one bounded reviewed system decomposition.
 enabled:
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, VSP, ENV, VER, VAI, RUN, RES, REV, BSL]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL]
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
 disabled_capabilities:
-  - specialized DWP commands and rules
-  - architecture and interface lifecycle types
+  - component and design decomposition lifecycle types
   - formal verification execution
   - implementation and change lifecycle types
 success_criteria:
@@ -22,4 +21,5 @@ success_criteria:
   - every unsatisfied obligation has a type-correct enabled resolver
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
-  - a small PSP-to-STK-to-SYS example produces explainable reviews, candidates, and gate loose ends
+  - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations
+  - one small decomposition reaches a reviewed SYS level candidate composed from its exact group candidate and shared architecture/interface context

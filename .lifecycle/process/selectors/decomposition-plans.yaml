@@ -1,0 +1,14 @@
+kind: selector-definition
+id: decomposition-plans
+version: 1
+description: Exact active DWP planning revisions that can organize decomposition work.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: plan
+  where: >-
+    plan.payload.stage == "planning"
+    && state(plan, "disposition") == "active"
+  distinct: true
+  order_by: [identity.id, identity.revision]

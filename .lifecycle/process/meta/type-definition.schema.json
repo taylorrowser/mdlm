@@ -7,7 +7,7 @@
   "required": ["kind", "id", "version", "name", "description", "extends", "lifecycle", "payload_schema", "outgoing_links", "kernel_managed_payload_paths"],
   "properties": {
     "kind": {"const": "type-definition"},
-    "id": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "id": {"type": "string", "pattern": "^[A-Z]{3,8}$"},
     "version": {"type": "integer", "minimum": 1},
     "name": {"type": "string", "minLength": 1},
     "description": {"type": "string", "minLength": 1},

@@ -5,7 +5,7 @@ description: Exact active revisions for which the machine-readable review policy
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, PSP, STK, SYS, VSP, ENV, VER, VAI, BSL, DEC]}
+  from: {collection: revisions, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC]}
   as: subject
   where: >-
     policy("review-applicability@1", {subject: subject}).required == true

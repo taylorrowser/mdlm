@@ -1,0 +1,40 @@
+kind: type-definition
+id: ASP
+version: 1
+name: Architecture Specification
+description: Exact system architecture context defining stable elements, responsibilities, interactions, constraints, and nominated risks.
+extends: rationale-bearing@1
+lifecycle:
+  authorship: authored
+  freeze_when: baseline-frozen
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required: [level, elements, interactions, constraints, nominated_risks]
+  properties:
+    level: {const: system}
+    elements:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items:
+        type: object
+        additionalProperties: false
+        required: [id, alias, title, responsibilities]
+        properties:
+          id: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
+          alias: {type: string, pattern: '^[A-Z][A-Z0-9_-]*$'}
+          title: {type: string, minLength: 1}
+          responsibilities: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+    interactions: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+    constraints: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+    nominated_risks: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+outgoing_links:
+  - id: governs
+    description: Exact requirements and decomposition plans organized by this architecture revision.
+    targets:
+      - {kind: datum, types: [STK, SYS, DWP], identity: revision}
+    cardinality: {minimum: 1, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: governed-by
+kernel_managed_payload_paths: []

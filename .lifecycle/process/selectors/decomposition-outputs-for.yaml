@@ -1,0 +1,12 @@
+kind: selector-definition
+id: decomposition-outputs-for
+version: 1
+description: Exact SYS revisions that identify the supplied reviewed DWP plan as their decomposition source.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: plan, link: decomposes, emit: source, types: [SYS]}
+  as: output
+  distinct: true
+  order_by: [identity.revision_id]

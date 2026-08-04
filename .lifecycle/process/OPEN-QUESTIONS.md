@@ -52,3 +52,8 @@ behavior where possible.
     reviewing that ENV. Should a later package Scenario produce an ENV revision
     with this link, or is the visible generic link mutation preferable for
     qualification evidence assembly?
+15. **DWP candidate sequencing:** The Phase 2 tracer simplifies one frozen
+    definition-set context, publishes and reviews the DWP completion Revision,
+    then freezes the resulting group candidate. Should a later package contract
+    atomically reserve the resulting candidate identity before completion, or is
+    this explicit context-to-completion-to-candidate sequence preferable?

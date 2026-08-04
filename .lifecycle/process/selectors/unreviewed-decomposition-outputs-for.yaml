@@ -1,0 +1,15 @@
+kind: selector-definition
+id: unreviewed-decomposition-outputs-for
+version: 1
+description: Exact outputs of a DWP plan that do not yet have a valid passing contextual Review.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from:
+    selector: decomposition-outputs-for@1
+    arguments: {plan: plan}
+  as: output
+  where: 'none("passing-reviews-for@1", {subject: output})'
+  distinct: true
+  order_by: [identity.revision_id]
