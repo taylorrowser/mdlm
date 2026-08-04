@@ -163,8 +163,8 @@ describe("req process package commands", () => {
           binding: { type: "BSL" },
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["ART@1", "BSL@2", "DEC@2", "MAP@1", "PSP@2", "QST@2", "REV@2", "STK@2", "SYS@2"],
-          phases: ["phase-0-wayfinding@2", "phase-2-system-definition@2"],
+          types: ["ART@1", "BSL@2", "DEC@2", "ENV@1", "MAP@1", "PSP@2", "QST@2", "RES@1", "REV@2", "RUN@1", "STK@2", "SYS@2", "VAI@1", "VER@1", "VSP@1"],
+          phases: ["phase-0-wayfinding@2", "phase-1-product-assurance@1", "phase-2-system-definition@2"],
         }),
       },
       diagnostics: [],
@@ -179,7 +179,7 @@ describe("req process package commands", () => {
       "Kernel Contract: mdlm-kernel-process-interface@1",
       "Primitive Catalog: primitives/kernel-v1.yaml@1",
       "Kernel Capabilities: exact-baseline@1 -> BSL",
-      "Phases: phase-0-wayfinding@2, phase-2-system-definition@2",
+      "Phases: phase-0-wayfinding@2, phase-1-product-assurance@1, phase-2-system-definition@2",
     ]) {
       expect(human.stdout).toContain(semantic);
     }
@@ -326,8 +326,8 @@ describe("req process package commands", () => {
           ],
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["ART@1", "BSL@2", "DEC@2", "MAP@1", "PSP@2", "QST@2", "REV@2", "STK@2", "SYS@2"],
-          phases: ["phase-0-wayfinding@2", "phase-2-system-definition@2"],
+          types: ["ART@1", "BSL@2", "DEC@2", "ENV@1", "MAP@1", "PSP@2", "QST@2", "RES@1", "REV@2", "RUN@1", "STK@2", "SYS@2", "VAI@1", "VER@1", "VSP@1"],
+          phases: ["phase-0-wayfinding@2", "phase-1-product-assurance@1", "phase-2-system-definition@2"],
         }),
       },
       diagnostics: [],
@@ -342,7 +342,7 @@ describe("req process package commands", () => {
       "Host Functions: count, every, exists, none, one, policy, present, select, state",
       "Collections: baselines [exact-baseline@1], revisions",
       "Kernel Capabilities: exact-baseline@1 -> BSL",
-      "Types: ART@1, BSL@2, DEC@2, MAP@1, PSP@2, QST@2, REV@2, STK@2, SYS@2",
+      "Types: ART@1, BSL@2, DEC@2, ENV@1, MAP@1, PSP@2, QST@2, RES@1, REV@2, RUN@1, STK@2, SYS@2, VAI@1, VER@1, VSP@1",
     ]) {
       expect(human.stdout).toContain(semantic);
     }
