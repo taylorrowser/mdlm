@@ -42,7 +42,7 @@ relations:
     from: [revision]
     emits: dependency-change@1
     supports_link_filter: false
-    description: Conservatively compare exact content, outbound links, and stable-link resolutions without deciding Staleness.
+    description: Conservatively compare exact content, outbound links, stable-link resolutions, and capability-bound baseline structure without deciding Staleness.
   - id: scenario-inputs
     from: [execution]
     emits: bound input entity

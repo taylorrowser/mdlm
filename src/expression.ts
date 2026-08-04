@@ -1229,13 +1229,23 @@ function compileRules(
   const rules = Array.isArray(definition.rules) ? definition.rules : [];
   rules.forEach((value, index) => {
     if (typeof value !== "object" || value === null) return;
+    const rule = value as Record<string, unknown>;
     compileField(
-      value as Record<string, unknown>,
+      rule,
       "when",
       `${filePath}#rules[${index}].when`,
       bindings,
       catalogs,
       diagnostics,
+    );
+    compileField(
+      rule,
+      "explanation_evidence",
+      `${filePath}#rules[${index}].explanation_evidence`,
+      bindings,
+      catalogs,
+      diagnostics,
+      "any",
     );
   });
 }

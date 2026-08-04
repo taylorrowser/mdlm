@@ -11,6 +11,7 @@ export interface DependencyComparison {
   subjectRevision: string;
   beforeRevision: string;
   afterRevision: string;
+  comparisonKind?: "review-context";
   beforeStableLinkResolutions?: StableLinkResolution[];
   afterStableLinkResolutions?: StableLinkResolution[];
 }
@@ -47,10 +48,40 @@ export interface StableLinkResolutionDependencyChange
   after_target_revision: string;
 }
 
+export interface BaselineMembershipDependencyChange
+  extends DependencyChangeBase {
+  kind: "baseline-membership-change";
+  removed_members: string[];
+  added_members: string[];
+}
+
+export interface BaselineCompositionDependencyChange
+  extends DependencyChangeBase {
+  kind: "baseline-composition-change";
+  removed_components: string[];
+  added_components: string[];
+}
+
+export interface EvidenceTargetDependencyChange extends DependencyChangeBase {
+  kind: "evidence-target-change";
+  removed_evidence: string[];
+  added_evidence: string[];
+}
+
+export interface ReviewContextDependencyChange extends DependencyChangeBase {
+  kind: "review-context-change";
+  before_context_revision: string;
+  after_context_revision: string;
+}
+
 export type DependencyChangeRecord =
   | ContentDependencyChange
   | OutboundLinkDependencyChange
-  | StableLinkResolutionDependencyChange;
+  | StableLinkResolutionDependencyChange
+  | BaselineMembershipDependencyChange
+  | BaselineCompositionDependencyChange
+  | EvidenceTargetDependencyChange
+  | ReviewContextDependencyChange;
 
 export const dependencyChangeExpressionPaths = {
   record_version: "string",
@@ -69,6 +100,14 @@ export const dependencyChangeExpressionPaths = {
   stable_target: "string",
   before_target_revision: "string",
   after_target_revision: "string",
+  removed_members: "array",
+  added_members: "array",
+  removed_components: "array",
+  added_components: "array",
+  removed_evidence: "array",
+  added_evidence: "array",
+  before_context_revision: "string",
+  after_context_revision: "string",
 } as const;
 
 export interface DependencyComparisonDiagnostic {
@@ -80,6 +119,10 @@ export interface DependencyComparisonDiagnostic {
 interface DependencyComparisonResult {
   changes: DependencyChangeRecord[];
   diagnostics: DependencyComparisonDiagnostic[];
+}
+
+interface DependencyComparisonCapabilities {
+  exactBaselineType?: string;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -116,9 +159,34 @@ function changedPathExists(record: LifecycleRecord, path: string): boolean {
   return true;
 }
 
-function targetsByLink(record: LifecycleRecord): Map<string, string[]> {
+function payloadContent(
+  record: LifecycleRecord,
+  capabilityBoundBaseline: boolean,
+): Record<string, unknown> {
+  if (!capabilityBoundBaseline) return record.datum.payload;
+  const { definition_members: _members, evidence: _evidence, ...content } =
+    record.datum.payload;
+  return content;
+}
+
+function stringValues(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string").sort()
+    : [];
+}
+
+function setDifference(left: string[], right: string[]): string[] {
+  const rightValues = new Set(right);
+  return left.filter((value) => !rightValues.has(value));
+}
+
+function targetsByLink(
+  record: LifecycleRecord,
+  excludedLink?: string,
+): Map<string, string[]> {
   const grouped = new Map<string, string[]>();
   for (const link of record.datum.links) {
+    if (link.type === excludedLink) continue;
     grouped.set(link.type, [...(grouped.get(link.type) ?? []), link.target]);
   }
   for (const [link, targets] of grouped) {
@@ -155,6 +223,7 @@ function compareOne(
   comparison: DependencyComparison,
   index: number,
   records: Map<string, LifecycleRecord>,
+  capabilities: DependencyComparisonCapabilities,
 ): DependencyComparisonResult {
   const comparisonPath = `dependencyComparisons[${index}]`;
   const subject = records.get(comparison.subjectRevision);
@@ -178,13 +247,27 @@ function compareOne(
       `Dependency comparison references unavailable Revision '${comparison.afterRevision}'`,
     );
   }
+  const capabilityBoundBaseline =
+    capabilities.exactBaselineType !== undefined &&
+    before.datum.type === capabilities.exactBaselineType &&
+    after.datum.type === capabilities.exactBaselineType;
   if (
-    before.datum.id !== after.datum.id ||
-    before.datum.type !== after.datum.type
+    before.datum.type !== after.datum.type ||
+    (before.datum.id !== after.datum.id && !capabilityBoundBaseline)
   ) {
     return unsupported(
       comparisonPath,
-      `Dependency comparison requires exact Revisions from one Stable Datum and type; received '${comparison.beforeRevision}' and '${comparison.afterRevision}'`,
+      `Dependency comparison requires exact Revisions from one Stable Datum and type unless both use exact-baseline@1; received '${comparison.beforeRevision}' and '${comparison.afterRevision}'`,
+    );
+  }
+
+  if (
+    comparison.comparisonKind === "review-context" &&
+    !capabilityBoundBaseline
+  ) {
+    return unsupported(
+      `${comparisonPath}.comparisonKind`,
+      `Review-context comparison requires Revisions of the type bound to exact-baseline@1`,
     );
   }
 
@@ -195,7 +278,11 @@ function compareOne(
     after_revision: after.datum.revision_id,
   };
   const contentChanges: DependencyChangeRecord[] = [
-    ...changedContentPaths(before.datum.payload, after.datum.payload, "payload"),
+    ...changedContentPaths(
+      payloadContent(before, capabilityBoundBaseline),
+      payloadContent(after, capabilityBoundBaseline),
+      "payload",
+    ),
     ...changedContentPaths(before.datum.body, after.datum.body, "body"),
   ].map((change) => ({
     ...common,
@@ -206,8 +293,14 @@ function compareOne(
     ...change,
   }));
 
-  const beforeLinks = targetsByLink(before);
-  const afterLinks = targetsByLink(after);
+  const beforeLinks = targetsByLink(
+    before,
+    capabilityBoundBaseline ? "composes" : undefined,
+  );
+  const afterLinks = targetsByLink(
+    after,
+    capabilityBoundBaseline ? "composes" : undefined,
+  );
   const linkTypes = [...new Set([...beforeLinks.keys(), ...afterLinks.keys()])]
     .sort();
   const outboundChanges: DependencyChangeRecord[] = linkTypes.flatMap(
@@ -273,11 +366,70 @@ function compareOne(
       }];
     });
 
+  const beforeMembers = stringValues(before.datum.payload.definition_members);
+  const afterMembers = stringValues(after.datum.payload.definition_members);
+  const membershipChanges: DependencyChangeRecord[] =
+    capabilityBoundBaseline &&
+      !structuralValuesEqual(beforeMembers, afterMembers)
+      ? [{
+          ...common,
+          kind: "baseline-membership-change",
+          removed_members: setDifference(beforeMembers, afterMembers),
+          added_members: setDifference(afterMembers, beforeMembers),
+        }]
+      : [];
+  const beforeComponents = stringValues(
+    before.datum.links
+      .filter((link) => link.type === "composes")
+      .map((link) => link.target),
+  );
+  const afterComponents = stringValues(
+    after.datum.links
+      .filter((link) => link.type === "composes")
+      .map((link) => link.target),
+  );
+  const compositionChanges: DependencyChangeRecord[] =
+    capabilityBoundBaseline &&
+      !structuralValuesEqual(beforeComponents, afterComponents)
+      ? [{
+          ...common,
+          kind: "baseline-composition-change",
+          removed_components: setDifference(beforeComponents, afterComponents),
+          added_components: setDifference(afterComponents, beforeComponents),
+        }]
+      : [];
+  const beforeEvidence = stringValues(before.datum.payload.evidence);
+  const afterEvidence = stringValues(after.datum.payload.evidence);
+  const evidenceChanges: DependencyChangeRecord[] =
+    capabilityBoundBaseline &&
+      !structuralValuesEqual(beforeEvidence, afterEvidence)
+      ? [{
+          ...common,
+          kind: "evidence-target-change",
+          removed_evidence: setDifference(beforeEvidence, afterEvidence),
+          added_evidence: setDifference(afterEvidence, beforeEvidence),
+        }]
+      : [];
+  const reviewContextChanges: DependencyChangeRecord[] =
+    comparison.comparisonKind === "review-context" &&
+      before.datum.revision_id !== after.datum.revision_id
+      ? [{
+          ...common,
+          kind: "review-context-change",
+          before_context_revision: before.datum.revision_id,
+          after_context_revision: after.datum.revision_id,
+        }]
+      : [];
+
   return {
     changes: [
       ...contentChanges,
       ...outboundChanges,
       ...stableResolutionChanges,
+      ...membershipChanges,
+      ...compositionChanges,
+      ...evidenceChanges,
+      ...reviewContextChanges,
     ],
     diagnostics: [],
   };
@@ -286,6 +438,7 @@ function compareOne(
 export function compareDependencyChanges(
   records: LifecycleRecord[],
   comparisons: DependencyComparison[],
+  capabilities: DependencyComparisonCapabilities = {},
 ): DependencyComparisonResult {
   const byRevision = new Map(
     records.map((record) => [record.datum.revision_id, record]),
@@ -306,7 +459,12 @@ export function compareDependencyChanges(
       )
     );
   for (const { comparison, originalIndex } of orderedComparisons) {
-    const result = compareOne(comparison, originalIndex, byRevision);
+    const result = compareOne(
+      comparison,
+      originalIndex,
+      byRevision,
+      capabilities,
+    );
     changes.push(...result.changes);
     diagnostics.push(...result.diagnostics);
   }

@@ -20,3 +20,4 @@ rules:
     priority: 200
     when: 'exists("staleness-relevant-dependency-changes-for@1", {subject: subject})'
     explanation: At least one package-classified dependency change requires reassessment.
+    explanation_evidence: 'select("staleness-relevant-dependency-changes-for@1", {subject: subject})'

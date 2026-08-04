@@ -24,7 +24,8 @@
           "value": {"type": "string"},
           "priority": {"type": "integer"},
           "when": {"$ref": "expression.schema.json"},
-          "explanation": {"type": "string", "minLength": 1}
+          "explanation": {"type": "string", "minLength": 1},
+          "explanation_evidence": {"$ref": "expression.schema.json"}
         }
       }
     }

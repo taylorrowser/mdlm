@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.13
+# MDLM bootstrap process package v0.14
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -70,9 +70,12 @@ types, and cardinality. Scenario output types, prohibited-input conflicts, requi
 link targets, source-owned link availability, target types, and cardinalities are
 also validated before the package is exposed. The kernel's `dependency-changes`
 relation emits deterministic `dependency-change@1` content, outbound-link, and
-stable-link-resolution records from exact Revision comparisons. Package selectors,
-not the kernel, decide which typed records imply Staleness, and Computed State
-explanations identify the matched package rule. `mdlm-expression@1` textual source is
+stable-link-resolution records from exact Revision comparisons. When
+`exact-baseline@1` is bound, the same comparison service adds membership,
+composition, evidence-target, and explicitly identified review-context variants
+for the package-selected type without recognizing its ID. Package selectors, not
+the kernel, decide which typed records imply Staleness, and Computed State
+explanations identify the exact structural evidence selected by the package rule. `mdlm-expression@1` textual source is
 the only accepted authoring representation and cannot execute arbitrary code or
 produce side effects.
 
@@ -83,7 +86,7 @@ bound type's managed definition-member, evidence, and snapshot payload paths and
 its exact `composes` contract. Baseline collections and membership, evidence, and
 composition relations are available only through that binding. A compatible
 package may bind a differently named type and receive the same evaluator
-behavior.
+behavior and capability-scoped change records.
 
 ## Links
 

@@ -13,6 +13,8 @@ query:
   as: change
   where: >-
     change.kind in
-    ["content-change", "outbound-link-change", "stable-link-resolution-change"]
+    ["content-change", "outbound-link-change", "stable-link-resolution-change",
+    "baseline-membership-change", "baseline-composition-change",
+    "evidence-target-change", "review-context-change"]
   distinct: true
   order_by: [kind, path, link_type, stable_target]

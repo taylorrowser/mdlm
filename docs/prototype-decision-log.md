@@ -467,3 +467,28 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public lifecycle tests change one dependency at a
   time, assert exact records and Stale explanations, alter the package filter to
   demonstrate process ownership, and exercise an unsupported comparison.
+
+## D-025 — Classify exact-baseline changes through the capability binding
+
+- **Status:** accepted and implemented
+- **Decision:** `dependency-change@1` adds membership, composition, evidence-
+  target, and review-context variants only when both compared Revisions use the
+  package-selected `exact-baseline@1` type. A comparison explicitly identifies
+  review-context use; the kernel does not infer it from package payload values.
+  Computed State rules may select `explanation_evidence`, whose exact structural
+  records are included in evaluator explanations.
+- **Alternatives:** Recognize `BSL`, treat managed fields as ordinary content and
+  `composes` as an ordinary link, infer review-context meaning from `kind`, or
+  return a kernel-owned Stale result.
+- **Rationale:** The capability owns exact membership, evidence, composition, and
+  snapshot integrity, but candidate and review meaning remains package behavior.
+  Explicit context comparison and package-selected evidence preserve that seam.
+- **Expected behavior:** Renaming the bound baseline type does not change emitted
+  records. Changed exact member, component, evidence, and review-context
+  Revisions produce deterministic variants; the bundled package conservatively
+  marks only affected subjects Stale and names the causing records.
+- **Reversibility:** Versioned. Additional capability-managed fields can add later
+  record versions, while explanation evidence is a generic Computed State feature.
+- **Evidence/observations:** A public evaluator fixture binds `SNP`, compares two
+  exact review-context baselines, asserts all four typed variants and their
+  explanation, and confirms unrelated evidence remains valid.

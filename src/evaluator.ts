@@ -142,6 +142,9 @@ class LifecycleEvaluator {
     const comparison = compareDependencyChanges(
       snapshot.records,
       snapshot.dependencyComparisons ?? [],
+      this.exactBaselineType === undefined
+        ? {}
+        : { exactBaselineType: this.exactBaselineType },
     );
     this.dependencyChanges = comparison.changes;
     this.comparisonDiagnostics = comparison.diagnostics;
@@ -306,15 +309,16 @@ class LifecycleEvaluator {
           .map((rule) => string(rule.value))
           .filter((value): value is string => value !== undefined);
         explanation = matchedRules
-          .map((rule) => string(rule.explanation))
+          .map((rule) => this.ruleExplanation(rule, context))
           .filter((value): value is string => value !== undefined);
       } else {
         const rule = rules.find((candidate) =>
           this.expression(candidate.when, context),
         );
         result = string(rule?.value) ?? string(definition.default) ?? "";
-        explanation = string(rule?.explanation) ??
-          `No rule matched; using the default value for ${definition.id}.`;
+        explanation = rule
+          ? this.ruleExplanation(rule, context) ?? ""
+          : `No rule matched; using the default value for ${definition.id}.`;
       }
       this.stateMemo.set(memoKey, result);
       this.stateExplanationMemo.set(memoKey, explanation);
@@ -322,6 +326,36 @@ class LifecycleEvaluator {
     } finally {
       this.stateStack.delete(memoKey);
     }
+  }
+
+  private ruleExplanation(
+    rule: Record<string, unknown>,
+    context: EvaluationContext,
+  ): string | undefined {
+    const explanation = string(rule.explanation);
+    if (!explanation || rule.explanation_evidence === undefined) {
+      return explanation;
+    }
+    const evidence = array(this.value(rule.explanation_evidence, context))
+      .map((value) => object(value))
+      .filter(
+        (value): value is Record<string, unknown> => value !== undefined,
+      )
+      .map((value) => {
+        const kind = string(value.kind) ?? string(value.entityKind) ?? "record";
+        const before = string(value.before_revision);
+        const after = string(value.after_revision);
+        const qualifier = [
+          string(value.path),
+          string(value.link_type),
+          string(value.stable_target),
+        ].filter((item): item is string => item !== undefined).join(" / ");
+        const comparison = before && after ? ` (${before} → ${after})` : "";
+        return `${kind}${comparison}${qualifier ? ` [${qualifier}]` : ""}`;
+      });
+    return evidence.length === 0
+      ? explanation
+      : `${explanation} Structural evidence: ${evidence.join("; ")}.`;
   }
 
   private stateExplanation(

@@ -22,10 +22,14 @@ export {
   type ObligationEvaluation,
 } from "./evaluator.js";
 export type {
+  BaselineCompositionDependencyChange,
+  BaselineMembershipDependencyChange,
   ContentDependencyChange,
   DependencyChangeRecord,
   DependencyComparison,
+  EvidenceTargetDependencyChange,
   OutboundLinkDependencyChange,
+  ReviewContextDependencyChange,
   StableLinkResolution,
   StableLinkResolutionDependencyChange,
 } from "./dependency-changes.js";

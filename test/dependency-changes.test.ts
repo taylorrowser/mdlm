@@ -18,6 +18,24 @@ beforeAll(async () => {
   processPackage = loaded.package;
 });
 
+async function renamedBaselineProcessPackage(): Promise<string> {
+  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
+  const copiedRoot = path.join(temporaryRoot, "process");
+  await fs.cp(processRoot, copiedRoot, { recursive: true });
+  const replaceInYamlFiles = async (directory: string): Promise<void> => {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) await replaceInYamlFiles(entryPath);
+      else if (entry.name.endsWith(".yaml")) {
+        const source = await fs.readFile(entryPath, "utf8");
+        await fs.writeFile(entryPath, source.replaceAll("BSL", "SNP"));
+      }
+    }
+  };
+  await replaceInYamlFiles(copiedRoot);
+  return copiedRoot;
+}
+
 function revision(
   id: string,
   number: number,
@@ -68,6 +86,127 @@ function evaluate(
 }
 
 describe("dependency change records", () => {
+  it("classifies capability-bound baseline and review-context changes without recognizing the type ID", async () => {
+    const loaded = await loadProcessPackage(
+      await renamedBaselineProcessPackage(),
+    );
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const baseline = (
+      id: string,
+      number: number,
+      members: string[],
+      evidence: string[],
+      component: string,
+    ): LifecycleRecord => ({
+      ...revision(id, number, "Review context", [
+        { type: "composes", target: component },
+      ]),
+      datum: {
+        ...revision(id, number, "Review context").datum,
+        type: "SNP",
+        payload: {
+          title: "Review context",
+          kind: "review-context",
+          role: "review-context",
+          scope: "PSP review",
+          group: "DEFAULT",
+          definition_members: members,
+          evidence,
+        },
+        links: [{ type: "composes", target: component }],
+      },
+    });
+    const before = baseline(
+      "SNP-7K3M9Q2D8F",
+      1,
+      ["PSP-X4N7AB2W6J-r00001"],
+      ["REV-8ZT5KQ3P9M-r00001"],
+      "SNP-9ZT5KQ3P8M-r00001",
+    );
+    const after = baseline(
+      "SNP-4K3M9Q2D8F",
+      1,
+      ["PSP-X4N7AB2W6J-r00002"],
+      ["REV-8ZT5KQ3P9M-r00002"],
+      "SNP-9ZT5KQ3P8M-r00002",
+    );
+    const unaffectedEvidence = revision(
+      "REV-6ZT5KQ3P8M",
+      1,
+      "Unaffected evidence",
+    );
+    unaffectedEvidence.datum.type = "REV";
+    unaffectedEvidence.datum.payload = {
+      title: "Unaffected evidence",
+      outcome: "pass",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+    };
+
+    const result = evaluate(
+      [before, after, unaffectedEvidence],
+      [{
+        subjectRevision: after.datum.revision_id,
+        beforeRevision: before.datum.revision_id,
+        afterRevision: after.datum.revision_id,
+        comparisonKind: "review-context",
+      }],
+      loaded.package,
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.dependencyChanges).toEqual([
+      {
+        record_version: "dependency-change@1",
+        kind: "baseline-membership-change",
+        subject_revision: after.datum.revision_id,
+        before_revision: before.datum.revision_id,
+        after_revision: after.datum.revision_id,
+        removed_members: ["PSP-X4N7AB2W6J-r00001"],
+        added_members: ["PSP-X4N7AB2W6J-r00002"],
+      },
+      {
+        record_version: "dependency-change@1",
+        kind: "baseline-composition-change",
+        subject_revision: after.datum.revision_id,
+        before_revision: before.datum.revision_id,
+        after_revision: after.datum.revision_id,
+        removed_components: ["SNP-9ZT5KQ3P8M-r00001"],
+        added_components: ["SNP-9ZT5KQ3P8M-r00002"],
+      },
+      {
+        record_version: "dependency-change@1",
+        kind: "evidence-target-change",
+        subject_revision: after.datum.revision_id,
+        before_revision: before.datum.revision_id,
+        after_revision: after.datum.revision_id,
+        removed_evidence: ["REV-8ZT5KQ3P9M-r00001"],
+        added_evidence: ["REV-8ZT5KQ3P9M-r00002"],
+      },
+      {
+        record_version: "dependency-change@1",
+        kind: "review-context-change",
+        subject_revision: after.datum.revision_id,
+        before_revision: before.datum.revision_id,
+        after_revision: after.datum.revision_id,
+        before_context_revision: before.datum.revision_id,
+        after_context_revision: after.datum.revision_id,
+      },
+    ]);
+    expect(result.artifacts[after.datum.revision_id]?.states.validity).toBe(
+      "stale",
+    );
+    expect(
+      result.artifacts[after.datum.revision_id]?.stateExplanations.validity,
+    ).toContain(
+      `baseline-membership-change (${before.datum.revision_id} → ${after.datum.revision_id})`,
+    );
+    expect(
+      result.artifacts[unaffectedEvidence.datum.revision_id]?.states.validity,
+    ).toBe("valid");
+  });
+
   it("returns an ordered versioned content record and a package-derived Stale explanation", () => {
     const before = revision("PSP-7K3M9Q2D8F", 1, "Before");
     const after = revision("PSP-7K3M9Q2D8F", 2, "After");
@@ -99,8 +238,9 @@ describe("dependency change records", () => {
       expect.objectContaining({
         states: expect.objectContaining({ validity: "stale" }),
         stateExplanations: expect.objectContaining({
-          validity:
-            "At least one package-classified dependency change requires reassessment.",
+          validity: expect.stringContaining(
+            `content-change (${before.datum.revision_id} → ${after.datum.revision_id}) [payload.title]`,
+          ),
         }),
       }),
     );
@@ -177,8 +317,8 @@ describe("dependency change records", () => {
     await fs.writeFile(
       selectorPath,
       selector.replace(
-        '["content-change", "outbound-link-change", "stable-link-resolution-change"]',
-        '["outbound-link-change", "stable-link-resolution-change"]',
+        '["content-change", "outbound-link-change", "stable-link-resolution-change",\n    "baseline-membership-change", "baseline-composition-change",\n    "evidence-target-change", "review-context-change"]',
+        '["outbound-link-change", "stable-link-resolution-change",\n    "baseline-membership-change", "baseline-composition-change",\n    "evidence-target-change", "review-context-change"]',
       ),
     );
     const loaded = await loadProcessPackage(copiedRoot);

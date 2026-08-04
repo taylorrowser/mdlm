@@ -5,7 +5,11 @@
   "oneOf": [
     {"$ref": "#/$defs/content-change"},
     {"$ref": "#/$defs/outbound-link-change"},
-    {"$ref": "#/$defs/stable-link-resolution-change"}
+    {"$ref": "#/$defs/stable-link-resolution-change"},
+    {"$ref": "#/$defs/baseline-membership-change"},
+    {"$ref": "#/$defs/baseline-composition-change"},
+    {"$ref": "#/$defs/evidence-target-change"},
+    {"$ref": "#/$defs/review-context-change"}
   ],
   "$defs": {
     "revision-id": {
@@ -82,6 +86,82 @@
             "stable_target": {"type": "string", "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
             "before_target_revision": {"$ref": "#/$defs/revision-id"},
             "after_target_revision": {"$ref": "#/$defs/revision-id"}
+          }
+        }
+      ]
+    },
+    "baseline-membership-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "removed_members", "added_members"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "baseline-membership-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "removed_members": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true},
+            "added_members": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true}
+          }
+        }
+      ]
+    },
+    "baseline-composition-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "removed_components", "added_components"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "baseline-composition-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "removed_components": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true},
+            "added_components": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true}
+          }
+        }
+      ]
+    },
+    "evidence-target-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "removed_evidence", "added_evidence"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "evidence-target-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "removed_evidence": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true},
+            "added_evidence": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true}
+          }
+        }
+      ]
+    },
+    "review-context-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "before_context_revision", "after_context_revision"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "review-context-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "before_context_revision": {"$ref": "#/$defs/revision-id"},
+            "after_context_revision": {"$ref": "#/$defs/revision-id"}
           }
         }
       ]
