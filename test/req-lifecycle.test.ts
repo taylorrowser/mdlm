@@ -4,33 +4,17 @@ import path from "node:path";
 import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LifecycleRecord, LifecycleSnapshot } from "../src/index.js";
-import { lifecycleRecord } from "./helpers/lifecycle-record.js";
-import { exactContextWaiverFor, reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
+import {
+  exactContextWaiverFor,
+  frozenLifecycleRecord,
+  reviewedGateFixture,
+} from "./helpers/lifecycle-scenarios.js";
 import { req, selectBootstrapProcessPackage } from "./helpers/req.js";
 
 const prototypeSnapshot = path.join(
   process.cwd(),
   "examples/psp-to-sys-snapshot.yaml",
 );
-
-function record(
-  type: string,
-  id: string,
-  payload: Record<string, unknown>,
-  options: {
-    links?: { type: string; target: string }[];
-    scenario?: string;
-  } = {},
-): LifecycleRecord {
-  return lifecycleRecord(type, id, payload, {
-    ...(options.links ? { links: options.links } : {}),
-    createdBy: {
-      process_ref: "git:req-lifecycle",
-      ...(options.scenario ? { scenario: options.scenario } : {}),
-    },
-    storage: { editable: false, frozen: true },
-  });
-}
 
 async function writeSnapshot(
   repositoryRoot: string,
@@ -43,15 +27,20 @@ async function writeSnapshot(
 }
 
 function waivedRecords(): LifecycleRecord[] {
-  const subject = record("PSP", "PSP-7K3M9Q2D8F", {
-    title: "Waived context subject",
-    rationale: "Exercise exact waiver reporting.",
-    problem: "A context is temporarily disproportionate.",
-    users: ["maintainer"],
-    goals: ["Preserve waiver evidence."],
-    non_goals: [],
-    success_measures: ["The exact waiver remains visible."],
-  });
+  const subject = frozenLifecycleRecord(
+    "git:req-lifecycle",
+    "PSP",
+    "PSP-7K3M9Q2D8F",
+    {
+      title: "Waived context subject",
+      rationale: "Exercise exact waiver reporting.",
+      problem: "A context is temporarily disproportionate.",
+      users: ["maintainer"],
+      goals: ["Preserve waiver evidence."],
+      non_goals: [],
+      success_measures: ["The exact waiver remains visible."],
+    },
+  );
   const { waiver, review } = exactContextWaiverFor(
     subject,
     "git:req-lifecycle",
@@ -351,5 +340,20 @@ describe("req lifecycle status and next work", () => {
         },
       }),
     ]);
+    const humanWaiver = req(
+      repositoryRoot,
+      "loose-ends",
+      "--snapshot",
+      waiverSnapshot,
+    );
+    expect(humanWaiver.status, humanWaiver.stderr).toBe(0);
+    expect(humanWaiver.stdout).toContain("Waiver-Suppressed Obligation 1");
+    expect(humanWaiver.stdout).toContain("Satisfied: false");
+    expect(humanWaiver.stdout).toContain("Status: waived");
+    expect(humanWaiver.stdout).toContain("Dispatchable: false");
+    expect(humanWaiver.stdout).toContain("Waiver Applicable: true");
+    expect(humanWaiver.stdout).toContain(
+      "Waiver Evidence: DEC-8ZT5KQ3P9M-r00001",
+    );
   });
 });

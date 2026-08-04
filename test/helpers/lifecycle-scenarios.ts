@@ -1,7 +1,7 @@
 import type { LifecycleRecord } from "../../src/index.js";
 import { lifecycleRecord } from "./lifecycle-record.js";
 
-function frozenRecord(
+export function frozenLifecycleRecord(
   processRef: string,
   type: string,
   id: string,
@@ -22,7 +22,7 @@ function frozenRecord(
 }
 
 export function reviewedGateFixture(processRef: string) {
-  const candidate = frozenRecord(processRef, "BSL", "BSL-4K3M9Q2D8F", {
+  const candidate = frozenLifecycleRecord(processRef, "BSL", "BSL-4K3M9Q2D8F", {
     title: "Intent candidate",
     kind: "intent-level-candidate",
     role: "candidate",
@@ -31,7 +31,7 @@ export function reviewedGateFixture(processRef: string) {
     definition_members: [],
     evidence: [],
   }, { scenario: "create-candidate-baseline@1" });
-  const candidateContext = frozenRecord(
+  const candidateContext = frozenLifecycleRecord(
     processRef,
     "BSL",
     "BSL-4K3M9Q2D8G",
@@ -45,7 +45,7 @@ export function reviewedGateFixture(processRef: string) {
       evidence: [],
     },
   );
-  const candidateReview = frozenRecord(processRef, "REV", "REV-4K3M9Q2D8F", {
+  const candidateReview = frozenLifecycleRecord(processRef, "REV", "REV-4K3M9Q2D8F", {
     title: "Candidate review",
     review_kind: "independent",
     rubric_ref: "policies/rubrics/bootstrap-review.md@1",
@@ -58,7 +58,7 @@ export function reviewedGateFixture(processRef: string) {
       { type: "contextualizes", target: candidateContext.datum.revision_id },
     ],
   });
-  const signoff = frozenRecord(processRef, "DEC", "DEC-4K3M9Q2D8F", {
+  const signoff = frozenLifecycleRecord(processRef, "DEC", "DEC-4K3M9Q2D8F", {
     title: "Intent gate sign-off",
     rationale: "Authorize this exact candidate.",
     kind: "gate-signoff",
@@ -68,7 +68,7 @@ export function reviewedGateFixture(processRef: string) {
   }, {
     links: [{ type: "justifies", target: candidate.datum.revision_id }],
   });
-  const signoffContext = frozenRecord(processRef, "BSL", "BSL-4K3M9Q2D8H", {
+  const signoffContext = frozenLifecycleRecord(processRef, "BSL", "BSL-4K3M9Q2D8H", {
     title: "Sign-off review context",
     kind: "review-context",
     role: "review-context",
@@ -77,7 +77,7 @@ export function reviewedGateFixture(processRef: string) {
     definition_members: [signoff.datum.revision_id],
     evidence: [],
   });
-  const signoffReview = frozenRecord(processRef, "REV", "REV-4K3M9Q2D8G", {
+  const signoffReview = frozenLifecycleRecord(processRef, "REV", "REV-4K3M9Q2D8G", {
     title: "Sign-off review",
     review_kind: "independent",
     rubric_ref: "policies/rubrics/bootstrap-review.md@1",
@@ -121,7 +121,7 @@ export function exactContextWaiverFor(
 ) {
   const obligationInstance =
     `review-context-required@2:${subject.datum.revision_id}:${processRef}`;
-  const waiver = frozenRecord(processRef, "DEC", "DEC-8ZT5KQ3P9M", {
+  const waiver = frozenLifecycleRecord(processRef, "DEC", "DEC-8ZT5KQ3P9M", {
     title: "Temporary context waiver",
     rationale: "The context is temporarily disproportionate.",
     kind: "waiver",
@@ -135,7 +135,7 @@ export function exactContextWaiverFor(
       expires_when: ["subject-revised"],
     },
   }, { links: [{ type: "waives", target: obligationInstance }] });
-  const review = frozenRecord(processRef, "REV", "REV-2BC4DF6GHJ", {
+  const review = frozenLifecycleRecord(processRef, "REV", "REV-2BC4DF6GHJ", {
     title: "Waiver review",
     rubric_ref: "policies/rubrics/bootstrap-review.md@1",
     findings: [],
