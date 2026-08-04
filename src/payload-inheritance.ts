@@ -95,17 +95,19 @@ function effectiveTemplateProperties(
   };
 }
 
-function effectiveTemplateLinks(
-  template: VersionedDefinition,
-  definitions: PayloadDefinitions,
+export function effectiveOutgoingLinks(
+  definition: VersionedDefinition,
+  templates: Record<string, VersionedDefinition>,
   visiting = new Set<string>(),
 ): Record<string, unknown>[] {
-  if (visiting.has(template.id)) return [];
-  const nextVisiting = new Set(visiting).add(template.id);
-  const parent = definitions.templates[parentId(template) ?? ""];
+  if (visiting.has(definition.id)) return [];
+  const nextVisiting = new Set(visiting).add(definition.id);
+  const parent = templates[parentId(definition) ?? ""];
   return [
-    ...(parent ? effectiveTemplateLinks(parent, definitions, nextVisiting) : []),
-    ...declaredLinks(template),
+    ...(parent
+      ? effectiveOutgoingLinks(parent, templates, nextVisiting)
+      : []),
+    ...declaredLinks(definition),
   ];
 }
 
@@ -357,7 +359,7 @@ export function validatePayloadInheritance(
       }
 
       const inheritedLinkIds = new Set(
-        effectiveTemplateLinks(parent, definitions)
+        effectiveOutgoingLinks(parent, definitions.templates)
           .map((link) => link.id)
           .filter((id): id is string => typeof id === "string"),
       );

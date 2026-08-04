@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.11 — experimental implementation reference**
+**Bootstrap package 0.12 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -341,9 +341,13 @@ ends it resolves.
 
 The execution wrapper binds `input.<name>`, `output.<name>`, and `execution`.
 Generic contract validation checks declared cardinality, schema validity, link
-contracts, required input/output links, and undeclared outputs. The completion
-expression may add process-specific conditions but should not duplicate those
-generic checks.
+contracts, required input/output links, and undeclared outputs. At package load,
+Obligation resolver bindings must cover exactly the referenced Scenario inputs
+with compatible identity, lifecycle types, and cardinality. An enabled Obligation
+must have its Resolver Scenario enabled in the same Phase. Scenario output types,
+prohibited-input conflicts, and required-link names, targets, target types, and
+cardinalities are rejected before execution. The completion expression may add
+process-specific conditions but should not duplicate those generic checks.
 
 Prompts choose and order skills. Execution provenance records the exact prompt,
 skills, policies, process reference, and inputs actually used.
@@ -382,7 +386,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.11 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.12 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

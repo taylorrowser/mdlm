@@ -24,7 +24,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.11.0");
+    expect(result.package.manifest.version).toBe("0.12.0");
     expect(Object.keys(result.package.types)).toHaveLength(7);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(24);
@@ -217,6 +217,371 @@ describe("loadProcessPackage", () => {
           code: "unknown-reference",
           path: "scenarios.compile-psp.review_policy_ref",
           message: "Unknown Policy reference 'missing-policy@1'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a Resolver Scenario with a missing required input binding", async () => {
+    const processRoot = await copiedProcessPackage();
+    const obligationPath = path.join(
+      processRoot,
+      "obligations/review-context-required.yaml",
+    );
+    const obligation = await fs.readFile(obligationPath, "utf8");
+    await fs.writeFile(
+      obligationPath,
+      obligation.replace("  inputs:\n    subject: subject", "  inputs: {}"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "resolver-input-missing",
+          path: "obligations.review-context-required.resolve_with.inputs.subject",
+          message:
+            "Obligation 'review-context-required' does not bind required input 'subject' for Resolver Scenario 'create-review-context@1'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a Resolver binding with incompatible lifecycle types", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/create-review-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace(
+        "types: [PSP, STK, SYS, BSL, DEC]",
+        "types: [QST]",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "resolver-input-type",
+          path: "obligations.review-context-required.resolve_with.inputs.subject",
+          message:
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide BSL, DEC, PSP, STK, SYS",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a Resolver binding with an incompatible identity kind", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/create-review-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("identity: revision", "identity: stable"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "resolver-input-kind",
+          path: "obligations.review-context-required.resolve_with.inputs.subject",
+          message:
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires stable identity, but the binding provides revision",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a Resolver binding with incompatible cardinality", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/create-review-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("cardinality: one, identity", "cardinality: one-or-more, identity"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "resolver-input-cardinality",
+          path: "obligations.review-context-required.resolve_with.inputs.subject",
+          message:
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires one-or-more values, but the binding provides one",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a Resolver binding for an undeclared Scenario input", async () => {
+    const processRoot = await copiedProcessPackage();
+    const obligationPath = path.join(
+      processRoot,
+      "obligations/review-context-required.yaml",
+    );
+    const obligation = await fs.readFile(obligationPath, "utf8");
+    await fs.writeFile(
+      obligationPath,
+      obligation.replace("    subject: subject", "    subject: subject\n    surprise: subject"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "resolver-input-undeclared",
+          path: "obligations.review-context-required.resolve_with.inputs.surprise",
+          message:
+            "Obligation 'review-context-required' binds undeclared input 'surprise' for Resolver Scenario 'create-review-context@1'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a required link to an optional target when the link requires one", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace(
+        "    cardinality: one\n    identity: revision",
+        "    cardinality: zero-or-one\n    identity: revision",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "impossible-required-link-cardinality",
+          path:
+            "scenarios.review-datum-in-context.outputs[0].required_links[1].target.input",
+          message:
+            "Scenario 'review-datum-in-context' requires link 'contextualizes' with at least one target, but input 'review_context' may provide zero",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a required link whose target identity violates its source contract", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace(
+        "types: [PSP, STK, SYS, BSL, DEC], cardinality: one, identity: revision",
+        "types: [PSP, STK, SYS, BSL, DEC], cardinality: one, identity: stable",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "impossible-required-link-identity",
+          path:
+            "scenarios.review-datum-in-context.outputs[0].required_links[0].target.input",
+          message:
+            "Scenario 'review-datum-in-context' requires link 'reviews' from output type REV to revision identity, but input 'subject' provides stable",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a required link whose target types violate its source contract", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace(
+        "types: [PSP, STK, SYS, BSL, DEC]",
+        "types: [QST]",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "impossible-required-link-target",
+          path:
+            "scenarios.review-datum-in-context.outputs[0].required_links[0].target.input",
+          message:
+            "Scenario 'review-datum-in-context' requires link 'reviews' from output type REV to input 'subject' of unsupported type QST",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a required link unavailable on the declared output type", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("types: [REV]", "types: [DEC]"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "impossible-required-link",
+          path:
+            "scenarios.review-datum-in-context.outputs[0].required_links[0].link",
+          message:
+            "Scenario 'review-datum-in-context' output 'review' requires link 'reviews', but output type DEC does not declare it",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a required output link to an undeclared Scenario value", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("target: {input: subject}", "target: {input: missing}"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-required-link-target",
+          path:
+            "scenarios.review-datum-in-context.outputs[0].required_links[0].target.input",
+          message:
+            "Scenario 'review-datum-in-context' output 'review' requires link 'reviews' to undeclared input 'missing'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a Scenario that also prohibits one of its declared inputs", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/create-review-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace(
+        "prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth]",
+        "prohibited_inputs: [subject]",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "prohibited-scenario-input",
+          path: "scenarios.create-review-context.prohibited_inputs[0]",
+          message:
+            "Scenario 'create-review-context' declares input 'subject' as prohibited",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a Scenario output with an undeclared lifecycle type", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(processRoot, "scenarios/compile-psp.yaml");
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("types: [PSP]", "types: [XYZ]"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-scenario-output-type",
+          path: "scenarios.compile-psp.outputs[0].types[0]",
+          message:
+            "Scenario 'compile-psp' output 'product_specification' references undeclared lifecycle type 'XYZ'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an enabled Obligation whose Resolver Scenario is disabled", async () => {
+    const processRoot = await copiedProcessPackage();
+    const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+    const phase = await fs.readFile(phasePath, "utf8");
+    await fs.writeFile(
+      phasePath,
+      phase.replace("  - create-review-context@1\n", ""),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "resolver-scenario-disabled",
+          path: "phases.phase-0-wayfinding.scenarios",
+          message:
+            "Obligation 'review-context-required@2' is enabled in Phase 'phase-0-wayfinding' without Resolver Scenario 'create-review-context@1'",
         }),
       ]),
     );

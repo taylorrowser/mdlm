@@ -419,3 +419,25 @@ turning provisional choices into architecture.
   each named reference family, version mismatch, and complete Template, Selector,
   and Computed State cycle paths; the bootstrap package remains a valid acyclic
   fixture.
+
+## D-023 — Prove Resolver Scenario contracts before package selection
+
+- **Status:** accepted and implemented
+- **Decision:** Package loading validates Obligation resolver bindings against the
+  referenced Scenario's exact input names, identity kinds, lifecycle types, and
+  cardinalities. It also validates same-Phase resolver enablement, prohibited-
+  input conflicts, declared output types, and required links against source-owned
+  link contracts, named targets, target types, and cardinalities.
+- **Alternatives:** Defer failures until Scenario dispatch, validate only input
+  names, or duplicate link meaning in Scenario definitions.
+- **Rationale:** Dispatch cannot be safe when its declared inputs or expected
+  outputs are structurally impossible. Reusing source-owned type link contracts
+  preserves one authority for relationship meaning.
+- **Expected behavior:** `loadProcessPackage` rejects missing or extra resolver
+  bindings, incompatible kinds/types/cardinalities, disabled resolvers, prohibited
+  declared inputs, undeclared output types, and impossible required links.
+- **Reversibility:** Versioned. Additional Scenario execution checks can extend
+  this load-time contract without exposing expression ASTs or evaluator helpers.
+- **Evidence/observations:** Focused copied-package fixtures exercise each contract
+  failure through the public loader; the bundled Obligation and Scenario catalog
+  remains the valid fixture.

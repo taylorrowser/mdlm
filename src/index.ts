@@ -10,6 +10,7 @@ import { parse } from "yaml";
 import { validateDefinitionGraph } from "./definition-graph.js";
 import { compileDefinitionExpressions } from "./expression.js";
 import { validatePayloadInheritance } from "./payload-inheritance.js";
+import { validateScenarioContracts } from "./scenario-contract.js";
 
 export {
   evaluateLifecycle,
@@ -527,6 +528,7 @@ export async function loadProcessPackage(
 
     diagnostics.push(...validateDefinitionGraph(manifest, definitions));
     diagnostics.push(...validatePayloadInheritance(definitions));
+    diagnostics.push(...validateScenarioContracts(definitions));
     if (diagnostics.length > 0) return { ok: false, diagnostics };
     if (
       typeof manifest !== "object" ||

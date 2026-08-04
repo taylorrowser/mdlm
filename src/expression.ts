@@ -124,6 +124,12 @@ export interface CompiledTextExpression {
   span: SourceSpan;
 }
 
+export interface CompiledExpressionShape {
+  valueType: ValueType;
+  domainKind?: string;
+  lifecycleTypes?: string[];
+}
+
 interface Binding {
   valueType: ValueType;
   domainKind?: string;
@@ -1116,8 +1122,16 @@ function definitionBindings(definition: VersionedDefinition): Bindings {
   return bindings;
 }
 
-function entityBinding(domainKind: string): Binding {
-  return { valueType: "entity", domainKind, paths: entityPaths };
+function entityBinding(
+  domainKind: string,
+  lifecycleTypes?: string[],
+): Binding {
+  return {
+    valueType: "entity",
+    domainKind,
+    ...(lifecycleTypes === undefined ? {} : { lifecycleTypes }),
+    paths: entityPaths,
+  };
 }
 
 function referencedSelector(
@@ -1299,7 +1313,10 @@ function compileObligationDefinition(
     catalogs.selectors,
   );
   if (typeof definition.subject_as === "string" && subjectKind) {
-    bindings[definition.subject_as] = entityBinding(subjectKind);
+    bindings[definition.subject_as] = entityBinding(
+      subjectKind,
+      compiledForEach?.root.lifecycleTypes,
+    );
   }
   compileField(
     definition,
@@ -1347,7 +1364,13 @@ function compileObligationDefinition(
       catalogs.selectors,
     );
     if (typeof dispatch.as === "string" && dispatchKind) {
-      bindings[dispatch.as] = entityBinding(dispatchKind);
+      const compiledDispatch = isCompiledTextExpression(dispatch.for_each)
+        ? dispatch.for_each
+        : undefined;
+      bindings[dispatch.as] = entityBinding(
+        dispatchKind,
+        compiledDispatch?.root.lifecycleTypes,
+      );
     }
   }
   compileStringValues(
@@ -1649,6 +1672,21 @@ export function isCompiledTextExpression(
 ): value is CompiledTextExpression {
   return typeof value === "object" && value !== null &&
     (value as { kind?: unknown }).kind === "mdlm-expression";
+}
+
+export function compiledExpressionShape(
+  value: unknown,
+): CompiledExpressionShape | undefined {
+  if (!isCompiledTextExpression(value)) return undefined;
+  return {
+    valueType: value.root.valueType,
+    ...(value.root.domainKind === undefined
+      ? {}
+      : { domainKind: value.root.domainKind }),
+    ...(value.root.lifecycleTypes === undefined
+      ? {}
+      : { lifecycleTypes: [...value.root.lifecycleTypes] }),
+  };
 }
 
 function readPath(root: unknown, segments: string[]): unknown {
