@@ -23,7 +23,10 @@ types, states, obligations, scenarios, and phases.
   next work from explicit snapshots. Process authors can scaffold an empty
   case-specific package, derive an independently versioned package with exact
   provenance, add every accepted definition kind, and create executable package
-  fixtures without activating the bundled example.
+  fixtures without activating the bundled example. The first durable repository
+  slice explicitly initializes against a validated package, atomically creates
+  typed Markdown Lifecycle Data, reads durable content with computed projections,
+  and rebuilds disposable indexes from Markdown truth.
 
 ## Try it
 
@@ -36,6 +39,11 @@ npm run prototype
 # Scaffold and validate a process-neutral package
 node dist/req.js process init ./case-process
 node dist/req.js process validate --ref ./case-process
+
+# Initialize a repository against an explicit package
+mkdir example-repository
+cd example-repository
+node ../dist/req.js init --process ../.lifecycle/process
 ```
 
 `npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
@@ -51,5 +59,7 @@ resolver scenarios.
 - Source inputs for the provisional overview: `docs/v0.8-provisional-overview-inputs.md`
 - Remaining process questions: `.lifecycle/process/OPEN-QUESTIONS.md`
 
-This is not yet the durable repository kernel or complete `req` CLI. Storage,
-atomic writes, hashing, concurrency, and full lifecycle breadth remain deferred.
+This is not yet the complete durable repository kernel or `req` CLI. The first
+Markdown creation/read/index-rebuild slice is implemented; revision mutation,
+freezing, durable hashing, concurrency profiles, and full lifecycle breadth remain
+deferred.

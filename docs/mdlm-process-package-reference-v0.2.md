@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.23 — experimental implementation reference**
+**Bootstrap package 0.24 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -492,9 +492,22 @@ fixture new` writes an explicit snapshot and versioned expected-evaluation shape
 `req process test` evaluates those fixtures through `evaluateLifecycle` and fails
 on a structural result mismatch.
 
+`req init --process <package-ref>` atomically creates the first durable repository
+layout, installs and selects the exact package, and records its content digest,
+Datum Envelope, artifact format, expression language, and primitive catalog
+contracts. `req new <type> --scenario <scenario@version> --set <path>=<value>`
+generates a random Stable ID and exact first Revision ID, validates the resolved
+payload schema and source-owned outgoing-link cardinalities/targets, captures the
+selected package digest in creation provenance, and atomically renames one staged
+Markdown Stable Datum directory into place. Failed validation writes no Lifecycle
+Datum. `req show` and `req list` scan Markdown truth and add package-derived states,
+Obligation Instances, backlinks, and bound Kernel Capabilities. `req doctor`
+validates that same source and atomically rebuilds a deterministic disposable
+index; reads do not depend on the generated index.
+
 ## 14. Bootstrap scope
 
-Bootstrap package 0.23 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.24 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

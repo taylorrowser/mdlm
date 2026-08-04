@@ -764,3 +764,47 @@ turning provisional choices into architecture.
   empty package, derive and validate a renamed bootstrap copy, scaffold all ten
   accepted authored definition kinds, generate and pass an evaluation fixture,
   and detect a deliberately changed expected result.
+## D-035 — Keep Markdown authoritative across the first durable repository slice
+
+- **Status:** accepted and implemented
+- **Decision:** `req init --process` validates an explicit Process Package and
+  atomically installs, selects, and records its exact digest together with the
+  supported repository, Datum Envelope, Markdown artifact, expression-language,
+  and primitive-catalog contracts. `req new` requires an exact declared Scenario
+  for creation provenance, generates a random Crockford Base32 Stable ID and exact
+  `r00001` Revision ID, validates the flattened package payload and source-owned
+  outgoing-link contracts, then atomically renames one staged Stable Datum
+  directory into `.lifecycle/data`. `req show` and `req list` scan Markdown source
+  and add computed states, Obligation Instances, backlinks, and Kernel Capability
+  bindings. `req doctor` rebuilds a deterministic generated index from the same
+  source; reads never depend on that index.
+- **Alternatives:** Store JSON as lifecycle truth, make an index or database
+  authoritative, infer the bundled example package at initialization, let callers
+  supply identities, accept untyped payload blobs, record a fake kernel Scenario,
+  write the Datum and index as co-equal transaction participants, or compute
+  projections independently in the CLI.
+- **Rationale:** Markdown durability and package-defined structure are accepted
+  kernel invariants. A declared Scenario supplies real prompt and Policy
+  provenance without adding a package-specific creation concept to core. Staging
+  the complete Stable Datum directory keeps failed validation and interrupted
+  writes from exposing partial truth. Scanning is deliberately sufficient for the
+  current repository scale and proves that indexes are disposable before any
+  production indexing design is selected.
+- **Expected behavior:** Initialization refuses invalid packages and existing
+  repositories without leaving a staging directory. Creation rejects unknown
+  types or Scenarios, invalid payload paths and values, kernel-managed paths,
+  unknown links and targets, incompatible stable-versus-Revision targets, and
+  cardinality violations before writing. Stable and Revision identities both
+  resolve through `show`. Human and JSON views retain durable envelope content and
+  independent computed dimensions. Removing `.lifecycle/generated/indexes`
+  changes no `show` or `list` result, and `doctor` recreates the index atomically.
+- **Reversibility:** Markdown frontmatter ordering, generated-index shape, scan
+  strategy, and compact human rendering may evolve. The repository contract can
+  gain versions before revision mutation and freezing. Explicit package selection,
+  kernel-generated identity, atomic source writes, package validation, and
+  generated-index disposability remain stable boundaries.
+- **Evidence/observations:** Executable tests initialize a repository, inspect its
+  exact contracts, reject invalid initialization and invalid payload/link creation
+  without durable records, round-trip one authored Markdown Lifecycle Datum by
+  Stable and Revision ID, compare structured and human projections, delete the
+  generated indexes without affecting reads, and rebuild them through `req doctor`.

@@ -36,6 +36,17 @@ import {
   humanPhaseStatus,
 } from "./lifecycle-output.js";
 import {
+  createDatum,
+  listData,
+  rebuildRepositoryIndex,
+  showDatum,
+  type CreatedDatum,
+  type DatumProjections,
+  type ListedDatum,
+  type RepositoryIndexSummary,
+  type StoredDatum,
+} from "./lifecycle-repository.js";
+import {
   scaffoldProcessDefinition,
   scaffoldProcessFixture,
   scaffoldProcessPackage,
@@ -66,6 +77,13 @@ interface ProcessSelection {
   language: { expressions: string };
 }
 
+interface RepositorySummary {
+  contract: "mdlm-repository@1";
+  datumEnvelope: string;
+  artifactFormat: string;
+  primitiveCatalog: string;
+}
+
 interface CommandResult {
   ok: boolean;
   command?: string;
@@ -87,6 +105,12 @@ interface CommandResult {
   definition?: DefinitionScaffold;
   fixture?: FixtureScaffold;
   tests?: FixtureTestSummary;
+  repository?: RepositorySummary;
+  created?: CreatedDatum;
+  record?: StoredDatum["record"];
+  projections?: DatumProjections;
+  records?: ListedDatum[];
+  index?: RepositoryIndexSummary;
   diagnostics: ProcessDiagnostic[];
 }
 
@@ -157,6 +181,93 @@ async function atomicJson(filePath: string, value: unknown): Promise<void> {
   const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
   await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
   await fs.rename(temporaryPath, filePath);
+}
+
+function repositorySummary(processPackage: ProcessPackage): RepositorySummary {
+  const kernelContract = processPackage.manifest.kernel_contract as
+    | Record<string, unknown>
+    | undefined;
+  const artifactFormat = processPackage.manifest.artifact_format as
+    | Record<string, unknown>
+    | undefined;
+  return {
+    contract: "mdlm-repository@1",
+    datumEnvelope: String(kernelContract?.envelope_schema_id ?? ""),
+    artifactFormat: `${String(artifactFormat?.media_type ?? "")}; metadata=${String(artifactFormat?.metadata ?? "")}; encoding=${String(artifactFormat?.encoding ?? "")}`,
+    primitiveCatalog: String(kernelContract?.primitive_catalog_ref ?? ""),
+  };
+}
+
+async function initializeRepository(
+  repositoryRoot: string,
+  processReference: string | undefined,
+): Promise<CommandResult> {
+  if (!processReference) {
+    return failure(
+      "process-package-required",
+      "Repository initialization requires '--process <package-ref>'",
+    );
+  }
+  const lifecycleRoot = path.join(repositoryRoot, ".lifecycle");
+  try {
+    await fs.access(lifecycleRoot);
+    return failure(
+      "repository-already-initialized",
+      "The repository already contains .lifecycle",
+      lifecycleRoot,
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+
+  const installedRoot = await installedPackageRoot(repositoryRoot, processReference);
+  const sourceRoot = installedRoot ?? path.resolve(repositoryRoot, processReference);
+  const loaded = await loadProcessPackage(sourceRoot);
+  if (!loaded.ok) return { ok: false, command: "init", diagnostics: loaded.diagnostics };
+  const summary = await packageSummary(loaded.package, sourceRoot);
+  if (installedRoot && summary.reference !== processReference) {
+    return failure(
+      "process-package-reference-mismatch",
+      `Installed reference '${processReference}' contains '${summary.reference}'`,
+      sourceRoot,
+    );
+  }
+  const repository = repositorySummary(loaded.package);
+  const temporaryRoot = path.join(repositoryRoot, `.mdlm-init-${randomUUID()}`);
+  try {
+    await fs.mkdir(temporaryRoot);
+    const installation = await installPackage(temporaryRoot, sourceRoot);
+    if (!installation.ok) return { ...installation, command: "init" };
+    const selection = await usePackage(temporaryRoot, summary.reference);
+    if (!selection.ok) return { ...selection, command: "init" };
+    await Promise.all([
+      fs.mkdir(path.join(temporaryRoot, ".lifecycle/data"), { recursive: true }),
+      fs.mkdir(path.join(temporaryRoot, ".lifecycle/generated/indexes"), {
+        recursive: true,
+      }),
+    ]);
+    await atomicJson(path.join(temporaryRoot, ".lifecycle/repository.json"), {
+      schemaVersion: 1,
+      repositoryContract: repository.contract,
+      package: { reference: summary.reference, digest: summary.digest },
+      contracts: {
+        datumEnvelope: repository.datumEnvelope,
+        artifactFormat: repository.artifactFormat,
+        expressionLanguage: summary.language,
+        primitiveCatalog: repository.primitiveCatalog,
+      },
+    });
+    await fs.rename(path.join(temporaryRoot, ".lifecycle"), lifecycleRoot);
+  } finally {
+    await fs.rm(temporaryRoot, { recursive: true, force: true });
+  }
+  return {
+    ok: true,
+    command: "init",
+    package: summary,
+    repository,
+    diagnostics: [],
+  };
 }
 
 async function installPackage(
@@ -351,6 +462,196 @@ async function runProcessFixtures(
   };
 }
 
+function assignments(
+  arguments_: string[],
+  option: string,
+): { ok: true; values: { path: string; value: unknown }[] } | CommandResult {
+  const values: { path: string; value: unknown }[] = [];
+  for (const assignment of optionValues(arguments_, option)) {
+    const separator = assignment.indexOf("=");
+    if (separator < 1) {
+      return failure(
+        "invalid-assignment",
+        `Invalid ${option} '${assignment}'; expected path=value`,
+      );
+    }
+    const pathValue = assignment.slice(0, separator);
+    const source = assignment.slice(separator + 1);
+    let value: unknown;
+    try {
+      value = parse(source) as unknown;
+    } catch (error) {
+      return failure(
+        "invalid-assignment",
+        `Invalid ${option} value for '${pathValue}': ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    values.push({ path: pathValue, value });
+  }
+  return { ok: true, values };
+}
+
+async function newDatum(
+  repositoryRoot: string,
+  typeId: string,
+  arguments_: string[],
+): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "new",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const fields = assignments(arguments_, "--set");
+  if (!("values" in fields)) return { ...fields, command: "new" };
+  const linkAssignments = assignments(arguments_, "--link");
+  if (!("values" in linkAssignments)) return { ...linkAssignments, command: "new" };
+  const links: { type: string; target: string }[] = [];
+  for (const link of linkAssignments.values) {
+    if (typeof link.value !== "string") {
+      return failure(
+        "invalid-link",
+        `Link '${link.path}' target must be a Stable or Revision ID`,
+      );
+    }
+    links.push({ type: link.path, target: link.value });
+  }
+  const created = await createDatum(
+    repositoryRoot,
+    selected.processPackage,
+    selected.summary.reference,
+    selected.summary.digest,
+    typeId,
+    optionValue(arguments_, "--scenario"),
+    fields.values,
+    links,
+    optionValue(arguments_, "--body") ?? "",
+  );
+  if (!created.ok) {
+    return {
+      ok: false,
+      command: "new",
+      package: selected.summary,
+      selected: true,
+      diagnostics: created.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "new",
+    package: selected.summary,
+    created: created.value,
+    diagnostics: [],
+  };
+}
+
+async function showStoredDatum(
+  repositoryRoot: string,
+  identity: string,
+): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "show",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const shown = await showDatum(
+    repositoryRoot,
+    selected.processPackage,
+    `${selected.summary.reference}#${selected.summary.digest}`,
+    identity,
+  );
+  if (!shown.ok) {
+    return {
+      ok: false,
+      command: "show",
+      package: selected.summary,
+      selected: true,
+      diagnostics: shown.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "show",
+    package: selected.summary,
+    record: shown.value.record,
+    projections: shown.value.projections,
+    diagnostics: [],
+  };
+}
+
+async function listStoredData(repositoryRoot: string): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "list",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const listed = await listData(
+    repositoryRoot,
+    selected.processPackage,
+    `${selected.summary.reference}#${selected.summary.digest}`,
+  );
+  if (!listed.ok) {
+    return {
+      ok: false,
+      command: "list",
+      package: selected.summary,
+      selected: true,
+      diagnostics: listed.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "list",
+    package: selected.summary,
+    records: listed.value,
+    diagnostics: [],
+  };
+}
+
+async function doctorRepository(repositoryRoot: string): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "doctor",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const rebuilt = await rebuildRepositoryIndex(
+    repositoryRoot,
+    selected.processPackage,
+    selected.summary.reference,
+  );
+  if (!rebuilt.ok) {
+    return {
+      ok: false,
+      command: "doctor",
+      package: selected.summary,
+      selected: true,
+      diagnostics: rebuilt.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "doctor",
+    package: selected.summary,
+    index: rebuilt.value,
+    diagnostics: [],
+  };
+}
+
 async function usePackage(
   repositoryRoot: string,
   reference: string,
@@ -457,6 +758,66 @@ async function selectedPackage(
     };
   }
   return { ok: true, processPackage: loaded.package, summary };
+}
+
+async function selectedRepositoryPackage(
+  repositoryRoot: string,
+): Promise<SelectedPackageResolution> {
+  const selected = await selectedPackage(repositoryRoot);
+  if (!selected.ok) return selected;
+  const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
+  let descriptor: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(await fs.readFile(descriptorPath, "utf8")) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new Error("repository descriptor must be a JSON object");
+    }
+    descriptor = parsed as Record<string, unknown>;
+  } catch (error) {
+    return {
+      ok: false,
+      selected: true,
+      diagnostics: [{
+        code: (error as NodeJS.ErrnoException).code === "ENOENT"
+          ? "repository-not-initialized"
+          : "repository-contract",
+        path: descriptorPath,
+        message: (error as NodeJS.ErrnoException).code === "ENOENT"
+          ? "No MDLM repository descriptor exists; run 'req init --process <package-ref>'"
+          : `Cannot read the MDLM repository descriptor: ${error instanceof Error ? error.message : String(error)}`,
+      }],
+    };
+  }
+  const packageContract = typeof descriptor.package === "object" &&
+      descriptor.package !== null
+    ? descriptor.package as Record<string, unknown>
+    : {};
+  const contracts = typeof descriptor.contracts === "object" &&
+      descriptor.contracts !== null
+    ? descriptor.contracts as Record<string, unknown>
+    : {};
+  const repository = repositorySummary(selected.processPackage);
+  if (
+    descriptor.schemaVersion !== 1 ||
+    descriptor.repositoryContract !== repository.contract ||
+    packageContract.reference !== selected.summary.reference ||
+    packageContract.digest !== selected.summary.digest ||
+    contracts.datumEnvelope !== repository.datumEnvelope ||
+    contracts.artifactFormat !== repository.artifactFormat ||
+    contracts.expressionLanguage !== selected.summary.language ||
+    contracts.primitiveCatalog !== repository.primitiveCatalog
+  ) {
+    return {
+      ok: false,
+      selected: true,
+      diagnostics: [{
+        code: "repository-contract-mismatch",
+        path: descriptorPath,
+        message: "The repository descriptor does not match its exact selected Process Package and supported contracts",
+      }],
+    };
+  }
+  return selected;
 }
 
 function failedValidation(
@@ -836,6 +1197,16 @@ function humanOutput(result: CommandResult): string {
       .map((diagnostic) => `Error [${diagnostic.code}]: ${diagnostic.message}`)
       .join("\n");
   }
+  if (result.repository && result.package) {
+    return [
+      `Repository Contract: ${result.repository.contract}`,
+      `Process Package: ${result.package.reference}`,
+      `Expression Language: ${result.package.language}`,
+      `Datum Envelope: ${result.repository.datumEnvelope}`,
+      `Artifact Format: ${result.repository.artifactFormat}`,
+      `Primitive Catalog: ${result.repository.primitiveCatalog}`,
+    ].join("\n");
+  }
   if (result.scaffold) {
     return [
       `Process Package: ${result.scaffold.package}`,
@@ -865,6 +1236,55 @@ function humanOutput(result: CommandResult): string {
       ...result.tests.fixtures.map((fixture) =>
         `${fixture.passed ? "PASS" : "FAIL"} ${fixture.name}`
       ),
+    ].join("\n");
+  }
+  if (result.index) {
+    return [
+      `Repository: healthy`,
+      `Lifecycle Data: ${result.index.records}`,
+      `Index: ${result.index.rebuilt ? "rebuilt" : "current"}`,
+      `Index Path: ${result.index.path}`,
+    ].join("\n");
+  }
+  if (result.created) {
+    return [
+      `Lifecycle Datum: ${result.created.id}`,
+      `Revision: ${result.created.revisionId}`,
+      `Type: ${result.created.type}`,
+      `Path: ${result.created.path}`,
+    ].join("\n");
+  }
+  if (result.record && result.projections) {
+    const datum = result.record.datum;
+    return [
+      `Lifecycle Datum: ${datum.id}`,
+      `Revision: ${datum.revision_id}`,
+      `Type: ${datum.type}`,
+      `Payload: ${JSON.stringify(datum.payload)}`,
+      `Links: ${JSON.stringify(datum.links)}`,
+      `Created By: ${JSON.stringify(datum.created_by)}`,
+      `Body: ${datum.body}`,
+      `Storage: ${JSON.stringify(result.record.storage)}`,
+      `Integrity: ${JSON.stringify(result.record.integrity)}`,
+      ...Object.entries(result.projections.states).map(([dimension, value]) =>
+        `${dimension[0]?.toUpperCase() ?? ""}${dimension.slice(1)}: ${Array.isArray(value) ? value.join(", ") || "none" : value}`
+      ),
+      `Backlinks: ${result.projections.backlinks.length}`,
+      `Obligations: ${result.projections.obligations.length}`,
+      ...result.projections.obligations.map((obligation) =>
+        `- ${obligation.obligation}: ${JSON.stringify(obligation)}`
+      ),
+      `Kernel Capabilities: ${result.projections.kernelCapabilities.join(", ") || "none"}`,
+    ].join("\n");
+  }
+  if (result.records) {
+    return [
+      `Lifecycle Data: ${result.records.length}`,
+      ...result.records.flatMap((record) => [
+        `${record.revisionId} [${record.type}] ${record.title ?? "untitled"}`,
+        `  States: ${JSON.stringify(record.states)}`,
+        `  Obligations: ${record.obligations.map((obligation) => `${obligation.obligation}:${JSON.stringify(obligation)}`).join(", ") || "none"}`,
+      ]),
     ].join("\n");
   }
   if (result.phaseStatus && result.package) {
@@ -1002,6 +1422,20 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
     argument !== "--ref" &&
     arguments_[index - 1] !== "--ref"
   );
+  if (operands[0] === "init") {
+    return initializeRepository(
+      repositoryRoot,
+      optionValue(arguments_, "--process"),
+    );
+  }
+  if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+  if (operands[0] === "new" && operands[1]) {
+    return newDatum(repositoryRoot, operands[1], arguments_);
+  }
+  if (operands[0] === "show" && operands[1]) {
+    return showStoredDatum(repositoryRoot, operands[1]);
+  }
+  if (operands[0] === "list") return listStoredData(repositoryRoot);
   const directKind = ["relation", "selector", "policy", "state", "obligation"]
     .includes(operands[0] ?? "")
     ? operands[0] as ProcessDirectEvaluation["target"]["kind"]

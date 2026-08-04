@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.23
+# MDLM bootstrap process package v0.24
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -22,6 +22,9 @@ under a new identity with exact source provenance, but that independently
 versioned copy is ordinary package data rather than inherited kernel behavior.
 The same command can create an empty package containing only the supported
 meta-schema, Datum Envelope, primitive catalog, and empty authored catalogs.
+A repository may explicitly select this package with `req init --process`; the
+kernel then validates package-defined payload and outgoing-link contracts while
+storing the resulting Lifecycle Datum in the package-neutral Markdown layout.
 
 The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
 definition now uses textual source compiled at package load, including finite
