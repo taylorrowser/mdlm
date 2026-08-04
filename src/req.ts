@@ -75,6 +75,11 @@ import {
   type ScenarioDryRun,
 } from "./scenario-dry-run.js";
 import {
+  executeResolverScenario,
+  readScenarioExecution,
+  type ScenarioExecution,
+} from "./scenario-execution.js";
+import {
   scaffoldProcessDefinition,
   scaffoldProcessFixture,
   scaffoldProcessPackage,
@@ -146,6 +151,7 @@ interface CommandResult {
   baselineDiff?: BaselineDiff;
   baselineRepositoryVerification?: BaselineRepositoryVerification;
   scenarioDryRun?: ScenarioDryRun;
+  execution?: ScenarioExecution;
   backlinks?: BacklinkInspection;
   trace?: GraphTrace;
   index?: RepositoryIndexSummary;
@@ -1605,28 +1611,15 @@ async function dryRunScenario(
       command: "scenario.dry-run",
     };
   }
-  const requestedInputs = inputArguments.flatMap((argument) => {
-    const separator = argument.indexOf("=");
-    return separator > 0
-      ? [{ name: argument.slice(0, separator), value: argument.slice(separator + 1) }]
-      : [];
-  });
-  if (requestedInputs.length !== inputArguments.length) {
-    return {
-      ...failure(
-        "invalid-scenario-input",
-        "Scenario input assertions require '--input <name>=<value>'",
-      ),
-      command: "scenario.dry-run",
-    };
-  }
+  const requested = requestedScenarioInputs(inputArguments);
+  if (!requested.ok) return { ...requested.result, command: "scenario.dry-run" };
   const snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
   const dryRun = await dryRunResolverScenario(
     selected.processPackage,
     snapshot,
     scenarioReference,
     obligationInstance,
-    requestedInputs,
+    requested.inputs,
   );
   if (!dryRun.ok) {
     return {
@@ -1645,6 +1638,125 @@ async function dryRunScenario(
     scenarioDryRun: dryRun.value,
     diagnostics: [],
   };
+}
+
+function requestedScenarioInputs(inputArguments: string[]):
+  | { ok: true; inputs: { name: string; value: string }[] }
+  | { ok: false; result: CommandResult } {
+  const inputs = inputArguments.flatMap((argument) => {
+    const separator = argument.indexOf("=");
+    return separator > 0
+      ? [{ name: argument.slice(0, separator), value: argument.slice(separator + 1) }]
+      : [];
+  });
+  return inputs.length === inputArguments.length
+    ? { ok: true, inputs }
+    : {
+        ok: false,
+        result: failure(
+          "invalid-scenario-input",
+          "Scenario input assertions require '--input <name>=<value>'",
+        ),
+      };
+}
+
+async function executeScenario(
+  repositoryRoot: string,
+  scenarioReference: string,
+  obligationInstance: string | undefined,
+  adapter: string | undefined,
+  inputArguments: string[],
+): Promise<CommandResult> {
+  const selected = await selectedPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "scenario.execute",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  if (!obligationInstance) {
+    return {
+      ...failure(
+        "obligation-instance-required",
+        "scenario.execute requires '--obligation <exact-instance>'",
+      ),
+      command: "scenario.execute",
+    };
+  }
+  if (!adapter) {
+    return {
+      ...failure(
+        "scenario-adapter-required",
+        "scenario.execute requires '--adapter <executable>'",
+      ),
+      command: "scenario.execute",
+    };
+  }
+  const requested = requestedScenarioInputs(inputArguments);
+  if (!requested.ok) return { ...requested.result, command: "scenario.execute" };
+  const execution = await executeResolverScenario(
+    repositoryRoot,
+    selected.processPackage,
+    {
+      reference: selected.summary.reference,
+      digest: selected.summary.digest,
+      language: selected.summary.language,
+    },
+    scenarioReference,
+    obligationInstance,
+    requested.inputs,
+    adapter,
+  );
+  return execution.ok
+    ? {
+        ok: true,
+        command: "scenario.execute",
+        package: selected.summary,
+        selected: true,
+        execution: execution.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "scenario.execute",
+        package: selected.summary,
+        selected: true,
+        diagnostics: execution.diagnostics,
+      };
+}
+
+async function showScenarioExecution(
+  repositoryRoot: string,
+  executionId: string,
+): Promise<CommandResult> {
+  const selected = await selectedPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "scenario.execution.show",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const execution = await readScenarioExecution(repositoryRoot, executionId);
+  return execution.ok
+    ? {
+        ok: true,
+        command: "scenario.execution.show",
+        package: selected.summary,
+        selected: true,
+        execution: execution.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "scenario.execution.show",
+        package: selected.summary,
+        selected: true,
+        diagnostics: execution.diagnostics,
+      };
 }
 
 async function evaluateSelectedExpression(
@@ -1867,6 +1979,27 @@ function humanOutput(result: CommandResult): string {
       `Composition: ${result.baselineVerification.composition.join(", ") || "none"}`,
       `Checked Hashes: ${result.baselineVerification.checkedHashes}`,
       `Checked Resolutions: ${result.baselineVerification.checkedResolutions}`,
+    ].join("\n");
+  }
+  if (result.execution) {
+    const execution = result.execution;
+    return [
+      `Scenario Execution: ${execution.id} [${execution.status}]`,
+      `Scenario: ${execution.definition.scenario}`,
+      `Obligation: ${execution.obligation.instance}`,
+      `Package: ${execution.package.reference}#${execution.package.digest}`,
+      `Adapter: ${execution.adapter.executable}`,
+      `Prompt: ${execution.prompt.reference}`,
+      ...execution.skills.map((skill) => `Skill: ${skill.reference}`),
+      ...execution.policies.map((policy) =>
+        `Policy [${policy.role}]: ${policy.reference}`
+      ),
+      ...execution.outputs.map((output) =>
+        `Output ${output.name}: ${output.lifecycleDatum.revisionId}`
+      ),
+      `Contract Valid: ${execution.completion.contractValid}`,
+      `Completion Passed: ${execution.completion.expressionPassed}`,
+      `Discovered Obligations: ${execution.discoveredObligations.length}`,
     ].join("\n");
   }
   if (result.scenarioDryRun) {
@@ -2247,6 +2380,23 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       optionValue(arguments_, "--snapshot"),
       optionValue(arguments_, "--phase"),
     );
+  }
+  if (
+    operands[0] === "scenario" && operands[1] === "execute" && operands[2]
+  ) {
+    return executeScenario(
+      repositoryRoot,
+      operands[2],
+      optionValue(arguments_, "--obligation"),
+      optionValue(arguments_, "--adapter"),
+      optionValues(arguments_, "--input"),
+    );
+  }
+  if (
+    operands[0] === "scenario" && operands[1] === "execution" &&
+    operands[2] === "show" && operands[3]
+  ) {
+    return showScenarioExecution(repositoryRoot, operands[3]);
   }
   if (
     operands[0] === "scenario" && operands[1] === "dry-run" && operands[2]

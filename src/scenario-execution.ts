@@ -1,0 +1,705 @@
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import {
+  evaluateLifecycle,
+  type DatumEnvelope,
+  type LifecycleRecord,
+  type LifecycleSnapshot,
+  type ProcessDiagnostic,
+  type ProcessPackage,
+  type VersionedDefinition,
+} from "./index.js";
+import { evaluateProcessExpression } from "./evaluator.js";
+import {
+  publishScenarioMutation,
+  readRepositoryData,
+} from "./lifecycle-repository.js";
+import {
+  dryRunResolverScenario,
+  type ScenarioDryRun,
+  type ScenarioDryRunInvocation,
+} from "./scenario-dry-run.js";
+
+interface PackageExecutionIdentity {
+  reference: string;
+  digest: string;
+  language: string;
+}
+
+interface AdapterOutputProposal {
+  name: string;
+  invocation: number;
+  lifecycleDatum: {
+    id?: string;
+    type: string;
+    payload: Record<string, unknown>;
+    links: { type: string; target: string }[];
+    body: string;
+  };
+}
+
+interface AdapterResponse {
+  outputs: AdapterOutputProposal[];
+  completionEvidence: unknown;
+}
+
+export interface ScenarioExecutionOutput {
+  name: string;
+  invocation: number;
+  lifecycleDatum: {
+    id: string;
+    revision: number;
+    revisionId: string;
+    type: string;
+    path: string;
+  };
+  data: DatumEnvelope;
+}
+
+export interface ScenarioExecution {
+  contract: "mdlm-scenario-execution@1";
+  id: string;
+  status: "completed";
+  adapter: {
+    contract: "mdlm-agent-adapter@1";
+    executable: string;
+    digest: string;
+    requestDigest: string;
+    responseDigest: string;
+  };
+  package: PackageExecutionIdentity;
+  definition: ScenarioDryRun["definition"];
+  obligation: ScenarioDryRun["obligation"];
+  inputs: ScenarioDryRunInvocation[];
+  prompt: Omit<ScenarioDryRun["prompt"], "skills">;
+  skills: ScenarioDryRun["prompt"]["skills"];
+  policies: ScenarioDryRun["policies"];
+  prohibitedInputs: string[];
+  outputs: ScenarioExecutionOutput[];
+  completion: {
+    contractValid: true;
+    expression: string;
+    expressionPassed: true;
+    evaluations: { invocation: number; result: true }[];
+  };
+  completionEvidence: unknown;
+  resultingObligations: string[];
+  discoveredObligations: string[];
+}
+
+export type ScenarioExecutionResult =
+  | { ok: true; value: ScenarioExecution; diagnostics: [] }
+  | { ok: false; diagnostics: ProcessDiagnostic[] };
+
+type RecordValue = Record<string, unknown>;
+
+const base32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+function object(value: unknown): RecordValue | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as RecordValue
+    : undefined;
+}
+
+function array(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function versionedDefinition(
+  catalog: Record<string, VersionedDefinition>,
+  reference: string,
+): VersionedDefinition | undefined {
+  const match = /^(.*)@([1-9][0-9]*)$/.exec(reference);
+  const definition = match?.[1] ? catalog[match[1]] : undefined;
+  return definition?.version === Number(match?.[2]) ? definition : undefined;
+}
+
+function sha256(value: string | Uint8Array): string {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function stableId(type: string): string {
+  return `${type}-${[...randomBytes(10)].map((byte) => base32[byte & 31]).join("")}`;
+}
+
+function cardinalityRange(cardinality: string): { minimum: number; maximum: number } {
+  switch (cardinality) {
+    case "one": return { minimum: 1, maximum: 1 };
+    case "one-or-more": return { minimum: 1, maximum: Number.POSITIVE_INFINITY };
+    case "zero-or-one": return { minimum: 0, maximum: 1 };
+    default: return { minimum: 0, maximum: Number.POSITIVE_INFINITY };
+  }
+}
+
+async function invokeAdapter(
+  repositoryRoot: string,
+  executable: string,
+  requestSource: string,
+): Promise<{
+  response?: unknown;
+  responseSource?: string;
+  diagnostic?: ProcessDiagnostic;
+}> {
+  return new Promise((resolve) => {
+    const child = spawn(path.resolve(repositoryRoot, executable), [], {
+      cwd: repositoryRoot,
+      stdio: ["pipe", "pipe", "pipe"],
+      shell: false,
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
+    child.stderr.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
+    child.on("error", (error) => resolve({
+      diagnostic: {
+        code: "scenario-adapter-unavailable",
+        path: executable,
+        message: `Could not invoke configured agent adapter: ${error.message}`,
+      },
+    }));
+    child.on("close", (code) => {
+      if (code !== 0) {
+        resolve({
+          diagnostic: {
+            code: "scenario-adapter-failed",
+            path: executable,
+            message: `Configured agent adapter exited with status ${code}: ${stderr.trim()}`,
+          },
+        });
+        return;
+      }
+      try {
+        resolve({ response: JSON.parse(stdout) as unknown, responseSource: stdout });
+      } catch (error) {
+        resolve({
+          diagnostic: {
+            code: "scenario-adapter-response-invalid",
+            path: executable,
+            message: `Configured agent adapter did not return one JSON value: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        });
+      }
+    });
+    child.stdin.end(requestSource);
+  });
+}
+
+function parseAdapterResponse(value: unknown):
+  | { ok: true; value: AdapterResponse }
+  | { ok: false; diagnostics: ProcessDiagnostic[] } {
+  const response = object(value);
+  if (!response || !Array.isArray(response.outputs) ||
+      !Object.hasOwn(response, "completionEvidence")) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-adapter-response-invalid",
+        path: "adapter.response",
+        message: "Adapter response requires 'outputs' and 'completionEvidence'",
+      }],
+    };
+  }
+  const outputs: AdapterOutputProposal[] = [];
+  const diagnostics: ProcessDiagnostic[] = [];
+  const responseKeys = Object.keys(response).filter((key) =>
+    key !== "outputs" && key !== "completionEvidence"
+  );
+  if (responseKeys.length > 0) {
+    diagnostics.push({
+      code: "scenario-adapter-response-invalid",
+      path: "adapter.response",
+      message: `Adapter response contains undeclared fields: ${responseKeys.sort().join(", ")}`,
+    });
+  }
+  response.outputs.forEach((candidate, index) => {
+    const output = object(candidate);
+    const datum = object(output?.lifecycleDatum);
+    const links = array(datum?.links);
+    const parsedLinks = links.flatMap((value) => {
+      const link = object(value);
+      return typeof link?.type === "string" && typeof link.target === "string"
+        ? [{ type: link.type, target: link.target }]
+        : [];
+    });
+    const outputKeys = output
+      ? Object.keys(output).filter((key) =>
+        key !== "name" && key !== "invocation" && key !== "lifecycleDatum"
+      )
+      : [];
+    const datumKeys = datum
+      ? Object.keys(datum).filter((key) =>
+        !["id", "type", "payload", "links", "body"].includes(key)
+      )
+      : [];
+    if (!output || outputKeys.length > 0 || typeof output.name !== "string" ||
+        !Number.isInteger(output.invocation) || Number(output.invocation) < 0 ||
+        !datum || datumKeys.length > 0 || typeof datum.type !== "string" ||
+        (datum.id !== undefined && typeof datum.id !== "string") ||
+        !object(datum.payload) || !Array.isArray(datum.links) ||
+        parsedLinks.length !== links.length || typeof datum.body !== "string") {
+      diagnostics.push({
+        code: "scenario-output-invalid",
+        path: `adapter.outputs[${index}]`,
+        message: "Adapter output must declare a name, invocation, and complete Lifecycle Datum proposal",
+      });
+      return;
+    }
+    outputs.push({
+      name: output.name,
+      invocation: Number(output.invocation),
+      lifecycleDatum: {
+        ...(typeof datum.id === "string" ? { id: datum.id } : {}),
+        type: datum.type,
+        payload: object(datum.payload)!,
+        links: parsedLinks,
+        body: datum.body,
+      },
+    });
+  });
+  return diagnostics.length > 0
+    ? { ok: false, diagnostics }
+    : {
+        ok: true,
+        value: { outputs, completionEvidence: response.completionEvidence },
+      };
+}
+
+function outputContractDiagnostics(
+  scenario: VersionedDefinition,
+  invocations: ScenarioDryRunInvocation[],
+  outputs: AdapterOutputProposal[],
+): ProcessDiagnostic[] {
+  const contracts = array(scenario.outputs)
+    .map(object)
+    .filter((value): value is RecordValue => value !== undefined);
+  const declared = new Set(contracts.map((contract) => String(contract.name)));
+  const diagnostics: ProcessDiagnostic[] = [];
+  outputs.forEach((output, index) => {
+    if (!declared.has(output.name)) {
+      diagnostics.push({
+        code: "scenario-output-undeclared",
+        path: `adapter.outputs[${index}].name`,
+        message: `Adapter returned undeclared Scenario output '${output.name}'`,
+      });
+    }
+    if (output.invocation >= invocations.length) {
+      diagnostics.push({
+        code: "scenario-output-invocation-invalid",
+        path: `adapter.outputs[${index}].invocation`,
+        message: `Adapter output '${output.name}' names unknown invocation ${output.invocation}`,
+      });
+    }
+  });
+  for (let invocation = 0; invocation < invocations.length; invocation += 1) {
+    for (const contract of contracts) {
+      const name = String(contract.name);
+      const values = outputs.filter((output) =>
+        output.invocation === invocation && output.name === name
+      );
+      const range = cardinalityRange(String(contract.cardinality));
+      if (values.length < range.minimum || values.length > range.maximum) {
+        diagnostics.push({
+          code: "scenario-output-cardinality-invalid",
+          path: `outputs.${name}`,
+          message: `Scenario output '${name}' requires ${String(contract.cardinality)} per invocation, received ${values.length}`,
+        });
+      }
+      const types = array(contract.types);
+      for (const value of values) {
+        if (!types.includes(value.lifecycleDatum.type)) {
+          diagnostics.push({
+            code: "scenario-output-type-invalid",
+            path: `outputs.${name}.type`,
+            message: `Scenario output '${name}' cannot return type '${value.lifecycleDatum.type}'`,
+          });
+        }
+      }
+    }
+  }
+  return diagnostics;
+}
+
+function requiredLinkDiagnostics(
+  scenario: VersionedDefinition,
+  dryRun: ScenarioDryRun,
+  outputs: { proposal: AdapterOutputProposal; datum: DatumEnvelope }[],
+): ProcessDiagnostic[] {
+  const contracts = new Map(array(scenario.outputs).flatMap((value) => {
+    const contract = object(value);
+    return typeof contract?.name === "string" ? [[contract.name, contract] as const] : [];
+  }));
+  const diagnostics: ProcessDiagnostic[] = [];
+  for (const output of outputs) {
+    const contract = contracts.get(output.proposal.name);
+    for (const requiredValue of array(contract?.required_links)) {
+      const required = object(requiredValue);
+      const target = object(required?.target);
+      const linkType = typeof required?.link === "string" ? required.link : "";
+      const invocation = dryRun.invocations[output.proposal.invocation];
+      const expected = typeof target?.input === "string"
+        ? invocation?.inputs.find((input) => input.name === target.input)?.values.map(
+          (value) => value.identity.revision_id ?? value.identity.id,
+        ) ?? []
+        : typeof target?.output === "string"
+          ? outputs.filter((candidate) =>
+            candidate.proposal.invocation === output.proposal.invocation &&
+            candidate.proposal.name === target.output
+          ).map((candidate) => candidate.datum.revision_id)
+          : [];
+      const actual = output.datum.links
+        .filter((link) => link.type === linkType)
+        .map((link) => link.target);
+      for (const identity of expected) {
+        if (!actual.includes(identity)) {
+          diagnostics.push({
+            code: "scenario-output-required-link-missing",
+            path: `outputs.${output.proposal.name}.links.${linkType}`,
+            message: `Scenario output '${output.proposal.name}' must link '${linkType}' to '${identity}'`,
+          });
+        }
+      }
+    }
+  }
+  return diagnostics;
+}
+
+function expressionBindings(
+  dryRun: ScenarioDryRun,
+  invocation: ScenarioDryRunInvocation,
+  invocationIndex: number,
+  outputs: { proposal: AdapterOutputProposal; datum: DatumEnvelope }[],
+): Record<string, unknown> {
+  const bindings: Record<string, unknown> = {};
+  for (const input of invocation.inputs) {
+    const values = input.values.map((value) =>
+      value.identity.revision_id ?? value.identity.id
+    );
+    bindings[input.name] = input.contract.cardinality === "one" ||
+        input.contract.cardinality === "zero-or-one"
+      ? values[0]
+      : values;
+  }
+  for (const name of new Set(outputs.filter((output) =>
+    output.proposal.invocation === invocationIndex
+  ).map((output) => output.proposal.name))) {
+    const values = outputs.filter((output) =>
+      output.proposal.invocation === invocationIndex && output.proposal.name === name
+    ).map((output) => output.datum.revision_id);
+    const cardinality = dryRun.expectedOutputs.find((output) =>
+      output.name === name
+    )?.cardinality;
+    bindings[name] = cardinality === "one" || cardinality === "zero-or-one"
+      ? values[0]
+      : values;
+  }
+  return bindings;
+}
+
+function remapPublicationDiagnostics(
+  diagnostics: ProcessDiagnostic[],
+): ProcessDiagnostic[] {
+  return diagnostics.map((diagnostic) =>
+    diagnostic.code === "datum-payload" || diagnostic.code === "datum-envelope" ||
+        diagnostic.code === "datum-identity"
+      ? { ...diagnostic, code: "scenario-output-schema-invalid" }
+      : diagnostic
+  );
+}
+
+export async function executeResolverScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  scenarioReference: string,
+  obligationInstance: string,
+  requestedInputs: { name: string; value: string }[],
+  adapterExecutable: string,
+): Promise<ScenarioExecutionResult> {
+  const loaded = await readRepositoryData(repositoryRoot, processPackage);
+  if (!loaded.ok) return loaded;
+  const selectedScenario = versionedDefinition(
+    processPackage.scenarios,
+    scenarioReference,
+  );
+  const phaseId = array(selectedScenario?.phases).find(
+    (value): value is string => typeof value === "string",
+  );
+  if (!selectedScenario || !phaseId) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "resolver-definition-unavailable",
+        path: scenarioReference,
+        message: `Could not resolve an enabled Phase for exact Scenario '${scenarioReference}'`,
+      }],
+    };
+  }
+  const snapshot: LifecycleSnapshot = {
+    processRef: `${packageIdentity.reference}#${packageIdentity.digest}`,
+    phaseId,
+    dependencyComparisons: [],
+    records: loaded.value.map((item) => item.lifecycleDatum),
+  };
+  const dryRunResult = await dryRunResolverScenario(
+    processPackage,
+    snapshot,
+    scenarioReference,
+    obligationInstance,
+    requestedInputs,
+  );
+  if (!dryRunResult.ok) return dryRunResult;
+  const dryRun = dryRunResult.value;
+  const adapterRequest = {
+    contract: "mdlm-agent-adapter@1" as const,
+    scenario: scenarioReference,
+    obligation: obligationInstance,
+    invocations: dryRun.invocations,
+    prompt: dryRun.prompt,
+    policies: dryRun.policies,
+    prohibitedInputs: dryRun.prohibitedInputs,
+    expectedOutputs: dryRun.expectedOutputs,
+    completion: dryRun.completion,
+  };
+  let adapterDigest: string;
+  try {
+    adapterDigest = sha256(
+      await fs.readFile(path.resolve(repositoryRoot, adapterExecutable)),
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-adapter-unavailable",
+        path: adapterExecutable,
+        message: `Could not read configured agent adapter: ${error instanceof Error ? error.message : String(error)}`,
+      }],
+    };
+  }
+  const adapterRequestSource = `${JSON.stringify(adapterRequest)}\n`;
+  const invoked = await invokeAdapter(
+    repositoryRoot,
+    adapterExecutable,
+    adapterRequestSource,
+  );
+  if (invoked.diagnostic) return { ok: false, diagnostics: [invoked.diagnostic] };
+  const parsedResponse = parseAdapterResponse(invoked.response);
+  if (!parsedResponse.ok) return parsedResponse;
+  const scenario = selectedScenario;
+  const contractDiagnostics = outputContractDiagnostics(
+    scenario,
+    dryRun.invocations,
+    parsedResponse.value.outputs,
+  );
+  if (contractDiagnostics.length > 0) {
+    return { ok: false, diagnostics: contractDiagnostics };
+  }
+
+  const existingById = new Map<string, LifecycleRecord[]>();
+  for (const record of snapshot.records) {
+    const lineage = existingById.get(record.datum.id) ?? [];
+    lineage.push(record);
+    existingById.set(record.datum.id, lineage);
+  }
+  const usedIds = new Set(existingById.keys());
+  const policies = dryRun.policies.map((policy) => policy.reference).sort();
+  const outputData = parsedResponse.value.outputs.map((proposal) => {
+    const requestedId = proposal.lifecycleDatum.id;
+    let id = requestedId;
+    if (!id) {
+      do id = stableId(proposal.lifecycleDatum.type); while (usedIds.has(id));
+      usedIds.add(id);
+    }
+    const lineage = existingById.get(id) ?? [];
+    const revision = lineage.length === 0
+      ? 1
+      : Math.max(...lineage.map((record) => record.datum.revision)) + 1;
+    const datum: DatumEnvelope = {
+      id,
+      revision,
+      revision_id: `${id}-r${String(revision).padStart(5, "0")}`,
+      type: proposal.lifecycleDatum.type,
+      payload: proposal.lifecycleDatum.payload,
+      links: proposal.lifecycleDatum.links,
+      created_by: {
+        scenario: scenarioReference,
+        prompt_ref: dryRun.prompt.reference,
+        process_ref: `${packageIdentity.reference}#${packageIdentity.digest}`,
+        loaded_skill_refs: dryRun.prompt.skills.map((skill) => skill.reference),
+        policy_refs: policies,
+      },
+      body: proposal.lifecycleDatum.body,
+    };
+    return { proposal, datum };
+  });
+  const linkDiagnostics = requiredLinkDiagnostics(scenario, dryRun, outputData);
+  if (linkDiagnostics.length > 0) return { ok: false, diagnostics: linkDiagnostics };
+
+  const outputRecords: LifecycleRecord[] = outputData.map(({ datum }) => ({
+    datum,
+    storage: { editable: true, frozen: false },
+    integrity: {
+      parseable: true,
+      schema_valid: true,
+      identity_valid: true,
+      references_valid: true,
+      hash_valid: true,
+    },
+  }));
+  const resultingSnapshot: LifecycleSnapshot = {
+    ...snapshot,
+    records: [...snapshot.records, ...outputRecords],
+    execution: { integrity: { contract_valid: true } },
+  };
+  const completionEvaluations: { invocation: number; result: true }[] = [];
+  for (let index = 0; index < dryRun.invocations.length; index += 1) {
+    let passed = false;
+    try {
+      passed = evaluateProcessExpression(
+        processPackage,
+        resultingSnapshot,
+        `${scenarioReference}#completion`,
+        expressionBindings(
+          dryRun,
+          dryRun.invocations[index]!,
+          index,
+          outputData,
+        ),
+      ).result === true;
+    } catch (error) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-completion-invalid",
+          path: `${scenarioReference}#completion`,
+          message: error instanceof Error ? error.message : String(error),
+        }],
+      };
+    }
+    if (!passed) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-completion-failed",
+          path: `${scenarioReference}#completion`,
+          message: `Scenario '${scenarioReference}' did not satisfy its package-authored completion expression`,
+        }],
+      };
+    }
+    completionEvaluations.push({ invocation: index, result: true });
+  }
+
+  const beforeObligations = new Set(evaluateLifecycle(processPackage, snapshot).obligations.map(
+    (obligation) => obligation.id,
+  ));
+  const reevaluation = evaluateLifecycle(processPackage, resultingSnapshot);
+  if (reevaluation.diagnostics.length > 0) {
+    return { ok: false, diagnostics: reevaluation.diagnostics };
+  }
+  const resultingObligations = reevaluation.obligations
+    .map((obligation) => obligation.id)
+    .sort();
+  const discoveredObligations = resultingObligations
+    .filter((id) => !beforeObligations.has(id));
+  const executionId = randomUUID();
+  const { skills, ...prompt } = dryRun.prompt;
+  const executionBase = {
+    contract: "mdlm-scenario-execution@1" as const,
+    id: executionId,
+    status: "completed" as const,
+    adapter: {
+      contract: "mdlm-agent-adapter@1" as const,
+      executable: adapterExecutable,
+      digest: adapterDigest,
+      requestDigest: sha256(adapterRequestSource),
+      responseDigest: sha256(invoked.responseSource ?? ""),
+    },
+    package: packageIdentity,
+    definition: dryRun.definition,
+    obligation: dryRun.obligation,
+    inputs: dryRun.invocations,
+    prompt,
+    skills,
+    policies: dryRun.policies,
+    prohibitedInputs: dryRun.prohibitedInputs,
+    completion: {
+      contractValid: true as const,
+      expression: dryRun.completion.expression,
+      expressionPassed: true as const,
+      evaluations: completionEvaluations,
+    },
+    completionEvidence: parsedResponse.value.completionEvidence,
+    resultingObligations,
+    discoveredObligations,
+  };
+  const provisionalOutputs: ScenarioExecutionOutput[] = outputData.map(({ proposal, datum }) => ({
+    name: proposal.name,
+    invocation: proposal.invocation,
+    lifecycleDatum: {
+      id: datum.id,
+      revision: datum.revision,
+      revisionId: datum.revision_id,
+      type: datum.type,
+      path: `.lifecycle/data/.transactions/${executionId}/${datum.type}/${datum.id}/r${String(datum.revision).padStart(5, "0")}.md`,
+    },
+    data: datum,
+  }));
+  const execution: ScenarioExecution = { ...executionBase, outputs: provisionalOutputs };
+  const published = await publishScenarioMutation(
+    repositoryRoot,
+    processPackage,
+    snapshot.records.map((record) => record.datum),
+    outputData.map((output) => output.datum),
+    executionId,
+    execution,
+  );
+  if (!published.ok) {
+    return { ok: false, diagnostics: remapPublicationDiagnostics(published.diagnostics) };
+  }
+  execution.outputs = execution.outputs.map((output, index) => ({
+    ...output,
+    lifecycleDatum: {
+      ...output.lifecycleDatum,
+      path: published.value.created[index]!.path,
+    },
+  }));
+  return { ok: true, value: execution, diagnostics: [] };
+}
+
+export async function readScenarioExecution(
+  repositoryRoot: string,
+  executionId: string,
+): Promise<ScenarioExecutionResult> {
+  if (!/^[0-9a-f-]{36}$/.test(executionId)) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "invalid-scenario-execution",
+        path: executionId,
+        message: `Invalid Scenario Execution identity '${executionId}'`,
+      }],
+    };
+  }
+  try {
+    const source = await fs.readFile(
+      path.join(
+        repositoryRoot,
+        ".lifecycle/data/.transactions",
+        executionId,
+        "execution.json",
+      ),
+      "utf8",
+    );
+    return { ok: true, value: JSON.parse(source) as ScenarioExecution, diagnostics: [] };
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "unknown-scenario-execution",
+        path: executionId,
+        message: `Could not read Scenario Execution '${executionId}': ${error instanceof Error ? error.message : String(error)}`,
+      }],
+    };
+  }
+}

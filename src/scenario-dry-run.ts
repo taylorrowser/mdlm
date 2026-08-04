@@ -5,6 +5,7 @@ import { parse } from "yaml";
 import {
   evaluateLifecycle,
   evaluateProcessExpression,
+  type DatumEnvelope,
   type ExactTypedEntity,
   type LifecycleSnapshot,
   type ObligationEvaluation,
@@ -31,6 +32,7 @@ export interface ScenarioBoundEntity {
     revision_id?: string;
     revision?: number;
   };
+  data: DatumEnvelope;
 }
 
 export interface ScenarioDryRunInput {
@@ -338,8 +340,8 @@ function boundEntity(
   snapshot: LifecycleSnapshot,
 ): ScenarioBoundEntity | undefined {
   const exact = exactEntity(value);
-  if (exact) return exact;
-  const reference = string(value) ?? string(object(value)?.key);
+  const reference = exact?.identity.revision_id ?? string(value) ??
+    string(object(value)?.key);
   if (!reference) return undefined;
   const revisions = snapshot.records
     .filter(
@@ -357,8 +359,12 @@ function boundEntity(
           type: resolved.datum.type,
           revision: resolved.datum.revision,
         },
+        data: resolved.datum,
       }
-    : { identity: { id: resolved.datum.id, type: resolved.datum.type } };
+    : {
+        identity: { id: resolved.datum.id, type: resolved.datum.type },
+        data: resolved.datum,
+      };
 }
 
 function boundValues(

@@ -1059,3 +1059,52 @@ turning provisional choices into architecture.
   hashes before and after, reject a blocked instance with a missing binding,
   reject a mismatched resolver and prohibited caller input, and use a modified
   declarative input condition to prove invalid data fails without mutation.
+
+## D-041 — Execute the validated dry-run as one optimistic repository transaction
+
+- **Status:** accepted and implemented
+- **Decision:** `req scenario execute <scenario@version> --obligation
+  <exact-instance> --adapter <executable>` derives its snapshot from current
+  Markdown truth and must first reproduce the successful D-040 dry-run. Only then
+  does it directly invoke an operator-configured `mdlm-agent-adapter@1` executable,
+  without a shell, using the exact validated input data, prompt and ordered skills,
+  Policies, prohibited-input boundary, output contracts, and completion expression.
+  The kernel assigns new identities and next Revision numbers, validates every
+  returned output together, evaluates package completion with
+  `execution.integrity.contract_valid`, reevaluates Lifecycle Data, and publishes
+  all outputs plus one `mdlm-scenario-execution@1` record as a rollback-safe batch.
+- **Alternatives:** Let a Process Package name or ship adapter code; invoke an
+  arbitrary shell command; trust adapter-authored envelope identity, provenance,
+  kernel-managed payload, or completion claims; create outputs one at a time;
+  retain a partial execution record after failure; infer the next workflow step
+  from the Scenario; or hide execution provenance only in generated reports.
+- **Rationale:** An adapter is an imperative infrastructure boundary, not a new
+  package host function. Reusing the dry-run projection keeps exact Obligation
+  authorization and pre-boundary checks singular. Validating the complete proposed
+  graph before staging prevents one valid output from escaping beside an invalid
+  sibling. Rechecking all source Markdown immediately before publication provides
+  an optimistic concurrency boundary, while package reevaluation—not wrapper
+  branching—remains the authority for resulting work.
+- **Expected behavior:** The adapter receives exact Lifecycle Datum input bytes and
+  the declared prohibited-input boundary only after Dispatchability, resolver,
+  resolution, cardinality, identity, type, condition, and caller assertions pass.
+  Undeclared, missing, wrong-cardinality, wrong-type, schema-invalid, lineage-
+  invalid, kernel-managed, source-link-invalid, or required-link-missing outputs,
+  and false completion expressions, leave all Lifecycle Data and execution records
+  unchanged. Success records exact package, Scenario, Obligation, input, prompt,
+  skill, Policy, adapter, request, response, output, completion, and reevaluation
+  evidence. Output `created_by` provenance uses those exact package assets.
+- **Reversibility:** A later adapter registry may replace the explicit executable
+  option, and stronger isolation may use a container or remote protocol. The first
+  profile intentionally does not claim source-isolation enforcement. Those changes
+  must preserve the versioned request contract, package-code prohibition, exact
+  dry-run equivalence, complete post-adapter validation, optimistic source check,
+  atomic publication, and evaluator-derived follow-on work.
+- **Evidence/observations:** Public executable tests initialize a real repository,
+  create and freeze an exact empirical QST, execute the bootstrap
+  `resolve-question@1` Scenario through a capturing Node adapter, and assert the
+  request, new DEC, next QST Revision, required exact `resolves` edge, durable
+  `created_by` fields, execution record, completion evidence, and resulting
+  Obligation reevaluation. A rejection matrix supplies undeclared, missing,
+  schema-invalid, and incorrectly linked outputs and compares repository hashes;
+  a prohibited caller input proves the adapter is never invoked.

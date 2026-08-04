@@ -28,6 +28,11 @@ export interface CreatedDatum {
   path: string;
 }
 
+export interface ScenarioMutationPublication {
+  created: CreatedDatum[];
+  executionPath: string;
+}
+
 export type GraphIdentityKind =
   | "stable-datum"
   | "revision"
@@ -680,6 +685,174 @@ export async function createDatum(
       type: typeId,
       path: `${relativeDirectory}/r00001.md`,
     },
+    diagnostics: [],
+  };
+}
+
+function payloadPathPresent(
+  payload: Record<string, unknown>,
+  payloadPath: string,
+): boolean {
+  let value: unknown = payload;
+  for (const part of payloadPath.split(".")) {
+    const asObject = typeof value === "object" && value !== null &&
+        !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : undefined;
+    if (!asObject || !Object.hasOwn(asObject, part)) return false;
+    value = asObject[part];
+  }
+  return true;
+}
+
+export async function publishScenarioMutation(
+  root: string,
+  processPackage: ProcessPackage,
+  expectedData: DatumEnvelope[],
+  data: DatumEnvelope[],
+  executionId: string,
+  executionRecord: unknown,
+): Promise<RepositoryResult<ScenarioMutationPublication>> {
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const currentData = loaded.value.map((item) => item.lifecycleDatum.datum)
+    .sort((left, right) => left.revision_id.localeCompare(right.revision_id));
+  const expected = expectedData.slice()
+    .sort((left, right) => left.revision_id.localeCompare(right.revision_id));
+  if (!structuralValuesEqual(currentData, expected)) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-repository-changed",
+        path: ".lifecycle/data",
+        message: "Lifecycle Data changed after Scenario inputs were validated; no outputs were published",
+      }],
+    };
+  }
+  const diagnostics: ProcessDiagnostic[] = [];
+  const existing = loaded.value;
+  const proposedIds = new Set<string>();
+  const proposedRevisions = new Set<string>();
+  for (const datum of data) {
+    if (proposedRevisions.has(datum.revision_id)) {
+      diagnostics.push({
+        code: "scenario-output-identity-collision",
+        path: datum.revision_id,
+        message: `Scenario outputs repeat exact Revision '${datum.revision_id}'`,
+      });
+    }
+    proposedRevisions.add(datum.revision_id);
+    const lineage = existing.filter((item) =>
+      item.lifecycleDatum.datum.id === datum.id
+    );
+    if (lineage.length === 0) {
+      if (datum.revision !== 1 || proposedIds.has(datum.id)) {
+        diagnostics.push({
+          code: "scenario-output-lineage-invalid",
+          path: datum.revision_id,
+          message: `New Stable Datum '${datum.id}' must begin with exactly one Revision 1`,
+        });
+      }
+      proposedIds.add(datum.id);
+    } else {
+      const type = lineage[0]?.lifecycleDatum.datum.type;
+      const expectedRevision = Math.max(...lineage.map((item) =>
+        item.lifecycleDatum.datum.revision
+      )) + 1;
+      const editable = lineage.find((item) => item.lifecycleDatum.storage.editable);
+      if (type !== datum.type || datum.revision !== expectedRevision || editable) {
+        diagnostics.push({
+          code: editable ? "editable-revision-exists" : "scenario-output-lineage-invalid",
+          path: datum.revision_id,
+          message: editable
+            ? `Stable Datum '${datum.id}' already has editable Revision '${editable.lifecycleDatum.datum.revision_id}'`
+            : `Scenario output Revision '${datum.revision_id}' does not continue the exact '${type}' lineage at Revision ${expectedRevision}`,
+        });
+      }
+    }
+    const resolved = resolveType(processPackage, datum.type);
+    if (!resolved.ok) diagnostics.push(...resolved.diagnostics);
+    else {
+      for (const managedPath of resolved.type.kernelManagedPayloadPaths) {
+        if (payloadPathPresent(datum.payload, managedPath)) {
+          diagnostics.push({
+            code: "kernel-managed-payload",
+            path: `payload.${managedPath}`,
+            message: `Scenario output may not author kernel-managed payload path '${managedPath}'`,
+          });
+        }
+      }
+    }
+  }
+  const lifecycleData = [
+    ...existing.map((item) => item.lifecycleDatum),
+    ...data.map((datum) => ({
+      datum,
+      storage: { editable: true, frozen: false },
+      integrity: {
+        parseable: true,
+        schema_valid: true,
+        identity_valid: true,
+        references_valid: true,
+        hash_valid: true,
+      },
+    })),
+  ];
+  for (const datum of data) {
+    diagnostics.push(...validateDatum(processPackage, datum, lifecycleData));
+  }
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+
+  const transactionRoot = ".lifecycle/data/.transactions";
+  const transactionRelativePath = `${transactionRoot}/${executionId}`;
+  const executionRelativePath = `${transactionRelativePath}/execution.json`;
+  const finalDirectory = path.join(root, transactionRelativePath);
+  const temporaryDirectory = path.join(
+    root,
+    ".lifecycle",
+    `.scenario-${executionId}.${randomUUID()}.tmp`,
+  );
+  const created = data.map((datum) => ({
+    id: datum.id,
+    revisionId: datum.revision_id,
+    type: datum.type,
+    path: `${transactionRelativePath}/${datum.type}/${datum.id}/r${String(datum.revision).padStart(5, "0")}.md`,
+  }));
+  try {
+    await fs.mkdir(temporaryDirectory, { recursive: true });
+    for (let index = 0; index < data.length; index += 1) {
+      const datum = data[index]!;
+      const relativePath = created[index]!.path.slice(
+        transactionRelativePath.length + 1,
+      );
+      const temporaryPath = path.join(temporaryDirectory, relativePath);
+      await fs.mkdir(path.dirname(temporaryPath), { recursive: true });
+      await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
+    }
+    await fs.writeFile(
+      path.join(temporaryDirectory, "execution.json"),
+      `${JSON.stringify(executionRecord, null, 2)}\n`,
+      { flag: "wx" },
+    );
+    await fs.mkdir(path.dirname(finalDirectory), { recursive: true });
+    await fs.rename(temporaryDirectory, finalDirectory);
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: (error as NodeJS.ErrnoException).code === "EEXIST"
+          ? "scenario-output-collision"
+          : "scenario-publication-failed",
+        path: transactionRelativePath,
+        message: `Scenario execution was not published: ${error instanceof Error ? error.message : String(error)}`,
+      }],
+    };
+  } finally {
+    await fs.rm(temporaryDirectory, { recursive: true, force: true });
+  }
+  return {
+    ok: true,
+    value: { created, executionPath: executionRelativePath },
     diagnostics: [],
   };
 }

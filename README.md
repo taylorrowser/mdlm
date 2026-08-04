@@ -30,8 +30,11 @@ types, states, obligations, scenarios, and phases.
   mutations, computes backlinks and identity-preserving graph traces, reads
   durable content and lineage with computed projections, compares exact baselines
   through their capability binding, rebuilds disposable indexes and reports from
-  Markdown truth, and dry-runs only Dispatchable Resolver Scenarios with exact
-  bindings, prompts, skills, Policies, output contracts, and completion checks.
+  Markdown truth, dry-runs only Dispatchable Resolver Scenarios with exact
+  bindings, prompts, skills, Policies, output contracts, and completion checks,
+  and executes those same validated projections through an explicitly configured
+  agent adapter. Successful execution atomically publishes only contract-conforming
+  Lifecycle Data plus exact execution provenance; failed execution publishes none.
 
 ## Try it
 

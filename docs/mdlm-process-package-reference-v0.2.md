@@ -414,6 +414,31 @@ expression remain explicitly pending until an adapter supplies outputs. Dry-run
 reads the selected immutable package and explicit snapshot but invokes no adapter
 and writes no Lifecycle Data or generated projection.
 
+`req scenario execute <scenario@version> --obligation <exact-instance>
+--adapter <executable>` derives a fresh repository snapshot, runs the identical
+Dispatchability, binding, condition, prompt, skill, Policy, and prohibited-input
+validation, then passes that exact projection to the explicitly configured
+`mdlm-agent-adapter@1` boundary. The adapter is operator-supplied executable
+infrastructure; it is not package code and is invoked directly without a shell.
+Its response names each invocation's declared outputs as complete Lifecycle Datum
+proposals and supplies completion evidence.
+
+Before publication, the wrapper rejects undeclared outputs, per-invocation
+cardinality or type errors, invalid Datum Envelopes and payload schemas,
+source-owned link failures, missing Scenario-required links, invalid lineage,
+kernel-managed payload authorship, and a false package completion expression.
+The completion host receives the concrete input/output entities plus
+`execution.integrity.contract_valid`. The repository compares all Markdown input
+truth again after adapter return, stages every new Stable Datum, next Revision, and
+execution record in one transaction directory, then exposes the complete set with
+one same-filesystem atomic rename. A successful
+`mdlm-scenario-execution@1` record preserves exact input bytes, package digest,
+prompt and skill bytes and hashes, review and waiver Policies, adapter/request/
+response hashes, exact output identities, completion evidence, and the Obligation
+Instances obtained by reevaluating the resulting Lifecycle Data. `req scenario
+execution show <execution-id>` reads that provenance; no hidden sequence selects
+follow-on work.
+
 ## 12. Phases and gates
 
 Phases list applicable scenarios and obligations and declare entry and gate

@@ -124,14 +124,18 @@ describe("req scenario dry-run", () => {
                     identity: "revision",
                   },
                   values: [
-                    {
+                    expect.objectContaining({
                       identity: {
                         id: "PSP-7K3M9Q2D8F",
                         revision_id: "PSP-7K3M9Q2D8F-r00001",
                         type: "PSP",
                         revision: 1,
                       },
-                    },
+                      data: expect.objectContaining({
+                        revision_id: "PSP-7K3M9Q2D8F-r00001",
+                        type: "PSP",
+                      }),
+                    }),
                   ],
                   checks: expect.arrayContaining([
                     expect.objectContaining({

@@ -55,6 +55,9 @@ export interface LifecycleSnapshot {
   phaseId: string;
   records: LifecycleRecord[];
   dependencyComparisons: DependencyComparison[];
+  execution?: {
+    integrity: { contract_valid: boolean };
+  };
   historicalSnapshots?: HistoricalLifecycleSnapshot[];
 }
 
@@ -352,6 +355,7 @@ class LifecycleEvaluator {
         integrity: { package_valid: true },
       },
       phase: { id: snapshot.phaseId },
+      ...(snapshot.execution ? { execution: snapshot.execution } : {}),
     };
     for (const definition of this.expressionBearingDefinitions()) {
       this.indexDefinitionExpressions(
