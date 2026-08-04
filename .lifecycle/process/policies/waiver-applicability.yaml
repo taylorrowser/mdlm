@@ -1,19 +1,46 @@
 kind: policy-definition
 id: waiver-applicability
 version: 1
-description: Determines whether the bootstrap profile permits a waiver for one exact obligation and subject.
+description: Determines whether one structured reviewed waiver DEC applies to an exact Obligation Instance and subject.
 parameters:
   - {name: obligation, kind: scalar, scalar_type: string}
   - {name: subject, kind: revision}
+  - {name: waiver, kind: revision, types: [DEC]}
 result_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   additionalProperties: false
-  required: [permitted, approval_required]
+  required: [permitted, approval_required, applicable, scope]
   properties:
     permitted: {type: boolean}
     approval_required: {type: boolean}
+    applicable: {type: boolean}
+    scope: {type: [string, "null"]}
 default:
   permitted: false
   approval_required: true
-rules: []
+  applicable: false
+  scope: null
+rules:
+  - priority: 100
+    when: >-
+      obligation in [
+        "review-context-required@2",
+        "passing-review-required@2",
+        "open-question-resolution@2",
+        "candidate-members-reviewed@2",
+        "candidate-gate-signoff@2"
+      ]
+      && waiver.payload.kind == "waiver"
+      && waiver.payload.waiver.obligation == obligation
+      && waiver.payload.waiver.subject == subject.identity.revision_id
+      && waiver.payload.waiver.scope == "this-revision"
+      && state(waiver, "validity") == "valid"
+      && exists("passing-reviews-for@1", {subject: waiver})
+      && waiver.payload.waiver.expires_when == ["subject-revised"]
+      && none("newer-revisions-for@1", {subject: subject})
+    result:
+      permitted: true
+      approval_required: true
+      applicable: true
+      scope: this-revision

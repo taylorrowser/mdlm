@@ -13,6 +13,7 @@ import type {
   ProcessPackage,
   VersionedDefinition,
 } from "./index.js";
+import { effectiveOutgoingLinks } from "./payload-inheritance.js";
 
 export interface DatumEnvelope {
   id: string;
@@ -52,6 +53,33 @@ export interface ArtifactEvaluation {
   stateExplanations: Record<string, string | string[]>;
 }
 
+export interface ScenarioOutputExplanation {
+  name: string;
+  types: string[];
+  cardinality: string;
+  requiredLinks: {
+    link: string;
+    target: { input: string } | { output: string };
+  }[];
+}
+
+export interface ResolverScenarioExplanation {
+  scenario: string;
+  promptRef: string;
+  expectedOutputs: ScenarioOutputExplanation[];
+}
+
+export interface WaiverExplanation {
+  policy: string;
+  result: {
+    permitted: boolean;
+    approvalRequired: boolean;
+    applicable: boolean;
+    scope: string | null;
+    evidence: ExactTypedEntity[];
+  };
+}
+
 export interface ObligationEvaluation {
   id: string;
   obligation: string;
@@ -64,6 +92,8 @@ export interface ObligationEvaluation {
   blockedBy: string[];
   blockerChains: string[][];
   unresolvedBindings: string[];
+  resolver: ResolverScenarioExplanation;
+  waiver: WaiverExplanation;
   explanation: string;
 }
 
@@ -312,21 +342,32 @@ class LifecycleEvaluator {
       for (const subject of subjects) {
         const context = { ...this.baseContext, [subjectAs]: subject };
         const satisfied = this.expression(definition.satisfied_when, context);
+        const resolverObject = object(definition.resolve_with);
+        const eventualResolver = string(resolverObject?.scenario) ?? "";
+        const subjectId = subject.identity?.revision_id ?? subject.key;
+        const instanceId = this.obligationInstanceId(
+          `${definition.id}@${definition.version}`,
+          subjectId,
+        );
+        const waiver = this.waiverExplanation(
+          definition,
+          instanceId,
+          subject,
+        );
         const statusResult = satisfied
           ? {
               status: "satisfied",
               reason: "The obligation's satisfaction expression is true.",
             }
+          : waiver.result.applicable
+          ? {
+              status: "waived",
+              reason: "An exact structured waiver is currently applicable under the package-defined Waiver Policy.",
+            }
           : this.obligationStatus(definition, context);
-        const resolverObject = object(definition.resolve_with);
-        const eventualResolver = string(resolverObject?.scenario) ?? "";
-        const subjectId = subject.identity?.revision_id ?? subject.key;
         pendingObligations.push({
           evaluation: {
-            id: this.obligationInstanceId(
-              `${definition.id}@${definition.version}`,
-              subjectId,
-            ),
+            id: instanceId,
             obligation: definition.id,
             subject: subjectId,
             satisfied,
@@ -337,6 +378,8 @@ class LifecycleEvaluator {
             blockedBy: [],
             blockerChains: [],
             unresolvedBindings: [],
+            resolver: this.resolverExplanation(definition),
+            waiver,
             explanation: statusResult.reason,
           },
           definition,
@@ -350,7 +393,10 @@ class LifecycleEvaluator {
       pendingObligations.map((pending) => [pending.evaluation.id, pending]),
     );
     for (const pending of pendingObligations) {
-      if (pending.evaluation.satisfied) continue;
+      if (
+        pending.evaluation.satisfied ||
+        pending.evaluation.status === "waived"
+      ) continue;
       pending.evaluation.blockedBy = this.blockingInstanceIds(
         pending.statusRule,
         pending.context,
@@ -366,7 +412,10 @@ class LifecycleEvaluator {
         pending.evaluation.unresolvedBindings.length === 0;
     }
     for (const pending of pendingObligations) {
-      if (pending.evaluation.satisfied) continue;
+      if (
+        pending.evaluation.satisfied ||
+        pending.evaluation.status === "waived"
+      ) continue;
       pending.evaluation.blockerChains = this.blockerChains(
         pending.evaluation,
         byInstanceId,
@@ -387,7 +436,10 @@ class LifecycleEvaluator {
       blocked: 4,
     };
     const looseEnds = obligations
-      .filter((obligation) => !obligation.satisfied)
+      .filter(
+        (obligation) =>
+          !obligation.satisfied && obligation.status !== "waived",
+      )
       .sort(
         (left, right) =>
           (statusOrder[left.status] ?? 99) - (statusOrder[right.status] ?? 99) ||
@@ -560,6 +612,101 @@ class LifecycleEvaluator {
       : value;
   }
 
+  private waiverExplanation(
+    definition: VersionedDefinition,
+    obligationInstance: string,
+    subject: Entity,
+  ): WaiverExplanation {
+    const policyReference = string(definition.waiver_policy_ref) ?? "";
+    const policy = this.processPackage.policies[
+      policyReference ? referenceId(policyReference) : ""
+    ];
+    const waiverEvidence = this.waiverEvidence(obligationInstance);
+    const evaluatedResults = waiverEvidence.map((waiver) =>
+      this.policyResult(policyReference, {
+        obligation: `${definition.id}@${definition.version}`,
+        subject,
+        waiver,
+      })
+    );
+    const result = evaluatedResults.find(
+      (candidate) => candidate.applicable === true,
+    ) ?? object(policy?.default) ?? {};
+    const evidence = waiverEvidence
+      .map((entity) => this.exactTypedEntity(entity))
+      .filter((entity): entity is ExactTypedEntity => entity !== undefined);
+    return {
+      policy: policyReference,
+      result: {
+        permitted: result.permitted === true,
+        approvalRequired: result.approval_required === true,
+        applicable: result.applicable === true,
+        scope: string(result.scope) ?? null,
+        evidence,
+      },
+    };
+  }
+
+  private waiverEvidence(obligationInstance: string): Entity[] {
+    return this.entities.filter((entity) => {
+      const type = entity.identity?.type;
+      const definition = type ? this.processPackage.types[type] : undefined;
+      if (!definition || !entity.datum) return false;
+      const waiverLinks = new Set(
+        effectiveOutgoingLinks(definition, this.processPackage.templates)
+          .filter((contract) =>
+            array(contract.targets).some((targetValue) => {
+              const target = object(targetValue);
+              return target?.kind === "obligation-instance" &&
+                target.identity === "exact-obligation-instance";
+            })
+          )
+          .map((contract) => string(contract.id))
+          .filter((id): id is string => id !== undefined),
+      );
+      return entity.datum.links.some(
+        (link) => waiverLinks.has(link.type) && link.target === obligationInstance,
+      );
+    }).sort((left, right) => left.key.localeCompare(right.key));
+  }
+
+  private resolverExplanation(
+    definition: VersionedDefinition,
+  ): ResolverScenarioExplanation {
+    const resolver = object(definition.resolve_with);
+    const scenarioReference = string(resolver?.scenario) ?? "";
+    const scenario = this.processPackage.scenarios[
+      scenarioReference ? referenceId(scenarioReference) : ""
+    ];
+    const expectedOutputs = array(scenario?.outputs).flatMap((outputValue) => {
+      const output = object(outputValue);
+      const name = string(output?.name);
+      const cardinality = string(output?.cardinality);
+      if (!name || !cardinality) return [];
+      const types = array(output?.types).filter(
+        (type): type is string => typeof type === "string",
+      );
+      const requiredLinks = array(output?.required_links).flatMap((linkValue) => {
+        const link = object(linkValue);
+        const linkId = string(link?.link);
+        const target = object(link?.target);
+        const input = string(target?.input);
+        const targetOutput = string(target?.output);
+        if (!linkId || (!input && !targetOutput)) return [];
+        return [{
+          link: linkId,
+          target: input ? { input } : { output: targetOutput! },
+        }];
+      });
+      return [{ name, types, cardinality, requiredLinks }];
+    });
+    return {
+      scenario: scenarioReference,
+      promptRef: string(scenario?.prompt_ref) ?? "",
+      expectedOutputs,
+    };
+  }
+
   private obligationInstanceId(
     obligationReference: string,
     subjectId: string,
@@ -584,7 +731,11 @@ class LifecycleEvaluator {
         if (!subjectId) continue;
         const instanceId = this.obligationInstanceId(obligation, subjectId);
         const pending = byInstanceId.get(instanceId);
-        if (pending && !pending.evaluation.satisfied) blockerIds.add(instanceId);
+        if (
+          pending &&
+          !pending.evaluation.satisfied &&
+          pending.evaluation.status !== "waived"
+        ) blockerIds.add(instanceId);
       }
     }
     return [...blockerIds].sort();

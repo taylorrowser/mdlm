@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.17 — experimental implementation reference**
+**Bootstrap package 0.18 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -340,12 +340,25 @@ Obligation and a textual expression selecting exact subjects. Package loading
 compiles those expressions and validates each referenced Obligation.
 
 Every evaluated Obligation reports `eventualResolver`, `actionableResolver`,
-`dispatchable`, `blockedBy`, `blockerChains`, and `unresolvedBindings`. A resolver
-is Dispatchable only for an actionable status when every declared binding
-resolves and no exact blocking Obligation Instance remains. Otherwise the
-currently actionable resolver is derived from the first deterministic
-Dispatchable leaf in the declared blocker chains; merely naming an eventual
-Resolver Scenario never grants permission to execute it.
+`dispatchable`, `blockedBy`, `blockerChains`, and `unresolvedBindings`. Its
+resolver explanation includes the referenced Scenario's prompt and each expected
+output's package-authored types, cardinality, and required links. A resolver is
+Dispatchable only for an actionable status when every declared binding resolves
+and no exact blocking Obligation Instance remains. Otherwise the currently
+actionable resolver is derived from the first deterministic Dispatchable leaf in
+the declared blocker chains; merely naming an eventual Resolver Scenario never
+grants permission to execute it.
+
+Waiver evidence is any exact Revision whose effective package-owned outgoing-link
+contract targets an exact Obligation Instance and whose stored link targets this
+instance identity. The referenced Waiver Policy then judges the candidate against
+the exact Obligation reference and subject. Bootstrap policy accepts only a
+structured, valid, passing-reviewed `this-revision` waiver with
+`subject-revised` expiry and no newer subject Revision. The result reports exact
+evidence, applicability, scope, permission, and approval requirement. Applicable
+waivers receive computed `waived` status, do not dispatch or block dependents, and
+are omitted from current Loose Ends without changing the satisfaction expression's
+Boolean result.
 
 Obligation identity is:
 
@@ -424,7 +437,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.17 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.18 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

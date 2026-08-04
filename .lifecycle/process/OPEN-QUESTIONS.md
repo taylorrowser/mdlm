@@ -30,8 +30,9 @@ behavior where possible.
     harder to maintain without changing observable language behavior.
 10. **Resolver eligibility:** Obligation results now separate Dispatchability,
     exact blocker chains, unresolved bindings, the eventual Resolver Scenario,
-    and the currently actionable resolver. Expected outputs, required links, and
-    waiver applicability remain to be exposed.
+    and the currently actionable resolver, with expected output contracts and
+    exact Waiver Policy applicability. Bound input evidence and dry-run contract
+    validation remain to be exposed.
 11. **Phase evaluation:** Entry, deterministic exact candidate selection, and
     per-candidate gate completion now retain expression, Policy, Selector, and
     exact blocker evidence. Promotion and historical gate-report persistence

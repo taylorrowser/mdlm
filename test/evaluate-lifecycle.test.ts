@@ -90,6 +90,18 @@ describe("evaluateLifecycle", () => {
         blockedBy: [],
         blockerChains: [],
         unresolvedBindings: [],
+        resolver: {
+          scenario: "create-review-context@1",
+          promptRef: "prompts/create-review-context.md@1",
+          expectedOutputs: [
+            {
+              name: "context",
+              types: ["BSL"],
+              cardinality: "one",
+              requiredLinks: [],
+            },
+          ],
+        },
       }),
     );
     expect(context?.explanation).toContain(
@@ -114,6 +126,24 @@ describe("evaluateLifecycle", () => {
           `review-context-required@2:${PSP_REVISION}:git:current`,
         ]],
         unresolvedBindings: ["review_context"],
+        resolver: {
+          scenario: "review-datum-in-context@1",
+          promptRef: "prompts/review-datum-in-context.md@1",
+          expectedOutputs: [
+            {
+              name: "review",
+              types: ["REV"],
+              cardinality: "one",
+              requiredLinks: [
+                { link: "reviews", target: { input: "subject" } },
+                {
+                  link: "contextualizes",
+                  target: { input: "review_context" },
+                },
+              ],
+            },
+          ],
+        },
       }),
     );
   });

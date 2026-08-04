@@ -570,3 +570,32 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public lifecycle tests exercise exact candidate and
   member Policy evidence, complete blocker chains, unreviewed and reviewed Gate
   Sign-offs, and a changed candidate Revision under the same Stable Datum ID.
+
+## D-029 — Explain resolver outputs and evaluate exact structured waivers
+
+- **Status:** accepted and implemented
+- **Decision:** Every Obligation evaluation copies its eventual Resolver
+  Scenario's declared prompt and expected output types, cardinalities, and required
+  links into the public explanation. Waiver candidates are discovered generically
+  from effective source-owned link contracts targeting exact Obligation Instances;
+  the Obligation's versioned Waiver Policy alone decides whether each exact
+  candidate applies. Applicable waivers receive computed `waived` status and are
+  removed from current Loose Ends without changing satisfaction-expression truth.
+- **Alternatives:** Hard-code `DEC` or the `waives` link in the evaluator, treat a
+  generic justification as suppression, infer waiver validity in kernel code, or
+  expose only a Resolver Scenario name with no output contract.
+- **Rationale:** Structural link targeting and Scenario contract projection are
+  generic evaluator services, while waiver kind, approval, scope, and expiry are
+  selected-package policy. Keeping `satisfied` separate from `waived` preserves
+  the authored obligation conclusion and explains why work was suppressed.
+- **Expected behavior:** Generic justification has no waiver effect. Invalid or
+  unreviewed exact evidence remains visible but leaves the Loose End active. The
+  bootstrap Policy accepts only exact reviewed `this-revision` waivers with
+  `subject-revised` expiry and no newer subject Revision. Waived instances neither
+  dispatch nor block dependents.
+- **Reversibility:** Additive public explanation fields plus a package Policy rule.
+  Future policy versions can support baseline or execution scope and additional
+  expiry evidence without changing generic evidence discovery.
+- **Evidence/observations:** Public lifecycle tests assert exact resolver output
+  contracts, generic justification rejection, invalid evidence reporting, valid
+  suppression, and expiry after a new subject Revision.

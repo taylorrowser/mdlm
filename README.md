@@ -12,8 +12,8 @@ types, states, obligations, scenarios, and phases.
 - `evaluateLifecycle(package, snapshot)` computes package-defined phase entry,
   exact candidate selection and gate evaluation, typed dependency-change records,
   states, obligations, and Loose Ends with exact blocker chains, unresolved
-  bindings, Dispatchability, Resolver Scenarios, and explanations from primitive
-  graph and integrity data.
+  bindings, Dispatchability, Resolver Scenario output contracts, exact Waiver
+  Policy applicability, and explanations from primitive graph and integrity data.
 
 ## Try it
 

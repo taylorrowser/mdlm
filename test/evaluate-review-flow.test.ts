@@ -108,6 +108,300 @@ describe("evaluateLifecycle review flow", () => {
     ).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
   });
 
+  it("does not treat a generic justification as a waiver of an exact Obligation Instance", () => {
+    const psp = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Lifecycle manager",
+      rationale: "Preserve intent",
+      problem: "Intent is lost",
+      users: ["owner"],
+      goals: ["traceability"],
+      non_goals: [],
+      success_measures: ["reviewed intent"],
+    });
+    const genericDecision = record(
+      "DEC",
+      "DEC-X4N7AB2W6J",
+      {
+        title: "Review rationale",
+        rationale: "Review will happen later.",
+        kind: "decision",
+        decision: "Continue without a context for now.",
+        alternatives: ["Create the context now."],
+        effective_scope: psp.datum.revision_id,
+      },
+      {
+        frozen: true,
+        links: [
+          { type: "justifies", target: psp.datum.revision_id },
+        ],
+      },
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [psp, genericDecision],
+      dependencyComparisons: [],
+    });
+    const looseEnd = evaluation.looseEnds.find(
+      (item) =>
+        item.obligation === "review-context-required" &&
+        item.subject === psp.datum.revision_id,
+    );
+
+    expect(looseEnd).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      dispatchable: true,
+      waiver: {
+        policy: "waiver-applicability@1",
+        result: {
+          permitted: false,
+          approvalRequired: true,
+          applicable: false,
+          scope: null,
+          evidence: [],
+        },
+      },
+    }));
+  });
+
+  it("keeps invalid waiver evidence visible without satisfying the Loose End", () => {
+    const psp = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Lifecycle manager",
+      rationale: "Preserve intent",
+      problem: "Intent is lost",
+      users: ["owner"],
+      goals: ["traceability"],
+      non_goals: [],
+      success_measures: ["reviewed intent"],
+    });
+    const obligationInstance =
+      `review-context-required@2:${psp.datum.revision_id}:git:current`;
+    const waiver = record(
+      "DEC",
+      "DEC-8ZT5KQ3P9M",
+      {
+        title: "Temporary context waiver",
+        rationale: "The context is temporarily disproportionate.",
+        kind: "waiver",
+        decision: "Waive context creation for this exact revision.",
+        alternatives: ["Create the context now."],
+        effective_scope: psp.datum.revision_id,
+        waiver: {
+          obligation: "review-context-required@2",
+          subject: psp.datum.revision_id,
+          scope: "this-revision",
+          expires_when: ["subject-revised"],
+        },
+      },
+      {
+        frozen: true,
+        links: [{ type: "waives", target: obligationInstance }],
+      },
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [psp, waiver],
+      dependencyComparisons: [],
+    });
+    const looseEnd = evaluation.looseEnds.find(
+      (item) => item.id === obligationInstance,
+    );
+
+    expect(looseEnd).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      waiver: {
+        policy: "waiver-applicability@1",
+        result: {
+          permitted: false,
+          approvalRequired: true,
+          applicable: false,
+          scope: null,
+          evidence: [{
+            identity: {
+              id: waiver.datum.id,
+              revision_id: waiver.datum.revision_id,
+              type: "DEC",
+              revision: 1,
+            },
+          }],
+        },
+      },
+    }));
+  });
+
+  it("suppresses work only when an exact structured waiver is applicable", () => {
+    const psp = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Lifecycle manager",
+      rationale: "Preserve intent",
+      problem: "Intent is lost",
+      users: ["owner"],
+      goals: ["traceability"],
+      non_goals: [],
+      success_measures: ["reviewed intent"],
+    });
+    const obligationInstance =
+      `review-context-required@2:${psp.datum.revision_id}:git:current`;
+    const waiver = record(
+      "DEC",
+      "DEC-8ZT5KQ3P9M",
+      {
+        title: "Approved context waiver",
+        rationale: "The context is temporarily disproportionate.",
+        kind: "waiver",
+        decision: "Waive context creation for this exact revision.",
+        alternatives: ["Create the context now."],
+        effective_scope: psp.datum.revision_id,
+        waiver: {
+          obligation: "review-context-required@2",
+          subject: psp.datum.revision_id,
+          scope: "this-revision",
+          expires_when: ["subject-revised"],
+        },
+      },
+      {
+        frozen: true,
+        links: [{ type: "waives", target: obligationInstance }],
+      },
+    );
+    const waiverReview = record(
+      "REV",
+      "REV-2BC4DF6GHJ",
+      {
+        title: "Waiver review",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        frozen: true,
+        links: [{ type: "reviews", target: waiver.datum.revision_id }],
+      },
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [psp, waiver, waiverReview],
+      dependencyComparisons: [],
+    });
+    const waived = evaluation.obligations.find(
+      (item) => item.id === obligationInstance,
+    );
+
+    expect(waived).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "waived",
+      dispatchable: false,
+      actionableResolver: null,
+      waiver: {
+        policy: "waiver-applicability@1",
+        result: {
+          permitted: true,
+          approvalRequired: true,
+          applicable: true,
+          scope: "this-revision",
+          evidence: [{
+            identity: {
+              id: waiver.datum.id,
+              revision_id: waiver.datum.revision_id,
+              type: "DEC",
+              revision: 1,
+            },
+          }],
+        },
+      },
+    }));
+    expect(evaluation.looseEnds.some((item) => item.id === obligationInstance))
+      .toBe(false);
+  });
+
+  it("expires an exact waiver when its subject is revised", () => {
+    const psp = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Lifecycle manager",
+      rationale: "Preserve intent",
+      problem: "Intent is lost",
+      users: ["owner"],
+      goals: ["traceability"],
+      non_goals: [],
+      success_measures: ["reviewed intent"],
+    });
+    const revisedPsp = structuredClone(psp);
+    revisedPsp.datum.revision = 2;
+    revisedPsp.datum.revision_id = `${psp.datum.id}-r00002`;
+    revisedPsp.datum.payload.title = "Revised lifecycle manager";
+    const obligationInstance =
+      `review-context-required@2:${psp.datum.revision_id}:git:current`;
+    const waiver = record(
+      "DEC",
+      "DEC-8ZT5KQ3P9M",
+      {
+        title: "Expired context waiver",
+        rationale: "The original context was temporarily disproportionate.",
+        kind: "waiver",
+        decision: "Waive context creation for the original revision.",
+        alternatives: ["Create the context now."],
+        effective_scope: psp.datum.revision_id,
+        waiver: {
+          obligation: "review-context-required@2",
+          subject: psp.datum.revision_id,
+          scope: "this-revision",
+          expires_when: ["subject-revised"],
+        },
+      },
+      {
+        frozen: true,
+        links: [{ type: "waives", target: obligationInstance }],
+      },
+    );
+    const waiverReview = record(
+      "REV",
+      "REV-2BC4DF6GHJ",
+      {
+        title: "Waiver review",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        frozen: true,
+        links: [{ type: "reviews", target: waiver.datum.revision_id }],
+      },
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [psp, revisedPsp, waiver, waiverReview],
+      dependencyComparisons: [],
+    });
+    const expired = evaluation.looseEnds.find(
+      (item) => item.id === obligationInstance,
+    );
+
+    expect(expired).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      waiver: {
+        policy: "waiver-applicability@1",
+        result: expect.objectContaining({
+          permitted: false,
+          applicable: false,
+          scope: null,
+          evidence: [{
+            identity: expect.objectContaining({
+              revision_id: waiver.datum.revision_id,
+            }),
+          }],
+        }),
+      },
+    }));
+  });
+
   it("derives candidate readiness from member reviews instead of a kernel-specific fact", () => {
     const psp = record("PSP", "PSP-7K3M9Q2D8F", {
       title: "Lifecycle manager",
