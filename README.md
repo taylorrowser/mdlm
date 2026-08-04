@@ -26,8 +26,10 @@ types, states, obligations, scenarios, and phases.
   fixtures without activating the bundled example. The first durable repository
   slice explicitly initializes against a validated package, atomically creates
   and revises typed Markdown Lifecycle Data, preserves immutable exact history,
-  diagnoses competing editable drafts, reads durable content and lineage with
-  computed projections, and rebuilds disposable indexes from Markdown truth.
+  diagnoses competing editable drafts, validates atomic source-owned link
+  mutations, computes backlinks and identity-preserving graph traces, reads
+  durable content and lineage with computed projections, and rebuilds disposable
+  indexes from Markdown truth.
 
 ## Try it
 
@@ -47,6 +49,9 @@ cd example-repository
 node ../dist/req.js init --process ../.lifecycle/process
 node ../dist/req.js revise PSP-0123456789
 node ../dist/req.js history PSP-0123456789
+node ../dist/req.js link QST-0123456789-r00001 PSP-0123456789 --type blocks
+node ../dist/req.js backlinks PSP-0123456789
+node ../dist/req.js trace PSP-0123456789 --relation blocks --depth 2
 ```
 
 `npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
@@ -63,6 +68,7 @@ resolver scenarios.
 - Remaining process questions: `.lifecycle/process/OPEN-QUESTIONS.md`
 
 This is not yet the complete durable repository kernel or `req` CLI. Markdown
-creation, revision lineage, local single-draft protection, source-backed reads,
-and index rebuilding are implemented; baseline freeze commands, durable hashing,
-additional concurrency profiles, and full lifecycle breadth remain deferred.
+creation, revision lineage, local single-draft protection, source-owned link
+mutation, graph inspection, source-backed reads, and index rebuilding are
+implemented; baseline freeze commands, durable hashing, additional concurrency
+profiles, and full lifecycle breadth remain deferred.

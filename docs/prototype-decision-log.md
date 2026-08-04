@@ -851,3 +851,49 @@ turning provisional choices into architecture.
   capability-bound frozen baseline, create the next Revision from the frozen
   source, distinguish both entries in human and JSON history, then prove a second
   failed attempt leaves prior Revision and generated-index bytes unchanged.
+
+## D-037 — Store each graph edge only on its exact source Revision
+
+- **Status:** accepted and implemented
+- **Decision:** `req link <source-revision> <target> --type <relationship>` and
+  `req unlink` rewrite one editable exact source Revision through an atomic staged
+  replacement. Before publication, the kernel resolves the source lifecycle type
+  from the selected Process Package and validates the complete resulting outbound
+  link set for declared relationship, target kind, target lifecycle type,
+  Stable-versus-exact identity, and cardinality. Frozen sources are immutable.
+  Backlinks and bounded graph traces are regenerated from outbound Markdown;
+  neither inverse links nor graph indexes are durable truth. Trace nodes retain
+  separate `stable-datum`, `revision`, and `obligation-instance` identity kinds,
+  while a Stable Datum root can discover edges stored on its exact Revisions.
+- **Alternatives:** Persist inverse links, mutate links through a package-specific
+  relationship registry, accept a Stable source alias and silently choose a
+  Revision, validate only the new edge rather than the resulting cardinality,
+  update generated indexes transactionally, collapse Stable and Revision nodes in
+  trace output, or allow frozen evidence to receive new links.
+- **Rationale:** Source ownership makes the resolved lifecycle type the complete
+  local authority for outbound edges. One durable direction prevents divergent
+  inverse facts. Requiring an exact source makes mutation intent reproducible;
+  preserving the authored target identity prevents a working Stable relation from
+  being misreported as exact historical evidence. Disposable projections cannot
+  participate in mutation correctness.
+- **Expected behavior:** Valid link and unlink operations publish one complete
+  validated Markdown replacement and leave indexes untouched. Unknown source
+  contracts, malformed or absent targets, wrong target kinds/types/identity
+  classes, duplicate or out-of-range cardinality, and minimum-cardinality removal
+  fail without changing any source byte. A frozen source fails before staging.
+  `req backlinks` reports source-owned inverse labels from one outbound edge, and
+  `req trace --relation --depth` deterministically walks inbound and outbound
+  adjacency while showing exact source Revisions and authored Stable or exact
+  targets separately.
+- **Reversibility:** A later repository transaction/locking profile can strengthen
+  parallel mutation coordination, and graph traces can add capability-resolved
+  freeze edges or richer traversal policies. They must retain source-owned
+  validation, exact-source mutation, frozen immutability, one durable outbound
+  edge, explicit identity kinds, and rebuildable projections.
+- **Evidence/observations:** Executable tests create an optional source-owned edge,
+  prove the target stores no inverse edge, inspect matching human and JSON
+  backlinks, trace from both target and source Stable identities, remove the edge,
+  and verify empty computed backlinks. A rejection matrix covers unknown source
+  relationships, malformed and missing identities, wrong Stable-versus-exact
+  identity, wrong datum type, wrong target kind, maximum and minimum cardinality,
+  and a frozen source; every failure preserves all Markdown and index bytes.

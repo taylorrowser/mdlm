@@ -28,8 +28,48 @@ export interface CreatedDatum {
   path: string;
 }
 
+export type GraphIdentityKind =
+  | "stable-datum"
+  | "revision"
+  | "obligation-instance";
+
+export interface GraphNode {
+  identity: string;
+  identityKind: GraphIdentityKind;
+  type?: string;
+}
+
+export interface GraphLink {
+  source: string;
+  sourceIdentityKind: "revision";
+  sourceType: string;
+  type: string;
+  target: string;
+  targetIdentityKind: GraphIdentityKind;
+  inverseLabel: string;
+}
+
+export interface BacklinkInspection extends GraphNode {
+  links: GraphLink[];
+}
+
+export interface GraphTrace {
+  root: GraphNode;
+  depth: number;
+  relation: string | null;
+  nodes: GraphNode[];
+  links: GraphLink[];
+}
+
+export interface LinkMutation {
+  operation: "added" | "removed";
+  sourceRevision: string;
+  type: string;
+  target: string;
+}
+
 export interface DatumProjections {
-  backlinks: { source: string; type: string }[];
+  backlinks: GraphLink[];
   states: Record<string, string | string[]>;
   obligations: ObligationEvaluation[];
   kernelCapabilities: string[];
@@ -73,7 +113,9 @@ interface ParsedDatum {
 }
 
 const base32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const stableIdentity = /^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
 const revisionIdentity = /^([A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
+const obligationInstanceIdentity = /^([a-z][a-z0-9-]*@[1-9][0-9]*):([A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}):(.+)$/;
 
 function randomStableId(typeId: string): string {
   return `${typeId}-${[...randomBytes(10)]
@@ -295,7 +337,46 @@ function targetDatum(
     : lifecycleData.find((datum) => datum.datum.id === target);
 }
 
+function obligationInstanceParts(
+  processPackage: ProcessPackage,
+  lifecycleData: LifecycleRecord[],
+  target: string,
+): { obligation: string; subject: string } | undefined {
+  const match = obligationInstanceIdentity.exec(target);
+  if (!match?.[1] || !match[2]) return undefined;
+  const reference = referenceParts(match[1]);
+  const definition = reference ? processPackage.obligations[reference[0]] : undefined;
+  if (!reference || !definition || definition.version !== reference[1]) return undefined;
+  if (!lifecycleData.some((item) => item.datum.revision_id === match[2])) {
+    return undefined;
+  }
+  return { obligation: match[1], subject: match[2] };
+}
+
+function graphNode(
+  processPackage: ProcessPackage,
+  lifecycleData: LifecycleRecord[],
+  identity: string,
+): GraphNode | undefined {
+  if (revisionIdentity.test(identity)) {
+    const datum = lifecycleData.find((item) => item.datum.revision_id === identity);
+    return datum
+      ? { identity, identityKind: "revision", type: datum.datum.type }
+      : undefined;
+  }
+  if (stableIdentity.test(identity)) {
+    const datum = lifecycleData.find((item) => item.datum.id === identity);
+    return datum
+      ? { identity, identityKind: "stable-datum", type: datum.datum.type }
+      : undefined;
+  }
+  return obligationInstanceParts(processPackage, lifecycleData, identity)
+    ? { identity, identityKind: "obligation-instance" }
+    : undefined;
+}
+
 function linkDiagnostics(
+  processPackage: ProcessPackage,
   resolvedType: ResolvedType,
   links: DatumEnvelope["links"],
   lifecycleData: LifecycleRecord[],
@@ -316,11 +397,21 @@ function linkDiagnostics(
       continue;
     }
     const target = targetDatum(lifecycleData, link.target);
-    if (!target) {
+    const obligation = obligationInstanceParts(
+      processPackage,
+      lifecycleData,
+      link.target,
+    );
+    if (!target && !obligation) {
+      const validIdentity = stableIdentity.test(link.target) ||
+        revisionIdentity.test(link.target) ||
+        obligationInstanceIdentity.test(link.target);
       diagnostics.push({
-        code: "unknown-link-target",
+        code: validIdentity ? "unknown-link-target" : "invalid-link-target-identity",
         path: `links[${index}].target`,
-        message: `Unknown Lifecycle Datum target '${link.target}'`,
+        message: validIdentity
+          ? `Unknown link target '${link.target}'`
+          : `Link target '${link.target}' is not a Stable Datum, exact Revision, or exact Obligation Instance identity`,
       });
       continue;
     }
@@ -328,10 +419,15 @@ function linkDiagnostics(
     const compatible = targets.some((targetContract) => {
       if (typeof targetContract !== "object" || targetContract === null) return false;
       const value = targetContract as Record<string, unknown>;
+      if (value.kind === "obligation-instance") {
+        return obligation !== undefined &&
+          value.identity === "exact-obligation-instance";
+      }
+      if (value.kind !== "datum" || !target) return false;
       const identity = value.identity;
-      const identityMatches = identity === "revision"
-        ? revisionIdentity.test(link.target)
-        : identity === "stable" && !revisionIdentity.test(link.target);
+      const identityMatches = identity === "either" ||
+        (identity === "revision" && revisionIdentity.test(link.target)) ||
+        (identity === "stable" && stableIdentity.test(link.target));
       return identityMatches && Array.isArray(value.types) &&
         value.types.includes(target.datum.type);
     });
@@ -393,6 +489,7 @@ function validateDatum(
     });
   }
   diagnostics.push(...linkDiagnostics(
+    processPackage,
     resolved.type,
     datum.links,
     lifecycleData,
@@ -685,6 +782,228 @@ export async function reviseDatum(
   };
 }
 
+function durableGraphLinks(
+  processPackage: ProcessPackage,
+  lifecycleData: LifecycleRecord[],
+): GraphLink[] {
+  const links: GraphLink[] = [];
+  for (const source of lifecycleData) {
+    const resolved = resolveType(processPackage, source.datum.type);
+    if (!resolved.ok) continue;
+    const contracts = new Map(resolved.type.outgoingLinks.map((contract) => [
+      String(contract.id),
+      contract,
+    ]));
+    for (const link of source.datum.links) {
+      const contract = contracts.get(link.type);
+      const target = graphNode(processPackage, lifecycleData, link.target);
+      if (!contract || !target) continue;
+      links.push({
+        source: source.datum.revision_id,
+        sourceIdentityKind: "revision",
+        sourceType: source.datum.type,
+        type: link.type,
+        target: link.target,
+        targetIdentityKind: target.identityKind,
+        inverseLabel: String(contract.inverse_label),
+      });
+    }
+  }
+  return links.sort((left, right) =>
+    left.source.localeCompare(right.source) ||
+    left.type.localeCompare(right.type) ||
+    left.target.localeCompare(right.target)
+  );
+}
+
+export async function mutateDatumLink(
+  root: string,
+  processPackage: ProcessPackage,
+  sourceRevision: string,
+  target: string,
+  type: string,
+  operation: "added" | "removed",
+): Promise<RepositoryResult<LinkMutation>> {
+  if (!revisionIdentity.test(sourceRevision)) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "exact-source-revision-required",
+        path: sourceRevision,
+        message: `Link mutation requires an exact source Revision ID, received '${sourceRevision}'`,
+      }],
+    };
+  }
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const source = loaded.value.find((item) =>
+    item.lifecycleDatum.datum.revision_id === sourceRevision
+  );
+  if (!source) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "unknown-source-revision",
+        path: sourceRevision,
+        message: `Unknown source Revision '${sourceRevision}'`,
+      }],
+    };
+  }
+  if (source.lifecycleDatum.storage.frozen) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "frozen-revision-immutable",
+        path: sourceRevision,
+        message: `Frozen Revision '${sourceRevision}' cannot be changed`,
+      }],
+    };
+  }
+
+  const datum = structuredClone(source.lifecycleDatum.datum);
+  const matching = (link: DatumEnvelope["links"][number]) =>
+    link.type === type && link.target === target;
+  if (operation === "added") datum.links.push({ type, target });
+  else {
+    const index = datum.links.findIndex(matching);
+    if (index < 0) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "unknown-outgoing-link-instance",
+          path: `${sourceRevision}:${type}:${target}`,
+          message: `Revision '${sourceRevision}' has no '${type}' link to '${target}'`,
+        }],
+      };
+    }
+    datum.links.splice(index, 1);
+  }
+  datum.links.sort((left, right) =>
+    left.type.localeCompare(right.type) || left.target.localeCompare(right.target)
+  );
+  const lifecycleData = loaded.value.map((item) =>
+    item === source
+      ? { ...item.lifecycleDatum, datum }
+      : item.lifecycleDatum
+  );
+  const diagnostics = validateDatum(processPackage, datum, lifecycleData);
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+
+  const finalPath = path.join(root, source.relativePath);
+  const temporaryPath = path.join(
+    path.dirname(finalPath),
+    `.${path.basename(finalPath)}.${randomUUID()}.tmp`,
+  );
+  try {
+    await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
+    await fs.rename(temporaryPath, finalPath);
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
+  }
+  return {
+    ok: true,
+    value: { operation, sourceRevision, type, target },
+    diagnostics: [],
+  };
+}
+
+export async function inspectBacklinks(
+  root: string,
+  processPackage: ProcessPackage,
+  identity: string,
+): Promise<RepositoryResult<BacklinkInspection>> {
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const lifecycleData = loaded.value.map((item) => item.lifecycleDatum);
+  const target = graphNode(processPackage, lifecycleData, identity);
+  if (!target) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "unknown-graph-identity",
+        path: identity,
+        message: `Unknown graph identity '${identity}'`,
+      }],
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      ...target,
+      links: durableGraphLinks(processPackage, lifecycleData).filter((link) =>
+        link.target === identity
+      ),
+    },
+    diagnostics: [],
+  };
+}
+
+export async function traceGraph(
+  root: string,
+  processPackage: ProcessPackage,
+  identity: string,
+  relation: string | undefined,
+  depth: number,
+): Promise<RepositoryResult<GraphTrace>> {
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const lifecycleData = loaded.value.map((item) => item.lifecycleDatum);
+  const rootNode = graphNode(processPackage, lifecycleData, identity);
+  if (!rootNode) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "unknown-graph-identity",
+        path: identity,
+        message: `Unknown graph identity '${identity}'`,
+      }],
+    };
+  }
+  const availableLinks = durableGraphLinks(processPackage, lifecycleData)
+    .filter((link) => relation === undefined || link.type === relation);
+  const sourceStableIds = new Map(lifecycleData.map((item) => [
+    item.datum.revision_id,
+    item.datum.id,
+  ]));
+  const nodes = new Map<string, GraphNode>([[identity, rootNode]]);
+  const links = new Map<string, GraphLink>();
+  let frontier = new Set([identity]);
+  for (let level = 0; level < depth && frontier.size > 0; level += 1) {
+    const next = new Set<string>();
+    for (const link of availableLinks) {
+      const sourceStableId = sourceStableIds.get(link.source);
+      if (
+        !frontier.has(link.source) &&
+        !frontier.has(link.target) &&
+        (sourceStableId === undefined || !frontier.has(sourceStableId))
+      ) continue;
+      links.set(`${link.source}\0${link.type}\0${link.target}`, link);
+      for (const adjacent of [link.source, link.target]) {
+        if (nodes.has(adjacent)) continue;
+        const node = graphNode(processPackage, lifecycleData, adjacent);
+        if (node) {
+          nodes.set(adjacent, node);
+          next.add(adjacent);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return {
+    ok: true,
+    value: {
+      root: rootNode,
+      depth,
+      relation: relation ?? null,
+      nodes: [...nodes.values()].sort((left, right) =>
+        left.identity.localeCompare(right.identity)
+      ),
+      links: [...links.values()],
+    },
+    diagnostics: [],
+  };
+}
+
 function projections(
   processPackage: ProcessPackage,
   lifecycleData: LifecycleRecord[],
@@ -707,14 +1026,9 @@ function projections(
       }
     }
   }
-  const backlinks = lifecycleData.flatMap((datum) => datum.datum.links
-    .filter((link) =>
-      link.target === subject.datum.id || link.target === subject.datum.revision_id
-    )
-    .map((link) => ({ source: datum.datum.revision_id, type: link.type })))
-    .sort((left, right) =>
-      left.source.localeCompare(right.source) || left.type.localeCompare(right.type)
-    );
+  const backlinks = durableGraphLinks(processPackage, lifecycleData).filter((link) =>
+    link.target === subject.datum.id || link.target === subject.datum.revision_id
+  );
   const resolved = resolveType(processPackage, subject.datum.type);
   return {
     backlinks,

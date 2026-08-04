@@ -38,13 +38,19 @@ import {
 import {
   createDatum,
   datumHistory,
+  inspectBacklinks,
   listData,
+  mutateDatumLink,
   rebuildRepositoryIndex,
   reviseDatum,
   showDatum,
+  traceGraph,
+  type BacklinkInspection,
   type CreatedDatum,
   type DatumHistory,
   type DatumProjections,
+  type GraphTrace,
+  type LinkMutation,
   type ListedDatum,
   type RepositoryIndexSummary,
   type StoredDatum,
@@ -114,6 +120,9 @@ interface CommandResult {
   projections?: DatumProjections;
   data?: ListedDatum[];
   history?: DatumHistory;
+  linkMutation?: LinkMutation;
+  backlinks?: BacklinkInspection;
+  trace?: GraphTrace;
   index?: RepositoryIndexSummary;
   diagnostics: ProcessDiagnostic[];
 }
@@ -588,6 +597,135 @@ async function reviseStoredDatum(
     command: "revise",
     package: selected.summary,
     created: revised.value,
+    diagnostics: [],
+  };
+}
+
+async function mutateStoredDatumLink(
+  repositoryRoot: string,
+  command: "link" | "unlink",
+  sourceRevision: string,
+  target: string,
+  arguments_: string[],
+): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command,
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const type = optionValue(arguments_, "--type");
+  if (!type) {
+    return { ...failure("link-type-required", "Link mutation requires '--type <relationship>'"), command };
+  }
+  const mutated = await mutateDatumLink(
+    repositoryRoot,
+    selected.processPackage,
+    sourceRevision,
+    target,
+    type,
+    command === "link" ? "added" : "removed",
+  );
+  if (!mutated.ok) {
+    return {
+      ok: false,
+      command,
+      package: selected.summary,
+      selected: true,
+      diagnostics: mutated.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command,
+    package: selected.summary,
+    linkMutation: mutated.value,
+    diagnostics: [],
+  };
+}
+
+async function showStoredBacklinks(
+  repositoryRoot: string,
+  identity: string,
+): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "backlinks",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const backlinks = await inspectBacklinks(
+    repositoryRoot,
+    selected.processPackage,
+    identity,
+  );
+  if (!backlinks.ok) {
+    return {
+      ok: false,
+      command: "backlinks",
+      package: selected.summary,
+      selected: true,
+      diagnostics: backlinks.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "backlinks",
+    package: selected.summary,
+    backlinks: backlinks.value,
+    diagnostics: [],
+  };
+}
+
+async function showGraphTrace(
+  repositoryRoot: string,
+  identity: string,
+  arguments_: string[],
+): Promise<CommandResult> {
+  const depthSource = optionValue(arguments_, "--depth") ?? "1";
+  const depth = Number(depthSource);
+  if (!Number.isSafeInteger(depth) || depth < 0) {
+    return {
+      ...failure("invalid-trace-depth", `Trace depth '${depthSource}' must be a non-negative integer`),
+      command: "trace",
+    };
+  }
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "trace",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const traced = await traceGraph(
+    repositoryRoot,
+    selected.processPackage,
+    identity,
+    optionValue(arguments_, "--relation"),
+    depth,
+  );
+  if (!traced.ok) {
+    return {
+      ok: false,
+      command: "trace",
+      package: selected.summary,
+      selected: true,
+      diagnostics: traced.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "trace",
+    package: selected.summary,
+    trace: traced.value,
     diagnostics: [],
   };
 }
@@ -1326,6 +1464,32 @@ function humanOutput(result: CommandResult): string {
       `Index Path: ${result.index.path}`,
     ].join("\n");
   }
+  if (result.linkMutation) {
+    return [
+      `Link: ${result.linkMutation.operation}`,
+      `Source Revision: ${result.linkMutation.sourceRevision}`,
+      `Relationship: ${result.linkMutation.type}`,
+      `Target: ${result.linkMutation.target}`,
+    ].join("\n");
+  }
+  if (result.backlinks) {
+    return [
+      `Backlinks: ${result.backlinks.identity} [${result.backlinks.identityKind.replace("-", " ")}]`,
+      ...result.backlinks.links.map((link) =>
+        `${link.source} --${link.type}/${link.inverseLabel}--> ${link.target} [${link.targetIdentityKind.replace("-", " ")}]`
+      ),
+    ].join("\n");
+  }
+  if (result.trace) {
+    return [
+      `Trace: ${result.trace.root.identity} [${result.trace.root.identityKind.replace("-", " ")}]`,
+      `Depth: ${result.trace.depth}`,
+      `Relation: ${result.trace.relation ?? "all"}`,
+      ...result.trace.links.map((link) =>
+        `${link.source} --${link.type}/${link.inverseLabel}--> ${link.target} [${link.targetIdentityKind.replace("-", " ")}]`
+      ),
+    ].join("\n");
+  }
   if (result.created) {
     return [
       `Lifecycle Datum: ${result.created.id}`,
@@ -1525,6 +1689,24 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
   }
   if (operands[0] === "revise" && operands[1]) {
     return reviseStoredDatum(repositoryRoot, operands[1], arguments_);
+  }
+  if (
+    (operands[0] === "link" || operands[0] === "unlink") &&
+    operands[1] && operands[2]
+  ) {
+    return mutateStoredDatumLink(
+      repositoryRoot,
+      operands[0],
+      operands[1],
+      operands[2],
+      arguments_,
+    );
+  }
+  if (operands[0] === "backlinks" && operands[1]) {
+    return showStoredBacklinks(repositoryRoot, operands[1]);
+  }
+  if (operands[0] === "trace" && operands[1]) {
+    return showGraphTrace(repositoryRoot, operands[1], arguments_);
   }
   if (operands[0] === "show" && operands[1]) {
     return showStoredDatum(repositoryRoot, operands[1]);

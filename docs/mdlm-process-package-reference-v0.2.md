@@ -509,11 +509,28 @@ exclusive same-filesystem link so a concurrent exact-Revision collision also
 fails without replacement. `req history <stable-id>` orders exact lineage and
 separates `frozen-history` from `editable-work`, including the exact capability-
 bound baselines that freeze each Revision. Storage immutability is derived through
-the selected `exact-baseline@1` binding rather than a lifecycle type ID. `req show`
-and `req list` scan Markdown truth and add package-derived states, Obligation
-Instances, backlinks, and bound Kernel Capabilities. `req doctor` validates that
-same source and atomically rebuilds a deterministic disposable index; reads and
-revision transactions do not depend on or mutate the generated index.
+the selected `exact-baseline@1` binding rather than a lifecycle type ID.
+
+`req link <source-revision> <target> --type <relationship>` and `req unlink`
+atomically mutate only an editable exact source Revision. The complete resulting
+link set is validated against that Revision's resolved source lifecycle type,
+including target kind, target lifecycle type, Stable-versus-Revision identity,
+and minimum/maximum cardinality. Invalid or frozen-source mutations leave both
+Markdown truth and disposable indexes unchanged. Exact Obligation Instance links
+are validated against a known versioned Obligation and existing exact subject.
+No inverse edge is stored. `req backlinks <identity>` computes inbound edges from
+outbound Markdown and projects the source Revision, source type, authored target,
+target identity kind, and source-owned inverse label. `req trace <identity>
+[--relation <id>] [--depth <n>]` walks those edges in either direction. A Stable
+Datum root uses its exact Revisions as zero-loss edge sources while the result
+keeps Stable Datum, exact Revision, and exact Obligation Instance identities
+explicit and separate.
+
+`req show` and `req list` scan Markdown truth and add package-derived states,
+Obligation Instances, backlinks, and bound Kernel Capabilities. `req doctor`
+validates that same source and atomically rebuilds a deterministic disposable
+index; reads and revision/link transactions do not depend on or mutate the
+generated index.
 
 ## 14. Bootstrap scope
 
