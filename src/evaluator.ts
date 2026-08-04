@@ -58,7 +58,12 @@ export interface ObligationEvaluation {
   subject: string;
   satisfied: boolean;
   status: string;
-  resolver: string;
+  eventualResolver: string;
+  actionableResolver: string | null;
+  dispatchable: boolean;
+  blockedBy: string[];
+  blockerChains: string[][];
+  unresolvedBindings: string[];
   explanation: string;
 }
 
@@ -127,6 +132,13 @@ interface Entity {
 }
 
 type EvaluationContext = Record<string, unknown>;
+
+interface PendingObligation {
+  evaluation: ObligationEvaluation;
+  definition: VersionedDefinition;
+  context: EvaluationContext;
+  statusRule?: Record<string, unknown>;
+}
 
 function object(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -255,7 +267,7 @@ class LifecycleEvaluator {
       artifacts[revisionId] = { states, stateExplanations };
     }
 
-    const obligations: ObligationEvaluation[] = [];
+    const pendingObligations: PendingObligation[] = [];
     for (const definition of Object.values(this.processPackage.obligations)) {
       if (!array(definition.phases).includes(this.snapshot.phaseId)) continue;
       const forEach = definition.for_each;
@@ -273,22 +285,70 @@ class LifecycleEvaluator {
         const context = { ...this.baseContext, [subjectAs]: subject };
         const satisfied = this.expression(definition.satisfied_when, context);
         const statusResult = satisfied
-          ? { status: "satisfied", reason: "The obligation's satisfaction expression is true." }
+          ? {
+              status: "satisfied",
+              reason: "The obligation's satisfaction expression is true.",
+            }
           : this.obligationStatus(definition, context);
         const resolverObject = object(definition.resolve_with);
-        const resolver = string(resolverObject?.scenario) ?? "";
+        const eventualResolver = string(resolverObject?.scenario) ?? "";
         const subjectId = subject.identity?.revision_id ?? subject.key;
-        obligations.push({
-          id: `${definition.id}@${definition.version}:${subjectId}:${this.snapshot.processRef}`,
-          obligation: definition.id,
-          subject: subjectId,
-          satisfied,
-          status: statusResult.status,
-          resolver,
-          explanation: statusResult.reason,
+        pendingObligations.push({
+          evaluation: {
+            id: this.obligationInstanceId(
+              `${definition.id}@${definition.version}`,
+              subjectId,
+            ),
+            obligation: definition.id,
+            subject: subjectId,
+            satisfied,
+            status: statusResult.status,
+            eventualResolver,
+            actionableResolver: null,
+            dispatchable: false,
+            blockedBy: [],
+            blockerChains: [],
+            unresolvedBindings: [],
+            explanation: statusResult.reason,
+          },
+          definition,
+          context,
+          ...(statusResult.rule ? { statusRule: statusResult.rule } : {}),
         });
       }
     }
+
+    const byInstanceId = new Map(
+      pendingObligations.map((pending) => [pending.evaluation.id, pending]),
+    );
+    for (const pending of pendingObligations) {
+      if (pending.evaluation.satisfied) continue;
+      pending.evaluation.blockedBy = this.blockingInstanceIds(
+        pending.statusRule,
+        pending.context,
+        byInstanceId,
+      );
+      pending.evaluation.unresolvedBindings =
+        this.unresolvedResolverBindings(pending.definition, pending.context);
+      pending.evaluation.dispatchable =
+        ["ready", "awaiting-review", "stale"].includes(
+          pending.evaluation.status,
+        ) &&
+        pending.evaluation.blockedBy.length === 0 &&
+        pending.evaluation.unresolvedBindings.length === 0;
+    }
+    for (const pending of pendingObligations) {
+      if (pending.evaluation.satisfied) continue;
+      pending.evaluation.blockerChains = this.blockerChains(
+        pending.evaluation,
+        byInstanceId,
+      );
+      pending.evaluation.actionableResolver = this.actionableResolver(
+        pending.evaluation,
+        byInstanceId,
+      );
+    }
+    const obligations = pendingObligations.map((pending) => pending.evaluation);
 
     const statusOrder: Record<string, number> = {
       ready: 0,
@@ -405,10 +465,121 @@ class LifecycleEvaluator {
       : value;
   }
 
+  private obligationInstanceId(
+    obligationReference: string,
+    subjectId: string,
+  ): string {
+    return `${obligationReference}:${subjectId}:${this.snapshot.processRef}`;
+  }
+
+  private blockingInstanceIds(
+    statusRule: Record<string, unknown> | undefined,
+    context: EvaluationContext,
+    byInstanceId: Map<string, PendingObligation>,
+  ): string[] {
+    const blockerIds = new Set<string>();
+    for (const blockerValue of array(statusRule?.blocked_by)) {
+      const blocker = object(blockerValue);
+      const obligation = string(blocker?.obligation);
+      if (!obligation || blocker?.subjects === undefined) continue;
+      const subjects = array(this.value(blocker.subjects, context))
+        .filter((value): value is Entity => this.isEntity(value));
+      for (const subject of subjects) {
+        const subjectId = subject.identity?.revision_id;
+        if (!subjectId) continue;
+        const instanceId = this.obligationInstanceId(obligation, subjectId);
+        const pending = byInstanceId.get(instanceId);
+        if (pending && !pending.evaluation.satisfied) blockerIds.add(instanceId);
+      }
+    }
+    return [...blockerIds].sort();
+  }
+
+  private unresolvedResolverBindings(
+    definition: VersionedDefinition,
+    context: EvaluationContext,
+  ): string[] {
+    const resolver = object(definition.resolve_with);
+    const dispatch = object(resolver?.dispatch);
+    let bindingContexts = [context];
+    if (dispatch) {
+      const dispatchItems = array(this.value(dispatch.for_each, context))
+        .filter((value): value is Entity => this.isEntity(value));
+      const alias = string(dispatch.as);
+      if (dispatchItems.length === 0 || !alias) return ["dispatch"];
+      bindingContexts = dispatchItems.map((item) => ({
+        ...context,
+        [alias]: item,
+      }));
+    }
+    const unresolved = new Set<string>();
+    for (const [name, binding] of Object.entries(object(resolver?.inputs) ?? {})) {
+      for (const bindingContext of bindingContexts) {
+        const value = this.value(binding, bindingContext);
+        if (value === undefined || value === null ||
+          (Array.isArray(value) && value.length === 0)) {
+          unresolved.add(name);
+        }
+      }
+    }
+    return [...unresolved].sort();
+  }
+
+  private blockerChains(
+    evaluation: ObligationEvaluation,
+    byInstanceId: Map<string, PendingObligation>,
+    visited = new Set<string>(),
+  ): string[][] {
+    if (visited.has(evaluation.id)) return [];
+    const nextVisited = new Set(visited).add(evaluation.id);
+    const chains = evaluation.blockedBy.flatMap((blockerId) => {
+      const blocker = byInstanceId.get(blockerId)?.evaluation;
+      if (!blocker) return [[blockerId]];
+      const descendants = this.blockerChains(
+        blocker,
+        byInstanceId,
+        nextVisited,
+      );
+      return descendants.length === 0
+        ? [[blockerId]]
+        : descendants.map((chain) => [blockerId, ...chain]);
+    });
+    return chains.sort((left, right) => {
+      const leftKey = left.join("\u0000");
+      const rightKey = right.join("\u0000");
+      return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+    });
+  }
+
+  private actionableResolver(
+    evaluation: ObligationEvaluation,
+    byInstanceId: Map<string, PendingObligation>,
+    visited = new Set<string>(),
+  ): string | null {
+    if (evaluation.dispatchable) return evaluation.eventualResolver;
+    if (visited.has(evaluation.id)) return null;
+    const nextVisited = new Set(visited).add(evaluation.id);
+    for (const blockerId of evaluation.blockedBy) {
+      const blocker = byInstanceId.get(blockerId)?.evaluation;
+      if (!blocker) continue;
+      const resolver = this.actionableResolver(
+        blocker,
+        byInstanceId,
+        nextVisited,
+      );
+      if (resolver) return resolver;
+    }
+    return null;
+  }
+
   private obligationStatus(
     definition: VersionedDefinition,
     context: EvaluationContext,
-  ): { status: string; reason: string } {
+  ): {
+    status: string;
+    reason: string;
+    rule?: Record<string, unknown>;
+  } {
     const rules = array(definition.status_rules)
       .map(object)
       .filter((rule): rule is Record<string, unknown> => rule !== undefined)
@@ -418,6 +589,7 @@ class LifecycleEvaluator {
         return {
           status: string(rule.status) ?? string(definition.default_status) ?? "blocked",
           reason: string(rule.reason) ?? "The obligation is not satisfied.",
+          rule,
         };
       }
     }

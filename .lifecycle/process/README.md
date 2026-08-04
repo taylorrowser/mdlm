@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.15
+# MDLM bootstrap process package v0.16
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -55,6 +55,13 @@ A process rule must not request a process-specific kernel fact. Conclusions such
 as “passing review,” “current candidate,” and “members missing review” are named
 selectors assembled from primitive collections, graph relations, integrity
 paths, states, and policies.
+
+Obligation status rules may declare exact blocking Obligation subjects with
+textual expressions. Evaluation separates the eventual Resolver Scenario from
+the currently actionable resolver and marks work Dispatchable only when the
+status permits action, every binding resolves, and no exact blocker remains.
+Blocker chains use exact Obligation Instance identities; presentation still puts
+ready work before blocked work without changing Obligation truth.
 
 Phase entry and candidate selection are evaluated directly from each selected
 Phase's textual expressions. Results include exact typed candidate identities and

@@ -13,6 +13,9 @@ status_rules:
     priority: 100
     when: 'exists("candidate-members-missing-review@1", {candidate: candidate})'
     reason: One or more exact candidate members still lack valid passing review evidence.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("candidate-members-missing-review@1", {candidate: candidate})'
 default_status: blocked
 resolve_with:
   scenario: review-datum-in-context@1

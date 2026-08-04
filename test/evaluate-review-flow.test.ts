@@ -360,19 +360,35 @@ describe("evaluateLifecycle review flow", () => {
         ],
       },
     );
+    const signoffContext = record(
+      "BSL",
+      "BSL-5KLM9NP2QR",
+      {
+        title: "Gate sign-off review context",
+        kind: "review-context",
+        role: "review-context",
+        scope: "intent-gate",
+        group: "DEFAULT",
+        definition_members: [signoff.datum.revision_id],
+        evidence: [],
+      },
+      { frozen: true, scenario: "create-review-context@1" },
+    );
 
+    const records = [
+      psp,
+      pspContext,
+      pspReview,
+      candidate,
+      candidateContext,
+      candidateReview,
+      signoff,
+      signoffContext,
+    ];
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
-      records: [
-        psp,
-        pspContext,
-        pspReview,
-        candidate,
-        candidateContext,
-        candidateReview,
-        signoff,
-      ],
+      records,
       dependencyComparisons: [],
     });
 
@@ -384,6 +400,16 @@ describe("evaluateLifecycle review flow", () => {
     expect(gate).toEqual(
       expect.objectContaining({
         status: "blocked",
+        eventualResolver: "record-gate-signoff@1",
+        actionableResolver: "review-datum-in-context@1",
+        dispatchable: false,
+        blockedBy: [
+          `passing-review-required@2:${signoff.datum.revision_id}:git:current`,
+        ],
+        blockerChains: [[
+          `passing-review-required@2:${signoff.datum.revision_id}:git:current`,
+        ]],
+        unresolvedBindings: [],
         explanation: expect.stringContaining("sign-off decision awaits review"),
       }),
     );
@@ -393,6 +419,23 @@ describe("evaluateLifecycle review flow", () => {
           item.subject === signoff.datum.revision_id &&
           item.obligation === "passing-review-required",
       ),
-    ).toEqual(expect.objectContaining({ status: "blocked" }));
+    ).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      eventualResolver: "review-datum-in-context@1",
+      actionableResolver: "review-datum-in-context@1",
+      dispatchable: true,
+      unresolvedBindings: [],
+    }));
+
+    const reordered = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [...records].reverse(),
+      dependencyComparisons: [],
+    });
+    const reorderedGate = reordered.looseEnds.find(
+      (item) => item.id === gate?.id,
+    );
+    expect(reorderedGate).toEqual(gate);
   });
 });

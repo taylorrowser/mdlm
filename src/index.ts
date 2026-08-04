@@ -329,10 +329,22 @@ function legacyExpressionAuthoringDiagnostics(
     if (!Array.isArray(rules)) return;
     rules.forEach((rule, index) => {
       if (typeof rule !== "object" || rule === null) return;
+      const ruleRecord = rule as Record<string, unknown>;
+      check(ruleRecord.when, `${prefix}[${index}].when`);
       check(
-        (rule as Record<string, unknown>).when,
-        `${prefix}[${index}].when`,
+        ruleRecord.explanation_evidence,
+        `${prefix}[${index}].explanation_evidence`,
       );
+      const blockers = Array.isArray(ruleRecord.blocked_by)
+        ? ruleRecord.blocked_by
+        : [];
+      blockers.forEach((blocker, blockerIndex) => {
+        if (typeof blocker !== "object" || blocker === null) return;
+        check(
+          (blocker as Record<string, unknown>).subjects,
+          `${prefix}[${index}].blocked_by[${blockerIndex}].subjects`,
+        );
+      });
     });
   };
   const checkArguments = (argumentsValue: unknown, prefix: string): void => {

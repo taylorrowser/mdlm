@@ -47,7 +47,11 @@ if (!loaded.ok) {
       `- [${looseEnd.status}] ${looseEnd.obligation} for ${looseEnd.subject}`,
     );
     console.log(`  Why: ${looseEnd.explanation}`);
-    console.log(`  Resolver: ${looseEnd.resolver}`);
+    console.log(`  Dispatchable: ${looseEnd.dispatchable}`);
+    console.log(`  Eventual resolver: ${looseEnd.eventualResolver}`);
+    console.log(
+      `  Actionable resolver: ${looseEnd.actionableResolver ?? "none"}`,
+    );
   }
   if (evaluation.diagnostics.length > 0) {
     console.log("");

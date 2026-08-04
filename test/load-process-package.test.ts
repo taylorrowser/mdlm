@@ -24,7 +24,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.15.0");
+    expect(result.package.manifest.version).toBe("0.16.0");
     expect(Object.keys(result.package.types)).toHaveLength(7);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(25);
@@ -656,6 +656,36 @@ describe("loadProcessPackage", () => {
         expect.objectContaining({
           code: "unknown-reference",
           path: "phases.phase-0-wayfinding.obligations[0]",
+          message: "Unknown Obligation reference 'missing-obligation@2'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an unknown blocking Obligation reference", async () => {
+    const processRoot = await copiedProcessPackage();
+    const obligationPath = path.join(
+      processRoot,
+      "obligations/passing-review-required.yaml",
+    );
+    const obligation = await fs.readFile(obligationPath, "utf8");
+    await fs.writeFile(
+      obligationPath,
+      obligation.replace(
+        "review-context-required@2",
+        "missing-obligation@2",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-reference",
+          path:
+            "obligations.passing-review-required.status_rules[1].blocked_by[0].obligation",
           message: "Unknown Obligation reference 'missing-obligation@2'",
         }),
       ]),

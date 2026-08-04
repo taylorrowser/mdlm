@@ -15,10 +15,16 @@ status_rules:
     priority: 300
     when: 'exists("stale-reviews-for@1", {subject: subject})'
     reason: Prior review evidence exists but its subject or context changed.
+    blocked_by:
+      - obligation: review-context-required@2
+        subjects: '[subject]'
   - status: blocked
     priority: 200
     when: 'none("valid-review-contexts-for@1", {subject: subject})'
     reason: Review cannot begin until an exact valid review context is frozen.
+    blocked_by:
+      - obligation: review-context-required@2
+        subjects: '[subject]'
   - status: awaiting-review
     priority: 100
     when: 'exists("valid-review-contexts-for@1", {subject: subject})'

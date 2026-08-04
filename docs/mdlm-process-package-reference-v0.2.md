@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.15 — experimental implementation reference**
+**Bootstrap package 0.16 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -334,7 +334,18 @@ declares:
 
 Resolver bindings are explicit. A baseline-level obligation may dispatch one
 review scenario per result of `candidate-members-missing-review`, avoiding
-ambiguous dependencies between differently scoped obligation instances.
+ambiguous dependencies between differently scoped obligation instances. A
+status rule may also declare `blocked_by` entries, each naming a versioned
+Obligation and a textual expression selecting exact subjects. Package loading
+compiles those expressions and validates each referenced Obligation.
+
+Every evaluated Obligation reports `eventualResolver`, `actionableResolver`,
+`dispatchable`, `blockedBy`, `blockerChains`, and `unresolvedBindings`. A resolver
+is Dispatchable only for an actionable status when every declared binding
+resolves and no exact blocking Obligation Instance remains. Otherwise the
+currently actionable resolver is derived from the first deterministic
+Dispatchable leaf in the declared blocker chains; merely naming an eventual
+Resolver Scenario never grants permission to execute it.
 
 Obligation identity is:
 
@@ -407,7 +418,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.15 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.16 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

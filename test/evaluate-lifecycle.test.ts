@@ -84,7 +84,12 @@ describe("evaluateLifecycle", () => {
       expect.objectContaining({
         subject: PSP_REVISION,
         status: "ready",
-        resolver: "create-review-context@1",
+        eventualResolver: "create-review-context@1",
+        actionableResolver: "create-review-context@1",
+        dispatchable: true,
+        blockedBy: [],
+        blockerChains: [],
+        unresolvedBindings: [],
       }),
     );
     expect(context?.explanation).toContain(
@@ -99,7 +104,16 @@ describe("evaluateLifecycle", () => {
       expect.objectContaining({
         subject: PSP_REVISION,
         status: "blocked",
-        resolver: "review-datum-in-context@1",
+        eventualResolver: "review-datum-in-context@1",
+        actionableResolver: "create-review-context@1",
+        dispatchable: false,
+        blockedBy: [
+          `review-context-required@2:${PSP_REVISION}:git:current`,
+        ],
+        blockerChains: [[
+          `review-context-required@2:${PSP_REVISION}:git:current`,
+        ]],
+        unresolvedBindings: ["review_context"],
       }),
     );
   });

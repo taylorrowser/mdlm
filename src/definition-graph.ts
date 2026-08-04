@@ -173,6 +173,30 @@ function validateReferences(
         ),
       );
     }
+    const statusRules = Array.isArray(definition.status_rules)
+      ? definition.status_rules
+      : [];
+    statusRules.forEach((ruleValue, ruleIndex) => {
+      if (typeof ruleValue !== "object" || ruleValue === null) return;
+      const blockers = Array.isArray(
+        (ruleValue as Record<string, unknown>).blocked_by,
+      )
+        ? (ruleValue as Record<string, unknown>).blocked_by as unknown[]
+        : [];
+      blockers.forEach((blockerValue, blockerIndex) => {
+        if (typeof blockerValue !== "object" || blockerValue === null) return;
+        const blocker = blockerValue as Record<string, unknown>;
+        if (typeof blocker.obligation !== "string") return;
+        diagnostics.push(
+          ...validateVersionedReference(
+            blocker.obligation,
+            definitions.obligations,
+            `obligations.${id}.status_rules[${ruleIndex}].blocked_by[${blockerIndex}].obligation`,
+            "Obligation",
+          ),
+        );
+      });
+    });
     if (typeof definition.waiver_policy_ref === "string") {
       diagnostics.push(
         ...validateVersionedReference(

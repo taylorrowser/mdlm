@@ -13,6 +13,9 @@ status_rules:
       exists("gate-signoff-decisions-for@1", {candidate: candidate})
       && none("applicable-gate-signoffs-for@1", {candidate: candidate})
     reason: A gate sign-off decision awaits review; its individual review obligations must resolve before the gate evidence is applicable.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("gate-signoff-decisions-for@1", {candidate: candidate})'
   - status: blocked
     priority: 200
     when: >-
@@ -20,6 +23,13 @@ status_rules:
       || none("passing-reviews-for@1", {subject: candidate})
       || exists("open-blocking-questions@1", {})
     reason: Candidate reviews, member reviews, or blocking questions remain unresolved.
+    blocked_by:
+      - obligation: candidate-members-reviewed@2
+        subjects: '[candidate]'
+      - obligation: passing-review-required@2
+        subjects: '[candidate]'
+      - obligation: open-question-resolution@2
+        subjects: 'select("open-blocking-questions@1", {})'
   - status: ready
     priority: 100
     when: >-

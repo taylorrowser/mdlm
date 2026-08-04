@@ -1357,14 +1357,28 @@ function compileObligationDefinition(
     : [];
   statusRules.forEach((value, index) => {
     if (typeof value !== "object" || value === null) return;
+    const rule = value as Record<string, unknown>;
     compileField(
-      value as Record<string, unknown>,
+      rule,
       "when",
       `${filePath}#status_rules[${index}].when`,
       bindings,
       catalogs,
       diagnostics,
     );
+    const blockers = Array.isArray(rule.blocked_by) ? rule.blocked_by : [];
+    blockers.forEach((blockerValue, blockerIndex) => {
+      if (typeof blockerValue !== "object" || blockerValue === null) return;
+      compileField(
+        blockerValue as Record<string, unknown>,
+        "subjects",
+        `${filePath}#status_rules[${index}].blocked_by[${blockerIndex}].subjects`,
+        bindings,
+        catalogs,
+        diagnostics,
+        "array",
+      );
+    });
   });
 
   const resolver = typeof definition.resolve_with === "object" &&

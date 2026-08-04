@@ -517,3 +517,30 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Public lifecycle fixtures exercise failed Phase 2
   entry, missing candidates, a renamed `SNP` capability type, reversed snapshot
   order, repeated evaluation, and input immutability.
+
+## D-027 — Make Dispatchability depend on exact declared blocker chains
+
+- **Status:** accepted and implemented
+- **Decision:** An Obligation status rule may declare versioned blocking
+  Obligations and select their exact subjects with textual expressions. Evaluation
+  resolves those declarations to exact Obligation Instance IDs, reports unresolved
+  Resolver Scenario bindings, and separates `eventualResolver`,
+  `actionableResolver`, and `dispatchable`. Actionable resolvers are found only at
+  deterministic Dispatchable leaves of the blocker graph.
+- **Alternatives:** Treat every named resolver as executable, infer blockers from
+  explanation prose or private expression ASTs, hard-code gate/review chains, or
+  return only status and one resolver string.
+- **Rationale:** Eventual resolution is descriptive, while safe orchestration
+  requires package-authored dependency meaning plus complete runtime bindings.
+  Exact instance edges preserve subject, definition version, and process context.
+- **Expected behavior:** Ready or awaiting-review work with complete bindings is
+  Dispatchable. Blocked work never is, even when it names a resolver; it instead
+  exposes exact direct blockers, complete ordered chains, unresolved binding
+  names, and the first safe downstream Resolver Scenario when one exists.
+- **Reversibility:** Additive to Obligation authoring and evaluation results.
+  Later explanation records can add binding values, outputs, links, and waiver
+  evidence without changing the blocker identity contract.
+- **Evidence/observations:** Public lifecycle tests cover a ready context creator,
+  a review blocked on its exact context Obligation, and a gate whose eventual
+  sign-off resolver differs from the currently Dispatchable review resolver.
+  Reversing snapshot record order preserves the same exact blocker result.

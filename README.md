@@ -11,7 +11,8 @@ types, states, obligations, scenarios, and phases.
 - `resolveType(package, typeId)` flattens the kernel envelope and template chain.
 - `evaluateLifecycle(package, snapshot)` computes package-defined phase entry and
   candidate selection, typed dependency-change records, states, obligations,
-  loose ends, and explanations from primitive graph and integrity data.
+  and Loose Ends with exact blocker chains, unresolved bindings, Dispatchability,
+  Resolver Scenarios, and explanations from primitive graph and integrity data.
 
 ## Try it
 

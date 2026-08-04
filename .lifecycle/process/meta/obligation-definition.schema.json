@@ -24,7 +24,12 @@
           "status": {"enum": ["ready", "blocked", "awaiting-review", "stale", "failed"]},
           "priority": {"type": "integer"},
           "when": {"$ref": "expression.schema.json"},
-          "reason": {"type": "string", "minLength": 1}
+          "reason": {"type": "string", "minLength": 1},
+          "blocked_by": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/blocker"},
+            "uniqueItems": true
+          }
         }
       },
       "minItems": 1
@@ -35,6 +40,15 @@
   },
   "$defs": {
     "binding": {"$ref": "expression.schema.json"},
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obligation", "subjects"],
+      "properties": {
+        "obligation": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+        "subjects": {"$ref": "expression.schema.json"}
+      }
+    },
     "resolver": {
       "type": "object",
       "additionalProperties": false,

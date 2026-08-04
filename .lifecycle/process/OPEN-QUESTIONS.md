@@ -28,9 +28,10 @@ behavior where possible.
     purpose-built parser behind the versioned language contract. Reconsider a
     compatible library only if later syntax makes the internal parser materially
     harder to maintain without changing observable language behavior.
-10. **Resolver eligibility:** The next result model must expose dispatchability,
-    blockers, eventual resolver, actionable resolver, expected outputs, and waiver
-    applicability rather than only status and one resolver string.
+10. **Resolver eligibility:** Obligation results now separate Dispatchability,
+    exact blocker chains, unresolved bindings, the eventual Resolver Scenario,
+    and the currently actionable resolver. Expected outputs, required links, and
+    waiver applicability remain to be exposed.
 11. **Phase evaluation:** Entry conditions and deterministically selected exact
     candidates now include expression and Selector evidence. Gate completion and
     exact gate blockers remain to be returned by the evaluator.
