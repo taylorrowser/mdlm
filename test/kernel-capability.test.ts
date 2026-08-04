@@ -404,7 +404,7 @@ describe("exact-baseline@1 Kernel Capability", () => {
     await fs.writeFile(
       typePath,
       definition.replace(
-        "    evidence:\n      type: array\n      uniqueItems: true\n      items: {type: string, pattern: '^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}",
+        "    evidence:\n      type: array\n      uniqueItems: true\n      items: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}",
         "    evidence: {type: string}",
       ),
     );

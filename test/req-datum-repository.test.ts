@@ -358,6 +358,7 @@ describe("req durable Lifecycle Datum repository", () => {
           disposition: "active",
           validity: "valid",
           "relationship-overlays": [],
+          "decomposition-status": "not-applicable",
         },
         obligations: expect.arrayContaining([
           expect.objectContaining({

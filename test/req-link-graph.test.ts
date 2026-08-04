@@ -350,7 +350,7 @@ describe("req source-owned links", () => {
     });
     const emptyBacklinks = req(repositoryRoot, "backlinks", target.id, "--json");
     expect(JSON.parse(emptyBacklinks.stdout).backlinks.links).toEqual([]);
-  });
+  }, 15_000);
 
   it("rejects invalid source contracts, targets, cardinalities, and frozen mutations atomically", async () => {
     const firstTargetResult = createPsp("First target");

@@ -54,8 +54,8 @@ async function packageWithRejectedInput(): Promise<string> {
   await fs.writeFile(
     scenarioPath,
     scenario.replace(
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision}",
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
+      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision}",
+      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
     ),
   );
   return processRoot;
@@ -120,9 +120,12 @@ describe("req scenario dry-run", () => {
                   name: "subject",
                   contract: {
                     types: [
+                      "ASP",
                       "BSL",
                       "DEC",
+                      "DWP",
                       "ENV",
+                      "ICSP",
                       "MAP",
                       "PSP",
                       "STK",

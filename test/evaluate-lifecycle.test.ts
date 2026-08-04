@@ -70,6 +70,7 @@ describe("evaluateLifecycle", () => {
       disposition: "active",
       validity: "valid",
       "relationship-overlays": [],
+      "decomposition-status": "not-applicable",
     });
 
     expect(evaluation.looseEnds.map((item) => item.status)).toEqual([
