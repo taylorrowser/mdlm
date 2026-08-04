@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.21
+# MDLM bootstrap process package v0.22
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -14,7 +14,10 @@ projection in human-readable or JSON form without implicitly selecting this
 Example Process Package. `req process expression evaluate` addresses a compiled
 definition field in its authored binding and result-type context; generic Relation,
 Selector, Policy, Computed State, and Obligation evaluation commands expose the
-same deterministic package execution with source-span evidence.
+same deterministic package execution with source-span evidence. Generic Phase
+status, Loose End, and next-work commands retain exact gate, blocker, resolver
+output, Dispatchability, and waiver dimensions without embedding these example
+Phase or type IDs in the executable.
 
 The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
 definition now uses textual source compiled at package load, including finite

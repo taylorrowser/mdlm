@@ -18,7 +18,9 @@ types, states, obligations, scenarios, and phases.
 - The `req` executable explicitly installs and selects exact Process Packages,
   provides package-neutral inspection and validation, and evaluates addressed
   expression fields, Relations, Selectors, Policies, Computed States, and
-  Obligations with matching human/JSON evidence and source spans.
+  Obligations with matching human/JSON evidence and source spans. It also reports
+  package-defined Phase status, exact Loose Ends, and only currently Dispatchable
+  next work from explicit snapshots.
 
 ## Try it
 

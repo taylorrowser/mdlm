@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.21 — experimental implementation reference**
+**Bootstrap package 0.22 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -466,9 +466,21 @@ selected package and snapshot host. Human and JSON views project the same result
 traversed versioned definitions, evidence, and selected package/language versions;
 parser nodes and query helpers remain private.
 
+`req phase status <phase>`, `req loose-ends`, and `req next` evaluate an explicit
+snapshot through the same public lifecycle evaluator. Phase status retains entry,
+exact candidates, an independent Obligation status summary, exact gate results,
+blocker chains, Resolver Scenario output contracts, and Waiver Policy evidence.
+Loose End output keeps satisfaction, status, subject, blockers, unresolved
+bindings, eventual and actionable resolvers, Dispatchability, outputs, and waiver
+applicability as separate fields. Applicable waivers remain outside current Loose
+Ends but are reported separately as waiver-suppressed Obligation evidence. `next`
+selects only the first deterministically ordered Dispatchable Loose End; it does
+not infer a batch where the Process Package declares no batching contract. Human
+and JSON renderers consume these package-neutral projections.
+
 ## 14. Bootstrap scope
 
-Bootstrap package 0.21 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.22 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

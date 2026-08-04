@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 import {
+  evaluateLifecycle,
   loadProcessPackage,
   type LifecycleSnapshot,
   type ProcessDiagnostic,
@@ -21,6 +22,19 @@ import {
   type ProcessCapabilities,
   type ProcessInspection,
 } from "./process-package-inspection.js";
+import {
+  looseEndsProjection,
+  nextWorkProjection,
+  phaseStatusProjection,
+  type LooseEndsProjection,
+  type NextWorkProjection,
+  type PhaseStatusProjection,
+} from "./lifecycle-inspection.js";
+import {
+  humanLooseEnds,
+  humanNextWork,
+  humanPhaseStatus,
+} from "./lifecycle-output.js";
 
 interface PackageSummary {
   id: string;
@@ -56,6 +70,9 @@ interface CommandResult {
   };
   capabilities?: ProcessCapabilities;
   evaluation?: ProcessDirectEvaluation | ProcessExpressionEvaluation;
+  phaseStatus?: PhaseStatusProjection;
+  looseEnds?: LooseEndsProjection;
+  next?: NextWorkProjection;
   diagnostics: ProcessDiagnostic[];
 }
 
@@ -412,6 +429,133 @@ async function readLifecycleSnapshot(
   ) as LifecycleSnapshot;
 }
 
+type SelectedLifecycleEvaluation =
+  | {
+      ok: true;
+      summary: PackageSummary;
+      evaluation: ReturnType<typeof evaluateLifecycle>;
+    }
+  | { ok: false; result: CommandResult };
+
+async function selectedLifecycleEvaluation(
+  repositoryRoot: string,
+  command: string,
+  snapshotPath: string | undefined,
+  phaseId?: string,
+): Promise<SelectedLifecycleEvaluation> {
+  const resolved = await selectedPackage(repositoryRoot);
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        command,
+        selected: resolved.selected,
+        diagnostics: resolved.diagnostics,
+      },
+    };
+  }
+  if (!snapshotPath) {
+    return {
+      ok: false,
+      result: failure(
+        "snapshot-required",
+        `${command} requires '--snapshot <fixture>'`,
+      ),
+    };
+  }
+  const snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
+  const evaluation = evaluateLifecycle(
+    resolved.processPackage,
+    phaseId === undefined ? snapshot : { ...snapshot, phaseId },
+  );
+  if (evaluation.diagnostics.length > 0) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        command,
+        package: resolved.summary,
+        selected: true,
+        diagnostics: evaluation.diagnostics,
+      },
+    };
+  }
+  return { ok: true, summary: resolved.summary, evaluation };
+}
+
+async function phaseStatus(
+  repositoryRoot: string,
+  phaseId: string,
+  snapshotPath: string | undefined,
+): Promise<CommandResult> {
+  const resolved = await selectedLifecycleEvaluation(
+    repositoryRoot,
+    "phase.status",
+    snapshotPath,
+    phaseId,
+  );
+  if (!resolved.ok) return resolved.result;
+  const projection = phaseStatusProjection(resolved.evaluation);
+  if (!projection) throw new Error("Lifecycle evaluation did not return a Phase");
+  return {
+    ok: true,
+    command: "phase.status",
+    package: resolved.summary,
+    selected: true,
+    phaseStatus: projection,
+    diagnostics: [],
+  };
+}
+
+async function showLooseEnds(
+  repositoryRoot: string,
+  snapshotPath: string | undefined,
+  phaseId?: string,
+): Promise<CommandResult> {
+  const resolved = await selectedLifecycleEvaluation(
+    repositoryRoot,
+    "loose-ends",
+    snapshotPath,
+    phaseId,
+  );
+  if (!resolved.ok) return resolved.result;
+  const projection = looseEndsProjection(resolved.evaluation);
+  if (!projection) throw new Error("Lifecycle evaluation did not return a Phase");
+  return {
+    ok: true,
+    command: "loose-ends",
+    package: resolved.summary,
+    selected: true,
+    looseEnds: projection,
+    diagnostics: [],
+  };
+}
+
+async function showNextWork(
+  repositoryRoot: string,
+  snapshotPath: string | undefined,
+  phaseId?: string,
+): Promise<CommandResult> {
+  const resolved = await selectedLifecycleEvaluation(
+    repositoryRoot,
+    "next",
+    snapshotPath,
+    phaseId,
+  );
+  if (!resolved.ok) return resolved.result;
+  const projection = nextWorkProjection(resolved.evaluation);
+  if (!projection) throw new Error("Lifecycle evaluation did not return a Phase");
+  return {
+    ok: true,
+    command: "next",
+    package: resolved.summary,
+    selected: true,
+    next: projection,
+    diagnostics: [],
+  };
+}
+
 async function evaluateSelectedExpression(
   repositoryRoot: string,
   target: string,
@@ -544,6 +688,15 @@ function humanOutput(result: CommandResult): string {
     return result.diagnostics
       .map((diagnostic) => `Error [${diagnostic.code}]: ${diagnostic.message}`)
       .join("\n");
+  }
+  if (result.phaseStatus && result.package) {
+    return humanPhaseStatus(result.package.reference, result.phaseStatus);
+  }
+  if (result.looseEnds && result.package) {
+    return humanLooseEnds(result.package.reference, result.looseEnds);
+  }
+  if (result.next && result.package) {
+    return humanNextWork(result.package.reference, result.next);
   }
   if (result.evaluation && result.package) {
     const evaluation = result.evaluation;
@@ -682,6 +835,27 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       operands[2],
       optionValue(arguments_, "--snapshot"),
       directArguments(arguments_),
+    );
+  }
+  if (operands[0] === "phase" && operands[1] === "status" && operands[2]) {
+    return phaseStatus(
+      repositoryRoot,
+      operands[2],
+      optionValue(arguments_, "--snapshot"),
+    );
+  }
+  if (operands[0] === "loose-ends") {
+    return showLooseEnds(
+      repositoryRoot,
+      optionValue(arguments_, "--snapshot"),
+      optionValue(arguments_, "--phase"),
+    );
+  }
+  if (operands[0] === "next") {
+    return showNextWork(
+      repositoryRoot,
+      optionValue(arguments_, "--snapshot"),
+      optionValue(arguments_, "--phase"),
     );
   }
   if (operands[0] !== "process") {

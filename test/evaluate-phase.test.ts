@@ -8,6 +8,7 @@ import {
   type ProcessPackage,
 } from "../src/index.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
+import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
 function record(
@@ -241,93 +242,15 @@ describe("phase evaluation", () => {
   });
 
   it("blocks duplicate sign-off, completes after review, and reevaluates a changed exact candidate without rewriting prior evidence", () => {
-    const firstCandidate = record("BSL", "BSL-4K3M9Q2D8F", {
-      title: "First intent candidate",
-      kind: "intent-level-candidate",
-      role: "candidate",
-      scope: "intent",
-      group: "DEFAULT",
-      definition_members: [],
-      evidence: [],
-    });
-    const candidateContext = record("BSL", "BSL-4K3M9Q2D8G", {
-      title: "Candidate review context",
-      kind: "review-context",
-      role: "review-context",
-      scope: "intent",
-      group: "DEFAULT",
-      definition_members: [firstCandidate.datum.revision_id],
-      evidence: [],
-    });
-    const candidateReview = record(
-      "REV",
-      "REV-4K3M9Q2D8F",
-      {
-        title: "Candidate review",
-        review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        summary: "The exact candidate passes review.",
-        findings: [],
-        outcome: "pass",
-      },
-      {
-        links: [
-          { type: "reviews", target: firstCandidate.datum.revision_id },
-          { type: "contextualizes", target: candidateContext.datum.revision_id },
-        ],
-      },
-    );
-    const signoff = record(
-      "DEC",
-      "DEC-4K3M9Q2D8F",
-      {
-        title: "Intent gate sign-off",
-        rationale: "Authorize this exact candidate.",
-        kind: "gate-signoff",
-        decision: "Approve.",
-        alternatives: ["Revise."],
-        effective_scope: firstCandidate.datum.revision_id,
-      },
-      {
-        links: [
-          { type: "justifies", target: firstCandidate.datum.revision_id },
-        ],
-      },
-    );
-    const signoffContext = record("BSL", "BSL-4K3M9Q2D8H", {
-      title: "Sign-off review context",
-      kind: "review-context",
-      role: "review-context",
-      scope: "intent",
-      group: "DEFAULT",
-      definition_members: [signoff.datum.revision_id],
-      evidence: [],
-    });
-    const signoffReview = record(
-      "REV",
-      "REV-4K3M9Q2D8G",
-      {
-        title: "Sign-off review",
-        review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        summary: "The exact sign-off passes review.",
-        findings: [],
-        outcome: "pass",
-      },
-      {
-        links: [
-          { type: "reviews", target: signoff.datum.revision_id },
-          { type: "contextualizes", target: signoffContext.datum.revision_id },
-        ],
-      },
-    );
-    const beforeReviewRecords = [
-      firstCandidate,
+    const {
+      candidate: firstCandidate,
       candidateContext,
       candidateReview,
       signoff,
       signoffContext,
-    ];
+      signoffReview,
+      beforeSignoffReview: beforeReviewRecords,
+    } = reviewedGateFixture("git:exact-gate");
 
     const beforeReview = evaluateLifecycle(processPackage, {
       processRef: "git:exact-gate",

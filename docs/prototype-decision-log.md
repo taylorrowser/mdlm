@@ -693,3 +693,36 @@ turning provisional choices into architecture.
   through a nested Selector and capability-gated Relation, reject a binding that
   does not belong to that field, compare human and JSON semantics, and directly
   evaluate one Relation, Selector, Policy, Computed State, and Obligation.
+
+## D-033 — Project lifecycle status without collapsing independent conclusions
+
+- **Status:** accepted and implemented
+- **Decision:** `req phase status`, `req loose-ends`, and `req next` evaluate an
+  explicit named snapshot through the selected package and the existing lifecycle
+  evaluator. Their package-neutral projections retain satisfaction, authored
+  status, exact subject, blockers, blocker chains, unresolved bindings, eventual
+  resolver, actionable resolver, Dispatchability, Resolver Scenario output
+  contract, and Waiver Policy result as independent values. Applicable waivers are
+  shown separately from current Loose Ends. `next` selects only the first
+  deterministically ordered item already marked Dispatchable.
+- **Alternatives:** Derive CLI status independently, flatten conclusions into one
+  display status, treat an eventual resolver as executable, return blocked work
+  when no ready item exists, infer batches by lifecycle type, or hide applicable
+  waiver evidence because it suppresses current work.
+- **Rationale:** Lifecycle evaluation is the authority for process meaning; the
+  CLI should project rather than reinterpret it. Exact blocker and resolver output
+  evidence makes gate and next-work decisions auditable. Separating
+  waiver-suppressed Obligations preserves the invariant that they are not current
+  Loose Ends while keeping the exact policy evidence visible.
+- **Expected behavior:** Phase status reports entry, candidate selection,
+  Obligation counts and exact status groups, gate evaluations enriched with their
+  exact Obligation explanations, and aggregate blocker evidence. Loose Ends retain
+  every evaluator dimension in JSON and label each dimension in human output.
+  `next` returns a Dispatchable Loose End or `null`; it never falls back to a
+  blocked item. An eventual coherent batch awaits an explicit package batching
+  contract and is not inferred by the kernel or executable.
+- **Reversibility:** Filtering options and a future versioned batch projection can
+  be added without changing lifecycle truth, ordering, or the single-item result.
+- **Evidence/observations:** Executable tests cover ready and blocked Loose Ends, a
+  reviewed complete exact gate, an exact reviewed waiver, no-work next selection,
+  and equivalent human and structured preservation of independent dimensions.

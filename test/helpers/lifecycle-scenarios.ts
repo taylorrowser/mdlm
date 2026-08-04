@@ -1,0 +1,145 @@
+import type { LifecycleRecord } from "../../src/index.js";
+import { lifecycleRecord } from "./lifecycle-record.js";
+
+function frozenRecord(
+  processRef: string,
+  type: string,
+  id: string,
+  payload: Record<string, unknown>,
+  options: {
+    links?: { type: string; target: string }[];
+    scenario?: string;
+  } = {},
+): LifecycleRecord {
+  return lifecycleRecord(type, id, payload, {
+    ...(options.links ? { links: options.links } : {}),
+    createdBy: {
+      process_ref: processRef,
+      ...(options.scenario ? { scenario: options.scenario } : {}),
+    },
+    storage: { editable: false, frozen: true },
+  });
+}
+
+export function reviewedGateFixture(processRef: string) {
+  const candidate = frozenRecord(processRef, "BSL", "BSL-4K3M9Q2D8F", {
+    title: "Intent candidate",
+    kind: "intent-level-candidate",
+    role: "candidate",
+    scope: "intent",
+    group: "DEFAULT",
+    definition_members: [],
+    evidence: [],
+  }, { scenario: "create-candidate-baseline@1" });
+  const candidateContext = frozenRecord(
+    processRef,
+    "BSL",
+    "BSL-4K3M9Q2D8G",
+    {
+      title: "Candidate review context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "intent",
+      group: "DEFAULT",
+      definition_members: [candidate.datum.revision_id],
+      evidence: [],
+    },
+  );
+  const candidateReview = frozenRecord(processRef, "REV", "REV-4K3M9Q2D8F", {
+    title: "Candidate review",
+    review_kind: "independent",
+    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+    summary: "The exact candidate passes review.",
+    findings: [],
+    outcome: "pass",
+  }, {
+    links: [
+      { type: "reviews", target: candidate.datum.revision_id },
+      { type: "contextualizes", target: candidateContext.datum.revision_id },
+    ],
+  });
+  const signoff = frozenRecord(processRef, "DEC", "DEC-4K3M9Q2D8F", {
+    title: "Intent gate sign-off",
+    rationale: "Authorize this exact candidate.",
+    kind: "gate-signoff",
+    decision: "Approve.",
+    alternatives: ["Revise."],
+    effective_scope: candidate.datum.revision_id,
+  }, {
+    links: [{ type: "justifies", target: candidate.datum.revision_id }],
+  });
+  const signoffContext = frozenRecord(processRef, "BSL", "BSL-4K3M9Q2D8H", {
+    title: "Sign-off review context",
+    kind: "review-context",
+    role: "review-context",
+    scope: "intent",
+    group: "DEFAULT",
+    definition_members: [signoff.datum.revision_id],
+    evidence: [],
+  });
+  const signoffReview = frozenRecord(processRef, "REV", "REV-4K3M9Q2D8G", {
+    title: "Sign-off review",
+    review_kind: "independent",
+    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+    summary: "The exact sign-off passes review.",
+    findings: [],
+    outcome: "pass",
+  }, {
+    links: [
+      { type: "reviews", target: signoff.datum.revision_id },
+      { type: "contextualizes", target: signoffContext.datum.revision_id },
+    ],
+  });
+  return {
+    candidate,
+    candidateContext,
+    candidateReview,
+    signoff,
+    signoffContext,
+    signoffReview,
+    beforeSignoffReview: [
+      candidate,
+      candidateContext,
+      candidateReview,
+      signoff,
+      signoffContext,
+    ],
+    records: [
+      candidate,
+      candidateContext,
+      candidateReview,
+      signoff,
+      signoffContext,
+      signoffReview,
+    ],
+  };
+}
+
+export function exactContextWaiverFor(
+  subject: LifecycleRecord,
+  processRef: string,
+) {
+  const obligationInstance =
+    `review-context-required@2:${subject.datum.revision_id}:${processRef}`;
+  const waiver = frozenRecord(processRef, "DEC", "DEC-8ZT5KQ3P9M", {
+    title: "Temporary context waiver",
+    rationale: "The context is temporarily disproportionate.",
+    kind: "waiver",
+    decision: "Waive context creation for this exact revision.",
+    alternatives: ["Create the context now."],
+    effective_scope: subject.datum.revision_id,
+    waiver: {
+      obligation: "review-context-required@2",
+      subject: subject.datum.revision_id,
+      scope: "this-revision",
+      expires_when: ["subject-revised"],
+    },
+  }, { links: [{ type: "waives", target: obligationInstance }] });
+  const review = frozenRecord(processRef, "REV", "REV-2BC4DF6GHJ", {
+    title: "Waiver review",
+    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+    findings: [],
+    outcome: "pass",
+  }, { links: [{ type: "reviews", target: waiver.datum.revision_id }] });
+  return { obligationInstance, waiver, review };
+}
