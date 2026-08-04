@@ -842,6 +842,25 @@ describe("req product-assurance qualification and pilot slice", () => {
     expect(
       JSON.parse(unchangedPilotResult.stdout).lifecycleDatum.datum.links,
     ).toEqual([]);
+    const revisedGeneratedResult = req(
+      repositoryRoot,
+      "revise",
+      "RES-0000000003",
+      "--json",
+    );
+    expect(revisedGeneratedResult.status).toBe(1);
+    expect(JSON.parse(revisedGeneratedResult.stdout).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "generated-datum-requires-scenario-execution",
+      }),
+    ]);
+    const absentGeneratedRevision = req(
+      repositoryRoot,
+      "show",
+      "RES-0000000003-r00002",
+      "--json",
+    );
+    expect(absentGeneratedRevision.status).toBe(1);
 
     const phase = req(
       repositoryRoot,

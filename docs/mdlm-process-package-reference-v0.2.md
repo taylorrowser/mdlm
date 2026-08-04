@@ -663,8 +663,8 @@ The Phase 1 tracer embeds named capability profiles in VSP, realizes and qualifi
 one exact ENV, and runs one source-independent pilot against an exact ART target.
 Package schemas distinguish qualification `environment-capability`, pilot
 `verification-design`, and formal `requirement` claims. RUN and RES are
-package-declared generated terminal types: generic direct authoring is refused,
-validated Scenario execution publishes them atomically, and terminal outcomes are
+package-declared generated terminal types: generic direct creation and revision
+are refused, validated Scenario execution publishes them atomically, and terminal outcomes are
 immutable. Qualification support artifacts do not link to a requirement. A pilot
 must record positive success and negative discrimination observations; Scenario
 completion rejects a formal claim from that pilot even when the proposed RES is

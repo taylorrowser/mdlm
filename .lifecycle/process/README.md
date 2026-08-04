@@ -179,7 +179,7 @@ target records both supported and intentionally unsupported behavior, and its RE
 must record both expected success and expected discrimination. Scenario
 completion rejects a formal requirement claim from a pilot run, terminal RUN/RES
 are immediately immutable, and package-declared generated types cannot be created
-through generic direct authoring.
+or revised through generic direct authoring.
 
 ## Scope
 

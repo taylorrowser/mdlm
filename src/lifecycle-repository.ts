@@ -630,6 +630,19 @@ function setPayloadValue(
   return undefined;
 }
 
+function generatedAuthorshipDiagnostic(
+  typeId: string,
+  lifecycle: Record<string, unknown>,
+): ProcessDiagnostic | undefined {
+  return lifecycle.authorship === "generated"
+    ? {
+        code: "generated-datum-requires-scenario-execution",
+        path: `types.${typeId}.lifecycle.authorship`,
+        message: `Lifecycle type '${typeId}' is generated and may be published only through validated Scenario execution`,
+      }
+    : undefined;
+}
+
 export async function createDatum(
   root: string,
   processPackage: ProcessPackage,
@@ -644,15 +657,12 @@ export async function createDatum(
 ): Promise<RepositoryResult<CreatedDatum>> {
   const resolved = resolveType(processPackage, typeId);
   if (!resolved.ok) return resolved;
-  if (resolved.type.lifecycle.authorship === "generated") {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "generated-datum-requires-scenario-execution",
-        path: `types.${typeId}.lifecycle.authorship`,
-        message: `Lifecycle type '${typeId}' is generated and may be published only through validated Scenario execution`,
-      }],
-    };
+  const authorshipDiagnostic = generatedAuthorshipDiagnostic(
+    typeId,
+    resolved.type.lifecycle,
+  );
+  if (authorshipDiagnostic) {
+    return { ok: false, diagnostics: [authorshipDiagnostic] };
   }
   if (!scenarioReference) {
     return {
@@ -980,6 +990,15 @@ export async function reviseDatum(
     };
   }
   const sourceDatum = source.lifecycleDatum.datum;
+  const resolved = resolveType(processPackage, sourceDatum.type);
+  if (!resolved.ok) return resolved;
+  const authorshipDiagnostic = generatedAuthorshipDiagnostic(
+    sourceDatum.type,
+    resolved.type.lifecycle,
+  );
+  if (authorshipDiagnostic) {
+    return { ok: false, diagnostics: [authorshipDiagnostic] };
+  }
   const revision = Math.max(...lineage.map((item) =>
     item.lifecycleDatum.datum.revision
   )) + 1;

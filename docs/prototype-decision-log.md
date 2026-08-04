@@ -1231,8 +1231,8 @@ turning provisional choices into architecture.
   and one RES. Nested package schemas distinguish qualification
   `environment-capability`, pilot `verification-design`, and formal `requirement`
   claims. Types whose package lifecycle declares `authorship: generated` cannot
-  be created through generic direct authoring; only validated Scenario publication
-  may introduce them.
+  be created or revised through generic direct authoring; only validated Scenario
+  publication may introduce them.
 - **Alternatives:** Add verification nouns or specialized qualification commands
   to the kernel; store ENV qualification as a mutable Boolean; treat a successful
   pilot as requirement acceptance; permit direct RUN/RES creation with a Scenario
@@ -1272,8 +1272,8 @@ turning provisional choices into architecture.
   pilot target, pilot VER, and source-blind VAI through generic creation and
   links; executes qualification and pilot RUN/RES pairs through capturing
   adapters; freezes and independently reviews ENV, VER, and VAI contexts; proves
-  blocked-to-ready Obligation routing; rejects prohibited source input before
-  adapter invocation; rejects a schema-valid formal claim without partial
+  blocked-to-ready Obligation routing; rejects direct generated creation and
+  revision, rejects prohibited source input before adapter invocation; rejects a schema-valid formal claim without partial
   publication; confirms positive and negative-control observations, exact RUN
   bindings, terminal immutability, no qualification requirement link, and
   successful repository health validation.
