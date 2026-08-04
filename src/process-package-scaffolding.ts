@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -120,7 +121,14 @@ async function readManifest(root: string): Promise<Record<string, unknown>> {
 }
 
 async function writeManifest(root: string, manifest: Record<string, unknown>): Promise<void> {
-  await fs.writeFile(path.join(root, "manifest.yaml"), stringify(manifest));
+  const manifestPath = path.join(root, "manifest.yaml");
+  const temporaryPath = `${manifestPath}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporaryPath, stringify(manifest), { flag: "wx" });
+    await fs.rename(temporaryPath, manifestPath);
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
+  }
 }
 
 function packageId(destination: string): string | undefined {
@@ -218,7 +226,7 @@ export async function scaffoldProcessPackage(
     );
   }
 
-  const temporaryRoot = `${absoluteDestination}.scaffold-${process.pid}`;
+  const temporaryRoot = `${absoluteDestination}.scaffold-${randomUUID()}`;
   try {
     if (source) {
       await fs.cp(source.root, temporaryRoot, { recursive: true, errorOnExist: true });
@@ -515,7 +523,7 @@ export async function scaffoldProcessFixture(
     dependencyComparisons: [],
   };
   const evaluation = evaluateLifecycle(loaded.package, snapshot);
-  const temporaryRoot = `${fixtureRoot}.scaffold-${process.pid}`;
+  const temporaryRoot = `${fixtureRoot}.scaffold-${randomUUID()}`;
   await fs.mkdir(temporaryRoot, { recursive: true });
   try {
     await fs.writeFile(path.join(temporaryRoot, "snapshot.yaml"), stringify(snapshot));

@@ -111,6 +111,18 @@ describe("req Process Package scaffolding", () => {
         capabilityBindings: "passed",
       },
     }));
+
+    const collision = req(
+      repositoryRoot,
+      "process",
+      "init",
+      "case-process",
+      "--json",
+    );
+    expect(collision.status).toBe(1);
+    expect(JSON.parse(collision.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "process-package-destination-exists" }),
+    ]);
   });
 
   it("copies an example under an independent identity with exact provenance", async () => {
