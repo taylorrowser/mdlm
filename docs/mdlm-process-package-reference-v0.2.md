@@ -572,8 +572,9 @@ integrity fields are not misreported as authored content.
 Obligation Instances, backlinks, and bound Kernel Capabilities. Before publishing
 any generated output, `req doctor` validates repository/package compatibility,
 all Markdown envelopes and references, and every frozen capability-bound baseline
-hash, resolution, composition, and provenance claim. It then atomically rebuilds
-a deterministic disposable index and lifecycle projection report. Reads and
+hash, resolution, and composition claim. Provenance divergence is counted as
+informational Process Drift rather than structural invalidity. It then atomically
+rebuilds a deterministic disposable index and lifecycle projection report. Reads and
 revision/link transactions never depend on generated output; deleting or
 corrupting `.lifecycle/generated` changes no durable lifecycle result.
 

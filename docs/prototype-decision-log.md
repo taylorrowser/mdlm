@@ -1006,7 +1006,8 @@ turning provisional choices into architecture.
   content change and one outbound edge; advance a Stable link resolution; and
   assert all six structural classifications, Process Drift, deterministic JSON,
   human output, and exact package explanations. A focused package variant opts
-  process provenance into reassessment. Repository tests delete generated output,
-  reproduce identical durable `show` results, rebuild index and report, detect a
+  process provenance into reassessment. Repository health reports Process Drift
+  without treating it as failed integrity. Repository tests delete generated
+  output, reproduce identical durable `show` results, rebuild index and report, detect a
   changed frozen byte without modifying either projection, and reject a repository
   descriptor compatibility mismatch.

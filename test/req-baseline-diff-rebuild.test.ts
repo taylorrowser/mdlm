@@ -322,6 +322,13 @@ describe("req baseline differences and repository projection rebuilding", () => 
     );
     expect(human.stdout).toContain("process-provenance-change [informational]");
     expect(human.stdout).toContain("validity: stale");
+
+    const doctor = req(repositoryRoot, "doctor", "--json");
+    expect(doctor.status, doctor.stderr).toBe(0);
+    expect(JSON.parse(doctor.stdout).baselineRepositoryVerification).toEqual({
+      verifiedBaselines: 4,
+      processDrift: 1,
+    });
   }, 30_000);
 
   it("lets package-authored reassessment rules treat informational process drift as Staleness", async () => {
@@ -398,6 +405,10 @@ describe("req baseline differences and repository projection rebuilding", () => 
       report: {
         path: ".lifecycle/generated/reports/lifecycle.json",
         rebuilt: true,
+      },
+      baselineRepositoryVerification: {
+        verifiedBaselines: 1,
+        processDrift: 0,
       },
     });
     const beforeDeletion = req(repositoryRoot, "show", product.id, "--json");

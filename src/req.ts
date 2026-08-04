@@ -1745,6 +1745,7 @@ function humanOutput(result: CommandResult): string {
       `Repository: healthy`,
       `Lifecycle Data: ${result.index.data}`,
       `Verified Baselines: ${result.baselineRepositoryVerification?.verifiedBaselines ?? 0}`,
+      `Process Drift: ${result.baselineRepositoryVerification?.processDrift ?? 0}`,
       `Index: ${result.index.rebuilt ? "rebuilt" : "current"}`,
       `Index Path: ${result.index.path}`,
       `Report: ${result.report?.rebuilt ? "rebuilt" : "current"}`,

@@ -69,6 +69,7 @@ export interface BaselineDiff {
 
 export interface BaselineRepositoryVerification {
   verifiedBaselines: number;
+  processDrift: number;
 }
 
 const stableIdentity = /^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
@@ -876,7 +877,11 @@ export async function verifyRepositoryBaselines(
 ): Promise<RepositoryResult<BaselineRepositoryVerification>> {
   const capability = exactBaselineType(processPackage);
   if (!capability.ok) {
-    return { ok: true, value: { verifiedBaselines: 0 }, diagnostics: [] };
+    return {
+      ok: true,
+      value: { verifiedBaselines: 0, processDrift: 0 },
+      diagnostics: [],
+    };
   }
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
@@ -889,6 +894,7 @@ export async function verifyRepositoryBaselines(
     )
   );
   const diagnostics: ProcessDiagnostic[] = [];
+  let processDrift = 0;
   for (const baseline of baselines) {
     const verified = await verifyExactBaseline(
       root,
@@ -896,7 +902,16 @@ export async function verifyRepositoryBaselines(
       processRef,
       baseline.lifecycleDatum.datum.revision_id,
     );
-    if (!verified.ok) diagnostics.push(...verified.diagnostics);
+    if (!verified.ok) {
+      if (verified.diagnostics.some((diagnostic) =>
+        diagnostic.code === "baseline-process-provenance-mismatch"
+      )) {
+        processDrift += 1;
+      }
+      diagnostics.push(...verified.diagnostics.filter((diagnostic) =>
+        diagnostic.code !== "baseline-process-provenance-mismatch"
+      ));
+    }
   }
   if (diagnostics.length > 0) {
     const unique = new Map(diagnostics.map((diagnostic) => [
@@ -907,7 +922,7 @@ export async function verifyRepositoryBaselines(
   }
   return {
     ok: true,
-    value: { verifiedBaselines: baselines.length },
+    value: { verifiedBaselines: baselines.length, processDrift },
     diagnostics: [],
   };
 }

@@ -1074,6 +1074,30 @@ function projections(
   };
 }
 
+async function publishGeneratedJson(
+  filePath: string,
+  value: unknown,
+): Promise<boolean> {
+  try {
+    const existing = JSON.parse(await fs.readFile(filePath, "utf8")) as unknown;
+    if (structuralValuesEqual(existing, value)) return false;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== undefined && code !== "ENOENT") throw error;
+  }
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+      flag: "wx",
+    });
+    await fs.rename(temporaryPath, filePath);
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
+  }
+  return true;
+}
+
 export async function rebuildRepositoryIndex(
   root: string,
   processPackage: ProcessPackage,
@@ -1100,26 +1124,7 @@ export async function rebuildRepositoryIndex(
       left.revisionId.localeCompare(right.revisionId)
     ),
   };
-  let rebuilt = true;
-  try {
-    const existing = JSON.parse(await fs.readFile(indexPath, "utf8")) as unknown;
-    rebuilt = !structuralValuesEqual(existing, value);
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code !== undefined && code !== "ENOENT") throw error;
-  }
-  if (rebuilt) {
-    await fs.mkdir(path.dirname(indexPath), { recursive: true });
-    const temporaryPath = `${indexPath}.${randomUUID()}.tmp`;
-    try {
-      await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
-        flag: "wx",
-      });
-      await fs.rename(temporaryPath, indexPath);
-    } finally {
-      await fs.rm(temporaryPath, { force: true });
-    }
-  }
+  const rebuilt = await publishGeneratedJson(indexPath, value);
   return {
     ok: true,
     value: { rebuilt, data: value.data.length, path: relativePath },
@@ -1144,26 +1149,7 @@ export async function rebuildRepositoryReport(
     },
     data: listed.value,
   };
-  let rebuilt = true;
-  try {
-    const existing = JSON.parse(await fs.readFile(reportPath, "utf8")) as unknown;
-    rebuilt = !structuralValuesEqual(existing, value);
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code !== undefined && code !== "ENOENT") throw error;
-  }
-  if (rebuilt) {
-    await fs.mkdir(path.dirname(reportPath), { recursive: true });
-    const temporaryPath = `${reportPath}.${randomUUID()}.tmp`;
-    try {
-      await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
-        flag: "wx",
-      });
-      await fs.rename(temporaryPath, reportPath);
-    } finally {
-      await fs.rm(temporaryPath, { force: true });
-    }
-  }
+  const rebuilt = await publishGeneratedJson(reportPath, value);
   return {
     ok: true,
     value: { rebuilt, data: listed.value.length, path: relativePath },
