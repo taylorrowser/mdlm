@@ -63,7 +63,7 @@ async function processPackageWithStatePolicyCycle(): Promise<string> {
   await fs.writeFile(
     policyPath,
     policy.replace(
-      "    when: 'subject.identity.type in [\"PSP\", \"STK\", \"SYS\"]'",
+      "    when: 'subject.identity.type in [\"MAP\", \"PSP\", \"STK\", \"SYS\"]'",
       "    when: 'state(subject, \"relationship-overlays\") == []'",
     ),
   );
@@ -626,7 +626,7 @@ describe("textual MDLM expressions", () => {
           code: "expression-selector-arguments",
           source: sources.types,
           message:
-            "Selector argument 'question' requires revision of type QST, received revision of types BSL, DEC, PSP, STK, SYS",
+            "Selector argument 'question' requires revision of type QST, received revision of types BSL, DEC, MAP, PSP, STK, SYS",
         }),
       ]),
     );
