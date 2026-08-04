@@ -821,13 +821,14 @@ export async function publishScenarioMutation(
   try {
     await fs.mkdir(temporaryDirectory, { recursive: true });
     for (let index = 0; index < data.length; index += 1) {
-      const datum = data[index]!;
-      const relativePath = created[index]!.path.slice(
-        transactionRelativePath.length + 1,
+      const temporaryPath = path.join(
+        temporaryDirectory,
+        created[index]!.path.slice(transactionRelativePath.length + 1),
       );
-      const temporaryPath = path.join(temporaryDirectory, relativePath);
       await fs.mkdir(path.dirname(temporaryPath), { recursive: true });
-      await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
+      await fs.writeFile(temporaryPath, renderDatum(data[index]!), {
+        flag: "wx",
+      });
     }
     await fs.writeFile(
       path.join(temporaryDirectory, "execution.json"),

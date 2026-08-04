@@ -429,9 +429,11 @@ source-owned link failures, missing Scenario-required links, invalid lineage,
 kernel-managed payload authorship, and a false package completion expression.
 The completion host receives the concrete input/output entities plus
 `execution.integrity.contract_valid`. The repository compares all Markdown input
-truth again after adapter return, stages every new Stable Datum, next Revision, and
-execution record in one transaction directory, then exposes the complete set with
-one same-filesystem atomic rename. A successful
+truth again after adapter return, stages every Datum and the execution record
+outside the readable data tree, then exposes the complete set with one same-
+filesystem rename into `.lifecycle/data/.transactions/<execution-id>`. Repository
+scans recurse through this transaction namespace as ordinary Markdown truth, so a
+reader can observe either none or all of an execution's outputs. A successful
 `mdlm-scenario-execution@1` record preserves exact input bytes, package digest,
 prompt and skill bytes and hashes, review and waiver Policies, adapter/request/
 response hashes, exact output identities, completion evidence, and the Obligation

@@ -1072,7 +1072,8 @@ turning provisional choices into architecture.
   The kernel assigns new identities and next Revision numbers, validates every
   returned output together, evaluates package completion with
   `execution.integrity.contract_valid`, reevaluates Lifecycle Data, and publishes
-  all outputs plus one `mdlm-scenario-execution@1` record as a rollback-safe batch.
+  all outputs plus one `mdlm-scenario-execution@1` record with one atomic rename
+  of a complete transaction directory beneath `.lifecycle/data`.
 - **Alternatives:** Let a Process Package name or ship adapter code; invoke an
   arbitrary shell command; trust adapter-authored envelope identity, provenance,
   kernel-managed payload, or completion claims; create outputs one at a time;
@@ -1096,8 +1097,10 @@ turning provisional choices into architecture.
   evidence. Output `created_by` provenance uses those exact package assets.
 - **Reversibility:** A later adapter registry may replace the explicit executable
   option, and stronger isolation may use a container or remote protocol. The first
-  profile intentionally does not claim source-isolation enforcement. Those changes
-  must preserve the versioned request contract, package-code prohibition, exact
+  profile intentionally does not claim source-isolation enforcement. A later
+  filesystem transaction primitive may project committed files back into direct
+  type roots without changing their envelope identities or execution record. Those
+  changes must preserve the versioned request contract, package-code prohibition, exact
   dry-run equivalence, complete post-adapter validation, optimistic source check,
   atomic publication, and evaluator-derived follow-on work.
 - **Evidence/observations:** Public executable tests initialize a real repository,
