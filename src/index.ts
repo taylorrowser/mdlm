@@ -80,6 +80,7 @@ export interface ProcessPackage {
   scenarios: Record<string, VersionedDefinition>;
   phases: Record<string, VersionedDefinition>;
   profiles: Record<string, VersionedDefinition>;
+  aliases: Record<string, VersionedDefinition>;
   primitives: Record<string, VersionedDefinition>;
 }
 
@@ -120,6 +121,7 @@ const definitionSchemas = {
   scenarios: "scenario-definition.schema.json",
   phases: "phase-definition.schema.json",
   profiles: "profile-definition.schema.json",
+  aliases: "command-alias-definition.schema.json",
   primitives: "primitive-catalog.schema.json",
 } as const;
 

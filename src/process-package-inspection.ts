@@ -52,6 +52,7 @@ const definitionCatalogGroups = [
   "scenarios",
   "phases",
   "profiles",
+  "aliases",
   "primitives",
 ] as const;
 

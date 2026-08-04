@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.22
+# MDLM bootstrap process package v0.23
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -17,7 +17,11 @@ Selector, Policy, Computed State, and Obligation evaluation commands expose the
 same deterministic package execution with source-span evidence. Generic Phase
 status, Loose End, and next-work commands retain exact gate, blocker, resolver
 output, Dispatchability, and waiver dimensions without embedding these example
-Phase or type IDs in the executable.
+Phase or type IDs in the executable. `req process init` may copy this package
+under a new identity with exact source provenance, but that independently
+versioned copy is ordinary package data rather than inherited kernel behavior.
+The same command can create an empty package containing only the supported
+meta-schema, Datum Envelope, primitive catalog, and empty authored catalogs.
 
 The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
 definition now uses textual source compiled at package load, including finite

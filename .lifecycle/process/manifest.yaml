@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.22.0
+version: 0.23.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -84,6 +84,7 @@ catalog:
     - create-candidate-baseline
     - record-gate-signoff
   phases: [phase-0-wayfinding, phase-2-system-definition]
+  aliases: []
 assets:
   prompts:
     - prompts/compile-psp.md@1

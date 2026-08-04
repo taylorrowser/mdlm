@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.22 — experimental implementation reference**
+**Bootstrap package 0.23 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -478,9 +478,23 @@ selects only the first deterministically ordered Dispatchable Loose End; it does
 not infer a batch where the Process Package declares no batching contract. Human
 and JSON renderers consume these package-neutral projections.
 
+`req process init <path>` creates a package-neutral `0.1.0` authoring scaffold
+with only the supported versioned meta-schema, kernel Datum Envelope,
+`mdlm-expression@1` contract, primitive catalog, empty definition catalogs, and
+explicit creation provenance. `--from <package-ref>` instead copies a validated
+package, assigns the destination basename as a new package identity, resets its
+independent version to `0.1.0`, and records the exact source reference and digest.
+It does not install or select the new package. `req process definition new`
+creates editable skeletons for Payload Templates, lifecycle types, Selectors,
+Policies, Computed States, Obligations, scenarios, phases, profiles, and Package
+Command Aliases while updating the appropriate manifest catalog. `req process
+fixture new` writes an explicit snapshot and versioned expected-evaluation shape;
+`req process test` evaluates those fixtures through `evaluateLifecycle` and fails
+on a structural result mismatch.
+
 ## 14. Bootstrap scope
 
-Bootstrap package 0.22 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.23 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

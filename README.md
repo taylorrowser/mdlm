@@ -20,7 +20,10 @@ types, states, obligations, scenarios, and phases.
   expression fields, Relations, Selectors, Policies, Computed States, and
   Obligations with matching human/JSON evidence and source spans. It also reports
   package-defined Phase status, exact Loose Ends, and only currently Dispatchable
-  next work from explicit snapshots.
+  next work from explicit snapshots. Process authors can scaffold an empty
+  case-specific package, derive an independently versioned package with exact
+  provenance, add every accepted definition kind, and create executable package
+  fixtures without activating the bundled example.
 
 ## Try it
 
@@ -29,6 +32,10 @@ npm install
 npm test
 npm run typecheck
 npm run prototype
+
+# Scaffold and validate a process-neutral package
+node dist/req.js process init ./case-process
+node dist/req.js process validate --ref ./case-process
 ```
 
 `npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates

@@ -726,3 +726,41 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Executable tests cover ready and blocked Loose Ends, a
   reviewed complete exact gate, an exact reviewed waiver, no-work next selection,
   and equivalent human and structured preservation of independent dimensions.
+## D-034 — Scaffold Process Packages without implicit example inheritance
+
+- **Status:** accepted and implemented
+- **Decision:** `req process init <path>` creates an independently versioned
+  Process Package whose identity is the destination basename. Without `--from`,
+  the package contains only the supported meta-schema, kernel Datum Envelope,
+  primitive catalog, empty authored catalogs, and explicit creation provenance.
+  With `--from <package-ref>`, the CLI validates and copies the source, resets the
+  copy to version `0.1.0`, and records the exact source package reference and
+  content digest. Creation never installs or selects the result. Definition
+  scaffolding supports every accepted authored definition kind and updates its
+  manifest catalog. Fixture scaffolding records an explicit snapshot and complete
+  expected lifecycle evaluation; package tests compare results structurally
+  through the public evaluator behavior.
+- **Alternatives:** Make the bundled V-model the implicit starting package, retain
+  its identity in derived copies, automatically select new packages, emit only
+  directory placeholders, hand authors unversioned snippets, or test fixtures
+  through a second evaluator.
+- **Rationale:** A package author must be able to start without V-model vocabulary,
+  while derivation must remain an explicit, auditable copy rather than hidden
+  inheritance. New identity and version prevent a modified example from claiming
+  the source package's immutable reference. Generated fixtures remain useful only
+  if they name the package and snapshot contract and are executable through the
+  same evaluator as production behavior.
+- **Expected behavior:** Empty and derived scaffolds validate immediately. A
+  destination collision is refused rather than merged. Derived provenance names
+  the exact source digest. Definition files use version `1`, live in their
+  canonical package directories, and appear in manifest catalogs. Fixture tests
+  report deterministic pass/fail results and a stable diagnostic when an expected
+  evaluation differs. No scaffold operation activates a Process Package.
+- **Reversibility:** The initial file layout, placeholder definition content, and
+  JSON expected-result envelope may evolve behind the commands. New package
+  identity, explicit source provenance, non-activation, supported contract
+  versions, and evaluator-equivalent fixture semantics remain the stable boundary.
+- **Evidence/observations:** Executable tests create and validate a process-neutral
+  empty package, derive and validate a renamed bootstrap copy, scaffold all ten
+  accepted authored definition kinds, generate and pass an evaluation fixture,
+  and detect a deliberately changed expected result.

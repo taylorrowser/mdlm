@@ -14,6 +14,7 @@ interface DefinitionCatalogs {
   scenarios: Record<string, VersionedDefinition>;
   phases: Record<string, VersionedDefinition>;
   profiles: Record<string, VersionedDefinition>;
+  aliases: Record<string, VersionedDefinition>;
   primitives: Record<string, VersionedDefinition>;
 }
 
@@ -25,7 +26,8 @@ type ManifestCatalogGroup =
   | "selectors"
   | "obligations"
   | "scenarios"
-  | "phases";
+  | "phases"
+  | "aliases";
 
 const manifestCatalogGroups: ManifestCatalogGroup[] = [
   "templates",
@@ -36,6 +38,7 @@ const manifestCatalogGroups: ManifestCatalogGroup[] = [
   "obligations",
   "scenarios",
   "phases",
+  "aliases",
 ];
 
 function referenceId(reference: unknown): string | undefined {
@@ -234,6 +237,18 @@ function validateReferences(
         ),
       );
     }
+  }
+
+  for (const [id, definition] of Object.entries(definitions.aliases)) {
+    if (typeof definition.scenario !== "string") continue;
+    diagnostics.push(
+      ...validateVersionedReference(
+        definition.scenario,
+        definitions.scenarios,
+        `aliases.${id}.scenario`,
+        "Scenario",
+      ),
+    );
   }
 
   for (const [id, definition] of Object.entries(definitions.phases)) {

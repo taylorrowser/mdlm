@@ -35,6 +35,16 @@ import {
   humanNextWork,
   humanPhaseStatus,
 } from "./lifecycle-output.js";
+import {
+  scaffoldProcessDefinition,
+  scaffoldProcessFixture,
+  scaffoldProcessPackage,
+  testProcessFixtures,
+  type DefinitionScaffold,
+  type FixtureScaffold,
+  type FixtureTestSummary,
+  type PackageScaffold,
+} from "./process-package-scaffolding.js";
 
 interface PackageSummary {
   id: string;
@@ -73,6 +83,10 @@ interface CommandResult {
   phaseStatus?: PhaseStatusProjection;
   looseEnds?: LooseEndsProjection;
   next?: NextWorkProjection;
+  scaffold?: PackageScaffold;
+  definition?: DefinitionScaffold;
+  fixture?: FixtureScaffold;
+  tests?: FixtureTestSummary;
   diagnostics: ProcessDiagnostic[];
 }
 
@@ -202,6 +216,139 @@ async function installedPackageRoot(
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   return undefined;
+}
+
+async function initPackage(
+  repositoryRoot: string,
+  destination: string,
+  from?: string,
+): Promise<CommandResult> {
+  let source:
+    | { root: string; reference: string; digest: string }
+    | undefined;
+  if (from) {
+    const installedRoot = await installedPackageRoot(repositoryRoot, from);
+    const sourceRoot = installedRoot ?? path.resolve(repositoryRoot, from);
+    const loaded = await loadProcessPackage(sourceRoot);
+    if (!loaded.ok) {
+      return { ok: false, command: "process.init", diagnostics: loaded.diagnostics };
+    }
+    const summary = await packageSummary(loaded.package, sourceRoot);
+    if (installedRoot && summary.reference !== from) {
+      return failure(
+        "process-package-reference-mismatch",
+        `Installed reference '${from}' contains '${summary.reference}'`,
+        sourceRoot,
+      );
+    }
+    source = {
+      root: sourceRoot,
+      reference: summary.reference,
+      digest: summary.digest,
+    };
+  }
+  const scaffolded = await scaffoldProcessPackage(
+    path.resolve(repositoryRoot, destination),
+    source,
+  );
+  if (!scaffolded.ok) {
+    return {
+      ok: false,
+      command: "process.init",
+      diagnostics: scaffolded.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "process.init",
+    scaffold: scaffolded.value,
+    diagnostics: [],
+  };
+}
+
+async function newProcessDefinition(
+  repositoryRoot: string,
+  kind: string,
+  id: string,
+): Promise<CommandResult> {
+  const scaffolded = await scaffoldProcessDefinition(repositoryRoot, kind, id);
+  if (!scaffolded.ok) {
+    return {
+      ok: false,
+      command: "process.definition.new",
+      diagnostics: scaffolded.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "process.definition.new",
+    definition: scaffolded.value,
+    diagnostics: [],
+  };
+}
+
+async function newProcessFixture(
+  repositoryRoot: string,
+  name: string,
+  phaseId?: string,
+): Promise<CommandResult> {
+  const scaffolded = await scaffoldProcessFixture(repositoryRoot, name, phaseId);
+  if (!scaffolded.ok) {
+    return {
+      ok: false,
+      command: "process.fixture.new",
+      diagnostics: scaffolded.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "process.fixture.new",
+    fixture: scaffolded.value,
+    diagnostics: [],
+  };
+}
+
+async function runProcessFixtures(
+  repositoryRoot: string,
+  reference?: string,
+): Promise<CommandResult> {
+  let packageRoot: string;
+  if (reference) {
+    packageRoot = (await installedPackageRoot(repositoryRoot, reference)) ??
+      path.resolve(repositoryRoot, reference);
+  } else {
+    try {
+      await fs.access(path.join(repositoryRoot, "manifest.yaml"));
+      packageRoot = repositoryRoot;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      const selection = await readSelection(repositoryRoot);
+      if (!selection) {
+        return failure(
+          "process-package-not-selected",
+          "No Process Package is selected; run from a Process Package root or use '--ref <package-ref>'",
+        );
+      }
+      packageRoot = path.resolve(repositoryRoot, selection.package.path);
+    }
+  }
+  const tested = await testProcessFixtures(packageRoot);
+  if (!tested.ok) {
+    return {
+      ok: false,
+      command: "process.test",
+      diagnostics: tested.diagnostics,
+    };
+  }
+  const diagnostics = tested.value.fixtures.flatMap((fixture) =>
+    fixture.diagnostics
+  );
+  return {
+    ok: tested.value.failed === 0,
+    command: "process.test",
+    tests: tested.value,
+    diagnostics,
+  };
 }
 
 async function usePackage(
@@ -689,6 +836,37 @@ function humanOutput(result: CommandResult): string {
       .map((diagnostic) => `Error [${diagnostic.code}]: ${diagnostic.message}`)
       .join("\n");
   }
+  if (result.scaffold) {
+    return [
+      `Process Package: ${result.scaffold.package}`,
+      `Path: ${result.scaffold.path}`,
+      `Derived From: ${result.scaffold.derivedFrom?.package ?? "none"}`,
+      `Source Digest: ${result.scaffold.derivedFrom?.digest ?? "none"}`,
+    ].join("\n");
+  }
+  if (result.definition) {
+    return [
+      `Definition: ${result.definition.id}@${result.definition.version}`,
+      `Kind: ${result.definition.kind}`,
+      `Path: ${result.definition.path}`,
+    ].join("\n");
+  }
+  if (result.fixture) {
+    return [
+      `Fixture: ${result.fixture.name}`,
+      `Phase: ${result.fixture.phase}`,
+      `Snapshot: ${result.fixture.snapshot}`,
+      `Expected Result: ${result.fixture.expected}`,
+    ].join("\n");
+  }
+  if (result.tests) {
+    return [
+      `Process Fixtures: passed=${result.tests.passed}, failed=${result.tests.failed}`,
+      ...result.tests.fixtures.map((fixture) =>
+        `${fixture.passed ? "PASS" : "FAIL"} ${fixture.name}`
+      ),
+    ].join("\n");
+  }
   if (result.phaseStatus && result.package) {
     return humanPhaseStatus(result.package.reference, result.phaseStatus);
   }
@@ -860,6 +1038,31 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
   }
   if (operands[0] !== "process") {
     return failure("unknown-command", "Expected a process or definition evaluation command");
+  }
+  if (operands[1] === "init" && operands[2]) {
+    return initPackage(
+      repositoryRoot,
+      operands[2],
+      optionValue(arguments_, "--from"),
+    );
+  }
+  if (
+    operands[1] === "definition" && operands[2] === "new" &&
+    operands[3] && operands[4]
+  ) {
+    return newProcessDefinition(repositoryRoot, operands[3], operands[4]);
+  }
+  if (
+    operands[1] === "fixture" && operands[2] === "new" && operands[3]
+  ) {
+    return newProcessFixture(
+      repositoryRoot,
+      operands[3],
+      optionValue(arguments_, "--phase"),
+    );
+  }
+  if (operands[1] === "test") {
+    return runProcessFixtures(repositoryRoot, optionValue(arguments_, "--ref"));
   }
   if (operands[1] === "install" && operands[2]) {
     return installPackage(repositoryRoot, operands[2]);
