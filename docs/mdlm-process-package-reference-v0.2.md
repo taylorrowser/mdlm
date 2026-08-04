@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.10 — experimental implementation reference**
+**Bootstrap package 0.11 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -362,12 +362,13 @@ mutated in place.
 
 `req process validate` must reject:
 
-- meta-schema violations;
-- unresolved asset, template, policy, selector, state, scenario, or phase refs;
-- template inheritance cycles or illegal schema widening;
+- meta-schema violations and manifest/catalog disagreement;
+- unresolved or version-mismatched template, Policy, Selector, Computed State,
+  Obligation, Scenario, or Phase references;
+- complete Template, Selector, Computed State, or Policy dependency cycles;
+- illegal schema widening;
 - duplicate inherited outgoing-link IDs;
 - unknown primitive paths or relations;
-- selector, state, policy, or obligation recursion;
 - wrong selector argument kinds or types;
 - invalid resolver input bindings;
 - impossible cardinality and required-link combinations;
@@ -381,7 +382,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.8 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.11 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

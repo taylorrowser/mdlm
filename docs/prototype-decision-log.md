@@ -396,3 +396,26 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Focused package fixtures assert stable diagnostics for
   each rejection class, and public type resolution verifies additive fields plus
   bound and enum narrowing.
+
+## D-022 — Reject incomplete and cyclic definition graphs at package load
+
+- **Status:** accepted and implemented
+- **Decision:** Reconcile each manifest definition catalog with the loaded files,
+  resolve cross-definition references against the expected catalog and version,
+  and reject complete Template, Selector, Computed State, and Policy dependency
+  cycles before exposing a Process Package.
+- **Alternatives:** Defer graph failures until type resolution or lifecycle
+  evaluation, trust the manifest without reconciling files, or validate only the
+  reference string shape.
+- **Rationale:** A selected package must be internally complete and deterministic.
+  Load-time graph validation gives process authors one stable diagnostic surface
+  and prevents evaluator behavior from depending on traversal order.
+- **Expected behavior:** Missing and extra manifest entries, unknown or mismatched
+  references, recursive Selectors, and cyclic Template or expression dependencies
+  make `loadProcessPackage` fail with definition paths and complete cycle paths.
+- **Reversibility:** Versioned. Additional definition-reference families can join
+  the same graph validator without changing the public package-load seam.
+- **Evidence/observations:** Focused copied-package fixtures cover catalog drift,
+  each named reference family, version mismatch, and complete Template, Selector,
+  and Computed State cycle paths; the bootstrap package remains a valid acyclic
+  fixture.

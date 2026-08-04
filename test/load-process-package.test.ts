@@ -24,7 +24,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.10.0");
+    expect(result.package.manifest.version).toBe("0.11.0");
     expect(Object.keys(result.package.types)).toHaveLength(7);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(24);
@@ -128,6 +128,30 @@ describe("loadProcessPackage", () => {
     );
   });
 
+  it("rejects disagreement between the manifest and loaded definition catalogs", async () => {
+    const processRoot = await copiedProcessPackage();
+    const manifestPath = path.join(processRoot, "manifest.yaml");
+    const manifest = await fs.readFile(manifestPath, "utf8");
+    await fs.writeFile(
+      manifestPath,
+      manifest.replace("  policies: [review-applicability, waiver-applicability]", "  policies: [waiver-applicability]"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "manifest-catalog-disagreement",
+          path: "manifest.catalog.policies",
+          message:
+            "Manifest catalog 'policies' does not match loaded definitions; missing from manifest: review-applicability",
+        }),
+      ]),
+    );
+  });
+
   it("rejects a package that does not pin mdlm-expression@1", async () => {
     const processRoot = await copiedProcessPackage();
     const manifestPath = path.join(processRoot, "manifest.yaml");
@@ -146,6 +170,154 @@ describe("loadProcessPackage", () => {
           code: "meta-schema",
           path: expect.stringContaining("manifest.yaml/language/expressions"),
           message: "must be equal to constant",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects a version-mismatched Policy reference", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(processRoot, "scenarios/compile-psp.yaml");
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("review-applicability@1", "review-applicability@2"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "version-mismatch",
+          path: "scenarios.compile-psp.review_policy_ref",
+          message:
+            "Reference 'review-applicability@2' resolves to review-applicability@1",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an unknown Policy reference in a Scenario", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(processRoot, "scenarios/compile-psp.yaml");
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("review-applicability@1", "missing-policy@1"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "scenarios.compile-psp.review_policy_ref",
+          message: "Unknown Policy reference 'missing-policy@1'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an unknown Scenario reference in an Obligation", async () => {
+    const processRoot = await copiedProcessPackage();
+    const obligationPath = path.join(
+      processRoot,
+      "obligations/review-context-required.yaml",
+    );
+    const obligation = await fs.readFile(obligationPath, "utf8");
+    await fs.writeFile(
+      obligationPath,
+      obligation.replace("create-review-context@1", "missing-scenario@1"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "obligations.review-context-required.resolve_with.scenario",
+          message: "Unknown Scenario reference 'missing-scenario@1'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an unknown Obligation named by a resolving Scenario", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/create-review-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("review-context-required", "missing-obligation"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "scenarios.create-review-context.resolves[0]",
+          message: "Unknown Obligation reference 'missing-obligation'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an unknown Obligation reference in a Phase", async () => {
+    const processRoot = await copiedProcessPackage();
+    const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+    const phase = await fs.readFile(phasePath, "utf8");
+    await fs.writeFile(
+      phasePath,
+      phase.replace("review-context-required@2", "missing-obligation@2"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "phases.phase-0-wayfinding.obligations[0]",
+          message: "Unknown Obligation reference 'missing-obligation@2'",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects an unknown Phase reference in an Obligation", async () => {
+    const processRoot = await copiedProcessPackage();
+    const obligationPath = path.join(
+      processRoot,
+      "obligations/review-context-required.yaml",
+    );
+    const obligation = await fs.readFile(obligationPath, "utf8");
+    await fs.writeFile(
+      obligationPath,
+      obligation.replace("phase-0-wayfinding", "phase-9-missing"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "obligations.review-context-required.phases[0]",
+          message: "Unknown Phase reference 'phase-9-missing'",
         }),
       ]),
     );
@@ -361,6 +533,48 @@ describe("loadProcessPackage", () => {
     );
   });
 
+  it("rejects a Selector dependency cycle with its complete path", async () => {
+    const processRoot = await copiedProcessPackage();
+    const acceptedPath = path.join(
+      processRoot,
+      "selectors/newer-accepted-revisions-for.yaml",
+    );
+    const accepted = await fs.readFile(acceptedPath, "utf8");
+    await fs.writeFile(
+      acceptedPath,
+      accepted.replace(
+        "selector: newer-revisions-for@1",
+        "selector: newer-editable-revisions-for@1",
+      ),
+    );
+    const editablePath = path.join(
+      processRoot,
+      "selectors/newer-editable-revisions-for.yaml",
+    );
+    const editable = await fs.readFile(editablePath, "utf8");
+    await fs.writeFile(
+      editablePath,
+      editable.replace(
+        "selector: newer-revisions-for@1",
+        "selector: newer-accepted-revisions-for@1",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-dependency-cycle",
+          path: "selector:newer-accepted-revisions-for",
+          message:
+            "Expression dependency cycle: Selector 'newer-accepted-revisions-for@1' -> Selector 'newer-editable-revisions-for@1' -> Selector 'newer-accepted-revisions-for@1'",
+        }),
+      ]),
+    );
+  });
+
   it("rejects a template inheritance cycle before any type is resolved", async () => {
     const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
     const processRoot = path.join(temporaryRoot, "process");
@@ -384,7 +598,9 @@ describe("loadProcessPackage", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "reference-cycle",
-          message: expect.stringContaining("template"),
+          path: "templates.rationale-bearing.extends",
+          message:
+            "The template inheritance graph contains a cycle: rationale-bearing -> titled-datum -> requirement -> rationale-bearing",
         }),
       ]),
     );

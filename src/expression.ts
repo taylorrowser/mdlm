@@ -1487,7 +1487,10 @@ export function compileDefinitionExpressions(
   return diagnostics;
 }
 
-type ExpressionDependency = `policy:${string}` | `state:${string}`;
+type ExpressionDependency =
+  | `policy:${string}`
+  | `selector:${string}`
+  | `state:${string}`;
 
 function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
   switch (node.kind) {
@@ -1499,6 +1502,7 @@ function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
       return node.elements.flatMap(expressionDependencies);
     case "every":
       return [
+        `selector:${node.reference.split("@")[0] ?? node.reference}`,
         ...expressionDependencies(node.arguments),
         ...expressionDependencies(node.predicate),
       ];
@@ -1514,7 +1518,10 @@ function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
     case "present":
       return expressionDependencies(node.operand);
     case "selector":
-      return expressionDependencies(node.arguments);
+      return [
+        `selector:${node.reference.split("@")[0] ?? node.reference}`,
+        ...expressionDependencies(node.arguments),
+      ];
     case "state":
       return [
         `state:${node.dimension}`,
@@ -1532,13 +1539,32 @@ function definitionDependencies(
   definition: VersionedDefinition,
 ): ExpressionDependency[] {
   const dependencies = new Set<ExpressionDependency>();
-  const rules = Array.isArray(definition.rules) ? definition.rules : [];
-  for (const value of rules) {
-    if (typeof value !== "object" || value === null) continue;
-    const expression = (value as Record<string, unknown>).when;
-    if (!isCompiledTextExpression(expression)) continue;
-    for (const dependency of expressionDependencies(expression.root)) {
-      dependencies.add(dependency);
+  const visit = (value: unknown): void => {
+    if (isCompiledTextExpression(value)) {
+      for (const dependency of expressionDependencies(value.root)) {
+        dependencies.add(dependency);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value !== "object" || value === null) return;
+    Object.values(value).forEach(visit);
+  };
+  visit(definition);
+  if (definition.kind === "selector-definition") {
+    const query = typeof definition.query === "object" && definition.query !== null
+      ? definition.query as Record<string, unknown>
+      : undefined;
+    const from = typeof query?.from === "object" && query.from !== null
+      ? query.from as Record<string, unknown>
+      : undefined;
+    if (typeof from?.selector === "string") {
+      dependencies.add(
+        `selector:${from.selector.split("@")[0] ?? from.selector}`,
+      );
     }
   }
   return [...dependencies];
@@ -1548,16 +1574,24 @@ function dependencyLabel(
   dependency: ExpressionDependency,
   catalogs: ExpressionDefinitionCatalogs,
 ): string {
-  const [kind, id] = dependency.split(":") as ["policy" | "state", string];
+  const [kind, id] = dependency.split(":") as [
+    "policy" | "selector" | "state",
+    string,
+  ];
   if (kind === "state") return `Computed State '${id}'`;
-  const version = catalogs.policies[id]?.version;
-  return `Policy '${id}${version === undefined ? "" : `@${version}`}'`;
+  const catalog = kind === "policy" ? catalogs.policies : catalogs.selectors;
+  const version = catalog[id]?.version;
+  const label = kind === "policy" ? "Policy" : "Selector";
+  return `${label} '${id}${version === undefined ? "" : `@${version}`}'`;
 }
 
 export function validateExpressionDependencyCycles(
   catalogs: ExpressionDefinitionCatalogs,
 ): ProcessDiagnostic[] {
   const graph = new Map<ExpressionDependency, ExpressionDependency[]>();
+  for (const id of Object.keys(catalogs.selectors).sort()) {
+    graph.set(`selector:${id}`, definitionDependencies(catalogs.selectors[id]!));
+  }
   for (const id of Object.keys(catalogs.states).sort()) {
     graph.set(`state:${id}`, definitionDependencies(catalogs.states[id]!));
   }
@@ -1587,10 +1621,26 @@ export function validateExpressionDependencyCycles(
   };
   for (const node of graph.keys()) visit(node);
   if (!cycle) return [];
+  const detected = cycle as ExpressionDependency[];
+  const members = detected.slice(0, -1);
+  const first = members.reduce(
+    (best, item, index) =>
+      dependencyLabel(item, catalogs).localeCompare(
+          dependencyLabel(members[best]!, catalogs),
+        ) < 0
+        ? index
+        : best,
+    0,
+  );
+  const ordered = [
+    ...members.slice(first),
+    ...members.slice(0, first),
+  ];
+  const completeCycle = [...ordered, ordered[0]!];
   return [{
     code: "expression-dependency-cycle",
-    path: cycle[0] ?? "expressions",
-    message: `Expression dependency cycle: ${cycle.map((item) => dependencyLabel(item, catalogs)).join(" -> ")}`,
+    path: completeCycle[0] ?? "expressions",
+    message: `Expression dependency cycle: ${completeCycle.map((item) => dependencyLabel(item, catalogs)).join(" -> ")}`,
   }];
 }
 

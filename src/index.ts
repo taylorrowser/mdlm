@@ -7,10 +7,8 @@ import {
 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { parse } from "yaml";
-import {
-  compileDefinitionExpressions,
-  validateExpressionDependencyCycles,
-} from "./expression.js";
+import { validateDefinitionGraph } from "./definition-graph.js";
+import { compileDefinitionExpressions } from "./expression.js";
 import { validatePayloadInheritance } from "./payload-inheritance.js";
 
 export {
@@ -396,118 +394,6 @@ function isVersionedDefinition(value: unknown): value is VersionedDefinition {
   );
 }
 
-function validateVersionedReference(
-  reference: string,
-  definitions: Record<string, VersionedDefinition>,
-  pathLabel: string,
-): ProcessDiagnostic[] {
-  const match = /^(.*)@([1-9][0-9]*)$/.exec(reference);
-  if (!match) {
-    return [
-      {
-        code: "invalid-reference",
-        path: pathLabel,
-        message: `Invalid versioned reference '${reference}'`,
-      },
-    ];
-  }
-  const [, id, version] = match;
-  const definition = id === undefined ? undefined : definitions[id];
-  if (!definition) {
-    return [
-      {
-        code: "unknown-reference",
-        path: pathLabel,
-        message: `Unknown definition reference '${reference}'`,
-      },
-    ];
-  }
-  if (String(definition.version) !== version) {
-    return [
-      {
-        code: "version-mismatch",
-        path: pathLabel,
-        message: `Reference '${reference}' resolves to ${id}@${definition.version}`,
-      },
-    ];
-  }
-  return [];
-}
-
-function validateDefinitionReferences(
-  definitions: Record<DefinitionGroup, Record<string, VersionedDefinition>>,
-): ProcessDiagnostic[] {
-  const diagnostics: ProcessDiagnostic[] = [];
-
-  for (const [group, byId] of [
-    ["templates", definitions.templates],
-    ["types", definitions.types],
-  ] as const) {
-    for (const [id, definition] of Object.entries(byId)) {
-      if (typeof definition.extends === "string") {
-        diagnostics.push(
-          ...validateVersionedReference(
-            definition.extends,
-            definitions.templates,
-            `${group}.${id}.extends`,
-          ),
-        );
-      }
-    }
-  }
-
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-  const visitTemplate = (id: string, chain: string[]): void => {
-    if (visiting.has(id)) {
-      diagnostics.push({
-        code: "reference-cycle",
-        path: `templates.${id}.extends`,
-        message: `The template inheritance graph contains a cycle: ${[...chain, id].join(" -> ")}`,
-      });
-      return;
-    }
-    if (visited.has(id)) return;
-    visiting.add(id);
-    const parentReference = definitions.templates[id]?.extends;
-    const parent = referenceParts(parentReference)?.[0];
-    if (parent && definitions.templates[parent]) {
-      visitTemplate(parent, [...chain, id]);
-    }
-    visiting.delete(id);
-    visited.add(id);
-  };
-  Object.keys(definitions.templates).forEach((id) => visitTemplate(id, []));
-
-  const visit = (value: unknown, pathLabel: string): void => {
-    if (Array.isArray(value)) {
-      value.forEach((item, index) => visit(item, `${pathLabel}[${index}]`));
-      return;
-    }
-    if (typeof value !== "object" || value === null) return;
-    for (const [key, child] of Object.entries(value)) {
-      const childPath = `${pathLabel}.${key}`;
-      if (key === "selector" && typeof child === "string") {
-        diagnostics.push(
-          ...validateVersionedReference(
-            child,
-            definitions.selectors,
-            childPath,
-          ),
-        );
-      }
-      visit(child, childPath);
-    }
-  };
-
-  for (const [group, byId] of Object.entries(definitions)) {
-    for (const [id, definition] of Object.entries(byId)) {
-      visit(definition, `${group}.${id}`);
-    }
-  }
-  return diagnostics;
-}
-
 async function createMetaValidators(
   metaDirectory: string,
 ): Promise<Map<string, ValidateFunction>> {
@@ -639,14 +525,7 @@ export async function loadProcessPackage(
       );
     }
 
-    diagnostics.push(
-      ...validateExpressionDependencyCycles({
-        selectors: definitions.selectors,
-        states: definitions.states,
-        policies: definitions.policies,
-      }),
-    );
-    diagnostics.push(...validateDefinitionReferences(definitions));
+    diagnostics.push(...validateDefinitionGraph(manifest, definitions));
     diagnostics.push(...validatePayloadInheritance(definitions));
     if (diagnostics.length > 0) return { ok: false, diagnostics };
     if (

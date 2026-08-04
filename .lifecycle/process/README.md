@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.10
+# MDLM bootstrap process package v0.11
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -62,8 +62,10 @@ JSON-like literals, comparisons, membership, Boolean composition, parentheses,
 presence checks, typed `select`, `exists`, `none`, `count`, and `one` Selector
 operations, `state(subject, dimension)`, typed Policy result-field selection, and
 `every(selector, arguments, binding => predicate)` over finite Selector results.
-Package loading validates references, arguments, binding and result types, and
-direct State and Policy dependency cycles. `mdlm-expression@1` textual source is
+Package loading reconciles the manifest and loaded catalogs, validates exact
+cross-definition references, arguments, bindings, and result types, and rejects
+complete Template, Selector, Computed State, and Policy dependency cycles.
+`mdlm-expression@1` textual source is
 the only accepted authoring representation and cannot execute arbitrary code or
 produce side effects.
 
