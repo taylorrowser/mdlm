@@ -2,11 +2,19 @@
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { parse } from "yaml";
 import {
   loadProcessPackage,
+  type LifecycleSnapshot,
   type ProcessDiagnostic,
   type ProcessPackage,
 } from "./index.js";
+import {
+  evaluateProcessDefinition,
+  evaluateProcessExpression,
+  type ProcessDirectEvaluation,
+  type ProcessExpressionEvaluation,
+} from "./evaluator.js";
 import {
   processCapabilities,
   processInspection,
@@ -47,6 +55,7 @@ interface CommandResult {
     capabilityBindings: "passed" | "failed" | "unconfirmed";
   };
   capabilities?: ProcessCapabilities;
+  evaluation?: ProcessDirectEvaluation | ProcessExpressionEvaluation;
   diagnostics: ProcessDiagnostic[];
 }
 
@@ -394,6 +403,109 @@ async function selectedCapabilities(
   };
 }
 
+async function readLifecycleSnapshot(
+  repositoryRoot: string,
+  snapshotPath: string,
+): Promise<LifecycleSnapshot> {
+  return parse(
+    await fs.readFile(path.resolve(repositoryRoot, snapshotPath), "utf8"),
+  ) as LifecycleSnapshot;
+}
+
+async function evaluateSelectedExpression(
+  repositoryRoot: string,
+  target: string,
+  snapshotPath: string | undefined,
+  bindingsSource: string | undefined,
+): Promise<CommandResult> {
+  const resolved = await selectedPackage(repositoryRoot);
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      command: "process.expression.evaluate",
+      selected: resolved.selected,
+      diagnostics: resolved.diagnostics,
+    };
+  }
+  if (!snapshotPath) {
+    return failure(
+      "snapshot-required",
+      "Expression evaluation requires '--snapshot <fixture>'",
+    );
+  }
+  let bindings: Record<string, unknown> = {};
+  try {
+    const parsedBindings = bindingsSource === undefined
+      ? {}
+      : JSON.parse(bindingsSource) as unknown;
+    if (
+      typeof parsedBindings !== "object" || parsedBindings === null ||
+      Array.isArray(parsedBindings)
+    ) {
+      return failure("invalid-bindings", "Expression bindings must be a JSON object");
+    }
+    bindings = parsedBindings as Record<string, unknown>;
+  } catch (error) {
+    return failure(
+      "invalid-bindings",
+      `Expression bindings are not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  const snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
+  return {
+    ok: true,
+    command: "process.expression.evaluate",
+    package: resolved.summary,
+    selected: true,
+    evaluation: evaluateProcessExpression(
+      resolved.processPackage,
+      snapshot,
+      target,
+      bindings,
+    ),
+    diagnostics: [],
+  };
+}
+
+async function evaluateSelectedDefinition(
+  repositoryRoot: string,
+  kind: ProcessDirectEvaluation["target"]["kind"],
+  reference: string,
+  snapshotPath: string | undefined,
+  argumentsValue: Record<string, unknown>,
+): Promise<CommandResult> {
+  const resolved = await selectedPackage(repositoryRoot);
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      command: `${kind}.evaluate`,
+      selected: resolved.selected,
+      diagnostics: resolved.diagnostics,
+    };
+  }
+  if (!snapshotPath) {
+    return failure(
+      "snapshot-required",
+      `${kind} evaluation requires '--snapshot <fixture>'`,
+    );
+  }
+  const snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
+  return {
+    ok: true,
+    command: `${kind}.evaluate`,
+    package: resolved.summary,
+    selected: true,
+    evaluation: evaluateProcessDefinition(
+      resolved.processPackage,
+      snapshot,
+      kind,
+      reference,
+      argumentsValue,
+    ),
+    diagnostics: [],
+  };
+}
+
 async function showSelectedPackage(
   repositoryRoot: string,
 ): Promise<CommandResult> {
@@ -432,6 +544,32 @@ function humanOutput(result: CommandResult): string {
     return result.diagnostics
       .map((diagnostic) => `Error [${diagnostic.code}]: ${diagnostic.message}`)
       .join("\n");
+  }
+  if (result.evaluation && result.package) {
+    const evaluation = result.evaluation;
+    const evidence = evaluation.evidence.map((item) => {
+      if (item.kind === "expression" && item.span) {
+        const { start, end } = item.span;
+        return `Source: ${item.source} [${start.line}:${start.column}-${end.line}:${end.column}]`;
+      }
+      const label = `${item.kind[0]?.toUpperCase() ?? ""}${item.kind.slice(1)}`;
+      return `${label} ${item.definition} -> ${JSON.stringify(item.result)}`;
+    });
+    const target = "field" in evaluation.target
+      ? `Expression: ${evaluation.target.definition}#${evaluation.target.field}`
+      : `${evaluation.target.kind[0]?.toUpperCase() ?? ""}${evaluation.target.kind.slice(1)}: ${evaluation.target.definition}`;
+    const contract = "contract" in evaluation
+      ? [`Expected Type: ${evaluation.contract.expectedType}`]
+      : [];
+    return [
+      `Process Package: ${result.package.reference}`,
+      `Expression Language: ${result.package.language}`,
+      target,
+      ...contract,
+      `Result: ${JSON.stringify(evaluation.result)}`,
+      `Traversed Definitions: ${evaluation.traversedDefinitions.join(", ")}`,
+      ...evidence,
+    ].join("\n");
   }
   if (result.validation && result.package) {
     return [
@@ -501,14 +639,53 @@ function optionValue(arguments_: string[], option: string): string | undefined {
   return index < 0 ? undefined : arguments_[index + 1];
 }
 
+function optionValues(arguments_: string[], option: string): string[] {
+  return arguments_.flatMap((argument, index) =>
+    arguments_[index - 1] === option ? [argument] : []
+  );
+}
+
+function directArguments(arguments_: string[]): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const argument of optionValues(arguments_, "--arg")) {
+    const separator = argument.indexOf("=");
+    if (separator < 1) throw new Error(`Invalid --arg '${argument}'; expected name=value`);
+    const name = argument.slice(0, separator);
+    const source = argument.slice(separator + 1);
+    try {
+      result[name] = JSON.parse(source) as unknown;
+    } catch {
+      result[name] = source;
+    }
+  }
+  const from = optionValue(arguments_, "--from");
+  const subject = optionValue(arguments_, "--subject");
+  if (from !== undefined) result.from = from;
+  if (subject !== undefined) result.subject = subject;
+  return result;
+}
+
 async function run(arguments_: string[], repositoryRoot: string): Promise<CommandResult> {
   const operands = arguments_.filter((argument, index) =>
     argument !== "--json" &&
     argument !== "--ref" &&
     arguments_[index - 1] !== "--ref"
   );
+  const directKind = ["relation", "selector", "policy", "state", "obligation"]
+    .includes(operands[0] ?? "")
+    ? operands[0] as ProcessDirectEvaluation["target"]["kind"]
+    : undefined;
+  if (directKind && operands[1] === "evaluate" && operands[2]) {
+    return evaluateSelectedDefinition(
+      repositoryRoot,
+      directKind,
+      operands[2],
+      optionValue(arguments_, "--snapshot"),
+      directArguments(arguments_),
+    );
+  }
   if (operands[0] !== "process") {
-    return failure("unknown-command", "Expected a 'req process' command");
+    return failure("unknown-command", "Expected a process or definition evaluation command");
   }
   if (operands[1] === "install" && operands[2]) {
     return installPackage(repositoryRoot, operands[2]);
@@ -521,6 +698,16 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
     return reference
       ? validateExplicitPackage(repositoryRoot, reference)
       : validateSelectedPackage(repositoryRoot);
+  }
+  if (
+    operands[1] === "expression" && operands[2] === "evaluate" && operands[3]
+  ) {
+    return evaluateSelectedExpression(
+      repositoryRoot,
+      operands[3],
+      optionValue(arguments_, "--snapshot"),
+      optionValue(arguments_, "--bindings"),
+    );
   }
   if (operands[1] === "capabilities") return selectedCapabilities(repositoryRoot);
   if (operands[1] === "show") return showSelectedPackage(repositoryRoot);

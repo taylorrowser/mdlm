@@ -159,6 +159,11 @@ export interface CompiledTextExpression {
   source: string;
   root: ExpressionNode;
   span: SourceSpan;
+  contract?: {
+    definitionPath: string;
+    expectedType: ExpectedType;
+    bindings: Record<string, Binding>;
+  };
 }
 
 export interface CompiledExpressionShape {
@@ -1121,18 +1126,21 @@ function compile(
   expectedType: ExpectedType = "boolean",
 ): { expression?: CompiledTextExpression; diagnostics: ProcessDiagnostic[] } {
   try {
-    return {
-      expression: new ExpressionParser(
-        source,
-        tokenize(source),
-        bindings,
-        selectors,
-        states,
-        policies,
-        expectedType,
-      ).parse(),
-      diagnostics: [],
+    const expression = new ExpressionParser(
+      source,
+      tokenize(source),
+      bindings,
+      selectors,
+      states,
+      policies,
+      expectedType,
+    ).parse();
+    expression.contract = {
+      definitionPath,
+      expectedType,
+      bindings: structuredClone(bindings),
     };
+    return { expression, diagnostics: [] };
   } catch (error) {
     if (error instanceof ExpressionFailure) {
       return { diagnostics: [diagnostic(error, definitionPath, source)] };

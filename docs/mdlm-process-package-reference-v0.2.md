@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.20 — experimental implementation reference**
+**Bootstrap package 0.21 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -454,9 +454,21 @@ context roots and paths, operators, host functions, collections, relations,
 selected Kernel Capability surfaces, and versioned definition catalogs. The CLI
 contains no Example Process Package type or Phase identifiers.
 
+`req process expression evaluate <definition>@<version>#<field>` evaluates the
+already compiled field against an explicit snapshot and JSON binding object. The
+field carries its package-load contract so the command reports and enforces the
+actual binding names and expected return type rather than accepting a raw
+expression context. Supplied exact Revision IDs resolve to entities from that
+snapshot. Evaluation records expression-local source spans and ordered
+intermediate Relation, Selector, Policy, and Computed State evidence. Generic
+`req relation|selector|policy|state|obligation evaluate` commands use that same
+selected package and snapshot host. Human and JSON views project the same result,
+traversed versioned definitions, evidence, and selected package/language versions;
+parser nodes and query helpers remain private.
+
 ## 14. Bootstrap scope
 
-Bootstrap package 0.20 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.21 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

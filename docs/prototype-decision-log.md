@@ -660,3 +660,36 @@ turning provisional choices into architecture.
   install-versus-use separation, exact selection-file content, selected and
   explicit invalid validation, manifest/catalog inspection, and equivalent human
   and JSON capability output.
+
+## D-032 — Evaluate addressed fields through their compiled definition contracts
+
+- **Status:** accepted and implemented
+- **Decision:** Definition-field evaluation addresses
+  `<definition>@<version>#<field>` in the selected Process Package and evaluates
+  the package-load compiled expression against an explicit snapshot. Each compiled
+  field retains its authored expected type, available bindings, source path, and
+  expression-local span. Exact Revision IDs supplied as JSON bindings resolve only
+  against the named snapshot. The same internal lifecycle host serves generic
+  Relation, Selector, Policy, Computed State, and Obligation CLI evaluation.
+- **Alternatives:** Evaluate arbitrary raw expressions, reconstruct field bindings
+  in the CLI, expose parser/AST/query helpers, maintain a second debugging
+  evaluator, or explain only the final Boolean/value.
+- **Rationale:** The compiled field is the authoritative package context and cannot
+  drift from production typing. Reusing the lifecycle host proves that debugging
+  sees the same collections, relations, selectors, policies, states, capability
+  bindings, and immutable entities as ordinary evaluation. An ordered evidence
+  projection exposes traversal without making internal AST or query interfaces
+  public.
+- **Expected behavior:** Missing or unknown authored bindings fail explicitly.
+  Successful output includes exact package and expression-language versions, the
+  field's expected result type and binding contract, projected supplied entities,
+  the result, ordered traversed versioned definitions, intermediate evidence, and
+  source spans. Direct generic evaluation remains package-neutral and requires an
+  explicit snapshot.
+- **Reversibility:** Evidence event shapes are an initial CLI projection. They can
+  gain stable schemas or finer rule metadata without changing expression syntax,
+  package definitions, or the evaluator's closed host boundary.
+- **Evidence/observations:** Executable-level tests evaluate an Obligation field
+  through a nested Selector and capability-gated Relation, reject a binding that
+  does not belong to that field, compare human and JSON semantics, and directly
+  evaluate one Relation, Selector, Policy, Computed State, and Obligation.

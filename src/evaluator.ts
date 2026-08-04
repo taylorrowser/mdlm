@@ -7,6 +7,7 @@ import {
   evaluateCompiledTextExpression,
   evaluateCompiledTextValue,
   isCompiledTextExpression,
+  type CompiledTextExpression,
 } from "./expression.js";
 import type {
   ProcessDiagnostic,
@@ -188,6 +189,51 @@ export interface LifecycleEvaluation {
   diagnostics: ProcessDiagnostic[];
 }
 
+export interface ProcessDefinitionEvidence {
+  kind: "expression" | "obligation" | "policy" | "relation" | "selector" | "state";
+  definition: string;
+  source?: string;
+  span?: {
+    start: { line: number; column: number; offset: number };
+    end: { line: number; column: number; offset: number };
+  };
+  arguments?: Record<string, unknown>;
+  result: unknown;
+  [key: string]: unknown;
+}
+
+export interface ProcessDirectEvaluation {
+  target: {
+    definition: string;
+    kind: "obligation" | "policy" | "relation" | "selector" | "state";
+  };
+  arguments: Record<string, unknown>;
+  result: unknown;
+  traversedDefinitions: string[];
+  evidence: ProcessDefinitionEvidence[];
+}
+
+export interface ProcessExpressionEvaluation {
+  target: {
+    definition: string;
+    kind: string;
+    field: string;
+  };
+  contract: {
+    expectedType: string;
+    bindings: {
+      name: string;
+      valueType: string;
+      domainKind?: string;
+      lifecycleTypes?: string[];
+    }[];
+  };
+  suppliedBindings: Record<string, unknown>;
+  result: unknown;
+  traversedDefinitions: string[];
+  evidence: ProcessDefinitionEvidence[];
+}
+
 type EntityKind = "revision" | "stable-datum" | "record";
 
 interface Entity {
@@ -258,6 +304,8 @@ class LifecycleEvaluator {
   private readonly comparisonDiagnostics: ProcessDiagnostic[];
   private selectorEvidence: SelectorEvaluationEvidence[] | undefined;
   private policyEvidence: PolicyEvaluationEvidence[] | undefined;
+  private definitionEvidence: ProcessDefinitionEvidence[] | undefined;
+  private readonly expressionDefinitions = new Map<object, string>();
 
   constructor(
     private readonly processPackage: ProcessPackage,
@@ -301,6 +349,238 @@ class LifecycleEvaluator {
       },
       phase: { id: snapshot.phaseId },
     };
+    for (const catalog of [
+      processPackage.selectors,
+      processPackage.policies,
+      processPackage.states,
+      processPackage.obligations,
+      processPackage.scenarios,
+      processPackage.phases,
+    ]) {
+      for (const definition of Object.values(catalog)) {
+        this.indexDefinitionExpressions(
+          definition,
+          `${definition.id}@${definition.version}`,
+        );
+      }
+    }
+  }
+
+  evaluateExpressionTarget(
+    target: string,
+    suppliedBindings: Record<string, unknown>,
+  ): ProcessExpressionEvaluation {
+    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)#(.+)$/.exec(target);
+    if (!match?.[1] || !match[2] || !match[3]) {
+      throw new Error(
+        `Expression target '${target}' must be <definition>@<version>#<field>`,
+      );
+    }
+    const id = match[1];
+    const version = Number(match[2]);
+    const field = match[3];
+    const definitions = [
+      ...Object.values(this.processPackage.selectors),
+      ...Object.values(this.processPackage.policies),
+      ...Object.values(this.processPackage.states),
+      ...Object.values(this.processPackage.obligations),
+      ...Object.values(this.processPackage.scenarios),
+      ...Object.values(this.processPackage.phases),
+    ].filter((definition) => definition.id === id && definition.version === version);
+    if (definitions.length !== 1) {
+      throw new Error(`Unknown or ambiguous definition '${id}@${version}'`);
+    }
+    const definition = definitions[0]!;
+    const expression = field.split(/\.|\[|\]/).filter(Boolean).reduce<unknown>(
+      (value, segment) =>
+        Array.isArray(value) && /^[0-9]+$/.test(segment)
+          ? value[Number(segment)]
+          : object(value)?.[segment],
+      definition,
+    );
+    if (!isCompiledTextExpression(expression) || !expression.contract) {
+      throw new Error(`Definition field '${target}' is not an expression`);
+    }
+    const evaluatorBindings = new Set(["execution", "phase", "process"]);
+    const availableBindings = new Set(
+      Object.keys(expression.contract.bindings).filter(
+        (name) => !evaluatorBindings.has(name),
+      ),
+    );
+    const suppliedNames = Object.keys(suppliedBindings);
+    const unknown = suppliedNames.filter((name) => !availableBindings.has(name)).sort();
+    const missing = [...availableBindings].filter(
+      (name) => !Object.hasOwn(suppliedBindings, name),
+    ).sort();
+    const bindingErrors = [
+      ...unknown.map((name) => `Unknown expression binding '${name}'`),
+      ...missing.map((name) => `missing required binding '${name}'`),
+    ];
+    if (bindingErrors.length > 0) throw new Error(bindingErrors.join("; "));
+    const resolvedBindings = Object.fromEntries(
+      Object.entries(suppliedBindings).map(([name, value]) => [
+        name,
+        this.resolveSuppliedValue(value),
+      ]),
+    );
+    for (const name of availableBindings) {
+      const binding = expression.contract.bindings[name]!;
+      const value = resolvedBindings[name];
+      const valid = binding.valueType === "unknown" ||
+        (binding.valueType === "entity" && this.isEntity(value)) ||
+        (binding.valueType === "array" && Array.isArray(value)) ||
+        (binding.valueType === "object" && object(value) !== undefined) ||
+        (binding.valueType === "null" && value === null) ||
+        (binding.valueType === "number" && typeof value === "number") ||
+        (binding.valueType === "string" && typeof value === "string") ||
+        (binding.valueType === "boolean" && typeof value === "boolean");
+      if (!valid) {
+        const requirement = binding.valueType === "entity"
+          ? "an entity from the named snapshot"
+          : `a ${binding.valueType} value`;
+        throw new Error(`Expression binding '${name}' requires ${requirement}`);
+      }
+    }
+    const previousEvidence = this.definitionEvidence;
+    const evidence: ProcessDefinitionEvidence[] = [];
+    this.definitionEvidence = evidence;
+    try {
+      const result = this.value(expression, {
+        ...this.baseContext,
+        ...resolvedBindings,
+      });
+      return {
+        target: {
+          definition: `${definition.id}@${definition.version}`,
+          kind: definition.kind,
+          field,
+        },
+        contract: {
+          expectedType: expression.contract.expectedType,
+          bindings: Object.entries(expression.contract.bindings)
+            .map(([name, binding]) => ({
+              name,
+              valueType: binding.valueType,
+              ...(binding.domainKind === undefined
+                ? {}
+                : { domainKind: binding.domainKind }),
+              ...(binding.lifecycleTypes === undefined
+                ? {}
+                : { lifecycleTypes: [...binding.lifecycleTypes] }),
+            }))
+            .sort((left, right) => left.name.localeCompare(right.name)),
+        },
+        suppliedBindings: this.evidenceValue(resolvedBindings) as Record<string, unknown>,
+        result: this.evidenceValue(result),
+        traversedDefinitions: [...new Set(
+          evidence.map((item) => item.definition),
+        )],
+        evidence,
+      };
+    } finally {
+      this.definitionEvidence = previousEvidence;
+    }
+  }
+
+  evaluateDirectDefinition(
+    kind: ProcessDirectEvaluation["target"]["kind"],
+    reference: string,
+    suppliedArguments: Record<string, unknown>,
+  ): ProcessDirectEvaluation {
+    const resolvedArguments = Object.fromEntries(
+      Object.entries(suppliedArguments).map(([name, value]) => [
+        name,
+        this.resolveSuppliedValue(value),
+      ]),
+    );
+    const evidence: ProcessDefinitionEvidence[] = [];
+    const previousEvidence = this.definitionEvidence;
+    this.definitionEvidence = evidence;
+    let definitionReference = reference;
+    let result: unknown;
+    try {
+      if (kind === "relation") {
+        const source = resolvedArguments.from;
+        if (!this.isEntity(source)) {
+          throw new Error(`Relation evaluation requires an exact '--from' Revision`);
+        }
+        definitionReference = this.relationDefinition(reference);
+        result = this.relation(reference, source, resolvedArguments);
+      } else if (kind === "selector") {
+        this.requireDefinitionReference(
+          this.processPackage.selectors,
+          reference,
+          "Selector",
+        );
+        result = this.select(reference, resolvedArguments);
+      } else if (kind === "policy") {
+        this.requireDefinitionReference(
+          this.processPackage.policies,
+          reference,
+          "Policy",
+        );
+        result = this.policyResult(reference, resolvedArguments);
+      } else if (kind === "state") {
+        const definition = this.requireDefinitionReference(
+          this.processPackage.states,
+          reference,
+          "Computed State",
+        );
+        const subject = resolvedArguments.subject;
+        if (!this.isEntity(subject)) {
+          throw new Error(`Computed State evaluation requires an exact '--subject' Revision`);
+        }
+        result = this.state(definition.id, subject);
+      } else {
+        const definition = this.requireDefinitionReference(
+          this.processPackage.obligations,
+          reference,
+          "Obligation",
+        );
+        this.definitionEvidence = undefined;
+        const lifecycle = this.evaluate();
+        this.definitionEvidence = evidence;
+        const subject = this.isEntity(resolvedArguments.subject)
+          ? resolvedArguments.subject.identity?.revision_id
+          : undefined;
+        const matches = lifecycle.obligations.filter((obligation) =>
+          obligation.obligation === definition.id &&
+          (subject === undefined || obligation.subject === subject)
+        );
+        result = subject === undefined ? matches : matches[0] ?? null;
+        evidence.push({
+          kind: "obligation",
+          definition: reference,
+          arguments: this.evidenceValue(resolvedArguments) as Record<string, unknown>,
+          result: this.evidenceValue(result),
+        });
+      }
+      const projectedResult = this.evidenceValue(result);
+      return {
+        target: { definition: definitionReference, kind },
+        arguments: this.evidenceValue(resolvedArguments) as Record<string, unknown>,
+        result: projectedResult,
+        traversedDefinitions: [...new Set(
+          evidence.map((item) => item.definition),
+        )],
+        evidence,
+      };
+    } finally {
+      this.definitionEvidence = previousEvidence;
+    }
+  }
+
+  private requireDefinitionReference(
+    catalog: Record<string, VersionedDefinition>,
+    reference: string,
+    label: string,
+  ): VersionedDefinition {
+    const id = referenceId(reference);
+    const definition = catalog[id];
+    if (!definition || `${definition.id}@${definition.version}` !== reference) {
+      throw new Error(`Unknown ${label} '${reference}'`);
+    }
+    return definition;
   }
 
   evaluate(): LifecycleEvaluation {
@@ -637,6 +917,45 @@ class LifecycleEvaluator {
       : undefined;
   }
 
+  private indexDefinitionExpressions(value: unknown, reference: string): void {
+    if (isCompiledTextExpression(value)) {
+      const pathValue = value.contract?.definitionPath ?? "";
+      const fragment = pathValue.includes("#")
+        ? pathValue.slice(pathValue.indexOf("#"))
+        : "";
+      this.expressionDefinitions.set(value, `${reference}${fragment}`);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => this.indexDefinitionExpressions(item, reference));
+      return;
+    }
+    const asObject = object(value);
+    if (asObject) {
+      Object.values(asObject).forEach((item) =>
+        this.indexDefinitionExpressions(item, reference)
+      );
+    }
+  }
+
+  private resolveSuppliedValue(value: unknown): unknown {
+    if (typeof value === "string" && this.byRevision.has(value)) {
+      return this.byRevision.get(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.resolveSuppliedValue(item));
+    }
+    const asObject = object(value);
+    return asObject
+      ? Object.fromEntries(
+          Object.entries(asObject).map(([key, item]) => [
+            key,
+            this.resolveSuppliedValue(item),
+          ]),
+        )
+      : value;
+  }
+
   private evidenceValue(value: unknown): unknown {
     if (this.isEntity(value)) return this.exactTypedEntity(value) ?? { key: value.key };
     if (Array.isArray(value)) return value.map((item) => this.evidenceValue(item));
@@ -924,6 +1243,16 @@ class LifecycleEvaluator {
       }
       this.stateMemo.set(memoKey, result);
       this.stateExplanationMemo.set(memoKey, explanation);
+      if (this.definitionEvidence) {
+        this.definitionEvidence.push({
+          kind: "state",
+          definition: `${definition.id}@${definition.version}`,
+          arguments: {
+            subject: this.evidenceValue(subject),
+          },
+          result: this.evidenceValue(result),
+        });
+      }
       return result;
     } finally {
       this.stateStack.delete(memoKey);
@@ -985,11 +1314,21 @@ class LifecycleEvaluator {
       .sort((left, right) => number(right.priority) - number(left.priority));
     const match = rules.find((rule) => this.expression(rule.when, policyContext));
     const result = object(match?.result) ?? object(definition.default) ?? {};
+    const evidenceArguments = this.evidenceValue(argumentsContext) as Record<string, unknown>;
+    const evidenceResult = this.evidenceValue(result) as Record<string, unknown>;
     if (this.policyEvidence) {
       this.policyEvidence.push({
         policy: reference,
-        arguments: this.evidenceValue(argumentsContext) as Record<string, unknown>,
-        result: this.evidenceValue(result) as Record<string, unknown>,
+        arguments: evidenceArguments,
+        result: evidenceResult,
+      });
+    }
+    if (this.definitionEvidence) {
+      this.definitionEvidence.push({
+        kind: "policy",
+        definition: reference,
+        arguments: evidenceArguments,
+        result: evidenceResult,
       });
     }
     return result;
@@ -1010,22 +1349,41 @@ class LifecycleEvaluator {
     };
   }
 
+  private recordExpressionEvidence(
+    expression: CompiledTextExpression,
+    result: unknown,
+  ): void {
+    if (!this.definitionEvidence) return;
+    this.definitionEvidence.push({
+      kind: "expression",
+      definition: this.expressionDefinitions.get(expression) ??
+        expression.contract?.definitionPath ?? "expression",
+      source: expression.source,
+      span: expression.span,
+      result: this.evidenceValue(result),
+    });
+  }
+
   private expression(value: unknown, context: EvaluationContext): boolean {
     if (!isCompiledTextExpression(value)) {
       throw new Error(`Expected a compiled mdlm-expression@1 condition`);
     }
-    return evaluateCompiledTextExpression(
+    const result = evaluateCompiledTextExpression(
       value,
       context,
       this.expressionHost(),
     );
+    this.recordExpressionEvidence(value, result);
+    return result;
   }
 
   private value(value: unknown, context: EvaluationContext): unknown {
     if (!isCompiledTextExpression(value)) {
       throw new Error(`Expected a compiled mdlm-expression@1 value`);
     }
-    return evaluateCompiledTextValue(value, context, this.expressionHost());
+    const result = evaluateCompiledTextValue(value, context, this.expressionHost());
+    this.recordExpressionEvidence(value, result);
+    return result;
   }
 
   private evaluateArguments(value: unknown, context: EvaluationContext): EvaluationContext {
@@ -1062,13 +1420,22 @@ class LifecycleEvaluator {
         ...this.baseContext,
         ...argumentsContext,
       });
+      const exactResult = result
+        .map((entity) => this.exactTypedEntity(entity))
+        .filter((entity): entity is ExactTypedEntity => entity !== undefined);
       if (this.selectorEvidence) {
         this.selectorEvidence.push({
           selector: reference,
           arguments: this.evidenceValue(argumentsContext) as Record<string, unknown>,
-          result: result
-            .map((entity) => this.exactTypedEntity(entity))
-            .filter((entity): entity is ExactTypedEntity => entity !== undefined),
+          result: exactResult,
+        });
+      }
+      if (this.definitionEvidence) {
+        this.definitionEvidence.push({
+          kind: "selector",
+          definition: reference,
+          arguments: this.evidenceValue(argumentsContext) as Record<string, unknown>,
+          result: exactResult,
         });
       }
       return result;
@@ -1147,7 +1514,43 @@ class LifecycleEvaluator {
     return leftText < rightText ? -1 : leftText > rightText ? 1 : 0;
   }
 
-  private relation(name: string, source: Entity, options: Record<string, unknown>): Entity[] {
+  private relation(
+    name: string,
+    source: Entity,
+    options: Record<string, unknown>,
+  ): Entity[] {
+    const result = this.evaluateRelation(name, source, options);
+    if (this.definitionEvidence) {
+      this.definitionEvidence.push({
+        kind: "relation",
+        definition: this.relationDefinition(name),
+        arguments: {
+          from: this.evidenceValue(source),
+          ...(options.link === undefined ? {} : { link: options.link }),
+        },
+        result: this.evidenceValue(result),
+      });
+    }
+    return result;
+  }
+
+  private relationDefinition(name: string): string {
+    for (const catalog of Object.values(this.processPackage.primitives)) {
+      const directRelations = array(catalog.relations).map(object);
+      const surfaces = object(catalog.capability_surfaces) ?? {};
+      const capabilityRelations = Object.values(surfaces).flatMap((surface) =>
+        array(object(surface)?.relations).map(object)
+      );
+      if ([...directRelations, ...capabilityRelations].some(
+        (relation) => string(relation?.id) === name,
+      )) {
+        return `${catalog.id}@${catalog.version}#relation.${name}`;
+      }
+    }
+    return `primitive#relation.${name}`;
+  }
+
+  private evaluateRelation(name: string, source: Entity, options: Record<string, unknown>): Entity[] {
     const linkFilter = string(options.link);
     switch (name) {
       case "revisions":
@@ -1255,6 +1658,27 @@ class LifecycleEvaluator {
   private isEntity(value: unknown): value is Entity {
     return object(value)?.entityKind !== undefined && typeof object(value)?.key === "string";
   }
+}
+
+export function evaluateProcessDefinition(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  kind: ProcessDirectEvaluation["target"]["kind"],
+  reference: string,
+  argumentsValue: Record<string, unknown>,
+): ProcessDirectEvaluation {
+  return new LifecycleEvaluator(processPackage, snapshot)
+    .evaluateDirectDefinition(kind, reference, argumentsValue);
+}
+
+export function evaluateProcessExpression(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  target: string,
+  bindings: Record<string, unknown>,
+): ProcessExpressionEvaluation {
+  return new LifecycleEvaluator(processPackage, snapshot)
+    .evaluateExpressionTarget(target, bindings);
 }
 
 export function evaluateLifecycle(

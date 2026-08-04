@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.20
+# MDLM bootstrap process package v0.21
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -11,7 +11,10 @@ The package can be explicitly installed and selected with the package-neutral
 includes its exact package version, expression-language version, and content
 digest. `req process show`, `validate`, and `capabilities` expose the same semantic
 projection in human-readable or JSON form without implicitly selecting this
-Example Process Package.
+Example Process Package. `req process expression evaluate` addresses a compiled
+definition field in its authored binding and result-type context; generic Relation,
+Selector, Policy, Computed State, and Obligation evaluation commands expose the
+same deterministic package execution with source-span evidence.
 
 The package declares `mdlm-expression@1`. Every expression-bearing bootstrap
 definition now uses textual source compiled at package load, including finite

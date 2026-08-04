@@ -27,7 +27,7 @@ function selectBootstrapPackage(repositoryRoot: string): void {
     repositoryRoot,
     "process",
     "use",
-    "mdlm-bootstrap@0.20.0",
+    "mdlm-bootstrap@0.21.0",
     "--json",
   );
   expect(selection.status, selection.stderr).toBe(0);
@@ -70,8 +70,8 @@ describe("req process package commands", () => {
       command: "process.install",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.20.0",
-        reference: "mdlm-bootstrap@0.20.0",
+        version: "0.21.0",
+        reference: "mdlm-bootstrap@0.21.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -89,7 +89,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "use",
-      "mdlm-bootstrap@0.20.0",
+      "mdlm-bootstrap@0.21.0",
       "--json",
     );
     expect(selected.status, selected.stderr).toBe(0);
@@ -112,10 +112,10 @@ describe("req process package commands", () => {
       schemaVersion: 1,
       package: {
         id: "mdlm-bootstrap",
-        version: "0.20.0",
-        reference: "mdlm-bootstrap@0.20.0",
+        version: "0.21.0",
+        reference: "mdlm-bootstrap@0.21.0",
         digest: installation.package.digest,
-        path: ".lifecycle/packages/mdlm-bootstrap@0.20.0",
+        path: ".lifecycle/packages/mdlm-bootstrap@0.21.0",
       },
       language: { expressions: "mdlm-expression@1" },
     });
@@ -135,7 +135,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.validate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.20.0",
+        reference: "mdlm-bootstrap@0.21.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -150,7 +150,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "validate");
     expect(human.status, human.stderr).toBe(0);
     expect(human.stdout).toContain(
-      "Validated Process Package: mdlm-bootstrap@0.20.0",
+      "Validated Process Package: mdlm-bootstrap@0.21.0",
     );
     expect(human.stdout).toContain("Expression Language: mdlm-expression@1");
     expect(human.stdout).toContain("Compilation: passed");
@@ -168,7 +168,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.show",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.20.0",
+        reference: "mdlm-bootstrap@0.21.0",
         language: "mdlm-expression@1",
       }),
       installed: true,
@@ -200,7 +200,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "show");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.20.0",
+      "Process Package: mdlm-bootstrap@0.21.0",
       "Expression Language: mdlm-expression@1",
       "Status: experimental",
       "Kernel Contract: mdlm-kernel-process-interface@1",
@@ -283,7 +283,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.capabilities",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.20.0",
+        reference: "mdlm-bootstrap@0.21.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -363,7 +363,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "capabilities");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.20.0",
+      "Process Package: mdlm-bootstrap@0.21.0",
       "Expression Language: mdlm-expression@1",
       "Context Roots: execution, phase, process",
       "Host Functions: count, every, exists, none, one, policy, present, select, state",
