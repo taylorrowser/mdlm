@@ -61,7 +61,7 @@ describe("evaluateLifecycle", () => {
           },
         },
       ],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -182,7 +182,7 @@ describe("evaluateLifecycle", () => {
           },
         },
       ],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);

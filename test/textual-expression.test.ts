@@ -44,7 +44,7 @@ async function processPackageWithStateCycle(): Promise<string> {
   await fs.writeFile(
     validityPath,
     validity.replace(
-      "    when: 'exists(\"dependency-changes-for@1\", {subject: subject})'",
+      "    when: 'exists(\"staleness-relevant-dependency-changes-for@1\", {subject: subject})'",
       "    when: 'state(subject, \"relationship-overlays\") == []'",
     ),
   );
@@ -120,7 +120,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:older-process")],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -150,7 +150,7 @@ describe("textual MDLM expressions", () => {
         processRef: "git:current",
         phaseId: "phase-0-wayfinding",
         records: [pspCreatedUnder("git:current")],
-        dependencyChanges: [],
+        dependencyComparisons: [],
       });
 
       expect(evaluation.diagnostics).toEqual([]);
@@ -177,7 +177,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [record],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -201,7 +201,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:current")],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -226,7 +226,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:current")],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -253,7 +253,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:current")],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -272,7 +272,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:current"), invalid],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(
@@ -349,7 +349,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:current")],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -376,7 +376,7 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:current")],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -655,13 +655,13 @@ describe("textual MDLM expressions", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [invalidRecord],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
     const validEvaluation = evaluateLifecycle(loaded.package, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [pspCreatedUnder("git:current")],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(invalidEvaluation.diagnostics).toEqual([]);

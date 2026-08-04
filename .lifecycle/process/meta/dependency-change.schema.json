@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/dependency-change@1",
+  "title": "MDLM dependency change record v1",
+  "oneOf": [
+    {"$ref": "#/$defs/content-change"},
+    {"$ref": "#/$defs/outbound-link-change"},
+    {"$ref": "#/$defs/stable-link-resolution-change"}
+  ],
+  "$defs": {
+    "revision-id": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"
+    },
+    "base": {
+      "type": "object",
+      "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision"],
+      "properties": {
+        "record_version": {"const": "dependency-change@1"},
+        "kind": {"type": "string"},
+        "subject_revision": {"$ref": "#/$defs/revision-id"},
+        "before_revision": {"$ref": "#/$defs/revision-id"},
+        "after_revision": {"$ref": "#/$defs/revision-id"}
+      }
+    },
+    "content-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "path", "before_present", "after_present", "before", "after"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "content-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "path": {"type": "string"},
+            "before_present": {"type": "boolean"},
+            "after_present": {"type": "boolean"},
+            "before": true,
+            "after": true
+          }
+        }
+      ]
+    },
+    "outbound-link-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "link_type", "before_targets", "after_targets"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "outbound-link-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "link_type": {"type": "string"},
+            "before_targets": {"type": "array", "items": {"type": "string"}},
+            "after_targets": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      ]
+    },
+    "stable-link-resolution-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "link_type", "stable_target", "before_target_revision", "after_target_revision"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "stable-link-resolution-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "link_type": {"type": "string"},
+            "stable_target": {"type": "string", "pattern": "^[A-Z]{3}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
+            "before_target_revision": {"$ref": "#/$defs/revision-id"},
+            "after_target_revision": {"$ref": "#/$defs/revision-id"}
+          }
+        }
+      ]
+    }
+  }
+}

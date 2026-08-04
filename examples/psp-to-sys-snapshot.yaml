@@ -1,6 +1,6 @@
 processRef: git:prototype
 phaseId: phase-2-system-definition
-dependencyChanges: []
+dependencyComparisons: []
 records:
   - datum:
       id: PSP-7K3M9Q2D8F

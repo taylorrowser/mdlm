@@ -1,4 +1,6 @@
+import { dependencyChangeExpressionPaths } from "./dependency-changes.js";
 import type { ProcessDiagnostic, VersionedDefinition } from "./index.js";
+import { structuralValuesEqual } from "./structural-equality.js";
 
 type ValueType = "array" | "boolean" | "entity" | "null" | "number" | "object" | "string" | "unknown";
 type ExpectedType = ValueType | "any";
@@ -526,6 +528,13 @@ class ExpressionParser {
     const domainKind = typeof definition.result_kind === "string"
       ? definition.result_kind
       : "record";
+    if (domainKind === "record") {
+      return {
+        valueType: "object",
+        domainKind,
+        paths: dependencyChangeExpressionPaths,
+      };
+    }
     if (!["baseline", "revision", "stable-datum"].includes(domainKind)) {
       return { valueType: "object", domainKind };
     }
@@ -1126,6 +1135,13 @@ function entityBinding(
   domainKind: string,
   lifecycleTypes?: string[],
 ): Binding {
+  if (domainKind === "record") {
+    return {
+      valueType: "object",
+      domainKind,
+      paths: dependencyChangeExpressionPaths,
+    };
+  }
   return {
     valueType: "entity",
     domainKind,
@@ -1785,14 +1801,7 @@ function evaluateNode(
 }
 
 export function expressionValuesEqual(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true;
-  if (
-    (Array.isArray(left) && Array.isArray(right)) ||
-    (typeof left === "object" && left !== null && typeof right === "object" && right !== null)
-  ) {
-    return JSON.stringify(left) === JSON.stringify(right);
-  }
-  return false;
+  return structuralValuesEqual(left, right);
 }
 
 export function evaluateCompiledTextValue(

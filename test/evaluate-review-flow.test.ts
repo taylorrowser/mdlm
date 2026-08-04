@@ -105,7 +105,7 @@ describe("evaluateLifecycle review flow", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [psp, context, review],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -182,7 +182,7 @@ describe("evaluateLifecycle review flow", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [psp, context, review, candidate],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -222,25 +222,29 @@ describe("evaluateLifecycle review flow", () => {
     });
     psp.datum.created_by.process_ref = "git:older-process";
 
+    const revised = structuredClone(psp);
+    revised.datum.revision = 2;
+    revised.datum.revision_id = `${psp.datum.id}-r00002`;
+    revised.datum.payload.title = "Revised lifecycle manager";
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
-      records: [psp],
-      dependencyChanges: [
+      records: [psp, revised],
+      dependencyComparisons: [
         {
-          subject: psp.datum.revision_id,
-          kind: "resolved-link-change",
-          description: "A stable derived-from target now resolves differently.",
+          subjectRevision: revised.datum.revision_id,
+          beforeRevision: psp.datum.revision_id,
+          afterRevision: revised.datum.revision_id,
         },
       ],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
-    expect(evaluation.artifacts[psp.datum.revision_id]?.states.validity).toBe(
+    expect(evaluation.artifacts[revised.datum.revision_id]?.states.validity).toBe(
       "stale",
     );
     expect(
-      evaluation.artifacts[psp.datum.revision_id]?.states[
+      evaluation.artifacts[revised.datum.revision_id]?.states[
         "relationship-overlays"
       ],
     ).toEqual(["process-drift"]);
@@ -369,7 +373,7 @@ describe("evaluateLifecycle review flow", () => {
         candidateReview,
         signoff,
       ],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     const gate = evaluation.looseEnds.find(

@@ -7,8 +7,10 @@ behavior where possible.
 
 1. **Static path typing:** How strict should expression validation be when a
    polymorphic variable can refer to types with different payload fields?
-2. **Dependency changes:** What exact typed records does the kernel emit for
-   content, resolved-link, evidence-target, baseline, and review-context changes?
+2. **Dependency changes beyond v1:** `dependency-change@1` now covers exact
+   content, outbound-link, and stable-link-resolution comparisons. What typed
+   records should later versions emit for evidence-target, baseline,
+   review-context, execution-target, and environment changes?
 3. **Repeated link IDs:** Should source-local contracts sharing a relationship ID
    be checked for compatible descriptions and historical meaning?
 4. **Collection conditions:** Scenario conditions on `one-or-more` inputs are

@@ -261,7 +261,7 @@ describe("exact-baseline@1 Kernel Capability", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [subject, baseline],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);
@@ -321,7 +321,7 @@ describe("exact-baseline@1 Kernel Capability", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [member, evidence, composed, baseline],
-      dependencyChanges: [],
+      dependencyComparisons: [],
     });
 
     expect(evaluation.diagnostics).toEqual([]);

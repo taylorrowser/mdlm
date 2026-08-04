@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.12 — experimental implementation reference**
+**Bootstrap package 0.13 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -191,14 +191,22 @@ The first relation vocabulary is:
   baselines;
 - `baseline-composed` — from a capability-bound baseline to exact bound baselines
   reached by `composes`;
-- `dependency-changes` — from a revision to conservative, kernel-classified
-  content, link-resolution, evidence-target, or review-context changes;
+- `dependency-changes` — from a revision to deterministic structural
+  `dependency-change@1` records for exact content, outbound-link, and stable-
+  link-resolution comparisons;
 - `scenario-inputs` and `scenario-outputs` — from one scenario execution to its
   declared bound data.
 
-Relations return typed entities or typed change records. Traversal is
-side-effect-free and deterministic. Adding a relation primitive requires a kernel
-interface version; adding a selector over existing relations does not.
+Relations return typed entities or typed change records. Every
+`dependency-change@1` record names the subject and exact before/after Revisions;
+variant fields describe a changed content path, an outbound link target set, or a
+stable link's changed exact resolution. These records never contain a Stale
+Boolean. The package filters them with `staleness-relevant-dependency-changes-for`
+and the `validity` Computed State supplies the Stale conclusion and explanation.
+Unsupported or incomplete comparisons produce evaluation diagnostics and no
+lifecycle conclusions. Traversal is side-effect-free and deterministic. Adding a
+relation primitive requires a kernel interface version; adding a selector over
+existing relations does not.
 
 ## 6. Shared expression language
 
@@ -386,7 +394,7 @@ for each rejection class.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.12 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
+Bootstrap package 0.13 continues to model only PSP, STK, SYS, REV, BSL, QST, and DEC. Phase 0
 and Phase 2 remain explicit bootstrap subsets. The purpose is to validate the
 kernel/process seam, schema composition, graph querying, review evidence,
 baselines, policies, obligations, and gate routing before adding architecture,

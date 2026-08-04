@@ -40,9 +40,9 @@ relations:
     description: Enumerate exact revisions in stable lineage.
   - id: dependency-changes
     from: [revision]
-    emits: change record
+    emits: dependency-change@1
     supports_link_filter: false
-    description: Conservatively classify changed content, resolved links, evidence targets, and review contexts.
+    description: Conservatively compare exact content, outbound links, and stable-link resolutions without deciding Staleness.
   - id: scenario-inputs
     from: [execution]
     emits: bound input entity

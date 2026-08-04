@@ -16,12 +16,19 @@ export {
   evaluateLifecycle,
   type ArtifactEvaluation,
   type DatumEnvelope,
-  type DependencyChange,
   type LifecycleEvaluation,
   type LifecycleRecord,
   type LifecycleSnapshot,
   type ObligationEvaluation,
 } from "./evaluator.js";
+export type {
+  ContentDependencyChange,
+  DependencyChangeRecord,
+  DependencyComparison,
+  OutboundLinkDependencyChange,
+  StableLinkResolution,
+  StableLinkResolutionDependencyChange,
+} from "./dependency-changes.js";
 
 export interface ProcessDiagnostic {
   code: string;

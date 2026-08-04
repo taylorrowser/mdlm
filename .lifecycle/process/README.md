@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.12
+# MDLM bootstrap process package v0.13
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -68,7 +68,11 @@ complete Template, Selector, Computed State, and Policy dependency cycles.
 Resolver bindings must cover exactly the Scenario inputs with compatible identity,
 types, and cardinality. Scenario output types, prohibited-input conflicts, required-
 link targets, source-owned link availability, target types, and cardinalities are
-also validated before the package is exposed. `mdlm-expression@1` textual source is
+also validated before the package is exposed. The kernel's `dependency-changes`
+relation emits deterministic `dependency-change@1` content, outbound-link, and
+stable-link-resolution records from exact Revision comparisons. Package selectors,
+not the kernel, decide which typed records imply Staleness, and Computed State
+explanations identify the matched package rule. `mdlm-expression@1` textual source is
 the only accepted authoring representation and cannot execute arbitrary code or
 produce side effects.
 

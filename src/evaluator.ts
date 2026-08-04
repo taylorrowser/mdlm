@@ -1,4 +1,9 @@
 import {
+  compareDependencyChanges,
+  type DependencyChangeRecord,
+  type DependencyComparison,
+} from "./dependency-changes.js";
+import {
   evaluateCompiledTextExpression,
   evaluateCompiledTextValue,
   isCompiledTextExpression,
@@ -35,21 +40,16 @@ export interface LifecycleRecord {
   };
 }
 
-export interface DependencyChange {
-  subject: string;
-  kind: string;
-  [key: string]: unknown;
-}
-
 export interface LifecycleSnapshot {
   processRef: string;
   phaseId: string;
   records: LifecycleRecord[];
-  dependencyChanges: DependencyChange[];
+  dependencyComparisons: DependencyComparison[];
 }
 
 export interface ArtifactEvaluation {
   states: Record<string, string | string[]>;
+  stateExplanations: Record<string, string | string[]>;
 }
 
 export interface ObligationEvaluation {
@@ -64,6 +64,7 @@ export interface ObligationEvaluation {
 
 export interface LifecycleEvaluation {
   artifacts: Record<string, ArtifactEvaluation>;
+  dependencyChanges: DependencyChangeRecord[];
   obligations: ObligationEvaluation[];
   looseEnds: ObligationEvaluation[];
   diagnostics: ProcessDiagnostic[];
@@ -85,7 +86,7 @@ interface Entity {
   integrity?: LifecycleRecord["integrity"];
   provenance?: { process_ref: string };
   datum?: DatumEnvelope;
-  record?: Record<string, unknown>;
+  record?: object;
 }
 
 type EvaluationContext = Record<string, unknown>;
@@ -120,10 +121,16 @@ class LifecycleEvaluator {
   private readonly entities: Entity[];
   private readonly byRevision = new Map<string, Entity>();
   private readonly stateMemo = new Map<string, string | string[]>();
+  private readonly stateExplanationMemo = new Map<
+    string,
+    string | string[]
+  >();
   private readonly stateStack = new Set<string>();
   private readonly selectorStack = new Set<string>();
   private readonly baseContext: EvaluationContext;
   private readonly exactBaselineType: string | undefined;
+  private readonly dependencyChanges: DependencyChangeRecord[];
+  private readonly comparisonDiagnostics: ProcessDiagnostic[];
 
   constructor(
     private readonly processPackage: ProcessPackage,
@@ -132,6 +139,12 @@ class LifecycleEvaluator {
     this.exactBaselineType = processPackage.kernelCapabilities[
       "exact-baseline@1"
     ]?.type;
+    const comparison = compareDependencyChanges(
+      snapshot.records,
+      snapshot.dependencyComparisons ?? [],
+    );
+    this.dependencyChanges = comparison.changes;
+    this.comparisonDiagnostics = comparison.diagnostics;
     this.entities = snapshot.records.map((record) => {
       const entity: Entity = {
         entityKind: "revision",
@@ -161,15 +174,27 @@ class LifecycleEvaluator {
   }
 
   evaluate(): LifecycleEvaluation {
+    if (this.comparisonDiagnostics.length > 0) {
+      return {
+        artifacts: {},
+        dependencyChanges: [],
+        obligations: [],
+        looseEnds: [],
+        diagnostics: this.comparisonDiagnostics,
+      };
+    }
     const artifacts: Record<string, ArtifactEvaluation> = {};
     for (const entity of this.entities) {
       const revisionId = entity.identity?.revision_id;
       if (!revisionId) continue;
       const states: Record<string, string | string[]> = {};
+      const stateExplanations: Record<string, string | string[]> = {};
       for (const state of Object.values(this.processPackage.states)) {
         states[state.id] = this.state(state.id, entity);
+        stateExplanations[state.id] =
+          this.stateExplanation(state.id, entity);
       }
-      artifacts[revisionId] = { states };
+      artifacts[revisionId] = { states, stateExplanations };
     }
 
     const obligations: ObligationEvaluation[] = [];
@@ -225,9 +250,10 @@ class LifecycleEvaluator {
 
     return {
       artifacts,
+      dependencyChanges: this.dependencyChanges,
       obligations,
       looseEnds,
-      diagnostics: [],
+      diagnostics: this.comparisonDiagnostics,
     };
   }
 
@@ -271,22 +297,42 @@ class LifecycleEvaluator {
         .filter((rule): rule is Record<string, unknown> => rule !== undefined)
         .sort((left, right) => number(right.priority) - number(left.priority));
       let result: string | string[];
+      let explanation: string | string[];
       if (definition.cardinality === "zero-or-more") {
-        result = rules
-          .filter((rule) => this.expression(rule.when, context))
+        const matchedRules = rules.filter((rule) =>
+          this.expression(rule.when, context)
+        );
+        result = matchedRules
           .map((rule) => string(rule.value))
+          .filter((value): value is string => value !== undefined);
+        explanation = matchedRules
+          .map((rule) => string(rule.explanation))
           .filter((value): value is string => value !== undefined);
       } else {
         const rule = rules.find((candidate) =>
           this.expression(candidate.when, context),
         );
         result = string(rule?.value) ?? string(definition.default) ?? "";
+        explanation = string(rule?.explanation) ??
+          `No rule matched; using the default value for ${definition.id}.`;
       }
       this.stateMemo.set(memoKey, result);
+      this.stateExplanationMemo.set(memoKey, explanation);
       return result;
     } finally {
       this.stateStack.delete(memoKey);
     }
+  }
+
+  private stateExplanation(
+    dimension: string,
+    subject: Entity,
+  ): string | string[] {
+    const memoKey = `${dimension}:${subject.key}`;
+    if (!this.stateExplanationMemo.has(memoKey)) {
+      this.state(dimension, subject);
+    }
+    return this.stateExplanationMemo.get(memoKey) ?? "";
   }
 
   private policyResult(
@@ -452,7 +498,17 @@ class LifecycleEvaluator {
               entity !== undefined && this.isExactBaseline(entity),
           );
       case "dependency-changes":
-        return this.snapshot.dependencyChanges.filter((change) => change.subject === source.identity?.revision_id).map((change, index) => ({ entityKind: "record" as const, key: `${source.key}:change:${index}`, record: change, ...change }));
+        return this.dependencyChanges
+          .filter(
+            (change) =>
+              change.subject_revision === source.identity?.revision_id,
+          )
+          .map((change, index) => ({
+            entityKind: "record" as const,
+            key: `${source.key}:change:${index}`,
+            record: change,
+            ...change,
+          }));
       case "scenario-inputs":
       case "scenario-outputs":
         return [];
@@ -520,6 +576,7 @@ export function evaluateLifecycle(
   } catch (error) {
     return {
       artifacts: {},
+      dependencyChanges: [],
       obligations: [],
       looseEnds: [],
       diagnostics: [

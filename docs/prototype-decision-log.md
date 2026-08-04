@@ -441,3 +441,29 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Focused copied-package fixtures exercise each contract
   failure through the public loader; the bundled Obligation and Scenario catalog
   remains the valid fixture.
+
+## D-024 — Separate structural dependency changes from Staleness
+
+- **Status:** accepted and implemented
+- **Decision:** The kernel compares exact Revisions and emits ordered,
+  discriminated `dependency-change@1` records for content paths, outbound-link
+  target sets, and stable-link exact resolutions. The records identify the
+  affected subject and exact before/after Revisions but contain no Stale Boolean.
+  Package-authored selectors classify records for the `validity` Computed State.
+- **Alternatives:** Inject caller-authored change records, have the kernel return a
+  Stale Boolean, compare only payload hashes, or silently ignore comparisons the
+  prototype cannot prove complete.
+- **Rationale:** Structural comparison is fixed integrity behavior, while whether
+  a change invalidates evidence is process policy. Typed records keep that seam
+  explicit and explainable without hiding process conclusions in the kernel.
+- **Expected behavior:** Content, outbound-link, and stable-resolution changes have
+  deterministic variant shapes and ordering. Matched state rules expose their
+  package-authored explanation. Missing Revisions, incompatible lineages, or
+  incomplete stable-link resolution contexts fail evaluation with diagnostics and
+  return no lifecycle conclusions.
+- **Reversibility:** Versioned. Future evidence, baseline, execution-target, and
+  environment variants can use later record versions without changing the three
+  public evaluator seams.
+- **Evidence/observations:** Public lifecycle tests change one dependency at a
+  time, assert exact records and Stale explanations, alter the package filter to
+  demonstrate process ownership, and exercise an unsupported comparison.

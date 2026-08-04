@@ -5,6 +5,7 @@ description: Conservative kernel-classified dependency changes affecting one exa
 parameters:
   - {name: subject, kind: revision}
 result_kind: record
+record_schema: dependency-change@1
 query:
   from: {relation: dependency-changes, of: subject, emit: record}
   as: change
