@@ -1,0 +1,812 @@
+import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { parse } from "yaml";
+import {
+  evaluateLifecycle,
+  evaluateProcessExpression,
+  type ExactTypedEntity,
+  type LifecycleSnapshot,
+  type ObligationEvaluation,
+  type ScenarioOutputExplanation,
+} from "./evaluator.js";
+import { isCompiledTextExpression } from "./expression.js";
+import type {
+  ProcessDiagnostic,
+  ProcessPackage,
+  VersionedDefinition,
+} from "./index.js";
+
+export interface ScenarioInputCheck {
+  check: "resolution" | "cardinality" | "identity" | "type" | "condition";
+  passed: boolean;
+  expected: unknown;
+  actual: unknown;
+}
+
+export interface ScenarioBoundEntity {
+  identity: {
+    id: string;
+    type: string;
+    revision_id?: string;
+    revision?: number;
+  };
+}
+
+export interface ScenarioDryRunInput {
+  name: string;
+  contract: {
+    types: string[];
+    cardinality: string;
+    identity: string;
+  };
+  values: ScenarioBoundEntity[];
+  checks: ScenarioInputCheck[];
+}
+
+export interface ScenarioDryRunInvocation {
+  inputs: ScenarioDryRunInput[];
+}
+
+export interface ResolvedProcessAsset {
+  reference: string;
+  path: string;
+  digest: string;
+  content: string;
+}
+
+export interface ResolvedPrompt extends ResolvedProcessAsset {
+  skills: ResolvedProcessAsset[];
+}
+
+export interface ResolvedScenarioPolicy {
+  role: "review" | "waiver";
+  reference: string;
+  definition: { id: string; version: number };
+  result?: Record<string, unknown>;
+}
+
+export interface ScenarioDryRun {
+  executable: true;
+  sideEffectFree: true;
+  definition: {
+    obligation: string;
+    scenario: string;
+  };
+  obligation: {
+    instance: string;
+    subject: string;
+    status: string;
+    dispatchable: true;
+  };
+  invocations: ScenarioDryRunInvocation[];
+  prompt: ResolvedPrompt;
+  policies: ResolvedScenarioPolicy[];
+  prohibitedInputs: string[];
+  expectedOutputs: ScenarioOutputExplanation[];
+  completion: {
+    expression: string;
+    status: "pending-output";
+    genericChecks: string[];
+  };
+}
+
+export type ScenarioDryRunResult =
+  | { ok: true; value: ScenarioDryRun; diagnostics: [] }
+  | { ok: false; diagnostics: ProcessDiagnostic[] };
+
+interface RequestedInput {
+  name: string;
+  value: string;
+}
+
+type RecordValue = Record<string, unknown>;
+
+function object(value: unknown): RecordValue | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as RecordValue)
+    : undefined;
+}
+
+function string(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function array(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function exactEntity(value: unknown): ExactTypedEntity | undefined {
+  const identity = object(object(value)?.identity);
+  return typeof identity?.id === "string" &&
+    typeof identity.revision_id === "string" &&
+    typeof identity.type === "string" &&
+    typeof identity.revision === "number"
+    ? {
+        identity: {
+          id: identity.id,
+          revision_id: identity.revision_id,
+          type: identity.type,
+          revision: identity.revision,
+        },
+      }
+    : undefined;
+}
+
+function referenceDefinition(
+  catalog: Record<string, VersionedDefinition>,
+  reference: string,
+): VersionedDefinition | undefined {
+  const match = /^(.*)@([1-9][0-9]*)$/.exec(reference);
+  const definition = match?.[1] ? catalog[match[1]] : undefined;
+  return definition?.version === Number(match?.[2]) ? definition : undefined;
+}
+
+function sha256(content: string): string {
+  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
+}
+
+function assetPath(reference: string): string | undefined {
+  const match = /^(.*\.(?:md|yaml))@([1-9][0-9]*)$/.exec(reference);
+  return match?.[1];
+}
+
+function assetFrontmatter(content: string): RecordValue | undefined {
+  const match = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(content);
+  return match?.[1] ? object(parse(match[1])) : undefined;
+}
+
+async function resolvedAsset(
+  processPackage: ProcessPackage,
+  reference: string,
+  kind: "prompt" | "skill",
+): Promise<{ asset?: ResolvedProcessAsset; diagnostic?: ProcessDiagnostic }> {
+  const relativePath = assetPath(reference);
+  if (!relativePath) {
+    return {
+      diagnostic: {
+        code: `invalid-${kind}-reference`,
+        path: reference,
+        message: `Invalid versioned ${kind} reference '${reference}'`,
+      },
+    };
+  }
+  try {
+    const assetCatalog = object(processPackage.manifest.assets);
+    const declared = array(assetCatalog?.[`${kind}s`]).includes(reference);
+    if (!declared) {
+      return {
+        diagnostic: {
+          code: `${kind}-not-declared`,
+          path: reference,
+          message: `Resolved ${kind} '${reference}' is not declared by the exact Process Package`,
+        },
+      };
+    }
+    const content = await fs.readFile(
+      path.join(processPackage.root, relativePath),
+      "utf8",
+    );
+    const frontmatter = assetFrontmatter(content);
+    const expectedVersion = Number(
+      reference.slice(reference.lastIndexOf("@") + 1),
+    );
+    const expectedId = path.basename(relativePath, path.extname(relativePath));
+    if (
+      frontmatter?.version !== expectedVersion ||
+      frontmatter.id !== expectedId
+    ) {
+      return {
+        diagnostic: {
+          code: `${kind}-version-mismatch`,
+          path: relativePath,
+          message: `Resolved ${kind} '${reference}' does not declare exact identity '${expectedId}@${expectedVersion}'`,
+        },
+      };
+    }
+    return {
+      asset: {
+        reference,
+        path: relativePath,
+        digest: sha256(content),
+        content,
+      },
+    };
+  } catch (error) {
+    return {
+      diagnostic: {
+        code: `${kind}-unavailable`,
+        path: relativePath,
+        message: `Could not resolve ${kind} '${reference}': ${error instanceof Error ? error.message : String(error)}`,
+      },
+    };
+  }
+}
+
+async function resolvePrompt(
+  processPackage: ProcessPackage,
+  reference: string,
+): Promise<{ prompt?: ResolvedPrompt; diagnostics: ProcessDiagnostic[] }> {
+  const resolved = await resolvedAsset(processPackage, reference, "prompt");
+  if (!resolved.asset) {
+    return { diagnostics: resolved.diagnostic ? [resolved.diagnostic] : [] };
+  }
+  const skillReferences = [
+    ...new Set(
+      [
+        ...resolved.asset.content.matchAll(
+          /`(skills\/[a-z0-9/-]+\.md@[1-9][0-9]*)`/g,
+        ),
+      ]
+        .map((match) => match[1])
+        .filter((value): value is string => value !== undefined),
+    ),
+  ];
+  const skills: ResolvedProcessAsset[] = [];
+  const diagnostics: ProcessDiagnostic[] = [];
+  for (const skillReference of skillReferences) {
+    const skill = await resolvedAsset(processPackage, skillReference, "skill");
+    if (skill.asset) skills.push(skill.asset);
+    if (skill.diagnostic) diagnostics.push(skill.diagnostic);
+  }
+  return {
+    ...(diagnostics.length === 0
+      ? { prompt: { ...resolved.asset, skills } }
+      : {}),
+    diagnostics,
+  };
+}
+
+function obligationReference(instance: ObligationEvaluation): string {
+  return instance.id.slice(0, instance.id.indexOf(":"));
+}
+
+function expressionValue(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  target: string,
+  bindings: Record<string, unknown>,
+): unknown {
+  return evaluateProcessExpression(processPackage, snapshot, target, bindings)
+    .result;
+}
+
+function resolverInvocationBindings(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  obligation: VersionedDefinition,
+  instance: ObligationEvaluation,
+): Record<string, unknown>[] {
+  const reference = `${obligation.id}@${obligation.version}`;
+  const subjectAs = string(obligation.subject_as) ?? "subject";
+  const resolver = object(obligation.resolve_with) ?? {};
+  const baseBindings: Record<string, unknown> = {
+    [subjectAs]: instance.subject,
+  };
+  const dispatch = object(resolver.dispatch);
+  const contexts =
+    dispatch && string(dispatch.as)
+      ? array(
+          expressionValue(
+            processPackage,
+            snapshot,
+            `${reference}#resolve_with.dispatch.for_each`,
+            baseBindings,
+          ),
+        ).map((item) => ({
+          ...baseBindings,
+          [string(dispatch.as)!]:
+            exactEntity(item)?.identity.revision_id ?? item,
+        }))
+      : [baseBindings];
+  const authoredInputs = object(resolver.inputs) ?? {};
+  return contexts.map((bindings) =>
+    Object.fromEntries(
+      Object.keys(authoredInputs)
+        .sort()
+        .map((name) => [
+          name,
+          expressionValue(
+            processPackage,
+            snapshot,
+            `${reference}#resolve_with.inputs.${name}`,
+            bindings,
+          ),
+        ]),
+    ),
+  );
+}
+
+function cardinalityRange(cardinality: string): {
+  minimum: number;
+  maximum: number;
+} {
+  switch (cardinality) {
+    case "one":
+      return { minimum: 1, maximum: 1 };
+    case "one-or-more":
+      return { minimum: 1, maximum: Number.POSITIVE_INFINITY };
+    case "zero-or-one":
+      return { minimum: 0, maximum: 1 };
+    default:
+      return { minimum: 0, maximum: Number.POSITIVE_INFINITY };
+  }
+}
+
+function boundEntity(
+  value: unknown,
+  snapshot: LifecycleSnapshot,
+): ScenarioBoundEntity | undefined {
+  const exact = exactEntity(value);
+  if (exact) return exact;
+  const reference = string(value) ?? string(object(value)?.key);
+  if (!reference) return undefined;
+  const revisions = snapshot.records
+    .filter(
+      (record) =>
+        record.datum.id === reference || record.datum.revision_id === reference,
+    )
+    .sort((left, right) => right.datum.revision - left.datum.revision);
+  const resolved = revisions[0];
+  if (!resolved) return undefined;
+  return resolved.datum.revision_id === reference
+    ? {
+        identity: {
+          id: resolved.datum.id,
+          revision_id: resolved.datum.revision_id,
+          type: resolved.datum.type,
+          revision: resolved.datum.revision,
+        },
+      }
+    : { identity: { id: resolved.datum.id, type: resolved.datum.type } };
+}
+
+function boundValues(
+  value: unknown,
+  snapshot: LifecycleSnapshot,
+): ScenarioBoundEntity[] {
+  return (Array.isArray(value) ? value : [value])
+    .map((item) => boundEntity(item, snapshot))
+    .filter((item): item is ScenarioBoundEntity => item !== undefined)
+    .sort((left, right) =>
+      (left.identity.revision_id ?? left.identity.id).localeCompare(
+        right.identity.revision_id ?? right.identity.id,
+      ),
+    );
+}
+
+function inputChecks(
+  input: RecordValue,
+  rawValue: unknown,
+  values: ScenarioBoundEntity[],
+): ScenarioInputCheck[] {
+  const cardinality = string(input.cardinality) ?? "one";
+  const range = cardinalityRange(cardinality);
+  const expectedTypes = array(input.types)
+    .filter((value): value is string => typeof value === "string")
+    .sort();
+  const identity = string(input.identity) ?? "revision";
+  const authoredValues =
+    rawValue === undefined || rawValue === null
+      ? []
+      : Array.isArray(rawValue)
+        ? rawValue
+        : [rawValue];
+  return [
+    {
+      check: "resolution",
+      passed: values.length === authoredValues.length,
+      expected: "named lifecycle identities from the explicit snapshot",
+      actual: `${values.length}/${authoredValues.length} resolved`,
+    },
+    {
+      check: "cardinality",
+      passed: values.length >= range.minimum && values.length <= range.maximum,
+      expected: cardinality,
+      actual: values.length,
+    },
+    {
+      check: "identity",
+      passed:
+        identity === "either" ||
+        values.every(
+          (value) =>
+            identity === (value.identity.revision_id ? "revision" : "stable"),
+        ),
+      expected: identity,
+      actual: values.map((value) =>
+        value.identity.revision_id ? "revision" : "stable",
+      ),
+    },
+    {
+      check: "type",
+      passed: values.every((value) =>
+        expectedTypes.includes(value.identity.type),
+      ),
+      expected: expectedTypes,
+      actual: values.map((value) => value.identity.type),
+    },
+  ];
+}
+
+function bindingCombinations(
+  valuesByName: Record<string, ScenarioBoundEntity[]>,
+): Record<string, ScenarioBoundEntity | undefined>[] {
+  return Object.entries(valuesByName).sort(([left], [right]) =>
+    left.localeCompare(right)
+  ).reduce<Record<string, ScenarioBoundEntity | undefined>[]>(
+    (contexts, [name, values]) => contexts.flatMap((context) =>
+      (values.length > 0 ? values : [undefined]).map((value) => ({
+        ...context,
+        [name]: value,
+      }))
+    ),
+    [{}],
+  );
+}
+
+function policyProjection(
+  role: ResolvedScenarioPolicy["role"],
+  reference: string,
+  processPackage: ProcessPackage,
+  result?: Record<string, unknown>,
+): ResolvedScenarioPolicy | undefined {
+  const definition = referenceDefinition(processPackage.policies, reference);
+  return definition
+    ? {
+        role,
+        reference,
+        definition: { id: definition.id, version: definition.version },
+        ...(result ? { result } : {}),
+      }
+    : undefined;
+}
+
+function requestedInputDiagnostics(
+  requestedInputs: RequestedInput[],
+  scenario: VersionedDefinition,
+  snapshot: LifecycleSnapshot,
+  invocationBindings: Record<string, unknown>[],
+): ProcessDiagnostic[] {
+  const prohibited = new Set(
+    array(scenario.prohibited_inputs).filter(
+      (value): value is string => typeof value === "string",
+    ),
+  );
+  const declared = new Set(
+    array(scenario.inputs).flatMap((value) => {
+      const name = string(object(value)?.name);
+      return name ? [name] : [];
+    }),
+  );
+  const diagnostics: ProcessDiagnostic[] = [];
+  for (const requested of requestedInputs) {
+    if (prohibited.has(requested.name)) {
+      diagnostics.push({
+        code: "prohibited-scenario-input",
+        path: requested.name,
+        message: `Scenario '${scenario.id}@${scenario.version}' prohibits input '${requested.name}'`,
+      });
+      continue;
+    }
+    if (!declared.has(requested.name)) {
+      diagnostics.push({
+        code: "scenario-input-undeclared",
+        path: requested.name,
+        message: `Scenario '${scenario.id}@${scenario.version}' does not declare input '${requested.name}'`,
+      });
+      continue;
+    }
+    const resolved = invocationBindings.flatMap((bindings) =>
+      boundValues(bindings[requested.name], snapshot).map(
+        (value) => value.identity.revision_id ?? value.identity.id,
+      ),
+    );
+    const supplied = requested.value.split(",").filter(Boolean).sort();
+    if (
+      JSON.stringify([...new Set(resolved)].sort()) !== JSON.stringify(supplied)
+    ) {
+      diagnostics.push({
+        code: "scenario-input-binding-mismatch",
+        path: requested.name,
+        message: `Supplied input '${requested.name}' does not match the exact package-resolved binding`,
+      });
+    }
+  }
+  return diagnostics;
+}
+
+export async function dryRunResolverScenario(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  scenarioReference: string,
+  obligationInstance: string,
+  requestedInputs: RequestedInput[],
+): Promise<ScenarioDryRunResult> {
+  const evaluation = evaluateLifecycle(processPackage, snapshot);
+  if (evaluation.diagnostics.length > 0) {
+    return { ok: false, diagnostics: evaluation.diagnostics };
+  }
+  const instance = evaluation.obligations.find(
+    (candidate) => candidate.id === obligationInstance,
+  );
+  if (!instance) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "unknown-obligation-instance",
+          path: obligationInstance,
+          message: `Unknown Obligation Instance '${obligationInstance}' in the named snapshot`,
+        },
+      ],
+    };
+  }
+  if (instance.eventualResolver !== scenarioReference) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "resolver-scenario-mismatch",
+          path: scenarioReference,
+          message: `Obligation Instance '${obligationInstance}' resolves with '${instance.eventualResolver}', not '${scenarioReference}'`,
+        },
+      ],
+    };
+  }
+  if (
+    !instance.dispatchable ||
+    instance.actionableResolver !== scenarioReference
+  ) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "obligation-not-dispatchable",
+          path: obligationInstance,
+          message: `Obligation Instance '${obligationInstance}' is not Dispatchable (status '${instance.status}', blockers ${instance.blockedBy.length}, unresolved bindings ${instance.unresolvedBindings.join(", ") || "none"})`,
+        },
+      ],
+    };
+  }
+  const scenario = referenceDefinition(
+    processPackage.scenarios,
+    scenarioReference,
+  );
+  const obligation = referenceDefinition(
+    processPackage.obligations,
+    obligationReference(instance),
+  );
+  if (!scenario || !obligation) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "resolver-definition-unavailable",
+          path: scenarioReference,
+          message: `Could not resolve exact definitions for '${scenarioReference}' and '${obligationReference(instance)}'`,
+        },
+      ],
+    };
+  }
+
+  let invocationBindings: Record<string, unknown>[];
+  try {
+    invocationBindings = resolverInvocationBindings(
+      processPackage,
+      snapshot,
+      obligation,
+      instance,
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "scenario-input-resolution-failed",
+          path: obligationInstance,
+          message: error instanceof Error ? error.message : String(error),
+        },
+      ],
+    };
+  }
+  const requestedDiagnostics = requestedInputDiagnostics(
+    requestedInputs,
+    scenario,
+    snapshot,
+    invocationBindings,
+  );
+  if (requestedDiagnostics.length > 0) {
+    return { ok: false, diagnostics: requestedDiagnostics };
+  }
+
+  const scenarioInputs = array(scenario.inputs)
+    .map(object)
+    .filter((value): value is RecordValue => value !== undefined);
+  const invocations: ScenarioDryRunInvocation[] = [];
+  const diagnostics: ProcessDiagnostic[] = [];
+  for (const bindings of invocationBindings) {
+    const inputs = scenarioInputs.map((input) => {
+      const name = string(input.name) ?? "";
+      const values = boundValues(bindings[name], snapshot);
+      return {
+        name,
+        contract: {
+          types: array(input.types)
+            .filter((value): value is string => typeof value === "string")
+            .sort(),
+          cardinality: string(input.cardinality) ?? "",
+          identity: string(input.identity) ?? "",
+        },
+        values,
+        checks: inputChecks(input, bindings[name], values),
+      };
+    });
+    for (const input of inputs) {
+      for (const check of input.checks) {
+        if (check.passed) continue;
+        diagnostics.push({
+          code: `scenario-input-${check.check}-invalid`,
+          path: `scenarios.${scenario.id}.inputs.${input.name}`,
+          message: `Scenario input '${input.name}' failed its ${check.check} contract check`,
+        });
+      }
+    }
+    invocations.push({ inputs });
+  }
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+
+  for (
+    let inputIndex = 0;
+    inputIndex < scenarioInputs.length;
+    inputIndex += 1
+  ) {
+    const input = scenarioInputs[inputIndex]!;
+    if (!isCompiledTextExpression(input.conditions)) continue;
+    const name = string(input.name) ?? "";
+    for (const invocation of invocations) {
+      const valuesByName = Object.fromEntries(
+        invocation.inputs.map((item) => [item.name, item.values]),
+      );
+      for (const context of bindingCombinations(valuesByName)) {
+        const conditionBindings = Object.fromEntries(
+          Object.entries(context).map(([bindingName, value]) => [
+            bindingName,
+            value?.identity.revision_id ?? value?.identity.id,
+          ]),
+        );
+        let passed = false;
+        try {
+          passed =
+            expressionValue(
+              processPackage,
+              snapshot,
+              `${scenarioReference}#inputs[${inputIndex}].conditions`,
+              conditionBindings,
+            ) === true;
+        } catch (error) {
+          return {
+            ok: false,
+            diagnostics: [
+              {
+                code: "scenario-input-condition-invalid",
+                path: `scenarios.${scenario.id}.inputs.${name}.conditions`,
+                message: error instanceof Error ? error.message : String(error),
+              },
+            ],
+          };
+        }
+        if (!passed) {
+          return {
+            ok: false,
+            diagnostics: [
+              {
+                code: "scenario-input-condition-failed",
+                path: `scenarios.${scenario.id}.inputs.${name}.conditions`,
+                message: `Scenario input '${name}' does not satisfy its package-authored condition`,
+              },
+            ],
+          };
+        }
+      }
+      invocation.inputs
+        .find((candidate) => candidate.name === name)
+        ?.checks.push({
+          check: "condition",
+          passed: true,
+          expected: input.conditions.source,
+          actual: true,
+        });
+    }
+  }
+
+  const promptReference = string(scenario.prompt_ref) ?? "";
+  const resolvedPrompt = await resolvePrompt(processPackage, promptReference);
+  if (!resolvedPrompt.prompt) {
+    return { ok: false, diagnostics: resolvedPrompt.diagnostics };
+  }
+  const promptFrontmatter = assetFrontmatter(resolvedPrompt.prompt.content);
+  if (promptFrontmatter?.scenario !== scenario.id) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "prompt-scenario-mismatch",
+          path: resolvedPrompt.prompt.path,
+          message: `Prompt '${promptReference}' does not declare Scenario '${scenario.id}'`,
+        },
+      ],
+    };
+  }
+  const reviewPolicyReference = string(scenario.review_policy_ref) ?? "";
+  const waiverPolicyReference = instance.waiver.policy;
+  const policies = [
+    policyProjection("review", reviewPolicyReference, processPackage),
+    policyProjection("waiver", waiverPolicyReference, processPackage, {
+      permitted: instance.waiver.result.permitted,
+      approval_required: instance.waiver.result.approvalRequired,
+      applicable: instance.waiver.result.applicable,
+      scope: instance.waiver.result.scope,
+    }),
+  ].filter((value): value is ResolvedScenarioPolicy => value !== undefined);
+  if (policies.length !== 2) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "scenario-policy-unavailable",
+          path: scenarioReference,
+          message: `Could not resolve exact review and waiver Policies for '${scenarioReference}'`,
+        },
+      ],
+    };
+  }
+  const completion = scenario.completion;
+  if (!isCompiledTextExpression(completion)) {
+    return {
+      ok: false,
+      diagnostics: [
+        {
+          code: "scenario-completion-unavailable",
+          path: `${scenarioReference}#completion`,
+          message: `Scenario '${scenarioReference}' has no compiled completion expression`,
+        },
+      ],
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      executable: true,
+      sideEffectFree: true,
+      definition: {
+        obligation: `${obligation.id}@${obligation.version}`,
+        scenario: scenarioReference,
+      },
+      obligation: {
+        instance: instance.id,
+        subject: instance.subject,
+        status: instance.status,
+        dispatchable: true,
+      },
+      invocations,
+      prompt: resolvedPrompt.prompt,
+      policies,
+      prohibitedInputs: array(scenario.prohibited_inputs)
+        .filter((value): value is string => typeof value === "string")
+        .sort(),
+      expectedOutputs: instance.resolver.expectedOutputs,
+      completion: {
+        expression: completion.source,
+        status: "pending-output",
+        genericChecks: [
+          "declared-output-cardinality",
+          "no-undeclared-outputs",
+          "output-schema-validity",
+          "source-owned-required-links",
+        ],
+      },
+    },
+    diagnostics: [],
+  };
+}

@@ -71,6 +71,10 @@ import {
   type StoredDatum,
 } from "./lifecycle-repository.js";
 import {
+  dryRunResolverScenario,
+  type ScenarioDryRun,
+} from "./scenario-dry-run.js";
+import {
   scaffoldProcessDefinition,
   scaffoldProcessFixture,
   scaffoldProcessPackage,
@@ -141,6 +145,7 @@ interface CommandResult {
   baselineVerification?: BaselineVerification;
   baselineDiff?: BaselineDiff;
   baselineRepositoryVerification?: BaselineRepositoryVerification;
+  scenarioDryRun?: ScenarioDryRun;
   backlinks?: BacklinkInspection;
   trace?: GraphTrace;
   index?: RepositoryIndexSummary;
@@ -1566,6 +1571,82 @@ async function showNextWork(
   };
 }
 
+async function dryRunScenario(
+  repositoryRoot: string,
+  scenarioReference: string,
+  obligationInstance: string | undefined,
+  snapshotPath: string | undefined,
+  inputArguments: string[],
+): Promise<CommandResult> {
+  const selected = await selectedPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "scenario.dry-run",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  if (!snapshotPath) {
+    return {
+      ...failure(
+        "snapshot-required",
+        "scenario.dry-run requires '--snapshot <fixture>'",
+      ),
+      command: "scenario.dry-run",
+    };
+  }
+  if (!obligationInstance) {
+    return {
+      ...failure(
+        "obligation-instance-required",
+        "scenario.dry-run requires '--obligation <exact-instance>'",
+      ),
+      command: "scenario.dry-run",
+    };
+  }
+  const requestedInputs = inputArguments.flatMap((argument) => {
+    const separator = argument.indexOf("=");
+    return separator > 0
+      ? [{ name: argument.slice(0, separator), value: argument.slice(separator + 1) }]
+      : [];
+  });
+  if (requestedInputs.length !== inputArguments.length) {
+    return {
+      ...failure(
+        "invalid-scenario-input",
+        "Scenario input assertions require '--input <name>=<value>'",
+      ),
+      command: "scenario.dry-run",
+    };
+  }
+  const snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
+  const dryRun = await dryRunResolverScenario(
+    selected.processPackage,
+    snapshot,
+    scenarioReference,
+    obligationInstance,
+    requestedInputs,
+  );
+  if (!dryRun.ok) {
+    return {
+      ok: false,
+      command: "scenario.dry-run",
+      package: selected.summary,
+      selected: true,
+      diagnostics: dryRun.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "scenario.dry-run",
+    package: selected.summary,
+    selected: true,
+    scenarioDryRun: dryRun.value,
+    diagnostics: [],
+  };
+}
+
 async function evaluateSelectedExpression(
   repositoryRoot: string,
   target: string,
@@ -1786,6 +1867,34 @@ function humanOutput(result: CommandResult): string {
       `Composition: ${result.baselineVerification.composition.join(", ") || "none"}`,
       `Checked Hashes: ${result.baselineVerification.checkedHashes}`,
       `Checked Resolutions: ${result.baselineVerification.checkedResolutions}`,
+    ].join("\n");
+  }
+  if (result.scenarioDryRun) {
+    const dryRun = result.scenarioDryRun;
+    return [
+      `Scenario Dry Run: ${dryRun.definition.scenario} [executable]`,
+      `Obligation: ${dryRun.obligation.instance}`,
+      `Obligation Definition: ${dryRun.definition.obligation}`,
+      `Status: ${dryRun.obligation.status}`,
+      `Dispatchable: ${dryRun.obligation.dispatchable}`,
+      ...dryRun.invocations.flatMap((invocation, index) => [
+        `Invocation: ${index + 1}`,
+        ...invocation.inputs.map((input) =>
+          `Input ${input.name}: ${input.values.map((value) => value.identity.revision_id ?? value.identity.id).join(", ") || "none"}`
+        ),
+      ]),
+      `Prompt: ${dryRun.prompt.reference}`,
+      ...dryRun.prompt.skills.map((skill) => `Skill: ${skill.reference}`),
+      ...dryRun.policies.map((policy) =>
+        `Policy [${policy.role}]: ${policy.reference}`
+      ),
+      `Prohibited Inputs: ${dryRun.prohibitedInputs.join(", ") || "none"}`,
+      ...dryRun.expectedOutputs.map((output) =>
+        `Expected Output ${output.name}: ${output.types.join("|")} (${output.cardinality})`
+      ),
+      `Completion: ${dryRun.completion.status}`,
+      `Completion Expression: ${dryRun.completion.expression}`,
+      `Side Effect Free: ${dryRun.sideEffectFree}`,
     ].join("\n");
   }
   if (result.baselineDiff) {
@@ -2137,6 +2246,17 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       repositoryRoot,
       optionValue(arguments_, "--snapshot"),
       optionValue(arguments_, "--phase"),
+    );
+  }
+  if (
+    operands[0] === "scenario" && operands[1] === "dry-run" && operands[2]
+  ) {
+    return dryRunScenario(
+      repositoryRoot,
+      operands[2],
+      optionValue(arguments_, "--obligation"),
+      optionValue(arguments_, "--snapshot"),
+      optionValues(arguments_, "--input"),
     );
   }
   if (operands[0] !== "process") {

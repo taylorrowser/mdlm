@@ -132,7 +132,7 @@ outgoing_links:
       - kind: datum
         types: [PSP]
         identity: stable
-    cardinality: {minimum: 1, maximum: 1}
+    cardinality: { minimum: 1, maximum: 1 }
     freeze_resolution: exact-revision
     inverse_label: derives
 ```
@@ -258,7 +258,7 @@ functions.
 Both comparison operands are values, so process drift is declared directly:
 
 ```yaml
-when: 'subject.provenance.process_ref != process.current_ref'
+when: "subject.provenance.process_ref != process.current_ref"
 ```
 
 The kernel does not need a special `process.drift` fact.
@@ -270,7 +270,7 @@ Selectors are named, reusable queries with typed parameters:
 ```yaml
 id: passing-reviews-for
 parameters:
-  - {name: subject, kind: revision}
+  - { name: subject, kind: revision }
 query:
   from:
     relation: incoming-links
@@ -300,8 +300,8 @@ a result schema, a default result, and expression-based rules.
 ```yaml
 id: review-applicability
 parameters:
-  - {name: subject, kind: revision}
-default: {required: false, rubric_ref: null}
+  - { name: subject, kind: revision }
+default: { required: false, rubric_ref: null }
 rules:
   - priority: 300
     when: 'subject.identity.type in ["PSP", "STK", "SYS"]'
@@ -400,6 +400,19 @@ process-specific conditions but should not duplicate those generic checks.
 
 Prompts choose and order skills. Execution provenance records the exact prompt,
 skills, policies, process reference, and inputs actually used.
+
+`req scenario dry-run <scenario@version> --obligation <exact-instance>
+--snapshot <fixture>` starts from one evaluated Obligation Instance rather than a
+resolver name alone. Only an instance already marked Dispatchable for that exact
+Scenario can produce an executable projection. The command resolves package-
+authored bindings against the named snapshot; validates runtime resolution,
+cardinality, identity, type, optional input conditions, prohibited caller inputs,
+and exact prompt/skill assets; and returns versioned Obligation, Scenario, prompt,
+review Policy, and waiver Policy provenance. Expected outputs retain cardinality,
+types, and required links. Generic output checks and the package completion
+expression remain explicitly pending until an adapter supplies outputs. Dry-run
+reads the selected immutable package and explicit snapshot but invokes no adapter
+and writes no Lifecycle Data or generated projection.
 
 ## 12. Phases and gates
 

@@ -29,8 +29,9 @@ types, states, obligations, scenarios, and phases.
   diagnoses competing editable drafts, validates atomic source-owned link
   mutations, computes backlinks and identity-preserving graph traces, reads
   durable content and lineage with computed projections, compares exact baselines
-  through their capability binding, and rebuilds disposable indexes and reports
-  from Markdown truth.
+  through their capability binding, rebuilds disposable indexes and reports from
+  Markdown truth, and dry-runs only Dispatchable Resolver Scenarios with exact
+  bindings, prompts, skills, Policies, output contracts, and completion checks.
 
 ## Try it
 
@@ -59,6 +60,9 @@ node ../dist/req.js baseline freeze BSL-0123456789
 node ../dist/req.js baseline verify BSL-0123456789
 node ../dist/req.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
 node ../dist/req.js doctor
+node ../dist/req.js scenario dry-run create-review-context@1 \
+  --obligation 'review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype' \
+  --snapshot ../examples/psp-to-sys-snapshot.yaml
 ```
 
 `npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
@@ -78,5 +82,6 @@ This is not yet the complete durable repository kernel or `req` CLI. Markdown
 creation, revision lineage, local single-draft protection, source-owned link
 mutation, graph inspection, capability-bound exact-baseline freezing and
 verification and diffing, source-backed reads, integrity-aware repository
-inspection, and disposable index/report rebuilding are implemented; additional
-concurrency profiles and full lifecycle breadth remain deferred.
+inspection, disposable index/report rebuilding, and side-effect-free Resolver
+Scenario dry-runs are implemented; adapter invocation, additional concurrency
+profiles, and full lifecycle breadth remain deferred.

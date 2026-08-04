@@ -421,7 +421,10 @@ class LifecycleEvaluator {
     const resolvedBindings = Object.fromEntries(
       Object.entries(suppliedBindings).map(([name, value]) => [
         name,
-        this.resolveSuppliedValue(value),
+        this.resolveSuppliedValue(
+          value,
+          expression.contract?.bindings[name]?.domainKind === "stable-datum",
+        ),
       ]),
     );
     for (const name of availableBindings) {
@@ -949,19 +952,25 @@ class LifecycleEvaluator {
     }
   }
 
-  private resolveSuppliedValue(value: unknown): unknown {
-    if (typeof value === "string" && this.byRevision.has(value)) {
-      return this.byRevision.get(value);
+  private resolveSuppliedValue(
+    value: unknown,
+    permitStableIdentity = false,
+  ): unknown {
+    if (typeof value === "string") {
+      if (this.byRevision.has(value)) return this.byRevision.get(value);
+      return permitStableIdentity ? this.entityForReference(value) ?? value : value;
     }
     if (Array.isArray(value)) {
-      return value.map((item) => this.resolveSuppliedValue(item));
+      return value.map((item) =>
+        this.resolveSuppliedValue(item, permitStableIdentity)
+      );
     }
     const asObject = object(value);
     return asObject
       ? Object.fromEntries(
           Object.entries(asObject).map(([key, item]) => [
             key,
-            this.resolveSuppliedValue(item),
+            this.resolveSuppliedValue(item, permitStableIdentity),
           ]),
         )
       : value;

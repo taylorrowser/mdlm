@@ -726,6 +726,7 @@ turning provisional choices into architecture.
 - **Evidence/observations:** Executable tests cover ready and blocked Loose Ends, a
   reviewed complete exact gate, an exact reviewed waiver, no-work next selection,
   and equivalent human and structured preservation of independent dimensions.
+
 ## D-034 — Scaffold Process Packages without implicit example inheritance
 
 - **Status:** accepted and implemented
@@ -764,6 +765,7 @@ turning provisional choices into architecture.
   empty package, derive and validate a renamed bootstrap copy, scaffold all ten
   accepted authored definition kinds, generate and pass an evaluation fixture,
   and detect a deliberately changed expected result.
+
 ## D-035 — Keep Markdown authoritative across the first durable repository slice
 
 - **Status:** accepted and implemented
@@ -1012,3 +1014,48 @@ turning provisional choices into architecture.
   output, reproduce identical durable `show` results, rebuild index and report, detect a
   changed frozen byte without modifying either projection, and reject a repository
   descriptor compatibility mismatch.
+
+## D-040 — Dry-run from an exact Dispatchable Obligation Instance
+
+- **Status:** accepted and implemented
+- **Decision:** `req scenario dry-run <scenario@version> --obligation
+<exact-instance> --snapshot <fixture>` treats the evaluated Obligation Instance
+  as the authority for dispatch. The command reuses compiled package expressions
+  to resolve each direct or selector-dispatched Resolver binding against the named
+  snapshot, applies runtime input contract and package-authored condition checks,
+  resolves exact prompt and ordered skill bytes from the selected package, and
+  projects the Scenario's review Policy, the Obligation's waiver Policy, prohibited
+  inputs, expected outputs, generic output checks, and completion expression. It
+  never invokes an adapter and performs no write.
+- **Alternatives:** Dry-run an arbitrary Scenario from its resolver name alone,
+  trust caller-supplied inputs over Obligation bindings, duplicate expression
+  interpretation in the CLI, defer missing or prohibited input checks until an
+  adapter runs, read mutable prompts outside the selected package, infer execution
+  from an eventual resolver, or persist dry-run records as Lifecycle Data.
+- **Rationale:** Dispatchability is an exact package-derived authorization attached
+  to one Obligation Instance, while a Scenario definition is only an eventual
+  contract. Re-evaluating the compiled binding fields preserves the same closed
+  expression host and explicit snapshot semantics used by lifecycle evaluation.
+  Resolving content-addressed package assets before the future adapter boundary
+  makes an orchestrator's proposed invocation inspectable without granting the
+  declarative package executable privileges.
+- **Expected behavior:** A ready, unblocked instance with resolved bindings and a
+  matching actionable Scenario produces deterministic human and JSON dry-run
+  output containing exact package digest, Obligation and Scenario versions, exact
+  bound identities, all input checks, prompt and skill versions and hashes, review
+  and waiver Policy versions, prohibited inputs, expected output contracts, and
+  pending completion checks. Unknown, blocked, unresolved, mismatched,
+  prohibited, ill-typed, wrong-cardinality, wrong-identity, or condition-failing
+  inputs produce typed diagnostics before any adapter boundary. Repeating a
+  dry-run leaves every repository byte unchanged.
+- **Reversibility:** A later execution adapter can consume this projection, add
+  environment and adapter provenance, validate concrete outputs, evaluate
+  completion, and atomically publish an execution record. Those additions must not
+  weaken exact Obligation authorization, package-resolved bindings, pre-adapter
+  validation, or side-effect-free dry-run behavior.
+- **Evidence/observations:** Executable tests invoke only the public `req` seam.
+  They dry-run a bootstrap review-context resolver, inspect exact bindings,
+  contracts, content hashes, versions, and human output, compare repository tree
+  hashes before and after, reject a blocked instance with a missing binding,
+  reject a mismatched resolver and prohibited caller input, and use a modified
+  declarative input condition to prove invalid data fails without mutation.
