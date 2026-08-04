@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
   evaluateLifecycle,
+  resolveType,
   type DatumEnvelope,
   type LifecycleRecord,
   type LifecycleSnapshot,
@@ -339,10 +340,12 @@ function requiredLinkDiagnostics(
       const required = object(requiredValue);
       const target = object(required?.target);
       const linkType = typeof required?.link === "string" ? required.link : "";
-      const outputType = processPackage.types[output.datum.type];
-      const linkContract = array(outputType?.outgoing_links)
-        .map(object)
-        .find((candidate) => candidate?.id === linkType);
+      const resolvedOutputType = resolveType(processPackage, output.datum.type);
+      const linkContract = resolvedOutputType.ok
+        ? resolvedOutputType.type.outgoingLinks
+          .map(object)
+          .find((candidate) => candidate?.id === linkType)
+        : undefined;
       const linkTargets = array(linkContract?.targets).map(object);
       const requiredIdentity = (type: string): unknown =>
         linkTargets.find((candidate) =>
