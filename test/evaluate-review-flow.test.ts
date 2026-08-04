@@ -6,14 +6,7 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
-
-const validIntegrity = {
-  parseable: true,
-  schema_valid: true,
-  identity_valid: true,
-  references_valid: true,
-  hash_valid: true,
-};
+import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
 function record(
   type: string,
@@ -25,26 +18,20 @@ function record(
     scenario?: string;
   } = {},
 ): LifecycleRecord {
-  return {
-    datum: {
-      id,
-      revision: 1,
-      revision_id: `${id}-r00001`,
-      type,
-      payload,
-      links: options.links ?? [],
-      created_by: {
-        scenario: options.scenario ?? "compile-psp@1",
-        prompt_ref: "prompts/compile-psp.md@1",
-        process_ref: "git:current",
-        loaded_skill_refs: [],
-        policy_refs: ["review-applicability@1"],
-      },
-      body: "",
+  return lifecycleRecord(type, id, payload, {
+    ...(options.links ? { links: options.links } : {}),
+    createdBy: {
+      scenario: options.scenario ?? "compile-psp@1",
+      prompt_ref: "prompts/compile-psp.md@1",
+      process_ref: "git:current",
+      loaded_skill_refs: [],
+      policy_refs: ["review-applicability@1"],
     },
-    storage: { editable: !options.frozen, frozen: options.frozen ?? false },
-    integrity: validIntegrity,
-  };
+    storage: {
+      editable: !options.frozen,
+      frozen: options.frozen ?? false,
+    },
+  });
 }
 
 describe("evaluateLifecycle review flow", () => {

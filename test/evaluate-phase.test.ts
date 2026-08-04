@@ -7,6 +7,7 @@ import {
   type LifecycleSnapshot,
   type ProcessPackage,
 } from "../src/index.js";
+import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
 function record(
@@ -20,33 +21,18 @@ function record(
     revision?: number;
   } = {},
 ): LifecycleRecord {
-  const revision = options.revision ?? 1;
-  return {
-    datum: {
-      id,
-      revision,
-      revision_id: `${id}-r${String(revision).padStart(5, "0")}`,
-      type,
-      payload,
-      links: options.links ?? [],
-      created_by: {
-        process_ref: "git:phase-gate",
-        ...(options.scenario ? { scenario: options.scenario } : {}),
-      },
-      body: "",
+  return lifecycleRecord(type, id, payload, {
+    ...(options.revision ? { revision: options.revision } : {}),
+    ...(options.links ? { links: options.links } : {}),
+    createdBy: {
+      process_ref: "git:phase-gate",
+      ...(options.scenario ? { scenario: options.scenario } : {}),
     },
     storage: {
       editable: options.frozen === false,
       frozen: options.frozen !== false,
     },
-    integrity: {
-      parseable: true,
-      schema_valid: true,
-      identity_valid: true,
-      references_valid: true,
-      hash_valid: true,
-    },
-  };
+  });
 }
 
 function candidate(id: string, scope: string): LifecycleRecord {
