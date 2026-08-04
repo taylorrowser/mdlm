@@ -44,7 +44,7 @@ async function processPackageWithStateCycle(): Promise<string> {
   await fs.writeFile(
     validityPath,
     validity.replace(
-      "    when: 'exists(\"staleness-relevant-dependency-changes-for@1\", {subject: subject})'",
+      "    when: 'policy(\"dependency-reassessment@1\", {subject: subject}).required == true'",
       "    when: 'state(subject, \"relationship-overlays\") == []'",
     ),
   );

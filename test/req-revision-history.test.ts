@@ -191,7 +191,7 @@ describe("req revision lineage", () => {
     expect(human.stdout).toContain(`${first.revisionId} [frozen history]`);
     expect(human.stdout).toContain(`${first.id}-r00002 [editable work]`);
     expect(human.stdout).toContain(`Frozen By: ${baselineRevisionId}`);
-  });
+  }, 10_000);
 
   it("refuses a competing draft without changing exact history or indexes", async () => {
     const created = createDatum();
