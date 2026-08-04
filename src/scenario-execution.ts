@@ -15,7 +15,7 @@ import { evaluateProcessExpression } from "./evaluator.js";
 import {
   deriveDatumStorage,
   publishScenarioMutation,
-  readRepositoryData,
+  repositoryLifecycleSnapshot,
 } from "./lifecycle-repository.js";
 import {
   dryRunResolverScenario,
@@ -415,8 +415,6 @@ export async function executeResolverScenario(
   requestedInputs: { name: string; value: string }[],
   adapterExecutable: string,
 ): Promise<ScenarioExecutionResult> {
-  const loaded = await readRepositoryData(repositoryRoot, processPackage);
-  if (!loaded.ok) return loaded;
   const selectedScenario = versionedDefinition(
     processPackage.scenarios,
     scenarioReference,
@@ -434,12 +432,14 @@ export async function executeResolverScenario(
       }],
     };
   }
-  const snapshot: LifecycleSnapshot = {
-    processRef: `${packageIdentity.reference}#${packageIdentity.digest}`,
+  const loaded = await repositoryLifecycleSnapshot(
+    repositoryRoot,
+    processPackage,
+    `${packageIdentity.reference}#${packageIdentity.digest}`,
     phaseId,
-    dependencyComparisons: [],
-    records: loaded.value.map((item) => item.lifecycleDatum),
-  };
+  );
+  if (!loaded.ok) return loaded;
+  const snapshot = loaded.value;
   const dryRunResult = await dryRunResolverScenario(
     processPackage,
     snapshot,

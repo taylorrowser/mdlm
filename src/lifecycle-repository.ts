@@ -14,6 +14,7 @@ import {
   resolveType,
   type DatumEnvelope,
   type LifecycleRecord,
+  type LifecycleSnapshot,
   type ObligationEvaluation,
   type ProcessDiagnostic,
   type ProcessPackage,
@@ -572,6 +573,27 @@ export async function readRepositoryData(
   return diagnostics.length > 0
     ? { ok: false, diagnostics }
     : { ok: true, value: parsed, diagnostics: [] };
+}
+
+export async function repositoryLifecycleSnapshot(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  phaseId: string,
+): Promise<RepositoryResult<LifecycleSnapshot>> {
+  const loaded = await readRepositoryData(root, processPackage);
+  return loaded.ok
+    ? {
+        ok: true,
+        value: {
+          processRef,
+          phaseId,
+          records: loaded.value.map((item) => item.lifecycleDatum),
+          dependencyComparisons: [],
+        },
+        diagnostics: [],
+      }
+    : loaded;
 }
 
 function setPayloadValue(

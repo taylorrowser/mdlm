@@ -56,7 +56,7 @@ import {
   mutateDatumLink,
   rebuildRepositoryIndex,
   rebuildRepositoryReport,
-  readRepositoryData,
+  repositoryLifecycleSnapshot,
   reviseDatum,
   showDatum,
   traceGraph,
@@ -1485,11 +1485,13 @@ async function selectedLifecycleEvaluation(
   if (snapshotPath) {
     snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
   } else if (phaseId) {
-    const repositoryData = await readRepositoryData(
+    const repositorySnapshot = await repositoryLifecycleSnapshot(
       repositoryRoot,
       resolved.processPackage,
+      `${resolved.summary.reference}#${resolved.summary.digest}`,
+      phaseId,
     );
-    if (!repositoryData.ok) {
+    if (!repositorySnapshot.ok) {
       return {
         ok: false,
         result: {
@@ -1497,16 +1499,11 @@ async function selectedLifecycleEvaluation(
           command,
           package: resolved.summary,
           selected: true,
-          diagnostics: repositoryData.diagnostics,
+          diagnostics: repositorySnapshot.diagnostics,
         },
       };
     }
-    snapshot = {
-      processRef: `${resolved.summary.reference}#${resolved.summary.digest}`,
-      phaseId,
-      records: repositoryData.value.map((item) => item.lifecycleDatum),
-      dependencyComparisons: [],
-    };
+    snapshot = repositorySnapshot.value;
   } else {
     return {
       ok: false,
