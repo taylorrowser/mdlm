@@ -36,6 +36,15 @@ import {
   humanPhaseStatus,
 } from "./lifecycle-output.js";
 import {
+  createExactBaseline,
+  freezeExactBaseline,
+  mutateExactBaseline,
+  verifyExactBaseline,
+  type BaselineFreeze,
+  type BaselineMutation,
+  type BaselineVerification,
+} from "./exact-baseline-repository.js";
+import {
   createDatum,
   datumHistory,
   inspectBacklinks,
@@ -121,6 +130,9 @@ interface CommandResult {
   data?: ListedDatum[];
   history?: DatumHistory;
   linkMutation?: LinkMutation;
+  baselineMutation?: BaselineMutation;
+  baselineFreeze?: BaselineFreeze;
+  baselineVerification?: BaselineVerification;
   backlinks?: BacklinkInspection;
   trace?: GraphTrace;
   index?: RepositoryIndexSummary;
@@ -557,6 +569,197 @@ async function newDatum(
     command: "new",
     package: selected.summary,
     created: created.value,
+    diagnostics: [],
+  };
+}
+
+function unavailableExactBaseline(command: string): CommandResult {
+  return {
+    ...failure(
+      "kernel-capability-unavailable",
+      "Selected Process Package does not bind Kernel Capability exact-baseline@1",
+      "exact-baseline@1",
+    ),
+    command,
+  };
+}
+
+async function newBaseline(
+  repositoryRoot: string,
+  arguments_: string[],
+): Promise<CommandResult> {
+  const command = "baseline.create";
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command,
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  if (!selected.processPackage.kernelCapabilities["exact-baseline@1"]) {
+    return unavailableExactBaseline(command);
+  }
+  const type = optionValue(arguments_, "--type");
+  if (!type) {
+    return {
+      ...failure("baseline-type-required", "Baseline creation requires '--type <bound-type>'"),
+      command,
+    };
+  }
+  const fields = assignments(arguments_, "--set");
+  if (!("values" in fields)) return { ...fields, command };
+  const created = await createExactBaseline(
+    repositoryRoot,
+    selected.processPackage,
+    selected.summary.reference,
+    selected.summary.digest,
+    type,
+    optionValue(arguments_, "--scenario"),
+    fields.values,
+    optionValue(arguments_, "--body") ?? "",
+  );
+  if (!created.ok) {
+    return {
+      ok: false,
+      command,
+      package: selected.summary,
+      selected: true,
+      diagnostics: created.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command,
+    package: selected.summary,
+    created: created.value,
+    diagnostics: [],
+  };
+}
+
+async function mutateBaseline(
+  repositoryRoot: string,
+  command: "baseline.add" | "baseline.remove" | "baseline.evidence.add" |
+    "baseline.evidence.remove" | "baseline.compose",
+  baselineIdentity: string,
+  targetRevision: string,
+): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command,
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const section = command === "baseline.compose"
+    ? "composition" as const
+    : command.startsWith("baseline.evidence")
+    ? "evidence" as const
+    : "definition_members" as const;
+  const operation = command.endsWith(".remove") || command === "baseline.remove"
+    ? "removed" as const
+    : "added" as const;
+  const mutated = await mutateExactBaseline(
+    repositoryRoot,
+    selected.processPackage,
+    baselineIdentity,
+    targetRevision,
+    section,
+    operation,
+  );
+  if (!mutated.ok) {
+    return {
+      ok: false,
+      command,
+      package: selected.summary,
+      selected: true,
+      diagnostics: mutated.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command,
+    package: selected.summary,
+    baselineMutation: mutated.value,
+    diagnostics: [],
+  };
+}
+
+async function freezeBaseline(
+  repositoryRoot: string,
+  baselineIdentity: string,
+): Promise<CommandResult> {
+  const command = "baseline.freeze";
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command,
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const frozen = await freezeExactBaseline(
+    repositoryRoot,
+    selected.processPackage,
+    `${selected.summary.reference}#${selected.summary.digest}`,
+    baselineIdentity,
+  );
+  if (!frozen.ok) {
+    return {
+      ok: false,
+      command,
+      package: selected.summary,
+      selected: true,
+      diagnostics: frozen.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command,
+    package: selected.summary,
+    baselineFreeze: frozen.value,
+    diagnostics: [],
+  };
+}
+
+async function verifyBaseline(
+  repositoryRoot: string,
+  baselineIdentity: string,
+): Promise<CommandResult> {
+  const command = "baseline.verify";
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command,
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const verified = await verifyExactBaseline(
+    repositoryRoot,
+    selected.processPackage,
+    `${selected.summary.reference}#${selected.summary.digest}`,
+    baselineIdentity,
+  );
+  if (!verified.ok) {
+    return {
+      ok: false,
+      command,
+      package: selected.summary,
+      selected: true,
+      diagnostics: verified.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command,
+    package: selected.summary,
+    baselineVerification: verified.value,
     diagnostics: [],
   };
 }
@@ -1472,6 +1675,34 @@ function humanOutput(result: CommandResult): string {
       `Target: ${result.linkMutation.target}`,
     ].join("\n");
   }
+  if (result.baselineMutation) {
+    return [
+      `Baseline Mutation: ${result.baselineMutation.operation}`,
+      `Baseline Revision: ${result.baselineMutation.baselineRevision}`,
+      `Target: ${result.baselineMutation.target}`,
+    ].join("\n");
+  }
+  if (result.baselineFreeze) {
+    return [
+      `Frozen Baseline: ${result.baselineFreeze.baselineRevision}`,
+      `Frozen At: ${result.baselineFreeze.frozenAt}`,
+      `Definition Members: ${result.baselineFreeze.definitionMembers.join(", ") || "none"}`,
+      `Evidence: ${result.baselineFreeze.evidence.join(", ") || "none"}`,
+      `Composition: ${result.baselineFreeze.composition.join(", ") || "none"}`,
+      `Hashes: ${result.baselineFreeze.hashes}`,
+      `Process: ${result.baselineFreeze.processRef}`,
+    ].join("\n");
+  }
+  if (result.baselineVerification) {
+    return [
+      `Baseline Verification: ${result.baselineVerification.baselineRevision} [valid]`,
+      `Definition Members: ${result.baselineVerification.definitionMembers.join(", ") || "none"}`,
+      `Evidence: ${result.baselineVerification.evidence.join(", ") || "none"}`,
+      `Composition: ${result.baselineVerification.composition.join(", ") || "none"}`,
+      `Checked Hashes: ${result.baselineVerification.checkedHashes}`,
+      `Checked Resolutions: ${result.baselineVerification.checkedResolutions}`,
+    ].join("\n");
+  }
   if (result.backlinks) {
     return [
       `Backlinks: ${result.backlinks.identity} [${result.backlinks.identityKind.replace("-", " ")}]`,
@@ -1689,6 +1920,54 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
   }
   if (operands[0] === "revise" && operands[1]) {
     return reviseStoredDatum(repositoryRoot, operands[1], arguments_);
+  }
+  if (operands[0] === "baseline" && operands[1] === "create") {
+    return newBaseline(repositoryRoot, arguments_);
+  }
+  if (
+    operands[0] === "baseline" &&
+    (operands[1] === "add" || operands[1] === "remove") &&
+    operands[2] && operands[3]
+  ) {
+    return mutateBaseline(
+      repositoryRoot,
+      `baseline.${operands[1]}`,
+      operands[2],
+      operands[3],
+    );
+  }
+  if (
+    operands[0] === "baseline" && operands[1] === "evidence" &&
+    (operands[2] === "add" || operands[2] === "remove") &&
+    operands[3] && operands[4]
+  ) {
+    return mutateBaseline(
+      repositoryRoot,
+      `baseline.evidence.${operands[2]}`,
+      operands[3],
+      operands[4],
+    );
+  }
+  if (
+    operands[0] === "baseline" && operands[1] === "compose" &&
+    operands[2] && operands[3]
+  ) {
+    return mutateBaseline(
+      repositoryRoot,
+      "baseline.compose",
+      operands[2],
+      operands[3],
+    );
+  }
+  if (
+    operands[0] === "baseline" && operands[1] === "freeze" && operands[2]
+  ) {
+    return freezeBaseline(repositoryRoot, operands[2]);
+  }
+  if (
+    operands[0] === "baseline" && operands[1] === "verify" && operands[2]
+  ) {
+    return verifyBaseline(repositoryRoot, operands[2]);
   }
   if (
     (operands[0] === "link" || operands[0] === "unlink") &&

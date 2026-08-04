@@ -526,6 +526,35 @@ Datum root uses its exact Revisions as zero-loss edge sources while the result
 keeps Stable Datum, exact Revision, and exact Obligation Instance identities
 explicit and separate.
 
+When the selected package binds `exact-baseline@1`, `req baseline create --type
+<bound-type>` creates that package-defined type with empty kernel-owned
+`definition_members` and `evidence` sections while accepting ordinary authored
+payload fields and Scenario provenance. `req baseline add|remove` changes exact
+definition membership; `req baseline evidence add|remove` changes exact
+supporting evidence; and `req baseline compose` records an exact `composes` edge
+to an already-frozen Revision of the bound type. The sections remain independent
+and each complete post-mutation Datum is schema- and reference-validated before
+one staged replacement is published.
+
+`req baseline freeze <baseline>` refuses missing references, invalid or cyclic
+composition, and non-frozen component baselines. It resolves every authored link
+on the baseline, its definition members, evidence, and composed baselines to an
+exact target; hashes exact file bytes for all referenced Revisions; records the
+exact selected package digest, manifest hash, envelope/catalog references, type
+versions, and authored creation provenance; and writes only the kernel-managed
+`snapshot`. The snapshot-bearing baseline, definition members, and evidence then
+project as frozen and reject repository mutation. A later Revision of a Stable
+link target does not invalidate the historical freeze-time resolution.
+
+`req baseline verify <baseline>` recomputes referenced exact-file hashes, checks
+that every exact member, evidence, composition, and stored link resolution still
+exists, validates frozen capability-bound composition and cycles, and verifies
+snapshot provenance against the exact selected package. Changed bytes, missing
+references, invalid composition, resolution corruption, and provenance mismatch
+return typed diagnostics. Packages without a compatible binding receive
+`kernel-capability-unavailable`; the executable does not recognize a lifecycle
+type ID as a baseline.
+
 `req show` and `req list` scan Markdown truth and add package-derived states,
 Obligation Instances, backlinks, and bound Kernel Capabilities. `req doctor`
 validates that same source and atomically rebuilds a deterministic disposable

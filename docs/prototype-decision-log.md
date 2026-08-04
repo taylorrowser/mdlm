@@ -897,3 +897,59 @@ turning provisional choices into architecture.
   relationships, malformed and missing identities, wrong Stable-versus-exact
   identity, wrong datum type, wrong target kind, maximum and minimum cardinality,
   and a frozen source; every failure preserves all Markdown and index bytes.
+
+## D-038 — Freeze exact snapshots through the selected capability binding
+
+- **Status:** accepted and implemented
+- **Decision:** Baseline repository commands exist only when the selected Process
+  Package binds `exact-baseline@1`. They discover the bound lifecycle type from
+  that binding. Creation initializes only the capability's kernel-managed
+  membership/evidence fields; authored fields and Scenario provenance still come
+  from the package. Definition membership, supporting evidence, and exact
+  `composes` links are mutated independently on one editable exact baseline
+  Revision. Freeze validates all exact references and frozen composition, rejects
+  cycles and self-reference, resolves authored links, hashes referenced files by
+  exact bytes, captures exact process/manifest/schema/asset provenance, and
+  publishes only a complete kernel-managed snapshot. Verification treats stored
+  Stable-link resolutions as historical exact claims: it checks that each remains
+  a Revision of the authored Stable Datum rather than incorrectly resolving the
+  Stable Datum again against current work.
+- **Alternatives:** Recognize the bundled baseline type ID, persist hashes beside
+  member files, merge evidence into definition membership, represent composition
+  as membership, resolve Stable targets again during verification, hash parsed
+  semantic content rather than exact bytes, trust generated indexes, populate
+  package-authored role/currentness fields during freeze, or expose commands when
+  no package selects the capability.
+- **Rationale:** The capability is a fixed integrity service, not lifecycle
+  vocabulary. Exact-file hashes make byte changes observable; exact resolved
+  targets preserve what a historical claim meant even after a later Revision is
+  authored. A single durable snapshot keeps integrity claims on the exact
+  baseline making them. Keeping authored payload and process conclusions outside
+  freeze preserves the kernel/package boundary. Source-backed validation and a
+  staged replacement keep disposable indexes out of transaction correctness.
+- **Expected behavior:** A differently named bound type can be created, populated
+  with exact definition and evidence references, composed from frozen exact bound
+  baselines, frozen, and verified. Freeze records deterministic sorted hashes,
+  resolutions, and provenance while leaving authored fields untouched. The
+  snapshot-bearing baseline and included member/evidence Revisions reject
+  mutation. Verification reports changed bytes, missing exact references,
+  malformed resolutions, invalid or cyclic composition, and process-provenance
+  mismatch. Newer Revisions of a freeze-time Stable target do not invalidate the
+  historical snapshot. Without the binding every baseline command fails with one
+  capability-unavailable diagnostic.
+- **Reversibility:** The snapshot schema can gain typed per-link resolution entries,
+  signatures, content-addressed objects, stronger repository locking, and richer
+  provenance records in a later capability version. Such changes must preserve
+  exact-byte verifiability, historical resolution semantics, atomic publication,
+  section separation, capability-selected type identity, and package-owned
+  lifecycle conclusions.
+- **Evidence/observations:** Executable tests initialize a repository from a
+  package whose bound type is renamed to `SNP`; create ordinary definition and
+  evidence Revisions; freeze a component; populate and compose a parent; inspect
+  exact hashes, resolution targets, and process provenance; verify through JSON
+  and human output; create a newer Revision of a Stable link target and verify the
+  historical snapshot again; and prove frozen mutation refusal. Rejection tests
+  preserve source bytes after invalid composition/freeze, then independently
+  detect changed member bytes, a deleted exact member, and externally corrupted
+  composition. An independently scaffolded package with no binding proves the
+  commands are unavailable.

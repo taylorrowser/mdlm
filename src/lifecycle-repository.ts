@@ -107,7 +107,7 @@ export type RepositoryResult<T> =
   | { ok: true; value: T; diagnostics: [] }
   | { ok: false; diagnostics: ProcessDiagnostic[] };
 
-interface ParsedDatum {
+export interface ParsedDatum {
   lifecycleDatum: LifecycleRecord;
   relativePath: string;
 }
@@ -574,6 +574,7 @@ export async function createDatum(
   fields: { path: string; value: unknown }[],
   links: DatumEnvelope["links"],
   body: string,
+  kernelManagedFields: { path: string; value: unknown }[] = [],
 ): Promise<RepositoryResult<CreatedDatum>> {
   const resolved = resolveType(processPackage, typeId);
   if (!resolved.ok) return resolved;
@@ -592,7 +593,7 @@ export async function createDatum(
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
   const payload: Record<string, unknown> = {};
-  for (const field of fields) {
+  for (const field of [...fields, ...kernelManagedFields]) {
     const pathDiagnostic = setPayloadValue(payload, field.path, field.value);
     if (pathDiagnostic) return { ok: false, diagnostics: [pathDiagnostic] };
   }
@@ -781,6 +782,33 @@ export async function reviseDatum(
     diagnostics: [],
   };
 }
+
+export async function replaceRepositoryDatum(
+  root: string,
+  processPackage: ProcessPackage,
+  parsed: ParsedDatum[],
+  source: ParsedDatum,
+  datum: DatumEnvelope,
+): Promise<RepositoryResult<DatumEnvelope>> {
+  const lifecycleData = parsed.map((item) =>
+    item === source ? { ...item.lifecycleDatum, datum } : item.lifecycleDatum
+  );
+  const diagnostics = validateDatum(processPackage, datum, lifecycleData);
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+  const finalPath = path.join(root, source.relativePath);
+  const temporaryPath = path.join(
+    path.dirname(finalPath),
+    `.${path.basename(finalPath)}.${randomUUID()}.tmp`,
+  );
+  try {
+    await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
+    await fs.rename(temporaryPath, finalPath);
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
+  }
+  return { ok: true, value: datum, diagnostics: [] };
+}
+
 
 function durableGraphLinks(
   processPackage: ProcessPackage,

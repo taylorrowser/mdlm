@@ -52,6 +52,10 @@ node ../dist/req.js history PSP-0123456789
 node ../dist/req.js link QST-0123456789-r00001 PSP-0123456789 --type blocks
 node ../dist/req.js backlinks PSP-0123456789
 node ../dist/req.js trace PSP-0123456789 --relation blocks --depth 2
+node ../dist/req.js baseline add BSL-0123456789 STK-0123456789-r00001
+node ../dist/req.js baseline evidence add BSL-0123456789 REV-0123456789-r00001
+node ../dist/req.js baseline freeze BSL-0123456789
+node ../dist/req.js baseline verify BSL-0123456789
 ```
 
 `npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
@@ -69,6 +73,7 @@ resolver scenarios.
 
 This is not yet the complete durable repository kernel or `req` CLI. Markdown
 creation, revision lineage, local single-draft protection, source-owned link
-mutation, graph inspection, source-backed reads, and index rebuilding are
-implemented; baseline freeze commands, durable hashing, additional concurrency
-profiles, and full lifecycle breadth remain deferred.
+mutation, graph inspection, capability-bound exact-baseline freezing and
+verification, source-backed reads, and index rebuilding are implemented;
+baseline diffing, additional concurrency profiles, and full lifecycle breadth
+remain deferred.
