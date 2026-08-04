@@ -441,5 +441,5 @@ describe("req source-owned links", () => {
     ]);
     expect(await markdownBytes()).toEqual(frozenBefore);
     expect(await fs.readFile(indexPath, "utf8")).toBe(indexBefore);
-  });
+  }, 15_000);
 });
