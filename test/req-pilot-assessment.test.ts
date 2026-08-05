@@ -48,7 +48,21 @@ describe("req Phase 0–2 pilot assessment", () => {
     let adapterSequence = 0;
     const observedAgentEffort = {
       tracerIssues: 4,
-      implementationCommits: 13,
+      implementationCommitRefs: [
+        "git:368abb8fc723fa95fc333a261971514e258d39d6",
+        "git:3712a5a0a9216ace54d8df4eed5623e746752439",
+        "git:3b8e9e1194cb42df5fe55ecccfe66b2b5391730a",
+        "git:ca5696a1b24303164c3a16b992ddc17cbeb6f699",
+        "git:ca6f3ff34317e22e637c158442d5103df908dcac",
+        "git:2532e1db87ef2b795d38189cdf9ed02d7b147ca3",
+        "git:24b603e609ac2587bf2c26d8abb0152a80f2207f",
+        "git:52ed299ed35af40a805208fc5725e084ae61977e",
+        "git:cce892a6ebd73a02b748665e864f9afc31f67f8b",
+        "git:59784df7d1b593fb02392644f98868b4b70f44eb",
+        "git:b4f98de7eee2d027cb9c34ebbd39aea63e898456",
+        "git:2dc4ef743ba703a820e113ac3e6f9aeb7c892fe6",
+        "git:cab9f166226a99cde9287d93ca93824c5ea03c57",
+      ],
     };
     const run = (...arguments_: string[]) => req(repositoryRoot, ...arguments_);
     const create = (...arguments_: string[]) => {
@@ -222,7 +236,8 @@ describe("req Phase 0–2 pilot assessment", () => {
                 },
                 agent_effort: {
                   tracer_issues: observedAgentEffort.tracerIssues,
-                  implementation_commits: observedAgentEffort.implementationCommits,
+                  implementation_commits: observedAgentEffort.implementationCommitRefs.length,
+                  implementation_commit_refs: observedAgentEffort.implementationCommitRefs,
                   effort_assessment: "high",
                 },
                 evidence_reuse: {
@@ -287,7 +302,8 @@ describe("req Phase 0–2 pilot assessment", () => {
       review: { contexts: 19, completed_reviews: 28, quality_improved: false },
       agent_effort: {
         tracer_issues: observedAgentEffort.tracerIssues,
-        implementation_commits: observedAgentEffort.implementationCommits,
+        implementation_commits: observedAgentEffort.implementationCommitRefs.length,
+        implementation_commit_refs: observedAgentEffort.implementationCommitRefs,
       },
       evidence_reuse: { reused: 1, stale: 2, explanations_correct: true },
       loose_ends: { useful: true },

@@ -32,10 +32,15 @@ payload_schema:
         agent_effort:
           type: object
           additionalProperties: false
-          required: [tracer_issues, implementation_commits, effort_assessment]
+          required: [tracer_issues, implementation_commits, implementation_commit_refs, effort_assessment]
           properties:
             tracer_issues: {type: integer, minimum: 0}
             implementation_commits: {type: integer, minimum: 0}
+            implementation_commit_refs:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items: {type: string, pattern: '^git:[0-9a-f]{40}$'}
             effort_assessment: {enum: [low, acceptable, high]}
         evidence_reuse:
           type: object
