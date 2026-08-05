@@ -32,10 +32,10 @@ payload_schema:
         agent_effort:
           type: object
           additionalProperties: false
-          required: [scenario_executions, repository_commands, effort_assessment]
+          required: [tracer_issues, implementation_commits, effort_assessment]
           properties:
-            scenario_executions: {type: integer, minimum: 0}
-            repository_commands: {type: integer, minimum: 0}
+            tracer_issues: {type: integer, minimum: 0}
+            implementation_commits: {type: integer, minimum: 0}
             effort_assessment: {enum: [low, acceptable, high]}
         evidence_reuse:
           type: object

@@ -47,8 +47,8 @@ describe("req Phase 0–2 pilot assessment", () => {
   it("reviews durable measurements and records change before deferred expansion", async () => {
     let adapterSequence = 0;
     const observedAgentEffort = {
-      scenarioExecutions: 27,
-      repositoryCommands: 164,
+      tracerIssues: 4,
+      implementationCommits: 13,
     };
     const run = (...arguments_: string[]) => req(repositoryRoot, ...arguments_);
     const create = (...arguments_: string[]) => {
@@ -147,11 +147,11 @@ describe("req Phase 0–2 pilot assessment", () => {
     };
 
     const observations = [
-      ["Review burden observation", "14 Reviews in 12 exact contexts; contextual findings improved one requirement"],
-      ["Agent effort observation", "27 Scenario executions and 164 repository commands were observed across the tracer"],
+      ["Review burden observation", "28 Reviews in 19 exact contexts were executed; no Review finding improvement was measured"],
+      ["Agent effort observation", "Four agent tracer issues produced 13 exact Git commits from Phase 0 through localized change"],
       ["Reuse observation", "One unaffected Review remained reusable while two affected evidence claims became Stale with exact explanations"],
       ["Queue and gate observation", "Exact blockers were useful; review-context and gate ceremony were high for the slice"],
-      ["Discrimination and scope observation", "Supported and unsupported behavior discriminated; zero of five proposed scope items were removed"],
+      ["Discrimination and scope observation", "Supported and unsupported behavior discriminated; zero of three challenged definition items were removed"],
     ].map(([title, decision], index) => create(
       "DEC",
       "--scenario",
@@ -214,15 +214,15 @@ describe("req Phase 0–2 pilot assessment", () => {
               pilot_scope: "phase-0-through-2",
               measurements: {
                 review: {
-                  contexts: 12,
-                  completed_reviews: 14,
-                  findings: 1,
-                  quality_improved: true,
+                  contexts: 19,
+                  completed_reviews: 28,
+                  findings: 0,
+                  quality_improved: false,
                   volume_assessment: "high",
                 },
                 agent_effort: {
-                  scenario_executions: observedAgentEffort.scenarioExecutions,
-                  repository_commands: observedAgentEffort.repositoryCommands,
+                  tracer_issues: observedAgentEffort.tracerIssues,
+                  implementation_commits: observedAgentEffort.implementationCommits,
                   effort_assessment: "high",
                 },
                 evidence_reuse: {
@@ -239,9 +239,9 @@ describe("req Phase 0–2 pilot assessment", () => {
                   assessment: "Exact blockers and actionable resolvers made the queue useful.",
                 },
                 gate_ceremony: {
-                  gates: 2,
-                  signoffs: 2,
-                  decision_reviews: 2,
+                  gates: 3,
+                  signoffs: 3,
+                  decision_reviews: 3,
                   proportionate: false,
                 },
                 environment_profiles: {
@@ -254,9 +254,9 @@ describe("req Phase 0–2 pilot assessment", () => {
                   discriminates: true,
                 },
                 scope_reduction: {
-                  proposed_items: 5,
+                  proposed_items: 3,
                   removed_items: 0,
-                  retained_items: 5,
+                  retained_items: 3,
                   demonstrated: false,
                 },
               },
@@ -284,10 +284,10 @@ describe("req Phase 0–2 pilot assessment", () => {
     expect(shownAssessment.status, shownAssessment.stderr).toBe(0);
     const assessmentDatum = JSON.parse(shownAssessment.stdout).lifecycleDatum.datum;
     expect(assessmentDatum.payload.measurements).toMatchObject({
-      review: { contexts: 12, completed_reviews: 14, quality_improved: true },
+      review: { contexts: 19, completed_reviews: 28, quality_improved: false },
       agent_effort: {
-        scenario_executions: observedAgentEffort.scenarioExecutions,
-        repository_commands: observedAgentEffort.repositoryCommands,
+        tracer_issues: observedAgentEffort.tracerIssues,
+        implementation_commits: observedAgentEffort.implementationCommits,
       },
       evidence_reuse: { reused: 1, stale: 2, explanations_correct: true },
       loose_ends: { useful: true },

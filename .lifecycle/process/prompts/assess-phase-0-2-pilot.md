@@ -8,7 +8,7 @@ skills: [skills/lifecycle-data.md@1, skills/pilot-assessment.md@1]
 # Assess the Phase 0–2 pilot
 
 Use only the exact frozen pilot evidence context. Record observed Review and
-Review Context volume, agent Scenario and repository-command effort, localized
+Review Context volume, agent tracer-issue and implementation-commit effort, localized
 change reuse and Staleness explanation checks, Loose End usefulness, gate
 ceremony, environment-profile sufficiency, supported/unsupported verification
 discrimination, and actual scope removal.

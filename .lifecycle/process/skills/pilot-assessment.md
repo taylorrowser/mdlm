@@ -5,8 +5,8 @@ version: 1
 
 # Pilot assessment
 
-- Count observed exact Review Contexts, completed Reviews, findings, Scenario
-  executions, and repository commands; distinguish measurement from estimate.
+- Count observed exact Review Contexts, completed Reviews, findings, agent tracer
+  issues, and exact Git commits; distinguish measurement from estimate.
 - Check every claimed reused or Stale item against the exact baseline diff
   explanation. Preserved authorization history is not current reuse by itself.
 - Sample Loose Ends for exact subjects, blockers, and actionable resolvers.

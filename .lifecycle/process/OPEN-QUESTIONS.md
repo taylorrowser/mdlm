@@ -61,8 +61,8 @@ behavior where possible.
     SYS Revision before replacement evidence. Should a later package represent a
     multi-requirement original-V plan as another DWP lineage, a CHG payload order,
     or separately derived per-subject Obligations with explicit dependency edges?
-17. **Pilot effort telemetry:** PAS records observed Scenario and repository-
-    command effort from exact frozen source observations. Should a future process-
+17. **Pilot effort telemetry:** PAS records observed tracer-issue and exact Git-
+    commit effort from frozen source observations. Should a future process-
     neutral capability expose signed execution/command aggregates, or should
     effort remain assessor-authored to avoid turning operational telemetry into
     kernel lifecycle semantics?

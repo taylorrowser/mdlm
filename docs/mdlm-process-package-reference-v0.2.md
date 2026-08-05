@@ -496,8 +496,8 @@ generic source.
 ### 11.2 Reviewed pilot measurements and expansion Decision
 
 `PAS@1` is a package-owned generated lifecycle type whose structured payload
-records Review/Review Context volume, observed agent Scenario and repository-
-command effort, localized-change reuse and Staleness explanation checks, Loose
+records Review/Review Context volume, observed agent tracer-issue and exact Git-
+commit effort, localized-change reuse and Staleness explanation checks, Loose
 End usefulness, gate ceremony, environment-profile sufficiency, verification
 discrimination, actual scope reduction, limitations, and one `proceed`, `change`,
 or `stop` recommendation. It is durable Markdown truth rather than a disposable

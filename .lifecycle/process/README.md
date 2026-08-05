@@ -224,7 +224,7 @@ surfaces.
 The package defines generated `PAS@1` as structured durable pilot measurements,
 not a generated report. A `pilot-assessment-context` BSL freezes the exact source
 observations separately from the PAS that measures them. The assessment records
-Review and Review Context volume, observed agent Scenario/repository effort,
+Review and Review Context volume, observed agent tracer-issue/Git-commit effort,
 localized-change evidence reuse and Staleness explanation checks, Loose End
 usefulness, gate ceremony, environment-profile sufficiency, supported/unsupported
 verification discrimination, and actual scope reduction.
