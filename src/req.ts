@@ -6,6 +6,7 @@ import { parse } from "yaml";
 import {
   evaluateLifecycle,
   loadProcessPackage,
+  resolveType,
   type LifecycleSnapshot,
   type ProcessDiagnostic,
   type ProcessPackage,
@@ -123,6 +124,21 @@ interface RepositorySummary {
   primitiveCatalog: string;
 }
 
+interface TypeSchemaInspection {
+  definition: string;
+  name: string;
+  description: string;
+  templateChain: string[];
+  effectiveEnvelope: Record<string, unknown>;
+  flattenedPayloadSchema: Record<string, unknown>;
+  sourceOwnedLinkContracts: Record<string, unknown>[];
+  lifecycleBehavior: Record<string, unknown>;
+  kernelCapabilityBindings: {
+    reference: string;
+    binding: { type: string };
+  }[];
+}
+
 interface CommandResult {
   ok: boolean;
   command?: string;
@@ -145,6 +161,7 @@ interface CommandResult {
   fixture?: FixtureScaffold;
   tests?: FixtureTestSummary;
   repository?: RepositorySummary;
+  schema?: TypeSchemaInspection;
   created?: CreatedDatum;
   lifecycleDatum?: StoredDatum["lifecycleDatum"];
   projections?: DatumProjections;
@@ -1921,6 +1938,54 @@ async function evaluateSelectedDefinition(
   };
 }
 
+async function inspectSelectedTypeSchema(
+  repositoryRoot: string,
+  typeId: string,
+): Promise<CommandResult> {
+  const selected = await selectedPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "schema",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const resolved = resolveType(selected.processPackage, typeId);
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      command: "schema",
+      package: selected.summary,
+      selected: true,
+      diagnostics: resolved.diagnostics,
+    };
+  }
+  return {
+    ok: true,
+    command: "schema",
+    package: selected.summary,
+    selected: true,
+    schema: {
+      definition: `${resolved.type.id}@${resolved.type.version}`,
+      name: resolved.type.name,
+      description: resolved.type.description,
+      templateChain: resolved.type.templateChain,
+      effectiveEnvelope: resolved.type.envelopeSchema,
+      flattenedPayloadSchema: resolved.type.payloadSchema,
+      sourceOwnedLinkContracts: resolved.type.outgoingLinks,
+      lifecycleBehavior: resolved.type.lifecycle,
+      kernelCapabilityBindings: Object.entries(
+        selected.processPackage.kernelCapabilities,
+      )
+        .filter(([, binding]) => binding.type === typeId)
+        .map(([reference, binding]) => ({ reference, binding }))
+        .sort((left, right) => left.reference.localeCompare(right.reference)),
+    },
+    diagnostics: [],
+  };
+}
+
 async function showSelectedPackage(
   repositoryRoot: string,
 ): Promise<CommandResult> {
@@ -1959,6 +2024,26 @@ function humanOutput(result: CommandResult): string {
     return result.diagnostics
       .map((diagnostic) => `Error [${diagnostic.code}]: ${diagnostic.message}`)
       .join("\n");
+  }
+  if (result.schema && result.package) {
+    const schema = result.schema;
+    const capabilityBindings = schema.kernelCapabilityBindings.map(
+      ({ reference, binding }) => `${reference} -> ${binding.type}`,
+    );
+    return [
+      `Process Package: ${result.package.reference}`,
+      `Expression Language: ${result.package.language}`,
+      `Digest: ${result.package.digest}`,
+      `Lifecycle Type: ${schema.definition}`,
+      `Name: ${schema.name}`,
+      `Description: ${schema.description}`,
+      `Template Chain: ${schema.templateChain.join(" → ") || "none"}`,
+      `Effective Envelope: ${JSON.stringify(schema.effectiveEnvelope)}`,
+      `Flattened Payload Schema: ${JSON.stringify(schema.flattenedPayloadSchema)}`,
+      `Source-owned Link Contracts: ${JSON.stringify(schema.sourceOwnedLinkContracts)}`,
+      `Lifecycle Behavior: ${JSON.stringify(schema.lifecycleBehavior)}`,
+      `Kernel Capability Bindings: ${capabilityBindings.join(", ") || "none"}`,
+    ].join("\n");
   }
   if (result.repository && result.package) {
     return [
@@ -2415,6 +2500,9 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
     return showDatumHistory(repositoryRoot, operands[1]);
   }
   if (operands[0] === "list") return listStoredData(repositoryRoot);
+  if (operands[0] === "schema" && operands[1]) {
+    return inspectSelectedTypeSchema(repositoryRoot, operands[1]);
+  }
   const directKind = ["relation", "selector", "policy", "state", "obligation"]
     .includes(operands[0] ?? "")
     ? operands[0] as ProcessDirectEvaluation["target"]["kind"]

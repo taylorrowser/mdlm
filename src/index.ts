@@ -87,6 +87,7 @@ export interface ProcessPackage {
 
 export interface ResolvedType {
   id: string;
+  version: number;
   name: string;
   description: string;
   templateChain: string[];
@@ -741,6 +742,7 @@ export function resolveType(
     ok: true,
     type: {
       id: typeId,
+      version: typeDefinition.version,
       name: String(typeDefinition.name),
       description: String(typeDefinition.description),
       templateChain: templates.map(

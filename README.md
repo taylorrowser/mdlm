@@ -81,6 +81,7 @@ node ../dist/req.js doctor
 node ../dist/req.js loose-ends --phase phase-0-wayfinding
 node ../dist/req.js next --phase phase-0-wayfinding
 node ../dist/req.js phase status phase-0-wayfinding
+node ../dist/req.js schema STK
 node ../dist/req.js scenario dry-run create-review-context@1 \
   --obligation '<exact-review-context-obligation-instance>'
 # An explicit fixture remains available for package tests and historical evaluation:

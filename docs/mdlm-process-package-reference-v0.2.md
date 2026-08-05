@@ -118,8 +118,15 @@ assertion outside that subset must be preserved exactly when its property is
 redeclared; general JSON Schema subsumption is not attempted. Duplicate outgoing-
 link IDs in one resolved chain are rejected rather than overridden.
 
-The resolved type shown by `req schema <type>` is the kernel envelope plus the
-flattened payload schema and outgoing-link contracts.
+`req schema <type>` resolves one lifecycle type from the explicitly selected
+Process Package. Its machine projection includes the exact package reference,
+expression language, digest, versioned type definition, complete root-to-leaf
+Payload Template chain, effective kernel Datum Envelope, flattened payload schema,
+source-owned outgoing-link contracts, lifecycle behavior, and any Kernel Capability
+bindings applicable to that package-defined type ID. Human output presents the
+same authored and resolved evidence without exposing parser nodes or compiled
+expression structures. Unknown types, absent selection, and invalid selected
+packages return typed diagnostics.
 
 ## 4. Source-owned link contracts
 
