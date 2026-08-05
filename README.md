@@ -1,9 +1,10 @@
-# MDLM evaluator prototype
+# MDLM v0.8 evaluator prototype
 
-This repository contains a narrow TypeScript evaluator and the bootstrap subset
-of MDLM's first bundled Example Process Package: a software V-model lifecycle.
-MDLM core remains process-structure-neutral; other packages may define different
-types, states, obligations, scenarios, and phases.
+This repository contains the completed concept-validating v0.8 implementation
+profile: a narrow process-neutral TypeScript kernel, generic `req` executable,
+durable Markdown repository, and bootstrap subset of MDLM's first bundled
+Example Process Package. The example is a software V-model lifecycle; other
+packages may define different types, States, Obligations, Scenarios, and phases.
 
 ## Public interfaces
 
@@ -44,6 +45,11 @@ types, states, obligations, scenarios, and phases.
   source-independent verification pilot, and move one reviewed Decomposition Work
   Package through exact SYS output, architecture/interface simplification,
   completion Review, composed group/level candidates, and a reviewed SYS gate.
+  A localized pilot-discovered change tracer preserves exact authorization while
+  proving selective evidence reuse and package-routed Staleness. The final pilot
+  assessment freezes durable observations, publishes generated structured
+  measurements, requires independent contextual Review, and records an exact
+  `change` expansion Decision before any Phase 3–6 definition exists.
 
 ## Try it
 
@@ -92,18 +98,15 @@ resolver scenarios.
 
 - Canonical domain language: `CONTEXT.md`
 - Accepted process overview: `docs/mdlm-process-overview-v0.8.md`
+- v0.8 implementation conformance: `docs/mdlm-v0.8-implementation-conformance.md`
 - Experimental package reference: `docs/mdlm-process-package-reference-v0.2.md`
 - Implementation choices and observations: `docs/prototype-decision-log.md`
 - Source inputs for the provisional overview: `docs/v0.8-provisional-overview-inputs.md`
 - Remaining process questions: `.lifecycle/process/OPEN-QUESTIONS.md`
 
-This is not yet the complete durable repository kernel or `req` CLI. Markdown
-creation, revision lineage, local single-draft protection, source-owned link
-mutation, graph inspection, capability-bound exact-baseline freezing and
-verification and diffing, source-backed reads, integrity-aware repository
-inspection, disposable index/report rebuilding, side-effect-free Resolver
-Scenario dry-runs, atomic adapter execution, safe declarative Scenario aliases,
-repository-backed Phase evaluation, the narrow Phase 0 intent pilot, one Phase 1
-environment-qualification and source-independent verification pilot, and one
-bounded Phase 2 DWP-to-reviewed-SYS-candidate tracer are implemented; additional
-concurrency profiles and full lifecycle breadth remain deferred.
+The accepted v0.8 concept-validating implementation profile is complete. It is
+not a production-readiness or complete-V-model claim: broader concurrency,
+production indexing, source-isolation, brownfield support, formal compliance, and
+Phase 3–6 lifecycle breadth remain deferred. The reviewed pilot expansion
+Decision is `change`; future breadth must address ceremony and demonstrated scope
+removal before proceeding.

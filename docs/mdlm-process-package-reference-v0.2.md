@@ -9,8 +9,10 @@ language includes typed Selector, Policy-result, Computed State, and finite
 universal-quantification operations. The target architecture is described by
 `mdlm-process-overview-v0.8.md`, including complete textual expression coverage,
 process-neutral core semantics, Kernel Capabilities, and the V-model as an
-Example Process Package. The bootstrap now binds a package-defined type to
-`exact-baseline@1`; other unmigrated v0.8 behavior is not silently claimed as
+Example Process Package. The bootstrap binds a package-defined type to `exact-baseline@1`. The completed
+v0.8 concept-validating profile is traced in
+`mdlm-v0.8-implementation-conformance.md`; broader lifecycle breadth and
+production concerns remain explicitly deferred rather than silently claimed as
 implemented.
 
 ## 1. Purpose
