@@ -139,7 +139,20 @@ describe("req scenario execute", () => {
     };
   }
 
-  it("invokes the adapter with validated bindings and atomically records exact provenance", async () => {
+  it("invokes the adapter with the same repository-backed preparation exposed by dry-run", async () => {
+    const dryRunResult = req(
+      repositoryRoot,
+      "scenario",
+      "dry-run",
+      "resolve-question@1",
+      "--obligation",
+      obligation,
+      "--input",
+      `question=${question.revisionId}`,
+      "--json",
+    );
+    expect(dryRunResult.status, dryRunResult.stderr).toBe(0);
+    const preparation = JSON.parse(dryRunResult.stdout).scenarioDryRun;
     const configured = await adapter(validOutputs());
     const result = req(
       repositoryRoot,
@@ -158,16 +171,18 @@ describe("req scenario execute", () => {
     expect(result.status, result.stderr).toBe(0);
     const output = JSON.parse(result.stdout);
     const request = JSON.parse(await fs.readFile(configured.capture, "utf8"));
-    expect(request).toEqual(expect.objectContaining({
+    expect(request).toEqual({
       contract: "mdlm-agent-adapter@1",
       scenario: "resolve-question@1",
       obligation,
-      invocations: output.execution.inputs,
-      prohibitedInputs: [
-        "unstated stakeholder answer",
-        "unsupported empirical conclusion",
-      ],
-    }));
+      invocations: preparation.invocations,
+      prompt: preparation.prompt,
+      policies: preparation.policies,
+      prohibitedInputs: preparation.prohibitedInputs,
+      expectedOutputs: preparation.expectedOutputs,
+      completion: preparation.completion,
+    });
+    expect(output.execution.inputs).toEqual(preparation.invocations);
     expect(output.execution).toEqual(expect.objectContaining({
       contract: "mdlm-scenario-execution@1",
       status: "completed",

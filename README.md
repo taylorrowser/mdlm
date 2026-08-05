@@ -82,6 +82,9 @@ node ../dist/req.js loose-ends --phase phase-0-wayfinding
 node ../dist/req.js next --phase phase-0-wayfinding
 node ../dist/req.js phase status phase-0-wayfinding
 node ../dist/req.js scenario dry-run create-review-context@1 \
+  --obligation '<exact-review-context-obligation-instance>'
+# An explicit fixture remains available for package tests and historical evaluation:
+node ../dist/req.js scenario dry-run create-review-context@1 \
   --obligation 'review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype' \
   --snapshot ../examples/psp-to-sys-snapshot.yaml
 # Selected package convenience over the same generic Scenario execution contract:

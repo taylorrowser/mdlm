@@ -81,6 +81,7 @@ import {
 } from "./command-alias.js";
 import {
   executeResolverScenario,
+  prepareRepositoryResolverScenario,
   readScenarioExecution,
   type ScenarioExecution,
 } from "./scenario-execution.js";
@@ -1620,15 +1621,6 @@ async function dryRunScenario(
       diagnostics: selected.diagnostics,
     };
   }
-  if (!snapshotPath) {
-    return {
-      ...failure(
-        "snapshot-required",
-        "scenario.dry-run requires '--snapshot <fixture>'",
-      ),
-      command: "scenario.dry-run",
-    };
-  }
   if (!obligationInstance) {
     return {
       ...failure(
@@ -1640,29 +1632,51 @@ async function dryRunScenario(
   }
   const requested = requestedScenarioInputs(inputArguments);
   if (!requested.ok) return { ...requested.result, command: "scenario.dry-run" };
-  const snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
-  const dryRun = await dryRunResolverScenario(
-    selected.processPackage,
-    snapshot,
-    scenarioReference,
-    obligationInstance,
-    requested.inputs,
-  );
-  if (!dryRun.ok) {
-    return {
-      ok: false,
-      command: "scenario.dry-run",
-      package: selected.summary,
-      selected: true,
-      diagnostics: dryRun.diagnostics,
-    };
+  let scenarioDryRun: ScenarioDryRun;
+  if (snapshotPath) {
+    const dryRun = await dryRunResolverScenario(
+      selected.processPackage,
+      await readLifecycleSnapshot(repositoryRoot, snapshotPath),
+      scenarioReference,
+      obligationInstance,
+      requested.inputs,
+    );
+    if (!dryRun.ok) {
+      return {
+        ok: false,
+        command: "scenario.dry-run",
+        package: selected.summary,
+        selected: true,
+        diagnostics: dryRun.diagnostics,
+      };
+    }
+    scenarioDryRun = dryRun.value;
+  } else {
+    const preparation = await prepareRepositoryResolverScenario(
+      repositoryRoot,
+      selected.processPackage,
+      selected.summary,
+      scenarioReference,
+      obligationInstance,
+      requested.inputs,
+    );
+    if (!preparation.ok) {
+      return {
+        ok: false,
+        command: "scenario.dry-run",
+        package: selected.summary,
+        selected: true,
+        diagnostics: preparation.diagnostics,
+      };
+    }
+    scenarioDryRun = preparation.value.dryRun;
   }
   return {
     ok: true,
     command: "scenario.dry-run",
     package: selected.summary,
     selected: true,
-    scenarioDryRun: dryRun.value,
+    scenarioDryRun,
     diagnostics: [],
   };
 }

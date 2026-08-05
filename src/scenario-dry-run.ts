@@ -402,7 +402,7 @@ function inputChecks(
     {
       check: "resolution",
       passed: values.length === authoredValues.length,
-      expected: "named lifecycle identities from the explicit snapshot",
+      expected: "named lifecycle identities from the evaluated snapshot",
       actual: `${values.length}/${authoredValues.length} resolved`,
     },
     {
@@ -543,7 +543,7 @@ export async function dryRunResolverScenario(
         {
           code: "unknown-obligation-instance",
           path: obligationInstance,
-          message: `Unknown Obligation Instance '${obligationInstance}' in the named snapshot`,
+          message: `Unknown Obligation Instance '${obligationInstance}' in the evaluated lifecycle snapshot`,
         },
       ],
     };

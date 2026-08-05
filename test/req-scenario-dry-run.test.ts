@@ -3,12 +3,9 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  req,
-  selectBootstrapProcessPackage,
-  selectProcessPackage,
-} from "./helpers/req.js";
+import { req, selectProcessPackage } from "./helpers/req.js";
 
+const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 const prototypeSnapshot = path.join(
   process.cwd(),
   "examples/psp-to-sys-snapshot.yaml",
@@ -66,11 +63,121 @@ describe("req scenario dry-run", () => {
 
   beforeEach(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-dry-run-"));
-    selectBootstrapProcessPackage(repositoryRoot);
+    const initialized = req(
+      repositoryRoot,
+      "init",
+      "--process",
+      bootstrapPackage,
+      "--json",
+    );
+    expect(initialized.status, initialized.stderr).toBe(0);
   });
 
   afterEach(async () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
+  });
+
+  it("derives a side-effect-free dry-run from durable repository truth", async () => {
+    const shownPackage = req(repositoryRoot, "process", "show", "--json");
+    expect(shownPackage.status, shownPackage.stderr).toBe(0);
+    const packageDigest = JSON.parse(shownPackage.stdout).package.digest;
+    const createdQuestion = req(
+      repositoryRoot,
+      "new",
+      "QST",
+      "--scenario",
+      "resolve-question@1",
+      "--set",
+      "title=Repository-backed dry-run",
+      "--set",
+      "kind=empirical",
+      "--set",
+      "question=Can dry-run use durable repository truth?",
+      "--set",
+      "state=open",
+      "--set",
+      "blocking_impact=Resolver preparation requires an exact repository snapshot",
+      "--json",
+    );
+    expect(
+      createdQuestion.status,
+      `${createdQuestion.stderr}${createdQuestion.stdout}`,
+    ).toBe(0);
+    const question = JSON.parse(createdQuestion.stdout).created;
+    const obligation =
+      `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.29.0#${packageDigest}`;
+    const before = await treeDigest(repositoryRoot);
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "dry-run",
+      "resolve-question@1",
+      "--obligation",
+      obligation,
+      "--json",
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(await treeDigest(repositoryRoot)).toBe(before);
+    expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      command: "scenario.dry-run",
+      scenarioDryRun: expect.objectContaining({
+        executable: true,
+        sideEffectFree: true,
+        obligation: expect.objectContaining({
+          instance: obligation,
+          subject: question.revisionId,
+          status: "ready",
+          dispatchable: true,
+        }),
+        invocations: [{
+          inputs: [expect.objectContaining({
+            name: "question",
+            checks: expect.arrayContaining([expect.objectContaining({
+              check: "resolution",
+              expected: "named lifecycle identities from the evaluated snapshot",
+            })]),
+            values: [expect.objectContaining({
+              identity: expect.objectContaining({
+                revision_id: question.revisionId,
+              }),
+            })],
+          })],
+        }],
+        prompt: expect.objectContaining({
+          reference: "prompts/resolve-question.md@1",
+          content: expect.stringContaining("# Resolve a question"),
+          skills: expect.arrayContaining([
+            expect.objectContaining({
+              reference: "skills/clarification-protocol.md@1",
+              content: expect.any(String),
+            }),
+          ]),
+        }),
+        policies: expect.arrayContaining([
+          expect.objectContaining({ role: "review" }),
+          expect.objectContaining({ role: "waiver" }),
+        ]),
+        prohibitedInputs: [
+          "unstated stakeholder answer",
+          "unsupported empirical conclusion",
+        ],
+        expectedOutputs: expect.arrayContaining([
+          expect.objectContaining({ name: "decision", cardinality: "one" }),
+          expect.objectContaining({
+            name: "updated_question",
+            cardinality: "one",
+          }),
+        ]),
+        completion: expect.objectContaining({
+          status: "pending-output",
+          expression: expect.stringContaining("contract_valid"),
+        }),
+      }),
+      diagnostics: [],
+    }));
   });
 
   it("resolves an executable Dispatchable Obligation without mutating Lifecycle Data", async () => {

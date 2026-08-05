@@ -404,17 +404,20 @@ Prompts choose and order skills. Execution provenance records the exact prompt,
 skills, policies, process reference, and inputs actually used.
 
 `req scenario dry-run <scenario@version> --obligation <exact-instance>
---snapshot <fixture>` starts from one evaluated Obligation Instance rather than a
-resolver name alone. Only an instance already marked Dispatchable for that exact
-Scenario can produce an executable projection. The command resolves package-
-authored bindings against the named snapshot; validates runtime resolution,
-cardinality, identity, type, optional input conditions, prohibited caller inputs,
-and exact prompt/skill assets; and returns versioned Obligation, Scenario, prompt,
-review Policy, and waiver Policy provenance. Expected outputs retain cardinality,
-types, and required links. Generic output checks and the package completion
-expression remain explicitly pending until an adapter supplies outputs. Dry-run
-reads the selected immutable package and explicit snapshot but invokes no adapter
-and writes no Lifecycle Data or generated projection.
+[--snapshot <fixture>]` starts from one evaluated Obligation Instance rather than
+a resolver name alone. Only an instance already marked Dispatchable for that exact
+Scenario can produce an executable projection. Without `--snapshot`, the command
+derives a fresh snapshot from authoritative repository Markdown under the same
+enabled Phase preparation used by Scenario execution. An explicit fixture remains
+available for reproducible package tests and historical evaluation. The command
+resolves package-authored bindings against the evaluated snapshot; validates
+runtime resolution, cardinality, identity, type, optional input conditions,
+prohibited caller inputs, and exact prompt/skill assets; and returns versioned
+Obligation, Scenario, prompt, review Policy, and waiver Policy provenance. Expected
+outputs retain cardinality, types, and required links. Generic output checks and
+the package completion expression remain explicitly pending until an adapter
+supplies outputs. Dry-run invokes no adapter and writes no Lifecycle Data,
+execution record, or generated projection.
 
 `req scenario execute <scenario@version> --obligation <exact-instance>
 --adapter <executable>` derives a fresh repository snapshot, runs the identical

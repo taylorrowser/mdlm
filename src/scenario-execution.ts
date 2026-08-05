@@ -24,7 +24,7 @@ import {
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
 
-interface PackageExecutionIdentity {
+export interface PackageExecutionIdentity {
   reference: string;
   digest: string;
   language: string;
@@ -423,15 +423,26 @@ function remapPublicationDiagnostics(
   );
 }
 
-export async function executeResolverScenario(
+export type RepositoryScenarioPreparationResult =
+  | {
+      ok: true;
+      value: {
+        dryRun: ScenarioDryRun;
+        scenario: VersionedDefinition;
+        snapshot: LifecycleSnapshot;
+      };
+      diagnostics: [];
+    }
+  | { ok: false; diagnostics: ProcessDiagnostic[] };
+
+export async function prepareRepositoryResolverScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   packageIdentity: PackageExecutionIdentity,
   scenarioReference: string,
   obligationInstance: string,
   requestedInputs: { name: string; value: string }[],
-  adapterExecutable: string,
-): Promise<ScenarioExecutionResult> {
+): Promise<RepositoryScenarioPreparationResult> {
   const selectedScenario = versionedDefinition(
     processPackage.scenarios,
     scenarioReference,
@@ -457,15 +468,41 @@ export async function executeResolverScenario(
   );
   if (!loaded.ok) return loaded;
   const snapshot = loaded.value;
-  const dryRunResult = await dryRunResolverScenario(
+  const dryRun = await dryRunResolverScenario(
     processPackage,
     snapshot,
     scenarioReference,
     obligationInstance,
     requestedInputs,
   );
+  return dryRun.ok
+    ? {
+        ok: true,
+        value: { dryRun: dryRun.value, scenario: selectedScenario, snapshot },
+        diagnostics: [],
+      }
+    : dryRun;
+}
+
+export async function executeResolverScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  scenarioReference: string,
+  obligationInstance: string,
+  requestedInputs: { name: string; value: string }[],
+  adapterExecutable: string,
+): Promise<ScenarioExecutionResult> {
+  const dryRunResult = await prepareRepositoryResolverScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    scenarioReference,
+    obligationInstance,
+    requestedInputs,
+  );
   if (!dryRunResult.ok) return dryRunResult;
-  const dryRun = dryRunResult.value;
+  const { dryRun, scenario: selectedScenario, snapshot } = dryRunResult.value;
   const adapterRequest = {
     contract: "mdlm-agent-adapter@1" as const,
     scenario: scenarioReference,
