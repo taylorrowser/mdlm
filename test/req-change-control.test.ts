@@ -938,9 +938,11 @@ describe("req Problem Report and Change Request flow", () => {
                 alternatives: ["Leave the approved change open"],
                 effective_scope: change.revisionId,
               },
-              links: [change.revisionId, revisedRequirement.revisionId, ...closureEvidence].map(
-                (target_) => ({ type: "justifies", target: target_ }),
-              ),
+              links: [
+                { type: "justifies", target: change.revisionId },
+                { type: "confirms-revision", target: revisedRequirement.revisionId },
+                ...closureEvidence.map((target_) => ({ type: "closes-with", target: target_ })),
+              ],
               body: "Closure cites exact approval, replacement definition, review, baseline, and verification evidence.\n",
             },
           },

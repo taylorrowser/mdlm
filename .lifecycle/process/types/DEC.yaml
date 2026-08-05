@@ -47,6 +47,20 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: justified-by
+  - id: confirms-revision
+    description: Exact replacement requirement Revisions confirmed by a change-closure Decision.
+    targets:
+      - {kind: datum, types: [SYS], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: confirmed-by-closure
+  - id: closes-with
+    description: Exact replacement context, Review, baseline, and verification evidence cited by a change-closure Decision.
+    targets:
+      - {kind: datum, types: [BSL, REV, RES], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: closure-evidence
   - id: waives
     description: Exact computed obligation instance suppressed by this structured waiver.
     targets:

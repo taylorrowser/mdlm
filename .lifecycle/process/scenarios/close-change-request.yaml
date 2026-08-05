@@ -16,6 +16,8 @@ outputs:
     cardinality: one
     required_links:
       - {link: justifies, target: {input: change}}
+      - {link: confirms-revision, target: {input: revised_requirements}}
+      - {link: closes-with, target: {input: closure_evidence}}
   - name: closed_problem
     types: [PRB]
     cardinality: one
