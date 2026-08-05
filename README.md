@@ -90,6 +90,10 @@ node ../dist/req.js scenario execute chart-wayfinding-map@1 --initiate \
 # Resolver Scenarios retain exact Dispatchable Obligation authorization:
 node ../dist/req.js scenario dry-run create-review-context@1 \
   --obligation '<exact-review-context-obligation-instance>'
+# Prototype-bound QSTs route through their package-owned exact-evidence Resolver:
+node ../dist/req.js scenario dry-run resolve-question-with-prototype@1 \
+  --obligation '<exact-prototype-question-obligation-instance>' \
+  --input question=QST-0123456789-r00001
 # An explicit fixture remains available for package tests and historical evaluation:
 node ../dist/req.js scenario dry-run create-review-context@1 \
   --obligation 'review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype' \

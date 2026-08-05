@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.30.0
+version: 0.31.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -48,6 +48,8 @@ catalog:
     - review-required-revisions
     - newer-revisions-for
     - open-questions
+    - general-open-questions
+    - prototype-bound-open-questions
     - superseding-baselines-for
     - candidate-baselines
     - frozen-baselines
@@ -110,6 +112,7 @@ catalog:
     - review-context-required
     - passing-review-required
     - open-question-resolution
+    - prototype-question-resolution
     - candidate-members-reviewed
     - candidate-gate-signoff
     - verification-run-required
@@ -135,6 +138,7 @@ catalog:
     - create-review-context
     - review-datum-in-context
     - resolve-question
+    - resolve-question-with-prototype
     - create-candidate-baseline
     - record-gate-signoff
     - define-verification-strategy
@@ -170,6 +174,7 @@ assets:
     - prompts/create-review-context.md@1
     - prompts/review-datum-in-context.md@1
     - prompts/resolve-question.md@1
+    - prompts/resolve-question-with-prototype.md@1
     - prompts/create-candidate-baseline.md@1
     - prompts/record-gate-signoff.md@1
     - prompts/define-verification-strategy.md@1
@@ -226,7 +231,7 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@7
+  default: bootstrap@8
   available:
     - profiles/bootstrap.yaml@7
 provenance:

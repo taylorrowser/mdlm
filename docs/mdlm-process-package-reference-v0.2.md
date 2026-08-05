@@ -743,11 +743,17 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.29 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.31 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
-unsupported behavior. The narrow repository-backed Phase 0 tracer reviews MAP,
-PSP, and STK separately in a shared exact frozen context, freezes and reviews an
+unsupported behavior. A QST may explicitly require prototype evidence by declaring
+one exact Git commit, bounded supported and unsupported behavior, and the two
+permitted findings. A package-owned Selector routes only those exact frozen QST
+Revisions to a Resolver that atomically publishes ART, resolving DEC, and the next
+answered QST Revision; empirical questions without that declaration retain the
+generic evidence path. Mutable targets, out-of-bound findings, incomplete batches,
+and RUN/RES substitutions fail before publication. The narrow repository-backed
+Phase 0 tracer reviews MAP, PSP, and STK separately in a shared exact frozen context, freezes and reviews an
 intent candidate, and completes one reviewed exact Gate Sign-off.
 
 The Phase 1 tracer embeds named capability profiles in VSP, realizes and qualifies

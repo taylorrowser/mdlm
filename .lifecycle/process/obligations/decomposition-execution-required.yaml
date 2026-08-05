@@ -14,6 +14,8 @@ status_rules:
     blocked_by:
       - obligation: open-question-resolution@2
         subjects: 'select("blocking-questions-for-decomposition@1", {plan: plan})'
+      - obligation: prototype-question-resolution@1
+        subjects: 'select("blocking-questions-for-decomposition@1", {plan: plan})'
   - status: blocked
     priority: 200
     when: 'none("passing-reviews-for@1", {subject: plan})'

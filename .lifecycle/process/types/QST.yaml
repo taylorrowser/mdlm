@@ -18,6 +18,33 @@ payload_schema:
     blocking_impact: {type: string, minLength: 1}
     reactivation_condition: {type: string, minLength: 1}
     owner: {type: string, minLength: 1}
+    resolution_evidence: {enum: [prototype]}
+    prototype_evidence:
+      type: object
+      additionalProperties: false
+      required: [repository_ref, supported_behavior, unsupported_behavior, finding_if_supported, finding_if_not_supported]
+      properties:
+        repository_ref: {type: string, pattern: '^git:[0-9a-f]{40}$'}
+        supported_behavior:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        unsupported_behavior:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        finding_if_supported: {type: string, minLength: 1}
+        finding_if_not_supported: {type: string, minLength: 1}
+  dependentRequired:
+    resolution_evidence: [prototype_evidence]
+    prototype_evidence: [resolution_evidence]
+  allOf:
+    - if: {required: [resolution_evidence]}
+      then:
+        properties:
+          kind: {const: empirical}
 outgoing_links:
   - id: blocks
     description: Lifecycle concepts whose progress depends on this open question.

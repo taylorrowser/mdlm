@@ -43,7 +43,7 @@ outgoing_links:
   - id: justifies
     description: Exact lifecycle claim for which this decision supplies rationale or authorization.
     targets:
-      - {kind: datum, types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, PRB, CHG, PAS], identity: revision}
+      - {kind: datum, types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART, PRB, CHG, PAS], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: justified-by

@@ -164,7 +164,7 @@ describe("req scenario explicit initiation", () => {
       ok: true,
       command: "scenario.dry-run",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.30.0",
+        reference: "mdlm-bootstrap@0.31.0",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       }),
       scenarioDryRun: expect.objectContaining({

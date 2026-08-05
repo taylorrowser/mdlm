@@ -24,12 +24,14 @@ scenarios:
   - simplify-architecture-and-interfaces@1
   - complete-decomposition-work-package@1
   - resolve-question@1
+  - resolve-question-with-prototype@1
   - create-candidate-baseline@1
   - record-gate-signoff@1
 obligations:
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@2
+  - prototype-question-resolution@1
   - decomposition-execution-required@1
   - decomposition-output-reviews-required@1
   - decomposition-simplification-required@1
@@ -38,7 +40,7 @@ obligations:
   - decomposition-parent-coverage-required@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@2
-outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC]
+outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC, ART]
 gate:
   required: true
   candidate_selector: >-

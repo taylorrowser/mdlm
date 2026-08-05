@@ -30,6 +30,8 @@ status_rules:
         subjects: '[candidate]'
       - obligation: open-question-resolution@2
         subjects: 'select("open-blocking-questions@1", {})'
+      - obligation: prototype-question-resolution@1
+        subjects: 'select("open-blocking-questions@1", {})'
   - status: ready
     priority: 100
     when: >-

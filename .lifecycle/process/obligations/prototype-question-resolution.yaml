@@ -1,0 +1,26 @@
+kind: obligation-definition
+id: prototype-question-resolution
+version: 1
+description: Every latest open empirical question explicitly bound to a prototype requires exact bounded prototype evidence and a resolving Revision.
+phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
+for_each: 'select("prototype-bound-open-questions@1", {})'
+subject_as: question
+satisfied_when: 'question.payload.state in ["answered", "deferred", "cancelled"]'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: 'question.storage.frozen != true'
+    reason: The prototype evidence boundary must freeze the exact source QST Revision before a satisfying Revision can be published.
+  - status: ready
+    priority: 100
+    when: >-
+      question.payload.kind == "empirical"
+      && question.payload.resolution_evidence == "prototype"
+      && question.storage.frozen == true
+    reason: The exact Git target and bounded prototype evidence contract are available for resolution.
+default_status: blocked
+resolve_with:
+  scenario: resolve-question-with-prototype@1
+  inputs:
+    question: question
+waiver_policy_ref: waiver-applicability@1

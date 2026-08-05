@@ -1398,3 +1398,48 @@ turning provisional choices into architecture.
 - **Expected behavior:** `req scenario dry-run chart-wayfinding-map@1 --initiate` derives repository truth and returns exact prompt and skill bytes, input checks, review Policy, prohibited inputs, output contracts, and pending completion. Executing the same initiation can publish MAP, QST, and ART in one transaction. Missing outputs, bad cardinality, schema or link failures, prohibited inputs, and false completion publish nothing. `resolve-question@1 --initiate` is rejected before the adapter, and a package cannot combine explicit initiation with Resolver semantics.
 - **Reversibility:** The generic authorization union can admit future package-neutral authorization forms through new versioned contracts. CLI spelling may evolve, but any replacement must retain explicit operator intent, exact provenance, Resolver non-bypass, and one atomic publication path.
 - **Evidence/observations:** Public `req` tests prepare a side-effect-free initial authored Scenario from durable Markdown, compare full prompt and skill bytes to the exact selected package, publish a coherent three-output wayfinding batch, inspect explicit-initiation execution provenance, and exercise every prepublication failure class without observing a transaction. Resolver tests retain exact Dispatchable Obligation provenance. Package-loading coverage rejects ambiguous authorization declarations. The package advances to `mdlm-bootstrap@0.30.0` and `bootstrap@7`.
+
+## D-052 — Route explicitly prototype-bound questions through package evidence
+
+- **Status:** accepted and implemented
+- **Decision:** The Example Process Package lets an empirical QST optionally declare
+  `resolution_evidence: prototype` plus one exact `git:<40-hex-commit>` target,
+  bounded supported and unsupported behavior, and two permitted findings. Separate
+  package-owned Selectors route these questions to
+  `prototype-question-resolution@1` and leave all other empirical questions on
+  `open-question-resolution@2`. Once the source QST Revision is frozen, the exact
+  Obligation is Dispatchable only through `resolve-question-with-prototype@1`,
+  which publishes one ART, one resolving and ART-justifying DEC, and the next
+  answered QST Revision in one validated transaction.
+- **Alternatives:** Recognize prototype vocabulary or a QST field in the kernel;
+  route every empirical question through prototype work; retain the explicit
+  non-Resolver prototype Scenario and then resolve the QST piecemeal; infer a Git
+  target from the working tree; accept branch or tag references; publish ART, DEC,
+  and QST separately; or represent exploratory findings as qualification RUN/RES
+  evidence.
+- **Rationale:** The external pilot exposed that empirical is too broad a routing
+  discriminator: some questions need one already-bounded exact prototype while
+  others need research or different evidence. A package payload declaration keeps
+  that distinction durable and process-owned. Freezing the source Revision before
+  replacement preserves one-open-draft and immutable Revision semantics. Exact
+  claim equality and two declared findings make the adapter output mechanically
+  bounded without parsing prose or promoting the prototype into formal evidence.
+- **Expected behavior:** A generic empirical QST remains Dispatchable through
+  `resolve-question@1`. A prototype-bound frozen QST instead reports the prototype
+  Resolver as both eventual and actionable. Dry-run exposes the exact target,
+  claim boundaries, complete ART/DEC/QST contract, required links, prompt, full
+  skills, Policies, completion expression, and prohibited conclusions. Canonical
+  execution publishes all three outputs with exact provenance and satisfies the
+  original Obligation. Mutable references, conclusions outside the two declared
+  findings, incomplete batches, and RUN/RES substitutions publish nothing.
+- **Reversibility:** Later package versions may add other evidence-route values or
+  a dedicated evidence-boundary initiation Scenario without changing generic
+  evaluator, dry-run, execution, or repository contracts. The discriminator and
+  Scenario identities remain package data selected by exact package provenance.
+- **Evidence/observations:** Public `req` coverage authors both generic and
+  prototype-bound empirical QSTs, freezes the exact prototype source boundary,
+  compares resolved prompt and skill bytes, executes the three-output transaction,
+  observes QST r00002 and absent original Loose End, and verifies every prohibited
+  failure leaves the lifecycle tree byte-for-byte unchanged. Generic source
+  contains no QST, ART, prototype, or Example Process Package Scenario identifier.
+  The package advances to `mdlm-bootstrap@0.31.0` and `bootstrap@8`.

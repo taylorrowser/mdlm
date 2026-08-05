@@ -1,9 +1,9 @@
 kind: obligation-definition
 id: open-question-resolution
 version: 2
-description: Every latest open question must be answered, explicitly deferred, or cancelled through an exact decision.
+description: Every latest open question not explicitly bound to prototype evidence must be answered, explicitly deferred, or cancelled through an exact decision.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
-for_each: 'select("open-questions@1", {})'
+for_each: 'select("general-open-questions@1", {})'
 subject_as: question
 satisfied_when: 'question.payload.state in ["answered", "deferred", "cancelled"]'
 status_rules:

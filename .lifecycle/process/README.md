@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.30
+# MDLM bootstrap process package v0.31
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -159,7 +159,12 @@ allowed target types; each source definition is authoritative for its own links.
 The package now defines MAP frontier indexes and exact ART prototype pointers in
 addition to its question, decision, product, stakeholder, review, and baseline
 data. `chart-wayfinding-map@1` and `build-exploratory-prototype@1` provide exact
-authoring provenance for that evidence. MAP, PSP, and STK are substantive review
+authoring provenance for that evidence. An empirical QST may explicitly bind
+resolution to one exact Git prototype target, bounded supported and unsupported
+behavior, and two allowed findings. That declaration routes its exact frozen
+Revision to `resolve-question-with-prototype@1`, which atomically publishes ART,
+DEC, and the satisfying QST Revision; other empirical questions retain the generic
+resolver. MAP, PSP, and STK are substantive review
 subjects: their ready Review Context work sorts ahead of blocked Review work; one
 frozen context may contain the coherent small intent slice while each exact
 subject receives its own REV. Candidate and Gate Sign-off review remain separate.

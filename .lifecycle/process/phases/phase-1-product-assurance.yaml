@@ -19,10 +19,12 @@ scenarios:
   - create-review-context@1
   - review-datum-in-context@1
   - resolve-question@1
+  - resolve-question-with-prototype@1
 obligations:
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@2
+  - prototype-question-resolution@1
   - verification-run-required@1
 outputs: [VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
 gate:

@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.30.0`
+- **Implementation package:** `mdlm-bootstrap@0.31.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -53,12 +53,14 @@ table as one test per requirement.
 
 ## Pilot-readiness repairs after closeout
 
-Issues #49–#51 preserve the accepted v0.8 boundary while repairing public operator
+Issues #49–#52 preserve the accepted v0.8 boundary while repairing public operator
 seams found in the external bootstrap pilot: repository-backed Resolver dry-run,
-effective lifecycle-type inspection, and explicit atomic initiation of package-
-authored non-Resolver Scenarios. Their executable evidence is
-`test/req-scenario-dry-run.test.ts`, `test/req-schema.test.ts`, and
-`test/req-scenario-initiation.test.ts`. They do not add Phase 3–6 scope or change
+effective lifecycle-type inspection, explicit atomic initiation of package-
+authored non-Resolver Scenarios, and package-owned routing of prototype-bound
+empirical questions to exact bounded evidence. Their executable evidence is
+`test/req-scenario-dry-run.test.ts`, `test/req-schema.test.ts`,
+`test/req-scenario-initiation.test.ts`, and
+`test/req-prototype-question-routing.test.ts`. They do not add Phase 3–6 scope or change
 the reviewed `change` expansion Decision.
 
 ## Demonstrated invariants

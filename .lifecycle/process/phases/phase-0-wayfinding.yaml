@@ -17,12 +17,14 @@ scenarios:
   - create-review-context@1
   - review-datum-in-context@1
   - resolve-question@1
+  - resolve-question-with-prototype@1
   - create-candidate-baseline@1
   - record-gate-signoff@1
 obligations:
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@2
+  - prototype-question-resolution@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@2
 outputs: [MAP, QST, DEC, ART, PSP, STK, REV, BSL]
