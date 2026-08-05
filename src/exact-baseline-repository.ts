@@ -829,11 +829,21 @@ function frozenStableLinkResolutions(
       (target): target is string => typeof target === "string",
     )
     : [];
+  const remainingTargets = [...targets];
+  for (const link of source.links) {
+    if (!revisionIdentity.test(link.target) && !obligationInstanceIdentity.test(link.target)) {
+      continue;
+    }
+    const exactIndex = remainingTargets.indexOf(link.target);
+    if (exactIndex >= 0) remainingTargets.splice(exactIndex, 1);
+  }
   return source.links.flatMap((link) => {
     if (!stableIdentity.test(link.target)) return [];
-    const targetRevision = targets.find((target) =>
+    const targetIndex = remainingTargets.findIndex((target) =>
       revisionIdentity.exec(target)?.[1] === link.target
     );
+    if (targetIndex < 0) return [];
+    const [targetRevision] = remainingTargets.splice(targetIndex, 1);
     return targetRevision
       ? [{
           link: link.type,

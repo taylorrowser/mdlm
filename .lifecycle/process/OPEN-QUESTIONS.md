@@ -57,3 +57,7 @@ behavior where possible.
     then freezes the resulting group candidate. Should a later package contract
     atomically reserve the resulting candidate identity before completion, or is
     this explicit context-to-completion-to-candidate sequence preferable?
+16. **Multi-requirement change order:** The change tracer authorizes one affected
+    SYS Revision before replacement evidence. Should a later package represent a
+    multi-requirement original-V plan as another DWP lineage, a CHG payload order,
+    or separately derived per-subject Obligations with explicit dependency edges?

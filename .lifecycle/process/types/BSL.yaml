@@ -68,4 +68,11 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: superseded-by
+  - id: changed-under
+    description: Exact approved Change Request requiring this replacement context or baseline.
+    targets:
+      - {kind: datum, types: [CHG], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: changed-baseline
 kernel_managed_payload_paths: [definition_members, evidence, snapshot]

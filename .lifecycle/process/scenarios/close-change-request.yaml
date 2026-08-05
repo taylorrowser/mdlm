@@ -1,0 +1,35 @@
+kind: scenario-definition
+id: close-change-request
+version: 1
+description: Close one approved Change Request and its originating Problem Report with exact replacement evidence.
+phases: [phase-7-change-control]
+inputs:
+  - {name: change, types: [CHG], cardinality: one, identity: revision}
+  - {name: problem, types: [PRB], cardinality: one, identity: revision}
+  - {name: approval, types: [DEC], cardinality: one, identity: revision}
+  - {name: source_evidence, types: [RUN, RES, REV, ART], cardinality: one-or-more, identity: revision}
+  - {name: revised_requirements, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: closure_evidence, types: [BSL, REV, RES], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: closure
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {input: change}}
+  - name: closed_problem
+    types: [PRB]
+    cardinality: one
+    required_links:
+      - {link: reports, target: {input: source_evidence}}
+      - {link: resolved-by, target: {output: closure}}
+prompt_ref: prompts/close-change-request.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && approval.payload.kind == "change-approval"
+  && closure.payload.kind == "change-closure"
+  && closed_problem.identity.id == problem.identity.id
+  && closed_problem.payload.disposition == "closed"
+resolves: [change-closure-required]
+prohibited_inputs: [missing impacted evidence, unrelated evidence, mutable latest aliases, implicit closure]
+batching: single

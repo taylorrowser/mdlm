@@ -2,7 +2,7 @@ kind: obligation-definition
 id: passing-review-required
 version: 2
 description: Every review-required exact revision needs a current valid passing REV in a valid frozen context.
-phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
+phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-7-change-control]
 for_each: 'select("review-required-revisions@1", {})'
 subject_as: subject
 satisfied_when: 'exists("passing-reviews-for@1", {subject: subject})'

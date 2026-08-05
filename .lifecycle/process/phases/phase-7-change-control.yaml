@@ -1,0 +1,34 @@
+kind: phase-definition
+id: phase-7-change-control
+version: 1
+order: 7
+name: Exact problem and change control
+purpose: Report pilot-discovered conditions, approve bounded impact, revise in original-V order, and close with exact replacement evidence.
+coverage: bootstrap-subset
+omitted_capabilities:
+  - multi-requirement ordered change scheduling
+  - accepted-baseline promotion after replacement verification
+entry: 'process.integrity.package_valid == true'
+scenarios:
+  - report-problem@1
+  - analyze-change-impact@1
+  - create-review-context@1
+  - review-datum-in-context@1
+  - approve-change-request@1
+  - revise-requirement-under-change@1
+  - close-change-request@1
+obligations:
+  - review-context-required@2
+  - passing-review-required@2
+  - problem-report-required@1
+  - change-impact-required@1
+  - change-approval-required@1
+  - change-revision-required@1
+  - change-closure-required@1
+outputs: [PRB, CHG, DEC, SYS, BSL, REV, RES]
+gate:
+  required: false
+  candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "group-candidate"})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@2
+  completion: 'false'

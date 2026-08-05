@@ -123,6 +123,24 @@ _Avoid_: Component requirement, alias when identity matters
 A normative externally observable contract across a controlled architecture boundary, including operations, schemas, units, timing, errors, security, ordering, compatibility, and versioning.
 _Avoid_: Private API, implementation interface
 
+## Problem and change control
+
+**Problem Report (PRB)**:
+An exact report of a failure or unexpected condition preserving the immutable evidence in which it was observed.
+_Avoid_: Bug ticket when the durable evidence relationship matters
+
+**Change Request (CHG)**:
+A reviewed bounded change with exact traceability-based impact, explicit implementation order, approval, and closure evidence.
+_Avoid_: Problem Report, generic task, mutable change status
+
+**Original-V order**:
+The dependency-respecting change sequence from affected requirements through replacement context, Reviews, baselines, and independent verification evidence.
+_Avoid_: Hidden workflow, arbitrary edit order
+
+**Evidence reuse**:
+Continued use of exact historical evidence whose declared dependencies have not materially changed; authorization history remains intact even when reuse becomes Stale.
+_Avoid_: Treating all nearby evidence as affected
+
 ## Review and authorization
 
 **Review Context**:

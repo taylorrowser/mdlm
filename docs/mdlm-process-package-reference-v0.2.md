@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.25 — experimental implementation reference**
+**Bootstrap package 0.28 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -461,6 +461,37 @@ prohibited-input, output-validation, mutation, or renderer override. The durable
 execution record therefore captures the canonical Scenario request and exact
 package digest rather than inventing a second execution contract. `req process
 show` discovers the exact alias definition in the selected package catalog.
+
+### 11.1 Exact Problem Report and Change Request flow
+
+The bootstrap change-control slice uses the same canonical execution boundary.
+An unsuitable pilot RES selects `problem-report-required@1`; `report-problem@1`
+creates PRB with an exact `reports` source. `analyze-change-impact@1` creates CHG
+whose payload separates exact requirement, Review Context, Review, baseline, and
+verification-evidence impact and whose `impacts` links preserve the same bounded
+set. CHG contextual Review is distinct from the exact `change-approval` DEC.
+
+`change-revision-required@1` remains blocked until approval and revises the
+impacted SYS Stable Datum before replacement context, Review, baseline, and
+verification evidence. Exact historical REV and RES data may carry an additional
+Stable claim dependency alongside their exact judgment target. Frozen baselines
+resolve that dependency at each snapshot. A changed resolution emits a generic
+`stable-link-resolution-change`; `dependency-reassessment@1` decides Staleness.
+Evidence with an unchanged Stable resolution emits no change and remains reusable.
+
+A frozen snapshot stores resolution targets as a deterministic multiset. During
+diff, exact authored targets are consumed before Stable-link resolutions are
+paired. This avoids confusing an exact Review target with a Stable dependency
+when both refer to the same Stable Datum lineage. The storage shape and package-
+neutral comparison contract remain unchanged.
+
+`close-change-request@1` requires the exact approval, revised requirements, and
+replacement BSL/REV/RES evidence selected from `changed-under`. One atomic
+Scenario publication creates a `change-closure` DEC citing exact evidence and the
+next closed PRB Revision linked to that Decision. `change-status@1` reports this
+progress independently from maturity, validity, disposition, and relationship
+overlays. No PRB, CHG, original-V, or change-status identifier is recognized by
+generic source.
 
 ## 12. Phases and gates
 

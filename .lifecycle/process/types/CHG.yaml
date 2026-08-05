@@ -1,0 +1,61 @@
+kind: type-definition
+id: CHG
+version: 1
+name: Change Request
+description: Reviewed bounded change with exact traceability-based impact and explicit original-V implementation order.
+extends: rationale-bearing@1
+lifecycle:
+  authorship: authored
+  freeze_when: baseline-frozen
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required: [scope, planned_changes, impact, implementation_order, closure_criteria]
+  properties:
+    scope: {type: string, minLength: 1}
+    planned_changes: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+    impact:
+      type: object
+      additionalProperties: false
+      required: [requirements, contexts, reviews, baselines, verification_evidence]
+      properties:
+        requirements:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, pattern: '^(STK|SYS)-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+        contexts:
+          type: array
+          uniqueItems: true
+          items: {type: string, pattern: '^BSL-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+        reviews:
+          type: array
+          uniqueItems: true
+          items: {type: string, pattern: '^REV-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+        baselines:
+          type: array
+          uniqueItems: true
+          items: {type: string, pattern: '^BSL-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+        verification_evidence:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, pattern: '^(VER|VAI|RUN|RES)-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+    implementation_order: {const: 'requirements -> context -> reviews -> baselines -> verification'}
+    closure_criteria: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+outgoing_links:
+  - id: derived-from
+    description: Exact originating Problem Report.
+    targets:
+      - {kind: datum, types: [PRB], identity: revision}
+    cardinality: {minimum: 1, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: change-request
+  - id: impacts
+    description: Exact requirement, context, Review, baseline, and verification evidence identified by impact analysis.
+    targets:
+      - {kind: datum, types: [STK, SYS, BSL, REV, VER, VAI, RUN, RES, ASP, ICSP, VSP, ENV, ART], identity: revision}
+    cardinality: {minimum: 1, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: impacted-by
+kernel_managed_payload_paths: []

@@ -1,0 +1,13 @@
+kind: selector-definition
+id: change-closure-decisions-for
+version: 1
+description: Exact closure Decisions citing one exact Change Request and its replacement evidence.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: change, link: justifies, emit: source, types: [DEC]}
+  as: decision
+  where: 'decision.payload.kind == "change-closure" && state(decision, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.revision_id]

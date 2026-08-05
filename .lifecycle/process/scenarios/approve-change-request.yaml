@@ -1,0 +1,21 @@
+kind: scenario-definition
+id: approve-change-request
+version: 1
+description: Record authorization of one exact reviewed Change Request as an exact Decision.
+phases: [phase-7-change-control]
+inputs:
+  - {name: change, types: [CHG], cardinality: one, identity: revision}
+outputs:
+  - name: approval
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {input: change}}
+prompt_ref: prompts/approve-change-request.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && approval.payload.kind == "change-approval"
+resolves: [change-approval-required]
+prohibited_inputs: [unreviewed change requests, mutable latest aliases, implicit approval]
+batching: single

@@ -1,0 +1,21 @@
+kind: scenario-definition
+id: analyze-change-impact
+version: 1
+description: Create one bounded Change Request preserving exact source and traceability-based impact.
+phases: [phase-7-change-control]
+inputs:
+  - {name: problem, types: [PRB], cardinality: one, identity: revision}
+outputs:
+  - name: change
+    types: [CHG]
+    cardinality: one
+    required_links:
+      - {link: derived-from, target: {input: problem}}
+prompt_ref: prompts/analyze-change-impact.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && change.payload.implementation_order == "requirements -> context -> reviews -> baselines -> verification"
+resolves: [change-impact-required]
+prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth, unbounded inferred impact]
+batching: single

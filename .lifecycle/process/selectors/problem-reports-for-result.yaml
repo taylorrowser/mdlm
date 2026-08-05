@@ -1,0 +1,12 @@
+kind: selector-definition
+id: problem-reports-for-result
+version: 1
+description: Exact Problem Reports preserving one failing pilot result as their source.
+parameters:
+  - {name: result, kind: revision, types: [RES]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: result, link: reports, emit: source, types: [PRB]}
+  as: problem
+  distinct: true
+  order_by: [identity.revision_id]

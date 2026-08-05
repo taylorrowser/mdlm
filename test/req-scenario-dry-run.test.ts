@@ -54,8 +54,8 @@ async function packageWithRejectedInput(): Promise<string> {
   await fs.writeFile(
     scenarioPath,
     scenario.replace(
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision}",
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
+      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG], cardinality: one, identity: revision}",
+      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
     ),
   );
   return processRoot;
@@ -96,7 +96,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.27.0",
+          reference: "mdlm-bootstrap@0.28.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -122,11 +122,13 @@ describe("req scenario dry-run", () => {
                     types: [
                       "ASP",
                       "BSL",
+                      "CHG",
                       "DEC",
                       "DWP",
                       "ENV",
                       "ICSP",
                       "MAP",
+                      "PRB",
                       "PSP",
                       "STK",
                       "SYS",
@@ -325,7 +327,7 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.27.0",
+        "mdlm-bootstrap@0.28.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(

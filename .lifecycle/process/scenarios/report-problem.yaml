@@ -1,0 +1,23 @@
+kind: scenario-definition
+id: report-problem
+version: 1
+description: Preserve one exact unsuitable pilot result in a bounded Problem Report.
+phases: [phase-7-change-control]
+inputs:
+  - {name: result, types: [RES], cardinality: one, identity: revision}
+outputs:
+  - name: problem
+    types: [PRB]
+    cardinality: one
+    required_links:
+      - {link: reports, target: {input: result}}
+prompt_ref: prompts/report-problem.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && result.payload.claim.kind == "pilot"
+  && result.payload.claim.outcome == "unsuitable"
+  && problem.payload.disposition == "open"
+resolves: [problem-report-required]
+prohibited_inputs: [mutable latest aliases, product source code not present in exact evidence]
+batching: single

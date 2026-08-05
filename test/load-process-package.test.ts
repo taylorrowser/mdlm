@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.27.0");
-    expect(Object.keys(result.package.types)).toHaveLength(18);
+    expect(result.package.manifest.version).toBe("0.28.0");
+    expect(Object.keys(result.package.types)).toHaveLength(20);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(45);
+    expect(Object.keys(result.package.selectors)).toHaveLength(57);
     expect(Object.keys(result.package.policies)).toHaveLength(3);
     expect(result.diagnostics).toEqual([]);
   });
@@ -262,7 +262,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC]",
+        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG]",
         "types: [QST]",
       ),
     );
@@ -276,7 +276,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-input-type",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
-            "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide ASP, BSL, DEC, DWP, ENV, ICSP, MAP, PSP, STK, SYS, VAI, VER, VSP",
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide ASP, BSL, CHG, DEC, DWP, ENV, ICSP, MAP, PRB, PSP, STK, SYS, VAI, VER, VSP",
         }),
       ]),
     );
@@ -404,8 +404,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: revision",
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC], cardinality: one, identity: stable",
+        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG], cardinality: one, identity: revision",
+        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG], cardinality: one, identity: stable",
       ),
     );
 
@@ -435,7 +435,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC]",
+        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG]",
         "types: [QST]",
       ),
     );

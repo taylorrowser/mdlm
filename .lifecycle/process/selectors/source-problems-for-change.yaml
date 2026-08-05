@@ -1,0 +1,12 @@
+kind: selector-definition
+id: source-problems-for-change
+version: 1
+description: Exact originating Problem Report for one Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: change, link: derived-from, emit: target, types: [PRB]}
+  as: problem
+  distinct: true
+  order_by: [identity.revision_id]

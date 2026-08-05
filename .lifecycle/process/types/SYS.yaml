@@ -51,4 +51,11 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: governs-requirement
+  - id: changed-under
+    description: Exact approved Change Request authorizing this revised requirement.
+    targets:
+      - {kind: datum, types: [CHG], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: changed-requirement
 kernel_managed_payload_paths: []

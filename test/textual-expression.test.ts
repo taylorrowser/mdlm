@@ -626,7 +626,7 @@ describe("textual MDLM expressions", () => {
           code: "expression-selector-arguments",
           source: sources.types,
           message:
-            "Selector argument 'question' requires revision of type QST, received revision of types ASP, BSL, DEC, DWP, ENV, ICSP, MAP, PSP, STK, SYS, VAI, VER, VSP",
+            "Selector argument 'question' requires revision of type QST, received revision of types ASP, BSL, CHG, DEC, DWP, ENV, ICSP, MAP, PRB, PSP, STK, SYS, VAI, VER, VSP",
         }),
       ]),
     );

@@ -1,10 +1,10 @@
-# MDLM bootstrap process package v0.27
+# MDLM bootstrap process package v0.28
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
 toward the accepted v0.8 design. It now includes `MAP`, `QST`, `DEC`, `ART`,
 `PSP`, `STK`, `SYS`, `ASP`, `ICSP`, `DWP`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`,
-`RES`, `REV`, and `BSL`. These are a bootstrap subset of the bundled V-model Example Process
+`RES`, `REV`, `BSL`, `PRB`, and `CHG`. These are a bootstrap subset of the bundled V-model Example Process
 Package, not lifecycle types recognized by MDLM core.
 
 The package can be explicitly installed and selected with the package-neutral
@@ -200,10 +200,30 @@ package-owned outgoing link requires Stable identity. Generic type identifiers
 accept three through eight uppercase characters, permitting `ICSP` without core
 recognition of that or any other V-model noun.
 
+## Exact problem and change-control tracer slice
+
+The package defines PRB and CHG as source-owned exact lifecycle data. An
+unsuitable pilot RES derives `problem-report-required@1`; its PRB preserves that
+immutable source through `reports`. The resulting CHG names exact affected
+requirements, Review Contexts, Reviews, baselines, and verification evidence in
+both payload impact categories and `impacts` links. Contextual Review blocks an
+exact `change-approval` DEC. Only then may the affected SYS Stable Datum receive
+its next Revision through `changed-under`.
+
+Replacement context, Review, candidate, and generated pilot RES data retain the
+exact CHG. Baseline comparison keeps exact historical Review and RES evidence
+while package Policy marks only dependencies whose Stable resolutions changed as
+Stale; unrelated exact evidence remains reusable. Closure atomically publishes a
+`change-closure` DEC citing the exact CHG and replacement evidence plus the next
+closed PRB Revision. `change-status@1` remains an independent computed dimension,
+and all routing uses generic Phase, Obligation, baseline, Scenario, and repository
+surfaces.
+
 ## Scope
 
-Phases 0, 1, and 2 remain marked `bootstrap-subset`. Their narrow intent,
-qualification/pilot, and one-group system-decomposition slices are executable,
-but complete promotion, formal verification, component/design decomposition,
-implementation, and change semantics remain deferred. The package tests the
+Phases 0, 1, 2, and the Phase 7 change-control tracer remain marked
+`bootstrap-subset`. Their narrow intent, qualification/pilot, one-group system-
+decomposition, and one-requirement change slices are executable, but complete
+promotion, formal verification, component/design decomposition, implementation,
+and multi-requirement change scheduling remain deferred. The package tests the
 evaluator seam before broader lifecycle breadth.

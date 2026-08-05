@@ -1,0 +1,12 @@
+kind: selector-definition
+id: all-change-requests
+version: 1
+description: Exact valid Change Requests in deterministic identity order.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [CHG]}
+  as: change
+  where: 'state(change, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.id, identity.revision]

@@ -1,13 +1,13 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.27.0
+version: 0.28.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
-  narrow Phase 0 intent, Phase 1 qualification/pilot, and Phase 2 system
-  decomposition slices.
+  narrow Phase 0 intent, Phase 1 qualification/pilot, Phase 2 system
+  decomposition, and exact problem/change-control slices.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -41,9 +41,9 @@ compatibility:
   template_inheritance: single-parent-additive
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG]
   policies: [dependency-reassessment, review-applicability, waiver-applicability]
-  states: [maturity, disposition, validity, relationship-overlays, decomposition-status]
+  states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - review-required-revisions
     - newer-revisions-for
@@ -90,6 +90,18 @@ catalog:
     - blocking-questions-for-decomposition
     - architectures-for-decomposition
     - interfaces-for-decomposition
+    - failing-pilot-results
+    - problem-reports-for-result
+    - open-problem-reports
+    - change-requests-for-problem
+    - source-problems-for-change
+    - reported-evidence-for-problem
+    - all-change-requests
+    - change-approval-decisions-for
+    - impacted-requirements-for-change
+    - revised-requirements-for-change
+    - change-evidence-for
+    - change-closure-decisions-for
   obligations:
     - review-context-required
     - passing-review-required
@@ -103,6 +115,11 @@ catalog:
     - architecture-interface-simplification-required
     - decomposition-completion-required
     - decomposition-parent-coverage-required
+    - problem-report-required
+    - change-impact-required
+    - change-approval-required
+    - change-revision-required
+    - change-closure-required
   scenarios:
     - chart-wayfinding-map
     - build-exploratory-prototype
@@ -126,7 +143,12 @@ catalog:
     - simplify-requirement-set
     - simplify-architecture-and-interfaces
     - complete-decomposition-work-package
-  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
+    - report-problem
+    - analyze-change-impact
+    - approve-change-request
+    - revise-requirement-under-change
+    - close-change-request
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-7-change-control]
   aliases: [question.resolve]
 assets:
   prompts:
@@ -152,6 +174,11 @@ assets:
     - prompts/simplify-requirement-set.md@1
     - prompts/simplify-architecture-and-interfaces.md@1
     - prompts/complete-decomposition-work-package.md@1
+    - prompts/report-problem.md@1
+    - prompts/analyze-change-impact.md@1
+    - prompts/approve-change-request.md@1
+    - prompts/revise-requirement-under-change.md@1
+    - prompts/close-change-request.md@1
   skills:
     - skills/lifecycle-data.md@1
     - skills/wayfinding-map.md@1
@@ -180,12 +207,13 @@ assets:
     - skills/decomposition.md@1
     - skills/coverage-analysis.md@1
     - skills/dwp-completion.md@1
+    - skills/change-control.md@1
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@4
+  default: bootstrap@5
   available:
-    - profiles/bootstrap.yaml@4
+    - profiles/bootstrap.yaml@5
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md
