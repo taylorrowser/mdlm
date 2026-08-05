@@ -831,7 +831,10 @@ function frozenStableLinkResolutions(
     : [];
   const remainingTargets = [...targets];
   for (const link of source.links) {
-    if (!revisionIdentity.test(link.target) && !obligationInstanceIdentity.test(link.target)) {
+    if (
+      !revisionIdentity.test(link.target) &&
+      !obligationInstanceIdentity.test(link.target)
+    ) {
       continue;
     }
     const exactIndex = remainingTargets.indexOf(link.target);
