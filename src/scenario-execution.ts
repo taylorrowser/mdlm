@@ -14,6 +14,7 @@ import {
 } from "./index.js";
 import { evaluateProcessExpression } from "./evaluator.js";
 import { finalizeExactBaselineScenarioOutput } from "./exact-baseline-repository.js";
+import { parseObligationInstanceIdentity } from "./obligation-instance.js";
 import {
   deriveLifecycleRecordStorage,
   provisionalLifecycleRecord,
@@ -456,9 +457,33 @@ async function prepareRepositoryScenario(
     processPackage.scenarios,
     scenarioReference,
   );
-  const phaseId = array(selectedScenario?.phases).find(
+  const scenarioPhases = array(selectedScenario?.phases).filter(
     (value): value is string => typeof value === "string",
   );
+  const parsedObligation = authorizationRequest.mode === "dispatchable-obligation"
+    ? parseObligationInstanceIdentity(authorizationRequest.obligationInstance)
+    : undefined;
+  const obligation = parsedObligation
+    ? versionedDefinition(
+        processPackage.obligations,
+        parsedObligation.obligationReference,
+      )
+    : undefined;
+  const obligationPhases = new Set(
+    array(obligation?.phases).filter(
+      (value): value is string => typeof value === "string",
+    ),
+  );
+  const obligationPhaseId =
+    parsedObligation?.subject.kind === "phase" ||
+      parsedObligation?.subject.kind === "process"
+      ? parsedObligation.subject.phaseId
+      : undefined;
+  const phaseId = obligationPhaseId
+    ? scenarioPhases.find((candidate) => candidate === obligationPhaseId)
+    : authorizationRequest.mode === "dispatchable-obligation"
+    ? scenarioPhases.find((candidate) => obligationPhases.has(candidate))
+    : scenarioPhases[0];
   if (!selectedScenario || !phaseId) {
     return {
       ok: false,

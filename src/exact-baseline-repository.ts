@@ -23,6 +23,7 @@ import {
   type ParsedDatum,
   type RepositoryResult,
 } from "./lifecycle-repository.js";
+import { isObligationInstanceIdentity } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
 
 export interface BaselineMutation {
@@ -76,7 +77,6 @@ export interface BaselineRepositoryVerification {
 
 const stableIdentity = /^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
 const revisionIdentity = /^([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
-const obligationInstanceIdentity = /^([a-z][a-z0-9-]*@[1-9][0-9]*):([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}):(.+)$/;
 
 function exactBaselineType(
   processPackage: ProcessPackage,
@@ -248,7 +248,7 @@ function exactTargetResolution(
   parsed: ParsedDatum[],
   target: string,
 ): string | undefined {
-  if (revisionIdentity.test(target) || obligationInstanceIdentity.test(target)) {
+  if (revisionIdentity.test(target) || isObligationInstanceIdentity(target)) {
     return target;
   }
   if (!stableIdentity.test(target)) return undefined;
@@ -906,7 +906,7 @@ function frozenStableLinkResolutions(
   for (const link of source.links) {
     if (
       !revisionIdentity.test(link.target) &&
-      !obligationInstanceIdentity.test(link.target)
+      !isObligationInstanceIdentity(link.target)
     ) {
       continue;
     }

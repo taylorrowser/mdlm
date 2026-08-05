@@ -18,6 +18,7 @@ import type {
   ProcessPackage,
   VersionedDefinition,
 } from "./index.js";
+import { parseObligationInstanceIdentity } from "./obligation-instance.js";
 
 export interface ScenarioInputCheck {
   check: "resolution" | "cardinality" | "identity" | "type" | "condition";
@@ -271,7 +272,7 @@ async function resolvePrompt(
 }
 
 function obligationReference(instance: ObligationEvaluation): string {
-  return instance.id.slice(0, instance.id.indexOf(":"));
+  return parseObligationInstanceIdentity(instance.id)?.obligationReference ?? "";
 }
 
 function expressionValue(

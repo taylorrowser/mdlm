@@ -1194,6 +1194,9 @@ function entityBinding(
   domainKind: string,
   lifecycleTypes?: string[],
 ): Binding {
+  if (domainKind === "phase" || domainKind === "process") {
+    return structuredClone(baseBindings[domainKind]!);
+  }
   if (domainKind === "record") {
     return {
       valueType: "object",
@@ -1224,10 +1227,20 @@ function selectorResultKind(
   selectors: DefinitionCatalog,
 ): string | undefined {
   if (isCompiledTextExpression(value)) {
-    return value.root.kind === "selector" &&
+    if (
+      value.root.kind === "selector" &&
       ["one", "select"].includes(value.root.operation)
-      ? value.root.domainKind
-      : undefined;
+    ) {
+      return value.root.domainKind;
+    }
+    if (value.root.kind === "array" && value.root.elements.length > 0) {
+      const kinds = value.root.elements.map((element) => element.domainKind);
+      const first = kinds[0];
+      return first !== undefined && kinds.every((kind) => kind === first)
+        ? first
+        : undefined;
+    }
+    return undefined;
   }
   if (typeof value !== "object" || value === null) return undefined;
   const reference = (value as Record<string, unknown>).selector;

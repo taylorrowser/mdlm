@@ -8,6 +8,10 @@ import {
 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { parse, stringify } from "yaml";
+import {
+  isObligationInstanceIdentity,
+  parseObligationInstanceIdentity,
+} from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
 import {
   evaluateLifecycle,
@@ -132,7 +136,6 @@ export interface KernelFinalizedScenarioOutput {
 const base32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const stableIdentity = /^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
 const revisionIdentity = /^([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
-const obligationInstanceIdentity = /^([a-z][a-z0-9-]*@[1-9][0-9]*):([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}):(.+)$/;
 
 function randomStableId(typeId: string): string {
   return `${typeId}-${[...randomBytes(10)]
@@ -419,15 +422,31 @@ function obligationInstanceParts(
   lifecycleData: LifecycleRecord[],
   target: string,
 ): { obligation: string; subject: string } | undefined {
-  const match = obligationInstanceIdentity.exec(target);
-  if (!match?.[1] || !match[2]) return undefined;
-  const reference = referenceParts(match[1]);
+  const parsed = parseObligationInstanceIdentity(target);
+  if (!parsed) return undefined;
+  const reference = referenceParts(parsed.obligationReference);
   const definition = reference ? processPackage.obligations[reference[0]] : undefined;
   if (!reference || !definition || definition.version !== reference[1]) return undefined;
-  if (!lifecycleData.some((item) => item.datum.revision_id === match[2])) {
+  if (
+    parsed.subject.kind === "revision" &&
+    !lifecycleData.some(
+      (item) => item.datum.revision_id === parsed.subject.identity,
+    )
+  ) {
     return undefined;
   }
-  return { obligation: match[1], subject: match[2] };
+  if (parsed.subject.kind === "phase") {
+    const phase = processPackage.phases[parsed.subject.phaseId];
+    if (!phase || phase.version !== parsed.subject.version) return undefined;
+  }
+  if (parsed.subject.kind === "process") {
+    const phase = processPackage.phases[parsed.subject.phaseId];
+    if (!phase || phase.version !== parsed.subject.phaseVersion) return undefined;
+  }
+  return {
+    obligation: parsed.obligationReference,
+    subject: parsed.subject.identity,
+  };
 }
 
 function graphNode(
@@ -482,7 +501,7 @@ function linkDiagnostics(
     if (!target && !obligation) {
       const validIdentity = stableIdentity.test(link.target) ||
         revisionIdentity.test(link.target) ||
-        obligationInstanceIdentity.test(link.target);
+        isObligationInstanceIdentity(link.target);
       diagnostics.push({
         code: validIdentity ? "unknown-link-target" : "invalid-link-target-identity",
         path: `links[${index}].target`,

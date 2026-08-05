@@ -336,8 +336,12 @@ references and does not feed validity.
 
 ## 10. Obligations and loose ends
 
-An obligation is instantiated once for each result of its subject selector. It
-declares:
+An obligation is instantiated once for each result of its `for_each` expression.
+The expression may select exact Lifecycle Data Revisions or place the evaluator's
+exact current `phase` or selected `process` context in an array. Phase and Process
+subjects let a package require an initial outcome before any Lifecycle Datum
+exists; they do not enter Revision collections or become synthetic Lifecycle Data.
+An obligation declares:
 
 - its exact subject variable;
 - the expression that satisfies it;
@@ -377,10 +381,16 @@ Boolean result.
 Obligation identity is:
 
 ```text
-<obligation-definition-id>@<version>:<subject-revision-id>:<process-ref>
+<obligation-definition-id>@<version>:<exact-subject-id>:<process-ref>
 ```
 
-When a resolving scenario creates a new subject revision, the former instance is
+A Revision subject uses its exact Revision ID. A Phase subject uses its exact
+Phase definition ID and version. A Process subject uses
+`process@<phase-id>@<phase-version>` so its evaluation context is unambiguous.
+The final process reference keeps every instance, including a Process-scoped one,
+bound to the exact package evaluation that produced it.
+
+When a resolving scenario creates a new subject Revision, the former instance is
 historical and the current selector is reevaluated. `evaluateLifecycle` accepts
 explicit named historical repository snapshots and evaluates each independently
 through the same Process Package. Their Obligation explanations are returned under

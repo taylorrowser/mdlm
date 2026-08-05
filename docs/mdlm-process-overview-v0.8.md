@@ -360,7 +360,7 @@ A Computed State definition declares one dimension, allowed values, precedence, 
 
 ### 4.10 Obligation-driven phase rules
 
-An Obligation selects exact subjects and declares satisfaction, prioritized status, resolver bindings, and waiver policy. One evaluation for one subject and process reference is an Obligation Instance.
+An Obligation selects exact subjects and declares satisfaction, prioritized status, resolver bindings, and waiver policy. Subjects are exact Lifecycle Data Revisions or the exact current Phase or selected Process context; the latter two allow required initial outcomes without fabricating Lifecycle Data. One evaluation for one subject and process reference is an Obligation Instance.
 
 ```yaml
 id: review-context-required
@@ -379,7 +379,7 @@ The evaluator emits one Loose End per unsatisfied instance. Subsequent obligatio
 Obligation identity is stable and explainable:
 
 ```text
-<obligation-definition-id>@<version>:<subject-revision-id>:<process-ref>
+<obligation-definition-id>@<version>:<exact-subject-id>:<process-ref>
 ```
 
 ### 4.11 Package validation

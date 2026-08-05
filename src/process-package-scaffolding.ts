@@ -172,7 +172,7 @@ function emptyManifest(id: string): Record<string, unknown> {
       datum_stable: "<TYPE>-<Crockford-Base32-ID>",
       datum_revision: "<stable-id>-r<five-digit-revision>",
       obligation_instance:
-        "<obligation>@<version>:<subject-revision>:<process-ref>",
+        "<obligation>@<version>:<exact-subject>:<process-ref>",
     },
     language: { expressions: "mdlm-expression@1" },
     kernel_capabilities: {},

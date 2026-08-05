@@ -1487,3 +1487,40 @@ turning provisional choices into architecture.
   migration—was continued across one-step turns after the executor fix and
   atomically published `BSL-MH359T85MG-r00001`; `req doctor` then
   verified all three pilot baselines with no diagnostics.
+
+## D-059 — Permit exact Phase and Process subjects for Obligations
+
+- **Status:** accepted and implemented
+- **Decision:** The evaluator exposes the selected exact Phase and Process Package
+  contexts as identity-bearing expression entities. An Obligation `for_each`
+  expression may use `[phase]` or `[process]`; the compiler infers that domain for
+  the declared subject binding. A Phase subject identity contains the package's
+  Phase ID and version. A Process subject uses
+  `process@<phase-id>@<phase-version>` so authorization returns to the same Phase
+  evaluation; the final exact Process Package reference makes the selected
+  Process scope exact while keeping the colon-delimited identity unambiguous.
+- **Alternatives:** Require an explicitly initiated first Scenario; fabricate a
+  bootstrap Lifecycle Datum; add one kernel-recognized initial-work noun; make an
+  empty `req next` implicitly authorize a package Scenario; or introduce special
+  imperative Phase hooks outside the expression and Obligation model.
+- **Rationale:** Required authored foundation work can precede every Lifecycle
+  Datum. Treating the already-typed `phase` and `process` expression roots as
+  exact subjects lets the package declare that outcome without creating false
+  lifecycle truth or teaching the kernel any package-owned Phase or output name.
+  The resulting Resolver uses the same Dispatchability and exact authorization
+  checks as Datum-scoped work.
+- **Expected behavior:** An initialized repository can report one Dispatchable
+  package-declared Loose End against its exact Phase or Process subject. `req
+  next`, dry-run, and execution preserve the exact Obligation Instance. Once the
+  Resolver publishes evidence satisfying the package expression, reevaluation
+  removes that Loose End and discovers any downstream work. Scope entities never
+  appear in Revision selectors or Scenario lifecycle inputs.
+- **Reversibility:** A later expression version may provide a more general exact
+  scope-identity algebra. Existing Revision subjects and Obligation identities
+  are unchanged, and packages that do not use `[phase]` or `[process]` retain
+  their current behavior.
+- **Evidence/observations:** A temporary package fixture declares an initial MAP
+  outcome over both Phase and Process subjects and contains no initial Lifecycle
+  Data. Public evaluator and `req` coverage proves discovery, `next`, dry-run,
+  authorized Scenario execution, atomic MAP publication, and
+  satisfaction-driven removal of the scoped Loose End.

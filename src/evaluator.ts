@@ -14,6 +14,11 @@ import type {
   ProcessPackage,
   VersionedDefinition,
 } from "./index.js";
+import {
+  formatObligationInstanceIdentity,
+  phaseObligationSubjectIdentity,
+  processObligationSubjectIdentity,
+} from "./obligation-instance.js";
 import { effectiveOutgoingLinks } from "./payload-inheritance.js";
 
 export interface DatumEnvelope {
@@ -266,11 +271,14 @@ export interface ProcessExpressionEvaluation {
   evidence: ProcessDefinitionEvidence[];
 }
 
-type EntityKind = "revision" | "stable-datum" | "record";
+type EntityKind = "phase" | "process" | "record" | "revision" | "stable-datum";
 
 interface Entity {
   entityKind: EntityKind;
   key: string;
+  id?: string;
+  version?: number;
+  current_ref?: string;
   identity?: {
     id?: string;
     revision_id?: string;
@@ -279,7 +287,7 @@ interface Entity {
   };
   payload?: Record<string, unknown>;
   storage?: LifecycleRecord["storage"];
-  integrity?: LifecycleRecord["integrity"];
+  integrity?: LifecycleRecord["integrity"] | { package_valid: boolean };
   provenance?: { process_ref: string };
   datum?: DatumEnvelope;
   record?: object;
@@ -378,12 +386,22 @@ class LifecycleEvaluator {
       this.byRevision.set(record.datum.revision_id, entity);
       return entity;
     });
+    const phaseVersion = number(processPackage.phases[snapshot.phaseId]?.version);
+    const processSubject: Entity = {
+      entityKind: "process",
+      key: processObligationSubjectIdentity(snapshot.phaseId, phaseVersion),
+      current_ref: snapshot.processRef,
+      integrity: { package_valid: true },
+    };
+    const phaseSubject: Entity = {
+      entityKind: "phase",
+      key: phaseObligationSubjectIdentity(snapshot.phaseId, phaseVersion),
+      id: snapshot.phaseId,
+      version: phaseVersion,
+    };
     this.baseContext = {
-      process: {
-        current_ref: snapshot.processRef,
-        integrity: { package_valid: true },
-      },
-      phase: { id: snapshot.phaseId },
+      process: processSubject,
+      phase: phaseSubject,
       ...(snapshot.execution ? { execution: snapshot.execution } : {}),
     };
     for (const definition of this.expressionBearingDefinitions()) {
@@ -457,6 +475,7 @@ class LifecycleEvaluator {
         this.resolveSuppliedValue(
           value,
           expression.contract?.bindings[name]?.domainKind === "stable-datum",
+          expression.contract?.bindings[name]?.domainKind,
         ),
       ]),
     );
@@ -527,7 +546,9 @@ class LifecycleEvaluator {
     const resolvedArguments = Object.fromEntries(
       Object.entries(suppliedArguments).map(([name, value]) => [
         name,
-        this.resolveSuppliedValue(value),
+        kind === "obligation" && name === "subject"
+          ? this.resolveObligationSubject(value)
+          : this.resolveSuppliedValue(value),
       ]),
     );
     const evidence: ProcessDefinitionEvidence[] = [];
@@ -576,7 +597,7 @@ class LifecycleEvaluator {
         );
         const lifecycle = this.evaluate();
         const subject = this.isEntity(resolvedArguments.subject)
-          ? resolvedArguments.subject.identity?.revision_id
+          ? this.obligationSubjectId(resolvedArguments.subject)
           : undefined;
         const matches = lifecycle.obligations.filter((obligation) =>
           obligation.obligation === definition.id &&
@@ -683,7 +704,7 @@ class LifecycleEvaluator {
         const satisfied = this.expression(definition.satisfied_when, context);
         const resolverObject = object(definition.resolve_with);
         const eventualResolver = string(resolverObject?.scenario) ?? "";
-        const subjectId = subject.identity?.revision_id ?? subject.key;
+        const subjectId = this.obligationSubjectId(subject);
         const instanceId = this.obligationInstanceId(
           `${definition.id}@${definition.version}`,
           subjectId,
@@ -985,17 +1006,31 @@ class LifecycleEvaluator {
     }
   }
 
+  private resolveObligationSubject(value: unknown): unknown {
+    if (typeof value === "string") {
+      for (const binding of [this.baseContext.phase, this.baseContext.process]) {
+        if (this.isEntity(binding) && binding.key === value) return binding;
+      }
+    }
+    return this.resolveSuppliedValue(value);
+  }
+
   private resolveSuppliedValue(
     value: unknown,
     permitStableIdentity = false,
+    domainKind?: string,
   ): unknown {
     if (typeof value === "string") {
       if (this.byRevision.has(value)) return this.byRevision.get(value);
+      if (domainKind === "phase" || domainKind === "process") {
+        const binding = this.baseContext[domainKind];
+        if (this.isEntity(binding) && binding.key === value) return binding;
+      }
       return permitStableIdentity ? this.entityForReference(value) ?? value : value;
     }
     if (Array.isArray(value)) {
       return value.map((item) =>
-        this.resolveSuppliedValue(item, permitStableIdentity)
+        this.resolveSuppliedValue(item, permitStableIdentity, domainKind)
       );
     }
     const asObject = object(value);
@@ -1003,7 +1038,7 @@ class LifecycleEvaluator {
       ? Object.fromEntries(
           Object.entries(asObject).map(([key, item]) => [
             key,
-            this.resolveSuppliedValue(item, permitStableIdentity),
+            this.resolveSuppliedValue(item, permitStableIdentity, domainKind),
           ]),
         )
       : value;
@@ -1097,11 +1132,19 @@ class LifecycleEvaluator {
     };
   }
 
+  private obligationSubjectId(subject: Entity): string {
+    return subject.identity?.revision_id ?? subject.key;
+  }
+
   private obligationInstanceId(
     obligationReference: string,
     subjectId: string,
   ): string {
-    return `${obligationReference}:${subjectId}:${this.snapshot.processRef}`;
+    return formatObligationInstanceIdentity(
+      obligationReference,
+      subjectId,
+      this.snapshot.processRef,
+    );
   }
 
   private blockingInstanceIds(
@@ -1117,9 +1160,10 @@ class LifecycleEvaluator {
       const subjects = array(this.value(blocker.subjects, context))
         .filter((value): value is Entity => this.isEntity(value));
       for (const subject of subjects) {
-        const subjectId = subject.identity?.revision_id;
-        if (!subjectId) continue;
-        const instanceId = this.obligationInstanceId(obligation, subjectId);
+        const instanceId = this.obligationInstanceId(
+          obligation,
+          this.obligationSubjectId(subject),
+        );
         const pending = byInstanceId.get(instanceId);
         if (
           pending &&
