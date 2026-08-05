@@ -1,0 +1,30 @@
+kind: phase-definition
+id: phase-2-pilot-assessment
+version: 1
+order: 2
+name: Phase 0–2 pilot assessment
+purpose: Review durable pilot measurements and record an exact proceed, change, or stop Decision before Example Process Package work expands into Phases 3–6.
+coverage: bootstrap-subset
+omitted_capabilities:
+  - automated effort telemetry outside durable lifecycle and Scenario records
+  - Phases 3–6 Example Process Package definitions or execution
+entry: 'process.integrity.package_valid == true && exists("pilot-assessment-contexts@1", {})'
+scenarios:
+  - record-pilot-observation@1
+  - prepare-pilot-assessment-context@1
+  - assess-phase-0-2-pilot@1
+  - create-review-context@1
+  - review-datum-in-context@1
+  - decide-pilot-expansion@1
+obligations:
+  - review-context-required@2
+  - passing-review-required@2
+  - pilot-assessment-required@1
+  - pilot-expansion-decision-required@1
+outputs: [PAS, REV, DEC, BSL]
+gate:
+  required: false
+  candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "level-candidate"})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@2
+  completion: 'false'

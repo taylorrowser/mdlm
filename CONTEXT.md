@@ -141,6 +141,20 @@ _Avoid_: Hidden workflow, arbitrary edit order
 Continued use of exact historical evidence whose declared dependencies have not materially changed; authorization history remains intact even when reuse becomes Stale.
 _Avoid_: Treating all nearby evidence as affected
 
+## Process assessment
+
+**Pilot Assessment (PAS)**:
+A reviewed durable measurement record over one exact frozen pilot evidence context, ending in a proceed, change, or stop recommendation.
+_Avoid_: Generated lifecycle report, informal retrospective
+
+**Expansion Decision**:
+An exact DEC that adopts the recommendation of a reviewed Pilot Assessment before broader Example Process Package work begins.
+_Avoid_: Implicit continuation, roadmap intention
+
+**Scope reduction**:
+Observed removal of challenged behavior or lifecycle content, recorded separately from simplification ceremony that retains everything.
+_Avoid_: Review completion, scope clarification without removal
+
 ## Review and authorization
 
 **Review Context**:

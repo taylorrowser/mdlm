@@ -1,11 +1,11 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 5
+version: 6
 status: experimental
-description: Narrow profile validating typed kernel/process seams through reviewed intent, qualification/pilot, bounded system decomposition, and exact change control.
+description: Narrow profile validating typed kernel/process seams through reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG]
-  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-7-change-control]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
 disabled_capabilities:
   - component and design decomposition lifecycle types
@@ -24,3 +24,4 @@ success_criteria:
   - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations
   - one small decomposition reaches a reviewed SYS level candidate composed from its exact group candidate and shared architecture/interface context
   - one pilot-discovered PRB reaches an exact approved CHG, original-V replacement evidence, selective Staleness, and exact closure
+  - one exact pilot evidence context records reviewed burden, reuse, queue, ceremony, discrimination, and scope measurements before an exact proceed, change, or stop Decision

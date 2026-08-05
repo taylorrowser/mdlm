@@ -1,0 +1,16 @@
+kind: scenario-definition
+id: record-pilot-observation
+version: 1
+description: Author one exact observed measurement source for the Phase 0–2 pilot evidence context.
+phases: [phase-2-pilot-assessment]
+inputs: []
+outputs:
+  - {name: observation, types: [DEC], cardinality: one, required_links: []}
+prompt_ref: prompts/record-pilot-observation.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && observation.payload.kind == "decision"
+resolves: []
+prohibited_inputs: [estimates presented as observations, generated indexes or reports as lifecycle truth, mutable aliases]
+batching: either

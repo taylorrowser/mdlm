@@ -40,6 +40,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "ENV@1",
       "ICSP@1",
       "MAP@1",
+      "PAS@1",
       "PRB@1",
       "PSP@2",
       "QST@2",

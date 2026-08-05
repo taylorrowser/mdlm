@@ -1,0 +1,12 @@
+kind: selector-definition
+id: all-pilot-assessments
+version: 1
+description: Every exact valid Phase 0–2 pilot assessment in deterministic identity order.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [PAS]}
+  as: assessment
+  where: 'state(assessment, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.id, identity.revision]

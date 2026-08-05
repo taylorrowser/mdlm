@@ -1,13 +1,13 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.28.0
+version: 0.29.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
   narrow Phase 0 intent, Phase 1 qualification/pilot, Phase 2 system
-  decomposition, and exact problem/change-control slices.
+  decomposition, exact problem/change-control, and reviewed pilot-assessment slices.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -41,7 +41,7 @@ compatibility:
   template_inheritance: single-parent-additive
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
   policies: [dependency-reassessment, review-applicability, waiver-applicability]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
@@ -102,6 +102,10 @@ catalog:
     - revised-requirements-for-change
     - change-evidence-for
     - change-closure-decisions-for
+    - pilot-assessment-contexts
+    - pilot-assessments-for-context
+    - all-pilot-assessments
+    - pilot-expansion-decisions-for
   obligations:
     - review-context-required
     - passing-review-required
@@ -120,6 +124,8 @@ catalog:
     - change-approval-required
     - change-revision-required
     - change-closure-required
+    - pilot-assessment-required
+    - pilot-expansion-decision-required
   scenarios:
     - chart-wayfinding-map
     - build-exploratory-prototype
@@ -148,7 +154,11 @@ catalog:
     - approve-change-request
     - revise-requirement-under-change
     - close-change-request
-  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-7-change-control]
+    - record-pilot-observation
+    - prepare-pilot-assessment-context
+    - assess-phase-0-2-pilot
+    - decide-pilot-expansion
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
   aliases: [question.resolve]
 assets:
   prompts:
@@ -179,6 +189,10 @@ assets:
     - prompts/approve-change-request.md@1
     - prompts/revise-requirement-under-change.md@1
     - prompts/close-change-request.md@1
+    - prompts/record-pilot-observation.md@1
+    - prompts/prepare-pilot-assessment-context.md@1
+    - prompts/assess-phase-0-2-pilot.md@1
+    - prompts/decide-pilot-expansion.md@1
   skills:
     - skills/lifecycle-data.md@1
     - skills/wayfinding-map.md@1
@@ -208,12 +222,13 @@ assets:
     - skills/coverage-analysis.md@1
     - skills/dwp-completion.md@1
     - skills/change-control.md@1
+    - skills/pilot-assessment.md@1
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@5
+  default: bootstrap@6
   available:
-    - profiles/bootstrap.yaml@5
+    - profiles/bootstrap.yaml@6
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

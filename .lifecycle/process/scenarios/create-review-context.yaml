@@ -2,9 +2,9 @@ kind: scenario-definition
 id: create-review-context
 version: 1
 description: Deterministically freeze one primary subject with the exact parent, sibling, decision, and candidate context needed for review.
-phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-7-change-control]
+phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 inputs:
-  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG], cardinality: one, identity: revision}
+  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}
 outputs:
   - {name: context, types: [BSL], cardinality: one, required_links: []}
 prompt_ref: prompts/create-review-context.md@1

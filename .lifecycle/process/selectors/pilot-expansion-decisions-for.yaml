@@ -1,0 +1,13 @@
+kind: selector-definition
+id: pilot-expansion-decisions-for
+version: 1
+description: Exact valid proceed, change, or stop Decisions justified by one reviewed pilot assessment.
+parameters:
+  - {name: assessment, kind: revision, types: [PAS]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: assessment, link: justifies, emit: source, types: [DEC]}
+  as: decision
+  where: 'decision.payload.kind == "pilot-expansion" && state(decision, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.id, identity.revision]

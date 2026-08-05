@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.28 — experimental implementation reference**
+**Bootstrap package 0.29 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -493,6 +493,33 @@ progress independently from maturity, validity, disposition, and relationship
 overlays. No PRB, CHG, original-V, or change-status identifier is recognized by
 generic source.
 
+### 11.2 Reviewed pilot measurements and expansion Decision
+
+`PAS@1` is a package-owned generated lifecycle type whose structured payload
+records Review/Review Context volume, observed agent Scenario and repository-
+command effort, localized-change reuse and Staleness explanation checks, Loose
+End usefulness, gate ceremony, environment-profile sufficiency, verification
+discrimination, actual scope reduction, limitations, and one `proceed`, `change`,
+or `stop` recommendation. It is durable Markdown truth rather than a disposable
+generated report.
+
+The exact source observations are first frozen as supporting evidence in a
+`pilot-assessment-context` BSL. `pilot-assessment-required@1` selects that exact
+context and authorizes `assess-phase-0-2-pilot@1`; direct PAS creation is rejected
+by generated authorship. Its exact `measures` link keeps the immutable evidence
+context distinct from the assessment payload.
+
+PAS participates in the ordinary package review Policy. Until a passing
+contextual REV exists, `pilot-expansion-decision-required@1` remains blocked by
+the exact Review Obligation. `decide-pilot-expansion@1` then requires the DEC
+`decision` to equal the reviewed PAS recommendation. Source-owned `justifies` and
+`relies-on-review` links preserve the exact PAS and passing REV. The pilot records
+`change`: selective reuse, explanations, Loose End routing, environment profiles,
+and verification discrimination worked, while ceremony was high and no
+challenged scope item was removed. The package contains no Phase 3–6 definitions,
+so the Decision is durable before that deferred work can begin. Generic source
+recognizes neither PAS nor the assessment Phase, metrics, or recommendation.
+
 ## 12. Phases and gates
 
 Phases list applicable scenarios and obligations and declare entry and gate
@@ -683,8 +710,8 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.27 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
-DWP, VSP, ENV, VER, VAI, RUN, RES, REV, and BSL. MAP is a linked frontier index and ART records
+Bootstrap package 0.29 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. The narrow repository-backed Phase 0 tracer reviews MAP,
 PSP, and STK separately in a shared exact frozen context, freezes and reviews an
@@ -712,8 +739,10 @@ identity only when the package-owned source contract requires it. Kernel identit
 syntax permits three-to-eight-character uppercase type prefixes, but the kernel
 recognizes none of these example IDs.
 
-Phases 0, 1, and 2 remain explicit bootstrap subsets. Complete promotion, formal
-verification, component/design decomposition, implementation, and change types
-remain deferred. The purpose is to validate the kernel/process seam, schema
-composition, graph querying, review evidence, baselines, policies, obligations,
-Scenario execution, and gate routing before broader lifecycle breadth.
+Phases 0, 1, and 2, exact change control, and the reviewed pilot assessment
+remain explicit bootstrap subsets. The expansion Decision is `change`: complete
+promotion, formal verification, component/design decomposition, and implementation
+remain deferred until ceremony is reduced and scope removal is demonstrated. The
+purpose is to validate the kernel/process seam, schema composition, graph querying,
+review evidence, baselines, policies, obligations, Scenario execution, gate
+routing, and evidence-based process assessment before broader lifecycle breadth.

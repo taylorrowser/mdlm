@@ -133,7 +133,7 @@ describe("req Process Package scaffolding", () => {
       "init",
       "assurance-case",
       "--from",
-      "mdlm-bootstrap@0.28.0",
+      "mdlm-bootstrap@0.29.0",
       "--json",
     );
 
@@ -142,7 +142,7 @@ describe("req Process Package scaffolding", () => {
     expect(output.scaffold).toEqual(expect.objectContaining({
       package: "assurance-case@0.1.0",
       derivedFrom: expect.objectContaining({
-        package: "mdlm-bootstrap@0.28.0",
+        package: "mdlm-bootstrap@0.29.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
     }));
@@ -154,7 +154,7 @@ describe("req Process Package scaffolding", () => {
     expect(manifest.provenance).toEqual(expect.objectContaining({
       created_by: "req-process-init@1",
       derived_from: {
-        package: "mdlm-bootstrap@0.28.0",
+        package: "mdlm-bootstrap@0.29.0",
         digest: output.scaffold.derivedFrom.digest,
       },
     }));
@@ -164,7 +164,7 @@ describe("req Process Package scaffolding", () => {
     const selected = req(repositoryRoot, "process", "show", "--json");
     expect(selected.status).toBe(0);
     expect(JSON.parse(selected.stdout).package.reference).toBe(
-      "mdlm-bootstrap@0.28.0",
+      "mdlm-bootstrap@0.29.0",
     );
 
     const validation = req(
@@ -243,7 +243,7 @@ describe("req Process Package scaffolding", () => {
       "init",
       packageRoot,
       "--from",
-      "mdlm-bootstrap@0.28.0",
+      "mdlm-bootstrap@0.29.0",
     ).status).toBe(0);
     expect(req(
       packageRoot,
@@ -278,7 +278,7 @@ describe("req Process Package scaffolding", () => {
       "init",
       packageRoot,
       "--from",
-      "mdlm-bootstrap@0.28.0",
+      "mdlm-bootstrap@0.29.0",
     ).status).toBe(0);
 
     const scaffold = req(

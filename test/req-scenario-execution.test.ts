@@ -54,7 +54,7 @@ describe("req scenario execute", () => {
     );
     expect(createdQuestion.status, createdQuestion.stderr).toBe(0);
     question = JSON.parse(createdQuestion.stdout).created;
-    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.28.0#${packageDigest}`;
+    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.29.0#${packageDigest}`;
 
     const baseline = req(
       repositoryRoot,
@@ -172,7 +172,7 @@ describe("req scenario execute", () => {
       contract: "mdlm-scenario-execution@1",
       status: "completed",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.28.0",
+        reference: "mdlm-bootstrap@0.29.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       prompt: expect.objectContaining({ reference: "prompts/resolve-question.md@1" }),
@@ -219,7 +219,7 @@ describe("req scenario execute", () => {
     expect(decision.lifecycleDatum.datum.created_by).toEqual({
       scenario: "resolve-question@1",
       prompt_ref: "prompts/resolve-question.md@1",
-      process_ref: expect.stringContaining("mdlm-bootstrap@0.28.0#sha256:"),
+      process_ref: expect.stringContaining("mdlm-bootstrap@0.29.0#sha256:"),
       loaded_skill_refs: request.prompt.skills.map((skill: any) => skill.reference),
       policy_refs: ["review-applicability@1", "waiver-applicability@1"],
     });

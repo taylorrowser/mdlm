@@ -1,0 +1,105 @@
+kind: type-definition
+id: PAS
+version: 1
+name: Pilot Assessment
+description: Reviewed durable measurements and an evidence-based recommendation for whether the Example Process Package should expand beyond Phase 2.
+extends: rationale-bearing@1
+lifecycle:
+  authorship: generated
+  freeze_when: baseline-frozen
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  additionalProperties: false
+  required: [pilot_scope, measurements, recommendation, limitations]
+  properties:
+    pilot_scope: {const: phase-0-through-2}
+    measurements:
+      type: object
+      additionalProperties: false
+      required: [review, agent_effort, evidence_reuse, loose_ends, gate_ceremony, environment_profiles, verification_discrimination, scope_reduction]
+      properties:
+        review:
+          type: object
+          additionalProperties: false
+          required: [contexts, completed_reviews, findings, quality_improved, volume_assessment]
+          properties:
+            contexts: {type: integer, minimum: 0}
+            completed_reviews: {type: integer, minimum: 0}
+            findings: {type: integer, minimum: 0}
+            quality_improved: {type: boolean}
+            volume_assessment: {enum: [low, acceptable, high]}
+        agent_effort:
+          type: object
+          additionalProperties: false
+          required: [scenario_executions, repository_commands, effort_assessment]
+          properties:
+            scenario_executions: {type: integer, minimum: 0}
+            repository_commands: {type: integer, minimum: 0}
+            effort_assessment: {enum: [low, acceptable, high]}
+        evidence_reuse:
+          type: object
+          additionalProperties: false
+          required: [eligible, reused, stale, explanation_checks, explanations_correct]
+          properties:
+            eligible: {type: integer, minimum: 0}
+            reused: {type: integer, minimum: 0}
+            stale: {type: integer, minimum: 0}
+            explanation_checks: {type: integer, minimum: 0}
+            explanations_correct: {type: boolean}
+        loose_ends:
+          type: object
+          additionalProperties: false
+          required: [sampled, actionable, useful, assessment]
+          properties:
+            sampled: {type: integer, minimum: 0}
+            actionable: {type: integer, minimum: 0}
+            useful: {type: boolean}
+            assessment: {type: string, minLength: 1}
+        gate_ceremony:
+          type: object
+          additionalProperties: false
+          required: [gates, signoffs, decision_reviews, proportionate]
+          properties:
+            gates: {type: integer, minimum: 0}
+            signoffs: {type: integer, minimum: 0}
+            decision_reviews: {type: integer, minimum: 0}
+            proportionate: {type: boolean}
+        environment_profiles:
+          type: object
+          additionalProperties: false
+          required: [profiles_assessed, sufficient]
+          properties:
+            profiles_assessed: {type: integer, minimum: 0}
+            sufficient: {type: boolean}
+        verification_discrimination:
+          type: object
+          additionalProperties: false
+          required: [supported_successes, unsupported_rejections, discriminates]
+          properties:
+            supported_successes: {type: integer, minimum: 0}
+            unsupported_rejections: {type: integer, minimum: 0}
+            discriminates: {type: boolean}
+        scope_reduction:
+          type: object
+          additionalProperties: false
+          required: [proposed_items, removed_items, retained_items, demonstrated]
+          properties:
+            proposed_items: {type: integer, minimum: 0}
+            removed_items: {type: integer, minimum: 0}
+            retained_items: {type: integer, minimum: 0}
+            demonstrated: {type: boolean}
+    recommendation: {enum: [proceed, change, stop]}
+    limitations:
+      type: array
+      uniqueItems: true
+      items: {type: string, minLength: 1}
+outgoing_links:
+  - id: measures
+    description: Exact frozen context containing the pilot evidence from which these measurements were assessed.
+    targets:
+      - {kind: datum, types: [BSL], identity: revision}
+    cardinality: {minimum: 1, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: measured-by
+kernel_managed_payload_paths: []

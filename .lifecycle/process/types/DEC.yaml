@@ -12,7 +12,7 @@ payload_schema:
   type: object
   required: [kind, decision, alternatives, effective_scope]
   properties:
-    kind: {enum: [decision, assumption, scope, waiver, deferral, gate-signoff, change-approval, change-closure, retirement, cancellation]}
+    kind: {enum: [decision, assumption, scope, waiver, deferral, gate-signoff, change-approval, change-closure, pilot-expansion, retirement, cancellation]}
     decision: {type: string, minLength: 1}
     alternatives:
       type: array
@@ -43,7 +43,7 @@ outgoing_links:
   - id: justifies
     description: Exact lifecycle claim for which this decision supplies rationale or authorization.
     targets:
-      - {kind: datum, types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, PRB, CHG], identity: revision}
+      - {kind: datum, types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, PRB, CHG, PAS], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: justified-by
@@ -61,6 +61,13 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: closure-evidence
+  - id: relies-on-review
+    description: Exact passing Review whose judgment authorizes this Decision.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: relied-on-by-decision
   - id: waives
     description: Exact computed obligation instance suppressed by this structured waiver.
     targets:

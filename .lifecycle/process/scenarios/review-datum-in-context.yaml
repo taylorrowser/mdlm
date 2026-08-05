@@ -2,9 +2,9 @@ kind: scenario-definition
 id: review-datum-in-context
 version: 1
 description: Independently review one exact substantive revision in one exact frozen baseline context.
-phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-7-change-control]
+phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 inputs:
-  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG], cardinality: one, identity: revision}
+  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}
   - name: review_context
     types: [BSL]
     cardinality: one

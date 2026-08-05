@@ -1,10 +1,10 @@
-# MDLM bootstrap process package v0.28
+# MDLM bootstrap process package v0.29
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
 toward the accepted v0.8 design. It now includes `MAP`, `QST`, `DEC`, `ART`,
 `PSP`, `STK`, `SYS`, `ASP`, `ICSP`, `DWP`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`,
-`RES`, `REV`, `BSL`, `PRB`, and `CHG`. These are a bootstrap subset of the bundled V-model Example Process
+`RES`, `REV`, `BSL`, `PRB`, `CHG`, and `PAS`. These are a bootstrap subset of the bundled V-model Example Process
 Package, not lifecycle types recognized by MDLM core.
 
 The package can be explicitly installed and selected with the package-neutral
@@ -219,11 +219,32 @@ closed PRB Revision. `change-status@1` remains an independent computed dimension
 and all routing uses generic Phase, Obligation, baseline, Scenario, and repository
 surfaces.
 
+## Reviewed Phase 0–2 pilot assessment
+
+The package defines generated `PAS@1` as structured durable pilot measurements,
+not a generated report. A `pilot-assessment-context` BSL freezes the exact source
+observations separately from the PAS that measures them. The assessment records
+Review and Review Context volume, observed agent Scenario/repository effort,
+localized-change evidence reuse and Staleness explanation checks, Loose End
+usefulness, gate ceremony, environment-profile sufficiency, supported/unsupported
+verification discrimination, and actual scope reduction.
+
+`pilot-assessment-required@1` authorizes canonical PAS publication only for a
+valid exact frozen context. Direct PAS creation is prohibited by generated
+authorship. The PAS then requires ordinary contextual Review before
+`pilot-expansion-decision-required@1` becomes Dispatchable. The resulting DEC
+must choose exactly the reviewed PAS recommendation—`proceed`, `change`, or
+`stop`—and cite both the exact PAS and passing REV. The tracer records `change`:
+reuse, explanation, queue, profiles, and discrimination worked, but review/gate
+ceremony was high and the challenged Phase 2 slice retained rather than removed
+scope. Phases 3–6 remain absent.
+
 ## Scope
 
-Phases 0, 1, 2, and the Phase 7 change-control tracer remain marked
-`bootstrap-subset`. Their narrow intent, qualification/pilot, one-group system-
-decomposition, and one-requirement change slices are executable, but complete
-promotion, formal verification, component/design decomposition, implementation,
-and multi-requirement change scheduling remain deferred. The package tests the
-evaluator seam before broader lifecycle breadth.
+Phases 0, 1, 2, the Phase 7 change-control tracer, and the Phase 0–2 pilot
+assessment remain marked `bootstrap-subset`. Their narrow intent, qualification/
+pilot, one-group system-decomposition, one-requirement change, and expansion-
+decision slices are executable. The reviewed Decision requires changed ceremony
+and demonstrated scope removal before complete promotion, formal verification,
+component/design decomposition, or implementation work begins. The package tests
+the evaluator seam before broader lifecycle breadth.
