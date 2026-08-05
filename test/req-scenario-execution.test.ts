@@ -28,12 +28,13 @@ describe("req scenario execute", () => {
   let repositoryRoot: string;
   let question: { id: string; revisionId: string };
   let obligation: string;
+  let packageDigest: string;
 
   beforeEach(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-scenario-execute-"));
     const initialized = req(repositoryRoot, "init", "--process", bootstrapPackage, "--json");
     expect(initialized.status, initialized.stderr).toBe(0);
-    const packageDigest = JSON.parse(initialized.stdout).package.digest;
+    packageDigest = JSON.parse(initialized.stdout).package.digest;
     const createdQuestion = req(
       repositoryRoot,
       "new",
@@ -138,6 +139,90 @@ describe("req scenario execute", () => {
       completionEvidence: { summary: "The question was answered through bounded execution." },
     };
   }
+
+  it("freezes exact-baseline outputs before evaluating completion", async () => {
+    const createdMap = req(
+      repositoryRoot,
+      "new",
+      "MAP",
+      "--scenario",
+      "chart-wayfinding-map@1",
+      "--set",
+      "title=Reviewable wayfinding map",
+      "--set",
+      "purpose=Prove exact review-context publication",
+      "--set",
+      "frontier=[Create one exact review context]",
+      "--json",
+    );
+    expect(createdMap.status, createdMap.stderr).toBe(0);
+    const map = JSON.parse(createdMap.stdout).created as {
+      id: string;
+      revisionId: string;
+    };
+    const reviewContextObligation =
+      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.31.0#${packageDigest}`;
+    const configured = await adapter({
+      outputs: [{
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Exact map review context",
+            kind: "review-context",
+            role: "review-context",
+            scope: map.revisionId,
+            group: "phase-0-wayfinding",
+            definition_members: [map.revisionId],
+            evidence: [],
+          },
+          links: [],
+          body: "Frozen exact context for the map.\n",
+        },
+      }],
+      completionEvidence: {
+        summary: "The exact baseline is frozen and verified before completion.",
+      },
+    }, "review-context-adapter.mjs");
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "create-review-context@1",
+      "--obligation",
+      reviewContextObligation,
+      "--adapter",
+      configured.path,
+      "--json",
+    );
+
+    expect(result.status, result.stdout).toBe(0);
+    const execution = JSON.parse(result.stdout).execution;
+    expect(execution.outputs).toHaveLength(1);
+    expect(execution.outputs[0].lifecycleDatum.type).toBe("BSL");
+    const shown = req(
+      repositoryRoot,
+      "show",
+      execution.outputs[0].lifecycleDatum.revisionId,
+      "--json",
+    );
+    expect(shown.status, shown.stdout).toBe(0);
+    expect(JSON.parse(shown.stdout).lifecycleDatum.storage).toEqual({
+      editable: false,
+      frozen: true,
+    });
+    expect(
+      req(
+        repositoryRoot,
+        "baseline",
+        "verify",
+        execution.outputs[0].lifecycleDatum.revisionId,
+        "--json",
+      ).status,
+    ).toBe(0);
+  });
 
   it("invokes the adapter with the same repository-backed preparation exposed by dry-run", async () => {
     const dryRunResult = req(

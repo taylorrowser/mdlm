@@ -1443,3 +1443,47 @@ turning provisional choices into architecture.
   failure leaves the lifecycle tree byte-for-byte unchanged. Generic source
   contains no QST, ART, prototype, or Example Process Package Scenario identifier.
   The package advances to `mdlm-bootstrap@0.31.0` and `bootstrap@8`.
+
+## D-056 — Finalize capability-bound baseline outputs before Scenario completion
+
+- **Status:** accepted and implemented
+- **Decision:** During repository-backed Scenario execution, an output whose type
+  is selected by the package's `exact-baseline@1` capability binding is finalized
+  by the kernel before the package completion expression runs. The adapter may
+  propose exact definition members, evidence, and composition, but not the
+  kernel-managed snapshot. The kernel validates those references, verifies
+  composed baselines, hashes exact repository bytes, resolves links, records exact
+  process provenance, and re-derives storage across the prospective lifecycle
+  snapshot. Completion and lifecycle reevaluation therefore observe the baseline and
+  its members as frozen before one transaction publishes the baseline and
+  execution record.
+- **Alternatives:** Evaluate completion against the adapter's editable proposal;
+  let the adapter fabricate snapshot fields; publish then invoke `baseline freeze`;
+  weaken package completion to accept an editable review context; attach Scenario
+  provenance to a piecemeal baseline CLI sequence; or recognize `BSL` in generic
+  execution code.
+- **Rationale:** The repaired external pilot reached a Dispatchable
+  `create-review-context@1` Resolver and supplied a valid complete BSL proposal,
+  but execution rejected `context.storage.frozen == true` before any baseline
+  finalization existed. Publishing first would violate atomic failure semantics,
+  while weakening the completion contract would not satisfy the package's exact
+  Review Context obligation. Finalization follows the generic capability binding
+  and reuses the exact-baseline repository rules without teaching the kernel the
+  package's type ID or review vocabulary.
+- **Expected behavior:** A valid review-context proposal executes successfully;
+  the completion expression sees frozen storage; `req show` reports the published
+  output frozen; and `req baseline verify` passes immediately. Adapter-authored
+  snapshot data, missing exact references, invalid composition, false completion,
+  repository races, or publication failures expose no partial output or execution
+  record.
+- **Reversibility:** A later kernel capability may replace the exact-baseline
+  finalizer behind the same package binding and Scenario contract. Packages that
+  do not bind `exact-baseline@1`, and outputs of every other package-defined type,
+  retain the ordinary publication path.
+- **Evidence/observations:** The public `req` regression in
+  `test/req-scenario-execution.test.ts` reproduces the exact pilot proposal shape,
+  asserts successful completion, inspects frozen storage, and verifies the
+  published baseline. The fresh repaired pi session—started after the package
+  migration—was continued across one-step turns after the executor fix and
+  atomically published `BSL-MH359T85MG-r00001`; `req doctor` then
+  verified all three pilot baselines with no diagnostics.

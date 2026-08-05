@@ -13,10 +13,13 @@ import {
   type VersionedDefinition,
 } from "./index.js";
 import { evaluateProcessExpression } from "./evaluator.js";
+import { finalizeExactBaselineScenarioOutput } from "./exact-baseline-repository.js";
 import {
-  deriveDatumStorage,
+  deriveLifecycleRecordStorage,
+  provisionalLifecycleRecord,
   publishScenarioMutation,
   repositoryLifecycleSnapshot,
+  type KernelFinalizedScenarioOutput,
 } from "./lifecycle-repository.js";
 import {
   dryRunExplicitScenario,
@@ -644,20 +647,32 @@ async function executeScenario(
   );
   if (linkDiagnostics.length > 0) return { ok: false, diagnostics: linkDiagnostics };
 
-  const outputRecords: LifecycleRecord[] = outputData.map(({ datum }) => ({
-    datum,
-    storage: deriveDatumStorage(processPackage, datum, false),
-    integrity: {
-      parseable: true,
-      schema_valid: true,
-      identity_valid: true,
-      references_valid: true,
-      hash_valid: true,
-    },
-  }));
+  const kernelFinalizedOutputs: KernelFinalizedScenarioOutput[] = [];
+  const exactBaselineType = processPackage.kernelCapabilities["exact-baseline@1"]?.type;
+  if (exactBaselineType) {
+    for (const output of outputData) {
+      if (output.datum.type !== exactBaselineType) continue;
+      const finalized = await finalizeExactBaselineScenarioOutput(
+        repositoryRoot,
+        processPackage,
+        `${packageIdentity.reference}#${packageIdentity.digest}`,
+        output.datum,
+      );
+      if (!finalized.ok) return finalized;
+      output.datum = finalized.value.output.datum;
+      kernelFinalizedOutputs.push(finalized.value.output);
+    }
+  }
+
+  const resultingRecords = deriveLifecycleRecordStorage(processPackage, [
+    ...snapshot.records,
+    ...outputData.map(({ datum }): LifecycleRecord =>
+      provisionalLifecycleRecord(datum)
+    ),
+  ]);
   const resultingSnapshot: LifecycleSnapshot = {
     ...snapshot,
-    records: [...snapshot.records, ...outputRecords],
+    records: resultingRecords,
     execution: { integrity: { contract_valid: true } },
   };
   const completionEvaluations: { invocation: number; result: true }[] = [];
@@ -762,6 +777,7 @@ async function executeScenario(
     outputData.map((output) => output.datum),
     executionId,
     execution,
+    kernelFinalizedOutputs,
   );
   if (!published.ok) {
     return { ok: false, diagnostics: remapPublicationDiagnostics(published.diagnostics) };

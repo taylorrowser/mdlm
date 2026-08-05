@@ -15,9 +15,11 @@ import {
 } from "./index.js";
 import {
   createDatum,
+  provisionalLifecycleRecord,
   readRepositoryData,
   replaceRepositoryDatum,
   type CreatedDatum,
+  type KernelFinalizedScenarioOutput,
   type ParsedDatum,
   type RepositoryResult,
 } from "./lifecycle-repository.js";
@@ -565,30 +567,53 @@ export async function mutateExactBaseline(
   };
 }
 
-export async function freezeExactBaseline(
+async function finalizeExactBaselineDatumFromRepository(
   root: string,
   processPackage: ProcessPackage,
   processRef: string,
-  baselineIdentity: string,
-): Promise<RepositoryResult<BaselineFreeze>> {
+  parsed: ParsedDatum[],
+  proposedDatum: DatumEnvelope,
+): Promise<RepositoryResult<{ output: KernelFinalizedScenarioOutput; freeze: BaselineFreeze }>> {
   const capability = exactBaselineType(processPackage);
   if (!capability.ok) return capability;
-  const loaded = await readRepositoryData(root, processPackage);
-  if (!loaded.ok) return loaded;
-  const source = exactBaselineSubject(
-    loaded.value,
-    baselineIdentity,
-    capability.value,
-    true,
-  );
-  if (!source.ok) return source;
-  const datum = structuredClone(source.value.lifecycleDatum.datum);
+  if (proposedDatum.type !== capability.value) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "baseline-type-mismatch",
+        path: proposedDatum.revision_id,
+        message: `Lifecycle Datum '${proposedDatum.revision_id}' is not the type '${capability.value}' bound to exact-baseline@1`,
+      }],
+    };
+  }
+  if (Object.hasOwn(proposedDatum.payload, "snapshot")) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "kernel-managed-payload",
+        path: "payload.snapshot",
+        message: "Scenario output may not author kernel-managed payload path 'snapshot'",
+      }],
+    };
+  }
+
+  const datum = structuredClone(proposedDatum);
+  const proposedRecord: ParsedDatum = {
+    lifecycleDatum: provisionalLifecycleRecord(datum),
+    relativePath: "",
+  };
+  const withProposal = [
+    ...parsed.filter((item) =>
+      item.lifecycleDatum.datum.revision_id !== datum.revision_id
+    ),
+    proposedRecord,
+  ];
   const definitionMembers = exactRevisionList(datum.payload.definition_members);
   const evidence = exactRevisionList(datum.payload.evidence);
   const composition = compositionRevisions(datum);
   const diagnostics = [
-    ...baselineReferenceDiagnostics(loaded.value, datum, capability.value),
-    ...compositionCycleDiagnostics(loaded.value, datum.revision_id),
+    ...baselineReferenceDiagnostics(withProposal, datum, capability.value),
+    ...compositionCycleDiagnostics(withProposal, datum.revision_id),
   ];
   if (diagnostics.length > 0) return { ok: false, diagnostics };
   for (const identity of composition) {
@@ -616,14 +641,14 @@ export async function freezeExactBaseline(
   ])].sort();
   const memberHashes: Record<string, string> = {};
   for (const identity of references) {
-    const item = loaded.value.find((candidate) =>
+    const item = parsed.find((candidate) =>
       candidate.lifecycleDatum.datum.revision_id === identity
     );
     if (item) memberHashes[identity] = await sha256File(path.join(root, item.relativePath));
   }
   const frozenAt = new Date().toISOString();
   const provenanceData = [datum, ...references.flatMap((identity) => {
-    const item = loaded.value.find((candidate) =>
+    const item = parsed.find((candidate) =>
       candidate.lifecycleDatum.datum.revision_id === identity
     );
     return item ? [item.lifecycleDatum.datum] : [];
@@ -632,7 +657,7 @@ export async function freezeExactBaseline(
     frozen_at: frozenAt,
     member_hashes: memberHashes,
     resolved_links: resolvedLinks(
-      loaded.value.map((item) => item === source.value
+      withProposal.map((item) => item === proposedRecord
         ? { ...item, lifecycleDatum: { ...item.lifecycleDatum, datum } }
         : item),
       [datum.revision_id, ...references].sort(),
@@ -643,27 +668,75 @@ export async function freezeExactBaseline(
       asset_refs: processAssetRefs(processPackage, provenanceData),
     },
   };
+  return {
+    ok: true,
+    value: {
+      output: { capability: "exact-baseline@1", datum },
+      freeze: {
+        baselineRevision: datum.revision_id,
+        frozenAt,
+        definitionMembers,
+        evidence,
+        composition,
+        hashes: references.length,
+        processRef,
+      },
+    },
+    diagnostics: [],
+  };
+}
+
+export async function finalizeExactBaselineScenarioOutput(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  proposedDatum: DatumEnvelope,
+): Promise<RepositoryResult<{ output: KernelFinalizedScenarioOutput; freeze: BaselineFreeze }>> {
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  return finalizeExactBaselineDatumFromRepository(
+    root,
+    processPackage,
+    processRef,
+    loaded.value,
+    proposedDatum,
+  );
+}
+
+export async function freezeExactBaseline(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  baselineIdentity: string,
+): Promise<RepositoryResult<BaselineFreeze>> {
+  const capability = exactBaselineType(processPackage);
+  if (!capability.ok) return capability;
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  const source = exactBaselineSubject(
+    loaded.value,
+    baselineIdentity,
+    capability.value,
+    true,
+  );
+  if (!source.ok) return source;
+  const finalized = await finalizeExactBaselineDatumFromRepository(
+    root,
+    processPackage,
+    processRef,
+    loaded.value,
+    source.value.lifecycleDatum.datum,
+  );
+  if (!finalized.ok) return finalized;
   const replaced = await replaceRepositoryDatum(
     root,
     processPackage,
     loaded.value,
     source.value,
-    datum,
+    finalized.value.output.datum,
   );
   if (!replaced.ok) return replaced;
-  return {
-    ok: true,
-    value: {
-      baselineRevision: datum.revision_id,
-      frozenAt,
-      definitionMembers,
-      evidence,
-      composition,
-      hashes: references.length,
-      processRef,
-    },
-    diagnostics: [],
-  };
+  return { ok: true, value: finalized.value.freeze, diagnostics: [] };
 }
 
 function objectRecord(value: unknown): Record<string, unknown> {

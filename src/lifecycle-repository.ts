@@ -124,6 +124,11 @@ export interface ParsedDatum {
   relativePath: string;
 }
 
+export interface KernelFinalizedScenarioOutput {
+  capability: "exact-baseline@1";
+  datum: DatumEnvelope;
+}
+
 const base32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const stableIdentity = /^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
 const revisionIdentity = /^([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
@@ -285,21 +290,48 @@ export function deriveDatumStorage(
   return { editable: !frozen, frozen };
 }
 
+export function provisionalLifecycleRecord(
+  datum: DatumEnvelope,
+): LifecycleRecord {
+  return {
+    datum,
+    storage: { editable: true, frozen: false },
+    integrity: {
+      parseable: true,
+      schema_valid: true,
+      identity_valid: true,
+      references_valid: true,
+      hash_valid: true,
+    },
+  };
+}
+
+export function deriveLifecycleRecordStorage(
+  processPackage: ProcessPackage,
+  records: LifecycleRecord[],
+): LifecycleRecord[] {
+  const memberships = frozenRevisionMemberships(processPackage, records);
+  return records.map((record) => ({
+    ...record,
+    storage: deriveDatumStorage(
+      processPackage,
+      record.datum,
+      memberships.has(record.datum.revision_id),
+    ),
+  }));
+}
+
 function applyStorageFacts(
   processPackage: ProcessPackage,
   parsed: ParsedDatum[],
 ): void {
-  const memberships = frozenRevisionMemberships(
+  const derived = deriveLifecycleRecordStorage(
     processPackage,
     parsed.map((item) => item.lifecycleDatum),
   );
-  for (const item of parsed) {
-    item.lifecycleDatum.storage = deriveDatumStorage(
-      processPackage,
-      item.lifecycleDatum.datum,
-      memberships.has(item.lifecycleDatum.datum.revision_id),
-    );
-  }
+  parsed.forEach((item, index) => {
+    item.lifecycleDatum = derived[index]!;
+  });
 }
 
 function stableLineage(parsed: ParsedDatum[], stableId: string): ParsedDatum[] {
@@ -787,6 +819,7 @@ export async function publishScenarioMutation(
   data: DatumEnvelope[],
   executionId: string,
   executionRecord: unknown,
+  kernelFinalizedOutputs: readonly KernelFinalizedScenarioOutput[] = [],
 ): Promise<RepositoryResult<ScenarioMutationPublication>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
@@ -849,7 +882,10 @@ export async function publishScenarioMutation(
     if (!resolved.ok) diagnostics.push(...resolved.diagnostics);
     else {
       for (const managedPath of resolved.type.kernelManagedPayloadPaths) {
-        if (payloadPathPresent(datum.payload, managedPath)) {
+        if (
+          !kernelFinalizedOutputs.some((output) => output.datum === datum) &&
+          payloadPathPresent(datum.payload, managedPath)
+        ) {
           diagnostics.push({
             code: "kernel-managed-payload",
             path: `payload.${managedPath}`,
@@ -859,20 +895,10 @@ export async function publishScenarioMutation(
       }
     }
   }
-  const lifecycleData = [
+  const lifecycleData = deriveLifecycleRecordStorage(processPackage, [
     ...existing.map((item) => item.lifecycleDatum),
-    ...data.map((datum) => ({
-      datum,
-      storage: { editable: true, frozen: false },
-      integrity: {
-        parseable: true,
-        schema_valid: true,
-        identity_valid: true,
-        references_valid: true,
-        hash_valid: true,
-      },
-    })),
-  ];
+    ...data.map(provisionalLifecycleRecord),
+  ]);
   for (const datum of data) {
     diagnostics.push(...validateDatum(processPackage, datum, lifecycleData));
   }

@@ -453,6 +453,16 @@ infrastructure; it is not package code and is invoked directly without a shell.
 Its response names each invocation's declared outputs as complete Lifecycle Datum
 proposals and supplies completion evidence.
 
+When an output uses the package-defined type bound to `exact-baseline@1`, the
+adapter proposes its exact definition members, evidence, and composition but may
+not author the kernel-managed snapshot. Before evaluating package completion, the
+kernel validates those references and composition, resolves Stable links, hashes
+exact member bytes, records exact process provenance, adds the snapshot, and
+re-derives frozen storage for the complete prospective lifecycle snapshot. The
+completion expression therefore observes the same frozen baseline state that one
+atomic transaction will publish. Failed finalization, completion, or publication
+exposes neither the baseline nor an execution record.
+
 Before publication, the wrapper rejects undeclared outputs, per-invocation
 cardinality or type errors, invalid Datum Envelopes and payload schemas,
 source-owned link failures, missing Scenario-required links, invalid lineage,
