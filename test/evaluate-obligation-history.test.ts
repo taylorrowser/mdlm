@@ -114,7 +114,7 @@ describe("evaluateLifecycle Obligation history", () => {
     ).toEqual(earlierContext);
     expect(
       current.obligations.find((item) => item.id === earlierContext?.id),
-    ).toEqual(expect.objectContaining({ status: "satisfied" }));
+    ).toBeUndefined();
     expect(
       current.looseEnds.find(
         (item) =>

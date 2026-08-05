@@ -35,6 +35,21 @@ function record(
   });
 }
 
+function expectNoReviewObligationsFor(
+  evaluation: ReturnType<typeof evaluateLifecycle>,
+  revisionId: string,
+): void {
+  expect(
+    evaluation.obligations.filter(
+      (item) =>
+        item.subject === revisionId &&
+        ["review-context-required", "passing-review-required"].includes(
+          item.obligation,
+        ),
+    ),
+  ).toEqual([]);
+}
+
 describe("evaluateLifecycle review flow", () => {
   let processPackage: ProcessPackage;
 
@@ -107,6 +122,163 @@ describe("evaluateLifecycle review flow", () => {
           item.obligation === "passing-review-required",
       ),
     ).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
+  });
+
+  it("keeps historical failed Reviews without requiring more work on replaced Revisions", () => {
+    const original = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Lifecycle manager",
+      rationale: "Preserve intent",
+      problem: "Intent is lost",
+      users: ["owner"],
+      goals: ["traceability"],
+      non_goals: [],
+      success_measures: ["reviewed intent"],
+    });
+    const originalContext = record(
+      "BSL",
+      "BSL-X4N7AB2W6J",
+      {
+        title: "Original PSP context",
+        kind: "review-context",
+        role: "review-context",
+        scope: "PSP",
+        group: "DEFAULT",
+        definition_members: [original.datum.revision_id],
+        evidence: [],
+      },
+      { frozen: true, scenario: "create-review-context@1" },
+    );
+    const failedReview = record(
+      "REV",
+      "REV-8ZT5KQ3P9M",
+      {
+        title: "Original PSP review",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [
+          {
+            severity: "blocking",
+            summary: "Clarify the intended outcome.",
+            disposition: "open",
+          },
+        ],
+        outcome: "fail",
+      },
+      {
+        frozen: true,
+        scenario: "review-datum-in-context@1",
+        links: [
+          { type: "reviews", target: original.datum.revision_id },
+          {
+            type: "contextualizes",
+            target: originalContext.datum.revision_id,
+          },
+        ],
+      },
+    );
+    const replacement = structuredClone(original);
+    replacement.datum.revision = 2;
+    replacement.datum.revision_id = `${original.datum.id}-r00002`;
+    replacement.datum.payload.title = "Clarified lifecycle manager";
+
+    const beforeReplacementReview = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [original, originalContext, failedReview, replacement],
+      dependencyComparisons: [],
+    });
+
+    expect(beforeReplacementReview.diagnostics).toEqual([]);
+    expect(
+      beforeReplacementReview.artifacts[original.datum.revision_id],
+    ).toBeDefined();
+    expect(
+      beforeReplacementReview.artifacts[failedReview.datum.revision_id],
+    ).toBeDefined();
+    expectNoReviewObligationsFor(
+      beforeReplacementReview,
+      original.datum.revision_id,
+    );
+    expect(
+      beforeReplacementReview.looseEnds.find(
+        (item) =>
+          item.subject === replacement.datum.revision_id &&
+          item.obligation === "review-context-required",
+      ),
+    ).toEqual(expect.objectContaining({ status: "ready" }));
+
+    const replacementContext = record(
+      "BSL",
+      "BSL-4F6H8JK2MN",
+      {
+        title: "Replacement PSP context",
+        kind: "review-context",
+        role: "review-context",
+        scope: "PSP",
+        group: "DEFAULT",
+        definition_members: [replacement.datum.revision_id],
+        evidence: [],
+      },
+      { frozen: true, scenario: "create-review-context@1" },
+    );
+    const passingReview = record(
+      "REV",
+      "REV-2BC4DF6GHJ",
+      {
+        title: "Replacement PSP review",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        frozen: true,
+        scenario: "review-datum-in-context@1",
+        links: [
+          { type: "reviews", target: replacement.datum.revision_id },
+          {
+            type: "contextualizes",
+            target: replacementContext.datum.revision_id,
+          },
+        ],
+      },
+    );
+
+    const afterReplacementReview = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [
+        original,
+        originalContext,
+        failedReview,
+        replacement,
+        replacementContext,
+        passingReview,
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(afterReplacementReview.diagnostics).toEqual([]);
+    expect(
+      afterReplacementReview.artifacts[original.datum.revision_id],
+    ).toBeDefined();
+    expect(
+      afterReplacementReview.artifacts[failedReview.datum.revision_id],
+    ).toBeDefined();
+    expectNoReviewObligationsFor(
+      afterReplacementReview,
+      original.datum.revision_id,
+    );
+    expect(
+      afterReplacementReview.obligations.find(
+        (item) =>
+          item.subject === replacement.datum.revision_id &&
+          item.obligation === "passing-review-required",
+      ),
+    ).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
+    expect(
+      afterReplacementReview.looseEnds.filter(
+        (item) => item.subject === replacement.datum.revision_id,
+      ),
+    ).toEqual([]);
   });
 
   it("does not treat a generic justification as a waiver of an exact Obligation Instance", () => {
@@ -261,7 +433,7 @@ describe("evaluateLifecycle review flow", () => {
       .toBe(false);
   });
 
-  it("expires an exact waiver when its subject is revised", () => {
+  it("does not carry an exact waiver onto its replacement Revision", () => {
     const psp = record("PSP", "PSP-7K3M9Q2D8F", {
       title: "Lifecycle manager",
       rationale: "Preserve intent",
@@ -283,11 +455,16 @@ describe("evaluateLifecycle review flow", () => {
       records: [psp, revisedPsp, waiver, review],
       dependencyComparisons: [],
     });
-    const expired = evaluation.looseEnds.find(
-      (item) => item.id === obligationInstance,
-    );
-
-    expect(expired).toEqual(expect.objectContaining({
+    expect(
+      evaluation.obligations.find((item) => item.id === obligationInstance),
+    ).toBeUndefined();
+    expect(
+      evaluation.looseEnds.find(
+        (item) =>
+          item.subject === revisedPsp.datum.revision_id &&
+          item.obligation === "review-context-required",
+      ),
+    ).toEqual(expect.objectContaining({
       satisfied: false,
       status: "ready",
       waiver: {
@@ -296,11 +473,7 @@ describe("evaluateLifecycle review flow", () => {
           permitted: false,
           applicable: false,
           scope: null,
-          evidence: [{
-            identity: expect.objectContaining({
-              revision_id: waiver.datum.revision_id,
-            }),
-          }],
+          evidence: [],
         }),
       },
     }));

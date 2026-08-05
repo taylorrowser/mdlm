@@ -1,7 +1,7 @@
 kind: selector-definition
 id: review-required-revisions
 version: 1
-description: Exact active revisions for which the machine-readable review policy requires independent review.
+description: Exact current active Revisions for which the machine-readable review policy requires independent Review.
 parameters: []
 result_kind: revision
 query:
@@ -10,5 +10,6 @@ query:
   where: >-
     policy("review-applicability@1", {subject: subject}).required == true
     && state(subject, "disposition") == "active"
+    && none("newer-revisions-for@1", {subject: subject})
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]
