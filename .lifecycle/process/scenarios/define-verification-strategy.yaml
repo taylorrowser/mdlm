@@ -16,6 +16,7 @@ review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && strategy.payload.independence.boundary == "black-box"
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source code, product unit tests, unstated environment capabilities]
 batching: coherent-batch

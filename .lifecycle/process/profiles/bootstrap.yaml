@@ -1,8 +1,8 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 6
+version: 7
 status: experimental
-description: Narrow profile validating typed kernel/process seams through reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
+description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
@@ -19,6 +19,7 @@ success_criteria:
   - selector, policy, state, and obligation dependency graphs are acyclic
   - no process-specific computed fact is required by a rule
   - every unsatisfied obligation has a type-correct enabled resolver
+  - every non-Resolver Scenario declares explicit initiation and publishes one validated atomic output batch
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
   - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations

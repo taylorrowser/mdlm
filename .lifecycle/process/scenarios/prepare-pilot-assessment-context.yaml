@@ -13,6 +13,7 @@ completion: >-
   execution.integrity.contract_valid == true
   && context.payload.kind == "pilot-assessment-context"
   && context.storage.frozen == true
+initiation: explicit
 resolves: []
 prohibited_inputs: [mutable latest aliases, generated indexes or reports as lifecycle truth, estimates without durable source observations]
 batching: coherent-batch

@@ -17,6 +17,7 @@ completion: >-
   execution.integrity.contract_valid == true
   && candidate.payload.role == "candidate"
   && candidate.storage.frozen == true
+initiation: explicit
 resolves: []
 prohibited_inputs: [mutable latest aliases, unreviewed definition revisions, raw evidence as definition membership]
 batching: single

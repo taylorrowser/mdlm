@@ -18,6 +18,7 @@ review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && interface.payload.architecture_revision == architecture.identity.revision_id
+initiation: explicit
 resolves: []
 prohibited_inputs: [private implementation details, mutable latest aliases, undocumented compatibility assumptions]
 batching: single

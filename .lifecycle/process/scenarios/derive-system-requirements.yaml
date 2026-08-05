@@ -21,6 +21,7 @@ outputs:
 prompt_ref: prompts/derive-system-requirements.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source code, proposed implementation details, unit tests]
 batching: coherent-batch

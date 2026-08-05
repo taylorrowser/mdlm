@@ -10,6 +10,7 @@
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
     "version": {"type": "integer", "minimum": 1},
     "description": {"type": "string", "minLength": 1},
+    "initiation": {"const": "explicit"},
     "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
     "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
     "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}, "minItems": 1},

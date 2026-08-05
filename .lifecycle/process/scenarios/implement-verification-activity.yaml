@@ -34,6 +34,7 @@ completion: >-
   execution.integrity.contract_valid == true
   && implementation.payload.kind == "pilot"
   && implementation.payload.independence_mode == "source-blind"
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts]
 batching: single

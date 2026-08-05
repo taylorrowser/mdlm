@@ -11,6 +11,7 @@ outputs:
 prompt_ref: prompts/compile-psp.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source code, unstated stakeholder preferences]
 batching: single

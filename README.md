@@ -32,7 +32,8 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   mutations, computes backlinks and identity-preserving graph traces, reads
   durable content and lineage with computed projections, compares exact baselines
   through their capability binding, rebuilds disposable indexes and reports from
-  Markdown truth, dry-runs only Dispatchable Resolver Scenarios with exact
+  Markdown truth, dry-runs Dispatchable Resolver Scenarios with exact Obligation
+  authorization or explicitly initiated non-Resolver Scenarios, preserves exact
   bindings, prompts, skills, Policies, output contracts, and completion checks,
   and executes those same validated projections through an explicitly configured
   agent adapter. Successful execution atomically publishes only contract-conforming
@@ -82,6 +83,11 @@ node ../dist/req.js loose-ends --phase phase-0-wayfinding
 node ../dist/req.js next --phase phase-0-wayfinding
 node ../dist/req.js phase status phase-0-wayfinding
 node ../dist/req.js schema STK
+# Explicitly prepare and execute one package-authored non-Resolver Scenario:
+node ../dist/req.js scenario dry-run chart-wayfinding-map@1 --initiate
+node ../dist/req.js scenario execute chart-wayfinding-map@1 --initiate \
+  --adapter ./configured-agent-adapter
+# Resolver Scenarios retain exact Dispatchable Obligation authorization:
 node ../dist/req.js scenario dry-run create-review-context@1 \
   --obligation '<exact-review-context-obligation-instance>'
 # An explicit fixture remains available for package tests and historical evaluation:

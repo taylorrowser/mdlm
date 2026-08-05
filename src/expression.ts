@@ -1551,7 +1551,13 @@ function compileAliasDefinition(
     ? definition.arguments as Record<string, unknown>
     : {};
   const argumentPaths: Record<string, ValueType> = {};
-  const reservedArguments = new Set(["adapter", "input", "json", "obligation"]);
+  const reservedArguments = new Set([
+    "adapter",
+    "initiate",
+    "input",
+    "json",
+    "obligation",
+  ]);
   for (const [name, value] of Object.entries(argumentsValue)) {
     if (reservedArguments.has(name)) {
       diagnostics.push({

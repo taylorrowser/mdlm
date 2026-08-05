@@ -20,6 +20,7 @@ completion: >-
   && activity.payload.kind == "pilot"
   && activity.payload.claim.scope == "verification-design"
   && activity.payload.claim.formal_evidence_eligible == false
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source code, product unit tests, private implementation details, formal acceptance conclusion]
 batching: single

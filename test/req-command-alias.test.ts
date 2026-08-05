@@ -83,7 +83,7 @@ async function repositoryWithQuestion(): Promise<{
   return {
     root,
     question,
-    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.29.0#${packageDigest}`,
+    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.30.0#${packageDigest}`,
   };
 }
 
@@ -350,6 +350,7 @@ describe("req Package Command Alias", () => {
     ["shell or package host call", { inputs: { question: "shell(args.question)" } }, "expression-unknown-binding"],
     ["executable package field", { executable: "./package-script" }, "meta-schema"],
     ["reserved kernel argument", { arguments: { adapter: { cardinality: "one" } } }, "alias-reserved-argument"],
+    ["reserved initiation argument", { arguments: { initiate: { cardinality: "one" } } }, "alias-reserved-argument"],
     ["kernel command collision", { id: "scenario.execute" }, "alias-command-conflict"],
   ])("rejects an alias with %s during package validation", async (_case, change, code) => {
     const processRoot = await copiedProcessPackage("mdlm-invalid-alias-");

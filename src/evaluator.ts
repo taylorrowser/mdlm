@@ -82,6 +82,35 @@ export interface ResolverScenarioExplanation {
   expectedOutputs: ScenarioOutputExplanation[];
 }
 
+export function scenarioOutputExplanations(
+  scenario: VersionedDefinition | undefined,
+): ScenarioOutputExplanation[] {
+  return array(scenario?.outputs).flatMap((outputValue) => {
+    const output = object(outputValue);
+    const name = string(output?.name);
+    const cardinality = string(output?.cardinality);
+    if (!name || !cardinality) return [];
+    const types = array(output?.types).filter(
+      (type): type is string => typeof type === "string",
+    );
+    const requiredLinks = array(output?.required_links).flatMap<
+      ScenarioOutputExplanation["requiredLinks"][number]
+    >((linkValue) => {
+      const link = object(linkValue);
+      const linkId = string(link?.link);
+      const target = object(link?.target);
+      const input = string(target?.input);
+      const targetOutput = string(target?.output);
+      if (!linkId) return [];
+      if (input) return [{ link: linkId, target: { input } }];
+      return targetOutput
+        ? [{ link: linkId, target: { output: targetOutput } }]
+        : [];
+    });
+    return [{ name, types, cardinality, requiredLinks }];
+  });
+}
+
 export interface WaiverExplanation {
   policy: string;
   result: {
@@ -1060,28 +1089,7 @@ class LifecycleEvaluator {
     const scenario = this.processPackage.scenarios[
       scenarioReference ? referenceId(scenarioReference) : ""
     ];
-    const expectedOutputs = array(scenario?.outputs).flatMap((outputValue) => {
-      const output = object(outputValue);
-      const name = string(output?.name);
-      const cardinality = string(output?.cardinality);
-      if (!name || !cardinality) return [];
-      const types = array(output?.types).filter(
-        (type): type is string => typeof type === "string",
-      );
-      const requiredLinks = array(output?.required_links).flatMap((linkValue) => {
-        const link = object(linkValue);
-        const linkId = string(link?.link);
-        const target = object(link?.target);
-        const input = string(target?.input);
-        const targetOutput = string(target?.output);
-        if (!linkId || (!input && !targetOutput)) return [];
-        return [{
-          link: linkId,
-          target: input ? { input } : { output: targetOutput! },
-        }];
-      });
-      return [{ name, types, cardinality, requiredLinks }];
-    });
+    const expectedOutputs = scenarioOutputExplanations(scenario);
     return {
       scenario: scenarioReference,
       promptRef: string(scenario?.prompt_ref) ?? "",

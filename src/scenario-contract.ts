@@ -34,6 +34,21 @@ export function validateScenarioContracts(
 ): ProcessDiagnostic[] {
   const diagnostics: ProcessDiagnostic[] = [];
   for (const scenario of Object.values(catalogs.scenarios)) {
+    const resolves = Array.isArray(scenario.resolves) ? scenario.resolves : [];
+    const explicitlyInitiated = scenario.initiation === "explicit";
+    if (explicitlyInitiated && resolves.length > 0) {
+      diagnostics.push({
+        code: "scenario-authorization-ambiguous",
+        path: `scenarios.${scenario.id}.initiation`,
+        message: `Scenario '${scenario.id}' cannot combine explicit initiation with Resolver semantics`,
+      });
+    } else if (!explicitlyInitiated && resolves.length === 0) {
+      diagnostics.push({
+        code: "scenario-authorization-missing",
+        path: `scenarios.${scenario.id}.initiation`,
+        message: `Non-Resolver Scenario '${scenario.id}' must declare explicit initiation`,
+      });
+    }
     const inputs = Array.isArray(scenario.inputs) ? scenario.inputs : [];
     const inputsByName = new Map(
       inputs.flatMap((inputValue) => {

@@ -25,6 +25,7 @@ review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && prototype.payload.kind == "prototype"
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source as unrecorded evidence, unsupported empirical conclusions]
 batching: single

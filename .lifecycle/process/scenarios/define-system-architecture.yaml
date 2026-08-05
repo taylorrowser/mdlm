@@ -16,6 +16,7 @@ outputs:
 prompt_ref: prompts/define-system-architecture.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source code, mutable latest aliases, unreviewed architecture assumptions]
 batching: coherent-batch

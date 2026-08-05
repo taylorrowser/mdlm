@@ -81,7 +81,9 @@ import {
   matchingCommandAlias,
 } from "./command-alias.js";
 import {
+  executeExplicitScenario,
   executeResolverScenario,
+  prepareRepositoryExplicitScenario,
   prepareRepositoryResolverScenario,
   readScenarioExecution,
   type ScenarioExecution,
@@ -1626,6 +1628,7 @@ async function dryRunScenario(
   repositoryRoot: string,
   scenarioReference: string,
   obligationInstance: string | undefined,
+  explicitInitiation: boolean,
   snapshotPath: string | undefined,
   inputArguments: string[],
 ): Promise<CommandResult> {
@@ -1638,11 +1641,29 @@ async function dryRunScenario(
       diagnostics: selected.diagnostics,
     };
   }
-  if (!obligationInstance) {
+  if (explicitInitiation && obligationInstance) {
+    return {
+      ...failure(
+        "scenario-authorization-ambiguous",
+        "scenario.dry-run cannot combine '--initiate' with '--obligation'",
+      ),
+      command: "scenario.dry-run",
+    };
+  }
+  if (!explicitInitiation && !obligationInstance) {
     return {
       ...failure(
         "obligation-instance-required",
-        "scenario.dry-run requires '--obligation <exact-instance>'",
+        "scenario.dry-run requires '--obligation <exact-instance>' or explicit '--initiate' authorization",
+      ),
+      command: "scenario.dry-run",
+    };
+  }
+  if (explicitInitiation && snapshotPath) {
+    return {
+      ...failure(
+        "explicit-initiation-repository-required",
+        "Explicit Scenario initiation prepares only from durable repository truth",
       ),
       command: "scenario.dry-run",
     };
@@ -1650,31 +1671,12 @@ async function dryRunScenario(
   const requested = requestedScenarioInputs(inputArguments);
   if (!requested.ok) return { ...requested.result, command: "scenario.dry-run" };
   let scenarioDryRun: ScenarioDryRun;
-  if (snapshotPath) {
-    const dryRun = await dryRunResolverScenario(
-      selected.processPackage,
-      await readLifecycleSnapshot(repositoryRoot, snapshotPath),
-      scenarioReference,
-      obligationInstance,
-      requested.inputs,
-    );
-    if (!dryRun.ok) {
-      return {
-        ok: false,
-        command: "scenario.dry-run",
-        package: selected.summary,
-        selected: true,
-        diagnostics: dryRun.diagnostics,
-      };
-    }
-    scenarioDryRun = dryRun.value;
-  } else {
-    const preparation = await prepareRepositoryResolverScenario(
+  if (explicitInitiation) {
+    const preparation = await prepareRepositoryExplicitScenario(
       repositoryRoot,
       selected.processPackage,
       selected.summary,
       scenarioReference,
-      obligationInstance,
       requested.inputs,
     );
     if (!preparation.ok) {
@@ -1687,6 +1689,54 @@ async function dryRunScenario(
       };
     }
     scenarioDryRun = preparation.value.dryRun;
+  } else {
+    if (!obligationInstance) {
+      return {
+        ...failure(
+          "obligation-instance-required",
+          "Resolver Scenario preparation requires an exact Obligation Instance",
+        ),
+        command: "scenario.dry-run",
+      };
+    }
+    if (snapshotPath) {
+      const dryRun = await dryRunResolverScenario(
+        selected.processPackage,
+        await readLifecycleSnapshot(repositoryRoot, snapshotPath),
+        scenarioReference,
+        obligationInstance,
+        requested.inputs,
+      );
+      if (!dryRun.ok) {
+        return {
+          ok: false,
+          command: "scenario.dry-run",
+          package: selected.summary,
+          selected: true,
+          diagnostics: dryRun.diagnostics,
+        };
+      }
+      scenarioDryRun = dryRun.value;
+    } else {
+      const preparation = await prepareRepositoryResolverScenario(
+        repositoryRoot,
+        selected.processPackage,
+        selected.summary,
+        scenarioReference,
+        obligationInstance,
+        requested.inputs,
+      );
+      if (!preparation.ok) {
+        return {
+          ok: false,
+          command: "scenario.dry-run",
+          package: selected.summary,
+          selected: true,
+          diagnostics: preparation.diagnostics,
+        };
+      }
+      scenarioDryRun = preparation.value.dryRun;
+    }
   }
   return {
     ok: true,
@@ -1722,6 +1772,7 @@ async function executeScenario(
   repositoryRoot: string,
   scenarioReference: string,
   obligationInstance: string | undefined,
+  explicitInitiation: boolean,
   adapter: string | undefined,
   inputArguments: string[],
 ): Promise<CommandResult> {
@@ -1734,11 +1785,20 @@ async function executeScenario(
       diagnostics: selected.diagnostics,
     };
   }
-  if (!obligationInstance) {
+  if (explicitInitiation && obligationInstance) {
+    return {
+      ...failure(
+        "scenario-authorization-ambiguous",
+        "scenario.execute cannot combine '--initiate' with '--obligation'",
+      ),
+      command: "scenario.execute",
+    };
+  }
+  if (!explicitInitiation && !obligationInstance) {
     return {
       ...failure(
         "obligation-instance-required",
-        "scenario.execute requires '--obligation <exact-instance>'",
+        "scenario.execute requires '--obligation <exact-instance>' or explicit '--initiate' authorization",
       ),
       command: "scenario.execute",
     };
@@ -1754,19 +1814,37 @@ async function executeScenario(
   }
   const requested = requestedScenarioInputs(inputArguments);
   if (!requested.ok) return { ...requested.result, command: "scenario.execute" };
-  const execution = await executeResolverScenario(
-    repositoryRoot,
-    selected.processPackage,
-    {
-      reference: selected.summary.reference,
-      digest: selected.summary.digest,
-      language: selected.summary.language,
-    },
-    scenarioReference,
-    obligationInstance,
-    requested.inputs,
-    adapter,
-  );
+  const packageIdentity = {
+    reference: selected.summary.reference,
+    digest: selected.summary.digest,
+    language: selected.summary.language,
+  };
+  const execution = explicitInitiation
+    ? await executeExplicitScenario(
+        repositoryRoot,
+        selected.processPackage,
+        packageIdentity,
+        scenarioReference,
+        requested.inputs,
+        adapter,
+      )
+    : obligationInstance
+      ? await executeResolverScenario(
+          repositoryRoot,
+          selected.processPackage,
+          packageIdentity,
+          scenarioReference,
+          obligationInstance,
+          requested.inputs,
+          adapter,
+        )
+      : {
+          ok: false as const,
+          diagnostics: [{
+            code: "obligation-instance-required",
+            message: "Resolver Scenario execution requires an exact Obligation Instance",
+          }],
+        };
   return execution.ok
     ? {
         ok: true,
@@ -1807,6 +1885,7 @@ async function executePackageAlias(
     repositoryRoot,
     binding.value.scenario,
     optionValue(arguments_, "--obligation"),
+    false,
     optionValue(arguments_, "--adapter"),
     binding.value.inputs.map((input) => `${input.name}=${input.value}`),
   );
@@ -2139,7 +2218,10 @@ function humanOutput(result: CommandResult): string {
     return [
       `Scenario Execution: ${execution.id} [${execution.status}]`,
       `Scenario: ${execution.definition.scenario}`,
-      `Obligation: ${execution.obligation.instance}`,
+      `Authorization: ${execution.authorization.mode}`,
+      ...(execution.obligation
+        ? [`Obligation: ${execution.obligation.instance}`]
+        : []),
       `Package: ${execution.package.reference}#${execution.package.digest}`,
       `Adapter: ${execution.adapter.executable}`,
       `Prompt: ${execution.prompt.reference}`,
@@ -2159,10 +2241,15 @@ function humanOutput(result: CommandResult): string {
     const dryRun = result.scenarioDryRun;
     return [
       `Scenario Dry Run: ${dryRun.definition.scenario} [executable]`,
-      `Obligation: ${dryRun.obligation.instance}`,
-      `Obligation Definition: ${dryRun.definition.obligation}`,
-      `Status: ${dryRun.obligation.status}`,
-      `Dispatchable: ${dryRun.obligation.dispatchable}`,
+      `Authorization: ${dryRun.authorization.mode}`,
+      ...(dryRun.obligation
+        ? [
+            `Obligation: ${dryRun.obligation.instance}`,
+            `Obligation Definition: ${dryRun.definition.obligation}`,
+            `Status: ${dryRun.obligation.status}`,
+            `Dispatchable: ${dryRun.obligation.dispatchable}`,
+          ]
+        : []),
       ...dryRun.invocations.flatMap((invocation, index) => [
         `Invocation: ${index + 1}`,
         ...invocation.inputs.map((input) =>
@@ -2544,6 +2631,7 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       repositoryRoot,
       operands[2],
       optionValue(arguments_, "--obligation"),
+      arguments_.includes("--initiate"),
       optionValue(arguments_, "--adapter"),
       optionValues(arguments_, "--input"),
     );
@@ -2561,6 +2649,7 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       repositoryRoot,
       operands[2],
       optionValue(arguments_, "--obligation"),
+      arguments_.includes("--initiate"),
       optionValue(arguments_, "--snapshot"),
       optionValues(arguments_, "--input"),
     );

@@ -11,6 +11,7 @@ review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && observation.payload.kind == "decision"
+initiation: explicit
 resolves: []
 prohibited_inputs: [estimates presented as observations, generated indexes or reports as lifecycle truth, mutable aliases]
 batching: either

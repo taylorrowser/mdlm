@@ -19,6 +19,7 @@ import {
   repositoryLifecycleSnapshot,
 } from "./lifecycle-repository.js";
 import {
+  dryRunExplicitScenario,
   dryRunResolverScenario,
   type ScenarioDryRun,
   type ScenarioDryRunInvocation,
@@ -73,7 +74,8 @@ export interface ScenarioExecution {
   };
   package: PackageExecutionIdentity;
   definition: ScenarioDryRun["definition"];
-  obligation: ScenarioDryRun["obligation"];
+  authorization: ScenarioDryRun["authorization"];
+  obligation?: ScenarioDryRun["obligation"];
   inputs: ScenarioDryRunInvocation[];
   prompt: Omit<ScenarioDryRun["prompt"], "skills">;
   skills: ScenarioDryRun["prompt"]["skills"];
@@ -435,12 +437,16 @@ export type RepositoryScenarioPreparationResult =
     }
   | { ok: false; diagnostics: ProcessDiagnostic[] };
 
-export async function prepareRepositoryResolverScenario(
+type ScenarioExecutionAuthorizationRequest =
+  | { mode: "explicit-initiation" }
+  | { mode: "dispatchable-obligation"; obligationInstance: string };
+
+async function prepareRepositoryScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   packageIdentity: PackageExecutionIdentity,
   scenarioReference: string,
-  obligationInstance: string,
+  authorizationRequest: ScenarioExecutionAuthorizationRequest,
   requestedInputs: { name: string; value: string }[],
 ): Promise<RepositoryScenarioPreparationResult> {
   const selectedScenario = versionedDefinition(
@@ -454,7 +460,7 @@ export async function prepareRepositoryResolverScenario(
     return {
       ok: false,
       diagnostics: [{
-        code: "resolver-definition-unavailable",
+        code: "scenario-definition-unavailable",
         path: scenarioReference,
         message: `Could not resolve an enabled Phase for exact Scenario '${scenarioReference}'`,
       }],
@@ -468,13 +474,20 @@ export async function prepareRepositoryResolverScenario(
   );
   if (!loaded.ok) return loaded;
   const snapshot = loaded.value;
-  const dryRun = await dryRunResolverScenario(
-    processPackage,
-    snapshot,
-    scenarioReference,
-    obligationInstance,
-    requestedInputs,
-  );
+  const dryRun = authorizationRequest.mode === "explicit-initiation"
+    ? await dryRunExplicitScenario(
+        processPackage,
+        snapshot,
+        scenarioReference,
+        requestedInputs,
+      )
+    : await dryRunResolverScenario(
+        processPackage,
+        snapshot,
+        scenarioReference,
+        authorizationRequest.obligationInstance,
+        requestedInputs,
+      );
   return dryRun.ok
     ? {
         ok: true,
@@ -484,21 +497,56 @@ export async function prepareRepositoryResolverScenario(
     : dryRun;
 }
 
-export async function executeResolverScenario(
+export async function prepareRepositoryResolverScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   packageIdentity: PackageExecutionIdentity,
   scenarioReference: string,
   obligationInstance: string,
   requestedInputs: { name: string; value: string }[],
-  adapterExecutable: string,
-): Promise<ScenarioExecutionResult> {
-  const dryRunResult = await prepareRepositoryResolverScenario(
+): Promise<RepositoryScenarioPreparationResult> {
+  return prepareRepositoryScenario(
     repositoryRoot,
     processPackage,
     packageIdentity,
     scenarioReference,
-    obligationInstance,
+    { mode: "dispatchable-obligation", obligationInstance },
+    requestedInputs,
+  );
+}
+
+export async function prepareRepositoryExplicitScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  scenarioReference: string,
+  requestedInputs: { name: string; value: string }[],
+): Promise<RepositoryScenarioPreparationResult> {
+  return prepareRepositoryScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    scenarioReference,
+    { mode: "explicit-initiation" },
+    requestedInputs,
+  );
+}
+
+async function executeScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  scenarioReference: string,
+  authorizationRequest: ScenarioExecutionAuthorizationRequest,
+  requestedInputs: { name: string; value: string }[],
+  adapterExecutable: string,
+): Promise<ScenarioExecutionResult> {
+  const dryRunResult = await prepareRepositoryScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    scenarioReference,
+    authorizationRequest,
     requestedInputs,
   );
   if (!dryRunResult.ok) return dryRunResult;
@@ -506,7 +554,10 @@ export async function executeResolverScenario(
   const adapterRequest = {
     contract: "mdlm-agent-adapter@1" as const,
     scenario: scenarioReference,
-    obligation: obligationInstance,
+    authorization: dryRun.authorization,
+    ...(dryRun.obligation
+      ? { obligation: dryRun.obligation.instance }
+      : {}),
     invocations: dryRun.invocations,
     prompt: dryRun.prompt,
     policies: dryRun.policies,
@@ -674,7 +725,8 @@ export async function executeResolverScenario(
     },
     package: packageIdentity,
     definition: dryRun.definition,
-    obligation: dryRun.obligation,
+    authorization: dryRun.authorization,
+    ...(dryRun.obligation ? { obligation: dryRun.obligation } : {}),
     inputs: dryRun.invocations,
     prompt,
     skills,
@@ -722,6 +774,45 @@ export async function executeResolverScenario(
     },
   }));
   return { ok: true, value: execution, diagnostics: [] };
+}
+
+export async function executeResolverScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  scenarioReference: string,
+  obligationInstance: string,
+  requestedInputs: { name: string; value: string }[],
+  adapterExecutable: string,
+): Promise<ScenarioExecutionResult> {
+  return executeScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    scenarioReference,
+    { mode: "dispatchable-obligation", obligationInstance },
+    requestedInputs,
+    adapterExecutable,
+  );
+}
+
+export async function executeExplicitScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  scenarioReference: string,
+  requestedInputs: { name: string; value: string }[],
+  adapterExecutable: string,
+): Promise<ScenarioExecutionResult> {
+  return executeScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    scenarioReference,
+    { mode: "explicit-initiation" },
+    requestedInputs,
+    adapterExecutable,
+  );
 }
 
 export async function readScenarioExecution(

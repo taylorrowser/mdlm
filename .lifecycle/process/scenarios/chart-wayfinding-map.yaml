@@ -2,6 +2,7 @@ kind: scenario-definition
 id: chart-wayfinding-map
 version: 1
 description: Chart one linked frontier of product decisions, questions, prototype evidence, and intent data without duplicating their claims.
+initiation: explicit
 phases: [phase-0-wayfinding]
 inputs: []
 outputs:

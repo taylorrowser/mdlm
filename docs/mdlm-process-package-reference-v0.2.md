@@ -408,7 +408,25 @@ cardinalities are rejected before execution. The completion expression may add
 process-specific conditions but should not duplicate those generic checks.
 
 Prompts choose and order skills. Execution provenance records the exact prompt,
-skills, policies, process reference, and inputs actually used.
+skills, policies, process reference, authorization mode, and inputs actually used.
+Every Scenario declares exactly one authorization form: a non-empty `resolves`
+catalog makes it an Obligation-authorized Resolver Scenario, while
+`initiation: explicit` with an empty `resolves` catalog makes it an explicitly
+initiated non-Resolver Scenario. Package validation rejects a Scenario that claims
+both forms or neither.
+
+`req scenario dry-run <scenario@version> --initiate` prepares an explicitly
+initiated non-Resolver Scenario from authoritative repository Markdown. Supplied
+`--input <name>=<identity>` values resolve against that exact repository snapshot
+and receive the same resolution, cardinality, identity, type, package-authored
+condition, and prohibited-input checks as Resolver bindings. The projection carries
+one `explicit-initiation` authorization, the exact prompt and complete skill bytes,
+the review Policy, output contract, generic checks, and completion expression;
+it has no fabricated Obligation Instance. `req scenario execute
+<scenario@version> --initiate --adapter <executable>` invokes the same prepared
+projection and uses the ordinary complete-response validation and atomic
+transaction publication path. `--initiate` cannot be combined with `--obligation`,
+cannot target a Resolver Scenario, and intentionally has no fixture mode.
 
 `req scenario dry-run <scenario@version> --obligation <exact-instance>
 [--snapshot <fixture>]` starts from one evaluated Obligation Instance rather than
@@ -448,8 +466,11 @@ scans recurse through this transaction namespace as ordinary Markdown truth, so 
 reader can observe either none or all of an execution's outputs. A successful
 `mdlm-scenario-execution@1` record preserves exact input bytes, package digest,
 prompt and skill bytes and hashes, review and waiver Policies, adapter/request/
-response hashes, exact output identities, completion evidence, and the Obligation
-Instances obtained by reevaluating the resulting Lifecycle Data. `req scenario
+response hashes, exact output identities, completion evidence, authorization mode,
+and the Obligation Instances obtained by reevaluating the resulting Lifecycle Data.
+Resolver execution provenance retains its exact Dispatchable Obligation Instance;
+explicit initiation provenance records that no Obligation authorized the work.
+`req scenario
 execution show <execution-id>` reads that provenance; no hidden sequence selects
 follow-on work.
 
@@ -458,7 +479,7 @@ have exact cardinality and whose `inputs` fields are compiled
 `mdlm-expression@1` values. In the implemented Scenario slice, each expression
 may use only `args.<declared-name>` and safe literals and must return one identity
 string or an array according to the target Scenario input cardinality. Kernel-
-owned `--obligation`, `--adapter`, `--input`, and `--json` controls cannot be
+owned `--obligation`, `--initiate`, `--adapter`, `--input`, and `--json` controls cannot be
 redeclared as package arguments. Alias IDs that collide with generic commands,
 unknown Scenario versions or inputs, unknown argument paths, wrong expression
 result types, evaluator host calls, and executable/package-code fields fail

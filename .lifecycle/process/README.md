@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.29
+# MDLM bootstrap process package v0.30
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -114,7 +114,9 @@ Package loading reconciles the manifest and loaded catalogs, validates exact
 cross-definition references, arguments, bindings, and result types, and rejects
 complete Template, Selector, Computed State, and Policy dependency cycles.
 Resolver bindings must cover exactly the Scenario inputs with compatible identity,
-types, and cardinality. Scenario output types, prohibited-input conflicts, required-
+types, and cardinality. Non-Resolver Scenarios declare `initiation: explicit`; the
+package rejects missing or conflicting explicit/Resolver authorization semantics.
+Scenario output types, prohibited-input conflicts, required-
 link targets, source-owned link availability, target types, and cardinalities are
 also validated before the package is exposed. The kernel's `dependency-changes`
 relation emits deterministic `dependency-change@1` content, outbound-link, and
@@ -130,7 +132,7 @@ structural evidence selected by the package rule.
 The package's `question.resolve@1` alias binds one cardinality-typed
 `--question` argument to the exact `resolve-question@1` input assertion. Alias
 expressions compile during package loading and cannot invoke host functions or
-supply adapter, Obligation, generic-command, or mutation behavior; invocation
+supply adapter, initiation, Obligation, generic-command, or mutation behavior; invocation
 enters the same Dispatchability, prohibited-input, output-contract, completion,
 and atomic publication path as generic Scenario execution.
 `mdlm-expression@1` textual source is

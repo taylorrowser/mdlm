@@ -367,6 +367,7 @@ function definitionSkeleton(kind: DefinitionKind, id: string): Record<string, un
         prompt_ref: `prompts/${id}.md@1`,
         review_policy_ref: "replace-with-policy@1",
         completion: "execution.integrity.contract_valid == true",
+        initiation: "explicit",
         resolves: [],
         prohibited_inputs: [],
         batching: "single",

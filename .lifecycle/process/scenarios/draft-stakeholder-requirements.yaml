@@ -20,6 +20,7 @@ outputs:
 prompt_ref: prompts/draft-stakeholder-requirements.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
+initiation: explicit
 resolves: []
 prohibited_inputs: [product source code, implementation architecture]
 batching: coherent-batch

@@ -24,12 +24,35 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.29.0");
+    expect(result.package.manifest.version).toBe("0.30.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(61);
     expect(Object.keys(result.package.policies)).toHaveLength(3);
     expect(result.diagnostics).toEqual([]);
+  });
+
+  it("rejects ambiguous explicit-initiation and Resolver semantics", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/chart-wayfinding-map.yaml",
+    );
+    const source = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      source.replace("resolves: []", "resolves: [open-question-resolution]"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "scenario-authorization-ambiguous",
+        path: "scenarios.chart-wayfinding-map.initiation",
+      })],
+    });
   });
 
   it("rejects every legacy YAML expression-tree family", async () => {

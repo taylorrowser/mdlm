@@ -5,6 +5,7 @@ import { parse } from "yaml";
 import {
   evaluateLifecycle,
   evaluateProcessExpression,
+  scenarioOutputExplanations,
   type DatumEnvelope,
   type ExactTypedEntity,
   type LifecycleSnapshot,
@@ -68,14 +69,24 @@ export interface ResolvedScenarioPolicy {
   result?: Record<string, unknown>;
 }
 
+export type ScenarioAuthorization =
+  | {
+      mode: "explicit-initiation";
+    }
+  | {
+      mode: "dispatchable-obligation";
+      obligation: string;
+    };
+
 export interface ScenarioDryRun {
   executable: true;
   sideEffectFree: true;
   definition: {
-    obligation: string;
+    obligation?: string;
     scenario: string;
   };
-  obligation: {
+  authorization: ScenarioAuthorization;
+  obligation?: {
     instance: string;
     subject: string;
     status: string;
@@ -522,100 +533,192 @@ function requestedInputDiagnostics(
   return diagnostics;
 }
 
-export async function dryRunResolverScenario(
+type ScenarioDryRunAuthorizationRequest =
+  | { mode: "explicit-initiation" }
+  | { mode: "dispatchable-obligation"; obligationInstance: string };
+
+async function dryRunScenario(
   processPackage: ProcessPackage,
   snapshot: LifecycleSnapshot,
   scenarioReference: string,
-  obligationInstance: string,
+  authorizationRequest: ScenarioDryRunAuthorizationRequest,
   requestedInputs: RequestedInput[],
 ): Promise<ScenarioDryRunResult> {
-  const evaluation = evaluateLifecycle(processPackage, snapshot);
-  if (evaluation.diagnostics.length > 0) {
-    return { ok: false, diagnostics: evaluation.diagnostics };
-  }
-  const instance = evaluation.obligations.find(
-    (candidate) => candidate.id === obligationInstance,
-  );
-  if (!instance) {
-    return {
-      ok: false,
-      diagnostics: [
-        {
-          code: "unknown-obligation-instance",
-          path: obligationInstance,
-          message: `Unknown Obligation Instance '${obligationInstance}' in the evaluated lifecycle snapshot`,
-        },
-      ],
-    };
-  }
-  if (instance.eventualResolver !== scenarioReference) {
-    return {
-      ok: false,
-      diagnostics: [
-        {
-          code: "resolver-scenario-mismatch",
-          path: scenarioReference,
-          message: `Obligation Instance '${obligationInstance}' resolves with '${instance.eventualResolver}', not '${scenarioReference}'`,
-        },
-      ],
-    };
-  }
-  if (
-    !instance.dispatchable ||
-    instance.actionableResolver !== scenarioReference
-  ) {
-    return {
-      ok: false,
-      diagnostics: [
-        {
-          code: "obligation-not-dispatchable",
-          path: obligationInstance,
-          message: `Obligation Instance '${obligationInstance}' is not Dispatchable (status '${instance.status}', blockers ${instance.blockedBy.length}, unresolved bindings ${instance.unresolvedBindings.join(", ") || "none"})`,
-        },
-      ],
-    };
-  }
   const scenario = referenceDefinition(
     processPackage.scenarios,
     scenarioReference,
   );
-  const obligation = referenceDefinition(
-    processPackage.obligations,
-    obligationReference(instance),
-  );
-  if (!scenario || !obligation) {
+  if (!scenario) {
     return {
       ok: false,
-      diagnostics: [
-        {
-          code: "resolver-definition-unavailable",
-          path: scenarioReference,
-          message: `Could not resolve exact definitions for '${scenarioReference}' and '${obligationReference(instance)}'`,
-        },
-      ],
+      diagnostics: [{
+        code: "scenario-definition-unavailable",
+        path: scenarioReference,
+        message: `Could not resolve exact Scenario '${scenarioReference}'`,
+      }],
     };
   }
 
   let invocationBindings: Record<string, unknown>[];
-  try {
-    invocationBindings = resolverInvocationBindings(
-      processPackage,
-      snapshot,
-      obligation,
-      instance,
+  let definition: ScenarioDryRun["definition"];
+  let authorization: ScenarioAuthorization;
+  let obligationProjection: ScenarioDryRun["obligation"];
+  let policies: ResolvedScenarioPolicy[];
+  let expectedOutputs: ScenarioOutputExplanation[];
+
+  if (authorizationRequest.mode === "explicit-initiation") {
+    const resolves = array(scenario.resolves);
+    if (scenario.initiation !== "explicit" || resolves.length > 0) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-explicit-initiation-prohibited",
+          path: scenarioReference,
+          message: `Scenario '${scenarioReference}' is not declared for explicit initiation`,
+        }],
+      };
+    }
+    const requestedByName = new Map(
+      requestedInputs.map((input) => [
+        input.name,
+        input.value.split(",").filter(Boolean),
+      ]),
     );
-  } catch (error) {
-    return {
-      ok: false,
-      diagnostics: [
-        {
+    invocationBindings = [Object.fromEntries(
+      array(scenario.inputs).flatMap((inputValue) => {
+        const input = object(inputValue);
+        const name = string(input?.name);
+        return name ? [[name, requestedByName.get(name)]] : [];
+      }),
+    )];
+    definition = { scenario: scenarioReference };
+    authorization = { mode: "explicit-initiation" };
+    const reviewPolicyReference = string(scenario.review_policy_ref) ?? "";
+    policies = [
+      policyProjection("review", reviewPolicyReference, processPackage),
+    ].filter((value): value is ResolvedScenarioPolicy => value !== undefined);
+    if (policies.length !== 1) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-policy-unavailable",
+          path: scenarioReference,
+          message: `Could not resolve exact review Policy for '${scenarioReference}'`,
+        }],
+      };
+    }
+    expectedOutputs = scenarioOutputExplanations(scenario);
+  } else {
+    const obligationInstance = authorizationRequest.obligationInstance;
+    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    if (evaluation.diagnostics.length > 0) {
+      return { ok: false, diagnostics: evaluation.diagnostics };
+    }
+    const instance = evaluation.obligations.find(
+      (candidate) => candidate.id === obligationInstance,
+    );
+    if (!instance) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "unknown-obligation-instance",
+          path: obligationInstance,
+          message: `Unknown Obligation Instance '${obligationInstance}' in the evaluated lifecycle snapshot`,
+        }],
+      };
+    }
+    if (instance.eventualResolver !== scenarioReference) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "resolver-scenario-mismatch",
+          path: scenarioReference,
+          message: `Obligation Instance '${obligationInstance}' resolves with '${instance.eventualResolver}', not '${scenarioReference}'`,
+        }],
+      };
+    }
+    if (
+      !instance.dispatchable ||
+      instance.actionableResolver !== scenarioReference
+    ) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "obligation-not-dispatchable",
+          path: obligationInstance,
+          message: `Obligation Instance '${obligationInstance}' is not Dispatchable (status '${instance.status}', blockers ${instance.blockedBy.length}, unresolved bindings ${instance.unresolvedBindings.join(", ") || "none"})`,
+        }],
+      };
+    }
+    const obligation = referenceDefinition(
+      processPackage.obligations,
+      obligationReference(instance),
+    );
+    if (!obligation) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "resolver-definition-unavailable",
+          path: scenarioReference,
+          message: `Could not resolve exact definitions for '${scenarioReference}' and '${obligationReference(instance)}'`,
+        }],
+      };
+    }
+    try {
+      invocationBindings = resolverInvocationBindings(
+        processPackage,
+        snapshot,
+        obligation,
+        instance,
+      );
+    } catch (error) {
+      return {
+        ok: false,
+        diagnostics: [{
           code: "scenario-input-resolution-failed",
           path: obligationInstance,
           message: error instanceof Error ? error.message : String(error),
-        },
-      ],
+        }],
+      };
+    }
+    definition = {
+      obligation: `${obligation.id}@${obligation.version}`,
+      scenario: scenarioReference,
     };
+    authorization = {
+      mode: "dispatchable-obligation",
+      obligation: obligationInstance,
+    };
+    obligationProjection = {
+      instance: instance.id,
+      subject: instance.subject,
+      status: instance.status,
+      dispatchable: true,
+    };
+    const reviewPolicyReference = string(scenario.review_policy_ref) ?? "";
+    const waiverPolicyReference = instance.waiver.policy;
+    policies = [
+      policyProjection("review", reviewPolicyReference, processPackage),
+      policyProjection("waiver", waiverPolicyReference, processPackage, {
+        permitted: instance.waiver.result.permitted,
+        approval_required: instance.waiver.result.approvalRequired,
+        applicable: instance.waiver.result.applicable,
+        scope: instance.waiver.result.scope,
+      }),
+    ].filter((value): value is ResolvedScenarioPolicy => value !== undefined);
+    if (policies.length !== 2) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-policy-unavailable",
+          path: scenarioReference,
+          message: `Could not resolve exact review and waiver Policies for '${scenarioReference}'`,
+        }],
+      };
+    }
+    expectedOutputs = instance.resolver.expectedOutputs;
   }
+
   const requestedDiagnostics = requestedInputDiagnostics(
     requestedInputs,
     scenario,
@@ -744,29 +847,6 @@ export async function dryRunResolverScenario(
       ],
     };
   }
-  const reviewPolicyReference = string(scenario.review_policy_ref) ?? "";
-  const waiverPolicyReference = instance.waiver.policy;
-  const policies = [
-    policyProjection("review", reviewPolicyReference, processPackage),
-    policyProjection("waiver", waiverPolicyReference, processPackage, {
-      permitted: instance.waiver.result.permitted,
-      approval_required: instance.waiver.result.approvalRequired,
-      applicable: instance.waiver.result.applicable,
-      scope: instance.waiver.result.scope,
-    }),
-  ].filter((value): value is ResolvedScenarioPolicy => value !== undefined);
-  if (policies.length !== 2) {
-    return {
-      ok: false,
-      diagnostics: [
-        {
-          code: "scenario-policy-unavailable",
-          path: scenarioReference,
-          message: `Could not resolve exact review and waiver Policies for '${scenarioReference}'`,
-        },
-      ],
-    };
-  }
   const completion = scenario.completion;
   if (!isCompiledTextExpression(completion)) {
     return {
@@ -785,23 +865,16 @@ export async function dryRunResolverScenario(
     value: {
       executable: true,
       sideEffectFree: true,
-      definition: {
-        obligation: `${obligation.id}@${obligation.version}`,
-        scenario: scenarioReference,
-      },
-      obligation: {
-        instance: instance.id,
-        subject: instance.subject,
-        status: instance.status,
-        dispatchable: true,
-      },
+      definition,
+      authorization,
+      ...(obligationProjection ? { obligation: obligationProjection } : {}),
       invocations,
       prompt: resolvedPrompt.prompt,
       policies,
       prohibitedInputs: array(scenario.prohibited_inputs)
         .filter((value): value is string => typeof value === "string")
         .sort(),
-      expectedOutputs: instance.resolver.expectedOutputs,
+      expectedOutputs,
       completion: {
         expression: completion.source,
         status: "pending-output",
@@ -815,4 +888,35 @@ export async function dryRunResolverScenario(
     },
     diagnostics: [],
   };
+}
+
+export async function dryRunResolverScenario(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  scenarioReference: string,
+  obligationInstance: string,
+  requestedInputs: RequestedInput[],
+): Promise<ScenarioDryRunResult> {
+  return dryRunScenario(
+    processPackage,
+    snapshot,
+    scenarioReference,
+    { mode: "dispatchable-obligation", obligationInstance },
+    requestedInputs,
+  );
+}
+
+export async function dryRunExplicitScenario(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  scenarioReference: string,
+  requestedInputs: RequestedInput[],
+): Promise<ScenarioDryRunResult> {
+  return dryRunScenario(
+    processPackage,
+    snapshot,
+    scenarioReference,
+    { mode: "explicit-initiation" },
+    requestedInputs,
+  );
 }
