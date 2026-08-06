@@ -1,0 +1,13 @@
+kind: selector-definition
+id: pilot-assessment-context-for
+version: 1
+description: The exact frozen context measured by one pilot assessment Revision.
+parameters:
+  - {name: assessment, kind: revision, types: [PAS]}
+result_kind: baseline
+query:
+  from: {relation: outgoing-links, of: assessment, link: measures, emit: target, types: [BSL]}
+  as: context
+  where: 'context.payload.kind == "pilot-assessment-context" && context.storage.frozen == true'
+  distinct: true
+  order_by: [identity.revision_id]

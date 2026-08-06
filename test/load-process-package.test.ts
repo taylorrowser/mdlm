@@ -24,13 +24,13 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.39.0");
+    expect(result.package.manifest.version).toBe("0.40.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(151);
+    expect(Object.keys(result.package.selectors)).toHaveLength(169);
     expect(Object.keys(result.package.policies)).toHaveLength(9);
-    expect(Object.keys(result.package.obligations)).toHaveLength(36);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(40);
+    expect(Object.keys(result.package.obligations)).toHaveLength(39);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(41);
     expect(result.diagnostics).toEqual([]);
   });
 

@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 13
+version: 14
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -29,5 +29,8 @@ success_criteria:
   - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations
   - exact reviewed completion evidence derives a reviewed SYS level candidate composed from its package-discovered group candidate and shared architecture/interface context
   - exact reviewed level-gate authorization controls progression into pilot assessment
+  - every complete Phase 2 level candidate derives one exact durable observation before the package freezes their complete evidence boundary
+  - a failed PAS Review derives same-lineage correction over the unchanged context and fresh independent Review
+  - only a current passing PAS exposes the final nondelegable stakeholder Authority Requirement for exact proceed, change, or stop publication
   - one pilot-discovered PRB reaches an exact approved CHG, original-V replacement evidence, selective Staleness, and exact closure
   - one exact pilot evidence context records reviewed burden, reuse, queue, ceremony, discrimination, and scope measurements before an exact proceed, change, or stop Decision

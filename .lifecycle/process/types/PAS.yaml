@@ -100,6 +100,13 @@ payload_schema:
       uniqueItems: true
       items: {type: string, minLength: 1}
 outgoing_links:
+  - id: corrects-review
+    description: Exact failed Review findings addressed by this corrected pilot assessment Revision.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-assessment
   - id: measures
     description: Exact frozen context containing the pilot evidence from which these measurements were assessed.
     targets:

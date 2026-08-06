@@ -1,0 +1,23 @@
+kind: selector-definition
+id: complete-pilot-assessment-contexts
+version: 1
+description: Frozen pilot assessment contexts containing exactly every complete level candidate and its exact durable observation.
+parameters: []
+result_kind: baseline
+query:
+  from:
+    selector: pilot-assessment-contexts@1
+    arguments: {}
+  as: context
+  where: >-
+    exists("complete-phase-2-level-candidates@1", {})
+    && count("phase-2-entry-requirements@1", {}) == count("complete-phase-2-requirements@1", {})
+    && every("complete-phase-2-level-candidates@1", {}, candidate =>
+      exists("baseline-contains-definition@1", {baseline: context, subject: candidate})
+      && count("pilot-observations-for-candidate@1", {candidate: candidate}) == 1)
+    && every("complete-pilot-observations@1", {}, observation =>
+      exists("baseline-contains-evidence@1", {baseline: context, subject: observation}))
+    && none("unexpected-pilot-assessment-context-members@1", {context: context})
+    && none("unexpected-pilot-assessment-context-evidence@1", {context: context})
+  distinct: true
+  order_by: [identity.revision_id]

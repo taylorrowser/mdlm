@@ -9,7 +9,10 @@ inputs:
     types: [REV]
     cardinality: one
     identity: revision
-    conditions: 'assessment_review.payload.outcome == "pass"'
+    conditions: >-
+      assessment_review.payload.outcome == "pass"
+      && exists("matching-passing-review-for@1",
+        {subject: assessment, review: assessment_review})
 outputs:
   - name: decision
     types: [DEC]

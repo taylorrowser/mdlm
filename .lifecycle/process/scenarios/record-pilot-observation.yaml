@@ -1,17 +1,28 @@
 kind: scenario-definition
 id: record-pilot-observation
-version: 1
-description: Author one exact observed measurement source for the Phase 0–2 pilot evidence context.
+version: 2
+description: Author one exact observed measurement source for a completed reviewed Phase 0–2 level candidate.
 phases: [phase-2-pilot-assessment]
-inputs: []
+inputs:
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    identity: revision
+    conditions: 'exists("matching-complete-phase-2-level-revision@1", {candidate: candidate})'
 outputs:
-  - {name: observation, types: [DEC], cardinality: one, required_links: []}
-prompt_ref: prompts/record-pilot-observation.md@1
+  - name: observation
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {input: candidate}}
+prompt_ref: prompts/record-pilot-observation.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
-  && observation.payload.kind == "decision"
-initiation: explicit
-resolves: []
-prohibited_inputs: [estimates presented as observations, generated indexes or reports as lifecycle truth, mutable aliases]
+  && observation.payload.kind == "pilot-observation"
+  && observation.payload.effective_scope == "Phase 0–2 pilot evidence boundary"
+  && count("pilot-observation-candidates-for@1", {observation: observation}) == 1
+  && none("other-pilot-observation-targets-for@1", {observation: observation})
+resolves: [pilot-observation-required]
+prohibited_inputs: [estimates presented as observations, generated indexes or reports as lifecycle truth, mutable aliases, formal promotion evidence]
 batching: either

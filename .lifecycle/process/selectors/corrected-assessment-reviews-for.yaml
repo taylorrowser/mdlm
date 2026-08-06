@@ -1,0 +1,12 @@
+kind: selector-definition
+id: corrected-assessment-reviews-for
+version: 1
+description: Exact failed Reviews explicitly addressed by one corrected PAS Revision.
+parameters:
+  - {name: replacement, kind: revision, types: [PAS]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: replacement, link: corrects-review, emit: target, types: [REV]}
+  as: review
+  distinct: true
+  order_by: [identity.revision_id]

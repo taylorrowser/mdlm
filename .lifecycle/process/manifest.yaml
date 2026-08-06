@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.39.0
+version: 0.40.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -178,6 +178,24 @@ catalog:
     - complete-phase-2-level-candidates
     - complete-phase-2-requirements
     - matching-complete-phase-2-requirement
+    - matching-complete-phase-2-level-revision
+    - pilot-observations-for-candidate
+    - pilot-observation-candidates-for
+    - other-pilot-observation-targets-for
+    - complete-pilot-observations
+    - unexpected-pilot-assessment-context-members
+    - unexpected-pilot-assessment-context-evidence
+    - complete-pilot-assessment-contexts
+    - matching-complete-pilot-assessment-context
+    - matching-complete-pilot-observation
+    - matching-failing-review-for
+    - matching-passing-review-for
+    - failed-current-pilot-assessments
+    - pilot-assessment-context-for
+    - corrected-pilot-assessments-for
+    - corrected-assessment-reviews-for
+    - matching-corrected-assessment-review
+    - unexpected-corrected-assessment-reviews
     - failing-pilot-results
     - problem-reports-for-result
     - open-problem-reports
@@ -231,7 +249,10 @@ catalog:
     - change-approval-required
     - change-revision-required
     - change-closure-required
+    - pilot-observation-required
+    - pilot-assessment-context-required
     - pilot-assessment-required
+    - pilot-assessment-review-correction-required
     - pilot-expansion-decision-required
   scenarios:
     - chart-wayfinding-map
@@ -273,6 +294,7 @@ catalog:
     - record-pilot-observation
     - prepare-pilot-assessment-context
     - assess-phase-0-2-pilot
+    - revise-pilot-assessment-after-review
     - decide-pilot-expansion
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
   aliases: [question.resolve]
@@ -314,9 +336,10 @@ assets:
     - prompts/approve-change-request.md@2
     - prompts/revise-requirement-under-change.md@1
     - prompts/close-change-request.md@2
-    - prompts/record-pilot-observation.md@1
+    - prompts/record-pilot-observation.md@2
     - prompts/prepare-pilot-assessment-context.md@1
     - prompts/assess-phase-0-2-pilot.md@1
+    - prompts/revise-pilot-assessment-after-review.md@1
     - prompts/decide-pilot-expansion.md@2
   skills:
     - skills/lifecycle-data.md@1
@@ -351,9 +374,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@13
+  default: bootstrap@14
   available:
-    - profiles/bootstrap.yaml@13
+    - profiles/bootstrap.yaml@14
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

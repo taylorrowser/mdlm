@@ -275,8 +275,12 @@ surfaces.
 ## Reviewed Phase 0–2 pilot assessment
 
 The package defines generated `PAS@1` as structured durable pilot measurements,
-not a generated report. A `pilot-assessment-context` BSL freezes the exact source
-observations separately from the PAS that measures them. The assessment records
+not a generated report. Each complete reviewed Phase 2 level candidate derives a
+`pilot-observation-required@1` work item whose typed payload records every PAS
+measurement basis or an explicit zero/unavailable outcome. Once all accepted Phase 2 requirements
+have complete candidates and exact observations, `pilot-assessment-context-required@1`
+freezes exactly those candidate Revisions and observations as one immutable
+`pilot-assessment-context` BSL, separately from the PAS that measures it. The assessment records
 Review and Review Context volume, observed agent tracer-issue/Git-commit effort,
 localized-change evidence reuse and Staleness explanation checks, Loose End
 usefulness, gate ceremony, environment-profile sufficiency, supported/unsupported
@@ -284,10 +288,14 @@ verification discrimination, and actual scope reduction.
 
 `pilot-assessment-required@1` authorizes canonical PAS publication only for a
 valid exact frozen context. Direct PAS creation is prohibited by generated
-authorship. The PAS then requires ordinary contextual Review before
-`pilot-expansion-decision-required@1` becomes Dispatchable. The resulting DEC
-must choose exactly the reviewed PAS recommendation—`proceed`, `change`, or
-`stop`—and cite both the exact PAS and passing REV. The tracer records `change`:
+authorship. The PAS then requires ordinary independent contextual Review. A failed
+Review derives `pilot-assessment-review-correction-required@1`; its Resolver
+publishes a changed Revision in the same PAS lineage over the unchanged exact
+context, linked through `corrects-review` to every exact failing REV, before fresh Review. Only a current passing PAS with no dominating failed
+Review makes `pilot-expansion-decision-required@1` Dispatchable. The resulting
+DEC requires explicit nondelegable stakeholder authority, must choose exactly the
+reviewed PAS recommendation—`proceed`, `change`, or `stop`—and cites both the
+exact PAS and its matching passing REV. The tracer records `change`:
 reuse, explanation, queue, profiles, and discrimination worked, but review/gate
 ceremony was high and the challenged Phase 2 slice retained rather than removed
 scope. Phases 3–6 remain absent.

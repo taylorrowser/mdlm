@@ -1,0 +1,23 @@
+kind: obligation-definition
+id: pilot-assessment-review-correction-required
+version: 1
+description: A current pilot assessment with a failed Review must be corrected without changing its exact evidence boundary.
+phases: [phase-2-pilot-assessment]
+for_each: 'select("failed-current-pilot-assessments@1", {})'
+subject_as: assessment
+satisfied_when: 'exists("corrected-pilot-assessments-for@1", {assessment: assessment})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: >-
+      exists("failing-reviews-for@1", {subject: assessment})
+      && none("corrected-pilot-assessments-for@1", {assessment: assessment})
+    reason: The failed independent Reviews require one corrected assessment Revision over the same exact evidence boundary.
+default_status: ready
+resolve_with:
+  scenario: revise-pilot-assessment-after-review@1
+  inputs:
+    assessment: assessment
+    failed_reviews: 'select("failing-reviews-for@1", {subject: assessment})'
+    context: 'one("pilot-assessment-context-for@1", {assessment: assessment})'
+waiver_policy_ref: waiver-applicability@1

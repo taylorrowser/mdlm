@@ -1,7 +1,7 @@
 kind: selector-definition
-id: all-pilot-assessments
+id: failed-current-pilot-assessments
 version: 1
-description: Every current exact valid Phase 0–2 pilot assessment in deterministic identity order.
+description: Current valid pilot assessments with an immutable failing Review and no corrected Revision.
 parameters: []
 result_kind: revision
 query:
@@ -10,5 +10,6 @@ query:
   where: >-
     state(assessment, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: assessment})
+    && exists("failing-reviews-for@1", {subject: assessment})
   distinct: true
   order_by: [identity.id, identity.revision]

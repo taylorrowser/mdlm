@@ -1,0 +1,15 @@
+kind: selector-definition
+id: unexpected-pilot-assessment-context-evidence
+version: 1
+description: Evidence in a pilot assessment context that is not a complete current pilot observation.
+parameters:
+  - {name: context, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: context, emit: entity}
+  as: evidence
+  where: >-
+    evidence.identity.type != "DEC"
+    || none("matching-complete-pilot-observation@1", {observation: evidence})
+  distinct: true
+  order_by: [identity.revision_id]

@@ -3,7 +3,7 @@ id: pilot-assessment-required
 version: 1
 description: Every exact frozen Phase 0–2 evidence context requires one durable measurement assessment.
 phases: [phase-2-pilot-assessment]
-for_each: 'select("pilot-assessment-contexts@1", {})'
+for_each: 'select("complete-pilot-assessment-contexts@1", {})'
 subject_as: context
 satisfied_when: 'exists("pilot-assessments-for-context@1", {context: context})'
 status_rules:

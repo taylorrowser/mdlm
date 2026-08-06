@@ -10,6 +10,8 @@ query:
     selector: recorded-pilot-expansion-decisions-for@1
     arguments: {assessment: assessment}
   as: decision
-  where: 'exists("passing-reviews-for@1", {subject: decision})'
+  where: >-
+    exists("passing-reviews-for@1", {subject: decision})
+    && none("failing-reviews-for@1", {subject: decision})
   distinct: true
   order_by: [identity.id, identity.revision]

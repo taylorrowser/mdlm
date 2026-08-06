@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.39.0`
+- **Implementation package:** `mdlm-bootstrap@0.40.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -96,6 +96,10 @@ the reviewed `change` expansion Decision.
   all outputs and required links validate before one atomic transaction publishes.
 - Qualification, pilot, and formal evidence remain distinct. Pilot evidence
   cannot promote itself into formal requirement evidence.
+- Complete reviewed Phase 2 candidates derive durable observation and exact
+  assessment-context work. PAS publication, failed-Review correction, fresh
+  independent Review, and the final nondelegable stakeholder Expansion Decision
+  are all projected through package Obligations and public Scenario execution.
 - The reviewed pilot recommendation is `change`; no Phase 3–6 definitions are
   present.
 

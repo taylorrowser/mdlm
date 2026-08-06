@@ -1,14 +1,18 @@
 ---
 id: record-pilot-observation
-version: 1
+version: 2
 scenario: record-pilot-observation
 skills: [skills/lifecycle-data.md@1, skills/pilot-assessment.md@1]
 ---
 
 # Record one pilot observation
 
-Author an exact DEC observation with its measurement basis and Phase 0–2 scope.
-Distinguish observed counts from estimates. Cover Review burden, agent effort,
-evidence reuse and Staleness explanations, Loose End and gate experience,
-verification discrimination, or actual scope removal. The later frozen assessment
-context, not a generated report or chat history, gathers these observations.
+Author one exact DEC observation justified by the supplied complete level candidate.
+Set `kind` to `pilot-observation` and `effective_scope` to `Phase 0–2 pilot evidence boundary`.
+Populate every typed `pilot_observation` measurement section from exact available
+evidence: Review burden, agent effort and exact commit refs, evidence reuse and
+Staleness explanation checks, Loose End and gate experience, environment profiles,
+verification discrimination, and actual scope removal. Set each `availability` entry to `observed` or `unavailable`. Distinguish observed
+counts from estimates; use zero values and empty commit refs where an unavailable
+section has no observed quantity rather than omitting or inventing evidence. The later frozen
+assessment context, not a generated report or chat history, gathers these observations.

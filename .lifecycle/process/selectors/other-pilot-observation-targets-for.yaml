@@ -1,0 +1,15 @@
+kind: selector-definition
+id: other-pilot-observation-targets-for
+version: 1
+description: Exact justifies targets on a pilot observation other than its one complete level candidate.
+parameters:
+  - {name: observation, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: observation, link: justifies, emit: target}
+  as: target
+  where: >-
+    count("pilot-observation-candidates-for@1", {observation: observation}) == 1
+    && target != one("pilot-observation-candidates-for@1", {observation: observation})
+  distinct: true
+  order_by: [identity.revision_id]

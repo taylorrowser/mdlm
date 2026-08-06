@@ -1,0 +1,18 @@
+kind: selector-definition
+id: matching-passing-review-for
+version: 1
+description: The supplied passing Review when it exactly reviews the supplied subject Revision and no failing Review dominates it.
+parameters:
+  - {name: subject, kind: revision}
+  - {name: review, kind: revision, types: [REV]}
+result_kind: revision
+query:
+  from:
+    selector: passing-reviews-for@1
+    arguments: {subject: subject}
+  as: passing_review
+  where: >-
+    passing_review == review
+    && none("failing-reviews-for@1", {subject: subject})
+  distinct: true
+  order_by: [identity.revision_id]

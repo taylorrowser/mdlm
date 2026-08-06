@@ -1075,5 +1075,482 @@ describe("req system decomposition slice", () => {
       expect(verified.status, `${verified.stderr}${verified.stdout}`).toBe(0);
       expect(JSON.parse(verified.stdout).baselineVerification.valid).toBe(true);
     }
-  }, 180_000);
+
+    const assessmentLooseEnds = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-2-pilot-assessment",
+      "--json",
+    );
+    expect(
+      assessmentLooseEnds.status,
+      `${assessmentLooseEnds.stderr}${assessmentLooseEnds.stdout}`,
+    ).toBe(0);
+    const assessmentItems = JSON.parse(assessmentLooseEnds.stdout).looseEnds.items as Array<
+      Record<string, any>
+    >;
+    expect(assessmentItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        obligation: "pilot-observation-required",
+        subject: levelCandidate.revisionId,
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "record-pilot-observation@2",
+      }),
+    ]));
+    const pilotMeasurements = {
+        review: {
+          contexts: 1,
+          completed_reviews: 1,
+          findings: 0,
+          quality_improved: false,
+          volume_assessment: "high",
+        },
+        agent_effort: {
+          tracer_issues: 1,
+          implementation_commits: 1,
+          implementation_commit_refs: [`git:${"a".repeat(40)}`],
+          effort_assessment: "high",
+        },
+        evidence_reuse: {
+          eligible: 1,
+          reused: 1,
+          stale: 0,
+          explanation_checks: 1,
+          explanations_correct: true,
+        },
+        loose_ends: {
+          sampled: 1,
+          actionable: 1,
+          useful: true,
+          assessment: "The projected work remained actionable.",
+        },
+        gate_ceremony: {
+          gates: 1,
+          signoffs: 1,
+          decision_reviews: 1,
+          proportionate: false,
+        },
+        environment_profiles: { profiles_assessed: 1, sufficient: true },
+        verification_discrimination: {
+          supported_successes: 1,
+          unsupported_rejections: 1,
+          discriminates: true,
+        },
+        scope_reduction: {
+          proposed_items: 1,
+          removed_items: 0,
+          retained_items: 1,
+          demonstrated: false,
+        },
+      };
+    const pilotObservation = {
+      availability: {
+        review: "observed",
+        agent_effort: "observed",
+        evidence_reuse: "observed",
+        loose_ends: "observed",
+        gate_ceremony: "observed",
+        environment_profiles: "observed",
+        verification_discrimination: "observed",
+        scope_reduction: "observed",
+      },
+      ...pilotMeasurements,
+    };
+    const observationWork = assessmentItems.find((item) =>
+      item.obligation === "pilot-observation-required" &&
+      item.subject === levelCandidate.revisionId
+    )!;
+    const observationExecution = await execute(
+      observationWork,
+      {
+        outputs: [{
+          name: "observation",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Completed Phase 0–2 pilot observation",
+              rationale: "The exact reviewed candidate preserves the measured pilot boundary.",
+              kind: "pilot-observation",
+              decision: "Observed review contexts=1, completed reviews=1, findings=0, tracer issues=1, implementation commits=1, eligible reuse=1, reused=1, stale=0, actionable Loose Ends=1/1, gates=1, signoffs=1, Decision Reviews=1, profiles assessed=1, supported successes=1, unsupported rejections=1, proposed scope items=1, removed=0, retained=1.",
+              alternatives: [],
+              effective_scope: "Phase 0–2 pilot evidence boundary",
+              pilot_observation: pilotObservation,
+            },
+            links: [{ type: "justifies", target: levelCandidate.revisionId }],
+            body: `Durable observation of ${levelCandidate.revisionId}: Review volume was high (1 context, 1 completed Review, 0 findings); agent effort was high (1 tracer issue, 1 implementation commit git:${"a".repeat(40)}); 1/1 eligible exact evidence item was reused with 0 Stale items and 1 correct explanation check; 1/1 sampled Loose End was actionable; 1 gate required 1 signoff and 1 Decision Review and was not proportionate; 1 environment profile was sufficient; 1 supported success and 1 unsupported rejection discriminated; 0/1 proposed scope items were removed and 1 was retained.\n`,
+          },
+        }],
+        completionEvidence: { summary: "Recorded the exact completed-pilot observation." },
+      },
+      [`candidate=${levelCandidate.revisionId}`],
+      "pilot-observation",
+    );
+    const observation = observationExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const shownObservation = req(
+      repositoryRoot,
+      "show",
+      observation.revisionId,
+      "--json",
+    );
+    expect(shownObservation.status, shownObservation.stderr).toBe(0);
+    expect(JSON.parse(shownObservation.stdout).lifecycleDatum.datum).toMatchObject({
+      payload: {
+        decision: expect.stringContaining("supported successes=1"),
+        pilot_observation: pilotObservation,
+      },
+      links: [{ type: "justifies", target: levelCandidate.revisionId }],
+      body: expect.stringContaining("0/1 proposed scope items were removed"),
+    });
+    const contextEnds = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-2-pilot-assessment",
+      "--json",
+    );
+    expect(contextEnds.status, `${contextEnds.stderr}${contextEnds.stdout}`).toBe(0);
+    const contextWork = (JSON.parse(contextEnds.stdout).looseEnds.items as Array<
+      Record<string, any>
+    >).find((item) => item.obligation === "pilot-assessment-context-required")!;
+    expect(contextWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "prepare-pilot-assessment-context@1",
+    }));
+    const assessmentContextResponse = (includeObservation: boolean) => ({
+      outputs: [{
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "BSL-0000000068",
+          type: "BSL",
+          payload: {
+            title: "Exact Phase 0–2 pilot assessment boundary",
+            kind: "pilot-assessment-context",
+            role: "review-context",
+            scope: "Phase 0–2 pilot evidence boundary",
+            group: "DEFAULT",
+            definition_members: [levelCandidate.revisionId],
+            evidence: includeObservation ? [observation.revisionId] : [],
+          },
+          links: [],
+          body: "Frozen exact evidence boundary for pilot assessment.\n",
+        },
+      }],
+      completionEvidence: { summary: "Froze the exact completed-pilot evidence boundary." },
+    });
+    const incompleteContextAdapter = await adapter(
+      assessmentContextResponse(false),
+      "incomplete-pilot-assessment-context",
+    );
+    const incompleteContext = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(contextWork.actionableResolver),
+      "--obligation",
+      String(contextWork.id),
+      "--adapter",
+      incompleteContextAdapter,
+      "--input",
+      `candidates=${levelCandidate.revisionId}`,
+      "--input",
+      `observations=${observation.revisionId}`,
+      "--json",
+    );
+    expect(incompleteContext.status).toBe(1);
+    expect(JSON.parse(incompleteContext.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    );
+    expect(req(repositoryRoot, "show", "BSL-0000000068-r00001", "--json").status).toBe(1);
+    const contextExecution = await execute(
+      contextWork,
+      assessmentContextResponse(true),
+      [
+        `candidates=${levelCandidate.revisionId}`,
+        `observations=${observation.revisionId}`,
+      ],
+      "pilot-assessment-context",
+    );
+    const assessmentContext = contextExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const assessmentEnds = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-2-pilot-assessment",
+      "--json",
+    );
+    expect(assessmentEnds.status, `${assessmentEnds.stderr}${assessmentEnds.stdout}`).toBe(0);
+    const pilotItems = () => {
+      const result = req(
+        repositoryRoot,
+        "loose-ends",
+        "--phase",
+        "phase-2-pilot-assessment",
+        "--json",
+      );
+      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+      return JSON.parse(result.stdout).looseEnds.items as Array<Record<string, any>>;
+    };
+    const pilotWork = (name: string, subject: string) => {
+      const item = pilotItems().find((candidate) =>
+        candidate.obligation === name && candidate.subject === subject
+      );
+      expect(item).toBeDefined();
+      return item!;
+    };
+    const assessmentWork = pilotWork(
+      "pilot-assessment-required",
+      assessmentContext.revisionId,
+    );
+    expect(assessmentWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "assess-phase-0-2-pilot@1",
+    }));
+    const assessmentPayload = {
+      title: "Exact Phase 0–2 pilot assessment",
+      rationale: "The exact boundary supports change before lifecycle expansion.",
+      pilot_scope: "phase-0-through-2",
+      measurements: pilotMeasurements,
+      recommendation: "change",
+      limitations: ["Reduce ceremony before adding Phases 3–6."],
+    };
+    const assessmentExecution = await execute(
+      assessmentWork,
+      {
+        outputs: [{
+          name: "assessment",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "PAS-0000000068",
+            type: "PAS",
+            payload: assessmentPayload,
+            links: [{ type: "measures", target: assessmentContext.revisionId }],
+            body: "Exact pilot assessment recommends bounded change.\n",
+          },
+        }],
+        completionEvidence: { summary: "Assessed the exact frozen pilot boundary." },
+      },
+      [`context=${assessmentContext.revisionId}`],
+      "pilot-assessment",
+    );
+    const assessment = assessmentExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    const failedReviewContext = await createDiscoveredReviewContext(
+      "Failed pilot assessment Review Context",
+      [assessment.revisionId],
+      [observation.revisionId],
+    );
+    const failedReviewWork = pilotWork("passing-review-required", assessment.revisionId);
+    const failedReviewExecution = await execute(
+      failedReviewWork,
+      {
+        outputs: [{
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: "Failed independent pilot assessment Review",
+              review_kind: "contextual",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [{
+                id: "F-068",
+                target: assessment.revisionId,
+                relationship: "primary",
+                severity: "blocking",
+                summary: "Clarify that ceremony reduction is required before Phase 3–6 expansion.",
+                evidence: observation.revisionId,
+              }],
+              outcome: "fail",
+            },
+            links: [
+              { type: "reviews", target: assessment.revisionId },
+              { type: "contextualizes", target: failedReviewContext.revisionId },
+            ],
+            body: "Clarify the evidence-bound limitation before Decision work.\n",
+          },
+        }],
+        completionEvidence: { summary: "Independent assessment Review failed." },
+      },
+      [
+        `subject=${assessment.revisionId}`,
+        `review_context=${failedReviewContext.revisionId}`,
+      ],
+      "failed-pilot-assessment-review",
+      "independent-reviewer",
+    );
+    const failedReview = failedReviewExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const correctionWork = pilotWork(
+      "pilot-assessment-review-correction-required",
+      assessment.revisionId,
+    );
+    expect(correctionWork.actionableResolver).toBe(
+      "revise-pilot-assessment-after-review@1",
+    );
+    const correctionExecution = await execute(
+      correctionWork,
+      {
+        outputs: [{
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: assessment.id,
+            type: "PAS",
+            payload: {
+              ...assessmentPayload,
+              rationale: "The corrected exact boundary supports change before expansion.",
+              limitations: ["The observed ceremony must be reduced before Phases 3–6."],
+            },
+            links: [
+              { type: "measures", target: assessmentContext.revisionId },
+              { type: "corrects-review", target: failedReview.revisionId },
+            ],
+            body: "Corrected PAS preserves the exact evidence boundary and addresses F-068 by making ceremony reduction an explicit limitation.\n",
+          },
+        }],
+        completionEvidence: { summary: "Corrected PAS over the unchanged boundary." },
+      },
+      [
+        `assessment=${assessment.revisionId}`,
+        `failed_reviews=${failedReview.revisionId}`,
+        `context=${assessmentContext.revisionId}`,
+      ],
+      "correct-pilot-assessment",
+    );
+    const correctedAssessment = correctionExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const passingContext = await createDiscoveredReviewContext(
+      "Corrected pilot assessment Review Context",
+      [correctedAssessment.revisionId],
+      [observation.revisionId],
+    );
+    const assessmentReview = await publishDiscoveredReview(
+      correctedAssessment.revisionId,
+      passingContext.revisionId,
+      "Passing independent corrected PAS Review",
+    );
+    const decisionWork = pilotWork(
+      "pilot-expansion-decision-required",
+      correctedAssessment.revisionId,
+    );
+    expect(decisionWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "decide-pilot-expansion@2",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        }),
+      })],
+    }));
+    const decisionResponse = {
+      outputs: [{
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "DEC-0000000068",
+          type: "DEC",
+          payload: {
+            title: "Change before expanding beyond Phase 2",
+            rationale: "The exact reviewed PAS identifies disproportionate ceremony.",
+            kind: "pilot-expansion",
+            decision: "change",
+            alternatives: ["proceed", "stop"],
+            effective_scope: "Phase 3–6 Example Process Package expansion",
+          },
+          links: [
+            { type: "justifies", target: correctedAssessment.revisionId },
+            { type: "relies-on-review", target: assessmentReview.revisionId },
+          ],
+          body: "Do not add Phases 3–6 until the observed ceremony is reduced.\n",
+        },
+      }],
+      completionEvidence: { summary: "Recorded the exact reviewed recommendation." },
+    };
+    const unauthorizedAdapter = await adapter(decisionResponse, "unauthorized-expansion");
+    const unauthorized = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(decisionWork.actionableResolver),
+      "--obligation",
+      String(decisionWork.id),
+      "--adapter",
+      unauthorizedAdapter,
+      "--input",
+      `assessment=${correctedAssessment.revisionId}`,
+      "--input",
+      `assessment_review=${assessmentReview.revisionId}`,
+      "--json",
+    );
+    expect(unauthorized.status).toBe(1);
+    expect(JSON.parse(unauthorized.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "scenario-authority-required" }),
+    );
+    const decisionExecution = await execute(
+      decisionWork,
+      decisionResponse,
+      [
+        `assessment=${correctedAssessment.revisionId}`,
+        `assessment_review=${assessmentReview.revisionId}`,
+      ],
+      "pilot-expansion-decision",
+      "stakeholder",
+    );
+    const decision = decisionExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const decisionContext = await createDiscoveredReviewContext(
+      "Expansion Decision Review Context",
+      [decision.revisionId],
+    );
+    await publishDiscoveredReview(
+      decision.revisionId,
+      decisionContext.revisionId,
+      "Passing independent Expansion Decision Review",
+    );
+    const pilotBoundaryObligations = new Set([
+      "pilot-observation-required",
+      "pilot-assessment-context-required",
+      "pilot-assessment-required",
+      "pilot-assessment-review-correction-required",
+      "pilot-expansion-decision-required",
+    ]);
+    const pilotReviewSubjects = new Set([
+      assessment.revisionId,
+      correctedAssessment.revisionId,
+      decision.revisionId,
+    ]);
+    expect(pilotItems().filter((item) =>
+      pilotBoundaryObligations.has(String(item.obligation)) ||
+      (["review-context-required", "passing-review-required"].includes(
+        String(item.obligation),
+      ) && pilotReviewSubjects.has(String(item.subject)))
+    )).toEqual([]);
+    const shownDecision = req(repositoryRoot, "show", decision.revisionId, "--json");
+    expect(shownDecision.status, shownDecision.stderr).toBe(0);
+    expect(JSON.parse(shownDecision.stdout).lifecycleDatum.datum).toMatchObject({
+      payload: { kind: "pilot-expansion", decision: "change" },
+      links: [
+        { type: "justifies", target: correctedAssessment.revisionId },
+        { type: "relies-on-review", target: assessmentReview.revisionId },
+      ],
+    });
+  }, 240_000);
 });

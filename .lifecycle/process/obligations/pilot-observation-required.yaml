@@ -1,0 +1,23 @@
+kind: obligation-definition
+id: pilot-observation-required
+version: 1
+description: Every complete reviewed Phase 2 level candidate requires one durable pilot observation before assessment.
+phases: [phase-2-pilot-assessment]
+for_each: 'select("complete-phase-2-level-candidates@1", {})'
+subject_as: candidate
+satisfied_when: 'count("pilot-observations-for-candidate@1", {candidate: candidate}) == 1'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: 'count("pilot-observations-for-candidate@1", {candidate: candidate}) > 1'
+    reason: Pilot assessment requires one unambiguous durable observation for each complete level candidate.
+  - status: ready
+    priority: 100
+    when: 'none("pilot-observations-for-candidate@1", {candidate: candidate})'
+    reason: The completed reviewed Phase 0–2 evidence is ready for one durable pilot observation.
+default_status: blocked
+resolve_with:
+  scenario: record-pilot-observation@2
+  inputs:
+    candidate: candidate
+waiver_policy_ref: waiver-applicability@1

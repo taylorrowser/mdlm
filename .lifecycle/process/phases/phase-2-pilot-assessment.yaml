@@ -8,11 +8,18 @@ coverage: bootstrap-subset
 omitted_capabilities:
   - automated effort telemetry outside durable lifecycle and Scenario records
   - Phases 3–6 Example Process Package definitions or execution
-entry: 'process.integrity.package_valid == true && exists("pilot-assessment-contexts@1", {})'
+entry: >-
+  process.integrity.package_valid == true
+  && exists("phase-2-entry-requirements@1", {})
+  && count("phase-2-entry-requirements@1", {}) == count("complete-phase-2-requirements@1", {})
+  && exists("complete-phase-2-level-candidates@1", {})
+  && every("complete-phase-2-level-candidates@1", {}, candidate =>
+    exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
 scenarios:
-  - record-pilot-observation@1
+  - record-pilot-observation@2
   - prepare-pilot-assessment-context@1
   - assess-phase-0-2-pilot@1
+  - revise-pilot-assessment-after-review@1
   - create-review-context@1
   - review-datum-in-context@2
   - decide-pilot-expansion@2
@@ -20,7 +27,10 @@ scenarios:
 obligations:
   - review-context-required@2
   - passing-review-required@2
+  - pilot-observation-required@1
+  - pilot-assessment-context-required@1
   - pilot-assessment-required@1
+  - pilot-assessment-review-correction-required@1
   - pilot-expansion-decision-required@1
 outputs: [PAS, REV, DEC, BSL]
 # The bootstrap profile intentionally stops before Phases 3–6.

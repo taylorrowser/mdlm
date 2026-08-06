@@ -12,13 +12,120 @@ payload_schema:
   type: object
   required: [kind, decision, alternatives, effective_scope]
   properties:
-    kind: {enum: [decision, assumption, scope, waiver, deferral, authority-delegation, gate-signoff, change-approval, change-closure, pilot-expansion, retirement, cancellation]}
+    kind: {enum: [decision, assumption, scope, waiver, deferral, authority-delegation, gate-signoff, change-approval, change-closure, pilot-observation, pilot-expansion, retirement, cancellation]}
     decision: {type: string, minLength: 1}
     alternatives:
       type: array
       uniqueItems: true
       items: {type: string, minLength: 1}
     effective_scope: {type: string, minLength: 1}
+    pilot_observation:
+      type: object
+      additionalProperties: false
+      required: [availability, review, agent_effort, evidence_reuse, loose_ends, gate_ceremony, environment_profiles, verification_discrimination, scope_reduction]
+      properties:
+        availability:
+          type: object
+          additionalProperties: false
+          required: [review, agent_effort, evidence_reuse, loose_ends, gate_ceremony, environment_profiles, verification_discrimination, scope_reduction]
+          properties:
+            review: {enum: [observed, unavailable]}
+            agent_effort: {enum: [observed, unavailable]}
+            evidence_reuse: {enum: [observed, unavailable]}
+            loose_ends: {enum: [observed, unavailable]}
+            gate_ceremony: {enum: [observed, unavailable]}
+            environment_profiles: {enum: [observed, unavailable]}
+            verification_discrimination: {enum: [observed, unavailable]}
+            scope_reduction: {enum: [observed, unavailable]}
+        review:
+          type: object
+          additionalProperties: false
+          required: [contexts, completed_reviews, findings, quality_improved, volume_assessment]
+          properties:
+            contexts: {type: integer, minimum: 0}
+            completed_reviews: {type: integer, minimum: 0}
+            findings: {type: integer, minimum: 0}
+            quality_improved: {type: boolean}
+            volume_assessment: {enum: [low, acceptable, high]}
+        agent_effort:
+          type: object
+          additionalProperties: false
+          required: [tracer_issues, implementation_commits, implementation_commit_refs, effort_assessment]
+          properties:
+            tracer_issues: {type: integer, minimum: 0}
+            implementation_commits: {type: integer, minimum: 0}
+            implementation_commit_refs:
+              type: array
+              uniqueItems: true
+              items: {type: string, pattern: '^git:[0-9a-f]{40}$'}
+            effort_assessment: {enum: [low, acceptable, high]}
+          allOf:
+            - if:
+                properties:
+                  implementation_commits: {const: 0}
+                required: [implementation_commits]
+              then:
+                properties:
+                  implementation_commit_refs: {maxItems: 0}
+            - if:
+                properties:
+                  implementation_commits: {minimum: 1}
+                required: [implementation_commits]
+              then:
+                properties:
+                  implementation_commit_refs: {minItems: 1}
+        evidence_reuse:
+          type: object
+          additionalProperties: false
+          required: [eligible, reused, stale, explanation_checks, explanations_correct]
+          properties:
+            eligible: {type: integer, minimum: 0}
+            reused: {type: integer, minimum: 0}
+            stale: {type: integer, minimum: 0}
+            explanation_checks: {type: integer, minimum: 0}
+            explanations_correct: {type: boolean}
+        loose_ends:
+          type: object
+          additionalProperties: false
+          required: [sampled, actionable, useful, assessment]
+          properties:
+            sampled: {type: integer, minimum: 0}
+            actionable: {type: integer, minimum: 0}
+            useful: {type: boolean}
+            assessment: {type: string, minLength: 1}
+        gate_ceremony:
+          type: object
+          additionalProperties: false
+          required: [gates, signoffs, decision_reviews, proportionate]
+          properties:
+            gates: {type: integer, minimum: 0}
+            signoffs: {type: integer, minimum: 0}
+            decision_reviews: {type: integer, minimum: 0}
+            proportionate: {type: boolean}
+        environment_profiles:
+          type: object
+          additionalProperties: false
+          required: [profiles_assessed, sufficient]
+          properties:
+            profiles_assessed: {type: integer, minimum: 0}
+            sufficient: {type: boolean}
+        verification_discrimination:
+          type: object
+          additionalProperties: false
+          required: [supported_successes, unsupported_rejections, discriminates]
+          properties:
+            supported_successes: {type: integer, minimum: 0}
+            unsupported_rejections: {type: integer, minimum: 0}
+            discriminates: {type: boolean}
+        scope_reduction:
+          type: object
+          additionalProperties: false
+          required: [proposed_items, removed_items, retained_items, demonstrated]
+          properties:
+            proposed_items: {type: integer, minimum: 0}
+            removed_items: {type: integer, minimum: 0}
+            retained_items: {type: integer, minimum: 0}
+            demonstrated: {type: boolean}
     gate_outcome: {enum: [approve, reject]}
     delegation:
       type: object
@@ -45,6 +152,15 @@ payload_schema:
           uniqueItems: true
           items: {enum: [subject-revised, dependency-revised, baseline-superseded, process-explicitly-reassessed]}
   allOf:
+    - if:
+        properties:
+          kind: {const: pilot-observation}
+        required: [kind]
+      then: {required: [pilot_observation]}
+    - if: {required: [pilot_observation]}
+      then:
+        properties:
+          kind: {const: pilot-observation}
     - if:
         properties:
           kind: {const: gate-signoff}

@@ -1,0 +1,15 @@
+kind: selector-definition
+id: matching-complete-phase-2-level-revision
+version: 1
+description: The complete Phase 2 level candidate matching one supplied BSL Revision.
+parameters:
+  - {name: candidate, kind: revision, types: [BSL]}
+result_kind: baseline
+query:
+  from:
+    selector: complete-phase-2-level-candidates@1
+    arguments: {}
+  as: complete_candidate
+  where: 'complete_candidate == candidate'
+  distinct: true
+  order_by: [identity.revision_id]
