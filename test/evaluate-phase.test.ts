@@ -117,8 +117,7 @@ describe("phase evaluation", () => {
           "The package-defined candidate selection expression returned no exact entities.",
         entities: [],
         evidence: {
-          source:
-            'select("candidate-baselines-of-kind@1",\n  {baseline_kind: "level-candidate"})',
+          source: 'select("complete-phase-2-level-candidates@1", {})',
           result: [],
           selectors: expect.arrayContaining([
             {
@@ -130,7 +129,12 @@ describe("phase evaluation", () => {
         },
       },
       gate: { required: true, evaluations: [] },
-      progression: null,
+      progression: expect.objectContaining({
+        nextPhase: "phase-2-pilot-assessment",
+        ready: false,
+        authorized: false,
+        complete: false,
+      }),
     });
   });
 
@@ -422,7 +426,7 @@ describe("phase evaluation", () => {
     }));
   });
 
-  it("advances an autonomous Phase boundary from exact package evidence without inventing a Decision", () => {
+  it("does not let an assessment context bypass the autonomous exact pilot-evidence boundary", () => {
     const context = frozenLifecycleRecord(
       "git:autonomous-progression",
       "BSL",
@@ -446,10 +450,10 @@ describe("phase evaluation", () => {
     });
 
     expect(evaluation.phase?.progression).toEqual(expect.objectContaining({
-      nextPhase: "phase-2-pilot-assessment",
-      ready: true,
-      authorized: true,
-      complete: true,
+      nextPhase: "phase-2-system-definition",
+      ready: false,
+      authorized: false,
+      complete: false,
       authority: expect.objectContaining({
         authorityRequirement: {
           mode: "autonomous",
@@ -457,14 +461,7 @@ describe("phase evaluation", () => {
           delegationAllowed: false,
         },
         attentionRequired: false,
-        evidence: [{
-          identity: {
-            id: context.datum.id,
-            revision_id: context.datum.revision_id,
-            type: "BSL",
-            revision: 1,
-          },
-        }],
+        evidence: [],
       }),
     }));
   });

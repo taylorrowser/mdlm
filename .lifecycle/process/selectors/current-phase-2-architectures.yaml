@@ -1,0 +1,17 @@
+kind: selector-definition
+id: current-phase-2-architectures
+version: 1
+description: Current valid architecture Revisions governing accepted Phase 2 intent.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ASP]}
+  as: architecture
+  where: >-
+    state(architecture, "disposition") == "active"
+    && state(architecture, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: architecture})
+    && exists("accepted-requirements-for-architecture@1",
+      {architecture: architecture})
+  distinct: true
+  order_by: [identity.id, identity.revision]

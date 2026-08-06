@@ -3,7 +3,7 @@ id: candidate-gate-signoff
 version: 2
 description: A current candidate requires exact reviewed gate approval after member and candidate reviews pass and blocking questions close.
 phases: [phase-0-wayfinding, phase-2-system-definition]
-for_each: 'select("candidate-baselines@1", {})'
+for_each: 'select("gate-authorization-candidates@1", {})'
 subject_as: candidate
 satisfied_when: 'exists("applicable-gate-signoffs-for@1", {candidate: candidate})'
 status_rules:

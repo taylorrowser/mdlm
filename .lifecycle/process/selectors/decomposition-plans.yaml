@@ -10,5 +10,6 @@ query:
   where: >-
     plan.payload.stage == "planning"
     && state(plan, "disposition") == "active"
+    && none("newer-planning-revisions-for@1", {plan: plan})
   distinct: true
   order_by: [identity.id, identity.revision]

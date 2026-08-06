@@ -1,0 +1,26 @@
+kind: selector-definition
+id: unexpected-group-candidate-members
+version: 1
+description: Definition members outside the exact DWP completion, output, architecture, and interface set of one group candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: baseline-members, of: candidate, emit: entity}
+  as: member
+  where: >-
+    count("planning-revisions-for-completion@1", {completion: completion}) == 1
+    && ((member.identity.type == "DWP" && member != completion)
+      || (member.identity.type == "SYS"
+        && none("matching-decomposition-output@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion}), output: member}))
+      || (member.identity.type == "ASP"
+        && member != one("architectures-for-decomposition@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion})}))
+      || (member.identity.type == "ICSP"
+        && none("matching-decomposition-interface@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion}), interface: member}))
+      || !(member.identity.type in ["DWP", "SYS", "ASP", "ICSP"]))
+  distinct: true
+  order_by: [identity.revision_id]

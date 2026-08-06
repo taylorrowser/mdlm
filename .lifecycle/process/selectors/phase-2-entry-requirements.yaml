@@ -1,0 +1,17 @@
+kind: selector-definition
+id: phase-2-entry-requirements
+version: 1
+description: Current active exact stakeholder requirement Revisions contained by an accepted intent candidate.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [STK]}
+  as: requirement
+  where: >-
+    state(requirement, "disposition") == "active"
+    && state(requirement, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: requirement})
+    && exists("accepted-intent-candidates-for-requirement@1",
+      {requirement: requirement})
+  distinct: true
+  order_by: [identity.id, identity.revision]

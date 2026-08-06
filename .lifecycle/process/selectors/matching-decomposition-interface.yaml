@@ -1,0 +1,16 @@
+kind: selector-definition
+id: matching-decomposition-interface
+version: 1
+description: The supplied interface only when the DWP names that exact governing Revision.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+  - {name: interface, kind: revision, types: [ICSP]}
+result_kind: revision
+query:
+  from:
+    selector: interfaces-for-decomposition@1
+    arguments: {plan: plan}
+  as: candidate
+  where: 'candidate == interface'
+  distinct: true
+  order_by: [identity.revision_id]

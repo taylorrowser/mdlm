@@ -1,0 +1,16 @@
+kind: selector-definition
+id: matching-decomposition-output
+version: 1
+description: The supplied SYS Revision only when it is an exact output of one DWP plan.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+  - {name: output, kind: revision, types: [SYS]}
+result_kind: revision
+query:
+  from:
+    selector: decomposition-outputs-for@1
+    arguments: {plan: plan}
+  as: candidate
+  where: 'candidate == output'
+  distinct: true
+  order_by: [identity.revision_id]

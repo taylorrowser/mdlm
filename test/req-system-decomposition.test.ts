@@ -103,7 +103,7 @@ describe("req system decomposition slice", () => {
       expect(frozen.status, `${frozen.stderr}${frozen.stdout}`).toBe(0);
       return subject;
     };
-    const review = (subject: string, context: string, title = `Review ${subject}`) =>
+    const fixtureReview = (subject: string, context: string, title = `Review ${subject}`) =>
       create(
         "REV",
         "--scenario",
@@ -155,26 +155,22 @@ describe("req system decomposition slice", () => {
       return executable;
     };
     const execute = async (
-      scenario: string,
       work: Record<string, any>,
       response: unknown,
       inputs: string[],
       label: string,
+      authority?: string,
     ) => {
       const executable = await adapter(response, label);
-      const requiresReviewer = [
-        "simplify-requirement-set@2",
-        "simplify-architecture-and-interfaces@2",
-      ].includes(scenario);
+      const scenario = String(work.actionableResolver);
+      expect(scenario).toMatch(/@[1-9][0-9]*$/);
       const arguments_ = [
         "scenario",
         "execute",
         scenario,
         "--obligation",
         String(work.id),
-        ...(requiresReviewer
-          ? ["--authorize", "independent-reviewer"]
-          : []),
+        ...(authority ? ["--authorize", authority] : []),
         "--adapter",
         executable,
       ];
@@ -182,6 +178,78 @@ describe("req system decomposition slice", () => {
       const result = req(repositoryRoot, ...arguments_, "--json");
       expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
       return JSON.parse(result.stdout).execution as Record<string, any>;
+    };
+    const createDiscoveredReviewContext = async (
+      title: string,
+      members: string[],
+      evidence: string[] = [],
+    ) => {
+      const work = obligation("review-context-required", members[0]!);
+      expect(work.actionableResolver).toBe("create-review-context@1");
+      const execution = await execute(
+        work,
+        {
+          outputs: [{
+            name: "context",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "BSL",
+              payload: {
+                title,
+                kind: "review-context",
+                role: "review-context",
+                scope: members[0],
+                group: "DEFAULT",
+                definition_members: members,
+                evidence,
+              },
+              links: [],
+              body: `Exact Review Context for ${members[0]}.\n`,
+            },
+          }],
+          completionEvidence: { summary: `Exact Review Context frozen for ${members[0]}.` },
+        },
+        [],
+        "review-context",
+      );
+      return execution.outputs[0].lifecycleDatum as { revisionId: string };
+    };
+    const publishDiscoveredReview = async (
+      subject: string,
+      context: string,
+      title = `Review ${subject}`,
+    ) => {
+      const work = obligation("passing-review-required", subject);
+      expect(work.actionableResolver).toBe("review-datum-in-context@2");
+      const execution = await execute(
+        work,
+        {
+          outputs: [{
+            name: "review",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "REV",
+              payload: {
+                title,
+                review_kind: "contextual",
+                rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+                findings: [],
+                outcome: "pass",
+              },
+              links: [
+                { type: "reviews", target: subject },
+                { type: "contextualizes", target: context },
+              ],
+              body: "Independent contextual Review passed.\n",
+            },
+          }],
+          completionEvidence: { summary: `Independent Review passed for ${subject}.` },
+        },
+        [`subject=${subject}`, `review_context=${context}`],
+        "contextual-review",
+        "independent-reviewer",
+      );
+      return execution.outputs[0].lifecycleDatum as { revisionId: string };
     };
 
     const stakeholder = create(
@@ -293,116 +361,184 @@ describe("req system decomposition slice", () => {
       baseline("Intent decision review", "review-context", "review-context"),
       [intentDecision.revisionId],
     );
-    review(intentDecision.revisionId, intentDecisionContext.revisionId);
+    fixtureReview(intentDecision.revisionId, intentDecisionContext.revisionId);
 
-    const architecture = create(
-      "ASP",
-      "--scenario",
-      "define-system-architecture@2",
-      "--set",
-      "title=Report export system architecture",
-      "--set",
-      "rationale=One producer and one boundary keep the slice minimal",
-      "--set",
-      "level=system",
-      "--set",
-      `elements=${JSON.stringify([{
-        id: "AEL-0REPRTCR00",
-        alias: "REPORT_CORE",
-        title: "Report core",
-        responsibilities: ["prepare one completed report for export"],
-      }, {
-        id: "AEL-0EXPRTAP00",
-        alias: "EXPORT_API",
-        title: "Export boundary",
-        responsibilities: ["expose the controlled report contract"],
-      }])}`,
-      "--set",
-      'interactions=["Report core sends one completed report to the export boundary"]',
-      "--set",
-      'constraints=["The boundary exposes no private implementation detail"]',
-      "--set",
-      'nominated_risks=["schema drift"]',
-      "--link",
-      `governs=${stakeholder.revisionId}`,
+    expect(obligation("decomposition-planning-required", stakeholder.revisionId)).toEqual(
+      expect.objectContaining({ status: "blocked", dispatchable: false }),
     );
-    const interfaceSpec = create(
-      "ICSP",
-      "--scenario",
-      "define-interface-control-specification@2",
-      "--set",
-      "title=Report export boundary",
-      "--set",
-      "rationale=A normative black-box contract separates responsibility",
-      "--set",
-      `architecture_revision=${architecture.revisionId}`,
-      "--set",
-      'boundary={"from_element":"AEL-0REPRTCR00","to_element":"AEL-0EXPRTAP00"}',
-      "--set",
-      'operations=["POST /exports"]',
-      "--set",
-      'schemas=["report-export-request@1","report-export-response@1"]',
-      "--set",
-      'units=[]',
-      "--set",
-      'timing=["respond within the declared request window"]',
-      "--set",
-      'errors=["malformed requests return invalid-request"]',
-      "--set",
-      'security=["authorized report authors only"]',
-      "--set",
-      'ordering=["validate before export"]',
-      "--set",
-      'compatibility=["version 1 readers accept version 1 responses"]',
-      "--set",
-      "interface_version=1.0.0",
-      "--link",
-      `defines-interface-for=${architecture.revisionId}`,
+    expect(obligation("system-architecture-required", stakeholder.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "define-system-architecture@2",
+      }),
     );
-    const plan = create(
-      "DWP",
-      "--scenario",
-      "define-decomposition-work-package@2",
-      "--set",
-      "title=Decompose report export intent",
-      "--set",
-      "rationale=One exact work package bounds parent coverage",
-      "--set",
-      "stage=planning",
-      "--set",
-      `parent_revisions=["${stakeholder.revisionId}"]`,
-      "--set",
-      `architecture_context={"revision":"${architecture.revisionId}","element":"AEL-0EXPRTAP00"}`,
-      "--set",
-      "target_child_type=SYS",
-      "--set",
-      "behavioral_slice=Public report export behavior and malformed-request discrimination",
-      "--set",
-      'expected_coverage=["successful export","invalid request rejection"]',
-      "--set",
-      'exclusions=["report rendering internals"]',
-      "--set",
-      `interface_context=["${interfaceSpec.revisionId}"]`,
-      "--set",
-      `verification_strategy_revision=${strategy.revisionId}`,
-      "--set",
-      "dependencies=[]",
-      "--set",
-      "required_review_policy=review-applicability@1",
-      "--link",
-      `decomposes=${stakeholder.revisionId}`,
+
+    const architectureWork = obligation("system-architecture-required", stakeholder.revisionId);
+    const architectureExecution = await execute(
+      architectureWork,
+      {
+        outputs: [{
+          name: "architecture",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "ASP-0REPRTARCH",
+            type: "ASP",
+            payload: {
+              title: "Report export system architecture",
+              rationale: "One producer and one boundary keep the slice minimal",
+              level: "system",
+              elements: [{
+                id: "AEL-0REPRTCR00",
+                alias: "REPORT_CORE",
+                title: "Report core",
+                responsibilities: ["prepare one completed report for export"],
+              }, {
+                id: "AEL-0EXPRTAP00",
+                alias: "EXPORT_API",
+                title: "Export boundary",
+                responsibilities: ["expose the controlled report contract"],
+              }],
+              interactions: ["Report core sends one completed report to the export boundary"],
+              constraints: ["The boundary exposes no private implementation detail"],
+              nominated_risks: ["schema drift"],
+            },
+            links: [{ type: "governs", target: stakeholder.revisionId }],
+            body: "One minimal system architecture.\n",
+          },
+        }],
+        completionEvidence: { summary: "The accepted intent has exact architecture context." },
+      },
+      [`requirements=${stakeholder.revisionId}`],
+      "define-architecture",
     );
-    for (const [source, type] of [
-      [architecture.revisionId, "governs"],
-      [interfaceSpec.revisionId, "defines-interface-for"],
-    ] as const) {
-      const linked = req(repositoryRoot, "link", source, plan.revisionId, "--type", type, "--json");
-      expect(linked.status, `${linked.stderr}${linked.stdout}`).toBe(0);
-    }
+    const architecture = architectureExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    expect(obligation("decomposition-planning-required", stakeholder.revisionId)).toEqual(
+      expect.objectContaining({ status: "blocked", dispatchable: false }),
+    );
+    expect(obligation("interface-control-specification-required", architecture.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "define-interface-control-specification@2",
+      }),
+    );
+    const interfaceWork = obligation(
+      "interface-control-specification-required",
+      architecture.revisionId,
+    );
+    const interfaceExecution = await execute(
+      interfaceWork,
+      {
+        outputs: [{
+          name: "interface",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "ICSP-0REPRT1CSP",
+            type: "ICSP",
+            payload: {
+              title: "Report export boundary",
+              rationale: "A normative black-box contract separates responsibility",
+              architecture_revision: architecture.revisionId,
+              boundary: {
+                from_element: "AEL-0REPRTCR00",
+                to_element: "AEL-0EXPRTAP00",
+              },
+              operations: ["POST /exports"],
+              schemas: ["report-export-request@1", "report-export-response@1"],
+              units: [],
+              timing: ["respond within the declared request window"],
+              errors: ["malformed requests return invalid-request"],
+              security: ["authorized report authors only"],
+              ordering: ["validate before export"],
+              compatibility: ["version 1 readers accept version 1 responses"],
+              interface_version: "1.0.0",
+            },
+            links: [{ type: "defines-interface-for", target: architecture.revisionId }],
+            body: "One exact black-box interface contract.\n",
+          },
+        }],
+        completionEvidence: { summary: "The architecture has one exact interface contract." },
+      },
+      [`architecture=${architecture.revisionId}`],
+      "define-interface",
+    );
+    const interfaceSpec = interfaceExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    expect(obligation("decomposition-planning-required", stakeholder.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "define-decomposition-work-package@2",
+      }),
+    );
+    const planningWork = obligation("decomposition-planning-required", stakeholder.revisionId);
+    const planningExecution = await execute(
+      planningWork,
+      {
+        outputs: [{
+          name: "plan",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "DWP-0REPRTPMN0",
+            type: "DWP",
+            payload: {
+              title: "Decompose report export intent",
+              rationale: "One exact work package bounds parent coverage",
+              stage: "planning",
+              parent_revisions: [stakeholder.revisionId],
+              architecture_context: {
+                revision: architecture.revisionId,
+                element: "AEL-0EXPRTAP00",
+              },
+              target_child_type: "SYS",
+              behavioral_slice: "Public report export behavior and malformed-request discrimination",
+              expected_coverage: ["successful export", "invalid request rejection"],
+              exclusions: ["report rendering internals"],
+              interface_context: [interfaceSpec.revisionId],
+              verification_strategy_revision: strategy.revisionId,
+              dependencies: [],
+              required_review_policy: "review-applicability@1",
+            },
+            links: [
+              { type: "decomposes", target: stakeholder.revisionId },
+              { type: "allocated-to", target: architecture.revisionId },
+              { type: "governed-by", target: interfaceSpec.revisionId },
+            ],
+            body: "One bounded decomposition plan.\n",
+          },
+        }],
+        completionEvidence: { summary: "Exact inputs produced one bounded plan and scope challenge." },
+      },
+      [
+        `parents=${stakeholder.revisionId}`,
+        `architecture=${architecture.revisionId}`,
+        `interfaces=${interfaceSpec.revisionId}`,
+        `verification_strategy=${strategy.revisionId}`,
+      ],
+      "plan-decomposition",
+    );
+    const plan = planningExecution.outputs.find((output: any) =>
+      output.name === "plan"
+    )!.lifecycleDatum as { id: string; revisionId: string };
+    expect(obligation("decomposition-execution-required", plan.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "blocked",
+        dispatchable: false,
+        blockedBy: expect.arrayContaining([
+          expect.stringContaining("passing-review-required@2"),
+        ]),
+      }),
+    );
     const question = create(
       "QST",
       "--scenario",
-      "resolve-question@2",
+      String(planningWork.actionableResolver),
       "--set",
       "title=Confirm malformed-request scope",
       "--set",
@@ -418,15 +554,15 @@ describe("req system decomposition slice", () => {
       "--link",
       `blocks=${plan.id}`,
     );
-    const planningContext = freeze(
-      baseline("Exact decomposition planning context", "review-context", "review-context"),
+    const planningContext = await createDiscoveredReviewContext(
+      "Exact decomposition planning context",
       [strategy.revisionId, architecture.revisionId, interfaceSpec.revisionId, plan.revisionId, question.revisionId],
     );
     expect(obligation("passing-review-required", plan.revisionId)).toEqual(
       expect.objectContaining({ status: "awaiting-review", dispatchable: true }),
     );
     for (const subject of [strategy.revisionId, architecture.revisionId, interfaceSpec.revisionId, plan.revisionId]) {
-      review(subject, planningContext.revisionId);
+      await publishDiscoveredReview(subject, planningContext.revisionId);
     }
     expect(phaseItems().find((item) =>
       item.obligation === "passing-review-required" && item.subject === plan.revisionId
@@ -446,7 +582,6 @@ describe("req system decomposition slice", () => {
     );
     expect(questionWork).toBeDefined();
     await execute(
-      "resolve-question@2",
       questionWork!,
       {
         outputs: [{
@@ -498,7 +633,6 @@ describe("req system decomposition slice", () => {
       actionableResolver: "execute-decomposition-work-package@2",
     }));
     const systemExecution = await execute(
-      "execute-decomposition-work-package@2",
       executionWork,
       {
         outputs: [{
@@ -560,11 +694,11 @@ describe("req system decomposition slice", () => {
       }),
     );
 
-    const definitionContext = freeze(
-      baseline("Exact decomposition definition set", "review-context", "review-context"),
-      [plan.revisionId, system.revisionId, architecture.revisionId, interfaceSpec.revisionId],
+    const definitionContext = await createDiscoveredReviewContext(
+      "Exact decomposition definition set",
+      [system.revisionId, plan.revisionId, architecture.revisionId, interfaceSpec.revisionId],
     );
-    review(system.revisionId, definitionContext.revisionId);
+    await publishDiscoveredReview(system.revisionId, definitionContext.revisionId);
 
     const simplify = async (
       obligationName: string,
@@ -577,8 +711,8 @@ describe("req system decomposition slice", () => {
         status: "awaiting-review",
         dispatchable: true,
       }));
+      expect(work.actionableResolver).toBe(scenario);
       const execution = await execute(
-        scenario,
         work,
         {
           outputs: [{
@@ -606,6 +740,7 @@ describe("req system decomposition slice", () => {
         },
         [`plan=${plan.revisionId}`, `subject_context=${definitionContext.revisionId}`],
         scenario,
+        "independent-reviewer",
       );
       return execution.outputs[0].lifecycleDatum.revisionId as string;
     };
@@ -628,7 +763,6 @@ describe("req system decomposition slice", () => {
     const completionWork = obligation("decomposition-completion-required", plan.revisionId);
     expect(completionWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
     const completionExecution = await execute(
-      "complete-decomposition-work-package@2",
       completionWork,
       {
         outputs: [{
@@ -668,6 +802,9 @@ describe("req system decomposition slice", () => {
             },
             links: [
               { type: "decomposes", target: stakeholder.revisionId },
+              { type: "derived-from", target: plan.revisionId },
+              { type: "allocated-to", target: architecture.revisionId },
+              { type: "governed-by", target: interfaceSpec.revisionId },
               { type: "produces", target: system.revisionId },
               { type: "justifies", target: requirementSimplification },
               { type: "justifies", target: architectureSimplification },
@@ -688,15 +825,19 @@ describe("req system decomposition slice", () => {
       item.subject === plan.revisionId
     )).toBeUndefined();
 
-    const completionContext = freeze(
-      baseline("Exact DWP completion context", "review-context", "review-context"),
+    const completionContext = await createDiscoveredReviewContext(
+      "Exact DWP completion context",
       [completion.revisionId, system.revisionId, architecture.revisionId, interfaceSpec.revisionId],
       [requirementSimplification, architectureSimplification],
     );
     expect(obligation("passing-review-required", completion.revisionId)).toEqual(
       expect.objectContaining({ status: "awaiting-review", dispatchable: true }),
     );
-    review(completion.revisionId, completionContext.revisionId, "Review exact DWP completion");
+    await publishDiscoveredReview(
+      completion.revisionId,
+      completionContext.revisionId,
+      "Review exact DWP completion",
+    );
     const shownCompletion = req(repositoryRoot, "show", completion.revisionId, "--json");
     expect(JSON.parse(shownCompletion.stdout).lifecycleDatum).toMatchObject({
       storage: { editable: false, frozen: true },
@@ -706,85 +847,210 @@ describe("req system decomposition slice", () => {
       item.subject === completion.revisionId
     )).toBeUndefined();
 
-    const groupCandidate = freeze(
-      baseline("SYS DEFAULT group candidate", "group-candidate", "candidate"),
-      [completion.revisionId, system.revisionId, architecture.revisionId, interfaceSpec.revisionId],
-      [requirementSimplification, architectureSimplification],
+    expect(obligation("decomposition-group-candidate-required", completion.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "create-decomposition-group-candidate@1",
+      }),
     );
-    const groupReviewContext = freeze(
-      baseline("SYS group review", "review-context", "review-context"),
-      [groupCandidate.revisionId],
+    const groupCandidateWork = obligation(
+      "decomposition-group-candidate-required",
+      completion.revisionId,
     );
-    review(groupCandidate.revisionId, groupReviewContext.revisionId);
-
-    const levelCandidate = baseline("SYS level candidate", "level-candidate", "candidate");
-    for (const member of [strategy.revisionId, architecture.revisionId, interfaceSpec.revisionId]) {
-      const added = req(repositoryRoot, "baseline", "add", levelCandidate.id, member, "--json");
-      expect(added.status, `${added.stderr}${added.stdout}`).toBe(0);
-    }
-    const composed = req(
+    const groupCandidateResponse = (extraMembers: string[] = []) => ({
+      outputs: [{
+        name: "candidate",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "SYS DEFAULT group candidate",
+            kind: "group-candidate",
+            role: "candidate",
+            scope: completion.revisionId,
+            group: "DEFAULT",
+            definition_members: [
+              architecture.revisionId,
+              completion.revisionId,
+              interfaceSpec.revisionId,
+              system.revisionId,
+              ...extraMembers,
+            ],
+            evidence: [requirementSimplification, architectureSimplification],
+          },
+          links: [],
+          body: "Exact reviewed decomposition group candidate.\n",
+        },
+      }],
+      completionEvidence: { summary: "The exact group definition was frozen." },
+    });
+    const invalidGroupAdapter = await adapter(
+      groupCandidateResponse([strategy.revisionId]),
+      "invalid-group-candidate",
+    );
+    const invalidGroup = req(
       repositoryRoot,
-      "baseline",
-      "compose",
-      levelCandidate.id,
-      groupCandidate.revisionId,
+      "scenario",
+      "execute",
+      String(groupCandidateWork.actionableResolver),
+      "--obligation",
+      String(groupCandidateWork.id),
+      "--adapter",
+      invalidGroupAdapter,
+      "--input",
+      `completion=${completion.revisionId}`,
       "--json",
     );
-    expect(composed.status, `${composed.stderr}${composed.stdout}`).toBe(0);
-    const frozenLevel = req(repositoryRoot, "baseline", "freeze", levelCandidate.id, "--json");
-    expect(frozenLevel.status, `${frozenLevel.stderr}${frozenLevel.stdout}`).toBe(0);
-    const levelReviewContext = freeze(
-      baseline("SYS level review", "review-context", "review-context"),
+    expect(invalidGroup.status).toBe(1);
+    expect(JSON.parse(invalidGroup.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    );
+    const groupCandidateExecution = await execute(
+      groupCandidateWork,
+      groupCandidateResponse(),
+      [`completion=${completion.revisionId}`],
+      "group-candidate",
+    );
+    const groupCandidate = groupCandidateExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    const groupReviewContext = await createDiscoveredReviewContext(
+      "SYS group review",
+      [groupCandidate.revisionId],
+    );
+    await publishDiscoveredReview(groupCandidate.revisionId, groupReviewContext.revisionId);
+
+    expect(obligation("system-level-candidate-required", groupCandidate.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "create-system-level-candidate@1",
+      }),
+    );
+    const levelCandidateWork = obligation(
+      "system-level-candidate-required",
+      groupCandidate.revisionId,
+    );
+    const levelCandidateResponse = (includeStrategy: boolean) => ({
+      outputs: [{
+        name: "candidate",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "SYS level candidate",
+            kind: "level-candidate",
+            role: "candidate",
+            scope: groupCandidate.revisionId,
+            group: "SYSTEM",
+            definition_members: [
+              architecture.revisionId,
+              interfaceSpec.revisionId,
+              ...(includeStrategy ? [strategy.revisionId] : []),
+            ],
+            evidence: [],
+          },
+          links: [{ type: "composes", target: groupCandidate.revisionId }],
+          body: "Exact composed system-level candidate.\n",
+        },
+      }],
+      completionEvidence: { summary: "The reviewed group was composed with shared context." },
+    });
+    const levelInputs = [
+      `group=${groupCandidate.revisionId}`,
+      `completion=${completion.revisionId}`,
+      `architecture=${architecture.revisionId}`,
+      `interfaces=${interfaceSpec.revisionId}`,
+      `verification_strategy=${strategy.revisionId}`,
+    ];
+    const invalidLevelAdapter = await adapter(
+      levelCandidateResponse(false),
+      "invalid-level-candidate",
+    );
+    const invalidLevel = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(levelCandidateWork.actionableResolver),
+      "--obligation",
+      String(levelCandidateWork.id),
+      "--adapter",
+      invalidLevelAdapter,
+      ...levelInputs.flatMap((input) => ["--input", input]),
+      "--json",
+    );
+    expect(invalidLevel.status).toBe(1);
+    expect(JSON.parse(invalidLevel.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    );
+    const levelCandidateExecution = await execute(
+      levelCandidateWork,
+      levelCandidateResponse(true),
+      levelInputs,
+      "level-candidate",
+    );
+    const levelCandidate = levelCandidateExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    const levelReviewContext = await createDiscoveredReviewContext(
+      "SYS level review",
       [levelCandidate.revisionId],
     );
-    review(levelCandidate.revisionId, levelReviewContext.revisionId);
+    await publishDiscoveredReview(levelCandidate.revisionId, levelReviewContext.revisionId);
 
     const gateWork = obligation("candidate-gate-signoff", levelCandidate.revisionId);
     expect(gateWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
-    const gateDecision = create(
-      "DEC",
-      "--scenario",
-      "record-gate-signoff@2",
-      "--set",
-      "title=Authorize exact SYS candidate",
-      "--set",
-      "rationale=The composed exact candidate is reviewed and unblocked",
-      "--set",
-      "kind=gate-signoff",
-      "--set",
-      "gate_outcome=approve",
-      "--set",
-      "decision=Approve this exact SYS level candidate",
-      "--set",
-      'alternatives=["return the candidate for revision"]',
-      "--set",
-      `effective_scope=${levelCandidate.revisionId}`,
-      "--link",
-      `justifies=${levelCandidate.revisionId}`,
+    expect(gateWork.actionableResolver).toBe("record-gate-signoff@2");
+    const gateExecution = await execute(
+      gateWork,
+      {
+        outputs: [{
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Authorize exact SYS candidate",
+              rationale: "The composed exact candidate is reviewed and unblocked",
+              kind: "gate-signoff",
+              gate_outcome: "approve",
+              decision: "Approve this exact SYS level candidate",
+              alternatives: ["return the candidate for revision"],
+              effective_scope: levelCandidate.revisionId,
+            },
+            links: [{ type: "justifies", target: levelCandidate.revisionId }],
+            body: "Stakeholder authority approved the exact system candidate.\n",
+          },
+        }],
+        completionEvidence: { summary: "Exact gate approval recorded." },
+      },
+      [`candidate=${levelCandidate.revisionId}`],
+      "system-gate",
+      "stakeholder",
     );
-    const gateReviewContext = freeze(
-      baseline("SYS gate decision review", "review-context", "review-context"),
+    const gateDecision = gateExecution.outputs[0].lifecycleDatum as { revisionId: string };
+    const gateReviewContext = await createDiscoveredReviewContext(
+      "SYS gate decision review",
       [gateDecision.revisionId],
     );
-    review(gateDecision.revisionId, gateReviewContext.revisionId);
+    await publishDiscoveredReview(gateDecision.revisionId, gateReviewContext.revisionId);
 
     const phase = req(
       repositoryRoot,
       "phase",
       "status",
       "phase-2-system-definition",
-      "--json",
     );
     expect(phase.status, `${phase.stderr}${phase.stdout}`).toBe(0);
-    const phaseStatus = JSON.parse(phase.stdout).phaseStatus;
-    expect(phaseStatus.entry.satisfied).toBe(true);
-    expect(phaseStatus.gate.evaluations).toHaveLength(1);
-    expect(phaseStatus.gate.evaluations[0]).toMatchObject({
-      complete: true,
-      status: "satisfied",
-    });
-    expect(phaseStatus.gate.evaluations[0].candidate.identity.revision_id)
-      .toBe(levelCandidate.revisionId);
+    expect(phase.stdout).toContain(`Gate Candidate: ${levelCandidate.revisionId}`);
+    expect(phase.stdout).toContain("Gate Complete: true");
+    expect(phase.stdout).toContain("Progression Next Phase: phase-2-pilot-assessment");
+    expect(phase.stdout).toContain("Progression Ready: true");
+    expect(phase.stdout).toContain("Progression Authorized: true");
+    expect(phase.stdout).toContain("Progression Complete: true");
     const shownLevel = req(repositoryRoot, "show", levelCandidate.revisionId, "--json");
     const levelDatum = JSON.parse(shownLevel.stdout).lifecycleDatum.datum;
     expect(levelDatum.payload.definition_members).toEqual([
@@ -809,5 +1075,5 @@ describe("req system decomposition slice", () => {
       expect(verified.status, `${verified.stderr}${verified.stdout}`).toBe(0);
       expect(JSON.parse(verified.stdout).baselineVerification.valid).toBe(true);
     }
-  }, 120_000);
+  }, 180_000);
 });

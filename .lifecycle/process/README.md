@@ -234,14 +234,18 @@ or revised through generic direct authoring.
 
 The package defines exact DWP planning and completion Revisions, stable ASP
 architecture elements, normative ICSP boundaries, and allocated SYS outputs.
-Package-authored Selectors and Obligations derive reviewed-plan execution, exact
-question blockers, child Review completion, parent coverage, and separate
-requirement-set and architecture/interface simplification work. The completion
-Scenario publishes the next DWP Revision in the same Stable Datum lineage only
-after those exact obligations resolve. A frozen SYS group candidate contains the
-reviewed completion, output, architecture, and interface Revisions; the reviewed
-level candidate composes that exact group and retains VSP, ASP, and ICSP as shared
-context before exact reviewed gate authorization.
+Package-authored Selectors and Obligations first derive ASP and ICSP authoring
+from accepted exact intent, then derive DWP planning only when one exact
+architecture, interface, and VSP context is unambiguous. Further Obligations
+derive reviewed-plan execution, exact question blockers, child Review completion,
+parent coverage, and separate requirement-set and architecture/interface
+simplification work. The completion Scenario publishes the next DWP Revision in
+the same Stable Datum lineage only after those exact obligations resolve. Package-
+discovered candidate Scenarios freeze the exact reviewed completion, outputs,
+architecture, interfaces, and simplification evidence as a group candidate, then
+compose its reviewed Revision with shared VSP, ASP, and ICSP context as the level
+candidate. Only that reviewed level candidate receives exact gate authorization,
+and the same reviewed approval authorizes progression to pilot assessment.
 
 Scenario required-link validation follows the source type's identity contract, so
 an exact Revision input is normalized to its Stable Datum ID only when the

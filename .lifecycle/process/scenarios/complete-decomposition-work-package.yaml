@@ -9,7 +9,8 @@ outputs:
   - name: completion
     types: [DWP]
     cardinality: one
-    required_links: []
+    required_links:
+      - {link: derived-from, target: {input: plan}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/complete-decomposition-work-package.md@1
 review_policy_ref: review-applicability@1
@@ -19,6 +20,14 @@ completion: >-
   && completion.payload.stage == "completion"
   && completion.payload.parent_coverage_status in ["complete", "waived"]
   && completion.payload.output_reviews_complete == true
+  && count("architectures-for-decomposition@1", {plan: completion}) == 1
+  && one("architectures-for-decomposition@1", {plan: completion}) == one("architectures-for-decomposition@1", {plan: plan})
+  && count("strategies-for-decomposition@1", {plan: completion}) == 1
+  && one("strategies-for-decomposition@1", {plan: completion}) == one("strategies-for-decomposition@1", {plan: plan})
+  && count("interfaces-for-decomposition@1", {plan: completion}) == count("interfaces-for-decomposition@1", {plan: plan})
+  && every("interfaces-for-decomposition@1", {plan: plan},
+    interface => exists("matching-decomposition-interface@1",
+      {plan: completion, interface: interface}))
 resolves: [decomposition-completion-required, decomposition-parent-coverage-required]
 prohibited_inputs: [unreviewed outputs, unresolved blocking questions, incomplete simplification evidence, mutable latest aliases]
 batching: single

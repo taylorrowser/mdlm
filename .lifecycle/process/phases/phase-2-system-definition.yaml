@@ -26,6 +26,8 @@ scenarios:
   - resolve-question@2
   - resolve-question-with-prototype@2
   - create-candidate-baseline@1
+  - create-decomposition-group-candidate@1
+  - create-system-level-candidate@1
   - record-gate-signoff@2
   - record-consequential-decision@1
 obligations:
@@ -33,21 +35,49 @@ obligations:
   - passing-review-required@2
   - open-question-resolution@2
   - prototype-question-resolution@1
+  - system-architecture-required@1
+  - interface-control-specification-required@1
+  - decomposition-planning-required@1
   - decomposition-execution-required@1
   - decomposition-output-reviews-required@1
   - decomposition-simplification-required@1
   - architecture-interface-simplification-required@1
   - decomposition-completion-required@1
   - decomposition-parent-coverage-required@1
+  - decomposition-group-candidate-required@1
+  - system-level-candidate-required@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@2
 outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC, ART]
-progression: null
+progression:
+  next_phase: phase-2-pilot-assessment
+  readiness: >-
+    exists("phase-2-entry-requirements@1", {})
+    && every("phase-2-entry-requirements@1", {}, requirement =>
+      exists("matching-complete-phase-2-requirement@1", {requirement: requirement}))
+    && exists("complete-phase-2-level-candidates@1", {})
+    && every("complete-phase-2-level-candidates@1", {}, candidate =>
+        none("candidate-members-missing-review@1", {candidate: candidate})
+        && exists("passing-reviews-for@1", {subject: candidate})
+        && none("failing-reviews-for@1", {subject: candidate}))
+    && none("open-blocking-questions@1", {})
+  authorization:
+    condition: >-
+      exists("phase-2-entry-requirements@1", {})
+      && every("phase-2-entry-requirements@1", {}, requirement =>
+        exists("matching-complete-phase-2-requirement@1", {requirement: requirement}))
+      && exists("complete-phase-2-level-candidates@1", {})
+      && every("complete-phase-2-level-candidates@1", {}, candidate =>
+          exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: phase}
+    scenario: record-gate-signoff@2
+    subjects: >-
+      select("complete-phase-2-level-candidates@1", {})
+    evidence_selector: applicable-gate-signoffs-for@1
 gate:
   required: true
-  candidate_selector: >-
-    select("candidate-baselines-of-kind@1",
-      {baseline_kind: "level-candidate"})
+  candidate_selector: 'select("complete-phase-2-level-candidates@1", {})'
   candidate_as: candidate
   obligation: candidate-gate-signoff@2
   completion: >-

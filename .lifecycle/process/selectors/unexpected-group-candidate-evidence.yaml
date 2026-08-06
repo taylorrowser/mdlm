@@ -1,0 +1,18 @@
+kind: selector-definition
+id: unexpected-group-candidate-evidence
+version: 1
+description: Evidence outside the exact passing simplification Reviews for one group candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: candidate, emit: entity}
+  as: evidence
+  where: >-
+    count("planning-revisions-for-completion@1", {completion: completion}) == 1
+    && none("simplification-evidence-matches-plan@1",
+      {plan: one("planning-revisions-for-completion@1", {completion: completion}),
+       evidence: evidence})
+  distinct: true
+  order_by: [identity.revision_id]

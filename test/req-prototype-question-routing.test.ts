@@ -496,7 +496,7 @@ describe("req prototype-bound empirical question routing", () => {
       expect(output.data.created_by).toEqual(expect.objectContaining({
         scenario: "resolve-question-with-prototype@2",
         prompt_ref: "prompts/resolve-question-with-prototype.md@2",
-        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.38\.0#sha256:/),
+        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.39\.0#sha256:/),
         policy_refs: [
           "question-participation@1",
           "review-applicability@1",

@@ -24,13 +24,13 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.38.0");
+    expect(result.package.manifest.version).toBe("0.39.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(114);
+    expect(Object.keys(result.package.selectors)).toHaveLength(151);
     expect(Object.keys(result.package.policies)).toHaveLength(9);
-    expect(Object.keys(result.package.obligations)).toHaveLength(31);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(38);
+    expect(Object.keys(result.package.obligations)).toHaveLength(36);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(40);
     expect(result.diagnostics).toEqual([]);
   });
 
@@ -133,8 +133,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       obligationPath,
       obligation.replace(
-        'for_each: \'select("candidate-baselines@1", {})\'',
-        "for_each: {selector: candidate-baselines@1, arguments: {}}",
+        'for_each: \'select("gate-authorization-candidates@1", {})\'',
+        "for_each: {selector: gate-authorization-candidates@1, arguments: {}}",
       ),
     );
 

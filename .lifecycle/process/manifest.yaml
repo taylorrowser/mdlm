@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.38.0
+version: 0.39.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -91,6 +91,7 @@ catalog:
     - prototype-bound-open-questions
     - superseding-baselines-for
     - candidate-baselines
+    - gate-authorization-candidates
     - frozen-baselines
     - valid-review-contexts-for
     - strategies-for-environment
@@ -128,8 +129,22 @@ catalog:
     - qualification-activities-for-environment
     - qualification-implementations-for-environment
     - complete-environment-qualification-for-environment
+    - accepted-intent-candidates-for-requirement
+    - phase-2-entry-requirements
+    - matching-phase-2-entry-requirement
+    - current-architectures-for-requirement
+    - accepted-requirements-for-architecture
+    - current-phase-2-architectures
+    - current-interfaces-for-architecture
+    - current-strategies-for-phase-2-requirement
+    - decomposition-architecture-matches-requirement
+    - decomposition-strategy-matches-requirement
+    - current-decomposition-plans-for-requirement
+    - newer-planning-revisions-for
     - decomposition-plans
     - decomposition-completions-for
+    - current-decomposition-completions
+    - planning-revisions-for-completion
     - decomposition-parents-for
     - decomposition-outputs-for
     - unreviewed-decomposition-outputs-for
@@ -141,6 +156,28 @@ catalog:
     - blocking-questions-for-decomposition
     - architectures-for-decomposition
     - interfaces-for-decomposition
+    - matching-decomposition-interface
+    - matching-decomposition-output
+    - strategies-for-decomposition
+    - baseline-contains-definition
+    - baseline-contains-evidence
+    - baseline-evidence
+    - simplification-evidence-matches-plan
+    - unexpected-group-candidate-members
+    - unexpected-group-candidate-evidence
+    - unexpected-level-candidate-members
+    - composed-groups-for-level-candidate
+    - complete-group-candidates-for-completion
+    - complete-phase-2-group-candidates
+    - group-candidate-matches-completion
+    - completions-for-group-candidate
+    - level-candidate-composes-group
+    - complete-level-candidates-for-group
+    - level-candidate-matches-group
+    - complete-level-candidate-evidence-for
+    - complete-phase-2-level-candidates
+    - complete-phase-2-requirements
+    - matching-complete-phase-2-requirement
     - failing-pilot-results
     - problem-reports-for-result
     - open-problem-reports
@@ -178,12 +215,17 @@ catalog:
     - pilot-verification-activity-required
     - pilot-verification-implementation-required
     - verification-run-required
+    - system-architecture-required
+    - interface-control-specification-required
+    - decomposition-planning-required
     - decomposition-execution-required
     - decomposition-output-reviews-required
     - decomposition-simplification-required
     - architecture-interface-simplification-required
     - decomposition-completion-required
     - decomposition-parent-coverage-required
+    - decomposition-group-candidate-required
+    - system-level-candidate-required
     - problem-report-required
     - change-impact-required
     - change-approval-required
@@ -221,6 +263,8 @@ catalog:
     - simplify-requirement-set
     - simplify-architecture-and-interfaces
     - complete-decomposition-work-package
+    - create-decomposition-group-candidate
+    - create-system-level-candidate
     - report-problem
     - analyze-change-impact
     - approve-change-request
@@ -263,6 +307,8 @@ assets:
     - prompts/simplify-requirement-set.md@1
     - prompts/simplify-architecture-and-interfaces.md@1
     - prompts/complete-decomposition-work-package.md@1
+    - prompts/create-decomposition-group-candidate.md@1
+    - prompts/create-system-level-candidate.md@1
     - prompts/report-problem.md@1
     - prompts/analyze-change-impact.md@1
     - prompts/approve-change-request.md@2
@@ -305,9 +351,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@12
+  default: bootstrap@13
   available:
-    - profiles/bootstrap.yaml@12
+    - profiles/bootstrap.yaml@13
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

@@ -1,0 +1,16 @@
+kind: selector-definition
+id: decomposition-strategy-matches-requirement
+version: 1
+description: Current strategy for a requirement only when the DWP payload names its exact Revision.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from:
+    selector: current-strategies-for-phase-2-requirement@1
+    arguments: {requirement: requirement}
+  as: strategy
+  where: 'strategy.identity.revision_id == plan.payload.verification_strategy_revision'
+  distinct: true
+  order_by: [identity.revision_id]

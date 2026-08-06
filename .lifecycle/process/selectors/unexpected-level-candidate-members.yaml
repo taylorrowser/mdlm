@@ -1,0 +1,25 @@
+kind: selector-definition
+id: unexpected-level-candidate-members
+version: 1
+description: Definition members outside the exact shared architecture, interface, and strategy context of one level candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: baseline-members, of: candidate, emit: entity}
+  as: member
+  where: >-
+    count("planning-revisions-for-completion@1", {completion: completion}) == 1
+    && ((member.identity.type == "ASP"
+        && member != one("architectures-for-decomposition@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion})}))
+      || (member.identity.type == "ICSP"
+        && none("matching-decomposition-interface@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion}), interface: member}))
+      || (member.identity.type == "VSP"
+        && member != one("strategies-for-decomposition@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion})}))
+      || !(member.identity.type in ["ASP", "ICSP", "VSP"]))
+  distinct: true
+  order_by: [identity.revision_id]

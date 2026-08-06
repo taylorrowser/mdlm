@@ -1344,9 +1344,25 @@ describe("req product-assurance qualification and pilot slice", () => {
     }));
     await fs.rm(duplicateImplementationRoot, { recursive: true, force: true });
 
+    const progressionStatus = req(
+      repositoryRoot,
+      "phase",
+      "status",
+      "phase-1-product-assurance",
+      "--json",
+    );
+    expect(progressionStatus.status, progressionStatus.stderr).toBe(0);
+    expect(JSON.parse(progressionStatus.stdout).phaseStatus.progression).toEqual(
+      expect.objectContaining({
+        nextPhase: "phase-2-system-definition",
+        ready: true,
+        authorized: true,
+        complete: true,
+      }),
+    );
     const doctor = req(repositoryRoot, "doctor", "--json");
     expect(doctor.status, doctor.stderr).toBe(0);
-  }, 60_000);
+  }, 90_000);
 
   it("supplies package-owned verification planning and execution contracts", () => {
     const shown = req(repositoryRoot, "process", "show", "--json");

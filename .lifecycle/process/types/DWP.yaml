@@ -83,6 +83,27 @@ outgoing_links:
     cardinality: {minimum: 1, maximum: many}
     freeze_resolution: already-exact
     inverse_label: decomposed-by
+  - id: allocated-to
+    description: Exact architecture Revision bounding this work package.
+    targets:
+      - {kind: datum, types: [ASP], identity: revision}
+    cardinality: {minimum: 1, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: decomposition-architecture-for
+  - id: governed-by
+    description: Exact interface Revisions constraining this work package.
+    targets:
+      - {kind: datum, types: [ICSP], identity: revision}
+    cardinality: {minimum: 1, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: governs-decomposition
+  - id: derived-from
+    description: Exact planning Revision whose reviewed evidence this completion records.
+    targets:
+      - {kind: datum, types: [DWP], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: completed-by
   - id: produces
     description: Exact system requirement revisions produced by this work package completion.
     targets:

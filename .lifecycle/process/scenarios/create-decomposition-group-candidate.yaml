@@ -1,0 +1,56 @@
+kind: scenario-definition
+id: create-decomposition-group-candidate
+version: 1
+description: Freeze one exact reviewed DWP completion, outputs, architecture, interfaces, and simplification evidence as a group candidate.
+phases: [phase-2-system-definition]
+inputs:
+  - name: completion
+    types: [DWP]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      completion.payload.stage == "completion"
+      && exists("passing-reviews-for@1", {subject: completion})
+outputs:
+  - {name: candidate, types: [BSL], cardinality: one, required_links: []}
+prompt_ref: prompts/create-decomposition-group-candidate.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && candidate.payload.kind == "group-candidate"
+  && candidate.payload.role == "candidate"
+  && candidate.storage.frozen == true
+  && count("planning-revisions-for-completion@1", {completion: completion}) == 1
+  && exists("baseline-contains-definition@1",
+    {baseline: candidate, subject: completion})
+  && every("decomposition-outputs-for@1",
+    {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+    output => exists("baseline-contains-definition@1",
+      {baseline: candidate, subject: output}))
+  && every("architectures-for-decomposition@1",
+    {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+    architecture => exists("baseline-contains-definition@1",
+      {baseline: candidate, subject: architecture}))
+  && every("interfaces-for-decomposition@1",
+    {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+    interface => exists("baseline-contains-definition@1",
+      {baseline: candidate, subject: interface}))
+  && exists("requirement-simplification-reviews-for@1",
+    {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+  && exists("architecture-simplification-reviews-for@1",
+    {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+  && every("requirement-simplification-reviews-for@1",
+    {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+    review => exists("baseline-contains-evidence@1",
+      {baseline: candidate, subject: review}))
+  && every("architecture-simplification-reviews-for@1",
+    {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+    review => exists("baseline-contains-evidence@1",
+      {baseline: candidate, subject: review}))
+  && none("unexpected-group-candidate-members@1",
+    {candidate: candidate, completion: completion})
+  && none("unexpected-group-candidate-evidence@1",
+    {candidate: candidate, completion: completion})
+resolves: [decomposition-group-candidate-required]
+prohibited_inputs: [unreviewed completion, extra definition membership, mutable latest aliases]
+batching: single

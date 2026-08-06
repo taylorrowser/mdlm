@@ -1,0 +1,12 @@
+kind: selector-definition
+id: baseline-evidence
+version: 1
+description: Exact evidence Revisions stored by one frozen baseline.
+parameters:
+  - {name: baseline, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: baseline, emit: entity}
+  as: evidence
+  distinct: true
+  order_by: [identity.revision_id]

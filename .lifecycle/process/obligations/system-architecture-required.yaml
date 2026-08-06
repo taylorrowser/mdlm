@@ -1,0 +1,23 @@
+kind: obligation-definition
+id: system-architecture-required
+version: 1
+description: Every exact accepted Phase 2 entry requirement requires current system architecture context.
+phases: [phase-2-system-definition]
+for_each: 'select("phase-2-entry-requirements@1", {})'
+subject_as: requirement
+satisfied_when: 'count("current-architectures-for-requirement@1", {requirement: requirement}) == 1'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: 'count("current-architectures-for-requirement@1", {requirement: requirement}) > 1'
+    reason: Multiple current architecture Revisions are ambiguous and require explicit correction before decomposition can continue.
+  - status: ready
+    priority: 100
+    when: 'count("current-architectures-for-requirement@1", {requirement: requirement}) == 0'
+    reason: The exact accepted intent is ready for one bounded architecture definition.
+default_status: blocked
+resolve_with:
+  scenario: define-system-architecture@2
+  inputs:
+    requirements: 'select("matching-phase-2-entry-requirement@1", {requirement: requirement})'
+waiver_policy_ref: waiver-applicability@1

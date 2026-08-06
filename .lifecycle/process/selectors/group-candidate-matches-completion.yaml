@@ -1,0 +1,16 @@
+kind: selector-definition
+id: group-candidate-matches-completion
+version: 1
+description: The supplied group candidate only when it semantically completes one DWP completion Revision.
+parameters:
+  - {name: group, kind: baseline, types: [BSL]}
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: baseline
+query:
+  from:
+    selector: complete-group-candidates-for-completion@1
+    arguments: {completion: completion}
+  as: candidate
+  where: 'candidate == group'
+  distinct: true
+  order_by: [identity.revision_id]

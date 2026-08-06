@@ -1,12 +1,12 @@
 kind: selector-definition
 id: interfaces-for-decomposition
 version: 1
-description: Exact interface revisions whose boundary contract names the supplied DWP plan.
+description: Exact interface Revisions governing the supplied DWP.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: plan, link: defines-interface-for, emit: source, types: [ICSP]}
+  from: {relation: outgoing-links, of: plan, link: governed-by, emit: target, types: [ICSP]}
   as: interface
   distinct: true
   order_by: [identity.revision_id]

@@ -1,0 +1,48 @@
+kind: obligation-definition
+id: system-level-candidate-required
+version: 1
+description: Every complete reviewed decomposition group candidate requires one exact composed system-level candidate.
+phases: [phase-2-system-definition]
+for_each: 'select("complete-phase-2-group-candidates@1", {})'
+subject_as: group
+satisfied_when: >-
+  count("completions-for-group-candidate@1", {group: group}) == 1
+  && exists("complete-level-candidates-for-group@1",
+    {group: group,
+     completion: one("completions-for-group-candidate@1", {group: group})})
+status_rules:
+  - status: blocked
+    priority: 250
+    when: 'count("completions-for-group-candidate@1", {group: group}) != 1'
+    reason: Level candidate creation requires one semantically complete exact group candidate.
+    blocked_by:
+      - obligation: decomposition-group-candidate-required@1
+        subjects: 'select("completions-for-group-candidate@1", {group: group})'
+  - status: blocked
+    priority: 200
+    when: >-
+      none("passing-reviews-for@1", {subject: group})
+      || exists("failing-reviews-for@1", {subject: group})
+      || exists("candidate-members-missing-review@1", {candidate: group})
+    reason: Level candidate composition waits for passing current Review of the exact group candidate and every review-required member.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: '[group]'
+  - status: ready
+    priority: 100
+    when: >-
+      count("completions-for-group-candidate@1", {group: group}) == 1
+      && exists("passing-reviews-for@1", {subject: group})
+      && none("failing-reviews-for@1", {subject: group})
+      && none("candidate-members-missing-review@1", {candidate: group})
+    reason: The exact reviewed group candidate is ready to compose with shared system context.
+default_status: blocked
+resolve_with:
+  scenario: create-system-level-candidate@1
+  inputs:
+    group: group
+    completion: 'one("completions-for-group-candidate@1", {group: group})'
+    architecture: 'one("architectures-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: one("completions-for-group-candidate@1", {group: group})})})'
+    interfaces: 'select("interfaces-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: one("completions-for-group-candidate@1", {group: group})})})'
+    verification_strategy: 'one("strategies-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: one("completions-for-group-candidate@1", {group: group})})})'
+waiver_policy_ref: waiver-applicability@1

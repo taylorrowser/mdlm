@@ -1,0 +1,15 @@
+kind: selector-definition
+id: newer-planning-revisions-for
+version: 1
+description: Later planning Revisions in the same DWP lineage, excluding completion Revisions.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: plan, emit: entity, types: [DWP]}
+  as: revision
+  where: >-
+    revision.payload.stage == "planning"
+    && revision.identity.revision > plan.identity.revision
+  distinct: true
+  order_by: [identity.revision]

@@ -1,0 +1,17 @@
+kind: selector-definition
+id: gate-authorization-candidates
+version: 1
+description: Current frozen intent- and level-candidates that require consequential gate authorization; group candidates remain compositional evidence.
+parameters: []
+result_kind: baseline
+query:
+  from:
+    selector: candidate-baselines@1
+    arguments: {}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    || (candidate.payload.kind == "level-candidate"
+      && count("complete-level-candidate-evidence-for@1", {candidate: candidate}) == 1)
+  distinct: true
+  order_by: [identity.revision_id]

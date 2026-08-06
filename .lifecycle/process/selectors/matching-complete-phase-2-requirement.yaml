@@ -1,0 +1,15 @@
+kind: selector-definition
+id: matching-complete-phase-2-requirement
+version: 1
+description: The supplied accepted requirement only when its complete exact Phase 2 definition chain exists.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from:
+    selector: complete-phase-2-requirements@1
+    arguments: {}
+  as: candidate
+  where: 'candidate == requirement'
+  distinct: true
+  order_by: [identity.revision_id]

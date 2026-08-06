@@ -1,0 +1,14 @@
+kind: selector-definition
+id: complete-phase-2-level-candidates
+version: 1
+description: Current frozen system-level candidates backed by exactly one semantically complete decomposition group.
+parameters: []
+result_kind: baseline
+query:
+  from:
+    selector: candidate-baselines-of-kind@1
+    arguments: {baseline_kind: '"level-candidate"'}
+  as: candidate
+  where: 'count("complete-level-candidate-evidence-for@1", {candidate: candidate}) == 1'
+  distinct: true
+  order_by: [identity.revision_id]

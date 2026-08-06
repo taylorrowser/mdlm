@@ -1,0 +1,54 @@
+kind: obligation-definition
+id: decomposition-planning-required
+version: 1
+description: Every accepted Phase 2 requirement requires one exact DWP plan after architecture, interface, and strategy context is unambiguous.
+phases: [phase-2-system-definition]
+for_each: 'select("phase-2-entry-requirements@1", {})'
+subject_as: requirement
+satisfied_when: 'count("current-decomposition-plans-for-requirement@1", {requirement: requirement}) == 1'
+status_rules:
+  - status: blocked
+    priority: 350
+    when: 'count("current-decomposition-plans-for-requirement@1", {requirement: requirement}) > 1'
+    reason: Multiple current DWP planning Revisions are ambiguous and require explicit correction before execution can continue.
+  - status: blocked
+    priority: 300
+    when: 'count("current-architectures-for-requirement@1", {requirement: requirement}) != 1'
+    reason: DWP planning requires one unambiguous exact architecture Revision.
+    blocked_by:
+      - obligation: system-architecture-required@1
+        subjects: 'select("matching-phase-2-entry-requirement@1", {requirement: requirement})'
+  - status: blocked
+    priority: 250
+    when: >-
+      count("current-architectures-for-requirement@1", {requirement: requirement}) == 1
+      && count("current-interfaces-for-architecture@1",
+        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}) != 1
+    reason: DWP planning requires one unambiguous exact normative interface Revision.
+    blocked_by:
+      - obligation: interface-control-specification-required@1
+        subjects: 'select("current-architectures-for-requirement@1", {requirement: requirement})'
+  - status: blocked
+    priority: 200
+    when: 'count("current-strategies-for-phase-2-requirement@1", {requirement: requirement}) != 1'
+    reason: DWP planning requires one unambiguous exact verification strategy Revision.
+    blocked_by:
+      - obligation: verification-strategy-required@1
+        subjects: '[phase]'
+  - status: ready
+    priority: 100
+    when: >-
+      count("current-architectures-for-requirement@1", {requirement: requirement}) == 1
+      && count("current-interfaces-for-architecture@1",
+        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}) == 1
+      && count("current-strategies-for-phase-2-requirement@1", {requirement: requirement}) == 1
+    reason: Exact accepted parent, architecture, interface, and verification context is sufficient for bounded DWP planning.
+default_status: blocked
+resolve_with:
+  scenario: define-decomposition-work-package@2
+  inputs:
+    parents: 'select("matching-phase-2-entry-requirement@1", {requirement: requirement})'
+    architecture: 'one("current-architectures-for-requirement@1", {requirement: requirement})'
+    interfaces: 'select("current-interfaces-for-architecture@1", {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})'
+    verification_strategy: 'one("current-strategies-for-phase-2-requirement@1", {requirement: requirement})'
+waiver_policy_ref: waiver-applicability@1

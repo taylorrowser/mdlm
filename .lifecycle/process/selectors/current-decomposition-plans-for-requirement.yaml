@@ -1,0 +1,28 @@
+kind: selector-definition
+id: current-decomposition-plans-for-requirement
+version: 1
+description: Current DWP planning Revisions whose exact payload and links bind the package-selected requirement, architecture, interfaces, and strategy.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: requirement, link: decomposes, emit: source, types: [DWP]}
+  as: plan
+  where: >-
+    plan.payload.stage == "planning"
+    && state(plan, "disposition") == "active"
+    && state(plan, "validity") == "valid"
+    && none("newer-planning-revisions-for@1", {plan: plan})
+    && count("decomposition-architecture-matches-requirement@1",
+      {plan: plan, requirement: requirement}) == 1
+    && count("decomposition-strategy-matches-requirement@1",
+      {plan: plan, requirement: requirement}) == 1
+    && count("architectures-for-decomposition@1", {plan: plan}) == 1
+    && one("architectures-for-decomposition@1", {plan: plan}) == one("decomposition-architecture-matches-requirement@1", {plan: plan, requirement: requirement})
+    && count("current-interfaces-for-architecture@1",
+      {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}) == 1
+    && count("interfaces-for-decomposition@1", {plan: plan}) == 1
+    && one("interfaces-for-decomposition@1", {plan: plan}) == one("current-interfaces-for-architecture@1",
+      {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
+  distinct: true
+  order_by: [identity.id, identity.revision]

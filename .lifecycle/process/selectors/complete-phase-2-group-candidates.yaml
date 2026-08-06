@@ -1,0 +1,14 @@
+kind: selector-definition
+id: complete-phase-2-group-candidates
+version: 1
+description: Current frozen group candidates representing exactly one semantically complete DWP completion Revision.
+parameters: []
+result_kind: baseline
+query:
+  from:
+    selector: candidate-baselines-of-kind@1
+    arguments: {baseline_kind: '"group-candidate"'}
+  as: group
+  where: 'count("completions-for-group-candidate@1", {group: group}) == 1'
+  distinct: true
+  order_by: [identity.revision_id]

@@ -243,7 +243,7 @@ describe("req lifecycle status and next work", () => {
       repositoryRoot,
       "process",
       "use",
-      "mdlm-distinct-progression@0.38.0",
+      "mdlm-distinct-progression@0.39.0",
       "--json",
     );
     expect(selected.status, selected.stderr).toBe(0);
@@ -384,7 +384,7 @@ describe("req lifecycle status and next work", () => {
       expect.objectContaining({
         id: "phase-1-product-assurance",
         progression: expect.objectContaining({
-          nextPhase: "phase-2-pilot-assessment",
+          nextPhase: "phase-2-system-definition",
           complete: false,
         }),
       }),

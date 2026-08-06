@@ -1,0 +1,16 @@
+kind: selector-definition
+id: current-decomposition-completions
+version: 1
+description: Current valid DWP completion Revisions ready for candidate evaluation.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: completion
+  where: >-
+    completion.payload.stage == "completion"
+    && state(completion, "disposition") == "active"
+    && state(completion, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: completion})
+  distinct: true
+  order_by: [identity.id, identity.revision]
