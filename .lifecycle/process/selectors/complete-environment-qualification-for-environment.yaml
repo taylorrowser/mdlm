@@ -1,0 +1,24 @@
+kind: selector-definition
+id: complete-environment-qualification-for-environment
+version: 1
+description: The one qualification implementation whose exact activity, completed RUN, and passing produced RES qualify an ENV.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from:
+    selector: qualification-implementations-for-environment@1
+    arguments: {environment: environment}
+  as: implementation
+  where: >-
+    count("qualification-activities-for-environment@1", {environment: environment}) == 1
+    && count("qualification-implementations-for-environment@1", {environment: environment}) == 1
+    && count("verification-activities-for-implementation@1", {implementation: implementation}) == 1
+    && one("verification-activities-for-implementation@1", {implementation: implementation})
+      == one("qualification-activities-for-environment@1", {environment: environment})
+    && count("completed-runs-for-implementation@1", {implementation: implementation}) == 1
+    && every("completed-runs-for-implementation@1", {implementation: implementation}, run =>
+      count("passing-qualification-results-for-run-and-environment@1",
+        {run: run, environment: environment}) == 1)
+  distinct: true
+  order_by: [identity.revision_id]

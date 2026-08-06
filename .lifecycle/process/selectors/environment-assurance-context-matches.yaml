@@ -1,0 +1,42 @@
+kind: selector-definition
+id: environment-assurance-context-matches
+version: 1
+description: One frozen Review Context containing an ENV and its exact strategy, qualification definition, RUN, and passing RES evidence.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+  - {name: context, kind: revision, types: [BSL]}
+result_kind: baseline
+query:
+  from: {relation: baseline-memberships, of: environment, emit: entity, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.identity.revision_id == context.identity.revision_id
+    && candidate.payload.kind == "review-context"
+    && candidate.payload.role == "review-context"
+    && candidate.storage.frozen == true
+    && exists("context-contains-definition@1",
+      {context: context, subject: environment})
+    && count("complete-environment-assurance-for-environment@1", {environment: environment}) == 1
+    && count("complete-environment-qualification-for-environment@1", {environment: environment}) == 1
+    && every("strategies-for-environment@1", {environment: environment}, strategy =>
+      exists("context-contains-definition@1",
+        {context: context, subject: strategy}))
+    && every("complete-environment-qualification-for-environment@1", {environment: environment}, implementation =>
+      exists("context-contains-evidence@1",
+        {context: context, subject: implementation})
+      && count("verification-activities-for-implementation@1", {implementation: implementation}) == 1
+      && every("verification-activities-for-implementation@1", {implementation: implementation}, activity =>
+        exists("context-contains-evidence@1",
+          {context: context, subject: activity}))
+      && count("completed-runs-for-implementation@1", {implementation: implementation}) == 1
+      && every("completed-runs-for-implementation@1", {implementation: implementation}, run =>
+        exists("context-contains-evidence@1",
+          {context: context, subject: run})
+        && count("passing-qualification-results-for-run-and-environment@1",
+          {run: run, environment: environment}) == 1
+        && every("passing-qualification-results-for-run-and-environment@1",
+          {run: run, environment: environment}, result =>
+          exists("context-contains-evidence@1",
+            {context: context, subject: result}))))
+  distinct: true
+  order_by: [identity.revision_id]

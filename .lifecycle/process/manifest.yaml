@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.36.0
+version: 0.37.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -49,6 +49,13 @@ catalog:
     - current-product-specifications
     - stakeholder-requirements-for
     - current-product-specifications-for-requirement
+    - current-phase-1-stakeholder-requirements
+    - verification-strategies-for-requirement
+    - matching-verification-strategies-for-requirement
+    - current-phase-1-verification-strategies
+    - environments-for-strategy
+    - complete-environment-assurance-for-strategy
+    - complete-environment-assurance-for-environment
     - phase-0-foundation-members
     - phase-0-foundation-members-missing-review
     - non-phase-0-foundation-members-for
@@ -74,6 +81,10 @@ catalog:
     - candidate-baselines
     - frozen-baselines
     - valid-review-contexts-for
+    - strategies-for-environment
+    - context-contains-definition
+    - context-contains-evidence
+    - environment-assurance-context-matches
     - stale-review-contexts-for
     - passing-reviews-for
     - failing-reviews-for
@@ -100,7 +111,11 @@ catalog:
     - execution-targets-for-implementation
     - completed-runs-for-implementation
     - passing-qualification-results-for
+    - qualified-environment-match-for-result
+    - passing-qualification-results-for-run-and-environment
+    - qualification-activities-for-environment
     - qualification-implementations-for-environment
+    - complete-environment-qualification-for-environment
     - decomposition-plans
     - decomposition-completions-for
     - decomposition-parents-for
@@ -146,6 +161,8 @@ catalog:
     - prototype-question-resolution
     - candidate-members-reviewed
     - candidate-gate-signoff
+    - verification-strategy-required
+    - environment-assurance-required
     - verification-run-required
     - decomposition-execution-required
     - decomposition-output-reviews-required
@@ -274,9 +291,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@10
+  default: bootstrap@11
   available:
-    - profiles/bootstrap.yaml@10
+    - profiles/bootstrap.yaml@11
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

@@ -855,8 +855,13 @@ is published; immutable failed Review history remains inspectable. The tracer
 reviews MAP, PSP, and STK separately in a shared exact frozen context, freezes and
 reviews an intent candidate, and completes one reviewed exact Gate Sign-off.
 
-The Phase 1 tracer embeds named capability profiles in VSP, realizes and qualifies
-one exact ENV, and runs one source-independent pilot against an exact ART target.
+The Phase 1 tracer derives required VSP work from exact entry requirements, then
+derives one atomic ENV and qualification VER/VAI realization from each applicable
+exact strategy. Generated RUN/RES work follows from the exact qualification VAI.
+Environment Review Context work waits for passing qualification and freezes the
+exact strategy, environment, qualification definition, run, and result before
+independent judgment. It then runs one source-independent pilot against an exact
+ART target.
 Package schemas distinguish qualification `environment-capability`, pilot
 `verification-design`, and formal `requirement` claims. RUN and RES are
 package-declared generated terminal types: generic direct creation and revision

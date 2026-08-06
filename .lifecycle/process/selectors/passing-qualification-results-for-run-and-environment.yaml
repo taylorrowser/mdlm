@@ -1,12 +1,13 @@
 kind: selector-definition
-id: passing-qualification-results-for
+id: passing-qualification-results-for-run-and-environment
 version: 1
-description: Exact valid passing qualification results atomically linked to their execution environment.
+description: Passing qualification results produced by one exact completed RUN and linked by its exact ENV.
 parameters:
+  - {name: run, kind: revision, types: [RUN]}
   - {name: environment, kind: revision, types: [ENV]}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: environment, link: assessed-in, emit: source, types: [RES]}
+  from: {relation: outgoing-links, of: run, link: produces, emit: target, types: [RES]}
   as: result
   where: >-
     result.payload.claim.kind == "qualification"
@@ -14,5 +15,7 @@ query:
     && result.payload.claim.outcome == "pass"
     && result.payload.claim.formal_evidence_eligible == false
     && state(result, "validity") == "valid"
+    && exists("qualified-environment-match-for-result@1",
+      {environment: environment, result: result})
   distinct: true
   order_by: [identity.revision_id]

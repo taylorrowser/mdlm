@@ -1,0 +1,17 @@
+kind: selector-definition
+id: context-contains-definition
+version: 1
+description: One exact context when it contains the supplied Revision as a definition member.
+parameters:
+  - {name: context, kind: revision, types: [BSL]}
+  - {name: subject, kind: revision}
+result_kind: baseline
+query:
+  from: {relation: baseline-memberships, of: subject, emit: entity, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.identity.revision_id == context.identity.revision_id
+    && candidate.payload.role == "review-context"
+    && candidate.storage.frozen == true
+  distinct: true
+  order_by: [identity.revision_id]

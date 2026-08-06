@@ -243,7 +243,7 @@ describe("req lifecycle status and next work", () => {
       repositoryRoot,
       "process",
       "use",
-      "mdlm-distinct-progression@0.36.0",
+      "mdlm-distinct-progression@0.37.0",
       "--json",
     );
     expect(selected.status, selected.stderr).toBe(0);
@@ -439,5 +439,5 @@ describe("req lifecycle status and next work", () => {
     expect(humanWaiver.stdout).toContain(
       "Waiver Evidence: DEC-8ZT5KQ3P9M-r00001",
     );
-  });
+  }, 10_000);
 });

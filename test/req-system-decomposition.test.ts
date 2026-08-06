@@ -248,16 +248,20 @@ describe("req system decomposition slice", () => {
       "--set",
       "assessment_policy=Require success and malformed-request discrimination",
       "--set",
-      `environment_profiles=${JSON.stringify([{
+      `environment_profile=${JSON.stringify({
         id: "system-boundary",
         purpose: "Exercise the controlled report boundary",
-        controllability: ["report fixture"],
-        observability: ["response schema", "error code"],
-        external_services: [],
-        timing: "deterministic request window",
-      }])}`,
+        capabilities: {
+          controllability: ["report fixture"],
+          observability: ["response schema", "error code"],
+          external_services: [],
+          timing: "deterministic request window",
+        },
+      })}`,
       "--link",
       `governs=${stakeholder.id}`,
+      "--link",
+      `governs-revision=${stakeholder.revisionId}`,
     );
 
     const intentCandidate = freeze(

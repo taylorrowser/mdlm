@@ -14,7 +14,8 @@ Read, in order:
 4. `skills/scope-challenge.md@1`
 
 Define the smallest strategy that can evaluate the exact stakeholder commitments.
-Name each required environment-capability profile and state controllability,
-observability, external-service, timing, evidence, and assessment needs. Keep the
+Name the one bounded bootstrap environment-capability profile and state its
+controllability, observability, external-service, timing, evidence, and assessment
+needs. Keep the
 boundary black-box. Do not inspect product source or unit tests and do not invent
 capabilities merely because an implementation could supply them.

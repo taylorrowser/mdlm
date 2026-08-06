@@ -23,6 +23,8 @@ scenarios:
   - resolve-question-with-prototype@2
   - record-consequential-decision@1
 obligations:
+  - verification-strategy-required@1
+  - environment-assurance-required@1
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@2

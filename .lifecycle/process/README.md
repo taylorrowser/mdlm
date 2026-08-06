@@ -201,12 +201,17 @@ gate expression true, while a reviewed rejection remains blocking history.
 
 ## Phase 1 qualification and pilot tracer slice
 
-The package defines a VSP with embedded environment-capability profiles, an exact
-reproducible ENV, qualification and pilot VER/VAI contracts, and immutable
-generated RUN/RES evidence. `verification-run-required@1` derives execution work
-from exact VAI links. Qualification RES can establish only environment capability
-and is assessed through the containing ENV Review. Pilot execution remains
-blocked until its ENV, VER, and VAI have the package-required Reviews.
+Phase 1 entry Revisions derive `verification-strategy-required@1` work without an
+operator-selected Scenario. VSP retains both the Stable commitment relation and a
+separate exact entry-Revision coverage link, so a newer STK Revision reopens work. Each applicable exact VSP then derives
+`environment-assurance-required@1`, whose Resolver atomically publishes the
+reproducible ENV and its qualification VER/VAI pair. `verification-run-required@1`
+derives generated RUN/RES execution from exact VAI links; the RES atomically
+records its exact execution ENV, so no post-run link mutation is needed. ENV Review
+Context work remains blocked until a passing environment-capability qualification exists; its
+completion contract freezes the exact ENV and VSP as definitions and the exact
+VER, VAI, RUN, and RES as evidence before independent Review. Pilot execution
+remains blocked until its ENV, VER, and VAI have the package-required Reviews.
 
 Pilot authoring and execution declare product source, unit tests, private
 implementation details, and uncontrolled shortcuts as prohibited inputs. A pilot

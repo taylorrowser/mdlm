@@ -239,7 +239,7 @@ describe("req Problem Report and Change Request flow", () => {
               evidence_refs: [`evidence:${resultId}`],
               assessor_ref: "assessor:change-control@1",
             },
-            links,
+            links: [{ type: "assessed-in", target: environment }, ...links],
             body: `Scoped ${kind} evidence.\n`,
           },
         },
@@ -342,16 +342,20 @@ describe("req Problem Report and Change Request flow", () => {
       "--set",
       "assessment_policy=Require positive success and malformed-request discrimination",
       "--set",
-      `environment_profiles=${JSON.stringify([{
+      `environment_profile=${JSON.stringify({
         id: "public-api",
         purpose: "Exercise the controlled export boundary",
-        controllability: ["request fixtures"],
-        observability: ["response status"],
-        external_services: [],
-        timing: "deterministic request window",
-      }])}`,
+        capabilities: {
+          controllability: ["request fixtures"],
+          observability: ["response status"],
+          external_services: [],
+          timing: "deterministic request window",
+        },
+      })}`,
       "--link",
       `governs=${stakeholder.id}`,
+      "--link",
+      `governs-revision=${stakeholder.revisionId}`,
     );
     const environment = create(
       "ENV",
@@ -362,7 +366,9 @@ describe("req Problem Report and Change Request flow", () => {
       "--set",
       "rationale=Exact fixtures isolate public request behavior",
       "--set",
-      `profile_refs=${JSON.stringify([`${strategy.revisionId}#public-api`])}`,
+      `strategy_revision=${strategy.revisionId}`,
+      "--set",
+      "profile_id=public-api",
       "--set",
       `capabilities=${JSON.stringify({
         controllability: ["request fixtures"],
@@ -470,20 +476,15 @@ describe("req Problem Report and Change Request flow", () => {
       "qualification",
     );
     const qualificationResult = "RES-1000000001-r00001";
-    const qualified = req(
-      repositoryRoot,
-      "link",
-      environment.revisionId,
-      qualificationResult,
-      "--type",
-      "qualified-by",
-      "--json",
-    );
-    expect(qualified.status, `${qualified.stderr}${qualified.stdout}`).toBe(0);
     const environmentContext = freeze(
       baseline("Environment review context", "review-context", "review-context"),
-      [environment.revisionId],
-      [qualificationActivity.revisionId, qualificationImplementation.revisionId, qualificationResult],
+      [strategy.revisionId, environment.revisionId],
+      [
+        qualificationActivity.revisionId,
+        qualificationImplementation.revisionId,
+        "RUN-1000000001-r00001",
+        qualificationResult,
+      ],
     );
     review(environment.revisionId, environmentContext.revisionId);
 

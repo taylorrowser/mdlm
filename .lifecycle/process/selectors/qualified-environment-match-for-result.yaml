@@ -1,0 +1,14 @@
+kind: selector-definition
+id: qualified-environment-match-for-result
+version: 1
+description: The supplied exact environment when it links to one exact qualification result.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+  - {name: result, kind: revision, types: [RES]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: result, link: assessed-in, emit: target, types: [ENV]}
+  as: candidate
+  where: 'candidate.identity.revision_id == environment.identity.revision_id'
+  distinct: true
+  order_by: [identity.revision_id]

@@ -13,8 +13,8 @@ Read, in order:
 3. `skills/qualification-verification.md@1`
 4. `skills/reproducibility.md@1`
 
-Realize only the capabilities declared by the exact strategy profile. Record an
-exact reproducible environment reference and configuration digest. Author the
+Copy the exact strategy Revision, profile ID, and structurally equal declared
+capabilities into the ENV. Record an exact reproducible environment reference and configuration digest. Author the
 minimal qualification VER and VAI needed to exercise those capabilities,
 including a positive capability check and a negative control. Qualification may
 inspect environment implementation details, but it must not make or imply a

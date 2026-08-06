@@ -7,6 +7,17 @@ for_each: 'select("review-required-revisions@1", {})'
 subject_as: subject
 satisfied_when: 'exists("valid-review-contexts-for@1", {subject: subject})'
 status_rules:
+  - status: blocked
+    priority: 300
+    when: >-
+      phase.id == "phase-1-product-assurance"
+      && subject.identity.type == "ENV"
+      && (none("complete-environment-assurance-for-environment@1", {environment: subject})
+      || none("complete-environment-qualification-for-environment@1", {environment: subject}))
+    reason: Environment Review context waits for one exact profile realization and its passing qualification VER, VAI, RUN, and RES evidence.
+    blocked_by:
+      - obligation: verification-run-required@1
+        subjects: 'select("qualification-implementations-for-environment@1", {environment: subject})'
   - status: stale
     priority: 200
     when: 'exists("stale-review-contexts-for@1", {subject: subject})'

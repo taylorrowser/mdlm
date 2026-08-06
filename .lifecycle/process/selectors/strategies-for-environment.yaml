@@ -1,0 +1,13 @@
+kind: selector-definition
+id: strategies-for-environment
+version: 1
+description: Exact verification strategies realized by one environment.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: environment, link: realizes, emit: target, types: [VSP]}
+  as: strategy
+  where: 'state(strategy, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.revision_id]

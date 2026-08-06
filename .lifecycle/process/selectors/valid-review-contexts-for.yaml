@@ -12,5 +12,8 @@ query:
     context.payload.kind == "review-context"
     && context.storage.frozen == true
     && state(context, "validity") == "valid"
+    && (subject.identity.type != "ENV"
+      || exists("environment-assurance-context-matches@1",
+        {environment: subject, context: context}))
   distinct: true
   order_by: [identity.revision_id]

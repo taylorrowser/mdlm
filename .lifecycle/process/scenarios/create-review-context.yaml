@@ -13,6 +13,9 @@ completion: >-
   execution.integrity.contract_valid == true
   && context.payload.kind == "review-context"
   && context.storage.frozen == true
+  && (subject.identity.type != "ENV"
+    || exists("environment-assurance-context-matches@1",
+      {environment: subject, context: context}))
 resolves: [review-context-required]
 prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth]
 batching: either

@@ -20,7 +20,8 @@ outputs:
   - name: result
     types: [RES]
     cardinality: one
-    required_links: []
+    required_links:
+      - {link: assessed-in, target: {input: environment}}
 prompt_ref: prompts/execute-verification-run.md@1
 review_policy_ref: review-applicability@1
 completion: >-

@@ -1,0 +1,14 @@
+kind: selector-definition
+id: matching-verification-strategies-for-requirement
+version: 1
+description: One exact strategy when it governs the supplied current Phase 1 entry requirement.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+  - {name: strategy, kind: revision, types: [VSP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: requirement, link: governs-revision, emit: source, types: [VSP]}
+  as: candidate
+  where: 'candidate.identity.revision_id == strategy.identity.revision_id'
+  distinct: true
+  order_by: [identity.revision_id]

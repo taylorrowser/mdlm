@@ -14,7 +14,7 @@ import {
 import { req } from "./helpers/req.js";
 
 const PROCESS_REF =
-  "mdlm-bootstrap@0.36.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  "mdlm-bootstrap@0.37.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 async function scopedProcessPackage(
   scope: "phase" | "process" = "phase",
@@ -240,7 +240,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         fs.rm(repositoryRoot, { recursive: true, force: true }),
       ]);
     }
-  });
+  }, 10_000);
 
   it("authorizes and satisfies the initial Resolver through public req commands", async () => {
     const repositoryRoot = await fs.mkdtemp(
@@ -275,7 +275,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         actionableResolver: "chart-wayfinding-map@1",
       }));
       expect(initial.id).toMatch(
-        /^initial-map-required@1:phase-0-wayfinding@2:mdlm-bootstrap@0\.36\.0#sha256:[a-f0-9]{64}$/,
+        /^initial-map-required@1:phase-0-wayfinding@2:mdlm-bootstrap@0\.37\.0#sha256:[a-f0-9]{64}$/,
       );
 
       const snapshotPath = path.join(repositoryRoot, "empty-snapshot.json");

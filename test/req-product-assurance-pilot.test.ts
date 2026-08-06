@@ -200,7 +200,7 @@ describe("req product-assurance qualification and pilot slice", () => {
         repositoryRoot,
         "scenario",
         "execute",
-        "review-datum-in-context@2",
+        String(obligation.actionableResolver),
         "--obligation",
         String(obligation.id),
         "--authorize",
@@ -276,7 +276,7 @@ describe("req product-assurance qualification and pilot slice", () => {
               evidence_refs: [`evidence:${kind}-run`],
               assessor_ref: "assessor:product-assurance@1",
             },
-            links: [],
+            links: [{ type: "assessed-in", target: environment }],
             body: `Scoped ${kind} result.\n`,
           },
         },
@@ -324,136 +324,205 @@ describe("req product-assurance qualification and pilot slice", () => {
       "--link",
       `derived-from=${product.id}`,
     );
+    const strategyWork = looseEnds().find((item) =>
+      item.obligation === "verification-strategy-required"
+    );
+    expect(strategyWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "define-verification-strategy@1",
+    }));
+
     const prohibitedInputs = [
       "product source code",
       "product unit tests",
       "private implementation details",
       "uncontrolled implementation shortcuts",
     ];
-    const strategy = create(
-      "VSP",
-      "--scenario",
-      "define-verification-strategy@1",
-      "--set",
-      "title=Stakeholder export verification strategy",
-      "--set",
-      "rationale=The stakeholder commitment needs a controlled public-boundary demonstration",
-      "--set",
-      "level=stakeholder",
-      "--set",
-      'permitted_methods=["demonstration"]',
-      "--set",
-      `independence=${JSON.stringify({
-        boundary: "black-box",
-        prohibited_inputs: prohibitedInputs,
-      })}`,
-      "--set",
-      "evidence_policy=Retain exact public inputs and visible outputs",
-      "--set",
-      "assessment_policy=Pilot suitability requires positive and negative controls",
-      "--set",
-      `environment_profiles=${JSON.stringify([{
-        id: "browser-e2e",
-        purpose: "Exercise the externally observable export boundary",
-        controllability: ["create an isolated report fixture"],
-        observability: ["capture the downloaded public artifact"],
-        external_services: [],
-        timing: "deterministic completion timeout",
-      }])}`,
-      "--link",
-      `governs=${requirement.id}`,
+    const strategyAdapter = await adapter({
+      outputs: [{
+        name: "strategy",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "VSP",
+          payload: {
+            title: "Stakeholder export verification strategy",
+            rationale: "The stakeholder commitment needs a controlled public-boundary demonstration",
+            level: "stakeholder",
+            permitted_methods: ["demonstration"],
+            independence: {
+              boundary: "black-box",
+              prohibited_inputs: prohibitedInputs,
+            },
+            evidence_policy: "Retain exact public inputs and visible outputs",
+            assessment_policy: "Pilot suitability requires positive and negative controls",
+            environment_profile: {
+              id: "browser-e2e",
+              purpose: "Exercise the externally observable export boundary",
+              capabilities: {
+                controllability: ["create an isolated report fixture"],
+                observability: ["capture the downloaded public artifact"],
+                external_services: [],
+                timing: "deterministic completion timeout",
+              },
+            },
+          },
+          links: [
+            { type: "governs", target: requirement.id },
+            { type: "governs-revision", target: requirement.revisionId },
+          ],
+          body: "The strategy governs the exact Phase 1 entry commitment.\n",
+        },
+      }],
+      completionEvidence: { summary: "The exact commitment has strategy coverage." },
+    }, "verification-strategy");
+    const strategyExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(strategyWork!.actionableResolver),
+      "--obligation",
+      String(strategyWork!.id),
+      "--adapter",
+      strategyAdapter.executable,
+      "--json",
     );
-    const environment = create(
-      "ENV",
-      "--scenario",
-      "realize-verification-environment@1",
-      "--set",
-      "title=Isolated browser export environment",
-      "--set",
-      "rationale=The exact strategy requires controlled fixtures and visible artifact capture",
-      "--set",
-      `profile_refs=${JSON.stringify([`${strategy.revisionId}#browser-e2e`])}`,
-      "--set",
-      `capabilities=${JSON.stringify({
-        controllability: ["create an isolated report fixture"],
-        observability: ["capture the downloaded public artifact"],
-        external_services: [],
-        timing: "deterministic completion timeout",
-      })}`,
-      "--set",
-      `reproducibility=${JSON.stringify({
-        environment_ref: "container:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        configuration_digest: `sha256:${"c".repeat(64)}`,
-        reconstruction: "Restore the exact container and isolated fixture configuration.",
-      })}`,
-      "--link",
-      `realizes=${strategy.revisionId}`,
+    expect(strategyExecution.status, `${strategyExecution.stderr}${strategyExecution.stdout}`).toBe(0);
+    const strategy = JSON.parse(strategyExecution.stdout).execution.outputs[0]
+      .lifecycleDatum as { id: string; revisionId: string };
+
+    const environmentWork = looseEnds().find((item) =>
+      item.obligation === "environment-assurance-required" &&
+      item.subject === strategy.revisionId
     );
-    const qualificationActivity = create(
-      "VER",
-      "--scenario",
-      "realize-verification-environment@1",
-      "--set",
-      "title=Qualify browser export capabilities",
-      "--set",
-      "rationale=The environment must demonstrate controllability and observability",
-      "--set",
-      "kind=qualification",
-      "--set",
-      "method=test",
-      "--set",
-      "assessment_mode=automatic",
-      "--set",
-      'claim={"kind":"qualification","scope":"environment-capability","formal_evidence_eligible":false}',
-      "--set",
-      'acceptance_criteria=["isolated fixture is controllable","visible artifact is observable"]',
-      "--set",
-      'evidence_requirements=["fixture log","artifact capture"]',
-      "--set",
-      "expected_success_activity=Create and observe an isolated report export",
-      "--set",
-      "expected_discrimination_activity=Detect an absent visible artifact",
-      "--link",
-      `governed-by=${strategy.revisionId}`,
-      "--link",
-      `qualifies=${environment.revisionId}`,
+    expect(environmentWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "realize-verification-environment@1",
+      resolver: expect.objectContaining({
+        expectedOutputs: expect.arrayContaining([
+          expect.objectContaining({ name: "environment", types: ["ENV"] }),
+          expect.objectContaining({ name: "qualification_activity", types: ["VER"] }),
+          expect.objectContaining({ name: "qualification_implementation", types: ["VAI"] }),
+        ]),
+      }),
+    }));
+
+    const environmentAdapter = await adapter({
+      outputs: [
+        {
+          name: "environment",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "ENV-0000000001",
+            type: "ENV",
+            payload: {
+              title: "Isolated browser export environment",
+              rationale: "The exact strategy requires controlled fixtures and visible artifact capture",
+              strategy_revision: strategy.revisionId,
+              profile_id: "browser-e2e",
+              capabilities: {
+                controllability: ["create an isolated report fixture"],
+                observability: ["capture the downloaded public artifact"],
+                external_services: [],
+                timing: "deterministic completion timeout",
+              },
+              reproducibility: {
+                environment_ref: "container:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                configuration_digest: `sha256:${"c".repeat(64)}`,
+                reconstruction: "Restore the exact container and isolated fixture configuration.",
+              },
+            },
+            links: [{ type: "realizes", target: strategy.revisionId }],
+            body: "Exact reproducible qualification environment.\n",
+          },
+        },
+        {
+          name: "qualification_activity",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "VER-0000000001",
+            type: "VER",
+            payload: {
+              title: "Qualify browser export capabilities",
+              rationale: "The environment must demonstrate controllability and observability",
+              kind: "qualification",
+              method: "test",
+              assessment_mode: "automatic",
+              claim: { kind: "qualification", scope: "environment-capability", formal_evidence_eligible: false },
+              acceptance_criteria: ["isolated fixture is controllable", "visible artifact is observable"],
+              evidence_requirements: ["fixture log", "artifact capture"],
+              expected_success_activity: "Create and observe an isolated report export",
+              expected_discrimination_activity: "Detect an absent visible artifact",
+            },
+            links: [
+              { type: "governed-by", target: strategy.revisionId },
+              { type: "qualifies", target: "ENV-0000000001-r00001" },
+            ],
+            body: "Qualification activity for declared environment capabilities.\n",
+          },
+        },
+        {
+          name: "qualification_implementation",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "VAI-0000000001",
+            type: "VAI",
+            payload: {
+              title: "Environment capability qualification procedure",
+              rationale: "The procedure exercises only declared environment capabilities",
+              kind: "qualification",
+              implementation_ref: "procedure:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              independence_mode: "environment-capability",
+              authoring_input_refs: [strategy.revisionId, "ENV-0000000001-r00001", "VER-0000000001-r00001"],
+              prohibited_inputs_observed: prohibitedInputs,
+              activity_bindings: ["supported-success", "unsupported-discrimination"],
+              target_behavior: {
+                supported: ["isolated fixture and visible artifact capture"],
+                intentionally_unsupported: ["ambient production credentials"],
+              },
+            },
+            links: [
+              { type: "realizes", target: "VER-0000000001-r00001" },
+              { type: "uses", target: "ENV-0000000001-r00001" },
+              { type: "targets", target: "ENV-0000000001-r00001" },
+            ],
+            body: "Qualification implementation bounded to environment capabilities.\n",
+          },
+        },
+      ],
+      completionEvidence: { summary: "The strategy environment and qualification pair were realized atomically." },
+    }, "verification-environment");
+    const environmentExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(environmentWork!.actionableResolver),
+      "--obligation",
+      String(environmentWork!.id),
+      "--adapter",
+      environmentAdapter.executable,
+      "--json",
     );
-    const qualificationImplementation = create(
-      "VAI",
-      "--scenario",
-      "realize-verification-environment@1",
-      "--set",
-      "title=Environment capability qualification procedure",
-      "--set",
-      "rationale=The procedure exercises only declared environment capabilities",
-      "--set",
-      "kind=qualification",
-      "--set",
-      "implementation_ref=procedure:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-      "--set",
-      "independence_mode=environment-capability",
-      "--set",
-      `authoring_input_refs=${JSON.stringify([
-        strategy.revisionId,
-        environment.revisionId,
-        qualificationActivity.revisionId,
-      ])}`,
-      "--set",
-      `prohibited_inputs_observed=${JSON.stringify(prohibitedInputs)}`,
-      "--set",
-      'activity_bindings=["supported-success","unsupported-discrimination"]',
-      "--set",
-      `target_behavior=${JSON.stringify({
-        supported: ["isolated fixture and visible artifact capture"],
-        intentionally_unsupported: ["ambient production credentials"],
-      })}`,
-      "--link",
-      `realizes=${qualificationActivity.revisionId}`,
-      "--link",
-      `uses=${environment.revisionId}`,
-      "--link",
-      `targets=${environment.revisionId}`,
+    expect(environmentExecution.status, `${environmentExecution.stderr}${environmentExecution.stdout}`).toBe(0);
+    const environmentOutputs = JSON.parse(environmentExecution.stdout).execution.outputs as Array<{
+      name: string;
+      lifecycleDatum: { id: string; revisionId: string };
+    }>;
+    const output = (name: string) => environmentOutputs.find((item) => item.name === name)!.lifecycleDatum;
+    const environment = output("environment");
+    const qualificationActivity = output("qualification_activity");
+    const qualificationImplementation = output("qualification_implementation");
+
+    const prematureEnvironmentContext = looseEnds().find((item) =>
+      item.obligation === "review-context-required" &&
+      item.subject === environment.revisionId
     );
+    expect(prematureEnvironmentContext).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: "execute-verification-run@1",
+    }));
 
     const qualificationObligation = runObligation(
       qualificationImplementation.revisionId,
@@ -462,6 +531,12 @@ describe("req product-assurance qualification and pilot slice", () => {
       status: "ready",
       dispatchable: true,
       actionableResolver: "execute-verification-run@1",
+      resolver: expect.objectContaining({
+        expectedOutputs: expect.arrayContaining([
+          expect.objectContaining({ name: "run", types: ["RUN"] }),
+          expect.objectContaining({ name: "result", types: ["RES"] }),
+        ]),
+      }),
     }));
     const qualificationAdapter = await adapter(
       runResponse(
@@ -484,7 +559,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "execute-verification-run@1",
+      String(qualificationObligation.actionableResolver),
       "--obligation",
       String(qualificationObligation.id),
       "--adapter",
@@ -506,28 +581,60 @@ describe("req product-assurance qualification and pilot slice", () => {
     const qualificationRun = "RUN-0000000001-r00001";
     const qualificationResult = "RES-0000000001-r00001";
 
-    const qualifiedLink = req(
-      repositoryRoot,
-      "link",
-      environment.revisionId,
-      qualificationResult,
-      "--type",
-      "qualified-by",
-      "--json",
-    );
-    expect(qualifiedLink.status, qualifiedLink.stderr).toBe(0);
     expect(runObligation(qualificationImplementation.revisionId)).toBeUndefined();
 
-    const environmentContext = freezeContext(
-      "Environment qualification review context",
-      [strategy.revisionId, environment.revisionId],
-      [
-        qualificationActivity.revisionId,
-        qualificationImplementation.revisionId,
-        qualificationRun,
-        qualificationResult,
-      ],
+    const environmentContextWork = looseEnds().find((item) =>
+      item.obligation === "review-context-required" &&
+      item.subject === environment.revisionId
     );
+    expect(environmentContextWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "create-review-context@1",
+    }));
+    const environmentContextAdapter = await adapter({
+      outputs: [{
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Environment qualification review context",
+            kind: "review-context",
+            role: "review-context",
+            scope: environment.revisionId,
+            group: "DEFAULT",
+            definition_members: [strategy.revisionId, environment.revisionId],
+            evidence: [
+              qualificationActivity.revisionId,
+              qualificationImplementation.revisionId,
+              qualificationRun,
+              qualificationResult,
+            ],
+          },
+          links: [],
+          body: "Exact environment qualification boundary.\n",
+        },
+      }],
+      completionEvidence: { summary: "The qualified environment and exact assurance chain were frozen." },
+    }, "environment-context");
+    const environmentContextExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(environmentContextWork!.actionableResolver),
+      "--obligation",
+      String(environmentContextWork!.id),
+      "--adapter",
+      environmentContextAdapter.executable,
+      "--json",
+    );
+    expect(
+      environmentContextExecution.status,
+      `${environmentContextExecution.stderr}${environmentContextExecution.stdout}`,
+    ).toBe(0);
+    const environmentContext = JSON.parse(environmentContextExecution.stdout)
+      .execution.outputs[0].lifecycleDatum as { revisionId: string };
     await review(environment.revisionId, environmentContext.revisionId);
 
     const pilotTarget = create(
@@ -784,7 +891,7 @@ describe("req product-assurance qualification and pilot slice", () => {
               formal_evidence_eligible: false,
             },
           }),
-          links: [],
+          links: [{ type: "assessed-in", target: environment.revisionId }],
         }),
         storage: { editable: false, frozen: true },
       }),
@@ -843,7 +950,7 @@ describe("req product-assurance qualification and pilot slice", () => {
     const unchangedPilotResult = req(repositoryRoot, "show", pilotResult, "--json");
     expect(
       JSON.parse(unchangedPilotResult.stdout).lifecycleDatum.datum.links,
-    ).toEqual([]);
+    ).toEqual([{ type: "assessed-in", target: environment.revisionId }]);
     const revisedGeneratedResult = req(
       repositoryRoot,
       "revise",
@@ -875,6 +982,165 @@ describe("req product-assurance qualification and pilot slice", () => {
     expect(JSON.parse(phase.stdout).phaseStatus.entry).toEqual(
       expect.objectContaining({ satisfied: true }),
     );
+
+    const revisedRequirementRoot = `${repositoryRoot}-revised-requirement`;
+    await fs.cp(repositoryRoot, revisedRequirementRoot, { recursive: true });
+    const revisionBoundary = req(
+      revisedRequirementRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Requirement revision boundary",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      `scope=${requirement.revisionId}`,
+      "--set",
+      "group=DEFAULT",
+      "--json",
+    );
+    expect(revisionBoundary.status, `${revisionBoundary.stderr}${revisionBoundary.stdout}`).toBe(0);
+    const revisionBoundaryId = JSON.parse(revisionBoundary.stdout).created.id as string;
+    expect(req(revisedRequirementRoot, "baseline", "add", revisionBoundaryId, requirement.revisionId, "--json").status).toBe(0);
+    expect(req(revisedRequirementRoot, "baseline", "freeze", revisionBoundaryId, "--json").status).toBe(0);
+    const revisedRequirement = req(
+      revisedRequirementRoot,
+      "revise",
+      requirement.id,
+      "--from",
+      requirement.revisionId,
+      "--json",
+    );
+    expect(revisedRequirement.status, `${revisedRequirement.stderr}${revisedRequirement.stdout}`).toBe(0);
+    const revisedRequirementWork = req(
+      revisedRequirementRoot,
+      "loose-ends",
+      "--phase",
+      "phase-1-product-assurance",
+      "--json",
+    );
+    expect(JSON.parse(revisedRequirementWork.stdout).looseEnds.items).toContainEqual(
+      expect.objectContaining({
+        obligation: "verification-strategy-required",
+        status: "ready",
+        dispatchable: true,
+      }),
+    );
+    await fs.rm(revisedRequirementRoot, { recursive: true, force: true });
+
+    const orphanRepositoryRoot = `${repositoryRoot}-orphan-activity`;
+    await fs.cp(repositoryRoot, orphanRepositoryRoot, { recursive: true });
+    const orphanActivity = req(
+      orphanRepositoryRoot,
+      "new",
+      "VER",
+      "--scenario",
+      "realize-verification-environment@1",
+      "--set",
+      "title=Ambiguous orphan qualification activity",
+      "--set",
+      "rationale=This fixture proves unattached qualification evidence cannot reuse the prior exact context",
+      "--set",
+      "kind=qualification",
+      "--set",
+      "method=test",
+      "--set",
+      "assessment_mode=automatic",
+      "--set",
+      'claim={"kind":"qualification","scope":"environment-capability","formal_evidence_eligible":false}',
+      "--set",
+      'acceptance_criteria=["orphan activity is detected"]',
+      "--set",
+      'evidence_requirements=["exact implementation link"]',
+      "--set",
+      "expected_success_activity=Observe the declared environment capability",
+      "--set",
+      "expected_discrimination_activity=Reject an unattached qualification activity",
+      "--link",
+      `governed-by=${strategy.revisionId}`,
+      "--link",
+      `qualifies=${environment.revisionId}`,
+      "--json",
+    );
+    expect(orphanActivity.status, `${orphanActivity.stderr}${orphanActivity.stdout}`).toBe(0);
+    const orphanLooseEnds = req(
+      orphanRepositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-1-product-assurance",
+      "--json",
+    );
+    expect(orphanLooseEnds.status, `${orphanLooseEnds.stderr}${orphanLooseEnds.stdout}`).toBe(0);
+    expect(JSON.parse(orphanLooseEnds.stdout).looseEnds.items.find((item: any) =>
+      item.obligation === "review-context-required" &&
+      item.subject === environment.revisionId
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+    }));
+    await fs.rm(orphanRepositoryRoot, { recursive: true, force: true });
+
+    const duplicateImplementationRoot = `${repositoryRoot}-duplicate-implementation`;
+    await fs.cp(repositoryRoot, duplicateImplementationRoot, { recursive: true });
+    const duplicateImplementation = req(
+      duplicateImplementationRoot,
+      "new",
+      "VAI",
+      "--scenario",
+      "realize-verification-environment@1",
+      "--set",
+      "title=Ambiguous second qualification implementation",
+      "--set",
+      "rationale=This fixture proves an incomplete second chain cannot reuse the prior exact context",
+      "--set",
+      "kind=qualification",
+      "--set",
+      `implementation_ref=procedure:sha256:${"e".repeat(64)}`,
+      "--set",
+      "independence_mode=environment-capability",
+      "--set",
+      `authoring_input_refs=${JSON.stringify([strategy.revisionId, environment.revisionId, qualificationActivity.revisionId])}`,
+      "--set",
+      `prohibited_inputs_observed=${JSON.stringify(prohibitedInputs)}`,
+      "--set",
+      'activity_bindings=["ambiguous-qualification"]',
+      "--set",
+      'target_behavior={"supported":["declared environment capability"],"intentionally_unsupported":["unqualified behavior"]}',
+      "--link",
+      `realizes=${qualificationActivity.revisionId}`,
+      "--link",
+      `uses=${environment.revisionId}`,
+      "--link",
+      `targets=${environment.revisionId}`,
+      "--json",
+    );
+    expect(
+      duplicateImplementation.status,
+      `${duplicateImplementation.stderr}${duplicateImplementation.stdout}`,
+    ).toBe(0);
+    const duplicateLooseEnds = req(
+      duplicateImplementationRoot,
+      "loose-ends",
+      "--phase",
+      "phase-1-product-assurance",
+      "--json",
+    );
+    expect(duplicateLooseEnds.status, `${duplicateLooseEnds.stderr}${duplicateLooseEnds.stdout}`).toBe(0);
+    expect(JSON.parse(duplicateLooseEnds.stdout).looseEnds.items.find((item: any) =>
+      item.obligation === "review-context-required" &&
+      item.subject === environment.revisionId
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+    }));
+    await fs.rm(duplicateImplementationRoot, { recursive: true, force: true });
+
     const doctor = req(repositoryRoot, "doctor", "--json");
     expect(doctor.status, doctor.stderr).toBe(0);
   }, 60_000);

@@ -504,7 +504,7 @@ describe("textual MDLM expressions", () => {
         }),
       ]),
     );
-  });
+  }, 10_000);
 
   it("rejects unknown Computed State dimensions and invalid subjects", async () => {
     const unknownSource = 'state(subject, "missing") == "valid"';

@@ -23,5 +23,10 @@ REV and DEC evidence. Resolve stable outbound links, hash exact file bytes,
 capture process provenance, freeze atomically, and verify the frozen baseline.
 Never use `latest` or generated indexes as authority.
 
+For an ENV subject, wait for passing environment-capability qualification. Include
+the exact ENV and realized VSP as definition members, and include the exact
+qualification VER, VAI, completed RUN, and passing RES as evidence. Do not ask for
+Review before that complete assurance boundary is available.
+
 A batch may share one context only when every subject genuinely has the same
 required context; otherwise create separate BSLs.

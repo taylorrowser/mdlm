@@ -1,0 +1,17 @@
+kind: selector-definition
+id: context-contains-evidence
+version: 1
+description: Exact evidence Revisions in one frozen Review Context matching the supplied Revision.
+parameters:
+  - {name: context, kind: revision, types: [BSL]}
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: context, emit: entity}
+  as: evidence
+  where: >-
+    context.payload.role == "review-context"
+    && context.storage.frozen == true
+    && evidence.identity.revision_id == subject.identity.revision_id
+  distinct: true
+  order_by: [identity.revision_id]

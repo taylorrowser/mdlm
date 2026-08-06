@@ -2,7 +2,7 @@ kind: type-definition
 id: VSP
 version: 1
 name: Verification Strategy Specification
-description: Level verification strategy, independence boundary, evidence policy, and named environment-capability profiles.
+description: Level verification strategy, independence boundary, evidence policy, and one bounded bootstrap environment-capability profile.
 extends: rationale-bearing@1
 lifecycle:
   authorship: authored
@@ -10,7 +10,7 @@ lifecycle:
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  required: [level, permitted_methods, independence, evidence_policy, assessment_policy, environment_profiles]
+  required: [level, permitted_methods, independence, evidence_policy, assessment_policy, environment_profile]
   properties:
     level: {enum: [stakeholder, system]}
     permitted_methods:
@@ -28,27 +28,35 @@ payload_schema:
           const: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts]
     evidence_policy: {type: string, minLength: 1}
     assessment_policy: {type: string, minLength: 1}
-    environment_profiles:
-      type: array
-      minItems: 1
-      uniqueItems: true
-      items:
-        type: object
-        additionalProperties: false
-        required: [id, purpose, controllability, observability, external_services, timing]
-        properties:
-          id: {type: string, pattern: '^[a-z][a-z0-9-]*$'}
-          purpose: {type: string, minLength: 1}
-          controllability: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
-          observability: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
-          external_services: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
-          timing: {type: string, minLength: 1}
+    environment_profile:
+      type: object
+      additionalProperties: false
+      required: [id, purpose, capabilities]
+      properties:
+        id: {type: string, pattern: '^[a-z][a-z0-9-]*$'}
+        purpose: {type: string, minLength: 1}
+        capabilities:
+          type: object
+          additionalProperties: false
+          required: [controllability, observability, external_services, timing]
+          properties:
+            controllability: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+            observability: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+            external_services: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+            timing: {type: string, minLength: 1}
 outgoing_links:
   - id: governs
-    description: Stakeholder commitments governed by this level strategy.
+    description: Stable stakeholder commitments governed by this level strategy.
     targets:
       - {kind: datum, types: [STK], identity: stable}
     cardinality: {minimum: 1, maximum: many}
     freeze_resolution: exact-revision
     inverse_label: governed-by
+  - id: governs-revision
+    description: Exact Phase 1 entry requirement Revisions covered by this strategy Revision.
+    targets:
+      - {kind: datum, types: [STK], identity: revision}
+    cardinality: {minimum: 1, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: governed-exactly-by
 kernel_managed_payload_paths: []
