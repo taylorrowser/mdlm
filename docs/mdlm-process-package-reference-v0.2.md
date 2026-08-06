@@ -494,7 +494,12 @@ result when the Resolver inputs are resolved. Expected outputs retain cardinalit
 types, and required links. Generic output checks and
 the package completion expression remain explicitly pending until an adapter
 supplies outputs. Dry-run invokes no adapter and writes no Lifecycle Data,
-execution record, or generated projection.
+execution record, or generated projection. When the Scenario declares
+`standing_delegation`, dry-run also evaluates its exact package Selector for each
+resolved invocation and projects the selector, authority, delegate, target input,
+target Revision, and ordered `applicableEvidence` Revision IDs. This is public
+execution guidance, not authority by itself; execution still requires the operator
+to supply one projected exact Revision with `--delegation`.
 
 `req scenario execute <scenario@version> --obligation <exact-instance>
 --adapter <executable>` derives a fresh repository snapshot, runs the identical

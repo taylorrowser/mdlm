@@ -461,6 +461,33 @@ describe("exact consequential authorization", () => {
         item.obligation === "passing-review-required" &&
         item.subject === target.revisionId,
     ) as { id: string };
+    const delegatedDryRun = req(
+      repositoryRoot,
+      "scenario",
+      "dry-run",
+      "review-datum-in-context@2",
+      "--obligation",
+      reviewWork.id,
+      "--input",
+      `subject=${target.revisionId}`,
+      "--input",
+      `review_context=${contextDatum.revisionId}`,
+      "--json",
+    );
+    expect(delegatedDryRun.status, delegatedDryRun.stderr).toBe(0);
+    expect(JSON.parse(delegatedDryRun.stdout).scenarioDryRun.standingDelegation)
+      .toEqual({
+        selector: "applicable-authority-delegations-for@1",
+        authority: "stakeholder",
+        delegate: "independent-reviewer",
+        targetInput: "subject",
+        invocations: [{
+          invocation: 0,
+          target: target.revisionId,
+          applicableEvidence: [delegationDatum.revisionId],
+        }],
+      });
+
     const adapterPath = path.join(repositoryRoot, "delegated-review.mjs");
     await fs.writeFile(
       adapterPath,

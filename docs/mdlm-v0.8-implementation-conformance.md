@@ -46,7 +46,8 @@ the accepted overview and the reviewed pilot Decision.
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, separately authorized pilot implementation, and exact-target pilot evidence | 55, 57–58 | #45, #65–#66 | `test/req-product-assurance-pilot.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
-| Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48 | `test/req-pilot-assessment.test.ts` |
+| Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
+| Continuous package-neutral pi operation and exact standing-delegation discovery | 57–60 | #69 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
 
 The full suite supplies overlapping regression coverage rather than treating this
 table as one test per requirement.

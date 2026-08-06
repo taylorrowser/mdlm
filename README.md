@@ -36,7 +36,9 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   authorization or explicitly initiated non-Resolver Scenarios, preserves exact
   bindings, prompts, skills, Policies, output contracts, and completion checks,
   and executes those same validated projections through an explicitly configured
-  agent adapter. Successful execution atomically publishes only contract-conforming
+  agent adapter. Dry-run also exposes any package-declared standing-delegation
+  contract and exact currently applicable delegation evidence for each invocation.
+  Successful execution atomically publishes only contract-conforming
   Lifecycle Data plus exact execution provenance; failed execution publishes none.
   Selected packages may expose dotted, declarative Package Command Aliases whose
   typed arguments resolve to that identical Scenario execution path without
@@ -114,6 +116,7 @@ resolver scenarios.
 - Accepted process overview: `docs/mdlm-process-overview-v0.8.md`
 - v0.8 implementation conformance: `docs/mdlm-v0.8-implementation-conformance.md`
 - Experimental package reference: `docs/mdlm-process-package-reference-v0.2.md`
+- Generic pi operator loop: `docs/mdlm-pi-operator.md`
 - Implementation choices and observations: `docs/prototype-decision-log.md`
 - Source inputs for the provisional overview: `docs/v0.8-provisional-overview-inputs.md`
 - Remaining process questions: `.lifecycle/process/OPEN-QUESTIONS.md`

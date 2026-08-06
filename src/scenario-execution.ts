@@ -12,10 +12,7 @@ import {
   type ProcessPackage,
   type VersionedDefinition,
 } from "./index.js";
-import {
-  evaluateProcessDefinition,
-  evaluateProcessExpression,
-} from "./evaluator.js";
+import { evaluateProcessExpression } from "./evaluator.js";
 import { finalizeExactBaselineScenarioOutput } from "./exact-baseline-repository.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
 import { authorityEvidenceContract } from "./participation.js";
@@ -651,7 +648,7 @@ async function executeScenario(
       }],
     };
   }
-  const standingDelegation = object(selectedScenario.standing_delegation);
+  const standingDelegation = dryRun.standingDelegation;
   const supplied = [...new Set(suppliedAuthorities)].sort();
   const delegations = [...new Set(suppliedDelegations)].sort();
   const usedDelegations = new Set<string>();
@@ -660,35 +657,11 @@ async function executeScenario(
     if (
       !requirement.delegationAllowed ||
       !standingDelegation ||
-      standingDelegation.delegate !== requirement.authority ||
-      typeof standingDelegation.selector_ref !== "string" ||
-      typeof standingDelegation.target_input !== "string" ||
-      typeof standingDelegation.authority !== "string"
+      standingDelegation.delegate !== requirement.authority
     ) return true;
-    const target = dryRun.invocations[requirement.invocation]?.inputs.find(
-      (input) => input.name === standingDelegation.target_input,
-    )?.values[0]?.identity.revision_id;
-    if (!target) return true;
-    const result = evaluateProcessDefinition(
-      processPackage,
-      snapshot,
-      "selector",
-      standingDelegation.selector_ref,
-      {
-        target,
-        scenario: scenarioReference,
-        authority: standingDelegation.authority,
-        delegate: standingDelegation.delegate,
-      },
-    ).result;
-    const applicable = Array.isArray(result)
-      ? result.flatMap((value) => {
-          const identity = object(object(value)?.identity);
-          return typeof identity?.revision_id === "string"
-            ? [identity.revision_id]
-            : [];
-        })
-      : [];
+    const applicable = standingDelegation.invocations.find((candidate) =>
+      candidate.invocation === requirement.invocation
+    )?.applicableEvidence ?? [];
     const matched = delegations.find((delegation) =>
       applicable.includes(delegation)
     );

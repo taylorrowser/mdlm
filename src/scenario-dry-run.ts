@@ -4,6 +4,7 @@ import path from "node:path";
 import { parse } from "yaml";
 import {
   evaluateLifecycle,
+  evaluateProcessDefinition,
   evaluateProcessExpression,
   evaluateResolverInputs,
   evaluateScenarioParticipation,
@@ -82,6 +83,18 @@ export type ScenarioAuthorization =
       obligation: string;
     };
 
+export interface ScenarioStandingDelegation {
+  selector: string;
+  authority: string;
+  delegate: string;
+  targetInput: string;
+  invocations: {
+    invocation: number;
+    target: string | null;
+    applicableEvidence: string[];
+  }[];
+}
+
 export interface ScenarioDryRun {
   executable: true;
   sideEffectFree: true;
@@ -100,6 +113,7 @@ export interface ScenarioDryRun {
   prompt: ResolvedPrompt;
   policies: ResolvedScenarioPolicy[];
   participation?: ScenarioParticipation[];
+  standingDelegation?: ScenarioStandingDelegation;
   prohibitedInputs: string[];
   expectedOutputs: ScenarioOutputExplanation[];
   completion: {
@@ -822,6 +836,59 @@ async function dryRunScenario(
     }
   }
 
+  const standingDelegation = object(scenario.standing_delegation);
+  let standingDelegationProjection: ScenarioStandingDelegation | undefined;
+  if (standingDelegation) {
+    const selector = string(standingDelegation.selector_ref);
+    const authority = string(standingDelegation.authority);
+    const delegate = string(standingDelegation.delegate);
+    const targetInput = string(standingDelegation.target_input);
+    if (selector && authority && delegate && targetInput) {
+      standingDelegationProjection = {
+        selector,
+        authority,
+        delegate,
+        targetInput,
+        invocations: invocations.map((invocation, invocationIndex) => {
+          const target = invocation.inputs.find((input) =>
+            input.name === targetInput
+          )?.values[0]?.identity.revision_id ?? null;
+          if (!target) {
+            return {
+              invocation: invocationIndex,
+              target,
+              applicableEvidence: [],
+            };
+          }
+          const evaluated = evaluateProcessDefinition(
+            processPackage,
+            snapshot,
+            "selector",
+            selector,
+            {
+              target,
+              scenario: scenarioReference,
+              authority,
+              delegate,
+            },
+          ).result;
+          const applicableEvidence = Array.isArray(evaluated)
+            ? evaluated.flatMap((value) => {
+                const identity = object(value)?.identity;
+                const revisionId = string(object(identity)?.revision_id);
+                return revisionId ? [revisionId] : [];
+              }).sort()
+            : [];
+          return {
+            invocation: invocationIndex,
+            target,
+            applicableEvidence: [...new Set(applicableEvidence)],
+          };
+        }),
+      };
+    }
+  }
+
   const promptReference = string(scenario.prompt_ref) ?? "";
   const resolvedPrompt = await resolvePrompt(processPackage, promptReference);
   if (!resolvedPrompt.prompt) {
@@ -866,6 +933,9 @@ async function dryRunScenario(
       policies,
       ...(participationProjection
         ? { participation: participationProjection }
+        : {}),
+      ...(standingDelegationProjection
+        ? { standingDelegation: standingDelegationProjection }
         : {}),
       prohibitedInputs: array(scenario.prohibited_inputs)
         .filter((value): value is string => typeof value === "string")
