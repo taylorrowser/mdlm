@@ -8,7 +8,9 @@ inputs:
     types: [VER]
     cardinality: one
     identity: revision
-    conditions: 'activity.payload.kind == "pilot"'
+    conditions: >-
+      activity.payload.kind == "pilot"
+      && exists("passing-reviews-for@1", {subject: activity})
   - name: environment
     types: [ENV]
     cardinality: one
@@ -28,13 +30,28 @@ outputs:
       - {link: realizes, target: {input: activity}}
       - {link: uses, target: {input: environment}}
       - {link: targets, target: {input: execution_target}}
+  - name: authorization
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {output: implementation}}
 prompt_ref: prompts/implement-verification-activity.md@1
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: verification-implementation-participation@1
+  arguments:
+    activity: activity
+    environment: environment
+    execution_target: execution_target
+authority_evidence: {output: authorization, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && implementation.payload.kind == "pilot"
   && implementation.payload.independence_mode == "source-blind"
-initiation: explicit
-resolves: []
+  && implementation.payload.target_behavior.supported == execution_target.payload.supported_behavior
+  && implementation.payload.target_behavior.intentionally_unsupported == execution_target.payload.unsupported_behavior
+  && authorization.payload.kind == "decision"
+  && authorization.payload.effective_scope == implementation.identity.revision_id
+resolves: [pilot-verification-implementation-required]
 prohibited_inputs: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts]
 batching: single

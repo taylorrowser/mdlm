@@ -23,8 +23,8 @@ export async function participationProcessPackage(): Promise<string> {
     manifestPath,
     manifest
       .replace(
-        "policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
-        "policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, process-participation, baseline-participation]",
+        "policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
+        "policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, process-participation, baseline-participation]",
       )
       .replace("  selectors:\n", "  selectors:\n    - no-questions\n"),
   );

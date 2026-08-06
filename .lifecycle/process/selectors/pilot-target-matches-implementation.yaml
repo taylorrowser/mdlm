@@ -1,0 +1,18 @@
+kind: selector-definition
+id: pilot-target-matches-implementation
+version: 1
+description: The eligible exact pilot target when one implementation preserves its supported and intentionally unsupported behavioral boundary.
+parameters:
+  - {name: activity, kind: revision, types: [VER]}
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from:
+    selector: eligible-pilot-targets-for-activity@1
+    arguments: {activity: activity}
+  as: target
+  where: >-
+    implementation.payload.target_behavior.supported == target.payload.supported_behavior
+    && implementation.payload.target_behavior.intentionally_unsupported == target.payload.unsupported_behavior
+  distinct: true
+  order_by: [identity.revision_id]

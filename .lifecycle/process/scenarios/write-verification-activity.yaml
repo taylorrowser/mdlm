@@ -4,7 +4,7 @@ version: 1
 description: Write a source-independent pilot activity with explicit success and discrimination behavior.
 phases: [phase-1-product-assurance]
 inputs:
-  - {name: requirement, types: [STK], cardinality: one, identity: stable}
+  - {name: requirement, types: [STK], cardinality: one, identity: revision}
   - {name: strategy, types: [VSP], cardinality: one, identity: revision}
 outputs:
   - name: activity
@@ -12,6 +12,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: verifies, target: {input: requirement}}
+      - {link: verifies-revision, target: {input: requirement}}
       - {link: governed-by, target: {input: strategy}}
 prompt_ref: prompts/write-verification-activity.md@1
 review_policy_ref: review-applicability@1
@@ -20,7 +21,6 @@ completion: >-
   && activity.payload.kind == "pilot"
   && activity.payload.claim.scope == "verification-design"
   && activity.payload.claim.formal_evidence_eligible == false
-initiation: explicit
-resolves: []
+resolves: [pilot-verification-activity-required]
 prohibited_inputs: [product source code, product unit tests, private implementation details, formal acceptance conclusion]
 batching: single

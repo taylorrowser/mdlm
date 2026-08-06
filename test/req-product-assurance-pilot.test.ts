@@ -98,71 +98,57 @@ describe("req product-assurance qualification and pilot slice", () => {
       );
       return { executable, capture };
     };
-    const baseline = (title: string) => {
-      const result = req(
-        repositoryRoot,
-        "baseline",
-        "create",
-        "--type",
-        "BSL",
-        "--scenario",
-        "create-review-context@1",
-        "--set",
-        `title=${title}`,
-        "--set",
-        "kind=review-context",
-        "--set",
-        "role=review-context",
-        "--set",
-        `scope=${title}`,
-        "--set",
-        "group=DEFAULT",
-        "--json",
-      );
-      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
-      return JSON.parse(result.stdout).created as {
-        id: string;
-        revisionId: string;
-      };
-    };
-    const freezeContext = (
+    const createDiscoveredReviewContext = async (
+      subject: string,
       title: string,
-      members: string[],
+      definitionMembers: string[],
       evidence: string[] = [],
     ) => {
-      const context = baseline(title);
-      for (const member of members) {
-        const added = req(
-          repositoryRoot,
-          "baseline",
-          "add",
-          context.id,
-          member,
-          "--json",
-        );
-        expect(added.status, `${added.stderr}${added.stdout}`).toBe(0);
-      }
-      for (const item of evidence) {
-        const added = req(
-          repositoryRoot,
-          "baseline",
-          "evidence",
-          "add",
-          context.id,
-          item,
-          "--json",
-        );
-        expect(added.status, `${added.stderr}${added.stdout}`).toBe(0);
-      }
-      const frozen = req(
+      const obligation = looseEnds().find((item) =>
+        item.obligation === "review-context-required" && item.subject === subject
+      );
+      expect(obligation).toEqual(expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "create-review-context@1",
+      }));
+      if (!obligation) throw new Error(`Missing Review Context Obligation for ${subject}`);
+      const configured = await adapter({
+        outputs: [{
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title,
+              kind: "review-context",
+              role: "review-context",
+              scope: subject,
+              group: "DEFAULT",
+              definition_members: definitionMembers,
+              evidence,
+            },
+            links: [],
+            body: `Exact Review Context for ${subject}.\n`,
+          },
+        }],
+        completionEvidence: { summary: `Exact Review Context frozen for ${subject}.` },
+      }, "review-context");
+      const executed = req(
         repositoryRoot,
-        "baseline",
-        "freeze",
-        context.id,
+        "scenario",
+        "execute",
+        String(obligation.actionableResolver),
+        "--obligation",
+        String(obligation.id),
+        "--adapter",
+        configured.executable,
         "--json",
       );
-      expect(frozen.status, `${frozen.stderr}${frozen.stdout}`).toBe(0);
-      return context;
+      expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
+      return JSON.parse(executed.stdout).execution.outputs[0].lifecycleDatum as {
+        revisionId: string;
+      };
     };
     const review = async (subject: string, context: string) => {
       const obligation = looseEnds().find((item) =>
@@ -651,91 +637,220 @@ describe("req product-assurance qualification and pilot slice", () => {
       'supported_behavior=["export the representative visible report"]',
       "--set",
       'unsupported_behavior=["export an intentionally unsupported binary format"]',
+      "--link",
+      `derived-from=${requirement.revisionId}`,
     );
-    const pilotActivity = create(
-      "VER",
-      "--scenario",
-      "write-verification-activity@1",
-      "--set",
-      "title=Pilot report export discrimination",
-      "--set",
-      "rationale=One positive and one negative activity test the verification design",
-      "--set",
-      "kind=pilot",
-      "--set",
-      "method=demonstration",
-      "--set",
-      "assessment_mode=witnessed",
-      "--set",
-      'claim={"kind":"pilot","scope":"verification-design","formal_evidence_eligible":false}',
-      "--set",
-      'acceptance_criteria=["supported export is observed","unsupported format is rejected observably"]',
-      "--set",
-      'evidence_requirements=["public invocation","visible export","visible rejection"]',
-      "--set",
-      "expected_success_activity=Export the representative visible report",
-      "--set",
-      "expected_discrimination_activity=Request the intentionally unsupported binary format",
-      "--link",
-      `governed-by=${strategy.revisionId}`,
-      "--link",
-      `verifies=${requirement.id}`,
+    const pilotActivityWork = looseEnds().find((item) =>
+      item.obligation === "pilot-verification-activity-required" &&
+      item.subject === requirement.revisionId
     );
-    const pilotImplementation = create(
-      "VAI",
-      "--scenario",
-      "implement-verification-activity@1",
-      "--set",
-      "title=Source-independent pilot demonstration",
-      "--set",
-      "rationale=The implementation exercises only the controlled public target boundary",
-      "--set",
-      "kind=pilot",
-      "--set",
-      "implementation_ref=git:fedcba9876543210fedcba9876543210fedcba98",
-      "--set",
-      "independence_mode=source-blind",
-      "--set",
-      `authoring_input_refs=${JSON.stringify([
-        requirement.revisionId,
-        strategy.revisionId,
-        pilotActivity.revisionId,
-        environment.revisionId,
-        pilotTarget.revisionId,
-      ])}`,
-      "--set",
-      `prohibited_inputs_observed=${JSON.stringify(prohibitedInputs)}`,
-      "--set",
-      'activity_bindings=["supported-success","unsupported-discrimination"]',
-      "--set",
-      `target_behavior=${JSON.stringify({
-        supported: ["export the representative visible report"],
-        intentionally_unsupported: ["export an intentionally unsupported binary format"],
-      })}`,
-      "--link",
-      `realizes=${pilotActivity.revisionId}`,
-      "--link",
-      `uses=${environment.revisionId}`,
-      "--link",
-      `targets=${pilotTarget.revisionId}`,
+    expect(pilotActivityWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "write-verification-activity@1",
+    }));
+    const pilotActivityAdapter = await adapter({
+      outputs: [{
+        name: "activity",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "VER-0000000002",
+          type: "VER",
+          payload: {
+            title: "Pilot report export discrimination",
+            rationale: "One positive and one negative activity test the verification design",
+            kind: "pilot",
+            method: "demonstration",
+            assessment_mode: "witnessed",
+            claim: { kind: "pilot", scope: "verification-design", formal_evidence_eligible: false },
+            acceptance_criteria: ["supported export is observed", "unsupported format is rejected observably"],
+            evidence_requirements: ["public invocation", "visible export", "visible rejection"],
+            expected_success_activity: "Export the representative visible report",
+            expected_discrimination_activity: "Request the intentionally unsupported binary format",
+          },
+          links: [
+            { type: "governed-by", target: strategy.revisionId },
+            { type: "verifies", target: requirement.id },
+            { type: "verifies-revision", target: requirement.revisionId },
+          ],
+          body: "Source-independent pilot activity with positive and negative controls.\n",
+        },
+      }],
+      completionEvidence: { summary: "Pilot verification activity authored from exact ready inputs." },
+    }, "pilot-activity");
+    const pilotActivityExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(pilotActivityWork!.actionableResolver),
+      "--obligation",
+      String(pilotActivityWork!.id),
+      "--adapter",
+      pilotActivityAdapter.executable,
+      "--input",
+      `requirement=${requirement.revisionId}`,
+      "--input",
+      `strategy=${strategy.revisionId}`,
+      "--json",
+    );
+    expect(
+      pilotActivityExecution.status,
+      `${pilotActivityExecution.stderr}${pilotActivityExecution.stdout}`,
+    ).toBe(0);
+    const pilotActivity = JSON.parse(pilotActivityExecution.stdout).execution.outputs[0]
+      .lifecycleDatum as { id: string; revisionId: string };
+    const blockedPilotImplementationWork = looseEnds().find((item) =>
+      item.obligation === "pilot-verification-implementation-required" &&
+      item.subject === pilotActivity.revisionId
+    );
+    expect(blockedPilotImplementationWork).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: false,
+      blockedBy: expect.arrayContaining([
+        expect.stringContaining(pilotActivity.revisionId),
+      ]),
+    }));
+    const pilotActivityContext = await createDiscoveredReviewContext(
+      pilotActivity.revisionId,
+      "Pilot activity review context",
+      [pilotActivity.revisionId],
+      [requirement.revisionId, strategy.revisionId, pilotTarget.revisionId],
+    );
+    await review(pilotActivity.revisionId, pilotActivityContext.revisionId);
+    const pilotImplementationWork = looseEnds().find((item) =>
+      item.obligation === "pilot-verification-implementation-required" &&
+      item.subject === pilotActivity.revisionId
+    );
+    expect(pilotImplementationWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "implement-verification-activity@1",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "delegated",
+          authority: "independent-verification-implementer",
+        }),
+      })],
+    }));
+    const pilotImplementationAdapter = await adapter({
+      outputs: [
+        {
+          name: "implementation",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "VAI-0000000002",
+            type: "VAI",
+            payload: {
+              title: "Source-independent pilot demonstration",
+              rationale: "The implementation exercises only the controlled public target boundary",
+              kind: "pilot",
+              implementation_ref: "git:fedcba9876543210fedcba9876543210fedcba98",
+              independence_mode: "source-blind",
+              authoring_input_refs: [
+                requirement.revisionId,
+                strategy.revisionId,
+                pilotActivity.revisionId,
+                environment.revisionId,
+                pilotTarget.revisionId,
+              ],
+              prohibited_inputs_observed: prohibitedInputs,
+              activity_bindings: ["supported-success", "unsupported-discrimination"],
+              target_behavior: {
+                supported: ["export the representative visible report"],
+                intentionally_unsupported: ["export an intentionally unsupported binary format"],
+              },
+            },
+            links: [
+              { type: "realizes", target: pilotActivity.revisionId },
+              { type: "uses", target: environment.revisionId },
+              { type: "targets", target: pilotTarget.revisionId },
+            ],
+            body: "Independently authorized source-blind pilot implementation.\n",
+          },
+        },
+        {
+          name: "authorization",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "DEC-0000000001",
+            type: "DEC",
+            payload: {
+              title: "Authorize exact pilot implementation",
+              rationale: "Independent implementation is authorized only for the bounded activity, environment, and target.",
+              kind: "decision",
+              decision: "Authorize independent implementation of the exact pilot activity.",
+              alternatives: ["Do not implement the pilot activity"],
+              effective_scope: "VAI-0000000002-r00001",
+            },
+            links: [{ type: "justifies", target: "VAI-0000000002-r00001" }],
+            body: "Exact authorization for independent pilot implementation.\n",
+          },
+        },
+      ],
+      completionEvidence: { summary: "The exact pilot implementation was separately authorized and recorded." },
+    }, "pilot-implementation");
+    const pilotImplementationExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(pilotImplementationWork!.actionableResolver),
+      "--obligation",
+      String(pilotImplementationWork!.id),
+      "--authorize",
+      "independent-verification-implementer",
+      "--adapter",
+      pilotImplementationAdapter.executable,
+      "--input",
+      `activity=${pilotActivity.revisionId}`,
+      "--input",
+      `environment=${environment.revisionId}`,
+      "--input",
+      `execution_target=${pilotTarget.revisionId}`,
+      "--json",
+    );
+    expect(
+      pilotImplementationExecution.status,
+      `${pilotImplementationExecution.stderr}${pilotImplementationExecution.stdout}`,
+    ).toBe(0);
+    const pilotImplementationResult = JSON.parse(pilotImplementationExecution.stdout).execution;
+    expect(pilotImplementationResult.authority).toEqual(expect.objectContaining({
+      supplied: ["independent-verification-implementer"],
+    }));
+    const pilotImplementation = pilotImplementationResult.outputs.find(
+      (item: { name: string }) => item.name === "implementation",
+    ).lifecycleDatum as { id: string; revisionId: string };
+    const pilotAuthorization = pilotImplementationResult.outputs.find(
+      (item: { name: string }) => item.name === "authorization",
+    ).lifecycleDatum as { revisionId: string };
+    const pilotAuthorizationShown = req(
+      repositoryRoot,
+      "show",
+      pilotAuthorization.revisionId,
+      "--json",
+    );
+    expect(pilotAuthorizationShown.status, pilotAuthorizationShown.stderr).toBe(0);
+    expect(JSON.parse(pilotAuthorizationShown.stdout).lifecycleDatum.datum).toEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          effective_scope: pilotImplementation.revisionId,
+        }),
+        links: [{ type: "justifies", target: pilotImplementation.revisionId }],
+      }),
     );
 
     expect(runObligation(pilotImplementation.revisionId)).toEqual(
       expect.objectContaining({
         status: "awaiting-review",
         dispatchable: false,
-        blockedBy: expect.arrayContaining([
-          expect.stringContaining(pilotActivity.revisionId),
-          expect.stringContaining(pilotImplementation.revisionId),
-        ]),
+        blockedBy: [expect.stringContaining(pilotImplementation.revisionId)],
       }),
     );
-    const pilotContext = freezeContext(
-      "Pilot activity and implementation review context",
-      [pilotActivity.revisionId, pilotImplementation.revisionId],
-      [strategy.revisionId, environment.revisionId, pilotTarget.revisionId],
+    const pilotContext = await createDiscoveredReviewContext(
+      pilotImplementation.revisionId,
+      "Pilot implementation review context",
+      [pilotImplementation.revisionId],
+      [pilotActivity.revisionId, strategy.revisionId, environment.revisionId, pilotTarget.revisionId],
     );
-    await review(pilotActivity.revisionId, pilotContext.revisionId);
     await review(pilotImplementation.revisionId, pilotContext.revisionId);
 
     const pilotObligation = runObligation(pilotImplementation.revisionId)!;
@@ -752,7 +867,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "execute-verification-run@1",
+      String(pilotObligation.actionableResolver),
       "--obligation",
       String(pilotObligation.id),
       "--adapter",
@@ -771,6 +886,81 @@ describe("req product-assurance qualification and pilot slice", () => {
     await expect(fs.stat(prohibitedAdapter.capture)).rejects.toMatchObject({
       code: "ENOENT",
     });
+
+    const wrongTargetRoot = `${repositoryRoot}-wrong-target`;
+    await fs.cp(repositoryRoot, wrongTargetRoot, { recursive: true });
+    const alternateTargetCreated = req(
+      wrongTargetRoot,
+      "new",
+      "ART",
+      "--scenario",
+      "build-exploratory-prototype@1",
+      "--set",
+      "title=Unrelated controlled artifact",
+      "--set",
+      "kind=prototype",
+      "--set",
+      "repository_ref=git:1111111111111111111111111111111111111111",
+      "--set",
+      'supported_behavior=["unrelated supported behavior"]',
+      "--set",
+      'unsupported_behavior=["unrelated negative control"]',
+      "--json",
+    );
+    expect(
+      alternateTargetCreated.status,
+      `${alternateTargetCreated.stderr}${alternateTargetCreated.stdout}`,
+    ).toBe(0);
+    const alternateTarget = JSON.parse(alternateTargetCreated.stdout).created as {
+      revisionId: string;
+    };
+    const wrongTargetAdapter = await adapter(
+      runResponse(
+        "RUN-0000000004",
+        "RES-0000000004",
+        "pilot",
+        pilotImplementation.revisionId,
+        environment.revisionId,
+        alternateTarget.revisionId,
+        {
+          kind: "pilot",
+          scope: "verification-design",
+          outcome: "suitable",
+          formal_evidence_eligible: false,
+        },
+      ),
+      "wrong-exact-target",
+    );
+    const wrongTargetExecution = req(
+      wrongTargetRoot,
+      "scenario",
+      "execute",
+      String(pilotObligation.actionableResolver),
+      "--obligation",
+      String(pilotObligation.id),
+      "--adapter",
+      wrongTargetAdapter.executable,
+      "--input",
+      `implementation=${pilotImplementation.revisionId}`,
+      "--input",
+      `activity=${pilotActivity.revisionId}`,
+      "--input",
+      `environment=${environment.revisionId}`,
+      "--input",
+      `execution_target=${alternateTarget.revisionId}`,
+      "--json",
+    );
+    expect(wrongTargetExecution.status).toBe(1);
+    expect(JSON.parse(wrongTargetExecution.stdout).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "scenario-input-binding-mismatch",
+        path: "execution_target",
+      }),
+    ]);
+    await expect(fs.stat(wrongTargetAdapter.capture)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await fs.rm(wrongTargetRoot, { recursive: true, force: true });
 
     const formalClaimAdapter = await adapter(
       runResponse(
@@ -793,7 +983,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "execute-verification-run@1",
+      String(pilotObligation.actionableResolver),
       "--obligation",
       String(pilotObligation.id),
       "--adapter",
@@ -841,7 +1031,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "execute-verification-run@1",
+      String(pilotObligation.actionableResolver),
       "--obligation",
       String(pilotObligation.id),
       "--adapter",
@@ -896,6 +1086,19 @@ describe("req product-assurance qualification and pilot slice", () => {
         storage: { editable: false, frozen: true },
       }),
     );
+    const pilotImplementationShown = req(
+      repositoryRoot,
+      "show",
+      pilotImplementation.revisionId,
+      "--json",
+    );
+    expect(pilotImplementationShown.status, pilotImplementationShown.stderr).toBe(0);
+    expect(
+      JSON.parse(pilotImplementationShown.stdout).lifecycleDatum.datum.payload.target_behavior,
+    ).toEqual({
+      supported: ["export the representative visible report"],
+      intentionally_unsupported: ["export an intentionally unsupported binary format"],
+    });
     const pilotResultShown = req(repositoryRoot, "show", pilotResult, "--json");
     expect(pilotResultShown.status).toBe(0);
     expect(JSON.parse(pilotResultShown.stdout).lifecycleDatum).toEqual(

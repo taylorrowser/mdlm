@@ -1,0 +1,16 @@
+kind: selector-definition
+id: pilot-activity-matches-requirement
+version: 1
+description: The supplied pilot activity only when it is itself valid exact coverage for the supplied current requirement Revision.
+parameters:
+  - {name: activity, kind: revision, types: [VER]}
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from:
+    selector: pilot-verification-activities-for-requirement@1
+    arguments: {requirement: requirement}
+  as: candidate
+  where: 'candidate == activity'
+  distinct: true
+  order_by: [identity.revision_id]

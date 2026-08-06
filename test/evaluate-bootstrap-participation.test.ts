@@ -13,7 +13,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.37.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.38.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -138,6 +138,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual({
       "approve-change-request": { output: "approval", type: "DEC" },
       "decide-pilot-expansion": { output: "decision", type: "DEC" },
+      "implement-verification-activity": { output: "authorization", type: "DEC" },
       "record-consequential-decision": { output: "decision", type: "DEC" },
       "record-gate-signoff": { output: "decision", type: "DEC" },
       "resolve-question": { output: "decision", type: "DEC" },

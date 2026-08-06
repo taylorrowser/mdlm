@@ -1,0 +1,18 @@
+kind: selector-definition
+id: pilot-implementation-authorizations-for
+version: 1
+description: Current valid exact authorization Decisions published for one pilot implementation Revision.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: implementation, link: justifies, emit: source, types: [DEC]}
+  as: authorization
+  where: >-
+    authorization.payload.kind == "decision"
+    && authorization.payload.effective_scope == implementation.identity.revision_id
+    && state(authorization, "disposition") == "active"
+    && state(authorization, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: authorization})
+  distinct: true
+  order_by: [identity.revision_id]

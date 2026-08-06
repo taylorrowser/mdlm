@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.37.0
+version: 0.38.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -42,7 +42,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
@@ -53,6 +53,18 @@ catalog:
     - verification-strategies-for-requirement
     - matching-verification-strategies-for-requirement
     - current-phase-1-verification-strategies
+    - strategies-for-verification-activity
+    - pilot-verification-activities-for-requirement
+    - pilot-activity-matches-requirement
+    - requirements-for-pilot-activity
+    - current-pilot-verification-activities
+    - current-pilot-targets-for-requirement
+    - pilot-environments-for-activity
+    - eligible-pilot-environments-for-activity
+    - eligible-pilot-targets-for-activity
+    - pilot-target-matches-implementation
+    - pilot-implementation-authorizations-for
+    - complete-pilot-implementations-for-activity
     - environments-for-strategy
     - complete-environment-assurance-for-strategy
     - complete-environment-assurance-for-environment
@@ -163,6 +175,8 @@ catalog:
     - candidate-gate-signoff
     - verification-strategy-required
     - environment-assurance-required
+    - pilot-verification-activity-required
+    - pilot-verification-implementation-required
     - verification-run-required
     - decomposition-execution-required
     - decomposition-output-reviews-required
@@ -291,9 +305,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@11
+  default: bootstrap@12
   available:
-    - profiles/bootstrap.yaml@11
+    - profiles/bootstrap.yaml@12
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

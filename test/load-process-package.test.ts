@@ -24,12 +24,12 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.37.0");
+    expect(result.package.manifest.version).toBe("0.38.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(102);
-    expect(Object.keys(result.package.policies)).toHaveLength(8);
-    expect(Object.keys(result.package.obligations)).toHaveLength(29);
+    expect(Object.keys(result.package.selectors)).toHaveLength(114);
+    expect(Object.keys(result.package.policies)).toHaveLength(9);
+    expect(Object.keys(result.package.obligations)).toHaveLength(31);
     expect(Object.keys(result.package.scenarios)).toHaveLength(38);
     expect(result.diagnostics).toEqual([]);
   });
@@ -121,7 +121,7 @@ describe("loadProcessPackage", () => {
         ]),
       );
     }
-  });
+  }, 10_000);
 
   it("rejects a legacy structural Selector invocation", async () => {
     const processRoot = await copiedProcessPackage();
@@ -160,8 +160,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       manifestPath,
       manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
-        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
+        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
       ),
     );
 

@@ -1,0 +1,27 @@
+kind: obligation-definition
+id: pilot-verification-activity-required
+version: 1
+description: Every exact Phase 1 entry requirement with one applicable strategy requires a source-independent pilot verification activity.
+phases: [phase-1-product-assurance]
+for_each: 'select("current-phase-1-stakeholder-requirements@1", {})'
+subject_as: requirement
+satisfied_when: 'exists("pilot-verification-activities-for-requirement@1", {requirement: requirement})'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: 'count("verification-strategies-for-requirement@1", {requirement: requirement}) != 1'
+    reason: Pilot activity authoring waits for one unambiguous exact strategy covering this requirement Revision.
+    blocked_by:
+      - obligation: verification-strategy-required@1
+        subjects: '[phase]'
+  - status: ready
+    priority: 100
+    when: 'count("verification-strategies-for-requirement@1", {requirement: requirement}) == 1'
+    reason: The exact requirement Revision and its applicable strategy are ready for source-independent pilot activity authoring.
+default_status: blocked
+resolve_with:
+  scenario: write-verification-activity@1
+  inputs:
+    requirement: requirement
+    strategy: 'one("verification-strategies-for-requirement@1", {requirement: requirement})'
+waiver_policy_ref: waiver-applicability@1

@@ -64,4 +64,11 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: exact-revision
     inverse_label: verification-activity
+  - id: verifies-revision
+    description: Exact requirement Revision whose ready Phase 1 design is exercised by this pilot activity.
+    targets:
+      - {kind: datum, types: [STK], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: exact-verification-activity
 kernel_managed_payload_paths: []

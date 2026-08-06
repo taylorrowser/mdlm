@@ -25,6 +25,8 @@ scenarios:
 obligations:
   - verification-strategy-required@1
   - environment-assurance-required@1
+  - pilot-verification-activity-required@1
+  - pilot-verification-implementation-required@1
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@2

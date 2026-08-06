@@ -1,0 +1,31 @@
+kind: selector-definition
+id: complete-pilot-implementations-for-activity
+version: 1
+description: Current source-independent implementations exactly bound to one pilot activity, its eligible environment, and its controlled target.
+parameters:
+  - {name: activity, kind: revision, types: [VER]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: activity, link: realizes, emit: source, types: [VAI]}
+  as: implementation
+  where: >-
+    implementation.payload.kind == "pilot"
+    && implementation.payload.independence_mode == "source-blind"
+    && state(implementation, "disposition") == "active"
+    && state(implementation, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: implementation})
+    && count("verification-activities-for-implementation@1", {implementation: implementation}) == 1
+    && count("environments-for-implementation@1", {implementation: implementation}) == 1
+    && count("execution-targets-for-implementation@1", {implementation: implementation}) == 1
+    && count("eligible-pilot-environments-for-activity@1", {activity: activity}) == 1
+    && count("eligible-pilot-targets-for-activity@1", {activity: activity}) == 1
+    && one("environments-for-implementation@1", {implementation: implementation})
+      == one("eligible-pilot-environments-for-activity@1", {activity: activity})
+    && one("execution-targets-for-implementation@1", {implementation: implementation})
+      == one("eligible-pilot-targets-for-activity@1", {activity: activity})
+    && exists("pilot-target-matches-implementation@1",
+      {activity: activity, implementation: implementation})
+    && exists("pilot-implementation-authorizations-for@1",
+      {implementation: implementation})
+  distinct: true
+  order_by: [identity.id, identity.revision]

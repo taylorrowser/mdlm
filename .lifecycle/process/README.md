@@ -210,8 +210,17 @@ derives generated RUN/RES execution from exact VAI links; the RES atomically
 records its exact execution ENV, so no post-run link mutation is needed. ENV Review
 Context work remains blocked until a passing environment-capability qualification exists; its
 completion contract freezes the exact ENV and VSP as definitions and the exact
-VER, VAI, RUN, and RES as evidence before independent Review. Pilot execution
-remains blocked until its ENV, VER, and VAI have the package-required Reviews.
+VER, VAI, RUN, and RES as evidence before independent Review.
+
+Each current entry requirement Revision and applicable VSP Revision then derives
+`pilot-verification-activity-required@1`. The pilot VER preserves both Stable and
+exact requirement coverage. Its Review unlocks
+`pilot-verification-implementation-required@1` only when one qualified reviewed
+ENV Revision and one current ART Revision are unambiguous. Independent implementation
+requires a projected delegated Authority Requirement and atomically publishes its
+VAI Revision with an exact authorization DEC. `verification-run-required@1` remains
+blocked until the VAI Review passes, then binds the package-resolved exact VER,
+ENV, and ART Revisions before publishing RUN/RES atomically.
 
 Pilot authoring and execution declare product source, unit tests, private
 implementation details, and uncontrolled shortcuts as prohibited inputs. A pilot

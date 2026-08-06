@@ -1,0 +1,12 @@
+kind: selector-definition
+id: strategies-for-verification-activity
+version: 1
+description: Exact verification strategy governing one verification activity.
+parameters:
+  - {name: activity, kind: revision, types: [VER]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: activity, link: governed-by, emit: target, types: [VSP]}
+  as: strategy
+  distinct: true
+  order_by: [identity.revision_id]

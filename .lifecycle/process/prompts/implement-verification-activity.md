@@ -13,8 +13,10 @@ Read, in order:
 3. `skills/verification-independence.md@1`
 4. `skills/reproducibility.md@1`
 
-Implement only the exact reviewed VER against the controlled public boundary of
-the exact target. Record the activity bindings, exact implementation reference,
-authoring inputs, and supported and intentionally unsupported target behavior.
-Do not access product source, product unit tests, private functions, classes,
-implementation notes, or uncontrolled shortcuts.
+Implement only the reviewed exact VER Revision against the controlled public
+boundary of the package-resolved ART Revision and qualified ENV Revision. Record the activity
+bindings, exact implementation reference, authoring inputs, and distinct supported
+and intentionally unsupported target behavior. In the same atomic response, record
+the exact authorization DEC with `effective_scope` equal to the VAI Revision and a
+`justifies` link to that Revision. Do not access product source, product unit tests,
+private functions, classes, implementation notes, or uncontrolled shortcuts.

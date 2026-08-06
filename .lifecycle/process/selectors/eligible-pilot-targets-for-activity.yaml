@@ -1,0 +1,18 @@
+kind: selector-definition
+id: eligible-pilot-targets-for-activity
+version: 1
+description: The singular current exact controlled target derived from the requirement exercised by a pilot activity.
+parameters:
+  - {name: activity, kind: revision, types: [VER]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ART]}
+  as: target
+  where: >-
+    count("requirements-for-pilot-activity@1", {activity: activity}) == 1
+    && count("current-pilot-targets-for-requirement@1",
+      {requirement: one("requirements-for-pilot-activity@1", {activity: activity})}) == 1
+    && one("current-pilot-targets-for-requirement@1",
+      {requirement: one("requirements-for-pilot-activity@1", {activity: activity})}) == target
+  distinct: true
+  order_by: [identity.revision_id]

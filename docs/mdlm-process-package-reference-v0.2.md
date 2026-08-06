@@ -859,9 +859,13 @@ The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable
 exact strategy. Generated RUN/RES work follows from the exact qualification VAI.
 Environment Review Context work waits for passing qualification and freezes the
-exact strategy, environment, qualification definition, run, and result before
-independent judgment. It then runs one source-independent pilot against an exact
-ART target.
+exact VSP, ENV, qualification VER, RUN, and RES Revisions before independent
+judgment. Exact requirement and VSP Revision evidence then derives pilot VER work.
+A passing VER Review plus one qualified reviewed ENV Revision and one ART Revision
+derive separately authorized VAI work; that transaction records both the VAI
+Revision and its exact authorization DEC. The VAI Review then unlocks execution
+bound to the package-resolved exact target Revision without an operator selecting
+core Scenario names.
 Package schemas distinguish qualification `environment-capability`, pilot
 `verification-design`, and formal `requirement` claims. RUN and RES are
 package-declared generated terminal types: generic direct creation and revision

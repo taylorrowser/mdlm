@@ -1,0 +1,20 @@
+kind: selector-definition
+id: current-pilot-verification-activities
+version: 1
+description: Current valid pilot activities tied to exactly one current Phase 1 requirement Revision and its exact applicable strategy.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VER]}
+  as: activity
+  where: >-
+    activity.payload.kind == "pilot"
+    && state(activity, "disposition") == "active"
+    && state(activity, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: activity})
+    && count("requirements-for-pilot-activity@1", {activity: activity}) == 1
+    && exists("pilot-activity-matches-requirement@1",
+      {activity: activity,
+       requirement: one("requirements-for-pilot-activity@1", {activity: activity})})
+  distinct: true
+  order_by: [identity.id, identity.revision]
