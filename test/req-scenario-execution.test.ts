@@ -46,6 +46,8 @@ describe("req scenario execute", () => {
       "--set",
       "kind=empirical",
       "--set",
+      "evidence_available=true",
+      "--set",
       "question=Can an adapter resolve this exact question?",
       "--set",
       "state=open",
@@ -55,7 +57,7 @@ describe("req scenario execute", () => {
     );
     expect(createdQuestion.status, createdQuestion.stderr).toBe(0);
     question = JSON.parse(createdQuestion.stdout).created;
-    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.32.0#${packageDigest}`;
+    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.33.0#${packageDigest}`;
 
     const baseline = req(
       repositoryRoot,
@@ -161,7 +163,7 @@ describe("req scenario execute", () => {
       revisionId: string;
     };
     const reviewContextObligation =
-      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.32.0#${packageDigest}`;
+      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.33.0#${packageDigest}`;
     const configured = await adapter({
       outputs: [{
         name: "context",
@@ -257,7 +259,7 @@ describe("req scenario execute", () => {
     const output = JSON.parse(result.stdout);
     const request = JSON.parse(await fs.readFile(configured.capture, "utf8"));
     expect(request).toEqual({
-      contract: "mdlm-agent-adapter@1",
+      contract: "mdlm-agent-adapter@2",
       scenario: "resolve-question@1",
       authorization: {
         mode: "dispatchable-obligation",
@@ -267,20 +269,21 @@ describe("req scenario execute", () => {
       invocations: preparation.invocations,
       prompt: preparation.prompt,
       policies: preparation.policies,
+      participation: preparation.participation,
       prohibitedInputs: preparation.prohibitedInputs,
       expectedOutputs: preparation.expectedOutputs,
       completion: preparation.completion,
     });
     expect(output.execution.inputs).toEqual(preparation.invocations);
     expect(output.execution).toEqual(expect.objectContaining({
-      contract: "mdlm-scenario-execution@1",
+      contract: "mdlm-scenario-execution@2",
       status: "completed",
       authorization: {
         mode: "dispatchable-obligation",
         obligation,
       },
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.32.0",
+        reference: "mdlm-bootstrap@0.33.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       prompt: expect.objectContaining({ reference: "prompts/resolve-question.md@1" }),
@@ -288,7 +291,9 @@ describe("req scenario execute", () => {
       policies: expect.arrayContaining([
         expect.objectContaining({ reference: "review-applicability@1" }),
         expect.objectContaining({ reference: "waiver-applicability@1" }),
+        expect.objectContaining({ reference: "question-participation@1" }),
       ]),
+      participation: preparation.participation,
       outputs: expect.arrayContaining([
         expect.objectContaining({ name: "decision", lifecycleDatum: expect.objectContaining({ type: "DEC" }) }),
         expect.objectContaining({ name: "updated_question", lifecycleDatum: expect.objectContaining({ id: question.id, revision: 2, type: "QST" }) }),
@@ -327,9 +332,13 @@ describe("req scenario execute", () => {
     expect(decision.lifecycleDatum.datum.created_by).toEqual({
       scenario: "resolve-question@1",
       prompt_ref: "prompts/resolve-question.md@1",
-      process_ref: expect.stringContaining("mdlm-bootstrap@0.32.0#sha256:"),
+      process_ref: expect.stringContaining("mdlm-bootstrap@0.33.0#sha256:"),
       loaded_skill_refs: request.prompt.skills.map((skill: any) => skill.reference),
-      policy_refs: ["review-applicability@1", "waiver-applicability@1"],
+      policy_refs: [
+        "question-participation@1",
+        "review-applicability@1",
+        "waiver-applicability@1",
+      ],
     });
     const doctor = req(repositoryRoot, "doctor", "--json");
     expect(doctor.status, doctor.stderr).toBe(0);

@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.31
+# MDLM bootstrap process package v0.33
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -114,7 +114,13 @@ Package loading reconciles the manifest and loaded catalogs, validates exact
 cross-definition references, arguments, bindings, and result types, and rejects
 complete Template, Selector, Computed State, and Policy dependency cycles.
 Resolver bindings must cover exactly the Scenario inputs with compatible identity,
-types, and cardinality. Non-Resolver Scenarios declare `initiation: explicit`; the
+types, and cardinality. Contextual Review, empirical and preferential question
+resolution, and gate sign-off bind exact Scenario inputs to package-owned
+participation Policies. Their projections distinguish delegated independent
+Review, autonomous authority with sufficient exact evidence, immediate
+nondelegable stakeholder
+attention, and explicitly compatible checkpoint-consolidated stakeholder
+attention without satisfying or deferring open questions. Non-Resolver Scenarios declare `initiation: explicit`; the
 package rejects missing or conflicting explicit/Resolver authorization semantics.
 Scenario output types, prohibited-input conflicts, required-
 link targets, source-owned link availability, target types, and cardinalities are

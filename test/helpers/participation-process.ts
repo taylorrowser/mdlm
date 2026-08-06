@@ -23,8 +23,8 @@ export async function participationProcessPackage(): Promise<string> {
     manifestPath,
     manifest
       .replace(
-        "policies: [dependency-reassessment, review-applicability, waiver-applicability]",
-        "policies: [dependency-reassessment, review-applicability, waiver-applicability, question-participation, process-participation, baseline-participation]",
+        "policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation]",
+        "policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, process-participation, baseline-participation]",
       )
       .replace("  selectors:\n", "  selectors:\n    - no-questions\n"),
   );
@@ -72,6 +72,7 @@ version: 1
 description: Determine authority and attention from one exact question.
 parameters:
   - {name: question, kind: revision, types: [QST]}
+  - {name: selected_phase, kind: phase}
 ${participationResultSchema}
 default:
   authority_mode: attended
@@ -178,13 +179,8 @@ participation:
   await fs.writeFile(
     gateScenarioPath,
     gateScenario.replace(
-      "review_policy_ref: review-applicability@1\n",
-      `review_policy_ref: review-applicability@1
-participation:
-  policy_ref: baseline-participation@1
-  arguments:
-    candidate: candidate
-`,
+      "policy_ref: gate-signoff-participation@1",
+      "policy_ref: baseline-participation@1",
     ),
   );
 
@@ -192,25 +188,15 @@ participation:
   const scenario = await fs.readFile(scenarioPath, "utf8");
   await fs.writeFile(
     scenarioPath,
-    scenario
-      .replace(
-        `    conditions: 'question.payload.state == "open"'
+    scenario.replace(
+      `    conditions: 'question.payload.state == "open"'
 outputs:`,
-        `  - name: optional_context
+      `  - name: optional_context
     types: [QST]
     cardinality: zero-or-more
     identity: revision
 outputs:`,
-      )
-      .replace(
-        "review_policy_ref: review-applicability@1\n",
-        `review_policy_ref: review-applicability@1
-participation:
-  policy_ref: question-participation@1
-  arguments:
-    question: question
-`,
-      ),
+    ),
   );
   return processRoot;
 }

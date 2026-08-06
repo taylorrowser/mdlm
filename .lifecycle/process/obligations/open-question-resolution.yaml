@@ -7,14 +7,20 @@ for_each: 'select("general-open-questions@1", {})'
 subject_as: question
 satisfied_when: 'question.payload.state in ["answered", "deferred", "cancelled"]'
 status_rules:
-  - status: blocked
+  - status: ready
     priority: 200
     when: 'question.payload.kind == "preferential"'
-    reason: An explicit stakeholder answer is required; the process may not fabricate it.
+    reason: The question is technically ready, but its participation Policy requires explicit stakeholder authority.
   - status: ready
     priority: 100
+    when: >-
+      question.payload.kind == "empirical"
+      && question.payload.evidence_available == true
+    reason: The exact question declares that sufficient empirical evidence is available for autonomous resolution.
+  - status: blocked
+    priority: 50
     when: 'question.payload.kind == "empirical"'
-    reason: The empirical question can be resolved when sufficient evidence is available.
+    reason: Empirical resolution is blocked until the exact question declares sufficient evidence available.
 default_status: blocked
 resolve_with:
   scenario: resolve-question@1

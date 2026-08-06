@@ -54,6 +54,9 @@ describe("Scenario participation projections", () => {
       `title=${title}`,
       "--set",
       `kind=${kind}`,
+      ...(kind === "empirical"
+        ? ["--set", "evidence_available=true"]
+        : []),
       "--set",
       `question=${title}?`,
       "--set",

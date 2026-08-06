@@ -395,6 +395,8 @@ describe("req system decomposition slice", () => {
       "--set",
       "kind=empirical",
       "--set",
+      "evidence_available=true",
+      "--set",
       "question=Must malformed requests be rejected at the public boundary?",
       "--set",
       "state=open",

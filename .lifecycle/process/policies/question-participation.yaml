@@ -1,0 +1,96 @@
+kind: policy-definition
+id: question-participation
+version: 1
+description: Derive evidence or stakeholder authority and attention timing from one exact open question.
+parameters:
+  - {name: question, kind: revision, types: [QST]}
+  - {name: selected_phase, kind: phase}
+result_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  additionalProperties: false
+  required: [authority_mode, authority, delegation_allowed, attention_timing, attention_checkpoint, consolidation_group]
+  properties:
+    authority_mode: {type: string, enum: [autonomous, delegated, attended]}
+    authority: {type: string, minLength: 1}
+    delegation_allowed: {type: boolean}
+    attention_timing: {type: string, enum: [none, immediate, checkpoint]}
+    attention_checkpoint: {type: [string, 'null']}
+    consolidation_group: {type: [string, 'null']}
+default: &immediate-stakeholder
+  authority_mode: attended
+  authority: stakeholder
+  delegation_allowed: false
+  attention_timing: immediate
+  attention_checkpoint: null
+  consolidation_group: null
+rules:
+  - priority: 600
+    when: >-
+      question.payload.kind == "empirical"
+      && (question.payload.evidence_available == true
+      || (question.payload.resolution_evidence == "prototype"
+      && question.payload.prototype_evidence != null
+      && question.storage.frozen == true))
+      && exists("blocked-targets-for-question@1", {question: question})
+    result:
+      authority_mode: autonomous
+      authority: evidence-authority
+      delegation_allowed: false
+      attention_timing: immediate
+      attention_checkpoint: null
+      consolidation_group: null
+  - priority: 500
+    when: >-
+      question.payload.kind == "empirical"
+      && (question.payload.evidence_available == true
+      || (question.payload.resolution_evidence == "prototype"
+      && question.payload.prototype_evidence != null
+      && question.storage.frozen == true))
+    result:
+      authority_mode: autonomous
+      authority: evidence-authority
+      delegation_allowed: false
+      attention_timing: none
+      attention_checkpoint: null
+      consolidation_group: null
+  - priority: 450
+    when: 'question.payload.kind == "empirical"'
+    result:
+      authority_mode: attended
+      authority: evidence-provider
+      delegation_allowed: true
+      attention_timing: immediate
+      attention_checkpoint: null
+      consolidation_group: null
+  - priority: 400
+    when: >-
+      question.payload.kind == "preferential"
+      && exists("blocked-targets-for-question@1", {question: question})
+    result: *immediate-stakeholder
+  - priority: 300
+    when: >-
+      question.payload.kind == "preferential"
+      && selected_phase.id == "phase-0-wayfinding"
+      && question.payload.attention_checkpoint == "phase-0-gate"
+      && question.payload.consolidation_group == "phase-0-stakeholder-questions"
+    result:
+      authority_mode: attended
+      authority: stakeholder
+      delegation_allowed: false
+      attention_timing: checkpoint
+      attention_checkpoint: phase-0-gate
+      consolidation_group: phase-0-stakeholder-questions
+  - priority: 100
+    when: >-
+      question.payload.kind == "preferential"
+      && selected_phase.id == "phase-2-system-definition"
+      && question.payload.attention_checkpoint == "phase-2-system-gate"
+      && question.payload.consolidation_group == "phase-2-system-stakeholder-questions"
+    result:
+      authority_mode: attended
+      authority: stakeholder
+      delegation_allowed: false
+      attention_timing: checkpoint
+      attention_checkpoint: phase-2-system-gate
+      consolidation_group: phase-2-system-stakeholder-questions

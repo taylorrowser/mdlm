@@ -74,6 +74,8 @@ describe("req prototype-bound empirical question routing", () => {
       "--set",
       "kind=empirical",
       "--set",
+      "evidence_available=true",
+      "--set",
       "question=Does the exact converter prototype discriminate its bounded behavior?",
       "--set",
       "state=open",
@@ -419,8 +421,22 @@ describe("req prototype-bound empirical question routing", () => {
     expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
     const execution = JSON.parse(result.stdout).execution;
     expect(execution).toEqual(expect.objectContaining({
-      contract: "mdlm-scenario-execution@1",
+      contract: "mdlm-scenario-execution@2",
       status: "completed",
+      participation: [{
+        policy: "question-participation@1",
+        authorityRequirement: {
+          mode: "autonomous",
+          authority: "evidence-authority",
+          delegationAllowed: false,
+        },
+        attentionSchedule: {
+          timing: "none",
+          checkpoint: null,
+          consolidationGroup: null,
+        },
+        transactionBatching: "single",
+      }],
       definition: {
         obligation: "prototype-question-resolution@1",
         scenario: "resolve-question-with-prototype@1",
@@ -480,7 +496,12 @@ describe("req prototype-bound empirical question routing", () => {
       expect(output.data.created_by).toEqual(expect.objectContaining({
         scenario: "resolve-question-with-prototype@1",
         prompt_ref: "prompts/resolve-question-with-prototype.md@1",
-        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.32\.0#sha256:/),
+        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.33\.0#sha256:/),
+        policy_refs: [
+          "question-participation@1",
+          "review-applicability@1",
+          "waiver-applicability@1",
+        ],
       }));
     }
     expect(looseEnds()).not.toEqual(expect.arrayContaining([

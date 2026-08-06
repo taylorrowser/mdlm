@@ -1563,3 +1563,42 @@ turning provisional choices into architecture.
   agree without exposing Policy rules or schemas. The package advances to
   `mdlm-bootstrap@0.32.0` and meta-schema v3 so the new Scenario contract does
   not reuse the immutable v2 or package-version slots.
+
+## D-061 — Declare bootstrap authority and attention as package Policies
+
+- **Status:** accepted and implemented
+- **Decision:** The Example Process Package binds contextual Review, question
+  resolution, prototype-backed question resolution, and gate sign-off to exact
+  participation Policies. Contextual Review requires delegated independent-reviewer
+  authority; empirical resolution is autonomous under evidence authority only
+  when the exact QST declares evidence available or carries a valid frozen
+  prototype evidence contract; preferential resolution and gate sign-off require nondelegable stakeholder
+  authority. Blocking preferences require immediate attention, while compatible
+  nonblocking preferences with an explicit compatible scheduling declaration use
+  the selected Phase's declared gate checkpoint and stakeholder-question
+  Consolidation Group (including `phase-0-gate` and
+  `phase-0-stakeholder-questions` during Phase 0); undeclared or incompatible
+  scheduling remains immediate.
+- **Alternatives:** Continue inferring authority from prompts; classify all
+  questions as immediate interruptions; allow the agent to infer stakeholder
+  approval; or defer nonblocking questions by changing their Lifecycle Data.
+- **Rationale:** Package-owned participation results let orchestration distinguish
+  technical Dispatchability from consequential human authority. Checkpoint
+  scheduling can consolidate attention without pretending that an open QST is
+  answered or durably deferred.
+- **Expected behavior:** An empirical question without sufficient exact evidence
+  remains blocked and requests an evidence provider rather than granting autonomous
+  resolution authority. Preferential question Obligations are technically ready
+  so an explicitly authorized agent can execute them, but their projected
+  Authority Requirement remains attended and nondelegable. A `blocks` link
+  changes both autonomous empirical and attended preferential work to immediate
+  attention and continues to block dependent
+  package work. Gate sign-off cannot proceed from implied approval, and
+  contextual Review cannot proceed as autonomous agent judgment.
+- **Reversibility:** Package versions may revise authority names, checkpoints, or
+  grouping through new Policy or Scenario versions. The standardized
+  participation seam and kernel remain unchanged.
+- **Evidence/observations:** Public `evaluateLifecycle` package tests derive each
+  result from exact Review, QST, and candidate inputs, preserve open nonblocking
+  QST evidence, and distinguish immediate attention from checkpoint
+  consolidation. The package advances to `mdlm-bootstrap@0.33.0`.

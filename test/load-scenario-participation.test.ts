@@ -29,7 +29,10 @@ describe("Scenario participation Policy validation", () => {
     expect(loaded.package.scenarios["resolve-question"]?.participation)
       .toEqual(expect.objectContaining({
         policy_ref: "question-participation@1",
-        arguments: { question: expect.any(Object) },
+        arguments: expect.objectContaining({
+          question: expect.any(Object),
+          selected_phase: expect.any(Object),
+        }),
       }));
   });
 

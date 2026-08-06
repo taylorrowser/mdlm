@@ -1,6 +1,6 @@
 kind: type-definition
 id: QST
-version: 2
+version: 3
 name: Question
 description: Preferential or empirical question whose unresolved answer blocks or defers lifecycle work.
 extends: titled-datum@1
@@ -18,6 +18,9 @@ payload_schema:
     blocking_impact: {type: string, minLength: 1}
     reactivation_condition: {type: string, minLength: 1}
     owner: {type: string, minLength: 1}
+    evidence_available: {type: boolean}
+    attention_checkpoint: {enum: [phase-0-gate, phase-2-system-gate]}
+    consolidation_group: {enum: [phase-0-stakeholder-questions, phase-2-system-stakeholder-questions]}
     resolution_evidence: {enum: [prototype]}
     prototype_evidence:
       type: object
@@ -38,9 +41,22 @@ payload_schema:
         finding_if_supported: {type: string, minLength: 1}
         finding_if_not_supported: {type: string, minLength: 1}
   dependentRequired:
+    attention_checkpoint: [consolidation_group]
+    consolidation_group: [attention_checkpoint]
     resolution_evidence: [prototype_evidence]
     prototype_evidence: [resolution_evidence]
   allOf:
+    - if: {required: [evidence_available]}
+      then:
+        properties:
+          kind: {const: empirical}
+    - if:
+        anyOf:
+          - {required: [attention_checkpoint]}
+          - {required: [consolidation_group]}
+      then:
+        properties:
+          kind: {const: preferential}
     - if: {required: [resolution_evidence]}
       then:
         properties:

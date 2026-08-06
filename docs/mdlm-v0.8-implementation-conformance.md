@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.32.0`
+- **Implementation package:** `mdlm-bootstrap@0.33.0`
 - **Expansion decision:** `change`
 
 ## Purpose

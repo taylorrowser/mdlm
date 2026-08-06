@@ -21,6 +21,11 @@ outputs:
       - {link: contextualizes, target: {input: review_context}}
 prompt_ref: prompts/review-datum-in-context.md@1
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: contextual-review-participation@1
+  arguments:
+    subject: subject
+    review_context: review_context
 completion: >-
   execution.integrity.contract_valid == true
   && review.payload.outcome in ["pass", "fail", "cancelled"]

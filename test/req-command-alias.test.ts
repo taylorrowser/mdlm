@@ -46,6 +46,8 @@ async function repositoryWithQuestion(): Promise<{
     "--set",
     "kind=empirical",
     "--set",
+    "evidence_available=true",
+    "--set",
     "question=Does a package alias preserve the Scenario contract?",
     "--set",
     "state=open",
@@ -83,7 +85,7 @@ async function repositoryWithQuestion(): Promise<{
   return {
     root,
     question,
-    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.32.0#${packageDigest}`,
+    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.33.0#${packageDigest}`,
   };
 }
 
@@ -331,9 +333,9 @@ describe("req Package Command Alias", () => {
     );
     expect(blocked.status).toBe(1);
     expect(JSON.parse(blocked.stdout).diagnostics).toEqual([
-      expect.objectContaining({ code: "obligation-not-dispatchable" }),
+      expect.objectContaining({ code: "scenario-output-required-link-missing" }),
     ]);
-    await expect(fs.stat(blockedAdapter.capture)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(blockedAdapter.capture)).resolves.toMatchObject({});
     expect(await treeDigest(path.join(configured.root, ".lifecycle"))).toBe(beforeBlocked);
   }, 20_000);
 

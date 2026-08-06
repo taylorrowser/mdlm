@@ -24,11 +24,11 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.32.0");
+    expect(result.package.manifest.version).toBe("0.33.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(63);
-    expect(Object.keys(result.package.policies)).toHaveLength(3);
+    expect(Object.keys(result.package.policies)).toHaveLength(6);
     expect(Object.keys(result.package.obligations)).toHaveLength(20);
     expect(Object.keys(result.package.scenarios)).toHaveLength(32);
     expect(result.diagnostics).toEqual([]);
@@ -160,8 +160,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       manifestPath,
       manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability]",
-        "  policies: [dependency-reassessment, waiver-applicability]",
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation]",
+        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation]",
       ),
     );
 

@@ -1,0 +1,27 @@
+kind: policy-definition
+id: contextual-review-participation
+version: 1
+description: Require an explicitly delegated independent reviewer for contextual Review of exact inputs.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
+  - {name: review_context, kind: revision, types: [BSL]}
+result_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  additionalProperties: false
+  required: [authority_mode, authority, delegation_allowed, attention_timing, attention_checkpoint, consolidation_group]
+  properties:
+    authority_mode: {type: string, enum: [autonomous, delegated, attended]}
+    authority: {type: string, minLength: 1}
+    delegation_allowed: {type: boolean}
+    attention_timing: {type: string, enum: [none, immediate, checkpoint]}
+    attention_checkpoint: {type: [string, 'null']}
+    consolidation_group: {type: [string, 'null']}
+default:
+  authority_mode: delegated
+  authority: independent-reviewer
+  delegation_allowed: true
+  attention_timing: none
+  attention_checkpoint: null
+  consolidation_group: null
+rules: []

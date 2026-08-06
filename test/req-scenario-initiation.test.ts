@@ -69,6 +69,8 @@ describe("req scenario explicit initiation", () => {
       "--set",
       "kind=empirical",
       "--set",
+      "evidence_available=true",
+      "--set",
       "question=Does the exact prototype discriminate its unsupported input?",
       "--set",
       "state=open",
@@ -164,7 +166,7 @@ describe("req scenario explicit initiation", () => {
       ok: true,
       command: "scenario.dry-run",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.32.0",
+        reference: "mdlm-bootstrap@0.33.0",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       }),
       scenarioDryRun: expect.objectContaining({
