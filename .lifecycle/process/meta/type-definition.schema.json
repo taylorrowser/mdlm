@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/type-definition.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/type-definition.schema.json",
   "title": "MDLM lifecycle type definition",
   "type": "object",
   "additionalProperties": false,

@@ -66,11 +66,11 @@ export interface ScenarioExecutionOutput {
 }
 
 export interface ScenarioExecution {
-  contract: "mdlm-scenario-execution@1";
+  contract: "mdlm-scenario-execution@1" | "mdlm-scenario-execution@2";
   id: string;
   status: "completed";
   adapter: {
-    contract: "mdlm-agent-adapter@1";
+    contract: "mdlm-agent-adapter@1" | "mdlm-agent-adapter@2";
     executable: string;
     digest: string;
     requestDigest: string;
@@ -83,7 +83,11 @@ export interface ScenarioExecution {
   inputs: ScenarioDryRunInvocation[];
   prompt: Omit<ScenarioDryRun["prompt"], "skills">;
   skills: ScenarioDryRun["prompt"]["skills"];
-  policies: ScenarioDryRun["policies"];
+  policies: Array<
+    | ScenarioDryRun["policies"][number]
+    | { role: "participation"; reference: string }
+  >;
+  participation?: NonNullable<ScenarioDryRun["participation"]>;
   prohibitedInputs: string[];
   outputs: ScenarioExecutionOutput[];
   completion: {
@@ -579,8 +583,26 @@ async function executeScenario(
   );
   if (!dryRunResult.ok) return dryRunResult;
   const { dryRun, scenario: selectedScenario, snapshot } = dryRunResult.value;
+  const participationPolicyReferences = [...new Set(
+    (dryRun.participation ?? []).map((participation) => participation.policy),
+  )].sort();
+  const participationPolicies = participationPolicyReferences.map(
+    (reference) => ({
+      role: "participation" as const,
+      reference,
+    }),
+  );
+  const participationContract = dryRun.participation
+    ? {
+        adapter: "mdlm-agent-adapter@2" as const,
+        execution: "mdlm-scenario-execution@2" as const,
+      }
+    : {
+        adapter: "mdlm-agent-adapter@1" as const,
+        execution: "mdlm-scenario-execution@1" as const,
+      };
   const adapterRequest = {
-    contract: "mdlm-agent-adapter@1" as const,
+    contract: participationContract.adapter,
     scenario: scenarioReference,
     authorization: dryRun.authorization,
     ...(dryRun.obligation
@@ -589,6 +611,7 @@ async function executeScenario(
     invocations: dryRun.invocations,
     prompt: dryRun.prompt,
     policies: dryRun.policies,
+    ...(dryRun.participation ? { participation: dryRun.participation } : {}),
     prohibitedInputs: dryRun.prohibitedInputs,
     expectedOutputs: dryRun.expectedOutputs,
     completion: dryRun.completion,
@@ -634,7 +657,10 @@ async function executeScenario(
     existingById.set(record.datum.id, lineage);
   }
   const usedIds = new Set(existingById.keys());
-  const policies = dryRun.policies.map((policy) => policy.reference).sort();
+  const policies = [...new Set([
+    ...dryRun.policies.map((policy) => policy.reference),
+    ...participationPolicyReferences,
+  ])].sort();
   const outputData = parsedResponse.value.outputs.map((proposal) => {
     const requestedId = proposal.lifecycleDatum.id;
     let id = requestedId;
@@ -753,11 +779,11 @@ async function executeScenario(
   const executionId = randomUUID();
   const { skills, ...prompt } = dryRun.prompt;
   const executionBase = {
-    contract: "mdlm-scenario-execution@1" as const,
+    contract: participationContract.execution,
     id: executionId,
     status: "completed" as const,
     adapter: {
-      contract: "mdlm-agent-adapter@1" as const,
+      contract: participationContract.adapter,
       executable: adapterExecutable,
       digest: adapterDigest,
       requestDigest: sha256(adapterRequestSource),
@@ -770,7 +796,8 @@ async function executeScenario(
     inputs: dryRun.invocations,
     prompt,
     skills,
-    policies: dryRun.policies,
+    policies: [...dryRun.policies, ...participationPolicies],
+    ...(dryRun.participation ? { participation: dryRun.participation } : {}),
     prohibitedInputs: dryRun.prohibitedInputs,
     completion: {
       contractValid: true as const,

@@ -101,6 +101,18 @@ _Avoid_: Ready when referring only to maturity
 A versioned contract for agent work with typed inputs, outputs, prohibited inputs, prompt, policy, and completion conditions.
 _Avoid_: Workflow step, command
 
+**Authority Requirement**:
+A machine-readable Scenario participation result stating whether work is autonomous, delegated, or attended, which package-defined authority is required, and whether delegation is allowed.
+_Avoid_: Inferring permission from prompt prose, chat availability
+
+**Attention Schedule**:
+A machine-readable Scenario participation result stating whether authority needs no attention, immediate attention, or attention at a named checkpoint, independently of the Scenario's transaction-batching contract.
+_Avoid_: Treating every atomic Scenario transaction as a separate interruption
+
+**Consolidation Group**:
+A package-defined identity grouping compatible checkpoint-scheduled Authority Requirements that may be presented together without deferring or satisfying their underlying Lifecycle Data.
+_Avoid_: Batch execution, durable deferral
+
 **Phase**:
 A declarative scope that selects applicable obligations, scenarios, entry conditions, and gate conditions without prescribing an imperative sequence.
 _Avoid_: Pipeline stage when sequential execution is implied

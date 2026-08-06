@@ -1288,11 +1288,14 @@ Every scenario definition is versioned and declares:
 | `optional_outputs` | QST, DEC, PRB, revisions, findings, or evidence it may emit. |
 | `prompt_ref` | Versioned prompt that instructs the agent, including which skills to read. |
 | `review_policy` | Which authored outputs require REV. |
+| `participation` | A versioned Policy and typed input bindings producing the Authority Requirement and Attention Schedule. |
 | `completion` | An MDLM expression adding process-specific completion to generic contract checks. |
 | `loose_ends` | Obligation classes it resolves. |
 | `prohibited_inputs` | Inputs the agent may not access. |
 
 The execution wrapper binds `input.<name>`, `output.<name>`, and `execution`. Generic validation checks cardinality, schemas, source-owned link contracts, required input/output links, and undeclared outputs. A condition on a `one-or-more` input applies to each bound item. The completion expression should not duplicate generic contract checks.
+
+A participation Policy returns whether the Scenario is autonomous, delegated, or attended; its package-defined authority and delegation allowance; and whether attention is absent, immediate, or scheduled at a checkpoint with an optional Consolidation Group. This scheduling is independent of the Scenario's atomic transaction-batching contract.
 
 Skills are not duplicated in the scenario registry. The prompt is executable process content and directs the agent to the relevant versioned skills. Artifacts record the exact prompt and skill versions actually used. The CLI validates that scenario outputs conform to the registered contract.
 

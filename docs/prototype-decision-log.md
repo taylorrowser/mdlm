@@ -1524,3 +1524,42 @@ turning provisional choices into architecture.
   Data. Public evaluator and `req` coverage proves discovery, `next`, dry-run,
   authorized Scenario execution, atomic MAP publication, and
   satisfaction-driven removal of the scoped Loose End.
+
+## D-060 — Derive Scenario authority and attention from participation Policies
+
+- **Status:** accepted and implemented
+- **Decision:** A Scenario may reference one exact participation Policy and bind
+  all of its typed parameters with `mdlm-expression@1` expressions over exact
+  resolved Scenario inputs and process context. The Policy returns a standardized
+  authority mode, package-defined authority, delegation allowance, attention
+  timing, checkpoint, and Consolidation Group. Public Loose End, `req next`, and
+  dry-run projections expose only the resulting Authority Requirement and
+  Attention Schedule, the exact Policy reference, and the separate Scenario
+  transaction-batching contract.
+- **Alternatives:** Infer human involvement from prompts; encode authority in the
+  kernel; add participation fields directly to every Scenario without Policy
+  evaluation; treat every atomic transaction as a separate interruption; or let
+  the operator invent checkpoint grouping.
+- **Rationale:** Continuous orchestration must know when it can proceed, delegate,
+  or stop for human authority without recognizing package-owned roles or reading
+  prose. Attention timing is a presentation concern, while Scenario batching is
+  an atomicity concern; conflating them would either interrupt too often or combine
+  work that must remain separate transactions.
+- **Expected behavior:** Package loading rejects unknown participation Policies,
+  incomplete or mistyped parameter bindings, nonstandard result schemas, and
+  invalid results. Once Resolver inputs are exact, evaluation and dry-run return
+  the same autonomous, delegated, or attended result. Immediate and checkpoint
+  attention remain distinct, and compatible checkpoint items expose a package-
+  defined Consolidation Group without becoming satisfied or deferred.
+- **Reversibility:** A later participation contract version may add new authority
+  or scheduling dimensions behind a new standardized result and Scenario field.
+  Scenarios without participation declarations retain their current projections,
+  and the kernel remains independent of package authority names.
+- **Evidence/observations:** Copied-package public-seam tests validate exact Policy
+  references, parameter contracts, standardized results, and explicit-initiation
+  evaluation. Repository-backed `req` coverage derives all three authority modes,
+  immediate and checkpoint attention, Consolidation Group, and separate
+  transaction batching from exact QST inputs; Loose Ends, `req next`, and dry-run
+  agree without exposing Policy rules or schemas. The package advances to
+  `mdlm-bootstrap@0.32.0` and meta-schema v3 so the new Scenario contract does
+  not reuse the immutable v2 or package-version slots.

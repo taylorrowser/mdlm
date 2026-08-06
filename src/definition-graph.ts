@@ -1,4 +1,8 @@
-import { validateExpressionDependencyCycles } from "./expression.js";
+import {
+  findDefinitionExpressionBindingReference,
+  validateExpressionDependencyCycles,
+} from "./expression.js";
+import { validateParticipationPolicy } from "./participation.js";
 import type {
   ProcessDiagnostic,
   VersionedDefinition,
@@ -237,6 +241,112 @@ function validateReferences(
         ),
       );
     }
+    const participation = typeof definition.participation === "object" &&
+        definition.participation !== null
+      ? definition.participation as Record<string, unknown>
+      : undefined;
+    if (typeof participation?.policy_ref === "string") {
+      const scenarioInputNames = (Array.isArray(definition.inputs)
+        ? definition.inputs
+        : []).flatMap((value) => {
+          if (typeof value !== "object" || value === null) return [];
+          const name = (value as Record<string, unknown>).name;
+          return typeof name === "string" ? [name] : [];
+        });
+      if (scenarioInputNames.includes("execution")) {
+        diagnostics.push({
+          code: "participation-execution-binding-reserved",
+          path: `scenarios.${id}.inputs`,
+          message: `Scenario '${id}' cannot use reserved participation input name 'execution'`,
+        });
+      }
+      const policyPath = `scenarios.${id}.participation.policy_ref`;
+      const referenceDiagnostics = validateVersionedReference(
+        participation.policy_ref,
+        definitions.policies,
+        policyPath,
+        "Participation Policy",
+      );
+      diagnostics.push(...referenceDiagnostics);
+      if (referenceDiagnostics.length === 0) {
+        const policyId = referenceId(participation.policy_ref);
+        const policy = policyId ? definitions.policies[policyId] : undefined;
+        if (policy) {
+          diagnostics.push(
+            ...validateParticipationPolicy(policy, `policies.${policy.id}`),
+          );
+          const executionExpression =
+            findDefinitionExpressionBindingReference(
+              policy,
+              "execution",
+              definitions,
+            );
+          if (executionExpression) {
+            diagnostics.push({
+              code: "participation-execution-binding-forbidden",
+              path: executionExpression.contract?.definitionPath ??
+                `scenarios.${id}.participation.policy_ref`,
+              line: executionExpression.root.span.start.line,
+              column: executionExpression.root.span.start.column,
+              source: executionExpression.source,
+              message: `Participation Policy '${participation.policy_ref}' depends on execution context that is unavailable before Scenario execution`,
+            });
+          }
+          const policyParameters = Array.isArray(policy.parameters)
+            ? policy.parameters
+            : [];
+          policyParameters.forEach((value, parameterIndex) => {
+            if (typeof value !== "object" || value === null) return;
+            const parameter = value as Record<string, unknown>;
+            const types = Array.isArray(parameter.types) ? parameter.types : [];
+            types.forEach((type, typeIndex) => {
+              if (typeof type !== "string" || definitions.types[type]) return;
+              diagnostics.push({
+                code: "unknown-participation-policy-type",
+                path: `policies.${policy.id}.parameters[${parameterIndex}].types[${typeIndex}]`,
+                message: `Participation Policy '${participation.policy_ref}' references undeclared lifecycle type '${type}'`,
+              });
+            });
+          });
+          const parameterNames = policyParameters
+              .flatMap((value) => {
+                if (typeof value !== "object" || value === null) return [];
+                const name = (value as Record<string, unknown>).name;
+                return typeof name === "string" ? [name] : [];
+              });
+          const parameters = new Set(parameterNames);
+          if (parameterNames.includes("execution")) {
+            diagnostics.push({
+              code: "participation-execution-binding-reserved",
+              path: `policies.${policy.id}.parameters`,
+              message: `Participation Policy '${participation.policy_ref}' cannot use reserved parameter name 'execution'`,
+            });
+          }
+          if (parameters.size !== parameterNames.length) {
+            diagnostics.push({
+              code: "participation-policy-parameters",
+              path: `policies.${policy.id}.parameters`,
+              message: `Participation Policy '${participation.policy_ref}' has duplicate parameter names`,
+            });
+          }
+          const argumentsValue = typeof participation.arguments === "object" &&
+              participation.arguments !== null &&
+              !Array.isArray(participation.arguments)
+            ? participation.arguments as Record<string, unknown>
+            : {};
+          const supplied = new Set(Object.keys(argumentsValue));
+          const missing = [...parameters].filter((name) => !supplied.has(name));
+          const unknown = [...supplied].filter((name) => !parameters.has(name));
+          if (missing.length > 0 || unknown.length > 0) {
+            diagnostics.push({
+              code: "participation-policy-arguments",
+              path: `scenarios.${id}.participation.arguments`,
+              message: `Scenario '${id}' participation arguments must exactly match Policy '${participation.policy_ref}'; missing: ${missing.join(", ") || "none"}; unknown: ${unknown.join(", ") || "none"}`,
+            });
+          }
+        }
+      }
+    }
   }
 
   const coreCommands = new Set([
@@ -385,6 +495,8 @@ export function validateDefinitionGraph(
     ...validateReferences(definitions),
     ...validateTemplateCycles(definitions),
     ...validateExpressionDependencyCycles({
+      templates: definitions.templates,
+      types: definitions.types,
       selectors: definitions.selectors,
       states: definitions.states,
       policies: definitions.policies,

@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.31.0
+version: 0.32.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -34,7 +34,7 @@ kernel_capabilities:
     type: BSL
 compatibility:
   minimum_kernel: 0.2.0
-  meta_schema_version: 2
+  meta_schema_version: 3
   json_schema_draft: '2020-12'
   unknown_definition_fields: reject
   arbitrary_code_execution: forbidden

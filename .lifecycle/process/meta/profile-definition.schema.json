@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/profile-definition.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/profile-definition.schema.json",
   "title": "MDLM implementation profile",
   "type": "object",
   "additionalProperties": false,

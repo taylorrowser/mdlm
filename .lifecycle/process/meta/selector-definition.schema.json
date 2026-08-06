@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/selector-definition.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/selector-definition.schema.json",
   "title": "MDLM parameterized selector definition",
   "type": "object",
   "additionalProperties": false,

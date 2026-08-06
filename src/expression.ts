@@ -2,11 +2,24 @@ import { dependencyChangeExpressionPaths } from "./dependency-changes.js";
 import type { ProcessDiagnostic, VersionedDefinition } from "./index.js";
 import { structuralValuesEqual } from "./structural-equality.js";
 
-type ValueType = "array" | "boolean" | "entity" | "null" | "number" | "object" | "string" | "unknown";
+type ValueType = "array" | "boolean" | "entity" | "integer" | "null" | "number" | "object" | "string" | "unknown";
 type ExpectedType = ValueType | "any";
 type ComparisonOperator = "eq" | "ne" | "gt" | "gte" | "in" | "lt" | "lte";
 type LogicalOperator = "and" | "or";
 type SelectorOperation = "count" | "exists" | "none" | "one" | "select";
+
+function valueTypeCompatible(actual: ValueType, expected: ExpectedType): boolean {
+  return expected === "any" || actual === "unknown" || actual === expected ||
+    (actual === "integer" && expected === "number");
+}
+
+function numericValueType(value: ValueType): boolean {
+  return value === "integer" || value === "number";
+}
+
+function displayedValueType(value: ValueType): ValueType {
+  return value === "integer" ? "number" : value;
+}
 
 const comparisonOperatorByToken: Record<string, ComparisonOperator> = {
   "==": "eq",
@@ -177,16 +190,20 @@ interface Binding {
   domainKind?: string;
   lifecycleTypes?: string[];
   paths?: Record<string, ValueType>;
+  strictPayloadPaths?: boolean;
 }
 
 type Bindings = Record<string, Binding>;
 type DefinitionCatalog = Record<string, VersionedDefinition>;
 
 export interface ExpressionDefinitionCatalogs {
+  templates: DefinitionCatalog;
+  types: DefinitionCatalog;
   selectors: DefinitionCatalog;
   states: DefinitionCatalog;
   policies: DefinitionCatalog;
   scenarios: DefinitionCatalog;
+  exactBaselineType?: string;
 }
 
 type TokenKind =
@@ -365,7 +382,7 @@ class ExpressionParser {
   parse(): CompiledTextExpression {
     const root = this.parseOr();
     this.take("eof", "Expected the expression to end");
-    if (this.expectedType !== "any" && root.valueType !== this.expectedType) {
+    if (!valueTypeCompatible(root.valueType, this.expectedType)) {
       throw new ExpressionFailure(
         "expression-result-type",
         `${this.expectedType === "boolean" ? "Rule condition" : "Expression"} must return ${this.expectedType}, received ${root.valueType}`,
@@ -716,7 +733,7 @@ class ExpressionParser {
       referenceToken.span,
     );
     const valueTypes: Record<SelectorOperation, ValueType> = {
-      count: "number",
+      count: "integer",
       exists: "boolean",
       none: "boolean",
       one: "entity",
@@ -787,7 +804,7 @@ class ExpressionParser {
         argument.lifecycleTypes !== undefined &&
         !argument.lifecycleTypes.some((type) => expectedLifecycleTypes.includes(type));
       if (
-        (argument.valueType !== expectedType && argument.valueType !== "unknown") ||
+        !valueTypeCompatible(argument.valueType, expectedType) ||
         kindMismatch ||
         lifecycleTypeMismatch
       ) {
@@ -803,7 +820,8 @@ class ExpressionParser {
   private schemaValueType(value: unknown): ValueType {
     const types = Array.isArray(value) ? value : [value];
     const type = types.find((item) => item !== "null");
-    if (type === "integer" || type === "number") return "number";
+    if (type === "integer") return "integer";
+    if (type === "number") return "number";
     if (["array", "boolean", "null", "object", "string"].includes(String(type))) {
       return type as ValueType;
     }
@@ -811,7 +829,9 @@ class ExpressionParser {
   }
 
   private scalarType(type: string): ValueType {
-    return type === "integer" || type === "number"
+    return type === "integer"
+      ? "integer"
+      : type === "number"
       ? "number"
       : type === "boolean"
         ? "boolean"
@@ -827,7 +847,7 @@ class ExpressionParser {
 
   private describeNode(node: ExpressionNode): string {
     if (node.kind === "selector" && node.operation === "select") return "selection";
-    const kind = node.domainKind ?? node.valueType;
+    const kind = node.domainKind ?? displayedValueType(node.valueType);
     if (!node.lifecycleTypes || node.lifecycleTypes.length === 0) return kind;
     return `${kind} of ${node.lifecycleTypes.length === 1 ? "type" : "types"} ${[...node.lifecycleTypes].sort().join(", ")}`;
   }
@@ -906,7 +926,7 @@ class ExpressionParser {
       const valueType: ValueType = token.kind === "boolean"
         ? "boolean"
         : token.kind === "number"
-          ? "number"
+          ? Number.isInteger(token.value) ? "integer" : "number"
           : token.kind === "string"
             ? "string"
             : "null";
@@ -946,7 +966,10 @@ class ExpressionParser {
     }
 
     const path = segments.join(".");
-    const valueType = binding.paths?.[path] ?? (path.startsWith("payload.") ? "unknown" : undefined);
+    const valueType = binding.paths?.[path] ??
+      (path.startsWith("payload.") && !binding.strictPayloadPaths
+        ? "unknown"
+        : undefined);
     if (!valueType) {
       throw new ExpressionFailure(
         "expression-unknown-path",
@@ -987,21 +1010,24 @@ class ExpressionParser {
         left.valueType !== "unknown" &&
         !elementTypes.has("unknown") &&
         !elementTypes.has("null") &&
-        !elementTypes.has(left.valueType)
+        ![...elementTypes].some((elementType) =>
+          valueTypeCompatible(left.valueType, elementType) ||
+          valueTypeCompatible(elementType, left.valueType)
+        )
       ) {
         throw new ExpressionFailure(
           "expression-type",
-          `Cannot test ${left.valueType} membership in array of ${[...elementTypes].join(" or ")}`,
+          `Cannot test ${displayedValueType(left.valueType)} membership in array of ${[...elementTypes].map(displayedValueType).join(" or ")}`,
           operatorSpan,
         );
       }
       return;
     }
     if (["gt", "gte", "lt", "lte"].includes(operator)) {
-      if (left.valueType !== "number" || right.valueType !== "number") {
+      if (!numericValueType(left.valueType) || !numericValueType(right.valueType)) {
         throw new ExpressionFailure(
           "expression-type",
-          `Operator '${this.source.slice(operatorSpan.start.offset, operatorSpan.end.offset)}' requires number operands, received ${left.valueType} and ${right.valueType}`,
+          `Operator '${this.source.slice(operatorSpan.start.offset, operatorSpan.end.offset)}' requires number operands, received ${displayedValueType(left.valueType)} and ${displayedValueType(right.valueType)}`,
           operatorSpan,
         );
       }
@@ -1012,11 +1038,12 @@ class ExpressionParser {
       right.valueType !== "unknown" &&
       left.valueType !== "null" &&
       right.valueType !== "null" &&
-      left.valueType !== right.valueType
+      !valueTypeCompatible(left.valueType, right.valueType) &&
+      !valueTypeCompatible(right.valueType, left.valueType)
     ) {
       throw new ExpressionFailure(
         "expression-type",
-        `Cannot compare ${left.valueType} with ${right.valueType}`,
+        `Cannot compare ${displayedValueType(left.valueType)} with ${displayedValueType(right.valueType)}`,
         operatorSpan,
       );
     }
@@ -1050,7 +1077,7 @@ const entityPaths: Record<string, ValueType> = {
   "identity.id": "string",
   "identity.revision_id": "string",
   "identity.type": "string",
-  "identity.revision": "number",
+  "identity.revision": "integer",
   "storage.editable": "boolean",
   "storage.frozen": "boolean",
   "integrity.parseable": "boolean",
@@ -1059,6 +1086,13 @@ const entityPaths: Record<string, ValueType> = {
   "integrity.references_valid": "boolean",
   "integrity.hash_valid": "boolean",
   "provenance.process_ref": "string",
+};
+
+const scalarParameterValueTypes: Record<string, ValueType> = {
+  boolean: "boolean",
+  integer: "integer",
+  number: "number",
+  string: "string",
 };
 
 const baseBindings: Bindings = {
@@ -1150,7 +1184,39 @@ function compile(
   }
 }
 
-function definitionBindings(definition: VersionedDefinition): Bindings {
+function policyParameterBinding(
+  parameter: Record<string, unknown>,
+  catalogs: ExpressionDefinitionCatalogs,
+): Binding {
+  const kind = String(parameter.kind);
+  if (kind === "scalar") {
+    return {
+      valueType:
+        scalarParameterValueTypes[String(parameter.scalar_type)] ?? "unknown",
+    };
+  }
+  if (kind === "process" || kind === "phase" || kind === "execution") {
+    return structuredClone(baseBindings[kind]!);
+  }
+  const lifecycleTypes = Array.isArray(parameter.types)
+    ? parameter.types.filter((item): item is string => typeof item === "string")
+    : undefined;
+  return {
+    valueType: "entity",
+    domainKind: kind,
+    ...(lifecycleTypes === undefined ? {} : { lifecycleTypes }),
+    paths: {
+      ...entityPaths,
+      ...lifecyclePayloadPaths(lifecycleTypes, catalogs),
+    },
+    strictPayloadPaths: lifecycleTypes !== undefined,
+  };
+}
+
+function definitionBindings(
+  definition: VersionedDefinition,
+  catalogs: ExpressionDefinitionCatalogs,
+): Bindings {
   const bindings: Bindings = { ...baseBindings };
   if (typeof definition.subject_as === "string") {
     bindings[definition.subject_as] = {
@@ -1163,29 +1229,7 @@ function definitionBindings(definition: VersionedDefinition): Bindings {
     if (typeof value !== "object" || value === null) continue;
     const parameter = value as Record<string, unknown>;
     if (typeof parameter.name !== "string") continue;
-    const scalarTypes: Record<string, ValueType> = {
-      boolean: "boolean",
-      integer: "number",
-      number: "number",
-      string: "string",
-    };
-    const kind = String(parameter.kind);
-    const valueType = kind === "scalar"
-      ? scalarTypes[String(parameter.scalar_type)] ?? "unknown"
-      : ["baseline", "revision", "stable-datum"].includes(kind)
-        ? "entity"
-        : "object";
-    const lifecycleTypes = Array.isArray(parameter.types)
-      ? parameter.types.filter((item): item is string => typeof item === "string")
-      : undefined;
-    bindings[parameter.name] = valueType === "entity"
-      ? {
-          valueType,
-          domainKind: kind,
-          ...(lifecycleTypes === undefined ? {} : { lifecycleTypes }),
-          paths: entityPaths,
-        }
-      : { valueType, ...(kind === "scalar" ? {} : { domainKind: kind }) };
+    bindings[parameter.name] = policyParameterBinding(parameter, catalogs);
   }
   return bindings;
 }
@@ -1351,7 +1395,7 @@ function compileSelectorDefinition(
 ): void {
   if (typeof definition.query !== "object" || definition.query === null) return;
   const query = definition.query as Record<string, unknown>;
-  const bindings = definitionBindings(definition);
+  const bindings = definitionBindings(definition, catalogs);
   const from = typeof query.from === "object" && query.from !== null
     ? query.from as Record<string, unknown>
     : undefined;
@@ -1494,9 +1538,150 @@ function compileObligationDefinition(
   );
 }
 
+function schemaExpressionType(schema: unknown): ValueType {
+  if (typeof schema !== "object" || schema === null) return "unknown";
+  const definition = schema as Record<string, unknown>;
+  const alternatives = Array.isArray(definition.oneOf)
+    ? definition.oneOf.map(schemaExpressionType)
+    : [];
+  if (
+    alternatives.length > 0 &&
+    alternatives.every((value) => value === alternatives[0])
+  ) return alternatives[0]!;
+  if (definition.type === "integer") return "integer";
+  if (definition.type === "number") return "number";
+  if (["array", "boolean", "object", "string"].includes(String(definition.type))) {
+    return definition.type as ValueType;
+  }
+  if (Object.hasOwn(definition, "const")) {
+    const value = definition.const;
+    if (Number.isInteger(value)) return "integer";
+    if (typeof value === "number") return "number";
+    if (["boolean", "string"].includes(typeof value)) return typeof value as ValueType;
+  }
+  const enumValues = Array.isArray(definition.enum) ? definition.enum : [];
+  const enumTypes = new Set(enumValues.map((value) =>
+    Number.isInteger(value) ? "integer" : typeof value === "number" ? "number" : typeof value
+  ));
+  return enumTypes.size === 1 &&
+      ["boolean", "integer", "number", "string"].includes([...enumTypes][0] ?? "")
+    ? [...enumTypes][0] as ValueType
+    : "unknown";
+}
+
+function schemaPropertyExpressionPaths(
+  schema: Record<string, unknown>,
+  prefix = "payload",
+  parentRequired = true,
+): Record<string, ValueType> {
+  const alternatives = Array.isArray(schema.oneOf)
+    ? schema.oneOf.flatMap((alternative) =>
+        typeof alternative === "object" && alternative !== null
+          ? [schemaPropertyExpressionPaths(
+              alternative as Record<string, unknown>,
+              prefix,
+              parentRequired,
+            )]
+          : []
+      )
+    : [];
+  if (alternatives.length > 0) {
+    return Object.fromEntries(
+      Object.entries(alternatives[0]!).filter(([path, valueType]) =>
+        alternatives.every((candidate) => candidate[path] === valueType)
+      ),
+    );
+  }
+  const properties = typeof schema.properties === "object" &&
+      schema.properties !== null
+    ? schema.properties as Record<string, unknown>
+    : {};
+  const required = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter((name): name is string => typeof name === "string")
+      : [],
+  );
+  return Object.fromEntries(
+    Object.entries(properties).flatMap(([name, propertySchema]) => {
+      const path = `${prefix}.${name}`;
+      const property = typeof propertySchema === "object" &&
+          propertySchema !== null
+        ? propertySchema as Record<string, unknown>
+        : {};
+      const schemaType = schemaExpressionType(property);
+      const propertyRequired = parentRequired && required.has(name);
+      const valueType = propertyRequired ? schemaType : "unknown";
+      return [
+        [path, valueType] as const,
+        ...(schemaType === "object"
+          ? Object.entries(
+              schemaPropertyExpressionPaths(
+                property,
+                path,
+                propertyRequired,
+              ),
+            )
+          : []),
+      ];
+    }),
+  );
+}
+
+function definitionPayloadPaths(
+  definition: VersionedDefinition,
+  catalogs: ExpressionDefinitionCatalogs,
+  visited = new Set<string>(),
+): Record<string, ValueType> {
+  const key = `${definition.kind}:${definition.id}`;
+  if (visited.has(key)) return {};
+  const nextVisited = new Set(visited).add(key);
+  const parentReference = typeof definition.extends === "string"
+    ? /^([a-z][a-z0-9-]*)@/.exec(definition.extends)?.[1]
+    : undefined;
+  const parent = parentReference ? catalogs.templates[parentReference] : undefined;
+  const inherited = parent
+    ? definitionPayloadPaths(parent, catalogs, nextVisited)
+    : {};
+  const payloadSchema = typeof definition.payload_schema === "object" &&
+      definition.payload_schema !== null
+    ? definition.payload_schema as Record<string, unknown>
+    : undefined;
+  const authored = payloadSchema
+    ? schemaPropertyExpressionPaths(payloadSchema)
+    : {};
+  return {
+    ...inherited,
+    ...Object.fromEntries(
+      Object.entries(authored).map(([path, valueType]) => [
+        path,
+        valueType === "unknown" && inherited[path] !== undefined
+          ? inherited[path]
+          : valueType,
+      ]),
+    ),
+  };
+}
+
+function lifecyclePayloadPaths(
+  lifecycleTypes: string[] | undefined,
+  catalogs: ExpressionDefinitionCatalogs,
+): Record<string, ValueType> {
+  const paths = (lifecycleTypes ?? []).flatMap((type) => {
+    const definition = catalogs.types[type];
+    return definition ? [definitionPayloadPaths(definition, catalogs)] : [];
+  });
+  if (paths.length === 0) return {};
+  return Object.fromEntries(
+    Object.entries(paths[0]!).filter(([path, valueType]) =>
+      paths.every((candidate) => candidate[path] === valueType)
+    ),
+  );
+}
+
 function definitionEntityBindings(
   values: unknown,
   cardinalityAware: boolean,
+  catalogs: ExpressionDefinitionCatalogs,
 ): Bindings {
   const bindings: Bindings = { ...baseBindings };
   for (const value of Array.isArray(values) ? values : []) {
@@ -1506,15 +1691,32 @@ function definitionEntityBindings(
     const lifecycleTypes = Array.isArray(item.types)
       ? item.types.filter((type): type is string => typeof type === "string")
       : undefined;
+    const cardinality = String(item.cardinality);
     const many = cardinalityAware &&
-      ["one-or-more", "zero-or-more"].includes(String(item.cardinality));
+      ["one-or-more", "zero-or-more"].includes(cardinality);
+    const optional = cardinalityAware && cardinality === "zero-or-one";
+    const identity = String(item.identity);
+    const domainKind = identity === "stable"
+      ? "stable-datum"
+      : identity === "revision" && lifecycleTypes?.length === 1 &&
+          lifecycleTypes[0] === catalogs.exactBaselineType
+      ? "baseline"
+      : identity === "revision"
+      ? "revision"
+      : undefined;
     bindings[item.name] = many
       ? { valueType: "array", ...(lifecycleTypes ? { lifecycleTypes } : {}) }
+      : optional
+      ? { valueType: "unknown", ...(lifecycleTypes ? { lifecycleTypes } : {}) }
       : {
           valueType: "entity",
-          domainKind: "revision",
+          ...(domainKind ? { domainKind } : {}),
           ...(lifecycleTypes ? { lifecycleTypes } : {}),
-          paths: entityPaths,
+          paths: {
+            ...entityPaths,
+            ...lifecyclePayloadPaths(lifecycleTypes, catalogs),
+          },
+          strictPayloadPaths: lifecycleTypes !== undefined,
         };
   }
   return bindings;
@@ -1526,7 +1728,11 @@ function compileScenarioDefinition(
   catalogs: ExpressionDefinitionCatalogs,
   diagnostics: ProcessDiagnostic[],
 ): void {
-  const conditionBindings = definitionEntityBindings(definition.inputs, false);
+  const conditionBindings = definitionEntityBindings(
+    definition.inputs,
+    false,
+    catalogs,
+  );
   const inputs = Array.isArray(definition.inputs) ? definition.inputs : [];
   inputs.forEach((value, index) => {
     if (typeof value !== "object" || value === null) return;
@@ -1539,9 +1745,97 @@ function compileScenarioDefinition(
       diagnostics,
     );
   });
+  const participationBindings = definitionEntityBindings(
+    definition.inputs,
+    true,
+    catalogs,
+  );
+  const participation = typeof definition.participation === "object" &&
+      definition.participation !== null
+    ? definition.participation as Record<string, unknown>
+    : undefined;
+  const participationArguments = typeof participation?.arguments === "object" &&
+      participation.arguments !== null && !Array.isArray(participation.arguments)
+    ? participation.arguments as Record<string, unknown>
+    : undefined;
+  const policyMatch = typeof participation?.policy_ref === "string"
+    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(participation.policy_ref)
+    : undefined;
+  const policy = policyMatch?.[1] ? catalogs.policies[policyMatch[1]] : undefined;
+  if (policy?.version === Number(policyMatch?.[2]) && participationArguments) {
+    for (const parameterValue of Array.isArray(policy.parameters) ? policy.parameters : []) {
+      if (typeof parameterValue !== "object" || parameterValue === null) continue;
+      const parameter = parameterValue as Record<string, unknown>;
+      const name = typeof parameter.name === "string" ? parameter.name : undefined;
+      if (!name || !(name in participationArguments)) continue;
+      const kind = String(parameter.kind);
+      const parameterContract = policyParameterBinding(parameter, catalogs);
+      const expectedType = parameterContract.valueType;
+      const compiled = compileField(
+        participationArguments,
+        name,
+        `${filePath}#participation.arguments.${name}`,
+        participationBindings,
+        catalogs,
+        diagnostics,
+        expectedType,
+      );
+      if (!compiled) continue;
+      const executionExpression = findCompiledExpressionBindingReference(
+        compiled,
+        "execution",
+        catalogs,
+      );
+      if (executionExpression) {
+        diagnostics.push({
+          code: "participation-execution-binding-forbidden",
+          path: executionExpression.contract?.definitionPath ??
+            `${filePath}#participation.arguments.${name}`,
+          line: executionExpression.root.span.start.line,
+          column: executionExpression.root.span.start.column,
+          source: executionExpression.source,
+          message: `Participation argument '${name}' cannot depend on execution because participation is evaluated before Scenario execution`,
+        });
+        continue;
+      }
+      const compatibleDomains = kind === "revision"
+        ? ["revision", "baseline"]
+        : [kind];
+      const compatibleDomain = kind === "scalar" ||
+        (compiled.root.domainKind !== undefined &&
+          compatibleDomains.includes(compiled.root.domainKind));
+      const compatibleValueType = compiled.root.valueType !== "unknown" &&
+        valueTypeCompatible(
+          compiled.root.valueType,
+          parameterContract.valueType,
+        );
+      const allowedTypes = parameterContract.lifecycleTypes ?? [];
+      const compatibleTypes = allowedTypes.length === 0 ||
+        (compiled.root.lifecycleTypes !== undefined &&
+          compiled.root.lifecycleTypes.every((type) => allowedTypes.includes(type)));
+      if (!compatibleValueType || !compatibleDomain || !compatibleTypes) {
+        diagnostics.push({
+          code: "participation-policy-argument-type",
+          path: `${filePath}#participation.arguments.${name}`,
+          line: compiled.root.span.start.line,
+          column: compiled.root.span.start.column,
+          source: compiled.source,
+          message: `Participation argument '${name}' does not match Policy parameter kind '${kind}'`,
+        });
+      }
+    }
+  }
   const completionBindings = {
-    ...definitionEntityBindings(definition.inputs, true),
-    ...definitionEntityBindings(definition.outputs, true),
+    ...definitionEntityBindings(
+      definition.inputs,
+      true,
+      catalogs,
+    ),
+    ...definitionEntityBindings(
+      definition.outputs,
+      true,
+      catalogs,
+    ),
   };
   compileField(
     definition,
@@ -1703,7 +1997,7 @@ export function compileDefinitionExpressions(
     compileRules(
       definition,
       filePath,
-      definitionBindings(definition),
+      definitionBindings(definition, catalogs),
       catalogs,
       diagnostics,
     );
@@ -1715,6 +2009,43 @@ type ExpressionDependency =
   | `policy:${string}`
   | `selector:${string}`
   | `state:${string}`;
+
+function expressionReferencesBinding(
+  node: ExpressionNode,
+  binding: string,
+): boolean {
+  switch (node.kind) {
+    case "literal":
+      return false;
+    case "path":
+    case "variable":
+      return node.variable === binding;
+    case "array":
+      return node.elements.some((element) =>
+        expressionReferencesBinding(element, binding)
+      );
+    case "object":
+      return Object.values(node.properties).some((property) =>
+        expressionReferencesBinding(property, binding)
+      );
+    case "comparison":
+    case "logical":
+      return expressionReferencesBinding(node.left, binding) ||
+        expressionReferencesBinding(node.right, binding);
+    case "not":
+    case "present":
+      return expressionReferencesBinding(node.operand, binding);
+    case "selector":
+    case "policy":
+      return expressionReferencesBinding(node.arguments, binding);
+    case "state":
+      return expressionReferencesBinding(node.subject, binding);
+    case "every":
+      return expressionReferencesBinding(node.arguments, binding) ||
+        (node.binding !== binding &&
+          expressionReferencesBinding(node.predicate, binding));
+  }
+}
 
 function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
   switch (node.kind) {
@@ -1792,6 +2123,96 @@ function definitionDependencies(
     }
   }
   return [...dependencies];
+}
+
+export function findCompiledExpressionBindingReference(
+  expression: CompiledTextExpression,
+  binding: string,
+  catalogs: ExpressionDefinitionCatalogs,
+  visited = new Set<string>(),
+): CompiledTextExpression | undefined {
+  if (
+    expressionReferencesBinding(expression.root, binding) &&
+    (binding !== "execution" ||
+      expression.contract?.bindings[binding]?.domainKind === "execution")
+  ) return expression;
+  for (const dependency of expressionDependencies(expression.root)) {
+    const [kind, id] = dependency.split(":") as [
+      "policy" | "selector" | "state",
+      string,
+    ];
+    const referenced = kind === "policy"
+      ? catalogs.policies[id]
+      : kind === "selector"
+      ? catalogs.selectors[id]
+      : catalogs.states[id];
+    const found = referenced
+      ? findDefinitionExpressionBindingReference(
+          referenced,
+          binding,
+          catalogs,
+          visited,
+        )
+      : undefined;
+    if (found) return found;
+  }
+  return undefined;
+}
+
+export function findDefinitionExpressionBindingReference(
+  definition: VersionedDefinition,
+  binding: string,
+  catalogs: ExpressionDefinitionCatalogs,
+  visited = new Set<string>(),
+): CompiledTextExpression | undefined {
+  const definitionKey = `${definition.kind}:${definition.id}`;
+  if (visited.has(definitionKey)) return undefined;
+  const nextVisited = new Set(visited).add(definitionKey);
+  const expressions: CompiledTextExpression[] = [];
+  const visit = (value: unknown): void => {
+    if (isCompiledTextExpression(value)) {
+      expressions.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value === "object" && value !== null) {
+      Object.values(value).forEach(visit);
+    }
+  };
+  visit(definition);
+  for (const expression of expressions) {
+    const found = findCompiledExpressionBindingReference(
+      expression,
+      binding,
+      catalogs,
+      nextVisited,
+    );
+    if (found) return found;
+  }
+  for (const dependency of definitionDependencies(definition)) {
+    const [kind, id] = dependency.split(":") as [
+      "policy" | "selector" | "state",
+      string,
+    ];
+    const referenced = kind === "policy"
+      ? catalogs.policies[id]
+      : kind === "selector"
+      ? catalogs.selectors[id]
+      : catalogs.states[id];
+    const found = referenced
+      ? findDefinitionExpressionBindingReference(
+          referenced,
+          binding,
+          catalogs,
+          nextVisited,
+        )
+      : undefined;
+    if (found) return found;
+  }
+  return undefined;
 }
 
 function dependencyLabel(

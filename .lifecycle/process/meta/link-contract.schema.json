@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/link-contract.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/link-contract.schema.json",
   "title": "MDLM source-owned outgoing link contract",
   "type": "object",
   "additionalProperties": false,

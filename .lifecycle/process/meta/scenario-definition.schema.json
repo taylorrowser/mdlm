@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/scenario-definition.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/scenario-definition.schema.json",
   "title": "MDLM scenario definition",
   "type": "object",
   "additionalProperties": false,
@@ -16,12 +16,26 @@
     "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}, "minItems": 1},
     "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
     "review_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+    "participation": {"$ref": "#/$defs/participation"},
     "completion": {"$ref": "expression.schema.json"},
     "resolves": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}, "uniqueItems": true},
     "prohibited_inputs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "batching": {"enum": ["single", "coherent-batch", "either"]}
   },
   "$defs": {
+    "participation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_ref", "arguments"],
+      "properties": {
+        "policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+        "arguments": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "expression.schema.json"}
+        }
+      }
+    },
     "input": {
       "type": "object",
       "additionalProperties": false,

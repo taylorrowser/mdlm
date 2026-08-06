@@ -1,9 +1,24 @@
 import type { ObligationEvaluation } from "./evaluator.js";
+import type { ScenarioParticipation } from "./participation.js";
 import type {
   LooseEndsProjection,
   NextWorkProjection,
   PhaseStatusProjection,
 } from "./lifecycle-inspection.js";
+
+export function humanParticipation(
+  participation: ScenarioParticipation[],
+): string[] {
+  return participation.flatMap((evaluation, index) => [
+    `Participation ${index + 1} Policy: ${evaluation.policy}`,
+    `Participation ${index + 1} Authority: ${evaluation.authorityRequirement.mode} (${evaluation.authorityRequirement.authority})`,
+    `Participation ${index + 1} Delegation Allowed: ${evaluation.authorityRequirement.delegationAllowed}`,
+    `Participation ${index + 1} Attention: ${evaluation.attentionSchedule.timing}`,
+    `Participation ${index + 1} Checkpoint: ${evaluation.attentionSchedule.checkpoint ?? "none"}`,
+    `Participation ${index + 1} Consolidation Group: ${evaluation.attentionSchedule.consolidationGroup ?? "none"}`,
+    `Participation ${index + 1} Transaction Batching: ${evaluation.transactionBatching}`,
+  ]);
+}
 
 function humanObligation(obligation: ObligationEvaluation): string[] {
   const outputs = obligation.resolver.expectedOutputs.map((output) =>
@@ -23,6 +38,7 @@ function humanObligation(obligation: ObligationEvaluation): string[] {
     `Actionable Resolver: ${obligation.actionableResolver ?? "none"}`,
     `Resolver Prompt: ${obligation.resolver.promptRef}`,
     `Expected Outputs: ${outputs.join(" | ") || "none"}`,
+    ...humanParticipation(obligation.participation ?? []),
     `Waiver Policy: ${obligation.waiver.policy}`,
     `Waiver Permitted: ${obligation.waiver.result.permitted}`,
     `Waiver Approval Required: ${obligation.waiver.result.approvalRequired}`,

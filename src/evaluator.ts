@@ -20,6 +20,10 @@ import {
   processObligationSubjectIdentity,
 } from "./obligation-instance.js";
 import { effectiveOutgoingLinks } from "./payload-inheritance.js";
+import {
+  scenarioParticipation as projectScenarioParticipation,
+  type ScenarioParticipation,
+} from "./participation.js";
 
 export interface DatumEnvelope {
   id: string;
@@ -141,6 +145,7 @@ export interface ObligationEvaluation {
   unresolvedBindings: string[];
   resolver: ResolverScenarioExplanation;
   waiver: WaiverExplanation;
+  participation?: ScenarioParticipation[];
   explanation: string;
 }
 
@@ -487,6 +492,7 @@ class LifecycleEvaluator {
         (binding.valueType === "array" && Array.isArray(value)) ||
         (binding.valueType === "object" && object(value) !== undefined) ||
         (binding.valueType === "null" && value === null) ||
+        (binding.valueType === "integer" && Number.isInteger(value)) ||
         (binding.valueType === "number" && typeof value === "number") ||
         (binding.valueType === "string" && typeof value === "string") ||
         (binding.valueType === "boolean" && typeof value === "boolean");
@@ -536,6 +542,89 @@ class LifecycleEvaluator {
     } finally {
       this.definitionEvidence = previousEvidence;
     }
+  }
+
+  evaluateResolverInputs(
+    obligationReference: string,
+    subjectIdentity: string,
+  ): Record<string, unknown>[] {
+    const obligation = this.requireDefinitionReference(
+      this.processPackage.obligations,
+      obligationReference,
+      "Obligation",
+    );
+    const subject = this.resolveObligationSubject(subjectIdentity);
+    if (!this.isEntity(subject)) {
+      throw new Error(
+        `Obligation '${obligationReference}' subject '${subjectIdentity}' is not available in the lifecycle snapshot`,
+      );
+    }
+    const subjectAs = string(obligation.subject_as) ?? "subject";
+    return this.resolverInputBindings(obligation, {
+      ...this.baseContext,
+      [subjectAs]: subject,
+    }).map((bindings) =>
+      Object.fromEntries(
+        Object.entries(bindings).map(([name, value]) => [
+          name,
+          this.evidenceValue(value),
+        ]),
+      )
+    );
+  }
+
+  evaluateScenarioParticipation(
+    scenarioReference: string,
+    invocationBindings: Record<string, unknown>[],
+  ): ScenarioParticipation[] | undefined {
+    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
+      scenarioReference,
+    );
+    const scenario = match?.[1]
+      ? this.processPackage.scenarios[match[1]]
+      : undefined;
+    if (!scenario || scenario.version !== Number(match?.[2])) return undefined;
+    const participation = object(scenario.participation);
+    const policyReference = string(participation?.policy_ref);
+    const argumentsValue = object(participation?.arguments);
+    if (!policyReference || !argumentsValue) return undefined;
+    return invocationBindings.map((bindings) => {
+      const policyArguments = Object.fromEntries(
+        Object.entries(argumentsValue).map(([name, expression]) => {
+          if (!isCompiledTextExpression(expression)) {
+            throw new Error(
+              `Scenario '${scenarioReference}' participation argument '${name}' is not compiled`,
+            );
+          }
+          const resolvedBindings = Object.fromEntries(
+            Object.entries(bindings).map(([bindingName, value]) => {
+              const contract = expression.contract?.bindings[bindingName];
+              return [
+                bindingName,
+                this.resolveSuppliedValue(
+                  this.expressionBindingValue(value),
+                  contract?.domainKind === "stable-datum",
+                  contract?.domainKind,
+                ),
+              ];
+            }),
+          );
+          return [
+            name,
+            this.value(expression, { ...this.baseContext, ...resolvedBindings }),
+          ];
+        }),
+      );
+      this.requireParticipationPolicyArguments(
+        policyReference,
+        policyArguments,
+      );
+      return projectScenarioParticipation(
+        policyReference,
+        this.policyResult(policyReference, policyArguments),
+        string(scenario.batching) ?? "single",
+      );
+    });
   }
 
   evaluateDirectDefinition(
@@ -769,6 +858,13 @@ class LifecycleEvaluator {
       );
       pending.evaluation.unresolvedBindings =
         this.unresolvedResolverBindings(pending.definition, pending.context);
+      if (pending.evaluation.unresolvedBindings.length === 0) {
+        const participation = this.resolverParticipation(
+          pending.definition,
+          pending.context,
+        );
+        if (participation) pending.evaluation.participation = participation;
+      }
       this.obligationDefinitionEvidence.get(pending.evaluation.id)?.push(
         ...(this.definitionEvidence?.slice(resolutionEvidenceStart) ?? []),
       );
@@ -1044,6 +1140,21 @@ class LifecycleEvaluator {
       : value;
   }
 
+  private expressionBindingValue(value: unknown): unknown {
+    if (this.isEntity(value)) {
+      return value.identity?.revision_id ?? value.key;
+    }
+    const identity = object(object(value)?.identity);
+    if (typeof identity?.revision_id === "string") return identity.revision_id;
+    if (typeof identity?.id === "string") return identity.id;
+    const key = object(value)?.key;
+    if (typeof key === "string") return key;
+    if (Array.isArray(value)) {
+      return value.map((item) => this.expressionBindingValue(item));
+    }
+    return value;
+  }
+
   private evidenceValue(value: unknown): unknown {
     if (this.isEntity(value)) return this.exactTypedEntity(value) ?? { key: value.key };
     if (Array.isArray(value)) return value.map((item) => this.evidenceValue(item));
@@ -1175,10 +1286,10 @@ class LifecycleEvaluator {
     return [...blockerIds].sort();
   }
 
-  private unresolvedResolverBindings(
+  private resolverInputBindings(
     definition: VersionedDefinition,
     context: EvaluationContext,
-  ): string[] {
+  ): Record<string, unknown>[] {
     const resolver = object(definition.resolve_with);
     const dispatch = object(resolver?.dispatch);
     let bindingContexts = [context];
@@ -1186,23 +1297,81 @@ class LifecycleEvaluator {
       const dispatchItems = array(this.value(dispatch.for_each, context))
         .filter((value): value is Entity => this.isEntity(value));
       const alias = string(dispatch.as);
-      if (dispatchItems.length === 0 || !alias) return ["dispatch"];
+      if (dispatchItems.length === 0 || !alias) return [];
       bindingContexts = dispatchItems.map((item) => ({
         ...context,
         [alias]: item,
       }));
     }
+    return bindingContexts.map((bindingContext) =>
+      Object.fromEntries(
+        Object.entries(object(resolver?.inputs) ?? {}).map(([name, binding]) =>
+          [name, this.value(binding, bindingContext)]
+        ),
+      )
+    );
+  }
+
+  private unresolvedResolverBindings(
+    definition: VersionedDefinition,
+    context: EvaluationContext,
+  ): string[] {
+    const resolver = object(definition.resolve_with);
+    const bindings = this.resolverInputBindings(definition, context);
+    if (object(resolver?.dispatch) && bindings.length === 0) return ["dispatch"];
+    const scenarioReference = string(resolver?.scenario);
+    const scenarioId = scenarioReference
+      ? /^([a-z][a-z0-9-]*)@/.exec(scenarioReference)?.[1]
+      : undefined;
+    const scenario = scenarioId
+      ? this.processPackage.scenarios[scenarioId]
+      : undefined;
+    const cardinalities = new Map(
+      array(scenario?.inputs).flatMap((inputValue) => {
+        const input = object(inputValue);
+        const name = string(input?.name);
+        const cardinality = string(input?.cardinality);
+        return name && cardinality ? [[name, cardinality] as const] : [];
+      }),
+    );
     const unresolved = new Set<string>();
-    for (const [name, binding] of Object.entries(object(resolver?.inputs) ?? {})) {
-      for (const bindingContext of bindingContexts) {
-        const value = this.value(binding, bindingContext);
-        if (value === undefined || value === null ||
-          (Array.isArray(value) && value.length === 0)) {
+    for (const binding of bindings) {
+      for (const [name, value] of Object.entries(binding)) {
+        const optional = ["zero-or-one", "zero-or-more"].includes(
+          cardinalities.get(name) ?? "",
+        );
+        if (
+          !optional &&
+          (value === undefined || value === null ||
+            (Array.isArray(value) && value.length === 0))
+        ) {
           unresolved.add(name);
         }
       }
     }
     return [...unresolved].sort();
+  }
+
+  private resolverParticipation(
+    obligation: VersionedDefinition,
+    context: EvaluationContext,
+  ): ScenarioParticipation[] | undefined {
+    const scenarioReference = string(object(obligation.resolve_with)?.scenario);
+    const scenarioMatch = scenarioReference
+      ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(scenarioReference)
+      : undefined;
+    const scenario = scenarioMatch?.[1]
+      ? this.processPackage.scenarios[scenarioMatch[1]]
+      : undefined;
+    if (
+      !scenarioReference || !scenario ||
+      scenario.version !== Number(scenarioMatch?.[2])
+    ) return undefined;
+    if (!object(scenario.participation)) return undefined;
+    return this.evaluateScenarioParticipation(
+      scenarioReference,
+      this.resolverInputBindings(obligation, context),
+    );
   }
 
   private blockerChains(
@@ -1374,6 +1543,56 @@ class LifecycleEvaluator {
       this.state(dimension, subject);
     }
     return this.stateExplanationMemo.get(memoKey) ?? "";
+  }
+
+  private requireParticipationPolicyArguments(
+    reference: string,
+    argumentsContext: EvaluationContext,
+  ): void {
+    const definition = this.requireDefinitionReference(
+      this.processPackage.policies,
+      reference,
+      "Participation Policy",
+    );
+    for (const parameterValue of array(definition.parameters)) {
+      const parameter = object(parameterValue);
+      const name = string(parameter?.name);
+      const kind = string(parameter?.kind);
+      if (!name || !kind) continue;
+      const value = argumentsContext[name];
+      const entity = this.isEntity(value) ? value : undefined;
+      const scalarType = string(parameter?.scalar_type);
+      const scalarValid = kind !== "scalar" ||
+        (scalarType === "string" && typeof value === "string") ||
+        (scalarType === "boolean" && typeof value === "boolean") ||
+        (scalarType === "number" && typeof value === "number") ||
+        (scalarType === "integer" && Number.isInteger(value));
+      const kindValid = kind === "scalar"
+        ? scalarValid
+        : kind === "revision"
+        ? entity?.entityKind === "revision"
+        : kind === "baseline"
+        ? entity?.entityKind === "revision" &&
+          entity.identity?.type === this.exactBaselineType
+        : kind === "stable-datum"
+        ? entity?.entityKind === "stable-datum"
+        : kind === "phase" || kind === "process"
+        ? entity?.entityKind === kind
+        : kind === "execution"
+        ? object(value) !== undefined
+        : false;
+      const allowedTypes = array(parameter?.types).filter(
+        (type): type is string => typeof type === "string",
+      );
+      const typeValid = allowedTypes.length === 0 ||
+        (entity?.identity?.type !== undefined &&
+          allowedTypes.includes(entity.identity.type));
+      if (!kindValid || !typeValid) {
+        throw new Error(
+          `Participation Policy '${reference}' argument '${name}' does not satisfy parameter kind '${kind}'`,
+        );
+      }
+    }
   }
 
   private policyResult(
@@ -1734,6 +1953,26 @@ class LifecycleEvaluator {
   private isEntity(value: unknown): value is Entity {
     return object(value)?.entityKind !== undefined && typeof object(value)?.key === "string";
   }
+}
+
+export function evaluateResolverInputs(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  obligationReference: string,
+  subjectIdentity: string,
+): Record<string, unknown>[] {
+  return new LifecycleEvaluator(processPackage, snapshot)
+    .evaluateResolverInputs(obligationReference, subjectIdentity);
+}
+
+export function evaluateScenarioParticipation(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  scenarioReference: string,
+  invocationBindings: Record<string, unknown>[],
+): ScenarioParticipation[] | undefined {
+  return new LifecycleEvaluator(processPackage, snapshot)
+    .evaluateScenarioParticipation(scenarioReference, invocationBindings);
 }
 
 export function evaluateProcessDefinition(

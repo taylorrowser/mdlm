@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/phase-definition.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/phase-definition.schema.json",
   "title": "MDLM phase definition",
   "type": "object",
   "additionalProperties": false,

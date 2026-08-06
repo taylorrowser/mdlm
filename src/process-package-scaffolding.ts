@@ -178,7 +178,7 @@ function emptyManifest(id: string): Record<string, unknown> {
     kernel_capabilities: {},
     compatibility: {
       minimum_kernel: "0.2.0",
-      meta_schema_version: 2,
+      meta_schema_version: 3,
       json_schema_draft: "2020-12",
       unknown_definition_fields: "reject",
       arbitrary_code_execution: "forbidden",

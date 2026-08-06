@@ -549,16 +549,38 @@ export async function loadProcessPackage(
 
     if (diagnostics.length > 0) return { ok: false, diagnostics };
 
+    const manifestCapabilities = typeof manifest === "object" &&
+        manifest !== null &&
+        typeof (manifest as Record<string, unknown>).kernel_capabilities ===
+          "object" &&
+        (manifest as Record<string, unknown>).kernel_capabilities !== null
+      ? (manifest as Record<string, unknown>).kernel_capabilities as Record<
+        string,
+        unknown
+      >
+      : {};
+    const exactBaselineBinding = typeof manifestCapabilities[
+          "exact-baseline@1"
+        ] === "object" && manifestCapabilities["exact-baseline@1"] !== null
+      ? manifestCapabilities["exact-baseline@1"] as Record<string, unknown>
+      : undefined;
+    const exactBaselineType = typeof exactBaselineBinding?.type === "string"
+      ? exactBaselineBinding.type
+      : undefined;
+
     for (const { definition, filePath } of expressionDefinitions) {
       diagnostics.push(
         ...compileDefinitionExpressions(
           definition,
           filePath,
           {
+            templates: definitions.templates,
+            types: definitions.types,
             selectors: definitions.selectors,
             states: definitions.states,
             policies: definitions.policies,
             scenarios: definitions.scenarios,
+            ...(exactBaselineType ? { exactBaselineType } : {}),
           },
         ),
       );

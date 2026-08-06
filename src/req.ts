@@ -34,6 +34,7 @@ import {
 import {
   humanLooseEnds,
   humanNextWork,
+  humanParticipation,
   humanPhaseStatus,
 } from "./lifecycle-output.js";
 import {
@@ -2229,6 +2230,7 @@ function humanOutput(result: CommandResult): string {
       ...execution.policies.map((policy) =>
         `Policy [${policy.role}]: ${policy.reference}`
       ),
+      ...humanParticipation(execution.participation ?? []),
       ...execution.outputs.map((output) =>
         `Output ${output.name}: ${output.lifecycleDatum.revisionId}`
       ),
@@ -2261,6 +2263,7 @@ function humanOutput(result: CommandResult): string {
       ...dryRun.policies.map((policy) =>
         `Policy [${policy.role}]: ${policy.reference}`
       ),
+      ...humanParticipation(dryRun.participation ?? []),
       `Prohibited Inputs: ${dryRun.prohibitedInputs.join(", ") || "none"}`,
       ...dryRun.expectedOutputs.map((output) =>
         `Expected Output ${output.name}: ${output.types.join("|")} (${output.cardinality})`

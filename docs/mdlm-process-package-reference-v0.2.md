@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.29 — experimental implementation reference**
+**Bootstrap package 0.32 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -404,8 +404,8 @@ nor mutates them.
 ## 11. Scenarios
 
 A scenario declares named typed inputs and outputs, cardinalities, required links,
-its prompt, review policy, prohibited inputs, completion expression, and the loose
-ends it resolves.
+its prompt, review policy, optional participation Policy, prohibited inputs,
+completion expression, and the loose ends it resolves.
 
 The execution wrapper binds `input.<name>`, `output.<name>`, and `execution`.
 Generic contract validation checks declared cardinality, schema validity, link
@@ -419,6 +419,22 @@ process-specific conditions but should not duplicate those generic checks.
 
 Prompts choose and order skills. Execution provenance records the exact prompt,
 skills, policies, process reference, authorization mode, and inputs actually used.
+
+An optional `participation` block binds every parameter of one exact versioned
+Policy to a typed `mdlm-expression@1` value over the Scenario inputs and the
+pre-execution process and Phase context. Participation arguments cannot depend on
+`execution`, because authority must be known before an adapter runs. The Policy
+must return the standardized fields
+`authority_mode`, `authority`, `delegation_allowed`, `attention_timing`,
+`attention_checkpoint`, and `consolidation_group`. Package validation rejects an
+unknown Policy, missing or extra parameters, mistyped argument expressions, a
+nonstandard result schema, or invalid default and rule results. Public projections
+translate that result into an Authority Requirement and Attention Schedule while
+retaining the exact Policy reference. Scenario `batching` controls atomic
+transaction shape; an Attention Schedule's checkpoint and Consolidation Group
+control when compatible human participation may be presented. Neither implies the
+other.
+
 Every Scenario declares exactly one authorization form: a non-empty `resolves`
 catalog makes it an Obligation-authorized Resolver Scenario, while
 `initiation: explicit` with an empty `resolves` catalog makes it an explicitly
@@ -448,8 +464,10 @@ available for reproducible package tests and historical evaluation. The command
 resolves package-authored bindings against the evaluated snapshot; validates
 runtime resolution, cardinality, identity, type, optional input conditions,
 prohibited caller inputs, and exact prompt/skill assets; and returns versioned
-Obligation, Scenario, prompt, review Policy, and waiver Policy provenance. Expected
-outputs retain cardinality, types, and required links. Generic output checks and
+Obligation, Scenario, prompt, review Policy, waiver Policy, and evaluated
+participation evidence. Loose Ends and `req next` carry the same participation
+result when the Resolver inputs are resolved. Expected outputs retain cardinality,
+types, and required links. Generic output checks and
 the package completion expression remain explicitly pending until an adapter
 supplies outputs. Dry-run invokes no adapter and writes no Lifecycle Data,
 execution record, or generated projection.
@@ -458,7 +476,8 @@ execution record, or generated projection.
 --adapter <executable>` derives a fresh repository snapshot, runs the identical
 Dispatchability, binding, condition, prompt, skill, Policy, and prohibited-input
 validation, then passes that exact projection to the explicitly configured
-`mdlm-agent-adapter@1` boundary. The adapter is operator-supplied executable
+`mdlm-agent-adapter@1` boundary, or `mdlm-agent-adapter@2` when the request
+includes participation evidence. The adapter is operator-supplied executable
 infrastructure; it is not package code and is invoked directly without a shell.
 Its response names each invocation's declared outputs as complete Lifecycle Datum
 proposals and supplies completion evidence.
@@ -483,11 +502,13 @@ truth again after adapter return, stages every Datum and the execution record
 outside the readable data tree, then exposes the complete set with one same-
 filesystem rename into `.lifecycle/data/.transactions/<execution-id>`. Repository
 scans recurse through this transaction namespace as ordinary Markdown truth, so a
-reader can observe either none or all of an execution's outputs. A successful
-`mdlm-scenario-execution@1` record preserves exact input bytes, package digest,
-prompt and skill bytes and hashes, review and waiver Policies, adapter/request/
-response hashes, exact output identities, completion evidence, authorization mode,
-and the Obligation Instances obtained by reevaluating the resulting Lifecycle Data.
+reader can observe either none or all of an execution's outputs. A successful `mdlm-scenario-execution@1` record preserves exact input bytes,
+package digest, prompt and skill bytes and hashes, review and waiver Policies,
+adapter/request/response hashes, exact output identities, completion evidence,
+authorization mode, and the Obligation Instances obtained by reevaluating the
+resulting Lifecycle Data. Participation-bearing execution uses
+`mdlm-scenario-execution@2`, which additionally preserves the participation Policy,
+evaluated Authority Requirement, and Attention Schedule.
 Resolver execution provenance retains its exact Dispatchable Obligation Instance;
 explicit initiation provenance records that no Obligation authorized the work.
 `req scenario
@@ -763,7 +784,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.31 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.32 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring

@@ -5,6 +5,8 @@ import { parse } from "yaml";
 import {
   evaluateLifecycle,
   evaluateProcessExpression,
+  evaluateResolverInputs,
+  evaluateScenarioParticipation,
   scenarioOutputExplanations,
   type DatumEnvelope,
   type ExactTypedEntity,
@@ -19,6 +21,7 @@ import type {
   VersionedDefinition,
 } from "./index.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
+import type { ScenarioParticipation } from "./participation.js";
 
 export interface ScenarioInputCheck {
   check: "resolution" | "cardinality" | "identity" | "type" | "condition";
@@ -96,6 +99,7 @@ export interface ScenarioDryRun {
   invocations: ScenarioDryRunInvocation[];
   prompt: ResolvedPrompt;
   policies: ResolvedScenarioPolicy[];
+  participation?: ScenarioParticipation[];
   prohibitedInputs: string[];
   expectedOutputs: ScenarioOutputExplanation[];
   completion: {
@@ -283,52 +287,6 @@ function expressionValue(
 ): unknown {
   return evaluateProcessExpression(processPackage, snapshot, target, bindings)
     .result;
-}
-
-function resolverInvocationBindings(
-  processPackage: ProcessPackage,
-  snapshot: LifecycleSnapshot,
-  obligation: VersionedDefinition,
-  instance: ObligationEvaluation,
-): Record<string, unknown>[] {
-  const reference = `${obligation.id}@${obligation.version}`;
-  const subjectAs = string(obligation.subject_as) ?? "subject";
-  const resolver = object(obligation.resolve_with) ?? {};
-  const baseBindings: Record<string, unknown> = {
-    [subjectAs]: instance.subject,
-  };
-  const dispatch = object(resolver.dispatch);
-  const contexts =
-    dispatch && string(dispatch.as)
-      ? array(
-          expressionValue(
-            processPackage,
-            snapshot,
-            `${reference}#resolve_with.dispatch.for_each`,
-            baseBindings,
-          ),
-        ).map((item) => ({
-          ...baseBindings,
-          [string(dispatch.as)!]:
-            exactEntity(item)?.identity.revision_id ?? item,
-        }))
-      : [baseBindings];
-  const authoredInputs = object(resolver.inputs) ?? {};
-  return contexts.map((bindings) =>
-    Object.fromEntries(
-      Object.keys(authoredInputs)
-        .sort()
-        .map((name) => [
-          name,
-          expressionValue(
-            processPackage,
-            snapshot,
-            `${reference}#resolve_with.inputs.${name}`,
-            bindings,
-          ),
-        ]),
-    ),
-  );
 }
 
 function cardinalityRange(cardinality: string): {
@@ -565,6 +523,7 @@ async function dryRunScenario(
   let authorization: ScenarioAuthorization;
   let obligationProjection: ScenarioDryRun["obligation"];
   let policies: ResolvedScenarioPolicy[];
+  let participationProjection: ScenarioParticipation[] | undefined;
   let expectedOutputs: ScenarioOutputExplanation[];
 
   if (authorizationRequest.mode === "explicit-initiation") {
@@ -589,7 +548,14 @@ async function dryRunScenario(
       array(scenario.inputs).flatMap((inputValue) => {
         const input = object(inputValue);
         const name = string(input?.name);
-        return name ? [[name, requestedByName.get(name)]] : [];
+        if (!name) return [];
+        const values = requestedByName.get(name) ?? [];
+        return [[
+          name,
+          ["one", "zero-or-one"].includes(string(input?.cardinality) ?? "")
+            ? values[0]
+            : values,
+        ]];
       }),
     )];
     definition = { scenario: scenarioReference };
@@ -666,11 +632,11 @@ async function dryRunScenario(
       };
     }
     try {
-      invocationBindings = resolverInvocationBindings(
+      invocationBindings = evaluateResolverInputs(
         processPackage,
         snapshot,
-        obligation,
-        instance,
+        `${obligation.id}@${obligation.version}`,
+        instance.subject,
       );
     } catch (error) {
       return {
@@ -696,6 +662,12 @@ async function dryRunScenario(
       status: instance.status,
       dispatchable: true,
     };
+    participationProjection = evaluateScenarioParticipation(
+      processPackage,
+      snapshot,
+      scenarioReference,
+      invocationBindings,
+    );
     const reviewPolicyReference = string(scenario.review_policy_ref) ?? "";
     const waiverPolicyReference = instance.waiver.policy;
     policies = [
@@ -830,6 +802,26 @@ async function dryRunScenario(
     }
   }
 
+  if (authorizationRequest.mode === "explicit-initiation") {
+    try {
+      participationProjection = evaluateScenarioParticipation(
+        processPackage,
+        snapshot,
+        scenarioReference,
+        invocationBindings,
+      );
+    } catch (error) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-participation-evaluation-failed",
+          path: `${scenarioReference}#participation`,
+          message: error instanceof Error ? error.message : String(error),
+        }],
+      };
+    }
+  }
+
   const promptReference = string(scenario.prompt_ref) ?? "";
   const resolvedPrompt = await resolvePrompt(processPackage, promptReference);
   if (!resolvedPrompt.prompt) {
@@ -872,6 +864,9 @@ async function dryRunScenario(
       invocations,
       prompt: resolvedPrompt.prompt,
       policies,
+      ...(participationProjection
+        ? { participation: participationProjection }
+        : {}),
       prohibitedInputs: array(scenario.prohibited_inputs)
         .filter((value): value is string => typeof value === "string")
         .sort(),

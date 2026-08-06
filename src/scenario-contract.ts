@@ -59,6 +59,18 @@ export function validateScenarioContracts(
       }),
     );
     const inputNames = new Set(inputsByName.keys());
+    inputs.forEach((inputValue, inputIndex) => {
+      const input = record(inputValue);
+      const types = Array.isArray(input?.types) ? input.types : [];
+      types.forEach((type, typeIndex) => {
+        if (typeof type !== "string" || catalogs.types[type]) return;
+        diagnostics.push({
+          code: "unknown-scenario-input-type",
+          path: `scenarios.${scenario.id}.inputs[${inputIndex}].types[${typeIndex}]`,
+          message: `Scenario '${scenario.id}' input '${String(input?.name)}' references undeclared lifecycle type '${type}'`,
+        });
+      });
+    });
     const prohibitedInputs = Array.isArray(scenario.prohibited_inputs)
       ? scenario.prohibited_inputs
       : [];

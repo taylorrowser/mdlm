@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/template-definition.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/template-definition.schema.json",
   "title": "MDLM type template definition",
   "type": "object",
   "additionalProperties": false,

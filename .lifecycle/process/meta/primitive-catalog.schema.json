@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mdlm.dev/meta/v2/primitive-catalog.schema.json",
+  "$id": "https://mdlm.dev/meta/v3/primitive-catalog.schema.json",
   "title": "MDLM kernel primitive catalog",
   "type": "object",
   "additionalProperties": false,
