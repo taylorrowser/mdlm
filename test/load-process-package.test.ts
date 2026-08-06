@@ -24,11 +24,11 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.34.0");
+    expect(result.package.manifest.version).toBe("0.35.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(71);
-    expect(Object.keys(result.package.policies)).toHaveLength(7);
+    expect(Object.keys(result.package.policies)).toHaveLength(8);
     expect(Object.keys(result.package.obligations)).toHaveLength(20);
     expect(Object.keys(result.package.scenarios)).toHaveLength(33);
     expect(result.diagnostics).toEqual([]);
@@ -160,8 +160,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       manifestPath,
       manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation]",
-        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation]",
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
+        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
       ),
     );
 
@@ -744,6 +744,39 @@ describe("loadProcessPackage", () => {
         }),
       ]),
     );
+  });
+
+  it("rejects unknown declarative Phase progression references", async () => {
+    const processRoot = await copiedProcessPackage();
+    const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+    const phase = await fs.readFile(phasePath, "utf8");
+    await fs.writeFile(
+      phasePath,
+      phase
+        .replace(
+          "  next_phase: phase-1-product-assurance",
+          "  next_phase: phase-9-missing",
+        )
+        .replace(
+          "    evidence_selector: applicable-gate-signoffs-for@1",
+          "    evidence_selector: missing-progression-evidence@1",
+        ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "unknown-phase-reference",
+        path: "phases.phase-0-wayfinding.progression.next_phase",
+      }),
+      expect.objectContaining({
+        code: "unknown-reference",
+        path:
+          "phases.phase-0-wayfinding.progression.authorization.evidence_selector",
+      }),
+    ]));
   });
 
   it("rejects an unknown Phase reference in an Obligation", async () => {

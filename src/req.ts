@@ -1476,6 +1476,31 @@ async function readLifecycleSnapshot(
   ) as LifecycleSnapshot;
 }
 
+function initialPhaseId(processPackage: ProcessPackage): string | undefined {
+  return Object.values(processPackage.phases)
+    .sort((left, right) =>
+      Number(left.order) - Number(right.order) || left.id.localeCompare(right.id)
+    )[0]?.id;
+}
+
+function activeLifecycleEvaluation(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+): ReturnType<typeof evaluateLifecycle> {
+  let phaseId = initialPhaseId(processPackage) ?? snapshot.phaseId;
+  const visited = new Set<string>();
+  while (!visited.has(phaseId)) {
+    visited.add(phaseId);
+    const evaluation = evaluateLifecycle(processPackage, { ...snapshot, phaseId });
+    const nextPhase = evaluation.phase?.progression?.complete
+      ? evaluation.phase.progression.nextPhase
+      : undefined;
+    if (!nextPhase) return evaluation;
+    phaseId = nextPhase;
+  }
+  return evaluateLifecycle(processPackage, { ...snapshot, phaseId });
+}
+
 type SelectedLifecycleEvaluation =
   | {
       ok: true;
@@ -1489,6 +1514,7 @@ async function selectedLifecycleEvaluation(
   command: string,
   snapshotPath: string | undefined,
   phaseId?: string,
+  deriveActive = false,
 ): Promise<SelectedLifecycleEvaluation> {
   const resolved = await selectedPackage(repositoryRoot);
   if (!resolved.ok) {
@@ -1505,12 +1531,19 @@ async function selectedLifecycleEvaluation(
   let snapshot: LifecycleSnapshot;
   if (snapshotPath) {
     snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
-  } else if (phaseId) {
+  } else {
+    const repositoryPhaseId = phaseId ?? initialPhaseId(resolved.processPackage);
+    if (!repositoryPhaseId) {
+      return {
+        ok: false,
+        result: failure("phase-required", "The selected Process Package declares no Phase"),
+      };
+    }
     const repositorySnapshot = await repositoryLifecycleSnapshot(
       repositoryRoot,
       resolved.processPackage,
       `${resolved.summary.reference}#${resolved.summary.digest}`,
-      phaseId,
+      repositoryPhaseId,
     );
     if (!repositorySnapshot.ok) {
       return {
@@ -1525,19 +1558,12 @@ async function selectedLifecycleEvaluation(
       };
     }
     snapshot = repositorySnapshot.value;
-  } else {
-    return {
-      ok: false,
-      result: failure(
-        "lifecycle-source-required",
-        `${command} requires '--snapshot <fixture>' or '--phase <phase-id>' for repository truth`,
-      ),
-    };
   }
-  const evaluation = evaluateLifecycle(
-    resolved.processPackage,
-    phaseId === undefined ? snapshot : { ...snapshot, phaseId },
-  );
+  const evaluation = phaseId !== undefined
+    ? evaluateLifecycle(resolved.processPackage, { ...snapshot, phaseId })
+    : deriveActive || !snapshotPath
+    ? activeLifecycleEvaluation(resolved.processPackage, snapshot)
+    : evaluateLifecycle(resolved.processPackage, snapshot);
   if (evaluation.diagnostics.length > 0) {
     return {
       ok: false,
@@ -1555,7 +1581,7 @@ async function selectedLifecycleEvaluation(
 
 async function phaseStatus(
   repositoryRoot: string,
-  phaseId: string,
+  phaseId: string | undefined,
   snapshotPath: string | undefined,
 ): Promise<CommandResult> {
   const resolved = await selectedLifecycleEvaluation(
@@ -1563,6 +1589,7 @@ async function phaseStatus(
     "phase.status",
     snapshotPath,
     phaseId,
+    phaseId === undefined,
   );
   if (!resolved.ok) return resolved.result;
   const projection = phaseStatusProjection(resolved.evaluation);
@@ -2623,10 +2650,10 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       directArguments(arguments_),
     );
   }
-  if (operands[0] === "phase" && operands[1] === "status" && operands[2]) {
+  if (operands[0] === "phase" && operands[1] === "status") {
     return phaseStatus(
       repositoryRoot,
-      operands[2],
+      operands[2]?.startsWith("--") ? undefined : operands[2],
       optionValue(arguments_, "--snapshot"),
     );
   }

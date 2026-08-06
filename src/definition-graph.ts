@@ -468,6 +468,84 @@ function validateReferences(
   }
 
   for (const [id, definition] of Object.entries(definitions.phases)) {
+    const progression = typeof definition.progression === "object" &&
+        definition.progression !== null
+      ? definition.progression as Record<string, unknown>
+      : undefined;
+    const progressionAuthority = progression &&
+        typeof progression.authorization === "object" &&
+        progression.authorization !== null
+      ? progression.authorization as Record<string, unknown>
+      : undefined;
+    if (progression) {
+      const nextPhase = progression.next_phase;
+      if (typeof nextPhase === "string" && !definitions.phases[nextPhase]) {
+        diagnostics.push({
+          code: "unknown-phase-reference",
+          path: `phases.${id}.progression.next_phase`,
+          message: `Phase '${id}' references unknown next Phase '${nextPhase}'`,
+        });
+      }
+      for (const [field, catalog, kind] of [
+        ["policy_ref", definitions.policies, "Participation Policy"],
+        ["scenario", definitions.scenarios, "Scenario"],
+        ["evidence_selector", definitions.selectors, "Selector"],
+      ] as const) {
+        const reference = progressionAuthority?.[field];
+        if (typeof reference !== "string") continue;
+        const referenceDiagnostics = validateVersionedReference(
+          reference,
+          catalog,
+          `phases.${id}.progression.authorization.${field}`,
+          kind,
+        );
+        diagnostics.push(...referenceDiagnostics);
+        if (field === "policy_ref" && referenceDiagnostics.length === 0) {
+          const policy = definitions.policies[referenceId(reference) ?? ""];
+          if (policy) {
+            diagnostics.push(
+              ...validateParticipationPolicy(policy, `policies.${policy.id}`),
+            );
+            const parameterNames = Array.isArray(policy.parameters)
+              ? policy.parameters.flatMap((value) => {
+                  if (typeof value !== "object" || value === null) return [];
+                  const name = (value as Record<string, unknown>).name;
+                  return typeof name === "string" ? [name] : [];
+                })
+              : [];
+            const parameters = new Set(parameterNames);
+            const argumentsValue = progressionAuthority &&
+                typeof progressionAuthority.arguments === "object" &&
+                progressionAuthority.arguments !== null &&
+                !Array.isArray(progressionAuthority.arguments)
+              ? progressionAuthority.arguments as Record<string, unknown>
+              : {};
+            const supplied = new Set(Object.keys(argumentsValue));
+            const missing = [...parameters].filter((name) => !supplied.has(name));
+            const unknown = [...supplied].filter((name) => !parameters.has(name));
+            if (missing.length > 0 || unknown.length > 0) {
+              diagnostics.push({
+                code: "phase-progression-policy-arguments",
+                path: `phases.${id}.progression.authorization.arguments`,
+                message: `Phase '${id}' progression arguments must exactly match Policy '${reference}'; missing: ${missing.join(", ") || "none"}; unknown: ${unknown.join(", ") || "none"}`,
+              });
+            }
+          }
+        }
+        if (
+          field === "scenario" &&
+          referenceDiagnostics.length === 0 &&
+          Array.isArray(definition.scenarios) &&
+          !definition.scenarios.includes(reference)
+        ) {
+          diagnostics.push({
+            code: "phase-progression-scenario-disabled",
+            path: `phases.${id}.progression.authorization.scenario`,
+            message: `Phase progression Scenario '${reference}' is not enabled in Phase '${id}'`,
+          });
+        }
+      }
+    }
     const gate = typeof definition.gate === "object" && definition.gate !== null
       ? definition.gate as Record<string, unknown>
       : undefined;
@@ -501,6 +579,36 @@ function validateReferences(
       });
     }
   }
+
+  const visitedProgressionPhases = new Set<string>();
+  const visitingProgressionPhases = new Set<string>();
+  const visitProgression = (phaseId: string, chain: string[]): void => {
+    if (visitedProgressionPhases.has(phaseId)) return;
+    if (visitingProgressionPhases.has(phaseId)) return;
+    visitingProgressionPhases.add(phaseId);
+    const definition = definitions.phases[phaseId];
+    const progression = definition && typeof definition.progression === "object" &&
+        definition.progression !== null
+      ? definition.progression as Record<string, unknown>
+      : undefined;
+    const nextPhase = progression?.next_phase;
+    if (typeof nextPhase === "string" && definitions.phases[nextPhase]) {
+      if (visitingProgressionPhases.has(nextPhase)) {
+        diagnostics.push({
+          code: "phase-progression-cycle",
+          path: `phases.${phaseId}.progression.next_phase`,
+          message: `Phase progression cycle: ${[...chain, phaseId, nextPhase].join(" -> ")}`,
+        });
+      } else {
+        visitProgression(nextPhase, [...chain, phaseId]);
+      }
+    }
+    visitingProgressionPhases.delete(phaseId);
+    visitedProgressionPhases.add(phaseId);
+  };
+  Object.keys(definitions.phases).sort().forEach((phaseId) =>
+    visitProgression(phaseId, [])
+  );
 
   const visitSelectorReferences = (value: unknown, path: string): void => {
     if (Array.isArray(value)) {

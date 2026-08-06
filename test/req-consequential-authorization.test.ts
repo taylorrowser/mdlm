@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.34.0#sha256:authorization-test";
+const processRef = "mdlm-bootstrap@0.35.0#sha256:authorization-test";
 
 function frozenLifecycleDatum(
   type: string,

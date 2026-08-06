@@ -126,8 +126,16 @@ A package-defined identity grouping compatible checkpoint-scheduled Authority Re
 _Avoid_: Batch execution, durable deferral
 
 **Phase**:
-A declarative scope that selects applicable obligations, scenarios, entry conditions, and gate conditions without prescribing an imperative sequence.
+A declarative scope that selects applicable obligations, scenarios, entry conditions, gate conditions, and optional evidence-driven progression without prescribing an imperative sequence.
 _Avoid_: Pipeline stage when sequential execution is implied
+
+**Active Phase**:
+The Phase derived by following complete package-declared progression from the initial Phase using exact Lifecycle Data and package provenance. It is not a mutable repository pointer.
+_Avoid_: `.mdlm-phase`, manually selected current stage
+
+**Phase Progression**:
+A package declaration combining readiness, a named next Phase, an Authority Requirement, a public authorization Scenario, and an exact evidence Selector. A reviewed gate DEC may satisfy it directly, or package Policy may require a separate reviewed DEC.
+_Avoid_: Chat-based progression, redundant approval by default
 
 ## Definition and decomposition
 

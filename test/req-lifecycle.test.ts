@@ -9,6 +9,7 @@ import {
   frozenLifecycleRecord,
   reviewedGateFixture,
 } from "./helpers/lifecycle-scenarios.js";
+import { distinctProgressionProcessPackage } from "./helpers/process-package.js";
 import { req, selectBootstrapProcessPackage } from "./helpers/req.js";
 
 const prototypeSnapshot = path.join(
@@ -228,6 +229,66 @@ describe("req lifecycle status and next work", () => {
     });
   });
 
+  it("projects a distinct progression authorization as next work with its exact subject", async () => {
+    const processRoot = await distinctProgressionProcessPackage();
+    const installed = req(
+      repositoryRoot,
+      "process",
+      "install",
+      processRoot,
+      "--json",
+    );
+    expect(installed.status, `${installed.stderr}${installed.stdout}`).toBe(0);
+    const selected = req(
+      repositoryRoot,
+      "process",
+      "use",
+      "mdlm-distinct-progression@0.35.0",
+      "--json",
+    );
+    expect(selected.status, selected.stderr).toBe(0);
+    const fixture = reviewedGateFixture("git:distinct-next");
+    const snapshot = await writeSnapshot(repositoryRoot, "distinct-next", {
+      processRef: "git:distinct-next",
+      phaseId: "phase-0-wayfinding",
+      records: fixture.records,
+      dependencyComparisons: [],
+    });
+
+    const next = req(
+      repositoryRoot,
+      "next",
+      "--phase",
+      "phase-0-wayfinding",
+      "--snapshot",
+      snapshot,
+      "--json",
+    );
+
+    expect(next.status, next.stderr).toBe(0);
+    expect(JSON.parse(next.stdout).next.item).toEqual(expect.objectContaining({
+      kind: "phase-progression",
+      nextPhase: "phase-1-product-assurance",
+      status: "awaiting-authority",
+      dispatchable: true,
+      scenario: "record-consequential-decision@1",
+      subjects: [{
+        identity: {
+          id: fixture.candidate.datum.id,
+          revision_id: fixture.candidate.datum.revision_id,
+          type: "BSL",
+          revision: 1,
+        },
+      }],
+      authority: expect.objectContaining({
+        attentionRequired: true,
+        authorityRequirement: expect.objectContaining({
+          authority: "stakeholder",
+        }),
+      }),
+    }));
+  });
+
   it("preserves blocked and reviewed gate evidence and exact waiver evidence", async () => {
     const gateFixture = reviewedGateFixture("git:req-lifecycle");
     const blockedGateSnapshot = await writeSnapshot(repositoryRoot, "blocked-gate", {
@@ -305,6 +366,29 @@ describe("req lifecycle status and next work", () => {
     expect(humanGate.stdout).toContain("Gate Completion Expression:");
     expect(humanGate.stdout).toContain("Gate Expected Outputs:");
     expect(humanGate.stdout).toContain("Gate Waiver Applicable: false");
+    expect(humanGate.stdout).toContain("Progression Complete: true");
+    expect(humanGate.stdout).toContain(
+      `Progression Evidence: ${gateFixture.signoff.datum.revision_id}`,
+    );
+
+    const activePhase = req(
+      repositoryRoot,
+      "phase",
+      "status",
+      "--snapshot",
+      gateSnapshot,
+      "--json",
+    );
+    expect(activePhase.status, activePhase.stderr).toBe(0);
+    expect(JSON.parse(activePhase.stdout).phaseStatus).toEqual(
+      expect.objectContaining({
+        id: "phase-1-product-assurance",
+        progression: expect.objectContaining({
+          nextPhase: "phase-2-pilot-assessment",
+          complete: false,
+        }),
+      }),
+    );
 
     const waiverSnapshot = await writeSnapshot(repositoryRoot, "waived", {
       processRef: "git:req-lifecycle",

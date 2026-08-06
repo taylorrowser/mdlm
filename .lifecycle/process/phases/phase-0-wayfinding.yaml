@@ -29,6 +29,27 @@ obligations:
   - candidate-members-reviewed@2
   - candidate-gate-signoff@2
 outputs: [MAP, QST, DEC, ART, PSP, STK, REV, BSL]
+progression:
+  next_phase: phase-1-product-assurance
+  readiness: >-
+    exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})
+    && every("candidate-baselines-of-kind@1",
+      {baseline_kind: "intent-level-candidate"}, candidate =>
+        none("candidate-members-missing-review@1", {candidate: candidate})
+        && exists("passing-reviews-for@1", {subject: candidate}))
+    && none("open-blocking-questions@1", {})
+  authorization:
+    condition: >-
+      exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})
+      && every("candidate-baselines-of-kind@1",
+        {baseline_kind: "intent-level-candidate"}, candidate =>
+          exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: phase}
+    scenario: record-gate-signoff@2
+    subjects: >-
+      select("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})
+    evidence_selector: applicable-gate-signoffs-for@1
 gate:
   required: true
   candidate_selector: >-

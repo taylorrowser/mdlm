@@ -23,6 +23,8 @@ obligations:
   - pilot-assessment-required@1
   - pilot-expansion-decision-required@1
 outputs: [PAS, REV, DEC, BSL]
+# The bootstrap profile intentionally stops before Phases 3–6.
+progression: null
 gate:
   required: false
   candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "level-candidate"})'

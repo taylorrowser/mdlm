@@ -559,6 +559,24 @@ describe("req Phase 0 wayfinding slice", () => {
       dispatchable: true,
     }));
 
+    await fs.writeFile(path.join(repositoryRoot, ".mdlm-phase"), "phase-1-product-assurance\n");
+    const unaffectedByPointerEdit = req(
+      repositoryRoot,
+      "phase",
+      "status",
+      "--json",
+    );
+    expect(unaffectedByPointerEdit.status, unaffectedByPointerEdit.stderr).toBe(0);
+    expect(JSON.parse(unaffectedByPointerEdit.stdout).phaseStatus).toEqual(
+      expect.objectContaining({
+        id: "phase-0-wayfinding",
+        progression: expect.objectContaining({
+          authorized: false,
+          complete: false,
+        }),
+      }),
+    );
+
     const signoffContext = addAndFreeze(
       baseline(
         "Gate sign-off review context",
@@ -580,6 +598,10 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(phase.status, phase.stderr).toBe(0);
     expect(JSON.parse(phase.stdout).phaseStatus).toEqual(expect.objectContaining({
       entry: expect.objectContaining({ satisfied: true }),
+      progression: expect.objectContaining({
+        nextPhase: "phase-1-product-assurance",
+        complete: true,
+      }),
       gate: {
         required: true,
         evaluations: [expect.objectContaining({
@@ -592,6 +614,12 @@ describe("req Phase 0 wayfinding slice", () => {
         })],
       },
     }));
+
+    const continued = req(repositoryRoot, "next", "--json");
+    expect(continued.status, continued.stderr).toBe(0);
+    expect(JSON.parse(continued.stdout).next.phase).toBe(
+      "phase-1-product-assurance@1",
+    );
 
     const listed = req(repositoryRoot, "list", "--json");
     expect(listed.status, listed.stderr).toBe(0);

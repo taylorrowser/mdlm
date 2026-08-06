@@ -25,6 +25,7 @@ export {
   type ObligationHistoryEvaluation,
   type PhaseEvaluation,
   type PhaseExpressionEvidence,
+  type PhaseProgressionEvaluation,
   type SelectorEvaluationEvidence,
 } from "./evaluator.js";
 export type {

@@ -385,6 +385,7 @@ function definitionSkeleton(kind: DefinitionKind, id: string): Record<string, un
         scenarios: ["replace-with-scenario@1"],
         obligations: [],
         outputs: ["TYP"],
+        progression: null,
         gate: {
           required: false,
           candidate_selector: "[]",

@@ -1285,6 +1285,14 @@ The execution-time authority supply permits publication but does not satisfy the
 
 A recorded gate decision and an applicable approving gate decision are deliberately different selector results. A reviewed rejection remains exact history but does not satisfy approval or permit progression. While a gate DEC exists but awaits review, the candidate is blocked: review obligations drive the next work and the gate interview is not dispatched again. This prevents duplicate sign-off decisions while preserving review assurance.
 
+Phase progression is package-declared and evidence-derived. A Phase names its
+readiness condition, next Phase, authority Policy, public authorization Scenario,
+and exact evidence Selector. When package Policy permits, the reviewed approving
+gate DEC is also the progression authorization; no redundant second approval is
+created. A package may instead require a separate exact reviewed progression DEC.
+The active Phase is derived from those immutable records and exact package
+provenance, not changed through a mutable phase file or conversational statement.
+
 Any candidate change creates a new exact candidate and requires new gate evidence; neither candidate nor sign-off is mutated in place. Candidate approval allows downstream work. Acceptance is delayed until downstream confirmation criteria are satisfied.
 
 A process-version difference may be shown to the user but is not a gate blocker unless project policy explicitly requires reassessment.

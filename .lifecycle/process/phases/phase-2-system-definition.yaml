@@ -42,6 +42,7 @@ obligations:
   - candidate-members-reviewed@2
   - candidate-gate-signoff@2
 outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC, ART]
+progression: null
 gate:
   required: true
   candidate_selector: >-

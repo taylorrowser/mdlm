@@ -1,4 +1,5 @@
 import type {
+  ExactTypedEntity,
   LifecycleEvaluation,
   ObligationEvaluation,
   PhaseEvaluation,
@@ -43,9 +44,21 @@ export interface LooseEndsProjection {
   waiverSuppressed: ObligationEvaluation[];
 }
 
+export interface PhaseProgressionWork {
+  kind: "phase-progression";
+  id: string;
+  nextPhase: string;
+  status: "awaiting-authority";
+  dispatchable: boolean;
+  scenario: string;
+  subjects: ExactTypedEntity[];
+  authority: NonNullable<PhaseEvaluation["progression"]>["authority"];
+  explanation: string;
+}
+
 export interface NextWorkProjection {
   phase: string;
-  item: ObligationEvaluation | null;
+  item: ObligationEvaluation | PhaseProgressionWork | null;
 }
 
 function phaseReference(phase: PhaseEvaluation): string {
@@ -113,6 +126,7 @@ export function phaseStatusProjection(
     version: phase.version,
     entry: phase.entry,
     candidateSelection: phase.candidateSelection,
+    progression: phase.progression,
     obligations: {
       total: evaluation.obligations.length,
       satisfied: evaluation.obligations.filter((item) => item.satisfied).length,
@@ -152,8 +166,26 @@ export function nextWorkProjection(
   evaluation: LifecycleEvaluation,
 ): NextWorkProjection | undefined {
   if (!evaluation.phase) return undefined;
+  const obligation = evaluation.looseEnds.find((looseEnd) =>
+    looseEnd.dispatchable
+  );
+  const progression = evaluation.phase.progression;
+  const progressionWork: PhaseProgressionWork | null = !obligation &&
+      progression?.ready === true && !progression.authorized
+    ? {
+        kind: "phase-progression",
+        id: `phase-progression:${phaseReference(evaluation.phase)}`,
+        nextPhase: progression.nextPhase,
+        status: "awaiting-authority",
+        dispatchable: progression.authority.subjects.length > 0,
+        scenario: progression.authority.scenario,
+        subjects: progression.authority.subjects,
+        authority: progression.authority,
+        explanation: progression.explanation,
+      }
+    : null;
   return {
     phase: phaseReference(evaluation.phase),
-    item: evaluation.looseEnds.find((looseEnd) => looseEnd.dispatchable) ?? null,
+    item: obligation ?? progressionWork,
   };
 }

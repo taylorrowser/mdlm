@@ -19,8 +19,10 @@ same deterministic package execution with source-span evidence. Generic Phase
 status, Loose End, and next-work commands retain exact gate, blocker, resolver
 output, Dispatchability, and waiver dimensions without embedding these example
 Phase or type IDs in the executable. With an explicit `--phase`, those commands
-evaluate durable repository Markdown directly; `--snapshot` retains reproducible
-fixture and historical evaluation. `req process init` may copy this package
+evaluate durable repository Markdown directly; without one, repository-backed
+status and next-work derive the active Phase from package progression declarations
+and exact authorization evidence rather than a mutable phase pointer. `--snapshot`
+retains reproducible fixture and historical evaluation. `req process init` may copy this package
 under a new identity with exact source provenance, but that independently
 versioned copy is ordinary package data rather than inherited kernel behavior.
 The same command can create an empty package containing only the supported
@@ -101,8 +103,14 @@ from each selected Phase's textual expressions. Each selected exact candidate
 receives an independent gate result with authored expression source, exact Policy
 and Selector evidence, and the blocker and Resolver Scenario evidence from the
 package-declared gate Obligation. Candidate revisions therefore never inherit or
-mutate earlier gate evidence. The evaluator recognizes neither a Phase ID nor a
-candidate lifecycle type.
+mutate earlier gate evidence. Phase 0 declares that its reviewed approving gate DEC
+also authorizes entry to Phase 1, avoiding a redundant approval. Generic progression
+can instead name a separate exact reviewed Decision Selector and Scenario. Status
+keeps readiness, gate completion, exact authorization subjects, missing authority,
+stakeholder attention, and exact authorization evidence separate. When no
+Obligation is Dispatchable, `req next` projects that ready progression authority
+with its public Scenario so an authorized agent can execute it. The evaluator recognizes neither a Phase
+ID nor a candidate lifecycle type.
 
 The accepted authoring surface is the textual MDLM Expression Language. The
 implemented slices support typed bound variables, entity and context paths,

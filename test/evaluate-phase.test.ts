@@ -8,8 +8,14 @@ import {
   type ProcessPackage,
 } from "../src/index.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
-import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
-import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
+import {
+  frozenLifecycleRecord,
+  reviewedGateFixture,
+} from "./helpers/lifecycle-scenarios.js";
+import {
+  distinctProgressionProcessPackage,
+  renamedBaselineProcessPackage,
+} from "./helpers/process-package.js";
 
 function record(
   type: string,
@@ -124,6 +130,7 @@ describe("phase evaluation", () => {
         },
       },
       gate: { required: true, evaluations: [] },
+      progression: null,
     });
   });
 
@@ -347,6 +354,216 @@ describe("phase evaluation", () => {
       }),
     ]);
     expect(completedGate).toEqual(preservedCompletedGate);
+  });
+
+  it("projects exact declarative progression authority without requiring a second approval", () => {
+    const {
+      signoff,
+      signoffReview,
+      beforeSignoffReview,
+    } = reviewedGateFixture("git:phase-progression");
+
+    const awaitingAuthorizationReview = evaluateLifecycle(processPackage, {
+      processRef: "git:phase-progression",
+      phaseId: "phase-0-wayfinding",
+      records: beforeSignoffReview,
+      dependencyComparisons: [],
+    });
+    expect(awaitingAuthorizationReview.phase?.progression).toEqual(
+      expect.objectContaining({
+        nextPhase: "phase-1-product-assurance",
+        gateComplete: false,
+        ready: true,
+        authorized: false,
+        complete: false,
+        authority: expect.objectContaining({
+          policy: "phase-progression-participation@1",
+          scenario: "record-gate-signoff@2",
+          evidenceSelector: "applicable-gate-signoffs-for@1",
+          subjects: [expect.objectContaining({
+            identity: expect.objectContaining({
+              revision_id: "BSL-4K3M9Q2D8F-r00001",
+            }),
+          })],
+          evidence: [],
+          authorityRequirement: {
+            mode: "attended",
+            authority: "stakeholder",
+            delegationAllowed: false,
+          },
+          attentionRequired: true,
+        }),
+      }),
+    );
+
+    const authorized = evaluateLifecycle(processPackage, {
+      processRef: "git:phase-progression",
+      phaseId: "phase-0-wayfinding",
+      records: [...beforeSignoffReview, signoffReview],
+      dependencyComparisons: [],
+    });
+    expect(authorized.phase?.progression).toEqual(expect.objectContaining({
+      nextPhase: "phase-1-product-assurance",
+      gateComplete: true,
+      ready: true,
+      authorized: true,
+      complete: true,
+      authority: expect.objectContaining({
+        evidence: [{
+          identity: {
+            id: signoff.datum.id,
+            revision_id: signoff.datum.revision_id,
+            type: "DEC",
+            revision: 1,
+          },
+        }],
+        attentionRequired: false,
+      }),
+    }));
+  });
+
+  it("advances an autonomous Phase boundary from exact package evidence without inventing a Decision", () => {
+    const context = frozenLifecycleRecord(
+      "git:autonomous-progression",
+      "BSL",
+      "BSL-6K3M9Q2D8F",
+      {
+        title: "Pilot assessment context",
+        kind: "pilot-assessment-context",
+        role: "review-context",
+        scope: "phase-0-2-pilot",
+        group: "DEFAULT",
+        definition_members: [],
+        evidence: [],
+      },
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:autonomous-progression",
+      phaseId: "phase-1-product-assurance",
+      records: [context],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.phase?.progression).toEqual(expect.objectContaining({
+      nextPhase: "phase-2-pilot-assessment",
+      ready: true,
+      authorized: true,
+      complete: true,
+      authority: expect.objectContaining({
+        authorityRequirement: {
+          mode: "autonomous",
+          authority: "package-evidence",
+          delegationAllowed: false,
+        },
+        attentionRequired: false,
+        evidence: [{
+          identity: {
+            id: context.datum.id,
+            revision_id: context.datum.revision_id,
+            type: "BSL",
+            revision: 1,
+          },
+        }],
+      }),
+    }));
+  });
+
+  it("can require a separate exact reviewed progression Decision", async () => {
+    const processRoot = await distinctProgressionProcessPackage();
+    const loaded = await loadProcessPackage(processRoot);
+    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
+      .toBe(true);
+    if (!loaded.ok) return;
+
+    const fixture = reviewedGateFixture("git:distinct-progression");
+    const progressionDecision = frozenLifecycleRecord(
+      "git:distinct-progression",
+      "DEC",
+      "DEC-7K3M9Q2D8F",
+      {
+        title: "Enter product assurance",
+        rationale: "Require authorization distinct from the intent gate.",
+        kind: "scope",
+        decision: "Enter Phase 1.",
+        alternatives: ["Remain in Phase 0."],
+        effective_scope: fixture.candidate.datum.revision_id,
+      },
+      { links: [{ type: "justifies", target: fixture.candidate.datum.revision_id }] },
+    );
+    const progressionContext = frozenLifecycleRecord(
+      "git:distinct-progression",
+      "BSL",
+      "BSL-7K3M9Q2D8F",
+      {
+        title: "Progression review context",
+        kind: "review-context",
+        role: "review-context",
+        scope: "phase-progression",
+        group: "DEFAULT",
+        definition_members: [progressionDecision.datum.revision_id],
+        evidence: [],
+      },
+    );
+    const progressionReview = frozenLifecycleRecord(
+      "git:distinct-progression",
+      "REV",
+      "REV-7K3M9Q2D8F",
+      {
+        title: "Progression Decision Review",
+        review_kind: "independent",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        summary: "The distinct progression Decision passes Review.",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        links: [
+          { type: "reviews", target: progressionDecision.datum.revision_id },
+          { type: "contextualizes", target: progressionContext.datum.revision_id },
+        ],
+      },
+    );
+
+    const unreviewed = evaluateLifecycle(loaded.package, {
+      processRef: "git:distinct-progression",
+      phaseId: "phase-0-wayfinding",
+      records: [...fixture.records, progressionDecision, progressionContext],
+      dependencyComparisons: [],
+    });
+    expect(unreviewed.phase?.progression).toEqual(expect.objectContaining({
+      gateComplete: true,
+      ready: true,
+      authorized: false,
+      complete: false,
+    }));
+
+    const reviewed = evaluateLifecycle(loaded.package, {
+      processRef: "git:distinct-progression",
+      phaseId: "phase-0-wayfinding",
+      records: [
+        ...fixture.records,
+        progressionDecision,
+        progressionContext,
+        progressionReview,
+      ],
+      dependencyComparisons: [],
+    });
+    expect(reviewed.phase?.progression).toEqual(expect.objectContaining({
+      authorized: true,
+      complete: true,
+      authority: expect.objectContaining({
+        scenario: "record-consequential-decision@1",
+        evidence: [{
+          identity: {
+            id: progressionDecision.datum.id,
+            revision_id: progressionDecision.datum.revision_id,
+            type: "DEC",
+            revision: 1,
+          },
+        }],
+      }),
+    }));
   });
 
   it("returns exact package-typed candidates in declared order without mutating the snapshot", async () => {

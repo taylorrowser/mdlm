@@ -60,6 +60,24 @@ export function humanPhaseStatus(
     ([status, summary]) =>
       `${status}=${summary.count} [${summary.instances.join(", ")}]`,
   );
+  const progression = phase.progression
+    ? [
+        `Progression Next Phase: ${phase.progression.nextPhase}`,
+        `Progression Gate Complete: ${phase.progression.gateComplete}`,
+        `Progression Ready: ${phase.progression.ready}`,
+        `Progression Authorized: ${phase.progression.authorized}`,
+        `Progression Complete: ${phase.progression.complete}`,
+        `Progression Explanation: ${phase.progression.explanation}`,
+        `Progression Authority Policy: ${phase.progression.authority.policy}`,
+        `Progression Authority Scenario: ${phase.progression.authority.scenario}`,
+        `Progression Authority: ${phase.progression.authority.authorityRequirement.authority}`,
+        `Progression Authority Mode: ${phase.progression.authority.authorityRequirement.mode}`,
+        `Progression Attention Required: ${phase.progression.authority.attentionRequired}`,
+        `Progression Evidence Selector: ${phase.progression.authority.evidenceSelector}`,
+        `Progression Authorization Subjects: ${phase.progression.authority.subjects.map((item) => item.identity.revision_id).join(", ") || "none"}`,
+        `Progression Evidence: ${phase.progression.authority.evidence.map((item) => item.identity.revision_id).join(", ") || "none"}`,
+      ]
+    : ["Progression: terminal or not declared"];
   const gates = phase.gate.evaluations.flatMap((gate) => [
     `Gate Candidate: ${gate.candidate.identity.revision_id}`,
     `Gate Complete: ${gate.complete}`,
@@ -94,6 +112,7 @@ export function humanPhaseStatus(
     `Obligation Statuses: ${statuses.join("; ") || "none"}`,
     `Gate Required: ${phase.gate.required}`,
     ...gates,
+    ...progression,
     `Phase Blockers: ${phase.blockers.instanceIds.join(", ") || "none"}`,
     `Phase Blocker Chains: ${JSON.stringify(phase.blockers.chains)}`,
     `Phase Unresolved Bindings: ${JSON.stringify(phase.blockers.unresolvedBindings)}`,
@@ -126,11 +145,29 @@ export function humanNextWork(
   packageReference: string,
   next: NextWorkProjection,
 ): string {
+  const item = next.item;
+  const progressionItem = item && "kind" in item &&
+    item.kind === "phase-progression" ? item : undefined;
+  const itemLines = progressionItem
+    ? [
+        "Next Phase Progression Authority",
+        `ID: ${progressionItem.id}`,
+        `Next Phase: ${progressionItem.nextPhase}`,
+        `Status: ${progressionItem.status}`,
+        `Dispatchable: ${progressionItem.dispatchable}`,
+        `Scenario: ${progressionItem.scenario}`,
+        `Subjects: ${progressionItem.subjects.map((subject) => subject.identity.revision_id).join(", ") || "none"}`,
+        `Authority: ${progressionItem.authority.authorityRequirement.authority}`,
+        `Authority Mode: ${progressionItem.authority.authorityRequirement.mode}`,
+        `Attention Required: ${progressionItem.authority.attentionRequired}`,
+        `Explanation: ${progressionItem.explanation}`,
+      ]
+    : item && !("kind" in item)
+    ? ["Next Dispatchable Loose End", ...humanObligation(item)]
+    : ["Next Dispatchable Loose End: none"];
   return [
     `Process Package: ${packageReference}`,
     `Phase: ${next.phase}`,
-    ...(next.item
-      ? ["Next Dispatchable Loose End", ...humanObligation(next.item)]
-      : ["Next Dispatchable Loose End: none"]),
+    ...itemLines,
   ].join("\n");
 }

@@ -16,6 +16,7 @@ scenarios:
   - write-verification-activity@1
   - implement-verification-activity@1
   - execute-verification-run@1
+  - prepare-pilot-assessment-context@1
   - create-review-context@1
   - review-datum-in-context@2
   - resolve-question@2
@@ -28,6 +29,16 @@ obligations:
   - prototype-question-resolution@1
   - verification-run-required@1
 outputs: [VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
+progression:
+  next_phase: phase-2-pilot-assessment
+  readiness: 'exists("pilot-assessment-contexts@1", {})'
+  authorization:
+    condition: 'exists("pilot-assessment-contexts@1", {})'
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: phase}
+    scenario: prepare-pilot-assessment-context@1
+    subjects: 'select("pilot-assessment-contexts@1", {})'
+    evidence_selector: pilot-assessment-contexts@1
 gate:
   required: false
   candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "group-candidate"})'

@@ -27,6 +27,7 @@ obligations:
   - change-revision-required@1
   - change-closure-required@1
 outputs: [PRB, CHG, DEC, SYS, BSL, REV, RES]
+progression: null
 gate:
   required: false
   candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "group-candidate"})'

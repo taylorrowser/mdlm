@@ -624,9 +624,15 @@ recognizes neither PAS nor the assessment Phase, metrics, or recommendation.
 
 ## 12. Phases and gates
 
-Phases list applicable scenarios and obligations and declare entry and gate
-expressions. They do not prescribe an imperative sequence. The loose-end engine
-repeatedly evaluates obligations and dispatches ready resolvers.
+Phases list applicable scenarios and obligations and declare entry, gate, and
+progression expressions. They do not prescribe an imperative sequence. The
+loose-end engine repeatedly evaluates obligations and dispatches ready resolvers.
+A nonterminal `progression` names its next Phase, readiness expression, exact
+authorization condition, standardized participation Policy, sign-off Scenario,
+and evidence Selector. Policy arguments and exact authorization-subject selection
+are authored as typed expressions; the generic evaluator does not know the
+package's authority vocabulary. A terminal or intentionally bounded Phase declares
+`progression: null`.
 
 `evaluateLifecycle` resolves the requested Phase from the loaded catalog and
 returns its entry result and selected exact typed candidate identities. Both
@@ -649,6 +655,19 @@ selected package reference; generated indexes and reports are not read. A phase
 gate is complete only when its expression is true for the exact current candidate.
 Changes produce a new candidate and new gate evidence; no candidate or prior
 result is mutated in place.
+
+Phase progression is derived rather than stored in a mutable active-Phase pointer.
+The evaluator follows declared `next_phase` references only after both readiness
+and exact authorization are satisfied. The status projection distinguishes gate
+completion, readiness, authorization, required stakeholder attention, the public
+Scenario that can publish it, and exact evidence Revisions. A gate-signoff DEC may
+be the progression evidence itself. A package that requires separate approval
+instead declares a condition and evidence Selector for a distinct reviewed DEC.
+Unreviewed or rejected Decisions remain inspectable history but do not advance the
+active Phase. Progression need not invent a human Decision when package Policy
+classifies the boundary as autonomous: the bootstrap Phase 1 boundary advances on
+its exact frozen pilot-assessment context with `package-evidence` authority and no
+stakeholder attention.
 
 ## 13. Package validation
 
@@ -699,17 +718,23 @@ selected package and snapshot host. Human and JSON views project the same result
 traversed versioned definitions, evidence, and selected package/language versions;
 parser nodes and query helpers remain private.
 
-`req phase status <phase>`, `req loose-ends`, and `req next` evaluate an explicit
-snapshot through the same public lifecycle evaluator. Phase status retains entry,
+`req phase status [<phase>]`, `req loose-ends`, and `req next` evaluate through
+the same public lifecycle evaluator. An explicit Phase preserves historical
+inspection. Without a Phase in repository-backed operation, the kernel derives
+the active Phase from package progression declarations and exact Lifecycle Data;
+there is no phase-state file to edit. Phase status retains entry, progression,
 exact candidates, an independent Obligation status summary, exact gate results,
 blocker chains, Resolver Scenario output contracts, and Waiver Policy evidence.
 Loose End output keeps satisfaction, status, subject, blockers, unresolved
 bindings, eventual and actionable resolvers, Dispatchability, outputs, and waiver
 applicability as separate fields. Applicable waivers remain outside current Loose
 Ends but are reported separately as waiver-suppressed Obligation evidence. `next`
-selects only the first deterministically ordered Dispatchable Loose End; it does
-not infer a batch where the Process Package declares no batching contract. Human
-and JSON renderers consume these package-neutral projections.
+selects only the first deterministically ordered Dispatchable Loose End. When no
+Obligation is Dispatchable but a ready Phase awaits authorization, it instead
+projects one package-declared progression item with the public Scenario, exact
+subjects, Authority Requirement, and Attention Schedule needed for agent execution.
+It does not infer a batch where the Process Package declares no batching contract.
+Human and JSON renderers consume these package-neutral projections.
 
 `req process init <path>` creates a package-neutral `0.1.0` authoring scaffold
 with only the supported versioned meta-schema, kernel Datum Envelope,

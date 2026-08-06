@@ -1977,6 +1977,88 @@ function compilePhaseDefinition(
     catalogs,
     diagnostics,
   );
+  if (typeof definition.progression !== "object" || definition.progression === null) {
+    return;
+  }
+  const progression = definition.progression as Record<string, unknown>;
+  compileField(
+    progression,
+    "readiness",
+    `${filePath}#progression.readiness`,
+    { ...baseBindings },
+    catalogs,
+    diagnostics,
+  );
+  if (
+    typeof progression.authorization !== "object" ||
+    progression.authorization === null
+  ) return;
+  const authorization = progression.authorization as Record<string, unknown>;
+  compileField(
+    authorization,
+    "condition",
+    `${filePath}#progression.authorization.condition`,
+    { ...baseBindings },
+    catalogs,
+    diagnostics,
+  );
+  compileField(
+    authorization,
+    "subjects",
+    `${filePath}#progression.authorization.subjects`,
+    { ...baseBindings },
+    catalogs,
+    diagnostics,
+    "array",
+  );
+  const policyMatch = typeof authorization.policy_ref === "string"
+    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(authorization.policy_ref)
+    : undefined;
+  const policy = policyMatch?.[1] ? catalogs.policies[policyMatch[1]] : undefined;
+  const argumentsValue = typeof authorization.arguments === "object" &&
+      authorization.arguments !== null && !Array.isArray(authorization.arguments)
+    ? authorization.arguments as Record<string, unknown>
+    : undefined;
+  if (policy?.version === Number(policyMatch?.[2]) && argumentsValue) {
+    for (const parameterValue of Array.isArray(policy.parameters) ? policy.parameters : []) {
+      if (typeof parameterValue !== "object" || parameterValue === null) continue;
+      const parameter = parameterValue as Record<string, unknown>;
+      const name = typeof parameter.name === "string" ? parameter.name : undefined;
+      if (!name || !(name in argumentsValue)) continue;
+      const contract = policyParameterBinding(parameter, catalogs);
+      const compiled = compileField(
+        argumentsValue,
+        name,
+        `${filePath}#progression.authorization.arguments.${name}`,
+        { ...baseBindings },
+        catalogs,
+        diagnostics,
+        contract.valueType,
+      );
+      if (!compiled) continue;
+      const kind = String(parameter.kind);
+      const compatibleDomains = kind === "revision"
+        ? ["revision", "baseline"]
+        : [kind];
+      const compatibleDomain = kind === "scalar" ||
+        (compiled.root.domainKind !== undefined &&
+          compatibleDomains.includes(compiled.root.domainKind));
+      const allowedTypes = contract.lifecycleTypes ?? [];
+      const compatibleTypes = allowedTypes.length === 0 ||
+        (compiled.root.lifecycleTypes !== undefined &&
+          compiled.root.lifecycleTypes.every((type) => allowedTypes.includes(type)));
+      if (!compatibleDomain || !compatibleTypes) {
+        diagnostics.push({
+          code: "phase-progression-policy-argument-type",
+          path: `${filePath}#progression.authorization.arguments.${name}`,
+          line: compiled.root.span.start.line,
+          column: compiled.root.span.start.column,
+          source: compiled.source,
+          message: `Phase progression argument '${name}' does not match Policy parameter kind '${kind}'`,
+        });
+      }
+    }
+  }
 }
 
 export function compileDefinitionExpressions(

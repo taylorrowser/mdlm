@@ -21,6 +21,7 @@ import {
 } from "./obligation-instance.js";
 import { effectiveOutgoingLinks } from "./payload-inheritance.js";
 import {
+  participationResult,
   scenarioParticipation as projectScenarioParticipation,
   type ScenarioParticipation,
 } from "./participation.js";
@@ -194,6 +195,27 @@ export interface PhaseGateEvaluation {
   };
 }
 
+export interface PhaseProgressionEvaluation {
+  nextPhase: string;
+  gateComplete: boolean;
+  ready: boolean;
+  authorized: boolean;
+  complete: boolean;
+  explanation: string;
+  readiness: PhaseExpressionEvidence;
+  authorization: PhaseExpressionEvidence;
+  authority: {
+    policy: string;
+    scenario: string;
+    evidenceSelector: string;
+    subjects: ExactTypedEntity[];
+    evidence: ExactTypedEntity[];
+    authorityRequirement: ScenarioParticipation["authorityRequirement"];
+    attentionSchedule: ScenarioParticipation["attentionSchedule"];
+    attentionRequired: boolean;
+  };
+}
+
 export interface PhaseEvaluation {
   id: string;
   version: number;
@@ -211,6 +233,7 @@ export interface PhaseEvaluation {
     required: boolean;
     evaluations: PhaseGateEvaluation[];
   };
+  progression: PhaseProgressionEvaluation | null;
 }
 
 export interface ObligationHistoryEvaluation {
@@ -996,6 +1019,89 @@ class LifecycleEvaluator {
         evidence: completion,
       }];
     });
+    const progression = object(definition.progression);
+    let progressionEvaluation: PhaseProgressionEvaluation | null = null;
+    if (progression) {
+      const readiness = this.evaluateWithSelectorEvidence(
+        progression.readiness,
+        () => this.expression(progression.readiness, this.baseContext),
+      );
+      const authorization = object(progression.authorization)!;
+      const authorizationCondition = this.evaluateWithSelectorEvidence(
+        authorization.condition,
+        () => this.expression(authorization.condition, this.baseContext),
+      );
+      const policyReference = string(authorization.policy_ref) ?? "";
+      const policyArguments = Object.fromEntries(
+        Object.entries(object(authorization.arguments) ?? {}).map(([name, value]) => [
+          name,
+          this.value(value, this.baseContext),
+        ]),
+      );
+      const projectedParticipation = participationResult(
+        this.policyResult(policyReference, policyArguments),
+      );
+      if (!projectedParticipation) {
+        throw new Error(
+          `Phase progression Participation Policy '${policyReference}' returned an invalid standardized result`,
+        );
+      }
+      const evidenceSelector = string(authorization.evidence_selector) ?? "";
+      const subjects = array(this.value(authorization.subjects, this.baseContext))
+        .filter((value): value is Entity => this.isEntity(value))
+        .map((entity) => this.exactTypedEntity(entity))
+        .filter((entity): entity is ExactTypedEntity => entity !== undefined);
+      const evidenceByRevision = new Map<string, ExactTypedEntity>();
+      for (const selector of authorizationCondition.selectors) {
+        if (selector.selector !== evidenceSelector) continue;
+        for (const evidence of selector.result) {
+          evidenceByRevision.set(evidence.identity.revision_id, evidence);
+        }
+      }
+      const evidence = [...evidenceByRevision.values()].sort((left, right) =>
+        left.identity.revision_id.localeCompare(right.identity.revision_id)
+      );
+      const gateComplete = gate.required === true
+        ? gateEvaluations.length > 0 && gateEvaluations.every((item) => item.complete)
+        : true;
+      const ready = readiness.result;
+      const authorized = authorizationCondition.result && evidence.length > 0;
+      const complete = gateComplete && ready && authorized;
+      progressionEvaluation = {
+        nextPhase: string(progression.next_phase) ?? "",
+        gateComplete,
+        ready,
+        authorized,
+        complete,
+        explanation: complete
+          ? "The package-defined Phase progression condition and exact authorization are satisfied."
+          : !ready
+          ? "Phase progression is waiting for its package-defined readiness condition."
+          : !authorized
+          ? "Phase progression is waiting for exact authorization evidence."
+          : "Phase progression is waiting for the required gate to complete.",
+        readiness: {
+          source: readiness.source,
+          result: readiness.result,
+          selectors: readiness.selectors,
+        },
+        authorization: {
+          source: authorizationCondition.source,
+          result: authorizationCondition.result,
+          selectors: authorizationCondition.selectors,
+        },
+        authority: {
+          policy: policyReference,
+          scenario: string(authorization.scenario) ?? "",
+          evidenceSelector,
+          subjects,
+          evidence,
+          ...projectedParticipation,
+          attentionRequired: ready && !authorized &&
+            projectedParticipation.authorityRequirement.mode !== "autonomous",
+        },
+      };
+    }
     return {
       id: definition.id,
       version: number(definition.version),
@@ -1025,6 +1131,7 @@ class LifecycleEvaluator {
         required: gate.required === true,
         evaluations: gateEvaluations,
       },
+      progression: progressionEvaluation,
     };
   }
 
