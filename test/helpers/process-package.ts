@@ -13,10 +13,46 @@ export async function copiedProcessPackage(
   return processRoot;
 }
 
+const phase0FoundationObligations = [
+  "initial-wayfinding-map-required",
+  "product-specification-required",
+  "stakeholder-requirements-required",
+  "intent-candidate-required",
+  "foundation-review-correction-required",
+  "intent-candidate-review-correction-required",
+  "gate-signoff-review-correction-required",
+];
+
+export async function suppressPhase0FoundationObligations(
+  processRoot: string,
+): Promise<void> {
+  for (const obligation of phase0FoundationObligations) {
+    const obligationPath = path.join(
+      processRoot,
+      `obligations/${obligation}.yaml`,
+    );
+    const source = await fs.readFile(obligationPath, "utf8");
+    await fs.writeFile(
+      obligationPath,
+      source.replace(
+        "phases: [phase-0-wayfinding]",
+        "phases: [phase-1-product-assurance]",
+      ),
+    );
+  }
+  const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+  let phase = await fs.readFile(phasePath, "utf8");
+  for (const obligation of phase0FoundationObligations) {
+    phase = phase.replace(`  - ${obligation}@1\n`, "");
+  }
+  await fs.writeFile(phasePath, phase);
+}
+
 export async function distinctProgressionProcessPackage(
   prefix = "mdlm-distinct-progression-",
 ): Promise<string> {
   const processRoot = await copiedProcessPackage(prefix);
+  await suppressPhase0FoundationObligations(processRoot);
   const manifestPath = path.join(processRoot, "manifest.yaml");
   const manifest = await fs.readFile(manifestPath, "utf8");
   await fs.writeFile(

@@ -1,0 +1,19 @@
+kind: selector-definition
+id: phase-0-foundation-members
+version: 1
+description: Current exact MAP, PSP, and STK Revisions defining the Phase 0 foundation.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [MAP, PSP, STK]}
+  as: member
+  where: >-
+    state(member, "disposition") == "active"
+    && none("newer-revisions-for@1", {subject: member})
+    && (
+      member.identity.type in ["MAP", "PSP"]
+      || exists("current-product-specifications-for-requirement@1",
+        {requirement: member})
+    )
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

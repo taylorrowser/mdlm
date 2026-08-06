@@ -1,0 +1,24 @@
+kind: selector-definition
+id: valid-gate-signoff-replacements-for
+version: 1
+description: Same-lineage gate Decision replacements preserving the failed Decision's exact candidate scope and link.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from:
+    selector: newer-revisions-for@1
+    arguments: {subject: decision}
+  as: replacement
+  where: >-
+    replacement.identity.id == decision.identity.id
+    && replacement.payload.kind == "gate-signoff"
+    && replacement.payload.gate_outcome in ["approve", "reject"]
+    && replacement.payload.effective_scope == decision.payload.effective_scope
+    && state(replacement, "disposition") == "active"
+    && state(replacement, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: replacement})
+    && exists("gate-candidates-for-decision@1", {decision: replacement})
+    && none("other-gate-candidates-for-decision@1", {decision: replacement})
+  distinct: true
+  order_by: [identity.revision]

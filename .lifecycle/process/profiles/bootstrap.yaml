@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 9
+version: 10
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -22,6 +22,7 @@ success_criteria:
   - every non-Resolver Scenario declares explicit initiation and publishes one validated atomic output batch
   - every prototype-bound empirical QST routes to exact bounded ART, DEC, and satisfying QST evidence while generic empirical questions retain their non-prototype resolver
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
+  - the complete required Phase 0 foundation emerges from package Obligations, including exact correction and re-Review after failure
   - the reviewed Phase 0 gate Decision authorizes declarative entry to Phase 1 without a redundant approval
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
   - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations

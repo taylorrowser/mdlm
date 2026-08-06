@@ -847,8 +847,13 @@ Revisions to a Resolver that atomically publishes ART, resolving DEC, and the ne
 answered QST Revision; empirical questions without that declaration retain the
 generic evidence path. Mutable targets, out-of-bound findings, incomplete batches,
 and RUN/RES substitutions fail before publication. The narrow repository-backed
-Phase 0 tracer reviews MAP, PSP, and STK separately in a shared exact frozen context, freezes and reviews an
-intent candidate, and completes one reviewed exact Gate Sign-off.
+Phase 0 tracer begins with a Phase-scoped map Obligation, then derives PSP and STK
+work, exact Review Context and Review work, and candidate construction from
+Lifecycle Data. A failed current foundation Review exposes replacement-Revision
+work and removes the failed Revision from current work only after the replacement
+is published; immutable failed Review history remains inspectable. The tracer
+reviews MAP, PSP, and STK separately in a shared exact frozen context, freezes and
+reviews an intent candidate, and completes one reviewed exact Gate Sign-off.
 
 The Phase 1 tracer embeds named capability profiles in VSP, realizes and qualifies
 one exact ENV, and runs one source-independent pilot against an exact ART target.

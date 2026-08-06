@@ -1,0 +1,17 @@
+kind: scenario-definition
+id: establish-initial-wayfinding-map
+version: 1
+description: Establish the required initial Phase 0 decision frontier without inventing product commitments.
+phases: [phase-0-wayfinding]
+inputs: []
+outputs:
+  - {name: map, types: [MAP], cardinality: one, required_links: []}
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/establish-initial-wayfinding-map.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && map.payload.frontier != []
+resolves: [initial-wayfinding-map-required]
+prohibited_inputs: [unstated stakeholder preferences, generated indexes as lifecycle truth]
+batching: single

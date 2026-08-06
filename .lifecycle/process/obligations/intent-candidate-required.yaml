@@ -1,0 +1,48 @@
+kind: obligation-definition
+id: intent-candidate-required
+version: 1
+description: The reviewed current Phase 0 foundation requires one exact frozen intent-level candidate.
+phases: [phase-0-wayfinding]
+for_each: '[phase]'
+subject_as: required_phase
+satisfied_when: 'exists("complete-phase-0-intent-candidates@1", {})'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: >-
+      none("current-wayfinding-maps@1", {})
+      || none("current-product-specifications@1", {})
+      || !every("current-product-specifications@1", {}, product_specification =>
+        exists("stakeholder-requirements-for@1", {product_specification: product_specification}))
+      || exists("phase-0-foundation-members-missing-review@1", {})
+      || exists("open-blocking-questions@1", {})
+    reason: Candidate construction waits for the complete reviewed foundation and resolution of blocking questions.
+    blocked_by:
+      - obligation: initial-wayfinding-map-required@1
+        subjects: '[required_phase]'
+      - obligation: product-specification-required@1
+        subjects: '[required_phase]'
+      - obligation: stakeholder-requirements-required@1
+        subjects: 'select("current-product-specifications@1", {})'
+      - obligation: passing-review-required@2
+        subjects: 'select("phase-0-foundation-members-missing-review@1", {})'
+      - obligation: open-question-resolution@2
+        subjects: 'select("open-blocking-questions@1", {})'
+      - obligation: prototype-question-resolution@1
+        subjects: 'select("open-blocking-questions@1", {})'
+  - status: ready
+    priority: 100
+    when: >-
+      exists("current-wayfinding-maps@1", {})
+      && exists("current-product-specifications@1", {})
+      && every("current-product-specifications@1", {}, product_specification =>
+        exists("stakeholder-requirements-for@1", {product_specification: product_specification}))
+      && none("phase-0-foundation-members-missing-review@1", {})
+      && none("open-blocking-questions@1", {})
+    reason: The exact reviewed Phase 0 foundation is ready to freeze as one intent candidate.
+default_status: blocked
+resolve_with:
+  scenario: create-phase-0-intent-candidate@1
+  inputs:
+    definition_members: 'select("phase-0-foundation-members@1", {})'
+waiver_policy_ref: waiver-applicability@1

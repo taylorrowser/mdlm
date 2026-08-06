@@ -2,7 +2,7 @@ kind: scenario-definition
 id: create-candidate-baseline
 version: 1
 description: Freeze exact reviewed definition revisions as a candidate baseline for one role and scope.
-phases: [phase-0-wayfinding, phase-2-system-definition]
+phases: [phase-2-system-definition]
 inputs:
   - name: definition_members
     types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP]

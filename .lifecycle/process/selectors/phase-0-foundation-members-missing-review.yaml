@@ -1,0 +1,16 @@
+kind: selector-definition
+id: phase-0-foundation-members-missing-review
+version: 1
+description: Current Phase 0 foundation Revisions without applicable passing Review evidence.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: phase-0-foundation-members@1
+    arguments: {}
+  as: member
+  where: >-
+    none("passing-reviews-for@1", {subject: member})
+    || exists("failing-reviews-for@1", {subject: member})
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

@@ -215,7 +215,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
     await fs.writeFile(
       oldPath,
       oldSource.replace(
-        /process_ref: mdlm-bootstrap@0\.35\.0#sha256:[a-f0-9]{64}/,
+        /process_ref: mdlm-bootstrap@0\.36\.0#sha256:[a-f0-9]{64}/,
         `process_ref: historical-process@1.0.0#sha256:${"a".repeat(64)}`,
       ),
     );
@@ -272,7 +272,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
       expect.objectContaining({
         kind: "process-provenance-change",
         before_process_ref: expect.stringContaining("historical-process@1.0.0"),
-        after_process_ref: expect.stringContaining("mdlm-bootstrap@0.35.0"),
+        after_process_ref: expect.stringContaining("mdlm-bootstrap@0.36.0"),
       }),
     ]));
     expect(output.baselineDiff.processDrift).toEqual([
@@ -362,7 +362,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
     await fs.writeFile(
       beforePath,
       (await fs.readFile(beforePath, "utf8")).replace(
-        /process_ref: mdlm-bootstrap@0\.35\.0#sha256:[a-f0-9]{64}/,
+        /process_ref: mdlm-bootstrap@0\.36\.0#sha256:[a-f0-9]{64}/,
         `process_ref: historical-process@1.0.0#sha256:${"b".repeat(64)}`,
       ),
     );

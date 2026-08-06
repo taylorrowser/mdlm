@@ -61,6 +61,25 @@ describe("req Phase 0 wayfinding slice", () => {
     ]));
   });
 
+  it("discovers the first required foundation step from an initialized repository", () => {
+    const next = req(
+      repositoryRoot,
+      "next",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
+    );
+
+    expect(next.status, next.stderr).toBe(0);
+    expect(JSON.parse(next.stdout).next.item).toEqual(expect.objectContaining({
+      obligation: "initial-wayfinding-map-required",
+      subject: "phase-0-wayfinding@2",
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "establish-initial-wayfinding-map@1",
+    }));
+  });
+
   it("rejects a mutable prototype repository reference", () => {
     const created = req(
       repositoryRoot,
@@ -87,6 +106,313 @@ describe("req Phase 0 wayfinding slice", () => {
     ]);
   });
 
+  it("routes a failed foundation Review to a replacement Revision and fresh Review work", async () => {
+    const create = (...arguments_: string[]) => {
+      const result = req(repositoryRoot, "new", ...arguments_, "--json");
+      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+      return JSON.parse(result.stdout).created as {
+        id: string;
+        revisionId: string;
+      };
+    };
+    const product = create(
+      "PSP",
+      "--scenario",
+      "compile-psp@2",
+      "--set",
+      "title=Ambiguous report export",
+      "--set",
+      "rationale=Initial intent needs independent correction",
+      "--set",
+      "problem=Report outcomes are not portable",
+      "--set",
+      'users=["report author"]',
+      "--set",
+      'goals=["export reports"]',
+      "--set",
+      "non_goals=[]",
+      "--set",
+      'success_measures=["exports complete"]',
+    );
+    const contextResult = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Failed PSP review context",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      "scope=failed PSP review",
+      "--set",
+      "group=DEFAULT",
+      "--json",
+    );
+    expect(contextResult.status, contextResult.stderr).toBe(0);
+    const context = JSON.parse(contextResult.stdout).created as {
+      id: string;
+      revisionId: string;
+    };
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      context.id,
+      product.revisionId,
+      "--json",
+    ).status).toBe(0);
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      context.id,
+      "--json",
+    ).status).toBe(0);
+    create(
+      "REV",
+      "--scenario",
+      "review-datum-in-context@2",
+      "--set",
+      "title=Failed review of ambiguous export intent",
+      "--set",
+      "rubric_ref=policies/rubrics/bootstrap-review.md@1",
+      "--set",
+      `findings=${JSON.stringify([{
+        id: "F-001",
+        target: product.revisionId,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "Export scope is ambiguous",
+      }])}`,
+      "--set",
+      "outcome=fail",
+      "--link",
+      `reviews=${product.revisionId}`,
+      "--link",
+      `contextualizes=${context.revisionId}`,
+    );
+
+    const looseEnds = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
+    );
+    expect(looseEnds.status, looseEnds.stderr).toBe(0);
+    const correction = JSON.parse(looseEnds.stdout).looseEnds.items.find(
+      (item: any) => item.obligation === "foundation-review-correction-required",
+    );
+    expect(correction).toEqual(expect.objectContaining({
+      subject: product.revisionId,
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-foundation-after-review@1",
+    }));
+    expect(JSON.parse(looseEnds.stdout).looseEnds.items.some((item: any) =>
+      item.subject === product.revisionId &&
+      ["review-context-required", "passing-review-required"].includes(
+        item.obligation,
+      )
+    )).toBe(false);
+
+    const adapterPath = path.join(repositoryRoot, "foundation-correction-adapter.mjs");
+    await fs.writeFile(
+      adapterPath,
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+        outputs: [{
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: product.id,
+            type: "PSP",
+            payload: {
+              title: "Bounded report export",
+              rationale: "The failed Review identified and bounded the export scope",
+              problem: "Report authors cannot carry one completed report into another tool",
+              users: ["report author"],
+              goals: ["export one representative completed report"],
+              non_goals: ["general integration platform"],
+              success_measures: ["one report exports with visible content"],
+            },
+            links: [],
+            body: "Corrected after exact failed Review.\\n",
+          },
+        }],
+        completionEvidence: { summary: "The failed Review finding was corrected." },
+      }))});\n`,
+      { mode: 0o755 },
+    );
+    const revised = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "revise-foundation-after-review@1",
+      "--obligation",
+      correction.id,
+      "--adapter",
+      adapterPath,
+      "--input",
+      `subject=${product.revisionId}`,
+      "--json",
+    );
+    expect(revised.status, `${revised.stderr}${revised.stdout}`).toBe(0);
+    const replacement = JSON.parse(revised.stdout).execution.outputs[0]
+      .lifecycleDatum as { revisionId: string };
+
+    const afterCorrection = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
+    );
+    expect(afterCorrection.status, afterCorrection.stderr).toBe(0);
+    const items = JSON.parse(afterCorrection.stdout).looseEnds.items;
+    expect(items.some((item: any) =>
+      item.obligation === "passing-review-required" &&
+      item.subject === product.revisionId
+    )).toBe(false);
+    const replacementContextWork = items.find((item: any) =>
+      item.obligation === "review-context-required" &&
+      item.subject === replacement.revisionId
+    );
+    expect(replacementContextWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+    }));
+
+    const contextAdapter = path.join(repositoryRoot, "replacement-context-adapter.mjs");
+    await fs.writeFile(
+      contextAdapter,
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+        outputs: [{
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Corrected PSP review context",
+              kind: "review-context",
+              role: "review-context",
+              scope: "corrected PSP",
+              group: "DEFAULT",
+              definition_members: [replacement.revisionId],
+              evidence: [],
+            },
+            links: [],
+            body: "Fresh context for the replacement Revision.\\n",
+          },
+        }],
+        completionEvidence: { summary: "The replacement context was frozen." },
+      }))});\n`,
+      { mode: 0o755 },
+    );
+    const contextualized = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "create-review-context@1",
+      "--obligation",
+      replacementContextWork.id,
+      "--adapter",
+      contextAdapter,
+      "--input",
+      `subject=${replacement.revisionId}`,
+      "--json",
+    );
+    expect(
+      contextualized.status,
+      `${contextualized.stderr}${contextualized.stdout}`,
+    ).toBe(0);
+    const replacementContext = JSON.parse(contextualized.stdout).execution.outputs[0]
+      .lifecycleDatum as { revisionId: string };
+
+    const reviewWorkResult = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
+    );
+    expect(reviewWorkResult.status, reviewWorkResult.stderr).toBe(0);
+    const reviewWork = JSON.parse(reviewWorkResult.stdout).looseEnds.items.find(
+      (item: any) => item.obligation === "passing-review-required" &&
+        item.subject === replacement.revisionId,
+    );
+    expect(reviewWork).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: true,
+    }));
+    const reviewAdapter = path.join(repositoryRoot, "replacement-review-adapter.mjs");
+    await fs.writeFile(
+      reviewAdapter,
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+        outputs: [{
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: "Passing Review of corrected PSP",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [],
+              outcome: "pass",
+            },
+            links: [
+              { type: "reviews", target: replacement.revisionId },
+              { type: "contextualizes", target: replacementContext.revisionId },
+            ],
+            body: "The corrected exact Revision passes.\\n",
+          },
+        }],
+        completionEvidence: { summary: "The replacement passed Review." },
+      }))});\n`,
+      { mode: 0o755 },
+    );
+    const reviewed = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "review-datum-in-context@2",
+      "--obligation",
+      reviewWork.id,
+      "--authorize",
+      "independent-reviewer",
+      "--adapter",
+      reviewAdapter,
+      "--input",
+      `subject=${replacement.revisionId}`,
+      "--input",
+      `review_context=${replacementContext.revisionId}`,
+      "--json",
+    );
+    expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
+
+    const completed = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
+    );
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(completed.stdout).looseEnds.items.some((item: any) =>
+      [product.revisionId, replacement.revisionId].includes(item.subject) &&
+      [
+        "foundation-review-correction-required",
+        "review-context-required",
+        "passing-review-required",
+      ].includes(item.obligation)
+    )).toBe(false);
+  }, 15_000);
+
   it("moves one exact intent slice through contextual review and reviewed gate sign-off", async () => {
     let adapterSequence = 0;
     const create = (...arguments_: string[]) => {
@@ -96,71 +422,6 @@ describe("req Phase 0 wayfinding slice", () => {
         id: string;
         revisionId: string;
       };
-    };
-    const baseline = (title: string, kind: string, role: string, scenario: string) => {
-      const result = req(
-        repositoryRoot,
-        "baseline",
-        "create",
-        "--type",
-        "BSL",
-        "--scenario",
-        scenario,
-        "--set",
-        `title=${title}`,
-        "--set",
-        `kind=${kind}`,
-        "--set",
-        `role=${role}`,
-        "--set",
-        `scope=${title}`,
-        "--set",
-        "group=DEFAULT",
-        "--json",
-      );
-      expect(result.status, result.stderr).toBe(0);
-      return JSON.parse(result.stdout).created as {
-        id: string;
-        revisionId: string;
-      };
-    };
-    const addAndFreeze = (
-      created: { id: string; revisionId: string },
-      members: string[],
-      evidence: string[] = [],
-    ) => {
-      for (const member of members) {
-        const added = req(
-          repositoryRoot,
-          "baseline",
-          "add",
-          created.id,
-          member,
-          "--json",
-        );
-        expect(added.status, added.stderr).toBe(0);
-      }
-      for (const item of evidence) {
-        const added = req(
-          repositoryRoot,
-          "baseline",
-          "evidence",
-          "add",
-          created.id,
-          item,
-          "--json",
-        );
-        expect(added.status, added.stderr).toBe(0);
-      }
-      const frozen = req(
-        repositoryRoot,
-        "baseline",
-        "freeze",
-        created.id,
-        "--json",
-      );
-      expect(frozen.status, frozen.stderr).toBe(0);
-      return created;
     };
     const looseEnds = () => {
       const result = req(
@@ -193,6 +454,53 @@ describe("req Phase 0 wayfinding slice", () => {
         { mode: 0o755 },
       );
       return { executable, capture };
+    };
+    const reviewContext = async (title: string, subjects: string[]) => {
+      const obligation = looseEnd("review-context-required@2", subjects[0]!);
+      expect(obligation).toEqual(expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "create-review-context@1",
+      }));
+      const configured = await adapter({
+        outputs: [{
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title,
+              kind: "review-context",
+              role: "review-context",
+              scope: title,
+              group: "DEFAULT",
+              definition_members: subjects,
+              evidence: [],
+            },
+            links: [],
+            body: `Exact frozen context for ${subjects.join(", ")}.\n`,
+          },
+        }],
+        completionEvidence: { summary: "The exact review context was frozen." },
+      }, "review-context");
+      const executed = req(
+        repositoryRoot,
+        "scenario",
+        "execute",
+        "create-review-context@1",
+        "--obligation",
+        obligation.id,
+        "--adapter",
+        configured.executable,
+        "--input",
+        `subject=${subjects[0]}`,
+        "--json",
+      );
+      expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
+      return JSON.parse(executed.stdout).execution.outputs[0].lifecycleDatum as {
+        id: string;
+        revisionId: string;
+      };
     };
     const review = async (subject: string, context: string) => {
       const obligation = looseEnd("passing-review-required@2", subject);
@@ -243,6 +551,141 @@ describe("req Phase 0 wayfinding slice", () => {
       return JSON.parse(executed.stdout).execution.outputs[0].lifecycleDatum
         .revisionId as string;
     };
+
+    const initialMapWork = looseEnd(
+      "initial-wayfinding-map-required@1",
+      "phase-0-wayfinding@2",
+    );
+    expect(initialMapWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "establish-initial-wayfinding-map@1",
+    }));
+    const mapAdapter = await adapter({
+      outputs: [{
+        name: "map",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "MAP",
+          payload: {
+            title: "Representative export frontier",
+            purpose: "Decide the smallest useful report export",
+            frontier: ["review exact product intent"],
+          },
+          links: [],
+          body: "Initial package-discovered frontier.\n",
+        },
+      }],
+      completionEvidence: { summary: "The initial frontier was charted." },
+    }, "initial-map");
+    const establishedMap = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "establish-initial-wayfinding-map@1",
+      "--obligation",
+      initialMapWork.id,
+      "--adapter",
+      mapAdapter.executable,
+      "--json",
+    );
+    expect(establishedMap.status, `${establishedMap.stderr}${establishedMap.stdout}`).toBe(0);
+    const map = JSON.parse(establishedMap.stdout).execution.outputs[0]
+      .lifecycleDatum as { id: string; revisionId: string };
+
+    const productWork = looseEnd(
+      "product-specification-required@1",
+      "phase-0-wayfinding@2",
+    );
+    expect(productWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "compile-psp@2",
+    }));
+    const productAdapter = await adapter({
+      outputs: [{
+        name: "product_specification",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "PSP",
+          payload: {
+            title: "Representative report export",
+            rationale: "A narrow export answers the observed user need",
+            problem: "Users cannot carry one completed report into another tool",
+            users: ["report author"],
+            goals: ["export one representative completed report"],
+            non_goals: ["general integration platform"],
+            success_measures: ["one report exports with its visible content"],
+          },
+          links: [],
+          body: "Smallest useful product intent.\n",
+        },
+      }],
+      completionEvidence: { summary: "The product specification was compiled." },
+    }, "product-specification");
+    const compiledProduct = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "compile-psp@2",
+      "--obligation",
+      productWork.id,
+      "--adapter",
+      productAdapter.executable,
+      "--json",
+    );
+    expect(compiledProduct.status, `${compiledProduct.stderr}${compiledProduct.stdout}`).toBe(0);
+    const product = JSON.parse(compiledProduct.stdout).execution.outputs[0]
+      .lifecycleDatum as { id: string; revisionId: string };
+
+    const requirementWork = looseEnd(
+      "stakeholder-requirements-required@1",
+      product.revisionId,
+    );
+    expect(requirementWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "draft-stakeholder-requirements@2",
+    }));
+    const requirementAdapter = await adapter({
+      outputs: [{
+        name: "requirements",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "STK",
+          payload: {
+            title: "Export a completed report",
+            rationale: "Report authors need portable outcomes",
+            statement: "The product shall export one completed report with its visible content.",
+            verification_intent: "Export a representative completed report.",
+            stakeholder: "report author",
+            priority: "must",
+          },
+          links: [{ type: "derived-from", target: product.id }],
+          body: "One stakeholder-visible commitment.\n",
+        },
+      }],
+      completionEvidence: { summary: "The stakeholder requirement was drafted." },
+    }, "stakeholder-requirements");
+    const draftedRequirements = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "draft-stakeholder-requirements@2",
+      "--obligation",
+      requirementWork.id,
+      "--adapter",
+      requirementAdapter.executable,
+      "--input",
+      `product_specification=${product.revisionId}`,
+      "--json",
+    );
+    expect(
+      draftedRequirements.status,
+      `${draftedRequirements.stderr}${draftedRequirements.stdout}`,
+    ).toBe(0);
+    const stakeholder = JSON.parse(draftedRequirements.stdout).execution.outputs[0]
+      .lifecycleDatum as { id: string; revisionId: string };
 
     const question = create(
       "QST",
@@ -295,66 +738,6 @@ describe("req Phase 0 wayfinding slice", () => {
       "--link",
       `resolves=${question.revisionId}`,
     );
-    const product = create(
-      "PSP",
-      "--scenario",
-      "compile-psp@2",
-      "--set",
-      "title=Representative report export",
-      "--set",
-      "rationale=A narrow export answers the observed user need",
-      "--set",
-      "problem=Users cannot carry one completed report into another tool",
-      "--set",
-      'users=["report author"]',
-      "--set",
-      'goals=["export one representative completed report"]',
-      "--set",
-      'non_goals=["general integration platform"]',
-      "--set",
-      'success_measures=["one report exports with its visible content"]',
-    );
-    const stakeholder = create(
-      "STK",
-      "--scenario",
-      "draft-stakeholder-requirements@2",
-      "--set",
-      "title=Export a completed report",
-      "--set",
-      "rationale=Report authors need portable outcomes",
-      "--set",
-      "statement=The product shall export one completed report with its visible content.",
-      "--set",
-      "verification_intent=Export a representative completed report.",
-      "--set",
-      "stakeholder=report author",
-      "--set",
-      "priority=must",
-      "--link",
-      `derived-from=${product.id}`,
-    );
-    const map = create(
-      "MAP",
-      "--scenario",
-      "chart-wayfinding-map@1",
-      "--set",
-      "title=Representative export frontier",
-      "--set",
-      "purpose=Decide the smallest useful report export",
-      "--set",
-      'frontier=["review exact product intent"]',
-      "--link",
-      `indexes=${question.id}`,
-      "--link",
-      `indexes=${decision.id}`,
-      "--link",
-      `indexes=${prototype.id}`,
-      "--link",
-      `indexes=${product.id}`,
-      "--link",
-      `indexes=${stakeholder.id}`,
-    );
-
     await fs.rm(path.join(repositoryRoot, ".lifecycle/generated"), {
       recursive: true,
       force: true,
@@ -373,17 +756,17 @@ describe("req Phase 0 wayfinding slice", () => {
     ]);
     expect(readyContexts.every((item) => item.dispatchable)).toBe(true);
     expect(beforeContext.slice(0, firstBlockedReview)).toEqual(readyContexts);
-    expect(beforeContext.slice(firstBlockedReview).every((item) =>
-      item.obligation === "passing-review-required" && !item.dispatchable
-    )).toBe(true);
+    expect(beforeContext.slice(firstBlockedReview).filter((item) =>
+      item.obligation === "passing-review-required"
+    ).every((item) => !item.dispatchable)).toBe(true);
+    expect(beforeContext).toContainEqual(expect.objectContaining({
+      obligation: "intent-candidate-required",
+      status: "blocked",
+      dispatchable: false,
+    }));
 
-    const intentContext = addAndFreeze(
-      baseline(
-        "Intent review context",
-        "review-context",
-        "review-context",
-        "create-review-context@1",
-      ),
+    const intentContext = await reviewContext(
+      "Intent review context",
       [map.revisionId, product.revisionId, stakeholder.revisionId],
     );
     const reviewTargets = [map.revisionId, product.revisionId, stakeholder.revisionId];
@@ -391,23 +774,96 @@ describe("req Phase 0 wayfinding slice", () => {
       await review(subject, intentContext.revisionId);
     }
 
-    const candidate = addAndFreeze(
-      baseline(
-        "Intent level candidate",
-        "intent-level-candidate",
-        "candidate",
-        "create-candidate-baseline@1",
-      ),
-      [map.revisionId, product.revisionId, stakeholder.revisionId, prototype.revisionId],
-      [decision.revisionId, question.revisionId],
+    const candidateWork = looseEnd(
+      "intent-candidate-required@1",
+      "phase-0-wayfinding@2",
     );
-    const candidateContext = addAndFreeze(
-      baseline(
-        "Intent candidate review context",
-        "review-context",
-        "review-context",
-        "create-review-context@1",
-      ),
+    expect(candidateWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "create-phase-0-intent-candidate@1",
+    }));
+    const incompleteCandidateAdapter = await adapter({
+      outputs: [{
+        name: "candidate",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Incomplete intent candidate",
+            kind: "intent-level-candidate",
+            role: "candidate",
+            scope: "Phase 0 product intent",
+            group: "DEFAULT",
+            definition_members: [map.revisionId, product.revisionId],
+            evidence: [],
+          },
+          links: [],
+          body: "This candidate incorrectly omits the stakeholder requirement.\n",
+        },
+      }],
+      completionEvidence: { summary: "An incomplete candidate was proposed." },
+    }, "incomplete-intent-candidate");
+    const rejectedCandidate = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "create-phase-0-intent-candidate@1",
+      "--obligation",
+      candidateWork.id,
+      "--adapter",
+      incompleteCandidateAdapter.executable,
+      "--json",
+    );
+    expect(rejectedCandidate.status).toBe(1);
+    expect(JSON.parse(rejectedCandidate.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    ]);
+
+    const candidateAdapter = await adapter({
+      outputs: [{
+        name: "candidate",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Intent level candidate",
+            kind: "intent-level-candidate",
+            role: "candidate",
+            scope: "Phase 0 product intent",
+            group: "DEFAULT",
+            definition_members: [
+              map.revisionId,
+              product.revisionId,
+              stakeholder.revisionId,
+            ],
+            evidence: [decision.revisionId, question.revisionId],
+          },
+          links: [],
+          body: "Exact reviewed Phase 0 foundation candidate.\n",
+        },
+      }],
+      completionEvidence: { summary: "The reviewed foundation was frozen." },
+    }, "intent-candidate");
+    const createdCandidate = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "create-phase-0-intent-candidate@1",
+      "--obligation",
+      candidateWork.id,
+      "--adapter",
+      candidateAdapter.executable,
+      "--json",
+    );
+    expect(
+      createdCandidate.status,
+      `${createdCandidate.stderr}${createdCandidate.stdout}`,
+    ).toBe(0);
+    const candidate = JSON.parse(createdCandidate.stdout).execution.outputs[0]
+      .lifecycleDatum as { id: string; revisionId: string };
+    const candidateContext = await reviewContext(
+      "Intent candidate review context",
       [candidate.revisionId],
     );
     await review(candidate.revisionId, candidateContext.revisionId);
@@ -577,13 +1033,8 @@ describe("req Phase 0 wayfinding slice", () => {
       }),
     );
 
-    const signoffContext = addAndFreeze(
-      baseline(
-        "Gate sign-off review context",
-        "review-context",
-        "review-context",
-        "create-review-context@1",
-      ),
+    const signoffContext = await reviewContext(
+      "Gate sign-off review context",
       [signoff.revisionId],
     );
     await review(signoff.revisionId, signoffContext.revisionId);

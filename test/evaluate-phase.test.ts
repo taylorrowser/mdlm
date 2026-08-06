@@ -218,7 +218,7 @@ describe("phase evaluation", () => {
           unresolvedBindings: [],
           evidence: {
             source:
-              'none("candidate-members-missing-review@1", {candidate: candidate}) && exists("passing-reviews-for@1", {subject: candidate}) && none("open-blocking-questions@1", {}) && exists("applicable-gate-signoffs-for@1", {candidate: candidate})',
+              'none("candidate-members-missing-review@1", {candidate: candidate}) && exists("passing-reviews-for@1", {subject: candidate}) && none("failing-reviews-for@1", {subject: candidate}) && none("open-blocking-questions@1", {}) && exists("applicable-gate-signoffs-for@1", {candidate: candidate})',
             result: false,
             selectors: expect.arrayContaining([
               {

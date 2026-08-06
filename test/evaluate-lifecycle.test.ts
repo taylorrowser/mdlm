@@ -74,10 +74,11 @@ describe("evaluateLifecycle", () => {
       "change-status": "not-applicable",
     });
 
-    expect(evaluation.looseEnds.map((item) => item.status)).toEqual([
-      "ready",
-      "blocked",
-    ]);
+    expect(evaluation.looseEnds.filter((item) =>
+      ["review-context-required", "passing-review-required"].includes(
+        item.obligation,
+      )
+    ).map((item) => item.status)).toEqual(["ready", "blocked"]);
 
     const context = evaluation.looseEnds.find(
       (item) => item.obligation === "review-context-required",

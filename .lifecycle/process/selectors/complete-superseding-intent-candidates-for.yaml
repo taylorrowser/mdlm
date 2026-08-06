@@ -1,0 +1,28 @@
+kind: selector-definition
+id: complete-superseding-intent-candidates-for
+version: 1
+description: Same-lineage superseding intent candidates containing every and only current Phase 0 foundation Revision.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from:
+    selector: superseding-baselines-for@1
+    arguments: {baseline: candidate}
+  as: replacement
+  where: >-
+    replacement.identity.id == candidate.identity.id
+    && exists("current-wayfinding-maps@1", {})
+    && exists("current-product-specifications@1", {})
+    && every("current-product-specifications@1", {}, product_specification =>
+      exists("stakeholder-requirements-for@1",
+        {product_specification: product_specification}))
+    && none("phase-0-foundation-members-missing-review@1", {})
+    && replacement.payload.kind == "intent-level-candidate"
+    && replacement.payload.role == "candidate"
+    && every("phase-0-foundation-members@1", {}, member =>
+      exists("candidate-members-matching@1",
+        {candidate: replacement, required_member: member}))
+    && none("non-phase-0-foundation-members-for@1", {candidate: replacement})
+  distinct: true
+  order_by: [identity.revision]

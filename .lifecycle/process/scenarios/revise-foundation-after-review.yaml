@@ -1,0 +1,25 @@
+kind: scenario-definition
+id: revise-foundation-after-review
+version: 1
+description: Replace one exact failed Phase 0 foundation Revision without altering its immutable Review history.
+phases: [phase-0-wayfinding]
+inputs:
+  - name: subject
+    types: [MAP, PSP, STK]
+    cardinality: one
+    identity: revision
+    conditions: 'exists("failing-reviews-for@1", {subject: subject})'
+outputs:
+  - name: replacement
+    types: [MAP, PSP, STK]
+    cardinality: one
+    required_links: []
+prompt_ref: prompts/revise-foundation-after-review.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == subject.identity.id
+  && replacement.identity.type == subject.identity.type
+resolves: [foundation-review-correction-required]
+prohibited_inputs: [mutation of the failed Revision, deletion of failed Review history, unrelated scope expansion]
+batching: single

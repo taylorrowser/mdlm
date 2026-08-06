@@ -5,7 +5,9 @@ description: Every review-required exact revision needs a current valid passing 
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 for_each: 'select("review-required-revisions@1", {})'
 subject_as: subject
-satisfied_when: 'exists("passing-reviews-for@1", {subject: subject})'
+satisfied_when: >-
+  exists("passing-reviews-for@1", {subject: subject})
+  && none("failing-reviews-for@1", {subject: subject})
 status_rules:
   - status: failed
     priority: 400

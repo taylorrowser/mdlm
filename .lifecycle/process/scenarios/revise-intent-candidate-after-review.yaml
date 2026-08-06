@@ -1,0 +1,41 @@
+kind: scenario-definition
+id: revise-intent-candidate-after-review
+version: 1
+description: Rebuild one failed Phase 0 intent candidate from exact reviewed members while preserving immutable Review history.
+phases: [phase-0-wayfinding]
+inputs:
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      candidate.payload.kind == "intent-level-candidate"
+      && exists("failing-reviews-for@1", {subject: candidate})
+  - name: definition_members
+    types: [MAP, PSP, STK]
+    cardinality: one-or-more
+    identity: revision
+    conditions: >-
+      exists("passing-reviews-for@1", {subject: definition_members})
+      && none("failing-reviews-for@1", {subject: definition_members})
+outputs:
+  - name: replacement
+    types: [BSL]
+    cardinality: one
+    required_links:
+      - {link: supersedes, target: {input: candidate}}
+prompt_ref: prompts/revise-intent-candidate-after-review.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == candidate.identity.id
+  && every("phase-0-foundation-members@1", {}, member =>
+    exists("candidate-members-matching@1",
+      {candidate: replacement, required_member: member}))
+  && none("non-phase-0-foundation-members-for@1", {candidate: replacement})
+  && replacement.payload.kind == "intent-level-candidate"
+  && replacement.payload.role == "candidate"
+  && replacement.storage.frozen == true
+resolves: [intent-candidate-review-correction-required]
+prohibited_inputs: [mutation of the failed candidate, unreviewed definition Revisions, deletion of failed Review history]
+batching: single

@@ -21,6 +21,7 @@ status_rules:
     when: >-
       exists("candidate-members-missing-review@1", {candidate: candidate})
       || none("passing-reviews-for@1", {subject: candidate})
+      || exists("failing-reviews-for@1", {subject: candidate})
       || exists("open-blocking-questions@1", {})
     reason: Candidate reviews, member reviews, or blocking questions remain unresolved.
     blocked_by:
@@ -37,6 +38,7 @@ status_rules:
     when: >-
       none("candidate-members-missing-review@1", {candidate: candidate})
       && exists("passing-reviews-for@1", {subject: candidate})
+      && none("failing-reviews-for@1", {subject: candidate})
       && none("open-blocking-questions@1", {})
     reason: The exact frozen candidate is ready for an explicit gate decision.
 default_status: blocked

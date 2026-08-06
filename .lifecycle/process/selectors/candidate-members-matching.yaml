@@ -1,0 +1,14 @@
+kind: selector-definition
+id: candidate-members-matching
+version: 1
+description: Exact members of one candidate matching one required Revision.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: required_member, kind: revision, types: [MAP, PSP, STK]}
+result_kind: revision
+query:
+  from: {relation: baseline-members, of: candidate, emit: entity}
+  as: member
+  where: 'member.identity.revision_id == required_member.identity.revision_id'
+  distinct: true
+  order_by: [identity.revision_id]

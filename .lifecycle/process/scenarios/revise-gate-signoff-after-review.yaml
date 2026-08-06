@@ -1,0 +1,40 @@
+kind: scenario-definition
+id: revise-gate-signoff-after-review
+version: 1
+description: Replace one failed gate sign-off Decision under fresh stakeholder authority without changing its exact candidate scope.
+phases: [phase-0-wayfinding]
+inputs:
+  - name: decision
+    types: [DEC]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      decision.payload.kind == "gate-signoff"
+      && exists("failing-reviews-for@1", {subject: decision})
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    identity: revision
+    conditions: 'candidate.identity.revision_id == decision.payload.effective_scope'
+outputs:
+  - name: replacement
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {input: candidate}}
+prompt_ref: prompts/revise-gate-signoff-after-review.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: gate-signoff-participation@1
+  arguments:
+    candidate: candidate
+authority_evidence: {output: replacement, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == decision.identity.id
+  && replacement.payload.kind == "gate-signoff"
+  && replacement.payload.effective_scope == candidate.identity.revision_id
+  && replacement.payload.gate_outcome in ["approve", "reject"]
+resolves: [gate-signoff-review-correction-required]
+prohibited_inputs: [changed candidate scope, implied approval, mutation of failed Decision or Review history]
+batching: single

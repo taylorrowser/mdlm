@@ -11,6 +11,7 @@ omitted_capabilities:
 entry: 'process.integrity.package_valid == true'
 scenarios:
   - chart-wayfinding-map@1
+  - establish-initial-wayfinding-map@1
   - build-exploratory-prototype@1
   - compile-psp@2
   - draft-stakeholder-requirements@2
@@ -18,10 +19,20 @@ scenarios:
   - review-datum-in-context@2
   - resolve-question@2
   - resolve-question-with-prototype@2
-  - create-candidate-baseline@1
+  - create-phase-0-intent-candidate@1
   - record-gate-signoff@2
   - record-consequential-decision@1
+  - revise-foundation-after-review@1
+  - revise-intent-candidate-after-review@1
+  - revise-gate-signoff-after-review@1
 obligations:
+  - initial-wayfinding-map-required@1
+  - product-specification-required@1
+  - stakeholder-requirements-required@1
+  - intent-candidate-required@1
+  - foundation-review-correction-required@1
+  - intent-candidate-review-correction-required@1
+  - gate-signoff-review-correction-required@1
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@2
@@ -36,7 +47,8 @@ progression:
     && every("candidate-baselines-of-kind@1",
       {baseline_kind: "intent-level-candidate"}, candidate =>
         none("candidate-members-missing-review@1", {candidate: candidate})
-        && exists("passing-reviews-for@1", {subject: candidate}))
+        && exists("passing-reviews-for@1", {subject: candidate})
+        && none("failing-reviews-for@1", {subject: candidate}))
     && none("open-blocking-questions@1", {})
   authorization:
     condition: >-
@@ -60,5 +72,6 @@ gate:
   completion: >-
     none("candidate-members-missing-review@1", {candidate: candidate})
     && exists("passing-reviews-for@1", {subject: candidate})
+    && none("failing-reviews-for@1", {subject: candidate})
     && none("open-blocking-questions@1", {})
     && exists("applicable-gate-signoffs-for@1", {candidate: candidate})

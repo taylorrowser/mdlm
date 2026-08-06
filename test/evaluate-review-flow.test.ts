@@ -113,7 +113,12 @@ describe("evaluateLifecycle review flow", () => {
 
     expect(evaluation.diagnostics).toEqual([]);
     expect(
-      evaluation.looseEnds.filter((item) => item.subject === psp.datum.revision_id),
+      evaluation.looseEnds.filter((item) =>
+        item.subject === psp.datum.revision_id &&
+        ["review-context-required", "passing-review-required"].includes(
+          item.obligation,
+        )
+      ),
     ).toEqual([]);
     expect(
       evaluation.obligations.find(
@@ -275,8 +280,11 @@ describe("evaluateLifecycle review flow", () => {
       ),
     ).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
     expect(
-      afterReplacementReview.looseEnds.filter(
-        (item) => item.subject === replacement.datum.revision_id,
+      afterReplacementReview.looseEnds.filter((item) =>
+        item.subject === replacement.datum.revision_id &&
+        ["review-context-required", "passing-review-required"].includes(
+          item.obligation,
+        )
       ),
     ).toEqual([]);
   });
@@ -600,6 +608,122 @@ describe("evaluateLifecycle review flow", () => {
         explanation: expect.stringContaining("Candidate reviews"),
       }),
     );
+  });
+
+  it("routes a failed intent-candidate Review to an exact superseding-candidate Resolver", () => {
+    const psp = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Reviewed product intent",
+      rationale: "Preserve exact intent",
+      problem: "Intent is otherwise ambiguous",
+      users: ["owner"],
+      goals: ["traceability"],
+      non_goals: [],
+      success_measures: ["reviewed intent"],
+    });
+    const pspContext = record("BSL", "BSL-X4N7AB2W6J", {
+      title: "PSP context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "PSP",
+      group: "DEFAULT",
+      definition_members: [psp.datum.revision_id],
+      evidence: [],
+    }, { frozen: true, scenario: "create-review-context@1" });
+    const pspReview = record("REV", "REV-8ZT5KQ3P9M", {
+      title: "Passing PSP Review",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: psp.datum.revision_id },
+        { type: "contextualizes", target: pspContext.datum.revision_id },
+      ],
+    });
+    const candidate = record("BSL", "BSL-4F6H8JK2MN", {
+      title: "Failed intent candidate",
+      kind: "intent-level-candidate",
+      role: "candidate",
+      scope: "product",
+      group: "DEFAULT",
+      definition_members: [psp.datum.revision_id],
+      evidence: [pspReview.datum.revision_id],
+    }, { frozen: true, scenario: "create-candidate-baseline@1" });
+    const candidateContext = record("BSL", "BSL-6F8H2JK4MN", {
+      title: "Candidate context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "candidate",
+      group: "DEFAULT",
+      definition_members: [candidate.datum.revision_id],
+      evidence: [],
+    }, { frozen: true, scenario: "create-review-context@1" });
+    const passingCandidateReview = record("REV", "REV-1BC3DF5GHK", {
+      title: "Earlier passing candidate Review",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: candidate.datum.revision_id },
+        { type: "contextualizes", target: candidateContext.datum.revision_id },
+      ],
+    });
+    const failedReview = record("REV", "REV-2BC4DF6GHJ", {
+      title: "Failed candidate Review",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "fail",
+    }, {
+      frozen: true,
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: candidate.datum.revision_id },
+        { type: "contextualizes", target: candidateContext.datum.revision_id },
+      ],
+    });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [
+        psp,
+        pspContext,
+        pspReview,
+        candidate,
+        candidateContext,
+        passingCandidateReview,
+        failedReview,
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(evaluation.looseEnds).toContainEqual(expect.objectContaining({
+      obligation: "intent-candidate-review-correction-required",
+      subject: candidate.datum.revision_id,
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-intent-candidate-after-review@1",
+    }));
+    expect(evaluation.looseEnds.find((item) =>
+      item.obligation === "passing-review-required" &&
+      item.subject === candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "failed",
+      dispatchable: false,
+    }));
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "candidate-gate-signoff" &&
+      item.subject === candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+    }));
   });
 
   it("derives staleness and process drift from primitive values and relations", () => {

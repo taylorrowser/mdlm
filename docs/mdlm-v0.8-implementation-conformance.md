@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.35.0`
+- **Implementation package:** `mdlm-bootstrap@0.36.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -42,7 +42,7 @@ the accepted overview and the reviewed pilot Decision.
 | Explicit package selection, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35 | `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
 | Authorized dry-run, atomic adapter execution, provenance, and safe aliases | 43–47 | #41–#43 | `test/req-scenario-dry-run.test.ts`, `test/req-scenario-execution.test.ts`, `test/req-command-alias.test.ts` |
-| Phase 0 wayfinding and reviewed intent gate | 52–53, 57–58 | #44 | `test/req-phase-0-wayfinding.test.ts` |
+| Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Qualification and source-independent pilot verification | 55, 57–58 | #45 | `test/req-product-assurance-pilot.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |

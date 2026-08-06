@@ -1,0 +1,17 @@
+kind: selector-definition
+id: failed-intent-candidates
+version: 1
+description: Failed Phase 0 intent candidates without a complete same-lineage superseding candidate.
+parameters: []
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    && candidate.payload.role == "candidate"
+    && candidate.storage.frozen == true
+    && exists("failing-reviews-for@1", {subject: candidate})
+    && none("complete-superseding-intent-candidates-for@1", {candidate: candidate})
+  distinct: true
+  order_by: [identity.id, identity.revision]

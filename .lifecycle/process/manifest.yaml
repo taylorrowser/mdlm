@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.35.0
+version: 0.36.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -45,6 +45,22 @@ catalog:
   policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
+    - current-wayfinding-maps
+    - current-product-specifications
+    - stakeholder-requirements-for
+    - current-product-specifications-for-requirement
+    - phase-0-foundation-members
+    - phase-0-foundation-members-missing-review
+    - non-phase-0-foundation-members-for
+    - candidate-members-matching
+    - complete-phase-0-intent-candidates
+    - complete-superseding-intent-candidates-for
+    - failed-phase-0-foundation-revisions
+    - failed-intent-candidates
+    - failed-gate-signoff-decisions
+    - gate-candidates-for-decision
+    - other-gate-candidates-for-decision
+    - valid-gate-signoff-replacements-for
     - review-required-revisions
     - newer-revisions-for
     - open-questions
@@ -117,6 +133,13 @@ catalog:
     - recorded-pilot-expansion-decisions-for
     - pilot-expansion-decisions-for
   obligations:
+    - initial-wayfinding-map-required
+    - product-specification-required
+    - stakeholder-requirements-required
+    - intent-candidate-required
+    - foundation-review-correction-required
+    - intent-candidate-review-correction-required
+    - gate-signoff-review-correction-required
     - review-context-required
     - passing-review-required
     - open-question-resolution
@@ -139,6 +162,7 @@ catalog:
     - pilot-expansion-decision-required
   scenarios:
     - chart-wayfinding-map
+    - establish-initial-wayfinding-map
     - build-exploratory-prototype
     - compile-psp
     - draft-stakeholder-requirements
@@ -148,8 +172,12 @@ catalog:
     - resolve-question
     - resolve-question-with-prototype
     - create-candidate-baseline
+    - create-phase-0-intent-candidate
     - record-gate-signoff
     - record-consequential-decision
+    - revise-foundation-after-review
+    - revise-intent-candidate-after-review
+    - revise-gate-signoff-after-review
     - define-verification-strategy
     - realize-verification-environment
     - write-verification-activity
@@ -176,6 +204,7 @@ catalog:
 assets:
   prompts:
     - prompts/chart-wayfinding-map.md@1
+    - prompts/establish-initial-wayfinding-map.md@1
     - prompts/build-exploratory-prototype.md@1
     - prompts/compile-psp.md@2
     - prompts/draft-stakeholder-requirements.md@2
@@ -185,8 +214,12 @@ assets:
     - prompts/resolve-question.md@2
     - prompts/resolve-question-with-prototype.md@2
     - prompts/create-candidate-baseline.md@1
+    - prompts/create-phase-0-intent-candidate.md@1
     - prompts/record-gate-signoff.md@2
     - prompts/record-consequential-decision.md@1
+    - prompts/revise-foundation-after-review.md@1
+    - prompts/revise-intent-candidate-after-review.md@1
+    - prompts/revise-gate-signoff-after-review.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
     - prompts/write-verification-activity.md@1
@@ -241,9 +274,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@9
+  default: bootstrap@10
   available:
-    - profiles/bootstrap.yaml@9
+    - profiles/bootstrap.yaml@10
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md
