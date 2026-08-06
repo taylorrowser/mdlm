@@ -5,8 +5,26 @@ description: Every latest open empirical question explicitly bound to a prototyp
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("prototype-bound-open-questions@1", {})'
 subject_as: question
-satisfied_when: 'question.payload.state in ["answered", "deferred", "cancelled"]'
+satisfied_when: >-
+  question.payload.state == "answered"
+  || exists("applicable-question-dispositions-for@1", {question: question})
 status_rules:
+  - status: blocked
+    priority: 400
+    when: >-
+      question.payload.state in ["deferred", "cancelled"]
+      && exists("question-disposition-decisions-for@1", {question: question})
+      && none("applicable-question-dispositions-for@1", {question: question})
+    reason: The exact deferral or cancellation Decision awaits its policy-required passing Review.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("question-disposition-decisions-for@1", {question: question})'
+  - status: blocked
+    priority: 350
+    when: >-
+      question.payload.state in ["deferred", "cancelled"]
+      && none("question-disposition-decisions-for@1", {question: question})
+    reason: Deferred or cancelled prototype-bound state is not applicable without an exact valid scoped Decision.
   - status: blocked
     priority: 200
     when: 'question.storage.frozen != true'
@@ -20,7 +38,7 @@ status_rules:
     reason: The exact Git target and bounded prototype evidence contract are available for resolution.
 default_status: blocked
 resolve_with:
-  scenario: resolve-question-with-prototype@1
+  scenario: resolve-question-with-prototype@2
   inputs:
     question: question
 waiver_policy_ref: waiver-applicability@1

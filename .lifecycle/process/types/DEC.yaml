@@ -1,8 +1,8 @@
 kind: type-definition
 id: DEC
-version: 2
+version: 3
 name: Decision Record
-description: Consequential decision, assumption, waiver, scope outcome, deferral, disposition, or exact gate sign-off.
+description: Consequential decision, assumption, waiver, scope outcome, deferral, standing authority delegation, disposition, or exact gate sign-off.
 extends: rationale-bearing@1
 lifecycle:
   authorship: authored
@@ -12,18 +12,30 @@ payload_schema:
   type: object
   required: [kind, decision, alternatives, effective_scope]
   properties:
-    kind: {enum: [decision, assumption, scope, waiver, deferral, gate-signoff, change-approval, change-closure, pilot-expansion, retirement, cancellation]}
+    kind: {enum: [decision, assumption, scope, waiver, deferral, authority-delegation, gate-signoff, change-approval, change-closure, pilot-expansion, retirement, cancellation]}
     decision: {type: string, minLength: 1}
     alternatives:
       type: array
       uniqueItems: true
       items: {type: string, minLength: 1}
     effective_scope: {type: string, minLength: 1}
+    gate_outcome: {enum: [approve, reject]}
+    delegation:
+      type: object
+      additionalProperties: false
+      required: [authority, delegate, scenario, expires_when, reactivation_requires]
+      properties:
+        authority: {type: string, minLength: 1}
+        delegate: {type: string, minLength: 1}
+        scenario: {type: string, pattern: '^[a-z][a-z0-9-]*@[1-9][0-9]*$'}
+        expires_when: {const: target-revised}
+        reactivation_requires: {const: new-delegation-decision}
     waiver:
       type: object
       additionalProperties: false
-      required: [obligation, subject, scope, expires_when]
+      required: [instance, obligation, subject, scope, expires_when]
       properties:
+        instance: {type: string, minLength: 1}
         obligation: {type: string, minLength: 1}
         subject: {type: string, minLength: 1}
         scope: {enum: [this-revision, this-baseline, one-execution]}
@@ -32,6 +44,25 @@ payload_schema:
           minItems: 1
           uniqueItems: true
           items: {enum: [subject-revised, dependency-revised, baseline-superseded, process-explicitly-reassessed]}
+  allOf:
+    - if:
+        properties:
+          kind: {const: gate-signoff}
+        required: [kind]
+      then: {required: [gate_outcome]}
+    - if: {required: [gate_outcome]}
+      then:
+        properties:
+          kind: {const: gate-signoff}
+    - if:
+        properties:
+          kind: {const: authority-delegation}
+        required: [kind]
+      then: {required: [delegation]}
+    - if: {required: [delegation]}
+      then:
+        properties:
+          kind: {const: authority-delegation}
 outgoing_links:
   - id: resolves
     description: Exact question revision answered, deferred, or cancelled by this decision.
@@ -43,7 +74,7 @@ outgoing_links:
   - id: justifies
     description: Exact lifecycle claim for which this decision supplies rationale or authorization.
     targets:
-      - {kind: datum, types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART, PRB, CHG, PAS], identity: revision}
+      - {kind: datum, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART, PRB, CHG, PAS], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: justified-by

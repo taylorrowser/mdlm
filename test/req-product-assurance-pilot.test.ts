@@ -172,7 +172,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       expect(obligation).toEqual(expect.objectContaining({
         status: "awaiting-review",
         dispatchable: true,
-        actionableResolver: "review-datum-in-context@1",
+        actionableResolver: "review-datum-in-context@2",
       }));
       if (!obligation) throw new Error(`Missing Review Obligation for ${subject}`);
       const configured = await adapter({
@@ -200,9 +200,11 @@ describe("req product-assurance qualification and pilot slice", () => {
         repositoryRoot,
         "scenario",
         "execute",
-        "review-datum-in-context@1",
+        "review-datum-in-context@2",
         "--obligation",
         String(obligation.id),
+        "--authorize",
+        "independent-reviewer",
         "--adapter",
         configured.executable,
         "--input",
@@ -287,7 +289,7 @@ describe("req product-assurance qualification and pilot slice", () => {
     const product = create(
       "PSP",
       "--scenario",
-      "compile-psp@1",
+      "compile-psp@2",
       "--set",
       "title=Representative report export",
       "--set",
@@ -306,7 +308,7 @@ describe("req product-assurance qualification and pilot slice", () => {
     const requirement = create(
       "STK",
       "--scenario",
-      "draft-stakeholder-requirements@1",
+      "draft-stakeholder-requirements@2",
       "--set",
       "title=Export one completed report",
       "--set",

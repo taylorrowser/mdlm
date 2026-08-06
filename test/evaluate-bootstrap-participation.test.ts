@@ -13,7 +13,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.33.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.34.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -27,7 +27,7 @@ function lifecycleDatum(
 ): LifecycleRecord {
   return lifecycleRecord(type, id, payload, {
     createdBy: {
-      scenario: options.scenario ?? "compile-psp@1",
+      scenario: options.scenario ?? "compile-psp@2",
       process_ref: processRef,
     },
     storage: {
@@ -46,6 +46,7 @@ function question(
     blocks?: string;
     prototype?: boolean;
     evidenceAvailable?: boolean;
+    resolutionDisposition?: "answer" | "defer" | "cancel";
     attentionCheckpoint?: "phase-0-gate" | "phase-2-system-gate";
     consolidationGroup?:
       | "phase-0-stakeholder-questions"
@@ -63,6 +64,9 @@ function question(
     ...(options.evidenceAvailable === undefined
       ? {}
       : { evidence_available: options.evidenceAvailable }),
+    ...(options.resolutionDisposition
+      ? { resolution_disposition: options.resolutionDisposition }
+      : {}),
     ...(options.attentionCheckpoint
       ? { attention_checkpoint: options.attentionCheckpoint }
       : {}),
@@ -126,6 +130,24 @@ describe("bootstrap Scenario participation Policies", () => {
     processPackage = loaded.package;
   });
 
+  it("names exact Lifecycle Data evidence for every package-defined participation boundary", () => {
+    expect(Object.fromEntries(
+      Object.entries(processPackage.scenarios)
+        .filter(([, scenario]) => scenario.participation !== undefined)
+        .map(([id, scenario]) => [id, scenario.authority_evidence]),
+    )).toEqual({
+      "approve-change-request": { output: "approval", type: "DEC" },
+      "decide-pilot-expansion": { output: "decision", type: "DEC" },
+      "record-consequential-decision": { output: "decision", type: "DEC" },
+      "record-gate-signoff": { output: "decision", type: "DEC" },
+      "resolve-question": { output: "decision", type: "DEC" },
+      "resolve-question-with-prototype": { output: "finding", type: "DEC" },
+      "review-datum-in-context": { output: "review", type: "REV" },
+      "simplify-architecture-and-interfaces": { output: "review", type: "REV" },
+      "simplify-requirement-set": { output: "review", type: "REV" },
+    });
+  });
+
   it("derives Review delegation and Question authority from exact Scenario inputs", () => {
     const target = lifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {
       title: "Participation target",
@@ -150,6 +172,12 @@ describe("bootstrap Scenario participation Policies", () => {
       "Evidence can decide this",
       "empirical",
       { evidenceAvailable: true },
+    );
+    const empiricalDeferral = question(
+      "QST-8ZT5KQ3P9V",
+      "Evidence work needs consequential deferral",
+      "empirical",
+      { evidenceAvailable: true, resolutionDisposition: "defer" },
     );
     const insufficientEmpirical = question(
       "QST-8ZT5KQ3P9S",
@@ -199,6 +227,7 @@ describe("bootstrap Scenario participation Policies", () => {
         target,
         reviewContext,
         empirical,
+        empiricalDeferral,
         insufficientEmpirical,
         prototype,
         blockingEmpirical,
@@ -238,6 +267,19 @@ describe("bootstrap Scenario participation Policies", () => {
         null,
         "single",
       ));
+    expect(obligationFor(
+      "open-question-resolution",
+      empiricalDeferral,
+    )?.participation).toEqual(projectedParticipation(
+      "question-participation@1",
+      "attended",
+      "stakeholder",
+      false,
+      "immediate",
+      null,
+      null,
+      "single",
+    ));
     expect(obligationFor(
       "open-question-resolution",
       blockingEmpirical,
@@ -347,6 +389,71 @@ describe("bootstrap Scenario participation Policies", () => {
     ));
   });
 
+  it("keeps deferred question work unsatisfied until its exact scoped DEC passes Review", () => {
+    const source = question(
+      "QST-8ZT5KQ3P9W",
+      "Can this question be deferred",
+      "empirical",
+      { resolutionDisposition: "defer" },
+    );
+    const deferred = structuredClone(source);
+    deferred.datum.revision = 2;
+    deferred.datum.revision_id = `${source.datum.id}-r00002`;
+    deferred.datum.payload.state = "deferred";
+    const decision = lifecycleDatum("DEC", "DEC-8ZT5KQ3P9W", {
+      title: "Defer one exact question",
+      rationale: "The stakeholder authorized a bounded reactivation condition.",
+      kind: "deferral",
+      decision: "Defer until the named evidence becomes available.",
+      alternatives: ["Answer without evidence"],
+      effective_scope: deferred.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [
+        { type: "resolves", target: source.datum.revision_id },
+        { type: "resolves", target: deferred.datum.revision_id },
+      ],
+      scenario: "resolve-question@2",
+    });
+    const beforeReview = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [source, deferred, decision],
+      dependencyComparisons: [],
+    });
+    expect(beforeReview.obligations.find((item) =>
+      item.obligation === "open-question-resolution" &&
+      item.subject === deferred.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "blocked",
+      blockedBy: [expect.stringContaining(`:${decision.datum.revision_id}:`)],
+    }));
+
+    const review = lifecycleDatum("REV", "REV-8ZT5KQ3P9W", {
+      title: "Deferral review",
+      review_kind: "independent",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      summary: "The exact deferral is bounded.",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: decision.datum.revision_id }],
+      scenario: "review-datum-in-context@2",
+    });
+    const afterReview = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [source, deferred, decision, review],
+      dependencyComparisons: [],
+    });
+    expect(afterReview.obligations.some((item) =>
+      item.obligation === "open-question-resolution" &&
+      item.subject === deferred.datum.revision_id
+    )).toBe(false);
+  });
+
   it("requires exact stakeholder authority and blocks the gate on an immediate question", () => {
     const fixture = reviewedGateFixture(processRef);
     const blocker = question(
@@ -375,7 +482,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "resolve-question@1",
+      actionableResolver: "resolve-question@2",
       participation: projectedParticipation(
         "gate-signoff-participation@1",
         "attended",
@@ -403,6 +510,31 @@ describe("bootstrap Scenario participation Policies", () => {
     expect(
       processPackage.scenarios["record-gate-signoff"]?.prohibited_inputs,
     ).toContain("implied approval");
+  });
+
+  it("keeps a reviewed gate rejection from satisfying approval", () => {
+    const fixture = reviewedGateFixture(processRef);
+    fixture.signoff.datum.payload.gate_outcome = "reject";
+    fixture.signoff.datum.payload.decision = "Reject and revise the candidate.";
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: fixture.records,
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "candidate-gate-signoff" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "blocked",
+      dispatchable: false,
+    }));
+    expect(evaluation.phase?.gate.evaluations[0]).toEqual(
+      expect.objectContaining({ complete: false }),
+    );
   });
 
   it("rejects implied approval before gate sign-off reaches the adapter", async () => {
@@ -438,7 +570,7 @@ describe("bootstrap Scenario participation Policies", () => {
         temporaryRoot,
         "scenario",
         "dry-run",
-        "record-gate-signoff@1",
+        "record-gate-signoff@2",
         "--obligation",
         obligation,
         "--snapshot",

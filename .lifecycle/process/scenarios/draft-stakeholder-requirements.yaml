@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: draft-stakeholder-requirements
-version: 1
+version: 2
 description: Derive the smallest sufficient set of stakeholder-visible commitments from one exact PSP revision.
 phases: [phase-0-wayfinding]
 inputs:
@@ -16,8 +16,7 @@ outputs:
     required_links:
       - {link: derived-from, target: {input: product_specification}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/draft-stakeholder-requirements.md@1
+prompt_ref: prompts/draft-stakeholder-requirements.md@2
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
 initiation: explicit

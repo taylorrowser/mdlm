@@ -219,8 +219,8 @@ links:
   - type: derived-from
     target: PSP-X4N7AB2W6J
 created_by:
-  scenario: draft-stakeholder-requirements@1
-  prompt_ref: prompts/draft-stakeholder-requirements.md@1
+  scenario: draft-stakeholder-requirements@2
+  prompt_ref: prompts/draft-stakeholder-requirements.md@2
   process_ref: git:abc123
   loaded_skill_refs: [skills/requirement-writing.md@1]
   policy_refs: [review-applicability@1]
@@ -914,7 +914,21 @@ DECs are reserved for consequential records:
 - gate sign-offs;
 - explicit process reassessment decisions.
 
-Routine review judgments remain in REV.
+Routine review judgments remain in REV. Routine autonomous empirical
+clarifications may close through a new QST Revision with cited evidence and are
+not forced into DEC. An empirical QST that declares `defer` or `cancel` as its
+resolution disposition instead requires attended stakeholder authority and exact
+reviewable DEC evidence. Deferral, cancellation, preferential scope judgment, and
+other consequential outcomes remain exact DEC evidence.
+
+An `authority-delegation` DEC is standing authority only when a package Selector
+matches its exact `justifies` target Revision, authority, delegate, and versioned
+Scenario; the DEC is valid and has its policy-required passing Review; and it
+declares expiry and reactivation conditions. Delegation never silently transfers
+to a replacement target or Scenario version. Scope, waiver, standing delegation, retirement, and cancellation can be published through the explicitly initiated
+`record-consequential-decision@1` Scenario after stakeholder authority; waiver
+publication additionally requires an exact `waives` link matching its structured
+Obligation Instance.
 
 ### 12.3 Waivers
 
@@ -1223,8 +1237,8 @@ status: blocked
 dispatchable: false
 blocked_by:
   - passing-review-required@1:DEC-...-r00001:git:abc123
-eventual_resolver: record-gate-signoff@1
-actionable_resolver: review-datum-in-context@1
+eventual_resolver: record-gate-signoff@2
+actionable_resolver: review-datum-in-context@2
 ```
 
 Historical obligation records explain what was true under an exact subject revision and process reference. When a resolving scenario creates a new revision, current selectors are reevaluated; history is not rewritten and does not require a new lifecycle datum type.
@@ -1263,11 +1277,13 @@ At a gate:
 4. implement answers through revisions and DECs;
 5. rerun affected reviews, simplification, and baseline checks;
 6. repeat until blocking items are gone;
-7. record gate sign-off as a DEC against the exact candidate;
+7. after explicit stakeholder authority is supplied, have the operating agent record gate sign-off as a DEC against the exact candidate;
 8. obtain the review evidence required by policy for that consequential DEC;
 9. treat the sign-off as applicable only when the DEC is valid and its required review passes.
 
-A recorded gate decision and an applicable gate decision are deliberately different selector results. While a gate DEC exists but awaits review, the candidate is blocked: review obligations drive the next work and the gate interview is not dispatched again. This prevents duplicate sign-off decisions while preserving review assurance.
+The execution-time authority supply permits publication but does not satisfy the gate. Chat text, adapter prose, and completion summaries are not lifecycle evidence; the exact DEC output is. The user supplies the judgment, while the operating agent invokes the public sign-off Scenario and publishes atomically.
+
+A recorded gate decision and an applicable approving gate decision are deliberately different selector results. A reviewed rejection remains exact history but does not satisfy approval or permit progression. While a gate DEC exists but awaits review, the candidate is blocked: review obligations drive the next work and the gate interview is not dispatched again. This prevents duplicate sign-off decisions while preserving review assurance.
 
 Any candidate change creates a new exact candidate and requires new gate evidence; neither candidate nor sign-off is mutated in place. Candidate approval allows downstream work. Acceptance is delayed until downstream confirmation criteria are satisfied.
 
@@ -1289,6 +1305,7 @@ Every scenario definition is versioned and declares:
 | `prompt_ref` | Versioned prompt that instructs the agent, including which skills to read. |
 | `review_policy` | Which authored outputs require REV. |
 | `participation` | A versioned Policy and typed input bindings producing the Authority Requirement and Attention Schedule. |
+| `authority_evidence` | The named exact REV or DEC output that records delegated or attended authority. |
 | `completion` | An MDLM expression adding process-specific completion to generic contract checks. |
 | `loose_ends` | Obligation classes it resolves. |
 | `prohibited_inputs` | Inputs the agent may not access. |

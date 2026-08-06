@@ -1,14 +1,13 @@
 kind: scenario-definition
 id: compile-psp
-version: 1
+version: 2
 description: Compile a concise product specification from available user intent without inventing stakeholder commitments.
 phases: [phase-0-wayfinding]
 inputs: []
 outputs:
   - {name: product_specification, types: [PSP], cardinality: one, required_links: []}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/compile-psp.md@1
+prompt_ref: prompts/compile-psp.md@2
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
 initiation: explicit

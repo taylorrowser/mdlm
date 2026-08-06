@@ -421,9 +421,12 @@ function obligationInstanceParts(
   processPackage: ProcessPackage,
   lifecycleData: LifecycleRecord[],
   target: string,
+  expectedProcessRef?: string,
 ): { obligation: string; subject: string } | undefined {
   const parsed = parseObligationInstanceIdentity(target);
-  if (!parsed) return undefined;
+  if (!parsed || (expectedProcessRef && parsed.processRef !== expectedProcessRef)) {
+    return undefined;
+  }
   const reference = referenceParts(parsed.obligationReference);
   const definition = reference ? processPackage.obligations[reference[0]] : undefined;
   if (!reference || !definition || definition.version !== reference[1]) return undefined;
@@ -476,6 +479,7 @@ function linkDiagnostics(
   resolvedType: ResolvedType,
   links: DatumEnvelope["links"],
   lifecycleData: LifecycleRecord[],
+  processRef: string,
 ): ProcessDiagnostic[] {
   const diagnostics: ProcessDiagnostic[] = [];
   const contracts = new Map(resolvedType.outgoingLinks.map((contract) => [
@@ -497,6 +501,7 @@ function linkDiagnostics(
       processPackage,
       lifecycleData,
       link.target,
+      processRef,
     );
     if (!target && !obligation) {
       const validIdentity = stableIdentity.test(link.target) ||
@@ -589,6 +594,7 @@ function validateDatum(
     resolved.type,
     datum.links,
     lifecycleData,
+    datum.created_by.process_ref,
   ));
   return diagnostics;
 }

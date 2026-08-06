@@ -27,8 +27,8 @@ describe("req Problem Report and Change Request flow", () => {
     expect(catalogs.types).toEqual(expect.arrayContaining(["CHG@1", "PRB@1"]));
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
       "analyze-change-impact@1",
-      "approve-change-request@1",
-      "close-change-request@1",
+      "approve-change-request@2",
+      "close-change-request@2",
       "report-problem@1",
       "revise-requirement-under-change@1",
     ]));
@@ -81,12 +81,16 @@ describe("req Problem Report and Change Request flow", () => {
       label: string,
     ) => {
       const executable = await adapter(response, label);
+      const authority = scenario === "approve-change-request@2"
+        ? "stakeholder"
+        : undefined;
       const arguments_ = [
         "scenario",
         "execute",
         scenario,
         "--obligation",
         String(obligation.id),
+        ...(authority ? ["--authorize", authority] : []),
         "--adapter",
         executable,
       ];
@@ -161,7 +165,7 @@ describe("req Problem Report and Change Request flow", () => {
       return create(
         "REV",
         "--scenario",
-        "review-datum-in-context@1",
+        "review-datum-in-context@2",
         "--set",
         `title=Review ${subject}`,
         "--set",
@@ -246,7 +250,7 @@ describe("req Problem Report and Change Request flow", () => {
     const product = create(
       "PSP",
       "--scenario",
-      "compile-psp@1",
+      "compile-psp@2",
       "--set",
       "title=Portable report",
       "--set",
@@ -265,7 +269,7 @@ describe("req Problem Report and Change Request flow", () => {
     const stakeholder = create(
       "STK",
       "--scenario",
-      "draft-stakeholder-requirements@1",
+      "draft-stakeholder-requirements@2",
       "--set",
       "title=Export a completed report",
       "--set",
@@ -284,7 +288,7 @@ describe("req Problem Report and Change Request flow", () => {
     const affected = create(
       "SYS",
       "--scenario",
-      "derive-system-requirements@1",
+      "derive-system-requirements@2",
       "--set",
       "title=Accept export requests",
       "--set",
@@ -299,7 +303,7 @@ describe("req Problem Report and Change Request flow", () => {
     const unrelated = create(
       "SYS",
       "--scenario",
-      "derive-system-requirements@1",
+      "derive-system-requirements@2",
       "--set",
       "title=Retain report title",
       "--set",
@@ -718,7 +722,7 @@ describe("req Problem Report and Change Request flow", () => {
     const approvalWork = work("phase-7-change-control", "change-approval-required", change.revisionId);
     expect(approvalWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
     const approvalExecution = await execute(
-      "approve-change-request@1",
+      "approve-change-request@2",
       approvalWork,
       {
         outputs: [{
@@ -745,6 +749,11 @@ describe("req Problem Report and Change Request flow", () => {
       "approve-change",
     );
     const approval = approvalExecution.outputs[0].lifecycleDatum as { revisionId: string };
+    const approvalContext = freeze(
+      baseline("Change approval review context", "review-context", "review-context"),
+      [approval.revisionId],
+    );
+    review(approval.revisionId, approvalContext.revisionId);
 
     const revisionWork = work("phase-7-change-control", "change-revision-required", change.revisionId);
     expect(revisionWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
@@ -920,7 +929,7 @@ describe("req Problem Report and Change Request flow", () => {
       replacementResult,
     ];
     const closureExecution = await execute(
-      "close-change-request@1",
+      "close-change-request@2",
       closureWork,
       {
         outputs: [

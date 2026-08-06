@@ -1181,6 +1181,7 @@ class LifecycleEvaluator {
     const waiverEvidence = this.waiverEvidence(obligationInstance);
     const evaluatedResults = waiverEvidence.map((waiver) =>
       this.policyResult(policyReference, {
+        instance: obligationInstance,
         obligation: `${definition.id}@${definition.version}`,
         subject,
         waiver,

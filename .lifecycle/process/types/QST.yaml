@@ -1,6 +1,6 @@
 kind: type-definition
 id: QST
-version: 3
+version: 4
 name: Question
 description: Preferential or empirical question whose unresolved answer blocks or defers lifecycle work.
 extends: titled-datum@1
@@ -19,6 +19,7 @@ payload_schema:
     reactivation_condition: {type: string, minLength: 1}
     owner: {type: string, minLength: 1}
     evidence_available: {type: boolean}
+    resolution_disposition: {enum: [answer, defer, cancel]}
     attention_checkpoint: {enum: [phase-0-gate, phase-2-system-gate]}
     consolidation_group: {enum: [phase-0-stakeholder-questions, phase-2-system-stakeholder-questions]}
     resolution_evidence: {enum: [prototype]}

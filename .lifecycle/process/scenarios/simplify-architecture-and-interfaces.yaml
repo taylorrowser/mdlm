@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: simplify-architecture-and-interfaces
-version: 1
+version: 2
 description: Adversarially challenge architecture elements, interactions, boundaries, and interface obligations in one frozen decomposition context.
 phases: [phase-2-system-definition]
 inputs:
@@ -24,6 +24,17 @@ outputs:
       - {link: contextualizes, target: {input: subject_context}}
 prompt_ref: prompts/simplify-architecture-and-interfaces.md@1
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: contextual-review-participation@1
+  arguments:
+    subject: plan
+    review_context: subject_context
+authority_evidence: {output: review, type: REV}
+standing_delegation:
+  selector_ref: applicable-authority-delegations-for@1
+  target_input: plan
+  authority: stakeholder
+  delegate: independent-reviewer
 completion: >-
   execution.integrity.contract_valid == true
   && review.payload.review_kind == "simplification-architecture-interfaces"

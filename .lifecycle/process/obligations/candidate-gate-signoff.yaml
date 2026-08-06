@@ -41,7 +41,7 @@ status_rules:
     reason: The exact frozen candidate is ready for an explicit gate decision.
 default_status: blocked
 resolve_with:
-  scenario: record-gate-signoff@1
+  scenario: record-gate-signoff@2
   inputs:
     candidate: candidate
 waiver_policy_ref: waiver-applicability@1

@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: simplify-requirement-set
-version: 1
+version: 2
 description: Adversarially challenge the necessity, coverage, duplication, and provenance of one frozen decomposition context.
 phases: [phase-2-system-definition]
 inputs:
@@ -24,6 +24,17 @@ outputs:
       - {link: contextualizes, target: {input: subject_context}}
 prompt_ref: prompts/simplify-requirement-set.md@1
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: contextual-review-participation@1
+  arguments:
+    subject: plan
+    review_context: subject_context
+authority_evidence: {output: review, type: REV}
+standing_delegation:
+  selector_ref: applicable-authority-delegations-for@1
+  target_input: plan
+  authority: stakeholder
+  delegate: independent-reviewer
 completion: >-
   execution.integrity.contract_valid == true
   && review.payload.review_kind == "simplification-requirements"

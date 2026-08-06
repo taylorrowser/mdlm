@@ -8,6 +8,10 @@ result_kind: revision
 query:
   from: {relation: incoming-links, of: change, link: justifies, emit: source, types: [DEC]}
   as: decision
-  where: 'decision.payload.kind == "change-closure" && state(decision, "validity") == "valid"'
+  where: >-
+    decision.payload.kind == "change-closure"
+    && decision.payload.effective_scope == change.identity.revision_id
+    && state(decision, "validity") == "valid"
+    && exists("passing-reviews-for@1", {subject: change})
   distinct: true
   order_by: [identity.revision_id]

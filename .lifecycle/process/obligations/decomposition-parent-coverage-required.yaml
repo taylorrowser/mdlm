@@ -25,7 +25,7 @@ status_rules:
     reason: Coverage gaps require another exact completion Revision or an explicit disposition.
 default_status: blocked
 resolve_with:
-  scenario: complete-decomposition-work-package@1
+  scenario: complete-decomposition-work-package@2
   inputs:
     plan: plan
 waiver_policy_ref: waiver-applicability@1

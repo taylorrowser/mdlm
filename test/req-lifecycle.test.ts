@@ -157,7 +157,7 @@ describe("req lifecycle status and next work", () => {
         blockedBy: [
           "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype",
         ],
-        eventualResolver: "review-datum-in-context@1",
+        eventualResolver: "review-datum-in-context@2",
         actionableResolver: "create-review-context@1",
         dispatchable: false,
       }),
@@ -251,7 +251,7 @@ describe("req lifecycle status and next work", () => {
         complete: false,
         status: "blocked",
         dispatchable: false,
-        actionableResolver: "review-datum-in-context@1",
+        actionableResolver: "review-datum-in-context@2",
         blockedBy: [
           "passing-review-required@2:DEC-4K3M9Q2D8F-r00001:git:req-lifecycle",
         ],

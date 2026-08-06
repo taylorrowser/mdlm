@@ -24,8 +24,8 @@ function psp(revision = 1): LifecycleRecord {
     {
       revision,
       createdBy: {
-        scenario: "compile-psp@1",
-        prompt_ref: "prompts/compile-psp.md@1",
+        scenario: "compile-psp@2",
+        prompt_ref: "prompts/compile-psp.md@2",
         process_ref: "git:current",
         loaded_skill_refs: [],
         policy_refs: ["review-applicability@1"],

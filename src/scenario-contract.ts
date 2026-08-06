@@ -1,5 +1,8 @@
 import { compiledExpressionShape } from "./expression.js";
-import { effectiveOutgoingLinks } from "./payload-inheritance.js";
+import {
+  effectiveOutgoingLinks,
+  effectivePayloadPathSchema,
+} from "./payload-inheritance.js";
 import type {
   ProcessDiagnostic,
   VersionedDefinition,
@@ -126,13 +129,18 @@ export function validateScenarioContracts(
           });
         }
         const target = record(link?.target);
+        const payloadTarget = record(target?.payload);
         const targetKind = typeof target?.input === "string"
           ? "input"
           : typeof target?.output === "string"
           ? "output"
+          : typeof payloadTarget?.output === "string"
+          ? "payload"
           : undefined;
         if (!targetKind) return;
-        const targetName = target?.[targetKind];
+        const targetName = targetKind === "payload"
+          ? payloadTarget?.output
+          : target?.[targetKind];
         const values = targetKind === "input" ? inputsByName : outputsByName;
         const targetValue = typeof targetName === "string"
           ? values.get(targetName)
@@ -152,6 +160,62 @@ export function validateScenarioContracts(
               typeof type === "string"
             )
           : [];
+        if (targetKind === "payload") {
+          for (const targetType of targetTypes) {
+            const pathSchema = effectivePayloadPathSchema(
+              targetType,
+              payloadTarget?.path,
+              catalogs,
+            );
+            if (!pathSchema) {
+              diagnostics.push({
+                code: "unknown-required-link-payload-path",
+                path: targetPath,
+                message: `Scenario '${scenario.id}' required link payload path '${String(payloadTarget?.path)}' does not exist on output type ${targetType}`,
+              });
+            } else if (pathSchema.type !== "string") {
+              diagnostics.push({
+                code: "required-link-payload-path-type",
+                path: targetPath,
+                message: `Scenario '${scenario.id}' required link payload path '${String(payloadTarget?.path)}' on output type ${targetType} must produce one exact identity string`,
+              });
+            }
+          }
+          for (const outputType of outputTypes) {
+            if (typeof outputType !== "string" || typeof linkId !== "string") continue;
+            const sourceType = catalogs.types[outputType];
+            if (!sourceType) continue;
+            const contract = effectiveOutgoingLinks(
+              sourceType,
+              catalogs.templates,
+            ).find((candidate) => candidate.id === linkId);
+            const contractCardinality = record(contract?.cardinality);
+            if (
+              (typeof contractCardinality?.minimum === "number" &&
+                contractCardinality.minimum > 1) ||
+              (typeof contractCardinality?.maximum === "number" &&
+                contractCardinality.maximum < 1)
+            ) {
+              diagnostics.push({
+                code: "impossible-required-link-cardinality",
+                path: targetPath,
+                message: `Scenario '${scenario.id}' payload-supplied link '${linkId}' provides one exact target, which is outside the source contract cardinality`,
+              });
+            }
+            const acceptsExactIdentity = Array.isArray(contract?.targets) &&
+              contract.targets.some((value) =>
+                record(value)?.kind === "obligation-instance"
+              );
+            if (!acceptsExactIdentity) {
+              diagnostics.push({
+                code: "impossible-required-link-target",
+                path: targetPath,
+                message: `Scenario '${scenario.id}' requires link '${linkId}' from output type ${outputType} to a payload-supplied exact identity unsupported by its source contract`,
+              });
+            }
+          }
+          return;
+        }
         for (const outputType of outputTypes) {
           if (typeof outputType !== "string" || typeof linkId !== "string") {
             continue;

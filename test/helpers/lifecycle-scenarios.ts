@@ -62,6 +62,7 @@ export function reviewedGateFixture(processRef: string) {
     title: "Intent gate sign-off",
     rationale: "Authorize this exact candidate.",
     kind: "gate-signoff",
+    gate_outcome: "approve",
     decision: "Approve.",
     alternatives: ["Revise."],
     effective_scope: candidate.datum.revision_id,
@@ -129,6 +130,7 @@ export function exactContextWaiverFor(
     alternatives: ["Create the context now."],
     effective_scope: subject.datum.revision_id,
     waiver: {
+      instance: obligationInstance,
       obligation: "review-context-required@2",
       subject: subject.datum.revision_id,
       scope: "this-revision",

@@ -25,6 +25,17 @@ default: &immediate-stakeholder
   attention_checkpoint: null
   consolidation_group: null
 rules:
+  - priority: 700
+    when: >-
+      question.payload.kind == "empirical"
+      && question.payload.resolution_disposition in ["defer", "cancel"]
+    result:
+      authority_mode: attended
+      authority: stakeholder
+      delegation_allowed: false
+      attention_timing: immediate
+      attention_checkpoint: null
+      consolidation_group: null
   - priority: 600
     when: >-
       question.payload.kind == "empirical"

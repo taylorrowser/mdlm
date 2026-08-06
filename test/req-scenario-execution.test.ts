@@ -40,7 +40,7 @@ describe("req scenario execute", () => {
       "new",
       "QST",
       "--scenario",
-      "resolve-question@1",
+      "resolve-question@2",
       "--set",
       "title=Empirical adapter question",
       "--set",
@@ -57,7 +57,7 @@ describe("req scenario execute", () => {
     );
     expect(createdQuestion.status, createdQuestion.stderr).toBe(0);
     question = JSON.parse(createdQuestion.stdout).created;
-    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.33.0#${packageDigest}`;
+    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.34.0#${packageDigest}`;
 
     const baseline = req(
       repositoryRoot,
@@ -116,7 +116,10 @@ describe("req scenario execute", () => {
               alternatives: ["Leave scenario execution unproven"],
               effective_scope: "mdlm scenario execution tracer bullet",
             },
-            links: [{ type: "resolves", target: question.revisionId }],
+            links: [
+              { type: "resolves", target: question.revisionId },
+              { type: "resolves", target: `${question.id}-r00002` },
+            ],
             body: "Adapter-produced decision.\n",
           },
         },
@@ -163,7 +166,7 @@ describe("req scenario execute", () => {
       revisionId: string;
     };
     const reviewContextObligation =
-      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.33.0#${packageDigest}`;
+      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.34.0#${packageDigest}`;
     const configured = await adapter({
       outputs: [{
         name: "context",
@@ -226,12 +229,42 @@ describe("req scenario execute", () => {
     ).toBe(0);
   });
 
+  it("does not force a routine autonomous clarification into consequential DEC evidence", async () => {
+    const response = validOutputs();
+    response.outputs = response.outputs.filter((output) =>
+      output.name === "updated_question"
+    );
+    const configured = await adapter(response, "routine-clarification.mjs");
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "resolve-question@2",
+      "--obligation",
+      obligation,
+      "--adapter",
+      configured.path,
+      "--input",
+      `question=${question.revisionId}`,
+      "--json",
+    );
+
+    expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+    expect(JSON.parse(result.stdout).execution.outputs).toEqual([
+      expect.objectContaining({
+        name: "updated_question",
+        lifecycleDatum: expect.objectContaining({ type: "QST" }),
+      }),
+    ]);
+  });
+
   it("invokes the adapter with the same repository-backed preparation exposed by dry-run", async () => {
     const dryRunResult = req(
       repositoryRoot,
       "scenario",
       "dry-run",
-      "resolve-question@1",
+      "resolve-question@2",
       "--obligation",
       obligation,
       "--input",
@@ -245,7 +278,7 @@ describe("req scenario execute", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "resolve-question@1",
+      "resolve-question@2",
       "--obligation",
       obligation,
       "--adapter",
@@ -260,7 +293,7 @@ describe("req scenario execute", () => {
     const request = JSON.parse(await fs.readFile(configured.capture, "utf8"));
     expect(request).toEqual({
       contract: "mdlm-agent-adapter@2",
-      scenario: "resolve-question@1",
+      scenario: "resolve-question@2",
       authorization: {
         mode: "dispatchable-obligation",
         obligation,
@@ -283,10 +316,10 @@ describe("req scenario execute", () => {
         obligation,
       },
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.33.0",
+        reference: "mdlm-bootstrap@0.34.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
-      prompt: expect.objectContaining({ reference: "prompts/resolve-question.md@1" }),
+      prompt: expect.objectContaining({ reference: "prompts/resolve-question.md@2" }),
       skills: expect.any(Array),
       policies: expect.arrayContaining([
         expect.objectContaining({ reference: "review-applicability@1" }),
@@ -330,9 +363,9 @@ describe("req scenario execute", () => {
     const data = JSON.parse(listed.stdout).data;
     const decision = data.find((item: any) => item.lifecycleDatum.datum.type === "DEC");
     expect(decision.lifecycleDatum.datum.created_by).toEqual({
-      scenario: "resolve-question@1",
-      prompt_ref: "prompts/resolve-question.md@1",
-      process_ref: expect.stringContaining("mdlm-bootstrap@0.33.0#sha256:"),
+      scenario: "resolve-question@2",
+      prompt_ref: "prompts/resolve-question.md@2",
+      process_ref: expect.stringContaining("mdlm-bootstrap@0.34.0#sha256:"),
       loaded_skill_refs: request.prompt.skills.map((skill: any) => skill.reference),
       policy_refs: [
         "question-participation@1",
@@ -351,7 +384,7 @@ describe("req scenario execute", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "resolve-question@1",
+      "resolve-question@2",
       "--obligation",
       obligation,
       "--adapter",
@@ -392,7 +425,7 @@ describe("req scenario execute", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "resolve-question@1",
+      "resolve-question@2",
       "--obligation",
       obligation,
       "--adapter",

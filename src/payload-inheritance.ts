@@ -95,6 +95,35 @@ function effectiveTemplateProperties(
   };
 }
 
+export function effectivePayloadPathSchema(
+  typeId: string,
+  pathValue: unknown,
+  definitions: PayloadDefinitions,
+): Record<string, unknown> | undefined {
+  if (typeof pathValue !== "string") return undefined;
+  const chain: VersionedDefinition[] = [];
+  let definition = definitions.types[typeId];
+  const visited = new Set<string>();
+  while (definition && !visited.has(`${definition.kind}:${definition.id}`)) {
+    visited.add(`${definition.kind}:${definition.id}`);
+    chain.push(definition);
+    const parent = parentId(definition);
+    definition = parent ? definitions.templates[parent] : undefined;
+  }
+  const [head, ...tail] = pathValue.split(".");
+  let schema = chain.flatMap((candidate) => {
+    const properties = payloadProperties(candidate);
+    return head && properties[head] !== undefined
+      ? [object(properties[head])]
+      : [];
+  }).find((value): value is Record<string, unknown> => value !== undefined);
+  for (const segment of tail) {
+    schema = object(object(schema?.properties)?.[segment]);
+    if (!schema) return undefined;
+  }
+  return schema;
+}
+
 export function effectiveOutgoingLinks(
   definition: VersionedDefinition,
   templates: Record<string, VersionedDefinition>,

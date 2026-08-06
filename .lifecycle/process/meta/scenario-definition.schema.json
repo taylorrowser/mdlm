@@ -17,12 +17,34 @@
     "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
     "review_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
     "participation": {"$ref": "#/$defs/participation"},
+    "authority_evidence": {"$ref": "#/$defs/authorityEvidence"},
+    "standing_delegation": {"$ref": "#/$defs/standingDelegation"},
     "completion": {"$ref": "expression.schema.json"},
     "resolves": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}, "uniqueItems": true},
     "prohibited_inputs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "batching": {"enum": ["single", "coherent-batch", "either"]}
   },
   "$defs": {
+    "standingDelegation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selector_ref", "target_input", "authority", "delegate"],
+      "properties": {
+        "selector_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+        "target_input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "authority": {"type": "string", "minLength": 1},
+        "delegate": {"type": "string", "minLength": 1}
+      }
+    },
+    "authorityEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output", "type"],
+      "properties": {
+        "output": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "type": {"type": "string", "pattern": "^[A-Z]{3,8}$"}
+      }
+    },
     "participation": {
       "type": "object",
       "additionalProperties": false,
@@ -59,11 +81,21 @@
           "additionalProperties": false,
           "properties": {
             "input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-            "output": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+            "output": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["output", "path"],
+              "properties": {
+                "output": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+                "path": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"}
+              }
+            }
           },
           "oneOf": [
             {"required": ["input"]},
-            {"required": ["output"]}
+            {"required": ["output"]},
+            {"required": ["payload"]}
           ]
         }
       }

@@ -14,8 +14,9 @@ scenarios:
   - prepare-pilot-assessment-context@1
   - assess-phase-0-2-pilot@1
   - create-review-context@1
-  - review-datum-in-context@1
-  - decide-pilot-expansion@1
+  - review-datum-in-context@2
+  - decide-pilot-expansion@2
+  - record-consequential-decision@1
 obligations:
   - review-context-required@2
   - passing-review-required@2

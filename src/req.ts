@@ -1776,6 +1776,8 @@ async function executeScenario(
   explicitInitiation: boolean,
   adapter: string | undefined,
   inputArguments: string[],
+  suppliedAuthorities: string[],
+  suppliedDelegations: string[],
 ): Promise<CommandResult> {
   const selected = await selectedPackage(repositoryRoot);
   if (!selected.ok) {
@@ -1828,6 +1830,8 @@ async function executeScenario(
         scenarioReference,
         requested.inputs,
         adapter,
+        suppliedAuthorities,
+        suppliedDelegations,
       )
     : obligationInstance
       ? await executeResolverScenario(
@@ -1838,6 +1842,8 @@ async function executeScenario(
           obligationInstance,
           requested.inputs,
           adapter,
+          suppliedAuthorities,
+          suppliedDelegations,
         )
       : {
           ok: false as const,
@@ -1889,6 +1895,8 @@ async function executePackageAlias(
     false,
     optionValue(arguments_, "--adapter"),
     binding.value.inputs.map((input) => `${input.name}=${input.value}`),
+    optionValues(arguments_, "--authorize"),
+    optionValues(arguments_, "--delegation"),
   );
 }
 
@@ -2231,6 +2239,15 @@ function humanOutput(result: CommandResult): string {
         `Policy [${policy.role}]: ${policy.reference}`
       ),
       ...humanParticipation(execution.participation ?? []),
+      ...(execution.authority
+        ? [
+            `Authority Supplied: ${execution.authority.supplied.join(", ") || "none"}`,
+            `Standing Delegations: ${execution.authority.delegations.join(", ") || "none"}`,
+            ...execution.authority.requirements.map((requirement) =>
+              `Authority Evidence [${requirement.policy}]: ${requirement.evidence.output} (${requirement.evidence.type})`
+            ),
+          ]
+        : []),
       ...execution.outputs.map((output) =>
         `Output ${output.name}: ${output.lifecycleDatum.revisionId}`
       ),
@@ -2637,6 +2654,8 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       arguments_.includes("--initiate"),
       optionValue(arguments_, "--adapter"),
       optionValues(arguments_, "--input"),
+      optionValues(arguments_, "--authorize"),
+      optionValues(arguments_, "--delegation"),
     );
   }
   if (

@@ -3,6 +3,7 @@ id: waiver-applicability
 version: 1
 description: Determines whether one structured reviewed waiver DEC applies to an exact Obligation Instance and subject.
 parameters:
+  - {name: instance, kind: scalar, scalar_type: string}
   - {name: obligation, kind: scalar, scalar_type: string}
   - {name: subject, kind: revision}
   - {name: waiver, kind: revision, types: [DEC]}
@@ -32,8 +33,10 @@ rules:
         "candidate-gate-signoff@2"
       ]
       && waiver.payload.kind == "waiver"
+      && waiver.payload.waiver.instance == instance
       && waiver.payload.waiver.obligation == obligation
       && waiver.payload.waiver.subject == subject.identity.revision_id
+      && waiver.payload.effective_scope == subject.identity.revision_id
       && waiver.payload.waiver.scope == "this-revision"
       && state(waiver, "validity") == "valid"
       && exists("passing-reviews-for@1", {subject: waiver})

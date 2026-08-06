@@ -12,14 +12,15 @@ entry: 'process.integrity.package_valid == true'
 scenarios:
   - chart-wayfinding-map@1
   - build-exploratory-prototype@1
-  - compile-psp@1
-  - draft-stakeholder-requirements@1
+  - compile-psp@2
+  - draft-stakeholder-requirements@2
   - create-review-context@1
-  - review-datum-in-context@1
-  - resolve-question@1
-  - resolve-question-with-prototype@1
+  - review-datum-in-context@2
+  - resolve-question@2
+  - resolve-question-with-prototype@2
   - create-candidate-baseline@1
-  - record-gate-signoff@1
+  - record-gate-signoff@2
+  - record-consequential-decision@1
 obligations:
   - review-context-required@2
   - passing-review-required@2

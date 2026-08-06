@@ -58,6 +58,21 @@ describe("Scenario participation Policy validation", () => {
 
   it.each([
     {
+      name: "missing exact authority evidence",
+      mutate: (source: string) =>
+        source.replace("authority_evidence: {output: decision, type: DEC}\n", ""),
+      code: "scenario-authority-evidence-required",
+    },
+    {
+      name: "authority evidence that is not a declared output",
+      mutate: (source: string) =>
+        source.replace(
+          "authority_evidence: {output: decision, type: DEC}",
+          "authority_evidence: {output: missing, type: DEC}",
+        ),
+      code: "scenario-authority-evidence-output",
+    },
+    {
       name: "an unknown Policy reference",
       mutate: (source: string) =>
         source.replace("question-participation@1", "missing-participation@1"),
@@ -113,6 +128,52 @@ describe("Scenario participation Policy validation", () => {
     expect(loaded.ok).toBe(false);
     expect(loaded.diagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code }),
+    ]));
+  });
+
+  it("rejects an unknown payload path used as an exact required-link target", async () => {
+    const processRoot = await participationProcessPackage();
+    temporaryRoots.push(path.dirname(processRoot));
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/record-consequential-decision.yaml",
+    );
+    await fs.writeFile(
+      scenarioPath,
+      (await fs.readFile(scenarioPath, "utf8")).replace(
+        "path: waiver.instance",
+        "path: waiver.instnce",
+      ),
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(loaded.ok).toBe(false);
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "unknown-required-link-payload-path" }),
+    ]));
+  });
+
+  it("rejects a payload-supplied required link outside source cardinality", async () => {
+    const processRoot = await participationProcessPackage();
+    temporaryRoots.push(path.dirname(processRoot));
+    const typePath = path.join(processRoot, "types/DEC.yaml");
+    await fs.writeFile(
+      typePath,
+      (await fs.readFile(typePath, "utf8")).replace(
+        "  - id: waives\n    description: Exact computed obligation instance suppressed by this structured waiver.",
+        "  - id: waives\n    description: Exact computed obligation instance suppressed by this structured waiver.\n    cardinality: {minimum: 2, maximum: many}",
+      ).replace(
+        "    cardinality: {minimum: 0, maximum: many}\n    freeze_resolution: not-applicable",
+        "    freeze_resolution: not-applicable",
+      ),
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(loaded.ok).toBe(false);
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "impossible-required-link-cardinality" }),
     ]));
   });
 

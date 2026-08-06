@@ -1,0 +1,27 @@
+kind: selector-definition
+id: applicable-authority-delegations-for
+version: 1
+description: Reviewed valid standing-delegation Decisions whose authority, delegate, Scenario, and exact target scope all match.
+parameters:
+  - {name: target, kind: revision}
+  - {name: scenario, kind: scalar, scalar_type: string}
+  - {name: authority, kind: scalar, scalar_type: string}
+  - {name: delegate, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: target, link: justifies, emit: source, types: [DEC]}
+  as: decision
+  where: >-
+    decision.payload.kind == "authority-delegation"
+    && count("delegated-targets-for@1", {delegation: decision}) == 1
+    && decision.payload.effective_scope == target.identity.revision_id
+    && decision.payload.delegation.authority == authority
+    && decision.payload.delegation.delegate == delegate
+    && decision.payload.delegation.scenario == scenario
+    && decision.payload.delegation.expires_when == "target-revised"
+    && decision.payload.delegation.reactivation_requires == "new-delegation-decision"
+    && none("newer-revisions-for@1", {subject: target})
+    && state(decision, "validity") == "valid"
+    && exists("passing-reviews-for@1", {subject: decision})
+  distinct: true
+  order_by: [identity.revision_id]

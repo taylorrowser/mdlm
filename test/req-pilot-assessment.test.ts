@@ -29,7 +29,7 @@ describe("req Phase 0–2 pilot assessment", () => {
       "record-pilot-observation@1",
       "prepare-pilot-assessment-context@1",
       "assess-phase-0-2-pilot@1",
-      "decide-pilot-expansion@1",
+      "decide-pilot-expansion@2",
     ]));
     expect(catalogs.obligations).toEqual(expect.arrayContaining([
       "pilot-assessment-required@1",
@@ -103,12 +103,18 @@ describe("req Phase 0–2 pilot assessment", () => {
       label: string,
     ) => {
       const executable = await adapter(response, label);
+      const authority = scenario === "review-datum-in-context@2"
+        ? "independent-reviewer"
+        : scenario === "decide-pilot-expansion@2"
+          ? "stakeholder"
+          : undefined;
       const arguments_ = [
         "scenario",
         "execute",
         scenario,
         "--obligation",
         String(obligation.id),
+        ...(authority ? ["--authorize", authority] : []),
         "--adapter",
         executable,
       ];
@@ -332,7 +338,7 @@ describe("req Phase 0–2 pilot assessment", () => {
     );
     const reviewWork = work("passing-review-required", assessment.revisionId);
     const reviewExecution = await execute(
-      "review-datum-in-context@1",
+      "review-datum-in-context@2",
       reviewWork,
       {
         outputs: [{
@@ -369,10 +375,10 @@ describe("req Phase 0–2 pilot assessment", () => {
     expect(decisionWork).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "decide-pilot-expansion@1",
+      actionableResolver: "decide-pilot-expansion@2",
     }));
     const decisionExecution = await execute(
-      "decide-pilot-expansion@1",
+      "decide-pilot-expansion@2",
       decisionWork,
       {
         outputs: [{
@@ -418,6 +424,52 @@ describe("req Phase 0–2 pilot assessment", () => {
         { type: "relies-on-review", target: assessmentReview.revisionId },
       ],
     });
+    const recordedDecisionWork = work(
+      "pilot-expansion-decision-required",
+      assessment.revisionId,
+    );
+    expect(recordedDecisionWork).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: "create-review-context@1",
+    }));
+    const decisionContext = freeze(
+      baseline("Pilot expansion Decision review context", "review-context"),
+      [decision.revisionId],
+    );
+    const decisionReviewWork = work("passing-review-required", decision.revisionId);
+    await execute(
+      "review-datum-in-context@2",
+      decisionReviewWork,
+      {
+        outputs: [{
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "REV-9000000002",
+            type: "REV",
+            payload: {
+              title: "Independent pilot expansion Decision review",
+              review_kind: "contextual",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [],
+              outcome: "pass",
+            },
+            links: [
+              { type: "reviews", target: decision.revisionId },
+              { type: "contextualizes", target: decisionContext.revisionId },
+            ],
+            body: "The exact expansion Decision passes independent Review.\n",
+          },
+        }],
+        completionEvidence: { summary: "Independent Decision review passed." },
+      },
+      [
+        `subject=${decision.revisionId}`,
+        `review_context=${decisionContext.revisionId}`,
+      ],
+      "review-expansion-decision",
+    );
     expect(looseEnds().find((item) =>
       item.obligation === "pilot-expansion-decision-required" &&
       item.subject === assessment.revisionId

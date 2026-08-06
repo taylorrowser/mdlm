@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: define-decomposition-work-package
-version: 1
+version: 2
 description: Plan one bounded decomposition from exact stakeholder requirements in architecture, interface, and verification context.
 phases: [phase-2-system-definition]
 inputs:
@@ -15,7 +15,6 @@ outputs:
     required_links:
       - {link: decomposes, target: {input: parents}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/define-decomposition-work-package.md@1
 review_policy_ref: review-applicability@1
 completion: >-

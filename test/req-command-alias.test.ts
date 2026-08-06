@@ -40,7 +40,7 @@ async function repositoryWithQuestion(): Promise<{
     "new",
     "QST",
     "--scenario",
-    "resolve-question@1",
+    "resolve-question@2",
     "--set",
     "title=Alias question",
     "--set",
@@ -85,7 +85,7 @@ async function repositoryWithQuestion(): Promise<{
   return {
     root,
     question,
-    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.33.0#${packageDigest}`,
+    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.34.0#${packageDigest}`,
   };
 }
 
@@ -105,7 +105,10 @@ function validResponse(question: { id: string; revisionId: string }) {
             alternatives: ["Use only the generic command"],
             effective_scope: "safe Package Command Alias tracer bullet",
           },
-          links: [{ type: "resolves", target: question.revisionId }],
+          links: [
+            { type: "resolves", target: question.revisionId },
+            { type: "resolves", target: `${question.id}-r00002` },
+          ],
           body: "Alias-produced decision.\n",
         },
       },
@@ -181,7 +184,7 @@ describe("req Package Command Alias", () => {
       source.root,
       "scenario",
       "execute",
-      "resolve-question@1",
+      "resolve-question@2",
       "--obligation",
       source.obligation,
       "--adapter",
@@ -211,7 +214,7 @@ describe("req Package Command Alias", () => {
     expect(JSON.parse(aliased.stdout)).toEqual(expect.objectContaining({
       command: "scenario.execute",
       execution: expect.objectContaining({
-        definition: expect.objectContaining({ scenario: "resolve-question@1" }),
+        definition: expect.objectContaining({ scenario: "resolve-question@2" }),
         completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
       }),
     }));
@@ -293,7 +296,7 @@ describe("req Package Command Alias", () => {
       "new",
       "QST",
       "--scenario",
-      "resolve-question@1",
+      "resolve-question@2",
       "--set",
       "title=Stakeholder decision",
       "--set",
@@ -313,18 +316,50 @@ describe("req Package Command Alias", () => {
       configured.obligation.indexOf(":") + 1,
     );
     const blockedObligation = `open-question-resolution@2:${preferentialRevision}:${configured.obligation.slice(secondSeparator + 1)}`;
+    const missingEvidenceResponse = validResponse(configured.question);
+    missingEvidenceResponse.outputs = missingEvidenceResponse.outputs.filter(
+      (output) => output.name !== "decision",
+    );
+    const missingEvidenceAdapter = await adapter(
+      configured.root,
+      missingEvidenceResponse,
+      "missing-authority-evidence",
+    );
+    const beforeBlocked = await treeDigest(path.join(configured.root, ".lifecycle"));
+    const missingEvidence = req(
+      configured.root,
+      "question",
+      "resolve",
+      "--obligation",
+      blockedObligation,
+      "--authorize",
+      "stakeholder",
+      "--adapter",
+      missingEvidenceAdapter.executable,
+      "--question",
+      preferentialRevision,
+      "--json",
+    );
+    expect(missingEvidence.status).toBe(1);
+    expect(JSON.parse(missingEvidence.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-authority-evidence-missing" }),
+    ]);
+    await expect(fs.stat(missingEvidenceAdapter.capture)).resolves.toMatchObject({});
+    expect(await treeDigest(path.join(configured.root, ".lifecycle"))).toBe(beforeBlocked);
+
     const blockedAdapter = await adapter(
       configured.root,
       validResponse(configured.question),
       "blocked-not-invoked",
     );
-    const beforeBlocked = await treeDigest(path.join(configured.root, ".lifecycle"));
     const blocked = req(
       configured.root,
       "question",
       "resolve",
       "--obligation",
       blockedObligation,
+      "--authorize",
+      "stakeholder",
       "--adapter",
       blockedAdapter.executable,
       "--question",
@@ -332,9 +367,11 @@ describe("req Package Command Alias", () => {
       "--json",
     );
     expect(blocked.status).toBe(1);
-    expect(JSON.parse(blocked.stdout).diagnostics).toEqual([
-      expect.objectContaining({ code: "scenario-output-required-link-missing" }),
-    ]);
+    expect(JSON.parse(blocked.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-required-link-missing" }),
+      ]),
+    );
     await expect(fs.stat(blockedAdapter.capture)).resolves.toMatchObject({});
     expect(await treeDigest(path.join(configured.root, ".lifecycle"))).toBe(beforeBlocked);
   }, 20_000);
@@ -352,6 +389,8 @@ describe("req Package Command Alias", () => {
     ["shell or package host call", { inputs: { question: "shell(args.question)" } }, "expression-unknown-binding"],
     ["executable package field", { executable: "./package-script" }, "meta-schema"],
     ["reserved kernel argument", { arguments: { adapter: { cardinality: "one" } } }, "alias-reserved-argument"],
+    ["reserved authority argument", { arguments: { authorize: { cardinality: "one" } } }, "alias-reserved-argument"],
+    ["reserved delegation argument", { arguments: { delegation: { cardinality: "one" } } }, "alias-reserved-argument"],
     ["reserved initiation argument", { arguments: { initiate: { cardinality: "one" } } }, "alias-reserved-argument"],
     ["kernel command collision", { id: "scenario.execute" }, "alias-command-conflict"],
   ])("rejects an alias with %s during package validation", async (_case, change, code) => {

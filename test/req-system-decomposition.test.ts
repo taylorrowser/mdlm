@@ -37,13 +37,13 @@ describe("req system decomposition slice", () => {
       "SYS@2",
     ]));
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
-      "complete-decomposition-work-package@1",
-      "define-decomposition-work-package@1",
-      "define-interface-control-specification@1",
-      "define-system-architecture@1",
-      "execute-decomposition-work-package@1",
-      "simplify-architecture-and-interfaces@1",
-      "simplify-requirement-set@1",
+      "complete-decomposition-work-package@2",
+      "define-decomposition-work-package@2",
+      "define-interface-control-specification@2",
+      "define-system-architecture@2",
+      "execute-decomposition-work-package@2",
+      "simplify-architecture-and-interfaces@2",
+      "simplify-requirement-set@2",
     ]));
     expect(catalogs.obligations).toEqual(expect.arrayContaining([
       "decomposition-completion-required@1",
@@ -107,7 +107,7 @@ describe("req system decomposition slice", () => {
       create(
         "REV",
         "--scenario",
-        "review-datum-in-context@1",
+        "review-datum-in-context@2",
         "--set",
         `title=${title}`,
         "--set",
@@ -162,12 +162,19 @@ describe("req system decomposition slice", () => {
       label: string,
     ) => {
       const executable = await adapter(response, label);
+      const requiresReviewer = [
+        "simplify-requirement-set@2",
+        "simplify-architecture-and-interfaces@2",
+      ].includes(scenario);
       const arguments_ = [
         "scenario",
         "execute",
         scenario,
         "--obligation",
         String(work.id),
+        ...(requiresReviewer
+          ? ["--authorize", "independent-reviewer"]
+          : []),
         "--adapter",
         executable,
       ];
@@ -180,7 +187,7 @@ describe("req system decomposition slice", () => {
     const stakeholder = create(
       "STK",
       "--scenario",
-      "draft-stakeholder-requirements@1",
+      "draft-stakeholder-requirements@2",
       "--set",
       "title=Export a completed report",
       "--set",
@@ -197,7 +204,7 @@ describe("req system decomposition slice", () => {
       `derived-from=${create(
         "PSP",
         "--scenario",
-        "compile-psp@1",
+        "compile-psp@2",
         "--set",
         "title=Portable report",
         "--set",
@@ -260,7 +267,7 @@ describe("req system decomposition slice", () => {
     const intentDecision = create(
       "DEC",
       "--scenario",
-      "record-gate-signoff@1",
+      "record-gate-signoff@2",
       "--set",
       "title=Authorize system definition",
       "--set",
@@ -268,11 +275,13 @@ describe("req system decomposition slice", () => {
       "--set",
       "kind=gate-signoff",
       "--set",
+      "gate_outcome=approve",
+      "--set",
       "decision=Proceed to one bounded system decomposition",
       "--set",
       'alternatives=["defer system definition"]',
       "--set",
-      "effective_scope=Exact intent candidate only",
+      `effective_scope=${intentCandidate.revisionId}`,
       "--link",
       `justifies=${intentCandidate.revisionId}`,
     );
@@ -285,7 +294,7 @@ describe("req system decomposition slice", () => {
     const architecture = create(
       "ASP",
       "--scenario",
-      "define-system-architecture@1",
+      "define-system-architecture@2",
       "--set",
       "title=Report export system architecture",
       "--set",
@@ -316,7 +325,7 @@ describe("req system decomposition slice", () => {
     const interfaceSpec = create(
       "ICSP",
       "--scenario",
-      "define-interface-control-specification@1",
+      "define-interface-control-specification@2",
       "--set",
       "title=Report export boundary",
       "--set",
@@ -349,7 +358,7 @@ describe("req system decomposition slice", () => {
     const plan = create(
       "DWP",
       "--scenario",
-      "define-decomposition-work-package@1",
+      "define-decomposition-work-package@2",
       "--set",
       "title=Decompose report export intent",
       "--set",
@@ -389,7 +398,7 @@ describe("req system decomposition slice", () => {
     const question = create(
       "QST",
       "--scenario",
-      "resolve-question@1",
+      "resolve-question@2",
       "--set",
       "title=Confirm malformed-request scope",
       "--set",
@@ -433,7 +442,7 @@ describe("req system decomposition slice", () => {
     );
     expect(questionWork).toBeDefined();
     await execute(
-      "resolve-question@1",
+      "resolve-question@2",
       questionWork!,
       {
         outputs: [{
@@ -449,7 +458,10 @@ describe("req system decomposition slice", () => {
               alternatives: ["accept malformed requests"],
               effective_scope: "Exact report export DWP",
             },
-            links: [{ type: "resolves", target: question.revisionId }],
+            links: [
+              { type: "resolves", target: question.revisionId },
+              { type: "resolves", target: `${question.id}-r00002` },
+            ],
             body: "The public boundary must discriminate malformed requests.\n",
           },
         }, {
@@ -479,10 +491,10 @@ describe("req system decomposition slice", () => {
     expect(executionWork).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "execute-decomposition-work-package@1",
+      actionableResolver: "execute-decomposition-work-package@2",
     }));
     const systemExecution = await execute(
-      "execute-decomposition-work-package@1",
+      "execute-decomposition-work-package@2",
       executionWork,
       {
         outputs: [{
@@ -595,13 +607,13 @@ describe("req system decomposition slice", () => {
     };
     const requirementSimplification = await simplify(
       "decomposition-simplification-required",
-      "simplify-requirement-set@1",
+      "simplify-requirement-set@2",
       "simplification-requirements",
       "REV-0REQSMP100",
     );
     const architectureSimplification = await simplify(
       "architecture-interface-simplification-required",
-      "simplify-architecture-and-interfaces@1",
+      "simplify-architecture-and-interfaces@2",
       "simplification-architecture-interfaces",
       "REV-0ARCSMP100",
     );
@@ -612,7 +624,7 @@ describe("req system decomposition slice", () => {
     const completionWork = obligation("decomposition-completion-required", plan.revisionId);
     expect(completionWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
     const completionExecution = await execute(
-      "complete-decomposition-work-package@1",
+      "complete-decomposition-work-package@2",
       completionWork,
       {
         outputs: [{
@@ -728,7 +740,7 @@ describe("req system decomposition slice", () => {
     const gateDecision = create(
       "DEC",
       "--scenario",
-      "record-gate-signoff@1",
+      "record-gate-signoff@2",
       "--set",
       "title=Authorize exact SYS candidate",
       "--set",
@@ -736,11 +748,13 @@ describe("req system decomposition slice", () => {
       "--set",
       "kind=gate-signoff",
       "--set",
+      "gate_outcome=approve",
+      "--set",
       "decision=Approve this exact SYS level candidate",
       "--set",
       'alternatives=["return the candidate for revision"]',
       "--set",
-      "effective_scope=Exact SYS level candidate only",
+      `effective_scope=${levelCandidate.revisionId}`,
       "--link",
       `justifies=${levelCandidate.revisionId}`,
     );

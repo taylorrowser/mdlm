@@ -8,6 +8,11 @@ export type ScenarioTransactionBatching =
   | "coherent-batch"
   | "either";
 
+export interface AuthorityEvidenceContract {
+  output: string;
+  type: string;
+}
+
 export interface ScenarioParticipation {
   policy: string;
   authorityRequirement: {
@@ -35,6 +40,16 @@ const resultFields = [
 function object(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
+    : undefined;
+}
+
+export function authorityEvidenceContract(
+  value: unknown,
+): AuthorityEvidenceContract | undefined {
+  const contract = object(value);
+  return typeof contract?.output === "string" &&
+      typeof contract.type === "string"
+    ? { output: contract.output, type: contract.type }
     : undefined;
 }
 
@@ -101,6 +116,24 @@ export function scenarioParticipation(
     ...projected,
     transactionBatching: transactionBatching as ScenarioTransactionBatching,
   };
+}
+
+export function participationPolicyRequiresAuthorityEvidence(
+  policy: VersionedDefinition,
+): boolean {
+  const results = [
+    policy.default,
+    ...(Array.isArray(policy.rules)
+      ? policy.rules.flatMap((value) =>
+          typeof value === "object" && value !== null
+            ? [(value as Record<string, unknown>).result]
+            : []
+        )
+      : []),
+  ];
+  return results.some((value) =>
+    object(value)?.authority_mode !== "autonomous"
+  );
 }
 
 export function validateParticipationPolicy(

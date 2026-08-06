@@ -11,6 +11,7 @@ query:
   as: decision
   where: >-
     decision.payload.kind == decision_kind
+    && decision.payload.effective_scope == subject.identity.revision_id
     && state(decision, "validity") == "valid"
     && exists("passing-reviews-for@1", {subject: decision})
   distinct: true

@@ -14,19 +14,20 @@ entry: >-
   && exists("signed-off-candidates-of-kind@1",
     {baseline_kind: "intent-level-candidate"})
 scenarios:
-  - define-system-architecture@1
-  - define-interface-control-specification@1
-  - define-decomposition-work-package@1
-  - execute-decomposition-work-package@1
+  - define-system-architecture@2
+  - define-interface-control-specification@2
+  - define-decomposition-work-package@2
+  - execute-decomposition-work-package@2
   - create-review-context@1
-  - review-datum-in-context@1
-  - simplify-requirement-set@1
-  - simplify-architecture-and-interfaces@1
-  - complete-decomposition-work-package@1
-  - resolve-question@1
-  - resolve-question-with-prototype@1
+  - review-datum-in-context@2
+  - simplify-requirement-set@2
+  - simplify-architecture-and-interfaces@2
+  - complete-decomposition-work-package@2
+  - resolve-question@2
+  - resolve-question-with-prototype@2
   - create-candidate-baseline@1
-  - record-gate-signoff@1
+  - record-gate-signoff@2
+  - record-consequential-decision@1
 obligations:
   - review-context-required@2
   - passing-review-required@2

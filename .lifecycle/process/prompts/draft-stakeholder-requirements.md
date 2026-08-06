@@ -1,6 +1,6 @@
 ---
 id: draft-stakeholder-requirements
-version: 1
+version: 2
 scenario: draft-stakeholder-requirements
 ---
 
@@ -22,7 +22,8 @@ provide rationale and a practical verification intent, and carry exactly one
 
 Do not prescribe architecture, data structures, technologies, or internal
 components. Capture unresolved preference or evidence as QST instead of hiding
-it in vague language. Record consequential scope choices as DEC. Run a final
+it in vague language. Do not emit a consequential DEC from this Scenario; use
+`record-consequential-decision@1` after explicit stakeholder authority. Run a final
 coverage and deletion pass: identify PSP goals with no STK, duplicate STKs, and
 requirements whose removal would not affect a goal.
 

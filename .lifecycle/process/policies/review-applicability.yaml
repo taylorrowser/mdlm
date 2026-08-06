@@ -38,7 +38,7 @@ rules:
   - priority: 100
     when: >-
       subject.identity.type == "DEC"
-      && subject.payload.kind in ["scope", "waiver", "deferral", "gate-signoff", "retirement", "cancellation"]
+      && subject.payload.kind in ["scope", "waiver", "deferral", "authority-delegation", "gate-signoff", "change-approval", "pilot-expansion", "retirement", "cancellation"]
     result:
       required: true
       rubric_ref: policies/rubrics/bootstrap-review.md@1

@@ -1,6 +1,6 @@
 ---
 id: compile-psp
-version: 1
+version: 2
 scenario: compile-psp
 ---
 
@@ -18,7 +18,7 @@ concise and link-oriented: do not pre-emptively write system requirements or
 implementation design. Separate goals from non-goals, identify concrete users,
 and state measurable outcomes where evidence supports them.
 
-For every ambiguity, either make and record a low-cost reversible DEC or create a
+For every ambiguity, resolve a low-cost reversible clarification in the PSP rationale or create a
 QST. Never fabricate stakeholder preference. Challenge each scope item: remove
 anything that is not necessary to the stated problem or success measures.
 

@@ -238,8 +238,8 @@ describe("req prototype-bound empirical question routing", () => {
         subject: question.revisionId,
         status: "ready",
         dispatchable: true,
-        eventualResolver: "resolve-question@1",
-        actionableResolver: "resolve-question@1",
+        eventualResolver: "resolve-question@2",
+        actionableResolver: "resolve-question@2",
       }),
     ]));
     expect(looseEnds()).not.toEqual(expect.arrayContaining([
@@ -291,7 +291,7 @@ describe("req prototype-bound empirical question routing", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "resolve-question-with-prototype@1",
+      "resolve-question-with-prototype@2",
       "--obligation",
       String(obligation.id),
       "--input",
@@ -372,7 +372,7 @@ describe("req prototype-bound empirical question routing", () => {
       })],
     }]);
     expect(dryRun.prompt).toEqual(expect.objectContaining({
-      reference: "prompts/resolve-question-with-prototype.md@1",
+      reference: "prompts/resolve-question-with-prototype.md@2",
       content: await fs.readFile(
         path.join(examplePackage, "prompts/resolve-question-with-prototype.md"),
         "utf8",
@@ -408,7 +408,7 @@ describe("req prototype-bound empirical question routing", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "resolve-question-with-prototype@1",
+      "resolve-question-with-prototype@2",
       "--obligation",
       String(obligation.id),
       "--adapter",
@@ -439,7 +439,7 @@ describe("req prototype-bound empirical question routing", () => {
       }],
       definition: {
         obligation: "prototype-question-resolution@1",
-        scenario: "resolve-question-with-prototype@1",
+        scenario: "resolve-question-with-prototype@2",
       },
       authorization: {
         mode: "dispatchable-obligation",
@@ -494,9 +494,9 @@ describe("req prototype-bound empirical question routing", () => {
     }));
     for (const output of execution.outputs) {
       expect(output.data.created_by).toEqual(expect.objectContaining({
-        scenario: "resolve-question-with-prototype@1",
-        prompt_ref: "prompts/resolve-question-with-prototype.md@1",
-        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.33\.0#sha256:/),
+        scenario: "resolve-question-with-prototype@2",
+        prompt_ref: "prompts/resolve-question-with-prototype.md@2",
+        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.34\.0#sha256:/),
         policy_refs: [
           "question-participation@1",
           "review-applicability@1",
@@ -542,7 +542,7 @@ describe("req prototype-bound empirical question routing", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "resolve-question-with-prototype@1",
+      "resolve-question-with-prototype@2",
       "--obligation",
       String(obligation.id),
       "--adapter",
@@ -568,10 +568,10 @@ describe("req prototype-bound empirical question routing", () => {
         subject: question.revisionId,
         status: "ready",
         dispatchable: true,
-        eventualResolver: "resolve-question-with-prototype@1",
-        actionableResolver: "resolve-question-with-prototype@1",
+        eventualResolver: "resolve-question-with-prototype@2",
+        actionableResolver: "resolve-question-with-prototype@2",
         resolver: expect.objectContaining({
-          scenario: "resolve-question-with-prototype@1",
+          scenario: "resolve-question-with-prototype@2",
           expectedOutputs: [
             expect.objectContaining({ name: "prototype", types: ["ART"] }),
             expect.objectContaining({ name: "finding", types: ["DEC"] }),

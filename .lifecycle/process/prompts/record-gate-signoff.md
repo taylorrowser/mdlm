@@ -1,6 +1,6 @@
 ---
 id: record-gate-signoff
-version: 1
+version: 2
 scenario: record-gate-signoff
 ---
 
@@ -15,8 +15,11 @@ Read, in order:
 
 Present the exact candidate identity, scope, material findings, unresolved
 questions, and known omissions to the user. Confirm hashes and review evidence
-before asking for a decision. Do not infer approval from prior conversation or
-from the absence of objections.
+before asking for a decision. Do not infer approval from prior conversation,
+a completion summary, or the absence of objections. Stop until the stakeholder
+explicitly authorizes the exact candidate; after that authorization, the operating
+agent executes this Scenario with `--authorize stakeholder` rather than asking the
+stakeholder to run a command.
 
 Create one `gate-signoff` DEC recording approval or rejection, rationale, and
 scope, with a `justifies` link to the exact frozen candidate BSL revision. Capture

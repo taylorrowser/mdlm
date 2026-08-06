@@ -18,7 +18,13 @@ export type CommandAliasBindingResult =
   | { ok: true; value: BoundCommandAlias; diagnostics: [] }
   | { ok: false; diagnostics: ProcessDiagnostic[] };
 
-const runtimeOptions = new Set(["--adapter", "--initiate", "--obligation"]);
+const runtimeOptions = new Set([
+  "--adapter",
+  "--authorize",
+  "--delegation",
+  "--initiate",
+  "--obligation",
+]);
 const inertHost: ExpressionHost = {
   policy() {
     throw new Error("Package Command Alias expressions cannot evaluate Policies");

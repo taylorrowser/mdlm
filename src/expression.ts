@@ -1860,6 +1860,8 @@ function compileAliasDefinition(
   const argumentPaths: Record<string, ValueType> = {};
   const reservedArguments = new Set([
     "adapter",
+    "authorize",
+    "delegation",
     "initiate",
     "input",
     "json",

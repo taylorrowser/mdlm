@@ -190,7 +190,7 @@ describe("phase evaluation", () => {
           obligationInstance:
             `candidate-gate-signoff@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
           status: "blocked",
-          eventualResolver: "record-gate-signoff@1",
+          eventualResolver: "record-gate-signoff@2",
           actionableResolver: "create-review-context@1",
           dispatchable: false,
           blockedBy: [
@@ -262,8 +262,8 @@ describe("phase evaluation", () => {
     expect(blockedGate).toEqual(expect.objectContaining({
       complete: false,
       status: "blocked",
-      eventualResolver: "record-gate-signoff@1",
-      actionableResolver: "review-datum-in-context@1",
+      eventualResolver: "record-gate-signoff@2",
+      actionableResolver: "review-datum-in-context@2",
       dispatchable: false,
       blockedBy: [
         `passing-review-required@2:${signoff.datum.revision_id}:git:exact-gate`,

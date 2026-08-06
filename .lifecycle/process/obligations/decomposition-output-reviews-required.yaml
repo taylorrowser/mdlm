@@ -22,7 +22,7 @@ status_rules:
     reason: One or more exact decomposition outputs still require contextual Review.
 default_status: blocked
 resolve_with:
-  scenario: review-datum-in-context@1
+  scenario: review-datum-in-context@2
   dispatch:
     for_each: 'select("unreviewed-decomposition-outputs-for@1", {plan: plan})'
     as: output

@@ -7,6 +7,15 @@ for_each: 'select("all-pilot-assessments@1", {})'
 subject_as: assessment
 satisfied_when: 'exists("pilot-expansion-decisions-for@1", {assessment: assessment})'
 status_rules:
+  - status: blocked
+    priority: 300
+    when: >-
+      exists("recorded-pilot-expansion-decisions-for@1", {assessment: assessment})
+      && none("pilot-expansion-decisions-for@1", {assessment: assessment})
+    reason: The exact expansion Decision awaits its policy-required passing Review.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("recorded-pilot-expansion-decisions-for@1", {assessment: assessment})'
   - status: awaiting-review
     priority: 200
     when: 'none("passing-reviews-for@1", {subject: assessment})'
@@ -20,7 +29,7 @@ status_rules:
     reason: Reviewed pilot measurements support an exact proceed, change, or stop Decision.
 default_status: blocked
 resolve_with:
-  scenario: decide-pilot-expansion@1
+  scenario: decide-pilot-expansion@2
   inputs:
     assessment: assessment
     assessment_review: 'one("passing-reviews-for@1", {subject: assessment})'

@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.33 — experimental implementation reference**
+**Bootstrap package 0.34 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -50,8 +50,8 @@ links:
   - type: derived-from
     target: PSP-X4N7AB2W6J
 created_by:
-  scenario: draft-stakeholder-requirements@1
-  prompt_ref: prompts/draft-stakeholder-requirements.md@1
+  scenario: draft-stakeholder-requirements@2
+  prompt_ref: prompts/draft-stakeholder-requirements.md@2
   process_ref: git:abc123
   loaded_skill_refs: [skills/requirement-writing.md@1]
   policy_refs: [review-applicability@1]
@@ -404,12 +404,13 @@ nor mutates them.
 ## 11. Scenarios
 
 A scenario declares named typed inputs and outputs, cardinalities, required links,
-its prompt, review policy, optional participation Policy, prohibited inputs,
-completion expression, and the loose ends it resolves.
+its prompt, review policy, optional participation Policy, optional exact
+`authority_evidence` output, prohibited inputs, completion expression, and the
+loose ends it resolves.
 
 The execution wrapper binds `input.<name>`, `output.<name>`, and `execution`.
 Generic contract validation checks declared cardinality, schema validity, link
-contracts, required input/output links, and undeclared outputs. At package load,
+contracts, required input/output links, payload-supplied exact-identity links, and undeclared outputs. At package load,
 Obligation resolver bindings must cover exactly the referenced Scenario inputs
 with compatible identity, lifecycle types, and cardinality. An enabled Obligation
 must have its Resolver Scenario enabled in the same Phase. Scenario output types,
@@ -434,6 +435,29 @@ retaining the exact Policy reference. Scenario `batching` controls atomic
 transaction shape; an Attention Schedule's checkpoint and Consolidation Group
 control when compatible human participation may be presented. Neither implies the
 other.
+
+A participation-bearing Scenario names `authority_evidence.output` and
+`authority_evidence.type`. Package validation requires that name and type to match
+a declared Scenario output. Autonomous execution needs no authority supply. Before
+invoking an adapter for a delegated or attended execution, the kernel requires
+`--authorize <authority>` to match every evaluated Authority Requirement. The
+assertion authorizes publication but is not lifecycle satisfaction. Each invocation
+must return the named exact Lifecycle Data output; omission fails before completion
+or publication. The kernel validates the package-declared output name and type but
+does not recognize Review or Decision type IDs. The bundled package declares REV
+for Review judgment and DEC for consequential Decisions. The execution record and adapter request preserve the supplied
+authority, evaluated requirement, exact Policy, and declared evidence output.
+A per-execution delegated authority supply is not a standing delegation. A caller
+using reusable standing authority supplies its exact reviewed DEC with
+`--delegation <revision>`. The Scenario's package-declared standing-delegation
+Selector must find that DEC for the exact target, Scenario, authority, and delegate,
+and the evaluated requirement must allow delegation, before it can satisfy the
+Authority Requirement. Expired, mismatched, unreviewed, or nondelegable authority
+fails before adapter invocation.
+A required link may take its expected exact identity from a named output payload
+path when the source link contract targets a non-Datum exact identity; the bundled
+waiver Scenario uses this to require its `waives` link to equal
+`decision.payload.waiver.instance`.
 
 Every Scenario declares exactly one authorization form: a non-empty `resolves`
 catalog makes it an Obligation-authorized Resolver Scenario, while
@@ -476,8 +500,10 @@ execution record, or generated projection.
 --adapter <executable>` derives a fresh repository snapshot, runs the identical
 Dispatchability, binding, condition, prompt, skill, Policy, and prohibited-input
 validation, then passes that exact projection to the explicitly configured
-`mdlm-agent-adapter@1` boundary, or `mdlm-agent-adapter@2` when the request
-includes participation evidence. The adapter is operator-supplied executable
+`mdlm-agent-adapter@1` boundary, `mdlm-agent-adapter@2` when the request
+includes autonomous participation evidence, or `mdlm-agent-adapter@3` when a
+non-autonomous request additionally carries explicit authority supply and declared
+authority evidence. The adapter is operator-supplied executable
 infrastructure; it is not package code and is invoked directly without a shell.
 Its response names each invocation's declared outputs as complete Lifecycle Datum
 proposals and supplies completion evidence.
@@ -506,9 +532,11 @@ reader can observe either none or all of an execution's outputs. A successful `m
 package digest, prompt and skill bytes and hashes, review and waiver Policies,
 adapter/request/response hashes, exact output identities, completion evidence,
 authorization mode, and the Obligation Instances obtained by reevaluating the
-resulting Lifecycle Data. Participation-bearing execution uses
+resulting Lifecycle Data. Participation-bearing autonomous execution uses
 `mdlm-scenario-execution@2`, which additionally preserves the participation Policy,
-evaluated Authority Requirement, and Attention Schedule.
+evaluated Authority Requirement, and Attention Schedule. Delegated or attended
+execution uses `mdlm-scenario-execution@3`, which also preserves supplied authority
+and the exact declared REV or DEC evidence contract.
 Resolver execution provenance retains its exact Dispatchable Obligation Instance;
 explicit initiation provenance records that no Obligation authorized the work.
 `req scenario
@@ -520,7 +548,7 @@ have exact cardinality and whose `inputs` fields are compiled
 `mdlm-expression@1` values. In the implemented Scenario slice, each expression
 may use only `args.<declared-name>` and safe literals and must return one identity
 string or an array according to the target Scenario input cardinality. Kernel-
-owned `--obligation`, `--initiate`, `--adapter`, `--input`, and `--json` controls cannot be
+owned `--obligation`, `--initiate`, `--adapter`, `--authorize`, `--delegation`, `--input`, and `--json` controls cannot be
 redeclared as package arguments. Alias IDs that collide with generic commands,
 unknown Scenario versions or inputs, unknown argument paths, wrong expression
 result types, evaluator host calls, and executable/package-code fields fail
@@ -528,7 +556,7 @@ package validation.
 
 For example, the bootstrap `question.resolve@1` definition makes `req question
 resolve --question <exact-revision> --obligation <exact-instance> --adapter
-<executable>` resolve to `resolve-question@1` with the same requested input as
+<executable>` resolve to `resolve-question@2` with the same requested input as
 `req scenario execute ... --input question=<exact-revision>`. Alias resolution
 then calls the canonical execution operation; it has no adapter, Dispatchability,
 prohibited-input, output-validation, mutation, or renderer override. The durable
@@ -559,7 +587,7 @@ paired. This avoids confusing an exact Review target with a Stable dependency
 when both refer to the same Stable Datum lineage. The storage shape and package-
 neutral comparison contract remain unchanged.
 
-`close-change-request@1` requires the exact approval, revised requirements, and
+`close-change-request@2` requires the exact approval, revised requirements, and
 replacement BSL/REV/RES evidence selected from `changed-under`. One atomic
 Scenario publication creates a `change-closure` DEC citing exact evidence and the
 next closed PRB Revision linked to that Decision. `change-status@1` reports this
@@ -585,7 +613,7 @@ context distinct from the assessment payload.
 
 PAS participates in the ordinary package review Policy. Until a passing
 contextual REV exists, `pilot-expansion-decision-required@1` remains blocked by
-the exact Review Obligation. `decide-pilot-expansion@1` then requires the DEC
+the exact Review Obligation. `decide-pilot-expansion@2` then requires the DEC
 `decision` to equal the reviewed PAS recommendation. Source-owned `justifies` and
 `relies-on-review` links preserve the exact PAS and passing REV. The pilot records
 `change`: selective reuse, explanations, Loose End routing, environment profiles,
@@ -784,7 +812,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.33 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.34 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring

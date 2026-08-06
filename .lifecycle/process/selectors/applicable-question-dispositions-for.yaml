@@ -1,0 +1,15 @@
+kind: selector-definition
+id: applicable-question-dispositions-for
+version: 1
+description: Exact valid question deferral or cancellation Decisions whose policy-required Review has passed.
+parameters:
+  - {name: question, kind: revision, types: [QST]}
+result_kind: revision
+query:
+  from:
+    selector: question-disposition-decisions-for@1
+    arguments: {question: question}
+  as: decision
+  where: 'exists("passing-reviews-for@1", {subject: decision})'
+  distinct: true
+  order_by: [identity.revision_id]

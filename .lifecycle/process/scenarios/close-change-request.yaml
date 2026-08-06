@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: close-change-request
-version: 1
+version: 2
 description: Close one approved Change Request and its originating Problem Report with exact replacement evidence.
 phases: [phase-7-change-control]
 inputs:
@@ -24,12 +24,14 @@ outputs:
     required_links:
       - {link: reports, target: {input: source_evidence}}
       - {link: resolved-by, target: {output: closure}}
-prompt_ref: prompts/close-change-request.md@1
+prompt_ref: prompts/close-change-request.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && approval.payload.kind == "change-approval"
+  && approval.payload.effective_scope == change.identity.revision_id
   && closure.payload.kind == "change-closure"
+  && closure.payload.effective_scope == change.identity.revision_id
   && closed_problem.identity.id == problem.identity.id
   && closed_problem.payload.disposition == "closed"
 resolves: [change-closure-required]

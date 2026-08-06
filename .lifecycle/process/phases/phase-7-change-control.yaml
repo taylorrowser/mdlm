@@ -13,10 +13,11 @@ scenarios:
   - report-problem@1
   - analyze-change-impact@1
   - create-review-context@1
-  - review-datum-in-context@1
-  - approve-change-request@1
+  - review-datum-in-context@2
+  - approve-change-request@2
   - revise-requirement-under-change@1
-  - close-change-request@1
+  - close-change-request@2
+  - record-consequential-decision@1
 obligations:
   - review-context-required@2
   - passing-review-required@2

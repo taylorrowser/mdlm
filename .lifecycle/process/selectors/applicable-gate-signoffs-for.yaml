@@ -10,6 +10,8 @@ query:
     selector: gate-signoff-decisions-for@1
     arguments: {candidate: candidate}
   as: decision
-  where: 'exists("passing-reviews-for@1", {subject: decision})'
+  where: >-
+    decision.payload.gate_outcome == "approve"
+    && exists("passing-reviews-for@1", {subject: decision})
   distinct: true
   order_by: [identity.revision_id]

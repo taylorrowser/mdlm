@@ -105,6 +105,18 @@ _Avoid_: Workflow step, command
 A machine-readable Scenario participation result stating whether work is autonomous, delegated, or attended, which package-defined authority is required, and whether delegation is allowed.
 _Avoid_: Inferring permission from prompt prose, chat availability
 
+**Authority Supply**:
+An explicit execution-time assertion naming the authority that authorized publication. It permits the operating agent to invoke a non-autonomous Scenario but does not itself satisfy an Obligation; the declared exact REV or DEC output does that.
+_Avoid_: Chat approval as lifecycle evidence, user-operated sign-off command
+
+**Authority Evidence**:
+The exact Scenario output named by the package as the durable record of consequential authority: REV for Review judgment and DEC for gates, scope, waiver, deferral, delegation, progression, and comparable Decisions.
+_Avoid_: Adapter prose, completion summary, execution log alone
+
+**Standing Delegation**:
+A reviewed exact DEC authorizing one named delegate for one authority, exact target Revision, and exact Scenario, with declared expiry and reactivation conditions. It is reusable authorization evidence, unlike a reviewer explicitly supplying authority for one execution. When supplied as `--delegation`, it must satisfy the Scenario's exact package Selector before it can replace a per-execution `--authorize` supply.
+_Avoid_: Per-execution authority assertion, role assumption, unbounded permission
+
 **Attention Schedule**:
 A machine-readable Scenario participation result stating whether authority needs no attention, immediate attention, or attention at a named checkpoint, independently of the Scenario's transaction-batching contract.
 _Avoid_: Treating every atomic Scenario transaction as a separate interruption

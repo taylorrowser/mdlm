@@ -32,7 +32,7 @@ status_rules:
     reason: The exact approved change and replacement evidence can now be closed without rewriting history.
 default_status: blocked
 resolve_with:
-  scenario: close-change-request@1
+  scenario: close-change-request@2
   inputs:
     change: change
     problem: 'one("source-problems-for-change@1", {change: change})'

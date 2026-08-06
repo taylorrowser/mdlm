@@ -26,7 +26,7 @@ status_rules:
     reason: The frozen architecture and interfaces are ready for adversarial simplification Review.
 default_status: blocked
 resolve_with:
-  scenario: simplify-architecture-and-interfaces@1
+  scenario: simplify-architecture-and-interfaces@2
   inputs:
     plan: plan
     subject_context: 'one("decomposition-simplification-contexts-for@1", {plan: plan})'

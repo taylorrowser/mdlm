@@ -2,7 +2,11 @@ import {
   findDefinitionExpressionBindingReference,
   validateExpressionDependencyCycles,
 } from "./expression.js";
-import { validateParticipationPolicy } from "./participation.js";
+import {
+  authorityEvidenceContract,
+  participationPolicyRequiresAuthorityEvidence,
+  validateParticipationPolicy,
+} from "./participation.js";
 import type {
   ProcessDiagnostic,
   VersionedDefinition,
@@ -245,6 +249,68 @@ function validateReferences(
         definition.participation !== null
       ? definition.participation as Record<string, unknown>
       : undefined;
+    const authorityEvidence = authorityEvidenceContract(
+      definition.authority_evidence,
+    );
+    const standingDelegation = typeof definition.standing_delegation === "object" &&
+        definition.standing_delegation !== null
+      ? definition.standing_delegation as Record<string, unknown>
+      : undefined;
+    if (standingDelegation) {
+      if (typeof standingDelegation.selector_ref === "string") {
+        diagnostics.push(...validateVersionedReference(
+          standingDelegation.selector_ref,
+          definitions.selectors,
+          `scenarios.${id}.standing_delegation.selector_ref`,
+          "Standing Delegation Selector",
+        ));
+      }
+      const scenarioInputs = Array.isArray(definition.inputs)
+        ? definition.inputs
+        : [];
+      const inputNames = new Set(scenarioInputs.flatMap((value) =>
+          typeof value === "object" && value !== null &&
+              typeof (value as Record<string, unknown>).name === "string"
+            ? [(value as Record<string, unknown>).name as string]
+            : []
+        ));
+      const targetInputName = String(standingDelegation.target_input);
+      const targetInput = scenarioInputs.find((value) =>
+        typeof value === "object" && value !== null &&
+        (value as Record<string, unknown>).name === targetInputName
+      ) as Record<string, unknown> | undefined;
+      if (!inputNames.has(targetInputName)) {
+        diagnostics.push({
+          code: "standing-delegation-target-input",
+          path: `scenarios.${id}.standing_delegation.target_input`,
+          message: `Scenario '${id}@${definition.version}' standing delegation must name a declared exact target input`,
+        });
+      } else if (
+        targetInput?.cardinality !== "one" ||
+        targetInput.identity !== "revision"
+      ) {
+        diagnostics.push({
+          code: "standing-delegation-target-input",
+          path: `scenarios.${id}.standing_delegation.target_input`,
+          message: `Scenario '${id}@${definition.version}' standing delegation target '${targetInputName}' must be one exact Revision`,
+        });
+      }
+    }
+    if (authorityEvidence) {
+      const outputs = Array.isArray(definition.outputs) ? definition.outputs : [];
+      const output = outputs.find((value) =>
+        typeof value === "object" && value !== null &&
+        (value as Record<string, unknown>).name === authorityEvidence.output
+      ) as Record<string, unknown> | undefined;
+      if (!output || !Array.isArray(output.types) ||
+          !output.types.includes(authorityEvidence.type)) {
+        diagnostics.push({
+          code: "scenario-authority-evidence-output",
+          path: `scenarios.${id}.authority_evidence`,
+          message: `Scenario '${id}@${definition.version}' authority evidence must name a declared output and one of its Lifecycle Data types`,
+        });
+      }
+    }
     if (typeof participation?.policy_ref === "string") {
       const scenarioInputNames = (Array.isArray(definition.inputs)
         ? definition.inputs
@@ -272,6 +338,15 @@ function validateReferences(
         const policyId = referenceId(participation.policy_ref);
         const policy = policyId ? definitions.policies[policyId] : undefined;
         if (policy) {
+          const requiresAuthorityEvidence =
+            participationPolicyRequiresAuthorityEvidence(policy);
+          if (requiresAuthorityEvidence && !authorityEvidence) {
+            diagnostics.push({
+              code: "scenario-authority-evidence-required",
+              path: `scenarios.${id}.authority_evidence`,
+              message: `Scenario '${id}@${definition.version}' must name the Lifecycle Data output that records non-autonomous authority`,
+            });
+          }
           diagnostics.push(
             ...validateParticipationPolicy(policy, `policies.${policy.id}`),
           );

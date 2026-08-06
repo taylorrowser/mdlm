@@ -1,6 +1,6 @@
 ---
 id: review-datum-in-context
-version: 1
+version: 2
 scenario: review-datum-in-context
 ---
 
@@ -18,6 +18,10 @@ Review exactly one primary subject revision against the rubric resolved by
 validity, clarity, necessity, traceability, consistency with parents and siblings,
 and type-specific quality. For PSP, STK, SYS, and candidate BSL subjects, apply
 the corresponding rubric section.
+
+The independent reviewer explicitly supplies `independent-reviewer` authority
+for execution; the resulting REV, not reviewer prose or a completion summary,
+is the durable judgment evidence.
 
 Create one REV with exactly one `reviews` link and one `contextualizes` link.
 Record primary and collateral findings separately. Primary blocking findings

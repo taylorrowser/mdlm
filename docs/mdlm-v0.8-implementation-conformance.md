@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.33.0`
+- **Implementation package:** `mdlm-bootstrap@0.34.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -62,7 +62,13 @@ capability-bound exact-baseline Scenario outputs before completion evaluation. T
 `test/req-scenario-dry-run.test.ts`, `test/req-schema.test.ts`,
 `test/req-scenario-initiation.test.ts`, and
 `test/req-prototype-question-routing.test.ts`, plus the exact-baseline execution
-case in `test/req-scenario-execution.test.ts`. They do not add Phase 3–6 scope or change
+case in `test/req-scenario-execution.test.ts`. Issues #58–#62 additionally preserve
+current-Revision selection, permit exact Phase/Process Obligation subjects, project
+package-owned participation, and require explicit authority plus declared exact
+REV/DEC evidence for non-autonomous execution. Their public evidence includes
+`test/evaluate-bootstrap-participation.test.ts`,
+`test/req-scenario-participation.test.ts`, and
+`test/req-consequential-authorization.test.ts`. They do not add Phase 3–6 scope or change
 the reviewed `change` expansion Decision.
 
 ## Demonstrated invariants
@@ -83,7 +89,9 @@ the reviewed `change` expansion Decision.
 - Resolver availability is distinct from Dispatchability, Resolver execution
   requires one exact Dispatchable Obligation Instance, and explicit initiation is
   confined to package-declared non-Resolver Scenarios without fabricating one.
-- Invalid Scenario inputs fail before the adapter boundary.
+- Invalid Scenario inputs and missing delegated or attended authority fail before
+  the adapter boundary; chat and completion prose do not substitute for the
+  package-declared exact REV or DEC output.
 - Generated lifecycle types publish only through validated Scenario execution;
   all outputs and required links validate before one atomic transaction publishes.
 - Qualification, pilot, and formal evidence remain distinct. Pilot evidence

@@ -1,0 +1,18 @@
+kind: selector-definition
+id: delegated-targets-for
+version: 1
+description: Exact Lifecycle Datum Revisions justified by one standing authority-delegation Decision.
+parameters:
+  - {name: delegation, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: delegation
+    link: justifies
+    emit: target
+    types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
+  as: target
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]

@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.33
+# MDLM bootstrap process package v0.34
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -120,7 +120,16 @@ participation Policies. Their projections distinguish delegated independent
 Review, autonomous authority with sufficient exact evidence, immediate
 nondelegable stakeholder
 attention, and explicitly compatible checkpoint-consolidated stakeholder
-attention without satisfying or deferring open questions. Non-Resolver Scenarios declare `initiation: explicit`; the
+attention without satisfying or deferring open questions. Delegated and attended
+execution requires an exact matching `--authorize` supply or applicable reviewed
+`--delegation` DEC before the adapter and
+publishes the package-declared REV or DEC authority-evidence output atomically.
+Gate, change approval, pilot expansion, and explicitly initiated
+scope, waiver, standing-delegation, retirement, or cancellation sign-off use nondelegable stakeholder
+authority; contextual Review records delegated judgment in REV. Waiver sign-off
+must publish an exact `waives` link matching its structured Obligation Instance.
+Reviewed standing-delegation DECs are bounded to an exact target Revision and
+versioned Scenario with expiry and reactivation conditions. Non-Resolver Scenarios declare `initiation: explicit`; the
 package rejects missing or conflicting explicit/Resolver authorization semantics.
 Scenario output types, prohibited-input conflicts, required-
 link targets, source-owned link availability, target types, and cardinalities are
@@ -136,9 +145,9 @@ that record kind from its reassessment selector. The package's
 records imply Staleness, and Computed State explanations identify the exact
 structural evidence selected by the package rule.
 The package's `question.resolve@1` alias binds one cardinality-typed
-`--question` argument to the exact `resolve-question@1` input assertion. Alias
+`--question` argument to the exact `resolve-question@2` input assertion. Alias
 expressions compile during package loading and cannot invoke host functions or
-supply adapter, initiation, Obligation, generic-command, or mutation behavior; invocation
+supply adapter, initiation, Obligation, authority, generic-command, or mutation behavior; invocation
 enters the same Dispatchability, prohibited-input, output-contract, completion,
 and atomic publication path as generic Scenario execution.
 `mdlm-expression@1` textual source is
@@ -168,14 +177,15 @@ data. `chart-wayfinding-map@1` and `build-exploratory-prototype@1` provide exact
 authoring provenance for that evidence. An empirical QST may explicitly bind
 resolution to one exact Git prototype target, bounded supported and unsupported
 behavior, and two allowed findings. That declaration routes its exact frozen
-Revision to `resolve-question-with-prototype@1`, which atomically publishes ART,
+Revision to `resolve-question-with-prototype@2`, which atomically publishes ART,
 DEC, and the satisfying QST Revision; other empirical questions retain the generic
 resolver. MAP, PSP, and STK are substantive review
 subjects: their ready Review Context work sorts ahead of blocked Review work; one
 frozen context may contain the coherent small intent slice while each exact
 subject receives its own REV. Candidate and Gate Sign-off review remain separate.
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and
-REV make the package-authored gate expression true.
+REV resolve; only an explicit `gate_outcome: approve` can make the package-authored
+gate expression true, while a reviewed rejection remains blocking history.
 
 ## Phase 1 qualification and pilot tracer slice
 

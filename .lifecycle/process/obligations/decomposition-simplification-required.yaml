@@ -26,7 +26,7 @@ status_rules:
     reason: The frozen requirement set is ready for an adversarial simplification Review.
 default_status: blocked
 resolve_with:
-  scenario: simplify-requirement-set@1
+  scenario: simplify-requirement-set@2
   inputs:
     plan: plan
     subject_context: 'one("decomposition-simplification-contexts-for@1", {plan: plan})'

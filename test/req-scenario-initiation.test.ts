@@ -63,7 +63,7 @@ describe("req scenario explicit initiation", () => {
       "new",
       "QST",
       "--scenario",
-      "resolve-question@1",
+      "resolve-question@2",
       "--set",
       "title=Prototype evidence question",
       "--set",
@@ -166,7 +166,7 @@ describe("req scenario explicit initiation", () => {
       ok: true,
       command: "scenario.dry-run",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.33.0",
+        reference: "mdlm-bootstrap@0.34.0",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       }),
       scenarioDryRun: expect.objectContaining({
@@ -363,7 +363,7 @@ describe("req scenario explicit initiation", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "resolve-question@1",
+      "resolve-question@2",
       "--initiate",
       "--adapter",
       configured.path,
@@ -373,8 +373,8 @@ describe("req scenario explicit initiation", () => {
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout).diagnostics).toEqual([{
       code: "scenario-explicit-initiation-prohibited",
-      path: "resolve-question@1",
-      message: "Scenario 'resolve-question@1' is not declared for explicit initiation",
+      path: "resolve-question@2",
+      message: "Scenario 'resolve-question@2' is not declared for explicit initiation",
     }]);
     await expect(fs.stat(configured.capture)).rejects.toMatchObject({ code: "ENOENT" });
   });
@@ -503,7 +503,10 @@ describe("req scenario explicit initiation", () => {
             alternatives: ["Expand the bounded prototype"],
             effective_scope: "temperature converter prototype pilot",
           },
-          links: [{ type: "resolves", target: question.revisionId }],
+          links: [
+            { type: "resolves", target: question.revisionId },
+            { type: "resolves", target: `${question.id}-r00002` },
+          ],
           body: "Bounded empirical finding.\n",
         },
       },

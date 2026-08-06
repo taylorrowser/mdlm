@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: decide-pilot-expansion
-version: 1
+version: 2
 description: Record one exact proceed, change, or stop Decision from independently reviewed pilot measurements.
 phases: [phase-2-pilot-assessment]
 inputs:
@@ -17,12 +17,17 @@ outputs:
     required_links:
       - {link: justifies, target: {input: assessment}}
       - {link: relies-on-review, target: {input: assessment_review}}
-prompt_ref: prompts/decide-pilot-expansion.md@1
+prompt_ref: prompts/decide-pilot-expansion.md@2
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: consequential-decision-participation@1
+  arguments: {subject: assessment}
+authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && decision.payload.kind == "pilot-expansion"
   && decision.payload.decision == assessment.payload.recommendation
+  && decision.payload.effective_scope == "Phase 3–6 Example Process Package expansion"
 resolves: [pilot-expansion-decision-required]
 prohibited_inputs: [unreviewed measurements, mutable latest aliases, implicit expansion, Phase 3–6 implementation outputs]
 batching: single

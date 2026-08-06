@@ -42,7 +42,7 @@ status_rules:
     reason: Coverage evidence can now be recorded in the exact DWP completion Revision.
 default_status: blocked
 resolve_with:
-  scenario: complete-decomposition-work-package@1
+  scenario: complete-decomposition-work-package@2
   inputs:
     plan: plan
 waiver_policy_ref: waiver-applicability@1

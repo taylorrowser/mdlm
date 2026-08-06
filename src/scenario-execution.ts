@@ -12,9 +12,13 @@ import {
   type ProcessPackage,
   type VersionedDefinition,
 } from "./index.js";
-import { evaluateProcessExpression } from "./evaluator.js";
+import {
+  evaluateProcessDefinition,
+  evaluateProcessExpression,
+} from "./evaluator.js";
 import { finalizeExactBaselineScenarioOutput } from "./exact-baseline-repository.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
+import { authorityEvidenceContract } from "./participation.js";
 import {
   deriveLifecycleRecordStorage,
   provisionalLifecycleRecord,
@@ -65,12 +69,25 @@ export interface ScenarioExecutionOutput {
   data: DatumEnvelope;
 }
 
+export interface ScenarioExecutionAuthority {
+  supplied: string[];
+  delegations: string[];
+  requirements: {
+    invocation: number;
+    policy: string;
+    mode: "delegated" | "attended";
+    authority: string;
+    delegationAllowed: boolean;
+    evidence: { output: string; type: string };
+  }[];
+}
+
 export interface ScenarioExecution {
-  contract: "mdlm-scenario-execution@1" | "mdlm-scenario-execution@2";
+  contract: "mdlm-scenario-execution@1" | "mdlm-scenario-execution@2" | "mdlm-scenario-execution@3";
   id: string;
   status: "completed";
   adapter: {
-    contract: "mdlm-agent-adapter@1" | "mdlm-agent-adapter@2";
+    contract: "mdlm-agent-adapter@1" | "mdlm-agent-adapter@2" | "mdlm-agent-adapter@3";
     executable: string;
     digest: string;
     requestDigest: string;
@@ -88,6 +105,7 @@ export interface ScenarioExecution {
     | { role: "participation"; reference: string }
   >;
   participation?: NonNullable<ScenarioDryRun["participation"]>;
+  authority?: ScenarioExecutionAuthority;
   prohibitedInputs: string[];
   outputs: ScenarioExecutionOutput[];
   completion: {
@@ -117,6 +135,13 @@ function object(value: unknown): RecordValue | undefined {
 
 function array(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
+}
+
+function valueAtPath(value: unknown, pathValue: unknown): unknown {
+  if (typeof pathValue !== "string") return undefined;
+  return pathValue.split(".").reduce<unknown>((current, segment) =>
+    object(current)?.[segment], value
+  );
 }
 
 function versionedDefinition(
@@ -362,6 +387,7 @@ function requiredLinkDiagnostics(
           candidate?.kind === "datum" && array(candidate.types).includes(type)
         )?.identity;
       const invocation = dryRun.invocations[output.proposal.invocation];
+      const payloadTarget = object(target?.payload);
       const expected = typeof target?.input === "string"
         ? invocation?.inputs.find((input) => input.name === target.input)?.values.map(
           (value) => requiredIdentity(value.identity.type) === "stable"
@@ -375,7 +401,18 @@ function requiredLinkDiagnostics(
           ).map((candidate) => requiredIdentity(candidate.datum.type) === "stable"
             ? candidate.datum.id
             : candidate.datum.revision_id)
-          : [];
+          : payloadTarget
+            ? outputs.filter((candidate) =>
+              candidate.proposal.invocation === output.proposal.invocation &&
+              candidate.proposal.name === payloadTarget.output
+            ).flatMap((candidate) => {
+              const value = valueAtPath(
+                candidate.datum.payload,
+                payloadTarget.path,
+              );
+              return typeof value === "string" ? [value] : [];
+            })
+            : [];
       const actual = output.datum.links
         .filter((link) => link.type === linkType)
         .map((link) => link.target);
@@ -572,6 +609,8 @@ async function executeScenario(
   authorizationRequest: ScenarioExecutionAuthorizationRequest,
   requestedInputs: { name: string; value: string }[],
   adapterExecutable: string,
+  suppliedAuthorities: string[],
+  suppliedDelegations: string[],
 ): Promise<ScenarioExecutionResult> {
   const dryRunResult = await prepareRepositoryScenario(
     repositoryRoot,
@@ -583,6 +622,123 @@ async function executeScenario(
   );
   if (!dryRunResult.ok) return dryRunResult;
   const { dryRun, scenario: selectedScenario, snapshot } = dryRunResult.value;
+  const authorityEvidence = authorityEvidenceContract(
+    selectedScenario.authority_evidence,
+  );
+  const authorityRequirements = (dryRun.participation ?? []).flatMap(
+    (participation, invocation) =>
+      participation.authorityRequirement.mode === "autonomous"
+        ? []
+        : [{
+            invocation,
+            policy: participation.policy,
+            mode: participation.authorityRequirement.mode as "delegated" | "attended",
+            authority: participation.authorityRequirement.authority,
+            delegationAllowed: participation.authorityRequirement.delegationAllowed,
+            evidence: {
+              output: authorityEvidence?.output ?? "",
+              type: authorityEvidence?.type ?? "",
+            },
+          }],
+  );
+  if (authorityRequirements.length > 0 && !authorityEvidence) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-authority-evidence-missing",
+        path: `${scenarioReference}#authority_evidence`,
+        message: `Scenario '${scenarioReference}' does not name the exact Lifecycle Data output that records consequential authority`,
+      }],
+    };
+  }
+  const standingDelegation = object(selectedScenario.standing_delegation);
+  const supplied = [...new Set(suppliedAuthorities)].sort();
+  const delegations = [...new Set(suppliedDelegations)].sort();
+  const usedDelegations = new Set<string>();
+  const unsatisfiedRequirements = authorityRequirements.filter((requirement) => {
+    if (supplied.includes(requirement.authority)) return false;
+    if (
+      !requirement.delegationAllowed ||
+      !standingDelegation ||
+      standingDelegation.delegate !== requirement.authority ||
+      typeof standingDelegation.selector_ref !== "string" ||
+      typeof standingDelegation.target_input !== "string" ||
+      typeof standingDelegation.authority !== "string"
+    ) return true;
+    const target = dryRun.invocations[requirement.invocation]?.inputs.find(
+      (input) => input.name === standingDelegation.target_input,
+    )?.values[0]?.identity.revision_id;
+    if (!target) return true;
+    const result = evaluateProcessDefinition(
+      processPackage,
+      snapshot,
+      "selector",
+      standingDelegation.selector_ref,
+      {
+        target,
+        scenario: scenarioReference,
+        authority: standingDelegation.authority,
+        delegate: standingDelegation.delegate,
+      },
+    ).result;
+    const applicable = Array.isArray(result)
+      ? result.flatMap((value) => {
+          const identity = object(object(value)?.identity);
+          return typeof identity?.revision_id === "string"
+            ? [identity.revision_id]
+            : [];
+        })
+      : [];
+    const matched = delegations.find((delegation) =>
+      applicable.includes(delegation)
+    );
+    if (!matched) return true;
+    usedDelegations.add(matched);
+    return false;
+  });
+  if (unsatisfiedRequirements.length > 0) {
+    const missingAuthorities = [...new Set(
+      unsatisfiedRequirements.map((requirement) => requirement.authority),
+    )].sort();
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-authority-required",
+        path: `${scenarioReference}#authority`,
+        message: `Scenario '${scenarioReference}' requires explicit authority from: ${missingAuthorities.join(", ")}`,
+      }],
+    };
+  }
+  const requiredAuthorities = [...new Set(
+    authorityRequirements.map((requirement) => requirement.authority),
+  )].sort();
+  const unexpectedAuthorities = supplied.filter((authority) =>
+    !requiredAuthorities.includes(authority)
+  );
+  const unexpectedDelegations = delegations.filter((delegation) =>
+    !usedDelegations.has(delegation)
+  );
+  if (unexpectedAuthorities.length > 0 || unexpectedDelegations.length > 0) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-authority-unexpected",
+        path: `${scenarioReference}#authority`,
+        message: `Scenario '${scenarioReference}' received authority not required by its exact participation: ${[
+          ...unexpectedAuthorities,
+          ...unexpectedDelegations,
+        ].join(", ")}`,
+      }],
+    };
+  }
+  const executionAuthority: ScenarioExecutionAuthority | undefined =
+    authorityRequirements.length > 0
+      ? {
+          supplied,
+          delegations: [...usedDelegations].sort(),
+          requirements: authorityRequirements,
+        }
+      : undefined;
   const participationPolicyReferences = [...new Set(
     (dryRun.participation ?? []).map((participation) => participation.policy),
   )].sort();
@@ -592,15 +748,20 @@ async function executeScenario(
       reference,
     }),
   );
-  const participationContract = dryRun.participation
+  const participationContract = executionAuthority
     ? {
-        adapter: "mdlm-agent-adapter@2" as const,
-        execution: "mdlm-scenario-execution@2" as const,
+        adapter: "mdlm-agent-adapter@3" as const,
+        execution: "mdlm-scenario-execution@3" as const,
       }
-    : {
-        adapter: "mdlm-agent-adapter@1" as const,
-        execution: "mdlm-scenario-execution@1" as const,
-      };
+    : dryRun.participation
+      ? {
+          adapter: "mdlm-agent-adapter@2" as const,
+          execution: "mdlm-scenario-execution@2" as const,
+        }
+      : {
+          adapter: "mdlm-agent-adapter@1" as const,
+          execution: "mdlm-scenario-execution@1" as const,
+        };
   const adapterRequest = {
     contract: participationContract.adapter,
     scenario: scenarioReference,
@@ -612,6 +773,7 @@ async function executeScenario(
     prompt: dryRun.prompt,
     policies: dryRun.policies,
     ...(dryRun.participation ? { participation: dryRun.participation } : {}),
+    ...(executionAuthority ? { authority: executionAuthority } : {}),
     prohibitedInputs: dryRun.prohibitedInputs,
     expectedOutputs: dryRun.expectedOutputs,
     completion: dryRun.completion,
@@ -640,6 +802,28 @@ async function executeScenario(
   if (invoked.diagnostic) return { ok: false, diagnostics: [invoked.diagnostic] };
   const parsedResponse = parseAdapterResponse(invoked.response);
   if (!parsedResponse.ok) return parsedResponse;
+  if (executionAuthority && authorityEvidence) {
+    const requiredInvocations = [...new Set(
+      executionAuthority.requirements.map((requirement) => requirement.invocation),
+    )].sort((left, right) => left - right);
+    const missingEvidenceInvocations = requiredInvocations.flatMap((invocation) =>
+      parsedResponse.value.outputs.some((output) =>
+        output.invocation === invocation &&
+        output.name === authorityEvidence.output &&
+        output.lifecycleDatum.type === authorityEvidence.type
+      ) ? [] : [invocation]
+    );
+    if (missingEvidenceInvocations.length > 0) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-authority-evidence-missing",
+          path: `${scenarioReference}#authority_evidence`,
+          message: `Scenario '${scenarioReference}' must publish '${authorityEvidence.output}' as exact ${authorityEvidence.type} authority evidence for invocation(s): ${missingEvidenceInvocations.join(", ")}`,
+        }],
+      };
+    }
+  }
   const scenario = selectedScenario;
   const contractDiagnostics = outputContractDiagnostics(
     scenario,
@@ -798,6 +982,7 @@ async function executeScenario(
     skills,
     policies: [...dryRun.policies, ...participationPolicies],
     ...(dryRun.participation ? { participation: dryRun.participation } : {}),
+    ...(executionAuthority ? { authority: executionAuthority } : {}),
     prohibitedInputs: dryRun.prohibitedInputs,
     completion: {
       contractValid: true as const,
@@ -852,6 +1037,8 @@ export async function executeResolverScenario(
   obligationInstance: string,
   requestedInputs: { name: string; value: string }[],
   adapterExecutable: string,
+  suppliedAuthorities: string[] = [],
+  suppliedDelegations: string[] = [],
 ): Promise<ScenarioExecutionResult> {
   return executeScenario(
     repositoryRoot,
@@ -861,6 +1048,8 @@ export async function executeResolverScenario(
     { mode: "dispatchable-obligation", obligationInstance },
     requestedInputs,
     adapterExecutable,
+    suppliedAuthorities,
+    suppliedDelegations,
   );
 }
 
@@ -871,6 +1060,8 @@ export async function executeExplicitScenario(
   scenarioReference: string,
   requestedInputs: { name: string; value: string }[],
   adapterExecutable: string,
+  suppliedAuthorities: string[] = [],
+  suppliedDelegations: string[] = [],
 ): Promise<ScenarioExecutionResult> {
   return executeScenario(
     repositoryRoot,
@@ -880,6 +1071,8 @@ export async function executeExplicitScenario(
     { mode: "explicit-initiation" },
     requestedInputs,
     adapterExecutable,
+    suppliedAuthorities,
+    suppliedDelegations,
   );
 }
 

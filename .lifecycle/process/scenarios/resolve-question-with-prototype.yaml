@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: resolve-question-with-prototype
-version: 1
+version: 2
 description: Resolve one prototype-bound empirical question with an exact ART, bounded DEC finding, and satisfying QST Revision.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
 inputs:
@@ -29,13 +29,14 @@ outputs:
     types: [QST]
     cardinality: one
     required_links: []
-prompt_ref: prompts/resolve-question-with-prototype.md@1
+prompt_ref: prompts/resolve-question-with-prototype.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: question-participation@1
   arguments:
     question: question
     selected_phase: phase
+authority_evidence: {output: finding, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && prototype.payload.kind == "prototype"

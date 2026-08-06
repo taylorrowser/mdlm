@@ -43,8 +43,8 @@ describe("evaluateLifecycle", () => {
             },
             links: [],
             created_by: {
-              scenario: "compile-psp@1",
-              prompt_ref: "prompts/compile-psp.md@1",
+              scenario: "compile-psp@2",
+              prompt_ref: "prompts/compile-psp.md@2",
               process_ref: "git:current",
               loaded_skill_refs: ["skills/product-specification.md@1"],
               policy_refs: ["review-applicability@1"],
@@ -118,7 +118,7 @@ describe("evaluateLifecycle", () => {
       expect.objectContaining({
         subject: PSP_REVISION,
         status: "blocked",
-        eventualResolver: "review-datum-in-context@1",
+        eventualResolver: "review-datum-in-context@2",
         actionableResolver: "create-review-context@1",
         dispatchable: false,
         blockedBy: [
@@ -129,8 +129,8 @@ describe("evaluateLifecycle", () => {
         ]],
         unresolvedBindings: ["review_context"],
         resolver: {
-          scenario: "review-datum-in-context@1",
-          promptRef: "prompts/review-datum-in-context.md@1",
+          scenario: "review-datum-in-context@2",
+          promptRef: "prompts/review-datum-in-context.md@2",
           expectedOutputs: [
             {
               name: "review",
@@ -168,8 +168,8 @@ describe("evaluateLifecycle", () => {
         },
         links: [],
         created_by: {
-          scenario: "compile-psp@1",
-          prompt_ref: "prompts/compile-psp.md@1",
+          scenario: "compile-psp@2",
+          prompt_ref: "prompts/compile-psp.md@2",
           process_ref: "git:current",
           loaded_skill_refs: [],
           policy_refs: ["review-applicability@1"],

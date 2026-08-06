@@ -31,7 +31,7 @@ status_rules:
     reason: The bounded reviewed decomposition plan is ready to execute.
 default_status: blocked
 resolve_with:
-  scenario: execute-decomposition-work-package@1
+  scenario: execute-decomposition-work-package@2
   inputs:
     plan: plan
     parents: 'select("decomposition-parents-for@1", {plan: plan})'

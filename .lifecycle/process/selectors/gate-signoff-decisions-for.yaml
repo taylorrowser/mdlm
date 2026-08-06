@@ -10,6 +10,7 @@ query:
   as: decision
   where: >-
     decision.payload.kind == "gate-signoff"
+    && decision.payload.effective_scope == candidate.identity.revision_id
     && state(decision, "validity") == "valid"
   distinct: true
   order_by: [identity.revision_id]

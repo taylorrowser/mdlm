@@ -1,0 +1,25 @@
+kind: selector-definition
+id: question-disposition-decisions-for
+version: 1
+description: Valid exact deferral or cancellation Decisions linked to one exact resulting QST Revision.
+parameters:
+  - {name: question, kind: revision, types: [QST]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: question, link: resolves, emit: source, types: [DEC]}
+  as: decision
+  where: >-
+    (
+      (
+        question.payload.state == "deferred"
+        && decision.payload.kind == "deferral"
+      )
+      || (
+        question.payload.state == "cancelled"
+        && decision.payload.kind == "cancellation"
+      )
+    )
+    && decision.payload.effective_scope == question.identity.revision_id
+    && state(decision, "validity") == "valid"
+  distinct: true
+  order_by: [identity.revision_id]

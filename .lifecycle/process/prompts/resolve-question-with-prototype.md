@@ -1,6 +1,6 @@
 ---
 id: resolve-question-with-prototype
-version: 1
+version: 2
 scenario: resolve-question-with-prototype
 ---
 

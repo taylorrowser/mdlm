@@ -22,8 +22,8 @@ function record(
   return lifecycleRecord(type, id, payload, {
     ...(options.links ? { links: options.links } : {}),
     createdBy: {
-      scenario: options.scenario ?? "compile-psp@1",
-      prompt_ref: "prompts/compile-psp.md@1",
+      scenario: options.scenario ?? "compile-psp@2",
+      prompt_ref: "prompts/compile-psp.md@2",
       process_ref: "git:current",
       loaded_skill_refs: [],
       policy_refs: ["review-applicability@1"],
@@ -96,7 +96,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@1",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: psp.datum.revision_id },
           { type: "contextualizes", target: context.datum.revision_id },
@@ -165,7 +165,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@1",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: original.datum.revision_id },
           {
@@ -231,7 +231,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@1",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: replacement.datum.revision_id },
           {
@@ -433,6 +433,40 @@ describe("evaluateLifecycle review flow", () => {
       .toBe(false);
   });
 
+  it("rejects a waiver whose payload names a different Obligation Instance than its exact link", () => {
+    const psp = record("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Lifecycle manager",
+      rationale: "Preserve intent",
+      problem: "Intent is lost",
+      users: ["owner"],
+      goals: ["traceability"],
+      non_goals: [],
+      success_measures: ["reviewed intent"],
+    });
+    const { obligationInstance, waiver, review } = exactContextWaiverFor(
+      psp,
+      "git:current",
+    );
+    (waiver.datum.payload.waiver as Record<string, unknown>).instance =
+      `passing-review-required@2:${psp.datum.revision_id}:git:current`;
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [psp, waiver, review],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) => item.id === obligationInstance))
+      .toEqual(expect.objectContaining({
+        status: "ready",
+        waiver: {
+          policy: "waiver-applicability@1",
+          result: expect.objectContaining({ applicable: false }),
+        },
+      }));
+  });
+
   it("does not carry an exact waiver onto its replacement Revision", () => {
     const psp = record("PSP", "PSP-7K3M9Q2D8F", {
       title: "Lifecycle manager",
@@ -514,7 +548,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@1",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: psp.datum.revision_id },
           { type: "contextualizes", target: context.datum.revision_id },
@@ -643,7 +677,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@1",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: psp.datum.revision_id },
           { type: "contextualizes", target: pspContext.datum.revision_id },
@@ -689,7 +723,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@1",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: candidate.datum.revision_id },
           {
@@ -706,13 +740,14 @@ describe("evaluateLifecycle review flow", () => {
         title: "Intent gate sign-off",
         rationale: "The exact candidate reflects intended scope.",
         kind: "gate-signoff",
+        gate_outcome: "approve",
         decision: "Approve for downstream work.",
         alternatives: ["revise candidate"],
         effective_scope: candidate.datum.revision_id,
       },
       {
         frozen: false,
-        scenario: "record-gate-signoff@1",
+        scenario: "record-gate-signoff@2",
         links: [
           { type: "justifies", target: candidate.datum.revision_id },
         ],
@@ -758,8 +793,8 @@ describe("evaluateLifecycle review flow", () => {
     expect(gate).toEqual(
       expect.objectContaining({
         status: "blocked",
-        eventualResolver: "record-gate-signoff@1",
-        actionableResolver: "review-datum-in-context@1",
+        eventualResolver: "record-gate-signoff@2",
+        actionableResolver: "review-datum-in-context@2",
         dispatchable: false,
         blockedBy: [
           `passing-review-required@2:${signoff.datum.revision_id}:git:current`,
@@ -779,8 +814,8 @@ describe("evaluateLifecycle review flow", () => {
       ),
     ).toEqual(expect.objectContaining({
       status: "awaiting-review",
-      eventualResolver: "review-datum-in-context@1",
-      actionableResolver: "review-datum-in-context@1",
+      eventualResolver: "review-datum-in-context@2",
+      actionableResolver: "review-datum-in-context@2",
       dispatchable: true,
       unresolvedBindings: [],
     }));

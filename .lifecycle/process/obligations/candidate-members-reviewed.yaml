@@ -18,7 +18,7 @@ status_rules:
         subjects: 'select("candidate-members-missing-review@1", {candidate: candidate})'
 default_status: blocked
 resolve_with:
-  scenario: review-datum-in-context@1
+  scenario: review-datum-in-context@2
   dispatch:
     for_each: 'select("candidate-members-missing-review@1", {candidate: candidate})'
     as: member

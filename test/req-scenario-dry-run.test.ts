@@ -86,7 +86,7 @@ describe("req scenario dry-run", () => {
       "new",
       "QST",
       "--scenario",
-      "resolve-question@1",
+      "resolve-question@2",
       "--set",
       "title=Repository-backed dry-run",
       "--set",
@@ -107,14 +107,14 @@ describe("req scenario dry-run", () => {
     ).toBe(0);
     const question = JSON.parse(createdQuestion.stdout).created;
     const obligation =
-      `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.33.0#${packageDigest}`;
+      `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.34.0#${packageDigest}`;
     const before = await treeDigest(repositoryRoot);
 
     const result = req(
       repositoryRoot,
       "scenario",
       "dry-run",
-      "resolve-question@1",
+      "resolve-question@2",
       "--obligation",
       obligation,
       "--json",
@@ -149,7 +149,7 @@ describe("req scenario dry-run", () => {
           })],
         }],
         prompt: expect.objectContaining({
-          reference: "prompts/resolve-question.md@1",
+          reference: "prompts/resolve-question.md@2",
           content: expect.stringContaining("# Resolve a question"),
           skills: expect.arrayContaining([
             expect.objectContaining({
@@ -167,7 +167,7 @@ describe("req scenario dry-run", () => {
           "unsupported empirical conclusion",
         ],
         expectedOutputs: expect.arrayContaining([
-          expect.objectContaining({ name: "decision", cardinality: "one" }),
+          expect.objectContaining({ name: "decision", cardinality: "zero-or-one" }),
           expect.objectContaining({
             name: "updated_question",
             cardinality: "one",
@@ -205,7 +205,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.33.0",
+          reference: "mdlm-bootstrap@0.34.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -374,7 +374,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "review-datum-in-context@1",
+      "review-datum-in-context@2",
       "--obligation",
       blockedInstance,
       "--snapshot",
@@ -394,7 +394,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "resolve-question@1",
+      "resolve-question@2",
       "--obligation",
       readyInstance,
       "--snapshot",
@@ -437,7 +437,7 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.33.0",
+        "mdlm-bootstrap@0.34.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(

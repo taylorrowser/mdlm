@@ -362,7 +362,7 @@ describe("textual MDLM expressions", () => {
 
   it("reads a typed Policy result field", async () => {
     const processRoot = await processPackageWithTextualProcessDrift(
-      'policy("review-applicability@1", {subject: subject}).required == true && policy("waiver-applicability@1", {obligation: "review-context-required@2", subject: subject, waiver: subject}).permitted == false',
+      'policy("review-applicability@1", {subject: subject}).required == true && policy("waiver-applicability@1", {instance: "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:current", obligation: "review-context-required@2", subject: subject, waiver: subject}).permitted == false',
     );
 
     const loaded = await loadProcessPackage(processRoot);
@@ -423,7 +423,7 @@ describe("textual MDLM expressions", () => {
       cardinality:
         'policy("review-applicability@1", {subject: select("review-required-revisions@1", {})}).required == true',
       scalar:
-        'policy("waiver-applicability@1", {obligation: 7, subject: subject, waiver: subject}).permitted == false',
+        'policy("waiver-applicability@1", {instance: "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:current", obligation: 7, subject: subject, waiver: subject}).permitted == false',
       field: 'policy("review-applicability@1", {subject: subject}).missing == true',
       type: 'policy("review-applicability@1", {subject: subject}).required == "yes"',
     };

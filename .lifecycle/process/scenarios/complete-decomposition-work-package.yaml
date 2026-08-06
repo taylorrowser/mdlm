@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: complete-decomposition-work-package
-version: 1
+version: 2
 description: Record the next exact completion Revision for a reviewed, covered, simplified decomposition plan.
 phases: [phase-2-system-definition]
 inputs:
@@ -11,7 +11,6 @@ outputs:
     cardinality: one
     required_links: []
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-  - {name: decisions, types: [DEC], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/complete-decomposition-work-package.md@1
 review_policy_ref: review-applicability@1
 completion: >-

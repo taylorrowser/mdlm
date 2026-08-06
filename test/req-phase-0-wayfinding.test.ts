@@ -35,7 +35,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "ASP@1",
       "BSL@2",
       "CHG@1",
-      "DEC@2",
+      "DEC@3",
       "DWP@1",
       "ENV@1",
       "ICSP@1",
@@ -43,7 +43,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "PAS@1",
       "PRB@1",
       "PSP@2",
-      "QST@3",
+      "QST@4",
       "RES@1",
       "REV@2",
       "RUN@1",
@@ -56,8 +56,8 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
       "build-exploratory-prototype@1",
       "chart-wayfinding-map@1",
-      "record-gate-signoff@1",
-      "review-datum-in-context@1",
+      "record-gate-signoff@2",
+      "review-datum-in-context@2",
     ]));
   });
 
@@ -199,7 +199,7 @@ describe("req Phase 0 wayfinding slice", () => {
       expect(obligation).toEqual(expect.objectContaining({
         status: "awaiting-review",
         dispatchable: true,
-        actionableResolver: "review-datum-in-context@1",
+        actionableResolver: "review-datum-in-context@2",
       }));
       const configured = await adapter({
         outputs: [{
@@ -226,9 +226,11 @@ describe("req Phase 0 wayfinding slice", () => {
         repositoryRoot,
         "scenario",
         "execute",
-        "review-datum-in-context@1",
+        "review-datum-in-context@2",
         "--obligation",
         obligation.id,
+        "--authorize",
+        "independent-reviewer",
         "--adapter",
         configured.executable,
         "--input",
@@ -296,7 +298,7 @@ describe("req Phase 0 wayfinding slice", () => {
     const product = create(
       "PSP",
       "--scenario",
-      "compile-psp@1",
+      "compile-psp@2",
       "--set",
       "title=Representative report export",
       "--set",
@@ -315,7 +317,7 @@ describe("req Phase 0 wayfinding slice", () => {
     const stakeholder = create(
       "STK",
       "--scenario",
-      "draft-stakeholder-requirements@1",
+      "draft-stakeholder-requirements@2",
       "--set",
       "title=Export a completed report",
       "--set",
@@ -414,7 +416,7 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(gate).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "record-gate-signoff@1",
+      actionableResolver: "record-gate-signoff@2",
     }));
     const gateAdapter = await adapter({
       outputs: [{
@@ -426,6 +428,7 @@ describe("req Phase 0 wayfinding slice", () => {
             title: "Approve the exact intent candidate",
             rationale: "All exact candidate members and the candidate passed review",
             kind: "gate-signoff",
+            gate_outcome: "approve",
             decision: "Approve the exact candidate for the Phase 0 intent gate.",
             alternatives: ["Return the candidate for revision"],
             effective_scope: candidate.revisionId,
@@ -436,11 +439,11 @@ describe("req Phase 0 wayfinding slice", () => {
       }],
       completionEvidence: { summary: "The user approved the exact candidate." },
     }, "gate-signoff");
-    const signedOff = req(
+    const chatOnlyApproval = req(
       repositoryRoot,
       "scenario",
       "execute",
-      "record-gate-signoff@1",
+      "record-gate-signoff@2",
       "--obligation",
       gate.id,
       "--adapter",
@@ -449,8 +452,66 @@ describe("req Phase 0 wayfinding slice", () => {
       `candidate=${candidate.revisionId}`,
       "--json",
     );
+    expect(chatOnlyApproval.status).toBe(1);
+    expect(JSON.parse(chatOnlyApproval.stdout).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "scenario-authority-required",
+        message: expect.stringContaining("stakeholder"),
+      }),
+    ]);
+    await expect(fs.stat(gateAdapter.capture)).rejects.toMatchObject({ code: "ENOENT" });
+
+    const signedOff = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "record-gate-signoff@2",
+      "--obligation",
+      gate.id,
+      "--authorize",
+      "stakeholder",
+      "--adapter",
+      gateAdapter.executable,
+      "--input",
+      `candidate=${candidate.revisionId}`,
+      "--json",
+    );
     expect(signedOff.status, `${signedOff.stderr}${signedOff.stdout}`).toBe(0);
-    const signoff = JSON.parse(signedOff.stdout).execution.outputs.find(
+    const signedOffExecution = JSON.parse(signedOff.stdout).execution;
+    expect(signedOffExecution).toEqual(expect.objectContaining({
+      contract: "mdlm-scenario-execution@3",
+      authority: {
+        supplied: ["stakeholder"],
+        delegations: [],
+        requirements: [{
+          invocation: 0,
+          policy: "gate-signoff-participation@1",
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+          evidence: { output: "decision", type: "DEC" },
+        }],
+      },
+    }));
+    expect(JSON.parse(await fs.readFile(gateAdapter.capture, "utf8"))).toEqual(
+      expect.objectContaining({
+        contract: "mdlm-agent-adapter@3",
+        authority: signedOffExecution.authority,
+      }),
+    );
+    const shownSignoffExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execution",
+      "show",
+      signedOffExecution.id,
+    );
+    expect(shownSignoffExecution.status, shownSignoffExecution.stderr).toBe(0);
+    expect(shownSignoffExecution.stdout).toContain("Authority Supplied: stakeholder");
+    expect(shownSignoffExecution.stdout).toContain(
+      "Authority Evidence [gate-signoff-participation@1]: decision (DEC)",
+    );
+    const signoff = signedOffExecution.outputs.find(
       (output: any) => output.name === "decision",
     ).lifecycleDatum as { revisionId: string };
 
@@ -461,7 +522,7 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(awaitingReviewGate).toEqual(expect.objectContaining({
       status: "blocked",
       dispatchable: false,
-      eventualResolver: "record-gate-signoff@1",
+      eventualResolver: "record-gate-signoff@2",
       actionableResolver: "create-review-context@1",
       blockedBy: [expect.stringContaining(`:${signoff.revisionId}:`)],
     }));
@@ -470,7 +531,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "record-gate-signoff@1",
+      "record-gate-signoff@2",
       "--obligation",
       gate.id,
       "--adapter",

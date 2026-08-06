@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.33.0
+version: 0.34.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -42,13 +42,17 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, question-participation, gate-signoff-participation, consequential-decision-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - review-required-revisions
     - newer-revisions-for
     - open-questions
     - general-open-questions
+    - question-disposition-decisions-for
+    - applicable-question-dispositions-for
+    - question-answer-decisions-for
+    - applicable-question-answers-for
     - prototype-bound-open-questions
     - superseding-baselines-for
     - candidate-baselines
@@ -66,6 +70,8 @@ catalog:
     - newer-accepted-revisions-for
     - newer-editable-revisions-for
     - applicable-disposition-decisions-for
+    - applicable-authority-delegations-for
+    - delegated-targets-for
     - dependency-changes-for
     - staleness-relevant-dependency-changes-for
     - gate-signoff-decisions-for
@@ -99,6 +105,7 @@ catalog:
     - source-problems-for-change
     - reported-evidence-for-problem
     - all-change-requests
+    - recorded-change-approval-decisions-for
     - change-approval-decisions-for
     - impacted-requirements-for-change
     - revised-requirements-for-change
@@ -107,6 +114,7 @@ catalog:
     - pilot-assessment-contexts
     - pilot-assessments-for-context
     - all-pilot-assessments
+    - recorded-pilot-expansion-decisions-for
     - pilot-expansion-decisions-for
   obligations:
     - review-context-required
@@ -141,6 +149,7 @@ catalog:
     - resolve-question-with-prototype
     - create-candidate-baseline
     - record-gate-signoff
+    - record-consequential-decision
     - define-verification-strategy
     - realize-verification-environment
     - write-verification-activity
@@ -168,15 +177,16 @@ assets:
   prompts:
     - prompts/chart-wayfinding-map.md@1
     - prompts/build-exploratory-prototype.md@1
-    - prompts/compile-psp.md@1
-    - prompts/draft-stakeholder-requirements.md@1
+    - prompts/compile-psp.md@2
+    - prompts/draft-stakeholder-requirements.md@2
     - prompts/derive-system-requirements.md@1
     - prompts/create-review-context.md@1
-    - prompts/review-datum-in-context.md@1
-    - prompts/resolve-question.md@1
-    - prompts/resolve-question-with-prototype.md@1
+    - prompts/review-datum-in-context.md@2
+    - prompts/resolve-question.md@2
+    - prompts/resolve-question-with-prototype.md@2
     - prompts/create-candidate-baseline.md@1
-    - prompts/record-gate-signoff.md@1
+    - prompts/record-gate-signoff.md@2
+    - prompts/record-consequential-decision.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
     - prompts/write-verification-activity.md@1
@@ -191,13 +201,13 @@ assets:
     - prompts/complete-decomposition-work-package.md@1
     - prompts/report-problem.md@1
     - prompts/analyze-change-impact.md@1
-    - prompts/approve-change-request.md@1
+    - prompts/approve-change-request.md@2
     - prompts/revise-requirement-under-change.md@1
-    - prompts/close-change-request.md@1
+    - prompts/close-change-request.md@2
     - prompts/record-pilot-observation.md@1
     - prompts/prepare-pilot-assessment-context.md@1
     - prompts/assess-phase-0-2-pilot.md@1
-    - prompts/decide-pilot-expansion.md@1
+    - prompts/decide-pilot-expansion.md@2
   skills:
     - skills/lifecycle-data.md@1
     - skills/wayfinding-map.md@1

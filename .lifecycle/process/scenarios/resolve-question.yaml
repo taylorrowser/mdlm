@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: resolve-question
-version: 1
+version: 2
 description: Answer, defer, or cancel one exact question through a reasoned decision and a new QST revision.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
 inputs:
@@ -12,21 +12,71 @@ inputs:
 outputs:
   - name: decision
     types: [DEC]
-    cardinality: one
+    cardinality: zero-or-one
     required_links:
       - {link: resolves, target: {input: question}}
+      - {link: resolves, target: {output: updated_question}}
   - {name: updated_question, types: [QST], cardinality: one, required_links: []}
-prompt_ref: prompts/resolve-question.md@1
+prompt_ref: prompts/resolve-question.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: question-participation@1
   arguments:
     question: question
     selected_phase: phase
+authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && updated_question.identity.id == question.identity.id
   && updated_question.payload.state in ["answered", "deferred", "cancelled"]
+  && (
+    question.payload.kind != "empirical"
+    || (
+      (
+        !present(question.payload.resolution_disposition)
+        || question.payload.resolution_disposition == "answer"
+      )
+      && updated_question.payload.state == "answered"
+    )
+    || (
+      question.payload.resolution_disposition == "defer"
+      && updated_question.payload.state == "deferred"
+    )
+    || (
+      question.payload.resolution_disposition == "cancel"
+      && updated_question.payload.state == "cancelled"
+    )
+  )
+  && (
+    question.payload.kind != "preferential"
+    || updated_question.payload.state != "answered"
+    || (
+      decision != null
+      && decision.payload.kind == "scope"
+      && decision.payload.effective_scope == updated_question.identity.revision_id
+    )
+  )
+  && (
+    (question.payload.kind == "empirical"
+    && updated_question.payload.state == "answered")
+    || decision != null
+  )
+  && (
+    updated_question.payload.state != "deferred"
+    || (
+      decision != null
+      && decision.payload.kind == "deferral"
+      && decision.payload.effective_scope == updated_question.identity.revision_id
+    )
+  )
+  && (
+    updated_question.payload.state != "cancelled"
+    || (
+      decision != null
+      && decision.payload.kind == "cancellation"
+      && decision.payload.effective_scope == updated_question.identity.revision_id
+    )
+  )
 resolves: [open-question-resolution]
 prohibited_inputs: [unstated stakeholder answer, unsupported empirical conclusion]
 batching: single
