@@ -7,6 +7,7 @@ export function req(cwd: string, ...arguments_: string[]) {
   return spawnSync(process.execPath, [reqExecutable, ...arguments_], {
     cwd,
     encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
   });
 }
 
@@ -45,6 +46,6 @@ export function selectBootstrapProcessPackage(repositoryRoot: string): void {
   selectProcessPackage(
     repositoryRoot,
     path.join(process.cwd(), ".lifecycle/process"),
-    "mdlm-bootstrap@0.43.0",
+    "mdlm-bootstrap@0.44.0",
   );
 }

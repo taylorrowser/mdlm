@@ -16,6 +16,9 @@ scenarios:
   - write-verification-activity@1
   - implement-verification-activity@1
   - execute-verification-run@1
+  - revise-verification-strategy-after-review@1
+  - revise-environment-assurance-after-review@1
+  - revise-pilot-verification-activity-after-review@1
   - prepare-pilot-assessment-context@1
   - create-review-context@1
   - review-datum-in-context@2
@@ -32,6 +35,9 @@ obligations:
   - open-question-resolution@2
   - prototype-question-resolution@1
   - verification-run-required@1
+  - verification-strategy-review-correction-required@1
+  - environment-review-correction-required@1
+  - pilot-verification-activity-review-correction-required@1
 outputs: [VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
 progression:
   next_phase: phase-2-system-definition

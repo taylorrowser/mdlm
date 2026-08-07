@@ -955,4 +955,137 @@ describe("evaluateLifecycle review flow", () => {
     );
     expect(reorderedGate).toEqual(gate);
   });
+
+  it("projects autonomous correction for failed current VSP and pilot VER Reviews", () => {
+    const psp = record("PSP", "PSP-1111111111", { title: "Product" });
+    const requirement = record(
+      "STK",
+      "STK-2222222222",
+      { title: "Requirement" },
+      { links: [{ type: "derived-from", target: psp.datum.id }] },
+    );
+    const strategy = record(
+      "VSP",
+      "VSP-3333333333",
+      {
+        title: "Strategy",
+        level: "stakeholder",
+        independence: { boundary: "black-box" },
+      },
+      {
+        links: [
+          { type: "governs", target: requirement.datum.id },
+          { type: "governs-revision", target: requirement.datum.revision_id },
+        ],
+      },
+    );
+    const activity = record(
+      "VER",
+      "VER-4444444444",
+      {
+        title: "Pilot activity",
+        kind: "pilot",
+        claim: {
+          kind: "pilot",
+          scope: "verification-design",
+          formal_evidence_eligible: false,
+        },
+      },
+      {
+        links: [
+          { type: "verifies", target: requirement.datum.id },
+          { type: "verifies-revision", target: requirement.datum.revision_id },
+          { type: "governed-by", target: strategy.datum.revision_id },
+        ],
+      },
+    );
+    const failedReview = (
+      subject: LifecycleRecord,
+      contextId: string,
+      reviewId: string,
+    ) => {
+      const context = record(
+        "BSL",
+        contextId,
+        {
+          title: "Exact context",
+          kind: "review-context",
+          role: "review-context",
+          scope: subject.datum.revision_id,
+          group: "DEFAULT",
+          definition_members: [subject.datum.revision_id],
+          evidence: [],
+        },
+        { frozen: true, scenario: "create-review-context@1" },
+      );
+      const review = record(
+        "REV",
+        reviewId,
+        {
+          title: "Failed Review",
+          review_kind: "contextual",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+          findings: [{
+            id: "F-001",
+            target: subject.datum.revision_id,
+            relationship: "primary",
+            severity: "blocking",
+            summary: "Correction required",
+            evidence: "Exact finding evidence",
+          }],
+          outcome: "fail",
+        },
+        {
+          frozen: true,
+          scenario: "review-datum-in-context@2",
+          links: [
+            { type: "reviews", target: subject.datum.revision_id },
+            { type: "contextualizes", target: context.datum.revision_id },
+          ],
+        },
+      );
+      return [context, review];
+    };
+    const strategyReview = failedReview(
+      strategy,
+      "BSL-5555555555",
+      "REV-6666666666",
+    );
+    const activityReview = failedReview(
+      activity,
+      "BSL-7777777777",
+      "REV-8888888888",
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:phase-1-correction",
+      phaseId: "phase-1-product-assurance",
+      records: [
+        psp,
+        requirement,
+        strategy,
+        activity,
+        ...strategyReview,
+        ...activityReview,
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.looseEnds).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        obligation: "verification-strategy-review-correction-required",
+        subject: strategy.datum.revision_id,
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "revise-verification-strategy-after-review@1",
+      }),
+      expect.objectContaining({
+        obligation: "pilot-verification-activity-review-correction-required",
+        subject: activity.datum.revision_id,
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "revise-pilot-verification-activity-after-review@1",
+      }),
+    ]));
+  });
 });

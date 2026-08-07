@@ -150,7 +150,12 @@ describe("req product-assurance qualification and pilot slice", () => {
         revisionId: string;
       };
     };
-    const review = async (subject: string, context: string) => {
+    const review = async (
+      subject: string,
+      context: string,
+      outcome: "pass" | "fail" = "pass",
+      findings: Array<Record<string, unknown>> = [],
+    ) => {
       const obligation = looseEnds().find((item) =>
         item.obligation === "passing-review-required" &&
         item.subject === subject
@@ -170,17 +175,19 @@ describe("req product-assurance qualification and pilot slice", () => {
             payload: {
               title: `Independent assurance review of ${subject}`,
               rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-              findings: [],
-              outcome: "pass",
+              findings,
+              outcome,
             },
             links: [
               { type: "reviews", target: subject },
               { type: "contextualizes", target: context },
             ],
-            body: "The exact subject passes independent contextual review.\n",
+            body: `The exact subject records an independent ${outcome} contextual Review.\n`,
           },
         }],
-        completionEvidence: { summary: "Independent assurance review passed." },
+        completionEvidence: {
+          summary: `Independent assurance Review completed with ${outcome}.`,
+        },
       }, "review");
       const executed = req(
         repositoryRoot,
@@ -376,6 +383,15 @@ describe("req product-assurance qualification and pilot slice", () => {
     expect(strategyExecution.status, `${strategyExecution.stderr}${strategyExecution.stdout}`).toBe(0);
     const strategy = JSON.parse(strategyExecution.stdout).execution.outputs[0]
       .lifecycleDatum as { id: string; revisionId: string };
+    const strategyContext = await createDiscoveredReviewContext(
+      strategy.revisionId,
+      "Verification strategy Review Context",
+      [strategy.revisionId, requirement.revisionId],
+    );
+    const strategyReview = await review(
+      strategy.revisionId,
+      strategyContext.revisionId,
+    );
 
     const environmentWork = looseEnds().find((item) =>
       item.obligation === "environment-assurance-required" &&
@@ -496,9 +512,9 @@ describe("req product-assurance qualification and pilot slice", () => {
       lifecycleDatum: { id: string; revisionId: string };
     }>;
     const output = (name: string) => environmentOutputs.find((item) => item.name === name)!.lifecycleDatum;
-    const environment = output("environment");
-    const qualificationActivity = output("qualification_activity");
-    const qualificationImplementation = output("qualification_implementation");
+    let environment = output("environment");
+    let qualificationActivity = output("qualification_activity");
+    let qualificationImplementation = output("qualification_implementation");
 
     const prematureEnvironmentContext = looseEnds().find((item) =>
       item.obligation === "review-context-required" &&
@@ -564,8 +580,8 @@ describe("req product-assurance qualification and pilot slice", () => {
       qualificationExecution.status,
       `${qualificationExecution.stderr}${qualificationExecution.stdout}`,
     ).toBe(0);
-    const qualificationRun = "RUN-0000000001-r00001";
-    const qualificationResult = "RES-0000000001-r00001";
+    let qualificationRun = "RUN-0000000001-r00001";
+    let qualificationResult = "RES-0000000001-r00001";
 
     expect(runObligation(qualificationImplementation.revisionId)).toBeUndefined();
 
@@ -621,7 +637,342 @@ describe("req product-assurance qualification and pilot slice", () => {
     ).toBe(0);
     const environmentContext = JSON.parse(environmentContextExecution.stdout)
       .execution.outputs[0].lifecycleDatum as { revisionId: string };
-    await review(environment.revisionId, environmentContext.revisionId);
+    const failedEnvironmentReview = await review(
+      environment.revisionId,
+      environmentContext.revisionId,
+      "fail",
+      [{
+        id: "F-001",
+        target: environment.revisionId,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "Independent-case execution is not discriminatively qualified.",
+        evidence: "Repeated stateless controls cannot expose shared invocation state.",
+      }],
+    );
+    const correctionWork = looseEnds().find((item) =>
+      item.obligation === "environment-review-correction-required" &&
+      item.subject === environment.revisionId
+    );
+    expect(correctionWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-environment-assurance-after-review@1",
+    }));
+    expect(correctionWork?.resolver).toEqual(expect.objectContaining({
+      expectedOutputs: expect.arrayContaining([
+        expect.objectContaining({ name: "replacement", types: ["ENV"] }),
+        expect.objectContaining({ name: "qualification_activity", types: ["VER"] }),
+        expect.objectContaining({ name: "qualification_implementation", types: ["VAI"] }),
+      ]),
+    }));
+    const nextCorrection = req(
+      repositoryRoot,
+      "next",
+      "--phase",
+      "phase-1-product-assurance",
+      "--json",
+    );
+    expect(nextCorrection.status, nextCorrection.stderr).toBe(0);
+    expect(JSON.parse(nextCorrection.stdout).next.item).toEqual(
+      expect.objectContaining({
+        id: correctionWork?.id,
+        subject: environment.revisionId,
+        dispatchable: true,
+        actionableResolver: "revise-environment-assurance-after-review@1",
+      }),
+    );
+    expect(failedEnvironmentReview).toMatch(/^REV-[0-9A-HJKMNP-TV-Z]{10,12}-r00001$/);
+    const correctionResponse = {
+      outputs: [
+        {
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: environment.id,
+            type: "ENV",
+            payload: {
+              title: "State-discriminating isolated browser export environment",
+              rationale: "The corrected qualification uses state-sensitive controls capable of exposing shared invocation state.",
+              strategy_revision: strategy.revisionId,
+              profile_id: "browser-e2e",
+              capabilities: {
+                controllability: ["create an isolated report fixture"],
+                observability: ["capture the downloaded public artifact"],
+                external_services: [],
+                timing: "deterministic completion timeout",
+              },
+              reproducibility: {
+                environment_ref: "container:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                configuration_digest: `sha256:${"e".repeat(64)}`,
+                reconstruction: "Restore the exact container and reset state before each isolated fixture execution.",
+              },
+            },
+            links: [
+              { type: "realizes", target: strategy.revisionId },
+              { type: "corrects-review", target: failedEnvironmentReview },
+            ],
+            body: "Corrected environment assurance adds a state-sensitive isolation control.\n",
+          },
+        },
+        {
+          name: "qualification_activity",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "VER-0000000003",
+            type: "VER",
+            payload: {
+              title: "Qualify state-sensitive browser isolation",
+              rationale: "A state marker distinguishes isolated execution from hidden shared state.",
+              kind: "qualification",
+              method: "test",
+              assessment_mode: "automatic",
+              claim: { kind: "qualification", scope: "environment-capability", formal_evidence_eligible: false },
+              acceptance_criteria: [
+                "first invocation mutates a private marker",
+                "second isolated invocation observes an absent marker",
+                "shared-state negative control observes the marker and is rejected",
+              ],
+              evidence_requirements: ["per-invocation marker observations", "negative-control rejection"],
+              expected_success_activity: "Execute two reset fixtures and observe no marker carried between them",
+              expected_discrimination_activity: "Execute a deliberately shared fixture and detect its carried marker",
+            },
+            links: [
+              { type: "governed-by", target: strategy.revisionId },
+              { type: "qualifies", target: `${environment.id}-r00002` },
+            ],
+            body: "Fresh qualification design directly addresses F-001.\n",
+          },
+        },
+        {
+          name: "qualification_implementation",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "VAI-0000000009",
+            type: "VAI",
+            payload: {
+              title: "State-sensitive isolation qualification procedure",
+              rationale: "The procedure resets positive invocations and preserves state only in the negative control.",
+              kind: "qualification",
+              implementation_ref: `procedure:sha256:${"f".repeat(64)}`,
+              independence_mode: "environment-capability",
+              authoring_input_refs: [strategy.revisionId, `${environment.id}-r00002`, "VER-0000000003-r00001", failedEnvironmentReview],
+              prohibited_inputs_observed: prohibitedInputs,
+              activity_bindings: ["reset-positive", "shared-state-negative-control"],
+              target_behavior: {
+                supported: ["isolated state reset between invocations"],
+                intentionally_unsupported: ["shared invocation state"],
+              },
+            },
+            links: [
+              { type: "realizes", target: "VER-0000000003-r00001" },
+              { type: "uses", target: `${environment.id}-r00002` },
+              { type: "targets", target: `${environment.id}-r00002` },
+            ],
+            body: "Fresh qualification implementation does not borrow prior evidence.\n",
+          },
+        },
+      ],
+      completionEvidence: {
+        summary: "Every exact failed Review finding is addressed with a replacement ENV and fresh qualification chain.",
+      },
+    };
+    const incompleteCorrectionResponse = structuredClone(correctionResponse);
+    const incompleteReplacement = incompleteCorrectionResponse.outputs[0]!;
+    incompleteReplacement.lifecycleDatum.links =
+      incompleteReplacement.lifecycleDatum.links.filter(
+        (link) => link.type !== "corrects-review",
+      );
+    const incompleteCorrectionAdapter = await adapter(
+      incompleteCorrectionResponse,
+      "incomplete-environment-correction",
+    );
+    const incompleteCorrection = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(correctionWork!.actionableResolver),
+      "--obligation",
+      String(correctionWork!.id),
+      "--adapter",
+      incompleteCorrectionAdapter.executable,
+      "--json",
+    );
+    expect(incompleteCorrection.status).toBe(1);
+    expect(JSON.parse(incompleteCorrection.stdout).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "scenario-output-required-link-missing",
+        path: "outputs.replacement.links.corrects-review",
+      }),
+    ]);
+    expect(req(
+      repositoryRoot,
+      "show",
+      `${environment.id}-r00002`,
+      "--json",
+    ).status).toBe(1);
+
+    const overbroadCorrectionResponse = structuredClone(correctionResponse);
+    overbroadCorrectionResponse.outputs[0]!.lifecycleDatum.links.push({
+      type: "corrects-review",
+      target: strategyReview,
+    });
+    const overbroadCorrectionAdapter = await adapter(
+      overbroadCorrectionResponse,
+      "overbroad-environment-correction",
+    );
+    const overbroadCorrection = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(correctionWork!.actionableResolver),
+      "--obligation",
+      String(correctionWork!.id),
+      "--adapter",
+      overbroadCorrectionAdapter.executable,
+      "--json",
+    );
+    expect(overbroadCorrection.status).toBe(1);
+    expect(JSON.parse(overbroadCorrection.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    ]);
+    expect(req(
+      repositoryRoot,
+      "show",
+      `${environment.id}-r00002`,
+      "--json",
+    ).status).toBe(1);
+
+    const correctionAdapter = await adapter(
+      correctionResponse,
+      "environment-correction",
+    );
+    const correctionExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(correctionWork!.actionableResolver),
+      "--obligation",
+      String(correctionWork!.id),
+      "--adapter",
+      correctionAdapter.executable,
+      "--json",
+    );
+    expect(
+      correctionExecution.status,
+      `${correctionExecution.stderr}${correctionExecution.stdout}`,
+    ).toBe(0);
+    const correctedOutputs = JSON.parse(correctionExecution.stdout).execution.outputs as Array<{
+      name: string;
+      lifecycleDatum: { id: string; revisionId: string };
+    }>;
+    const correctedOutput = (name: string) =>
+      correctedOutputs.find((item) => item.name === name)!.lifecycleDatum;
+    environment = correctedOutput("replacement");
+    qualificationActivity = correctedOutput("qualification_activity");
+    qualificationImplementation = correctedOutput("qualification_implementation");
+    expect(environment.revisionId).toBe("ENV-0000000001-r00002");
+    const correctedEnvironmentInspection = req(
+      repositoryRoot,
+      "show",
+      environment.revisionId,
+      "--json",
+    );
+    expect(correctedEnvironmentInspection.status, correctedEnvironmentInspection.stderr)
+      .toBe(0);
+    expect(
+      JSON.parse(correctedEnvironmentInspection.stdout).lifecycleDatum.datum.links
+        .filter((link: { type: string }) => link.type === "corrects-review"),
+    ).toEqual([{ type: "corrects-review", target: failedEnvironmentReview }]);
+
+    const prematureCorrectedEnvironmentContext = looseEnds().find((item) =>
+      item.obligation === "review-context-required" &&
+      item.subject === environment.revisionId
+    );
+    expect(prematureCorrectedEnvironmentContext).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: "execute-verification-run@1",
+    }));
+    const correctedQualificationObligation = runObligation(
+      qualificationImplementation.revisionId,
+    )!;
+    expect(correctedQualificationObligation).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "execute-verification-run@1",
+    }));
+    const correctedQualificationAdapter = await adapter(
+      runResponse(
+        "RUN-0000000009",
+        "RES-0000000009",
+        "qualification",
+        qualificationImplementation.revisionId,
+        environment.revisionId,
+        environment.revisionId,
+        {
+          kind: "qualification",
+          scope: "environment-capability",
+          outcome: "pass",
+          formal_evidence_eligible: false,
+        },
+      ),
+      "corrected-qualification-run",
+    );
+    const correctedQualificationExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(correctedQualificationObligation.actionableResolver),
+      "--obligation",
+      String(correctedQualificationObligation.id),
+      "--adapter",
+      correctedQualificationAdapter.executable,
+      "--json",
+    );
+    expect(
+      correctedQualificationExecution.status,
+      `${correctedQualificationExecution.stderr}${correctedQualificationExecution.stdout}`,
+    ).toBe(0);
+    qualificationRun = "RUN-0000000009-r00001";
+    qualificationResult = "RES-0000000009-r00001";
+    const correctedEnvironmentContext = await createDiscoveredReviewContext(
+      environment.revisionId,
+      "Corrected environment qualification Review Context",
+      [strategy.revisionId, environment.revisionId],
+      [
+        qualificationActivity.revisionId,
+        qualificationImplementation.revisionId,
+        qualificationRun,
+        qualificationResult,
+        failedEnvironmentReview,
+      ],
+    );
+    await review(environment.revisionId, correctedEnvironmentContext.revisionId);
+    expect(looseEnds().find((item) =>
+      item.obligation === "environment-review-correction-required" &&
+      item.subject === "ENV-0000000001-r00001"
+    )).toBeUndefined();
+    const environmentHistory = req(
+      repositoryRoot,
+      "history",
+      environment.id,
+      "--json",
+    );
+    expect(environmentHistory.status, environmentHistory.stderr).toBe(0);
+    expect(JSON.parse(environmentHistory.stdout).history.revisions).toEqual([
+      expect.objectContaining({ revisionId: "ENV-0000000001-r00001" }),
+      expect.objectContaining({ revisionId: environment.revisionId }),
+    ]);
+    const failedReviewInspection = req(
+      repositoryRoot,
+      "show",
+      failedEnvironmentReview,
+      "--json",
+    );
+    expect(failedReviewInspection.status, failedReviewInspection.stderr).toBe(0);
+    expect(JSON.parse(failedReviewInspection.stdout).lifecycleDatum.datum.payload.outcome)
+      .toBe("fail");
 
     const pilotTarget = create(
       "ART",
@@ -1362,7 +1713,7 @@ describe("req product-assurance qualification and pilot slice", () => {
     );
     const doctor = req(repositoryRoot, "doctor", "--json");
     expect(doctor.status, doctor.stderr).toBe(0);
-  }, 120_000);
+  }, 180_000);
 
   it("supplies package-owned verification planning and execution contracts", () => {
     const shown = req(repositoryRoot, "process", "show", "--json");

@@ -43,6 +43,13 @@ payload_schema:
     expected_success_activity: {type: string, minLength: 1}
     expected_discrimination_activity: {type: string, minLength: 1}
 outgoing_links:
+  - id: corrects-review
+    description: Exact failed Review findings addressed by this corrected verification activity Revision.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-assurance-revision
   - id: governed-by
     description: Exact verification strategy governing this activity.
     targets:

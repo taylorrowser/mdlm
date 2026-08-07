@@ -896,7 +896,12 @@ derives one atomic ENV and qualification VER/VAI realization from each applicabl
 exact strategy. Generated RUN/RES work follows from the exact qualification VAI.
 Environment Review Context work waits for passing qualification and freezes the
 exact VSP, ENV, qualification VER, RUN, and RES Revisions before independent
-judgment. Exact requirement and VSP Revision evidence then derives pilot VER work.
+judgment. A failed current VSP, ENV, or pilot VER Review derives a package-owned
+same-lineage correction Scenario rather than a null work queue. Corrections link
+every and only exact failed REV and require fresh exact context and Review. ENV
+correction also publishes a new qualification VER/VAI pair atomically; qualification
+RUN/RES evidence from the failed ENV Revision cannot be borrowed by its replacement.
+Exact requirement and VSP Revision evidence then derives pilot VER work.
 A passing VER Review plus one qualified reviewed ENV Revision and one ART Revision
 derive separately authorized VAI work; that transaction records both the VAI
 Revision and its exact authorization DEC. The VAI Review then unlocks execution

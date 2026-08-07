@@ -1,0 +1,40 @@
+kind: scenario-definition
+id: revise-verification-strategy-after-review
+version: 1
+description: Correct one failed Phase 1 verification strategy while preserving exact immutable Review history.
+phases: [phase-1-product-assurance]
+inputs:
+  - name: strategy
+    types: [VSP]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      exists("failing-reviews-for@1", {subject: strategy})
+      && none("newer-revisions-for@1", {subject: strategy})
+  - name: failed_reviews
+    types: [REV]
+    cardinality: one-or-more
+    identity: revision
+    conditions: 'exists("matching-failing-review-for@1", {subject: strategy, review: failed_reviews})'
+  - name: requirements
+    types: [STK]
+    cardinality: one-or-more
+    identity: revision
+outputs:
+  - name: replacement
+    types: [VSP]
+    cardinality: one
+    required_links:
+      - {link: governs, target: {input: requirements}}
+      - {link: governs-revision, target: {input: requirements}}
+      - {link: corrects-review, target: {input: failed_reviews}}
+prompt_ref: prompts/revise-verification-strategy-after-review.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == strategy.identity.id
+  && replacement.identity.type == strategy.identity.type
+  && exists("corrected-verification-strategy-revisions-for@1", {strategy: strategy})
+resolves: [verification-strategy-review-correction-required]
+prohibited_inputs: [mutation of failed strategy or Review history, unrelated scope expansion, product source, product unit tests]
+batching: single

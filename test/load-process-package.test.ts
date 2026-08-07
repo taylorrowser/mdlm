@@ -24,13 +24,39 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.43.0");
+    expect(result.package.manifest.version).toBe("0.44.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(172);
+    expect(Object.keys(result.package.selectors)).toHaveLength(182);
     expect(Object.keys(result.package.policies)).toHaveLength(9);
-    expect(Object.keys(result.package.obligations)).toHaveLength(40);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(42);
+    expect(Object.keys(result.package.obligations)).toHaveLength(43);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(45);
+    expect(result.package.obligations["verification-strategy-review-correction-required"])
+      .toEqual(expect.objectContaining({
+        resolve_with: expect.objectContaining({
+          scenario: "revise-verification-strategy-after-review@1",
+        }),
+      }));
+    expect(result.package.obligations["environment-review-correction-required"])
+      .toEqual(expect.objectContaining({
+        resolve_with: expect.objectContaining({
+          scenario: "revise-environment-assurance-after-review@1",
+        }),
+      }));
+    expect(result.package.obligations["pilot-verification-activity-review-correction-required"])
+      .toEqual(expect.objectContaining({
+        resolve_with: expect.objectContaining({
+          scenario: "revise-pilot-verification-activity-after-review@1",
+        }),
+      }));
+    for (const scenario of [
+      "revise-verification-strategy-after-review@1",
+      "revise-environment-assurance-after-review@1",
+      "revise-pilot-verification-activity-after-review@1",
+    ]) {
+      expect(result.package.scenarios[scenario.replace(/@1$/, "")]?.participation)
+        .toBeUndefined();
+    }
     expect(result.diagnostics).toEqual([]);
   });
 

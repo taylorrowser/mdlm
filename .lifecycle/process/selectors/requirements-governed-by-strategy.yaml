@@ -1,0 +1,13 @@
+kind: selector-definition
+id: requirements-governed-by-strategy
+version: 1
+description: Exact stakeholder requirement Revisions governed by one verification strategy Revision.
+parameters:
+  - {name: strategy, kind: revision, types: [VSP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: strategy, link: governs-revision, emit: target, types: [STK]}
+  as: requirement
+  where: 'state(requirement, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.revision_id]

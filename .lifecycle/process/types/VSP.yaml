@@ -45,6 +45,13 @@ payload_schema:
             external_services: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
             timing: {type: string, minLength: 1}
 outgoing_links:
+  - id: corrects-review
+    description: Exact failed Review findings addressed by this corrected verification strategy Revision.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-assurance-revision
   - id: governs
     description: Stable stakeholder commitments governed by this level strategy.
     targets:

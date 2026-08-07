@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 17
+version: 18
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -25,6 +25,7 @@ success_criteria:
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
   - the complete required Phase 0 foundation emerges from package Obligations, including exact correction and re-Review after failure
   - the reviewed Phase 0 gate Decision authorizes declarative entry to Phase 1 without a redundant approval
+  - failed Reviews of current VSP, ENV, and pilot VER artifacts derive same-lineage correction without stakeholder attention; corrected ENV assurance includes a fresh exact qualification chain
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
   - accepted exact intent derives ASP, ICSP, and one unambiguous DWP planning Obligation before reviewed-plan execution
   - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations

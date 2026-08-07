@@ -224,7 +224,13 @@ derives generated RUN/RES execution from exact VAI links; the RES atomically
 records its exact execution ENV, so no post-run link mutation is needed. ENV Review
 Context work remains blocked until a passing environment-capability qualification exists; its
 completion contract freezes the exact ENV and VSP as definitions and the exact
-VER, VAI, RUN, and RES as evidence before independent Review.
+VER, VAI, RUN, and RES as evidence before independent Review. A current failed
+VSP, ENV, or pilot VER Review derives package-owned same-lineage correction work
+without stakeholder attention. Every replacement links every and only exact failed
+REV through `corrects-review`; ENV correction atomically authors a fresh
+qualification VER/VAI pair, and prior RUN/RES evidence cannot qualify the new ENV
+Revision. Fresh qualification execution, exact context, and independent Review are
+still required.
 
 Each current entry requirement Revision and applicable VSP Revision then derives
 `pilot-verification-activity-required@1`. The pilot VER preserves both Stable and

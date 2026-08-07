@@ -1,0 +1,22 @@
+kind: obligation-definition
+id: pilot-verification-activity-review-correction-required
+version: 1
+description: A current Phase 1 pilot verification activity with a failed Review must be corrected in the same lineage.
+phases: [phase-1-product-assurance]
+for_each: 'select("failed-current-pilot-verification-activities@1", {})'
+subject_as: activity
+satisfied_when: 'exists("corrected-pilot-verification-activity-revisions-for@1", {activity: activity})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'none("corrected-pilot-verification-activity-revisions-for@1", {activity: activity})'
+    reason: Exact failed pilot activity Review findings require a corrected same-lineage VER Revision.
+default_status: ready
+resolve_with:
+  scenario: revise-pilot-verification-activity-after-review@1
+  inputs:
+    activity: activity
+    failed_reviews: 'select("failing-reviews-for@1", {subject: activity})'
+    requirement: 'one("requirements-for-pilot-activity@1", {activity: activity})'
+    strategy: 'one("strategies-for-verification-activity@1", {activity: activity})'
+waiver_policy_ref: waiver-applicability@1

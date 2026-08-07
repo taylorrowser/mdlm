@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.43.0
+version: 0.44.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -68,6 +68,16 @@ catalog:
     - environments-for-strategy
     - complete-environment-assurance-for-strategy
     - complete-environment-assurance-for-environment
+    - requirements-governed-by-strategy
+    - failed-current-verification-strategies
+    - failed-current-environments
+    - failed-current-pilot-verification-activities
+    - corrected-phase-1-assurance-reviews-for
+    - matching-corrected-phase-1-assurance-review
+    - unexpected-corrected-phase-1-assurance-reviews
+    - corrected-verification-strategy-revisions-for
+    - corrected-environment-revisions-for
+    - corrected-pilot-verification-activity-revisions-for
     - phase-0-foundation-members
     - phase-0-foundation-members-missing-review
     - non-phase-0-foundation-members-for
@@ -237,6 +247,9 @@ catalog:
     - pilot-verification-activity-required
     - pilot-verification-implementation-required
     - verification-run-required
+    - verification-strategy-review-correction-required
+    - environment-review-correction-required
+    - pilot-verification-activity-review-correction-required
     - system-architecture-required
     - interface-control-specification-required
     - decomposition-planning-required
@@ -282,6 +295,9 @@ catalog:
     - write-verification-activity
     - implement-verification-activity
     - execute-verification-run
+    - revise-verification-strategy-after-review
+    - revise-environment-assurance-after-review
+    - revise-pilot-verification-activity-after-review
     - define-system-architecture
     - define-interface-control-specification
     - define-decomposition-work-package
@@ -328,6 +344,9 @@ assets:
     - prompts/write-verification-activity.md@1
     - prompts/implement-verification-activity.md@1
     - prompts/execute-verification-run.md@1
+    - prompts/revise-verification-strategy-after-review.md@1
+    - prompts/revise-environment-assurance-after-review.md@1
+    - prompts/revise-pilot-verification-activity-after-review.md@1
     - prompts/define-system-architecture.md@1
     - prompts/define-interface-control-specification.md@1
     - prompts/define-decomposition-work-package.md@1
@@ -380,9 +399,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@16
+  default: bootstrap@18
   available:
-    - profiles/bootstrap.yaml@16
+    - profiles/bootstrap.yaml@18
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

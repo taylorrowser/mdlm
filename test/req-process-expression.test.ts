@@ -41,7 +41,7 @@ describe("req process expression evaluation", () => {
       ok: true,
       command: "process.expression.evaluate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.43.0",
+        reference: "mdlm-bootstrap@0.44.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -321,7 +321,7 @@ describe("req process expression evaluation", () => {
         ok: true,
         command: testCase.command,
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.43.0",
+          reference: "mdlm-bootstrap@0.44.0",
           language: "mdlm-expression@1",
         }),
         selected: true,
