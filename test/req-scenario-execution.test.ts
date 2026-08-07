@@ -58,7 +58,7 @@ describe("req scenario execute", () => {
     );
     expect(createdQuestion.status, createdQuestion.stderr).toBe(0);
     question = JSON.parse(createdQuestion.stdout).created;
-    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.42.0#${packageDigest}`;
+    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.43.0#${packageDigest}`;
 
     await freezeQuestionSource(repositoryRoot, question.revisionId);
   });
@@ -144,25 +144,58 @@ describe("req scenario execute", () => {
       revisionId: string;
     };
     const reviewContextObligation =
-      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.42.0#${packageDigest}`;
+      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.43.0#${packageDigest}`;
+    const contextDatum = {
+      type: "BSL",
+      payload: {
+        title: "Exact map review context",
+        kind: "review-context",
+        role: "review-context",
+        scope: map.revisionId,
+        group: "phase-0-wayfinding",
+        definition_members: [map.revisionId],
+        evidence: [],
+      },
+      links: [],
+      body: "Frozen exact context for the map.\n",
+    };
+    const beforeMismatchedScope = await treeDigest(
+      path.join(repositoryRoot, ".lifecycle"),
+    );
+    const mismatchedScope = structuredClone(contextDatum);
+    mismatchedScope.payload.scope = "unrelated primary subject";
+    const mismatchedAdapter = await adapter({
+      outputs: [{
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: mismatchedScope,
+      }],
+      completionEvidence: { summary: "The wrong primary scope must fail." },
+    }, "mismatched-review-context-adapter.mjs");
+    const rejected = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "create-review-context@1",
+      "--obligation",
+      reviewContextObligation,
+      "--adapter",
+      mismatchedAdapter.path,
+      "--json",
+    );
+    expect(rejected.status).toBe(1);
+    expect(JSON.parse(rejected.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    ]);
+    expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(
+      beforeMismatchedScope,
+    );
+
     const configured = await adapter({
       outputs: [{
         name: "context",
         invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Exact map review context",
-            kind: "review-context",
-            role: "review-context",
-            scope: map.revisionId,
-            group: "phase-0-wayfinding",
-            definition_members: [map.revisionId],
-            evidence: [],
-          },
-          links: [],
-          body: "Frozen exact context for the map.\n",
-        },
+        lifecycleDatum: contextDatum,
       }],
       completionEvidence: {
         summary: "The exact baseline is frozen and verified before completion.",
@@ -294,7 +327,7 @@ describe("req scenario execute", () => {
         obligation,
       },
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.42.0",
+        reference: "mdlm-bootstrap@0.43.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       prompt: expect.objectContaining({ reference: "prompts/resolve-question.md@2" }),
@@ -343,7 +376,7 @@ describe("req scenario execute", () => {
     expect(decision.lifecycleDatum.datum.created_by).toEqual({
       scenario: "resolve-question@2",
       prompt_ref: "prompts/resolve-question.md@2",
-      process_ref: expect.stringContaining("mdlm-bootstrap@0.42.0#sha256:"),
+      process_ref: expect.stringContaining("mdlm-bootstrap@0.43.0#sha256:"),
       loaded_skill_refs: request.prompt.skills.map((skill: any) => skill.reference),
       policy_refs: [
         "question-participation@1",

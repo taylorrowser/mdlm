@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.42.0#sha256:authorization-test";
+const processRef = "mdlm-bootstrap@0.43.0#sha256:authorization-test";
 
 function frozenLifecycleDatum(
   type: string,
@@ -455,7 +455,7 @@ describe("exact consequential authorization", () => {
       "--set",
       "role=review-context",
       "--set",
-      `scope=${target.revisionId}`,
+      `scope=${delegationDatum.revisionId}`,
       "--set",
       "group=DEFAULT",
       "--json",
@@ -551,6 +551,48 @@ describe("exact consequential authorization", () => {
       delegationReview.status,
       `${delegationReview.stderr}${delegationReview.stdout}`,
     ).toBe(0);
+    const targetContextResult = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Target Review context",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      `scope=${target.revisionId}`,
+      "--set",
+      "group=DEFAULT",
+      "--json",
+    );
+    expect(targetContextResult.status, targetContextResult.stderr).toBe(0);
+    const targetContext = JSON.parse(targetContextResult.stdout).created as {
+      id: string;
+      revisionId: string;
+    };
+    for (const member of [target.revisionId, delegationDatum.revisionId]) {
+      expect(req(
+        repositoryRoot,
+        "baseline",
+        "add",
+        targetContext.id,
+        member,
+        "--json",
+      ).status).toBe(0);
+    }
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      targetContext.id,
+      "--json",
+    ).status).toBe(0);
     const looseEnds = req(
       repositoryRoot,
       "loose-ends",
@@ -574,7 +616,7 @@ describe("exact consequential authorization", () => {
       "--input",
       `subject=${target.revisionId}`,
       "--input",
-      `review_context=${contextDatum.revisionId}`,
+      `review_context=${targetContext.revisionId}`,
       "--json",
     );
     expect(delegatedDryRun.status, delegatedDryRun.stderr).toBe(0);
@@ -609,7 +651,7 @@ describe("exact consequential authorization", () => {
             },
             links: [
               { type: "reviews", target: target.revisionId },
-              { type: "contextualizes", target: contextDatum.revisionId },
+              { type: "contextualizes", target: targetContext.revisionId },
             ],
             body: "The exact delegated Review passes.\\n",
           },
@@ -632,7 +674,7 @@ describe("exact consequential authorization", () => {
       "--input",
       `subject=${target.revisionId}`,
       "--input",
-      `review_context=${contextDatum.revisionId}`,
+      `review_context=${targetContext.revisionId}`,
       "--json",
     );
 
@@ -643,7 +685,7 @@ describe("exact consequential authorization", () => {
         delegations: [delegationDatum.revisionId],
       }),
     );
-  }, 15_000);
+  }, 30_000);
 
   it("applies a standing delegation only with exact scope, validity, and passing Review", async () => {
     const target = frozenLifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {

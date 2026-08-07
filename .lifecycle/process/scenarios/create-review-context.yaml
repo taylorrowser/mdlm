@@ -12,6 +12,7 @@ review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && context.payload.kind == "review-context"
+  && context.payload.scope == subject.identity.revision_id
   && context.storage.frozen == true
   && (subject.identity.type != "ENV"
     || exists("environment-assurance-context-matches@1",

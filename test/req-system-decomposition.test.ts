@@ -160,12 +160,14 @@ describe("req system decomposition slice", () => {
       expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
       return JSON.parse(result.stdout).execution as Record<string, any>;
     };
+    const reviewContextsBySubject = new Map<string, string>();
     const createDiscoveredReviewContext = async (
       title: string,
+      primarySubject: string,
       members: string[],
       evidence: string[] = [],
     ) => {
-      const work = obligation("review-context-required", members[0]!);
+      const work = obligation("review-context-required", primarySubject);
       expect(work.actionableResolver).toBe("create-review-context@1");
       const execution = await execute(
         work,
@@ -179,27 +181,32 @@ describe("req system decomposition slice", () => {
                 title,
                 kind: "review-context",
                 role: "review-context",
-                scope: members[0],
+                scope: primarySubject,
                 group: "DEFAULT",
                 definition_members: members,
                 evidence,
               },
               links: [],
-              body: `Exact Review Context for ${members[0]}.\n`,
+              body: `Exact Review Context scoped to ${primarySubject}.\n`,
             },
           }],
-          completionEvidence: { summary: `Exact Review Context frozen for ${members[0]}.` },
+          completionEvidence: { summary: `Exact Review Context frozen for ${primarySubject}.` },
         },
         [],
         "review-context",
       );
-      return execution.outputs[0].lifecycleDatum as { revisionId: string };
+      const context = execution.outputs[0].lifecycleDatum as { revisionId: string };
+      reviewContextsBySubject.set(primarySubject, context.revisionId);
+      return context;
     };
     const publishDiscoveredReview = async (
       subject: string,
       context: string,
       title = `Review ${subject}`,
     ) => {
+      const exactContext = reviewContextsBySubject.get(subject);
+      expect(exactContext).toBe(context);
+      if (!exactContext) throw new Error(`Missing Review Context for ${subject}`);
       const work = obligation("passing-review-required", subject);
       expect(work.actionableResolver).toBe("review-datum-in-context@2");
       const execution = await execute(
@@ -219,14 +226,14 @@ describe("req system decomposition slice", () => {
               },
               links: [
                 { type: "reviews", target: subject },
-                { type: "contextualizes", target: context },
+                { type: "contextualizes", target: exactContext },
               ],
               body: "Independent contextual Review passed.\n",
             },
           }],
           completionEvidence: { summary: `Independent Review passed for ${subject}.` },
         },
-        [`subject=${subject}`, `review_context=${context}`],
+        [`subject=${subject}`, `review_context=${exactContext}`],
         "contextual-review",
         "independent-reviewer",
       );
@@ -315,6 +322,7 @@ describe("req system decomposition slice", () => {
 
     const stakeholderContext = await createDiscoveredReviewContext(
       "Accepted stakeholder requirement Review Context",
+      stakeholder.revisionId,
       [stakeholder.revisionId],
     );
     await publishDiscoveredReview(
@@ -327,6 +335,7 @@ describe("req system decomposition slice", () => {
     );
     const intentCandidateContext = await createDiscoveredReviewContext(
       "Intent candidate Review Context",
+      intentCandidate.revisionId,
       [intentCandidate.revisionId],
     );
     await publishDiscoveredReview(
@@ -366,6 +375,7 @@ describe("req system decomposition slice", () => {
     };
     const intentDecisionContext = await createDiscoveredReviewContext(
       "Intent decision Review Context",
+      intentDecision.revisionId,
       [intentDecision.revisionId],
     );
     await publishDiscoveredReview(
@@ -564,15 +574,34 @@ describe("req system decomposition slice", () => {
       "--link",
       `blocks=${plan.id}`,
     );
-    const planningContext = await createDiscoveredReviewContext(
-      "Exact decomposition planning context",
-      [strategy.revisionId, architecture.revisionId, interfaceSpec.revisionId, plan.revisionId, question.revisionId],
-    );
+    const planningMembers = [
+      strategy.revisionId,
+      architecture.revisionId,
+      interfaceSpec.revisionId,
+      plan.revisionId,
+      question.revisionId,
+    ];
+    const planningSubjects = [
+      strategy.revisionId,
+      architecture.revisionId,
+      interfaceSpec.revisionId,
+      plan.revisionId,
+    ];
+    for (const subject of planningSubjects) {
+      await createDiscoveredReviewContext(
+        `Exact decomposition planning context for ${subject}`,
+        subject,
+        planningMembers,
+      );
+    }
     expect(obligation("passing-review-required", plan.revisionId)).toEqual(
       expect.objectContaining({ status: "awaiting-review", dispatchable: true }),
     );
-    for (const subject of [strategy.revisionId, architecture.revisionId, interfaceSpec.revisionId, plan.revisionId]) {
-      await publishDiscoveredReview(subject, planningContext.revisionId);
+    for (const subject of planningSubjects) {
+      await publishDiscoveredReview(
+        subject,
+        reviewContextsBySubject.get(subject)!,
+      );
     }
     expect(phaseItems().find((item) =>
       item.obligation === "passing-review-required" && item.subject === plan.revisionId
@@ -707,6 +736,7 @@ describe("req system decomposition slice", () => {
 
     const definitionContext = await createDiscoveredReviewContext(
       "Exact decomposition definition set",
+      system.revisionId,
       [system.revisionId, plan.revisionId, architecture.revisionId, interfaceSpec.revisionId],
     );
     await publishDiscoveredReview(system.revisionId, definitionContext.revisionId);
@@ -838,6 +868,7 @@ describe("req system decomposition slice", () => {
 
     const completionContext = await createDiscoveredReviewContext(
       "Exact DWP completion context",
+      completion.revisionId,
       [completion.revisionId, system.revisionId, architecture.revisionId, interfaceSpec.revisionId],
       [requirementSimplification, architectureSimplification],
     );
@@ -929,6 +960,7 @@ describe("req system decomposition slice", () => {
     };
     const groupReviewContext = await createDiscoveredReviewContext(
       "SYS group review",
+      groupCandidate.revisionId,
       [groupCandidate.revisionId],
     );
     await publishDiscoveredReview(groupCandidate.revisionId, groupReviewContext.revisionId);
@@ -1008,6 +1040,7 @@ describe("req system decomposition slice", () => {
     };
     const levelReviewContext = await createDiscoveredReviewContext(
       "SYS level review",
+      levelCandidate.revisionId,
       [levelCandidate.revisionId],
     );
     await publishDiscoveredReview(levelCandidate.revisionId, levelReviewContext.revisionId);
@@ -1045,6 +1078,7 @@ describe("req system decomposition slice", () => {
     const gateDecision = gateExecution.outputs[0].lifecycleDatum as { revisionId: string };
     const gateReviewContext = await createDiscoveredReviewContext(
       "SYS gate decision review",
+      gateDecision.revisionId,
       [gateDecision.revisionId],
     );
     await publishDiscoveredReview(gateDecision.revisionId, gateReviewContext.revisionId);
@@ -1359,6 +1393,7 @@ describe("req system decomposition slice", () => {
     };
     const failedReviewContext = await createDiscoveredReviewContext(
       "Failed pilot assessment Review Context",
+      assessment.revisionId,
       [assessment.revisionId],
       [observation.revisionId],
     );
@@ -1446,6 +1481,7 @@ describe("req system decomposition slice", () => {
     };
     const passingContext = await createDiscoveredReviewContext(
       "Corrected pilot assessment Review Context",
+      correctedAssessment.revisionId,
       [correctedAssessment.revisionId],
       [observation.revisionId],
     );
@@ -1529,6 +1565,7 @@ describe("req system decomposition slice", () => {
     };
     const decisionContext = await createDiscoveredReviewContext(
       "Expansion Decision Review Context",
+      decision.revisionId,
       [decision.revisionId],
     );
     await publishDiscoveredReview(

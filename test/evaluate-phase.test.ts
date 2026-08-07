@@ -496,7 +496,7 @@ describe("phase evaluation", () => {
         title: "Progression review context",
         kind: "review-context",
         role: "review-context",
-        scope: "phase-progression",
+        scope: progressionDecision.datum.revision_id,
         group: "DEFAULT",
         definition_members: [progressionDecision.datum.revision_id],
         evidence: [],

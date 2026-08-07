@@ -12,8 +12,9 @@ Read, in order:
 2. `skills/traceability.md@1`
 3. `skills/baseline-model.md@1`
 
-For each input subject, create a review-context BSL containing the exact subject
-revision and the minimum complete context needed to judge it. Include applicable
+For each input subject, create a review-context BSL whose `scope` is that exact
+subject Revision and whose definition contains the subject plus the minimum
+complete context needed to judge it. Include applicable
 parents, siblings in the same authored set, governing decisions, and the
 candidate baseline when one exists. Do not include unrelated artifacts merely
 because they are nearby.

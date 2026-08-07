@@ -10,6 +10,7 @@ query:
   as: context
   where: >-
     context.payload.kind == "review-context"
+    && context.payload.scope == subject.identity.revision_id
     && context.storage.frozen == true
     && state(context, "validity") == "valid"
     && (subject.identity.type != "ENV"

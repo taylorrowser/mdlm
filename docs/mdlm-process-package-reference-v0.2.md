@@ -886,8 +886,10 @@ work, exact Review Context and Review work, and candidate construction from
 Lifecycle Data. A failed current foundation Review exposes replacement-Revision
 work and removes the failed Revision from current work only after the replacement
 is published; immutable failed Review history remains inspectable. The tracer
-reviews MAP, PSP, and STK separately in a shared exact frozen context, freezes and
-reviews an intent candidate, and completes one reviewed exact Gate Sign-off.
+reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
+the one primary subject Revision; each context may still include supporting parent
+or sibling Revisions. It then freezes and reviews an intent candidate and completes
+one reviewed exact Gate Sign-off.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable

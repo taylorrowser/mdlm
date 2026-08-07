@@ -226,7 +226,7 @@ describe("exact-baseline@1 Kernel Capability", () => {
       title: "Exact review context",
       kind: "review-context",
       role: "review-context",
-      scope: "subject review",
+      scope: subject.datum.revision_id,
       group: "DEFAULT",
       definition_members: [subject.datum.revision_id],
       evidence: [],

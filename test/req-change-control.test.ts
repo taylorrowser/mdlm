@@ -101,7 +101,12 @@ describe("req Problem Report and Change Request flow", () => {
       expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
       return JSON.parse(result.stdout).execution as Record<string, any>;
     };
-    const baseline = (title: string, kind: string, role: string) => {
+    const baseline = (
+      title: string,
+      kind: string,
+      role: string,
+      scope = title,
+    ) => {
       const result = req(
         repositoryRoot,
         "baseline",
@@ -117,7 +122,7 @@ describe("req Problem Report and Change Request flow", () => {
         "--set",
         `role=${role}`,
         "--set",
-        `scope=${title}`,
+        `scope=${scope}`,
         "--set",
         "group=DEFAULT",
         "--json",
@@ -492,7 +497,12 @@ describe("req Problem Report and Change Request flow", () => {
     );
     const qualificationResult = "RES-1000000001-r00001";
     const environmentContext = freeze(
-      baseline("Environment review context", "review-context", "review-context"),
+      baseline(
+        "Environment review context",
+        "review-context",
+        "review-context",
+        environment.revisionId,
+      ),
       [strategy.revisionId, environment.revisionId],
       [
         qualificationActivity.revisionId,
@@ -576,18 +586,43 @@ describe("req Problem Report and Change Request flow", () => {
       "--link",
       `targets=${target.revisionId}`,
     );
+    const pilotMembers = [pilotActivity.revisionId, pilotImplementation.revisionId];
+    const pilotEvidence = [strategy.revisionId, environment.revisionId, target.revisionId];
     const pilotContext = freeze(
-      baseline("Pilot review context", "review-context", "review-context"),
-      [pilotActivity.revisionId, pilotImplementation.revisionId],
-      [strategy.revisionId, environment.revisionId, target.revisionId],
+      baseline(
+        "Pilot activity review context",
+        "review-context",
+        "review-context",
+        pilotActivity.revisionId,
+      ),
+      pilotMembers,
+      pilotEvidence,
+    );
+    const pilotImplementationContext = freeze(
+      baseline(
+        "Pilot implementation review context",
+        "review-context",
+        "review-context",
+        pilotImplementation.revisionId,
+      ),
+      pilotMembers,
+      pilotEvidence,
     );
     const pilotActivityReview = await review(
       pilotActivity.revisionId,
       pilotContext.revisionId,
     );
-    await review(pilotImplementation.revisionId, pilotContext.revisionId);
+    await review(
+      pilotImplementation.revisionId,
+      pilotImplementationContext.revisionId,
+    );
     const unrelatedContext = freeze(
-      baseline("Unrelated requirement context", "review-context", "review-context"),
+      baseline(
+        "Unrelated requirement context",
+        "review-context",
+        "review-context",
+        unrelated.revisionId,
+      ),
       [unrelated.revisionId],
     );
     const unrelatedReview = await review(
@@ -626,7 +661,12 @@ describe("req Problem Report and Change Request flow", () => {
     const failedRun = "RUN-2000000001-r00001";
     const failedResult = "RES-2000000001-r00001";
     const affectedContext = freeze(
-      baseline("Affected requirement evidence context", "review-context", "review-context"),
+      baseline(
+        "Affected requirement evidence context",
+        "review-context",
+        "review-context",
+        affected.revisionId,
+      ),
       [affected.revisionId],
       [failedResult],
     );
@@ -737,7 +777,12 @@ describe("req Problem Report and Change Request flow", () => {
     expect(persistedImpactLinks).toEqual(expect.arrayContaining(impactLinks));
 
     const changeContext = freeze(
-      baseline("Change impact review context", "review-context", "review-context"),
+      baseline(
+        "Change impact review context",
+        "review-context",
+        "review-context",
+        change.revisionId,
+      ),
       [change.revisionId, problem.revisionId],
       [failedResult],
     );
@@ -773,7 +818,12 @@ describe("req Problem Report and Change Request flow", () => {
     );
     const approval = approvalExecution.outputs[0].lifecycleDatum as { revisionId: string };
     const approvalContext = freeze(
-      baseline("Change approval review context", "review-context", "review-context"),
+      baseline(
+        "Change approval review context",
+        "review-context",
+        "review-context",
+        approval.revisionId,
+      ),
       [approval.revisionId],
     );
     await review(approval.revisionId, approvalContext.revisionId);
@@ -817,7 +867,12 @@ describe("req Problem Report and Change Request flow", () => {
     expect(revisedRequirement.revisionId).toBe(`${affected.id}-r00002`);
 
     const replacementContext = freeze(
-      baseline("Replacement requirement context", "review-context", "review-context"),
+      baseline(
+        "Replacement requirement context",
+        "review-context",
+        "review-context",
+        revisedRequirement.revisionId,
+      ),
       [revisedRequirement.revisionId, unrelated.revisionId],
       [approval.revisionId],
       change.revisionId,
@@ -865,7 +920,12 @@ describe("req Problem Report and Change Request flow", () => {
       `targets=${target.revisionId}`,
     );
     const replacementPilotContext = freeze(
-      baseline("Replacement pilot review context", "review-context", "review-context"),
+      baseline(
+        "Replacement pilot review context",
+        "review-context",
+        "review-context",
+        replacementImplementation.revisionId,
+      ),
       [pilotActivity.revisionId, replacementImplementation.revisionId],
       [revisedRequirement.revisionId, environment.revisionId, target.revisionId],
       change.revisionId,

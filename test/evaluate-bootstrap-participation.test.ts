@@ -13,7 +13,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.42.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.43.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -167,7 +167,7 @@ describe("bootstrap Scenario participation Policies", () => {
       title: "Exact review context",
       kind: "review-context",
       role: "review-context",
-      scope: "participation",
+      scope: target.datum.revision_id,
       group: "DEFAULT",
       definition_members: [target.datum.revision_id],
       evidence: [],

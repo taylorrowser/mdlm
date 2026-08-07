@@ -202,9 +202,11 @@ satisfying QST Revision; other empirical questions retain the generic resolver.
 Package-owned Obligations now discover the required MAP, PSP, STK set,
 Review Contexts, Reviews, and exact intent candidate from an empty initialized
 repository. MAP, PSP, and STK are substantive review subjects: their ready Review
-Context work sorts ahead of blocked Review work; one frozen context may contain
-the coherent small intent slice while each exact subject receives its own REV. A
-failed Review creates autonomous correction work for a replacement Revision in
+Context work sorts ahead of blocked Review work. Every context scopes one exact
+primary subject Revision while its definition may include the coherent parent and
+sibling slice; supporting membership does not make another member the primary
+Review subject. Each exact subject receives its own REV. A failed Review creates
+autonomous correction work for a replacement Revision in
 the same lineage, followed by fresh context and Review work; correction of a DEC
 still requires stakeholder authority. Candidate and Gate Sign-off review remain separate.
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and

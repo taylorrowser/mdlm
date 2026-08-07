@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.42.0`
+- **Implementation package:** `mdlm-bootstrap@0.43.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -73,7 +73,10 @@ REV/DEC evidence for non-autonomous execution. Their public evidence includes
 `test/req-scenario-participation.test.ts`, and
 `test/req-consequential-authorization.test.ts`. Issue #71 additionally derives
 protected authority-evidence types from package Scenario contracts, rejects their
-direct authorship, and migrates public flows to exact Scenario execution. They do
+direct authorship, and migrates public flows to exact Scenario execution. Issues
+#72–#73 distinguish package-delegated/no-attention independence from attended
+stakeholder choice and bind each Review Context to one exact primary scope even
+when supporting parents are members. They do
 not add Phase 3–6 scope or change
 the reviewed `change` expansion Decision.
 

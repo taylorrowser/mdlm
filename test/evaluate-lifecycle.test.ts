@@ -204,7 +204,7 @@ describe("evaluateLifecycle", () => {
               title: "PSP review context",
               kind: "review-context",
               role: "review-context",
-              scope: "PSP review",
+              scope: PSP_REVISION,
               group: "DEFAULT",
               definition_members: [PSP_REVISION],
               evidence: [],

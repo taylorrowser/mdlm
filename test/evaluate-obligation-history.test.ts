@@ -43,7 +43,7 @@ function reviewContextFor(subject: LifecycleRecord): LifecycleRecord {
       title: "PSP review context",
       kind: "review-context",
       role: "review-context",
-      scope: "PSP",
+      scope: subject.datum.revision_id,
       group: "DEFAULT",
       definition_members: [subject.datum.revision_id],
       evidence: [],

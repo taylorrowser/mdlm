@@ -150,7 +150,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "--set",
       "role=review-context",
       "--set",
-      "scope=failed PSP review",
+      `scope=${product.revisionId}`,
       "--set",
       "group=DEFAULT",
       "--json",
@@ -343,7 +343,7 @@ describe("req Phase 0 wayfinding slice", () => {
               title: "Corrected PSP review context",
               kind: "review-context",
               role: "review-context",
-              scope: "corrected PSP",
+              scope: replacement.revisionId,
               group: "DEFAULT",
               definition_members: [replacement.revisionId],
               evidence: [],
@@ -514,7 +514,7 @@ describe("req Phase 0 wayfinding slice", () => {
               title,
               kind: "review-context",
               role: "review-context",
-              scope: title,
+              scope: subjects[0],
               group: "DEFAULT",
               definition_members: subjects,
               evidence: [],
@@ -679,6 +679,10 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(compiledProduct.status, `${compiledProduct.stderr}${compiledProduct.stdout}`).toBe(0);
     const product = JSON.parse(compiledProduct.stdout).execution.outputs[0]
       .lifecycleDatum as { id: string; revisionId: string };
+    const productContext = await reviewContext(
+      "PSP review context before STK derivation",
+      [product.revisionId],
+    );
 
     const requirementWork = looseEnd(
       "stakeholder-requirements-required@1",
@@ -851,21 +855,24 @@ describe("req Phase 0 wayfinding slice", () => {
       force: true,
     });
     const beforeContext = looseEnds();
-    const firstBlockedReview = beforeContext.findIndex((item) =>
-      item.obligation === "passing-review-required"
-    );
     const readyContexts = beforeContext.filter((item) =>
       item.obligation === "review-context-required"
     );
     expect(readyContexts.map((item) => item.subject)).toEqual([
       map.revisionId,
-      product.revisionId,
       stakeholder.revisionId,
     ]);
     expect(readyContexts.every((item) => item.dispatchable)).toBe(true);
-    expect(beforeContext.slice(0, firstBlockedReview)).toEqual(readyContexts);
-    expect(beforeContext.slice(firstBlockedReview).filter((item) =>
-      item.obligation === "passing-review-required"
+    expect(beforeContext).toContainEqual(expect.objectContaining({
+      obligation: "passing-review-required",
+      subject: product.revisionId,
+      status: "awaiting-review",
+      dispatchable: true,
+      actionableResolver: "review-datum-in-context@2",
+    }));
+    expect(beforeContext.filter((item) =>
+      item.obligation === "passing-review-required" &&
+      item.subject !== product.revisionId
     ).every((item) => !item.dispatchable)).toBe(true);
     expect(beforeContext).toContainEqual(expect.objectContaining({
       obligation: "intent-candidate-required",
@@ -873,13 +880,28 @@ describe("req Phase 0 wayfinding slice", () => {
       dispatchable: false,
     }));
 
-    const intentContext = await reviewContext(
-      "Intent review context",
-      [map.revisionId, product.revisionId, stakeholder.revisionId],
+    const mapContext = await reviewContext(
+      "MAP review context",
+      [map.revisionId],
+    );
+    const stakeholderContext = await reviewContext(
+      "STK review context",
+      [stakeholder.revisionId, product.revisionId],
+    );
+    expect(looseEnd("passing-review-required@2", product.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "awaiting-review",
+        dispatchable: true,
+        actionableResolver: "review-datum-in-context@2",
+      }),
     );
     const reviewTargets = [map.revisionId, product.revisionId, stakeholder.revisionId];
-    for (const subject of reviewTargets) {
-      await review(subject, intentContext.revisionId);
+    for (const [subject, context] of [
+      [map.revisionId, mapContext.revisionId],
+      [product.revisionId, productContext.revisionId],
+      [stakeholder.revisionId, stakeholderContext.revisionId],
+    ] as const) {
+      await review(subject, context);
     }
 
     const candidateWork = looseEnd(
@@ -1202,7 +1224,9 @@ describe("req Phase 0 wayfinding slice", () => {
       item.lifecycleDatum.storage.editable === false
     )).toBe(true);
     const exactContexts = [
-      intentContext.revisionId,
+      mapContext.revisionId,
+      productContext.revisionId,
+      stakeholderContext.revisionId,
       candidateContext.revisionId,
       signoffContext.revisionId,
     ];
