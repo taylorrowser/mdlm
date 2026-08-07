@@ -128,6 +128,16 @@ interface RepositorySummary {
   primitiveCatalog: string;
 }
 
+interface ExactPackageIdentity {
+  reference: string;
+  digest: string;
+}
+
+interface ProcessMigration {
+  from: ExactPackageIdentity;
+  to: ExactPackageIdentity;
+}
+
 interface TypeSchemaInspection {
   definition: string;
   name: string;
@@ -165,6 +175,7 @@ interface CommandResult {
   fixture?: FixtureScaffold;
   tests?: FixtureTestSummary;
   repository?: RepositorySummary;
+  migration?: ProcessMigration;
   schema?: TypeSchemaInspection;
   created?: CreatedDatum;
   lifecycleDatum?: StoredDatum["lifecycleDatum"];
@@ -232,6 +243,70 @@ async function atomicJson(filePath: string, value: unknown): Promise<void> {
   await fs.rename(temporaryPath, filePath);
 }
 
+async function atomicJsonPair(
+  entries: [{ path: string; value: unknown }, { path: string; value: unknown }],
+): Promise<void> {
+  const prepared: {
+    path: string;
+    value: unknown;
+    temporaryPath: string;
+    backupPath: string;
+  }[] = [];
+  try {
+    for (const entry of entries) {
+      const temporaryPath = `${entry.path}.${randomUUID()}.tmp`;
+      const backupPath = `${entry.path}.${randomUUID()}.backup`;
+      const original = await fs.readFile(entry.path);
+      prepared.push({ ...entry, temporaryPath, backupPath });
+      await Promise.all([
+        fs.writeFile(
+          temporaryPath,
+          `${JSON.stringify(entry.value, null, 2)}\n`,
+        ),
+        fs.writeFile(backupPath, original),
+      ]);
+    }
+  } catch (error) {
+    await Promise.allSettled(prepared.flatMap((entry) => [
+      fs.rm(entry.temporaryPath, { force: true }),
+      fs.rm(entry.backupPath, { force: true }),
+    ]));
+    throw error;
+  }
+
+  const replaced: typeof prepared = [];
+  try {
+    for (const entry of prepared) {
+      await fs.rename(entry.temporaryPath, entry.path);
+      replaced.push(entry);
+    }
+  } catch (error) {
+    for (const entry of replaced.reverse()) {
+      await fs.rename(entry.backupPath, entry.path);
+    }
+    throw error;
+  } finally {
+    await Promise.allSettled(prepared.flatMap((entry) => [
+      fs.rm(entry.temporaryPath, { force: true }),
+      fs.rm(entry.backupPath, { force: true }),
+    ]));
+  }
+}
+
+function processSelection(summary: PackageSummary): ProcessSelection {
+  return {
+    schemaVersion: 1,
+    package: {
+      id: summary.id,
+      version: summary.version,
+      reference: summary.reference,
+      digest: summary.digest,
+      path: `${packagesRelativePath}/${summary.reference}`,
+    },
+    language: { expressions: summary.language },
+  };
+}
+
 function repositorySummary(processPackage: ProcessPackage): RepositorySummary {
   const kernelContract = processPackage.manifest.kernel_contract as
     | Record<string, unknown>
@@ -245,6 +320,48 @@ function repositorySummary(processPackage: ProcessPackage): RepositorySummary {
     artifactFormat: `${String(artifactFormat?.media_type ?? "")}; metadata=${String(artifactFormat?.metadata ?? "")}; encoding=${String(artifactFormat?.encoding ?? "")}`,
     primitiveCatalog: String(kernelContract?.primitive_catalog_ref ?? ""),
   };
+}
+
+function repositoryDescriptor(
+  processPackage: ProcessPackage,
+  summary: PackageSummary,
+): Record<string, unknown> {
+  const repository = repositorySummary(processPackage);
+  return {
+    schemaVersion: 1,
+    repositoryContract: repository.contract,
+    package: { reference: summary.reference, digest: summary.digest },
+    contracts: {
+      datumEnvelope: repository.datumEnvelope,
+      artifactFormat: repository.artifactFormat,
+      expressionLanguage: summary.language,
+      primitiveCatalog: repository.primitiveCatalog,
+    },
+  };
+}
+
+function repositoryDescriptorMatches(
+  descriptor: Record<string, unknown>,
+  processPackage: ProcessPackage,
+  summary: PackageSummary,
+): boolean {
+  const packageContract = typeof descriptor.package === "object" &&
+      descriptor.package !== null && !Array.isArray(descriptor.package)
+    ? descriptor.package as Record<string, unknown>
+    : {};
+  const contracts = typeof descriptor.contracts === "object" &&
+      descriptor.contracts !== null && !Array.isArray(descriptor.contracts)
+    ? descriptor.contracts as Record<string, unknown>
+    : {};
+  const repository = repositorySummary(processPackage);
+  return descriptor.schemaVersion === 1 &&
+    descriptor.repositoryContract === repository.contract &&
+    packageContract.reference === summary.reference &&
+    packageContract.digest === summary.digest &&
+    contracts.datumEnvelope === repository.datumEnvelope &&
+    contracts.artifactFormat === repository.artifactFormat &&
+    contracts.expressionLanguage === summary.language &&
+    contracts.primitiveCatalog === repository.primitiveCatalog;
 }
 
 async function initializeRepository(
@@ -295,17 +412,10 @@ async function initializeRepository(
         recursive: true,
       }),
     ]);
-    await atomicJson(path.join(temporaryRoot, ".lifecycle/repository.json"), {
-      schemaVersion: 1,
-      repositoryContract: repository.contract,
-      package: { reference: summary.reference, digest: summary.digest },
-      contracts: {
-        datumEnvelope: repository.datumEnvelope,
-        artifactFormat: repository.artifactFormat,
-        expressionLanguage: summary.language,
-        primitiveCatalog: repository.primitiveCatalog,
-      },
-    });
+    await atomicJson(
+      path.join(temporaryRoot, ".lifecycle/repository.json"),
+      repositoryDescriptor(loaded.package, summary),
+    );
     await fs.rename(path.join(temporaryRoot, ".lifecycle"), lifecycleRoot);
   } finally {
     await fs.rm(temporaryRoot, { recursive: true, force: true });
@@ -1190,24 +1300,192 @@ async function usePackage(
       packageRoot,
     );
   }
-  const selection: ProcessSelection = {
-    schemaVersion: 1,
-    package: {
-      id: summary.id,
-      version: summary.version,
-      reference: summary.reference,
-      digest: summary.digest,
-      path: `${packagesRelativePath}/${summary.reference}`,
-    },
-    language: { expressions: summary.language },
-  };
-  await atomicJson(path.join(repositoryRoot, selectionRelativePath), selection);
+  await atomicJson(
+    path.join(repositoryRoot, selectionRelativePath),
+    processSelection(summary),
+  );
   return {
     ok: true,
     command: "process.use",
     package: summary,
     installed: true,
     selected: true,
+    diagnostics: [],
+  };
+}
+
+async function migrateRepositoryPackage(
+  repositoryRoot: string,
+  reference: string,
+): Promise<CommandResult> {
+  const command = "process.migrate";
+  const targetRoot = await installedPackageRoot(repositoryRoot, reference);
+  if (!targetRoot) {
+    return {
+      ...failure(
+        "process-package-not-installed",
+        `Process Package '${reference}' is not installed`,
+      ),
+      command,
+    };
+  }
+  const targetLoaded = await loadProcessPackage(targetRoot);
+  if (!targetLoaded.ok) {
+    return { ok: false, command, diagnostics: targetLoaded.diagnostics };
+  }
+  const target = await packageSummary(targetLoaded.package, targetRoot);
+  if (target.reference !== reference) {
+    return {
+      ...failure(
+        "process-package-reference-mismatch",
+        `Installed reference '${reference}' contains '${target.reference}'`,
+        targetRoot,
+      ),
+      command,
+    };
+  }
+
+  const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
+  let descriptor: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(await fs.readFile(descriptorPath, "utf8")) as unknown;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new Error("repository descriptor must be a JSON object");
+    }
+    descriptor = parsed as Record<string, unknown>;
+  } catch (error) {
+    return {
+      ...failure(
+        "repository-contract",
+        `Cannot read the MDLM repository descriptor: ${error instanceof Error ? error.message : String(error)}`,
+        descriptorPath,
+      ),
+      command,
+    };
+  }
+  const packageContract = typeof descriptor.package === "object" &&
+      descriptor.package !== null && !Array.isArray(descriptor.package)
+    ? descriptor.package as Record<string, unknown>
+    : {};
+  const previousReference = typeof packageContract.reference === "string"
+    ? packageContract.reference
+    : "";
+  const previousDigest = typeof packageContract.digest === "string"
+    ? packageContract.digest
+    : "";
+  const previousRoot = await installedPackageRoot(
+    repositoryRoot,
+    previousReference,
+  );
+  if (!previousRoot) {
+    return {
+      ...failure(
+        "repository-process-package-not-installed",
+        `Repository Process Package '${previousReference}' is not installed`,
+      ),
+      command,
+    };
+  }
+  const previousLoaded = await loadProcessPackage(previousRoot);
+  if (!previousLoaded.ok) {
+    return { ok: false, command, diagnostics: previousLoaded.diagnostics };
+  }
+  const previous = await packageSummary(previousLoaded.package, previousRoot);
+  if (
+    previous.reference !== previousReference || previous.digest !== previousDigest ||
+    !repositoryDescriptorMatches(descriptor, previousLoaded.package, previous)
+  ) {
+    return {
+      ...failure(
+        "repository-contract-mismatch",
+        "The repository descriptor does not match its exact installed Process Package and supported contracts",
+        descriptorPath,
+      ),
+      command,
+    };
+  }
+
+  const selected = await selectedPackage(repositoryRoot);
+  if (!selected.ok) {
+    return { ok: false, command, diagnostics: selected.diagnostics };
+  }
+  if (
+    selected.summary.reference !== previous.reference &&
+    selected.summary.reference !== target.reference
+  ) {
+    return {
+      ...failure(
+        "process-migration-selection-ambiguity",
+        `Selected Process Package '${selected.summary.reference}' is neither the repository contract '${previous.reference}' nor migration target '${target.reference}'`,
+      ),
+      command,
+    };
+  }
+
+  const previousRepository = repositorySummary(previousLoaded.package);
+  const targetRepository = repositorySummary(targetLoaded.package);
+  if (
+    JSON.stringify(previousRepository) !== JSON.stringify(targetRepository) ||
+    previous.language !== target.language
+  ) {
+    return {
+      ...failure(
+        "repository-contract-incompatible",
+        `Process Package '${target.reference}' changes the repository's kernel-owned contracts`,
+      ),
+      command,
+    };
+  }
+
+  const targetProcessReference = `${target.reference}#${target.digest}`;
+  const snapshot = await repositoryLifecycleSnapshot(
+    repositoryRoot,
+    targetLoaded.package,
+    targetProcessReference,
+    Object.values(targetLoaded.package.phases)[0]?.id ?? "",
+  );
+  if (!snapshot.ok) {
+    return { ok: false, command, diagnostics: snapshot.diagnostics };
+  }
+  const baselines = await verifyRepositoryBaselines(
+    repositoryRoot,
+    targetLoaded.package,
+    targetProcessReference,
+  );
+  if (!baselines.ok) {
+    return { ok: false, command, diagnostics: baselines.diagnostics };
+  }
+
+  try {
+    await atomicJsonPair([
+      {
+        path: path.join(repositoryRoot, selectionRelativePath),
+        value: processSelection(target),
+      },
+      {
+        path: descriptorPath,
+        value: repositoryDescriptor(targetLoaded.package, target),
+      },
+    ]);
+  } catch (error) {
+    return {
+      ...failure(
+        "process-migration-write-failed",
+        `Could not atomically publish the repository migration: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+      command,
+    };
+  }
+  return {
+    ok: true,
+    command,
+    package: target,
+    installed: true,
+    selected: true,
+    migration: {
+      from: { reference: previous.reference, digest: previous.digest },
+      to: { reference: target.reference, digest: target.digest },
+    },
     diagnostics: [],
   };
 }
@@ -2138,6 +2416,12 @@ function humanOutput(result: CommandResult): string {
       `Kernel Capability Bindings: ${capabilityBindings.join(", ") || "none"}`,
     ].join("\n");
   }
+  if (result.migration) {
+    return [
+      `Previous Process Package: ${result.migration.from.reference}#${result.migration.from.digest}`,
+      `Current Process Package: ${result.migration.to.reference}#${result.migration.to.digest}`,
+    ].join("\n");
+  }
   if (result.repository && result.package) {
     return [
       `Repository Contract: ${result.repository.contract}`,
@@ -2718,6 +3002,9 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
   }
   if (operands[1] === "use" && operands[2]) {
     return usePackage(repositoryRoot, operands[2]);
+  }
+  if (operands[1] === "migrate" && operands[2]) {
+    return migrateRepositoryPackage(repositoryRoot, operands[2]);
   }
   if (operands[1] === "validate") {
     const reference = optionValue(arguments_, "--ref");

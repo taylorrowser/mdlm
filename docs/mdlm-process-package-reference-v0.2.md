@@ -714,7 +714,17 @@ The initial package-neutral CLI installs a compatible local package into an
 immutable `<id>@<semantic-version>` slot and records selection separately in
 `.lifecycle/process-selection.json`. That record includes the exact package
 reference, `mdlm-expression@1` version, install path, and SHA-256 content digest;
-installation alone never activates the package. `req process show`, `validate`,
+installation alone never activates the package. `req process use` changes only
+that selection and deliberately does not reinterpret an initialized repository's
+contract. `req process migrate <package@version>` is the public operation for
+changing both: it resolves one exact installed target, validates the package,
+requires unchanged kernel-owned repository contracts, validates all authoritative
+Markdown and exact baselines under the target, and only then atomically replaces
+the selection and repository descriptor. Failure leaves both files byte-for-byte
+unchanged. Historical Datum and Scenario execution provenance is not rewritten;
+the exact authoring package remains installed so authority-evidence transactions
+continue to validate against their recorded package reference and digest. Human
+and JSON output identify both old and new exact packages. `req process show`, `validate`,
 and `capabilities` use only an explicit `--ref` or recorded selection. Their JSON
 and human views share one semantic projection containing exact package and
 language versions, compilation/reference/capability validation, diagnostics,

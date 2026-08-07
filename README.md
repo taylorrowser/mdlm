@@ -16,8 +16,9 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   bindings, Dispatchability, Resolver Scenario output contracts, exact Waiver
   Policy applicability, generated historical Obligation explanations from explicit
   repository snapshots, and explanations from primitive graph and integrity data.
-- The `req` executable explicitly installs and selects exact Process Packages,
-  provides package-neutral inspection and validation, and evaluates addressed
+- The `req` executable explicitly installs, selects, and atomically migrates
+  repository contracts between compatible exact Process Packages, provides
+  package-neutral inspection and validation, and evaluates addressed
   expression fields, Relations, Selectors, Policies, Computed States, and
   Obligations with matching human/JSON evidence and source spans. It also reports
   package-defined Phase status, exact Loose Ends, and only currently Dispatchable
@@ -70,6 +71,10 @@ node dist/req.js process validate --ref ./case-process
 mkdir example-repository
 cd example-repository
 node ../dist/req.js init --process ../.lifecycle/process
+# Installation adds an immutable package without activating it; `use` changes
+# only package selection. Migrate an initialized repository contract atomically:
+node ../dist/req.js process install ../next-process
+node ../dist/req.js process migrate next-process@1.2.3
 node ../dist/req.js revise PSP-0123456789
 node ../dist/req.js history PSP-0123456789
 node ../dist/req.js link QST-0123456789-r00001 PSP-0123456789 --type blocks

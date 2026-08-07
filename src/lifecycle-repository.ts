@@ -16,6 +16,7 @@ import { structuralValuesEqual } from "./structural-equality.js";
 import { processPackageDigest } from "./process-package-digest.js";
 import {
   evaluateLifecycle,
+  loadProcessPackage,
   resolveType,
   type DatumEnvelope,
   type LifecycleRecord,
@@ -683,12 +684,54 @@ function scenarioExecutionStructureValid(
       );
 }
 
+async function exactDatumProcessPackage(
+  root: string,
+  processRef: string,
+  cache: Map<string, Promise<ProcessPackage | undefined>>,
+): Promise<ProcessPackage | undefined> {
+  const separator = processRef.lastIndexOf("#sha256:");
+  if (separator < 1) return undefined;
+  const reference = processRef.slice(0, separator);
+  const digest = processRef.slice(separator + 1);
+  const key = `${reference}#${digest}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const resolution = (async () => {
+    const packageRoot = path.join(root, ".lifecycle/packages", reference);
+    const loaded = await loadProcessPackage(packageRoot);
+    if (!loaded.ok) return undefined;
+    const loadedReference =
+      `${loaded.package.manifest.id}@${loaded.package.manifest.version}`;
+    return loadedReference === reference &&
+        await processPackageDigest(packageRoot) === digest
+      ? loaded.package
+      : undefined;
+  })();
+  cache.set(key, resolution);
+  return resolution;
+}
+
 async function authorityEvidenceExecutionDiagnostic(
   root: string,
-  processPackage: ProcessPackage,
+  selectedPackage: ProcessPackage,
   item: ParsedDatum,
+  packageCache: Map<string, Promise<ProcessPackage | undefined>>,
 ): Promise<ProcessDiagnostic | undefined> {
   const datum = item.lifecycleDatum.datum;
+  const processPackage = await exactDatumProcessPackage(
+    root,
+    datum.created_by.process_ref,
+    packageCache,
+  );
+  if (!processPackage) {
+    return datum.created_by.process_ref.includes("#sha256:")
+      ? {
+          code: "datum-authoring-package-unavailable",
+          path: item.relativePath,
+          message: `Revision '${datum.revision_id}' requires its exact installed authoring Process Package '${datum.created_by.process_ref}'`,
+        }
+      : undefined;
+  }
   if (authorityEvidenceScenarioReferences(processPackage, datum.type).length === 0) {
     return undefined;
   }
@@ -792,11 +835,23 @@ export async function readRepositoryData(
     if (!result.ok) diagnostics.push(...result.diagnostics);
     else parsed.push(result.value);
   }
+  const authoringPackages = new Map<
+    string,
+    Promise<ProcessPackage | undefined>
+  >();
+  const selectedReference =
+    `${processPackage.manifest.id}@${processPackage.manifest.version}`;
+  const selectedDigest = await processPackageDigest(processPackage.root);
+  authoringPackages.set(
+    `${selectedReference}#${selectedDigest}`,
+    Promise.resolve(processPackage),
+  );
   for (const item of parsed) {
     const authorityDiagnostic = await authorityEvidenceExecutionDiagnostic(
       root,
       processPackage,
       item,
+      authoringPackages,
     );
     if (authorityDiagnostic) diagnostics.push(authorityDiagnostic);
   }

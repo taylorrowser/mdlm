@@ -39,7 +39,7 @@ the accepted overview and the reviewed pilot Decision.
 | Textual, typed, terminating expressions | 7–12 | #15–#20 | `test/textual-expression.test.ts`, `test/req-process-expression.test.ts` |
 | Package types, templates, links, capabilities, and graph validation | 1–6, 18–19, 23–27 | #21–#24 | `test/load-process-package.test.ts`, `test/resolve-type.test.ts`, `test/kernel-capability.test.ts` |
 | Dependency changes, States, Obligations, phases, blockers, Dispatchability, and explanations | 13–17, 35–42 | #25–#31 | `test/dependency-changes.test.ts`, `test/evaluate-*.test.ts`, `test/req-lifecycle.test.ts` |
-| Explicit package selection, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35 | `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
+| Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54 | `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
 | Authorized dry-run, atomic adapter execution, provenance, authority-only Scenario publication, and safe aliases | 43–47, 57–60 | #41–#43, #71 | `test/req-scenario-dry-run.test.ts`, `test/req-scenario-execution.test.ts`, `test/req-consequential-authorization.test.ts`, `test/req-command-alias.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
@@ -54,15 +54,16 @@ table as one test per requirement.
 
 ## Pilot-readiness repairs after closeout
 
-Issues #49–#53, plus the blocking kernel defect repair in issue #56, preserve the accepted v0.8 boundary while repairing public operator
+Issues #49–#54, plus the blocking kernel defect repair in issue #56, preserve the accepted v0.8 boundary while repairing public operator
 seams found in the external bootstrap pilot: repository-backed Resolver dry-run,
 effective lifecycle-type inspection, explicit atomic initiation of package-
-authored non-Resolver Scenarios, and package-owned routing of prototype-bound
-empirical questions to exact bounded evidence, and kernel finalization of
+authored non-Resolver Scenarios, package-owned routing of prototype-bound
+empirical questions to exact bounded evidence, atomic compatible repository-
+contract migration between installed packages, and kernel finalization of
 capability-bound exact-baseline Scenario outputs before completion evaluation. Their executable evidence is
 `test/req-scenario-dry-run.test.ts`, `test/req-schema.test.ts`,
 `test/req-scenario-initiation.test.ts`, and
-`test/req-prototype-question-routing.test.ts`, plus the exact-baseline execution
+`test/req-prototype-question-routing.test.ts`, `test/req-process.test.ts`, plus the exact-baseline execution
 case in `test/req-scenario-execution.test.ts`. Issues #58–#62 additionally preserve
 current-Revision selection, permit exact Phase/Process Obligation subjects, project
 package-owned participation, and require explicit authority plus declared exact
