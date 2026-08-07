@@ -16,6 +16,10 @@ Continue through serial transactions until the public projections expose a real
 stop boundary. Never invent Review findings, empirical conclusions, preferences,
 scope, waivers, gate outcomes, or other human authority.
 
-Use a fresh read-only reviewer session for delegated independent judgment. The
-operating session remains responsible for canonical Scenario execution and may
-supply only exact applicable standing-delegation evidence projected by dry-run.
+Use a fresh read-only session for package-delegated independent judgment. When
+its attention timing is `none`, the package delegation itself does not require
+stakeholder permission: the operating session may supply the exact projected
+delegate authority only after receiving that separate session's proposal.
+Applicable standing-delegation evidence remains an alternative exact execution
+path, not a prerequisite. The operating session remains responsible for
+canonical Scenario execution.

@@ -41,29 +41,38 @@ ambiguous, or failed work. It does not invent an explicitly initiated Scenario.
 Participation remains independent of transaction batching:
 
 - autonomous work continues immediately;
-- nondelegable or otherwise unattended authority stops at the exact projected
+- package-delegated work with no scheduled attention runs in a fresh read-only
+  delegate session without asking the stakeholder for per-execution permission;
+- attended authority without exact applicable delegation stops at the projected
   Authority Requirement;
-- after the stakeholder supplies that authority, the same operating session runs
-  the pending public Scenario with `--authorize` and immediately resumes the
+- after the stakeholder supplies attended authority, the same operating session
+  runs the pending public Scenario with `--authorize` and immediately resumes the
   loop;
 - when `req next` selects checkpoint-scheduled work, that reached checkpoint's
   attention is collected from `req loose-ends --json` by exact checkpoint and
   Consolidation Group, then presented together without treating
   the items as satisfied, deferred, or one transaction.
 
-A Scenario dry-run now projects its package-declared `standingDelegation`
-contract and exact `applicableEvidence` Revision IDs for each invocation. When a
-delegated independent Review has applicable evidence, the operator starts a
-fresh read-only pi session for the judgment and uses the returned proposal in the
-canonical operating session. The operating session passes the exact projected
-Revision with `--delegation`; it neither reuses its own judgment nor asks the
-stakeholder to repeat standing permission. No evidence means no delegation.
+For package-delegated work with attention timing `none`, the operator starts a
+fresh read-only pi session and uses the returned proposal in the canonical
+operating session. Reviewer packets use only dry-run and public `req show`/`req
+schema` projections and expand every exact definition and evidence member in the
+frozen context. The operating session then passes the projected delegate role
+with `--authorize`; this is the separate delegate supplying its declared
+execution authority, not stakeholder authorization or operating-session
+self-judgment.
+
+Scenario dry-run also projects its package-declared `standingDelegation` contract
+and exact `applicableEvidence` Revision IDs. When evidence exists, the operating
+session may instead pass that exact Revision with `--delegation`. Standing
+Delegation remains necessary when attended authority is being delegated, but it
+is not a prerequisite for package-delegated/no-attention work.
 
 ## Stop conditions
 
 The operator stops only for:
 
-- a projected nondelegable Authority Requirement;
+- an attended Authority Requirement without exact applicable delegation;
 - unresolved attention at the currently reached checkpoint;
 - genuine ambiguity or command failure;
 - a failed doctor check; or

@@ -442,8 +442,11 @@ A participation-bearing Scenario names `authority_evidence.output` and
 `authority_evidence.type`. Package validation requires that name and type to match
 a declared Scenario output. Autonomous execution needs no authority supply. Before
 invoking an adapter for a delegated or attended execution, the kernel requires
-`--authorize <authority>` to match every evaluated Authority Requirement. The
-assertion authorizes publication but is not lifecycle satisfaction. Each invocation
+`--authorize <authority>` to match every evaluated Authority Requirement. For
+package-delegated work with attention timing `none`, that assertion is supplied
+only after the named separate delegate returns its proposed evidence; it does not
+require stakeholder permission. For attended work, it comes from the authority
+holder. The assertion authorizes publication but is not lifecycle satisfaction. Each invocation
 must return the named exact Lifecycle Data output; omission fails before completion
 or publication. The kernel validates the package-declared output name and type but
 does not recognize Review or Decision type IDs. Instead, it derives the protected
@@ -460,9 +463,12 @@ cryptographic authenticity guarantee against an actor replacing both authoritati
 Markdown and its complete execution transaction. The bundled package declares REV for
 Review judgment and DEC for consequential Decisions. The execution record and adapter request preserve the supplied
 authority, evaluated requirement, exact Policy, and declared evidence output.
-A per-execution delegated authority supply is not a standing delegation. A caller
-using reusable standing authority supplies its exact reviewed DEC with
-`--delegation <revision>`. The Scenario's package-declared standing-delegation
+A per-execution package-delegate authority supply is not a standing delegation and
+requires a fresh separate delegate context under the generic operator contract. A
+caller using reusable standing authority supplies its exact reviewed DEC with
+`--delegation <revision>`. Standing Delegation is an alternative exact authority
+path and is not a prerequisite for package-delegated work with no scheduled
+attention. The Scenario's package-declared standing-delegation
 Selector must find that DEC for the exact target, Scenario, authority, and delegate,
 and the evaluated requirement must allow delegation, before it can satisfy the
 Authority Requirement. Expired, mismatched, unreviewed, or nondelegable authority

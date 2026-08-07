@@ -47,7 +47,7 @@ the accepted overview and the reviewed pilot Decision.
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
 | Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
-| Continuous package-neutral pi operation and exact standing-delegation discovery | 57–60 | #69 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
+| Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
 
 The full suite supplies overlapping regression coverage rather than treating this
 table as one test per requirement.

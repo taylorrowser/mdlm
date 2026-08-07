@@ -102,12 +102,12 @@ A versioned contract for agent work with typed inputs, outputs, prohibited input
 _Avoid_: Workflow step, command
 
 **Authority Requirement**:
-A machine-readable Scenario participation result stating whether work is autonomous, delegated, or attended, which package-defined authority is required, and whether delegation is allowed.
-_Avoid_: Inferring permission from prompt prose, chat availability
+A machine-readable Scenario participation result stating whether work is autonomous, package-delegated to a separate authority, or attended by an authority holder, which package-defined authority is required, and whether attended authority may be delegated. Package-delegated work with no scheduled attention requires the separate delegate's judgment, not repeated stakeholder permission.
+_Avoid_: Inferring attended permission from prompt prose, treating independent judgment as stakeholder attention
 
 **Authority Supply**:
-An explicit execution-time assertion naming the authority that authorized publication. It permits the operating agent to invoke a non-autonomous Scenario but does not itself satisfy an Obligation; the declared exact REV or DEC output does that.
-_Avoid_: Chat approval as lifecycle evidence, user-operated sign-off command
+An explicit execution-time assertion naming the authority that authorized publication. It may come from an attended authority holder or from the separate authority selected by package-delegated/no-attention participation. It permits the operating agent to invoke a non-autonomous Scenario but does not itself satisfy an Obligation; the declared exact REV or DEC output does that.
+_Avoid_: Chat approval as lifecycle evidence, operating-session self-judgment, user-operated sign-off command
 
 **Authority Evidence**:
 The exact Scenario output named by the package as the durable record of consequential authority: REV for Review judgment and DEC for gates, scope, waiver, deferral, delegation, progression, and comparable Decisions.
@@ -118,7 +118,7 @@ A Lifecycle type named by at least one exact selected-package Scenario `authorit
 _Avoid_: Hard-coded REV/DEC handling, a type inferred from the claimed creation Scenario alone
 
 **Standing Delegation**:
-A reviewed exact DEC authorizing one named delegate for one authority, exact target Revision, and exact Scenario, with declared expiry and reactivation conditions. It is reusable authorization evidence, unlike a reviewer explicitly supplying authority for one execution. When supplied as `--delegation`, it must satisfy the Scenario's exact package Selector before it can replace a per-execution `--authorize` supply.
+A reviewed exact DEC authorizing one named delegate for one authority, exact target Revision, and exact Scenario, with declared expiry and reactivation conditions. It is reusable authorization evidence, unlike a delegate explicitly supplying authority for one execution. When supplied as `--delegation`, it must satisfy the Scenario's exact package Selector before it can replace a per-execution `--authorize` supply. It is not a prerequisite when the package itself declares delegated authority with no scheduled attention.
 _Avoid_: Per-execution authority assertion, role assumption, unbounded permission
 
 **Attention Schedule**:

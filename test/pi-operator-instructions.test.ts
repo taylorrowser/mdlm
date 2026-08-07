@@ -28,11 +28,23 @@ describe("generic pi lifecycle operator instructions", () => {
     expect(normalizedPrompt).toContain("standingDelegation");
     expect(normalizedPrompt).toContain("--delegation");
     expect(normalizedPrompt).toContain("fresh read-only pi session");
+    expect(normalizedPrompt).toContain(
+      "does not require stakeholder authorization",
+    );
+    expect(normalizedPrompt).toContain(
+      "every exact definition and evidence member",
+    );
+    expect(normalizedPrompt).toContain(
+      "execute with `--authorize '<projected-authority>'`",
+    );
+    expect(normalizedPrompt).toContain(
+      "operating session may instead execute",
+    );
     expect(normalizedPrompt).toContain("pi -p --no-session --no-tools");
     expect(normalizedPrompt).toContain("currently reached checkpoint");
     expect(normalizedPrompt).toContain("consolidationGroup");
     expect(normalizedPrompt).toContain("./bin/req loose-ends --json");
-    expect(normalizedPrompt).toContain("nondelegable Authority Requirement");
+    expect(normalizedPrompt).toContain("attended Authority Requirement");
     expect(normalizedPrompt).toContain("Resume the loop immediately");
     expect(normalizedPrompt).toContain("completed profile boundary");
     expect(normalizedPrompt).toContain("genuine ambiguity or command failure");

@@ -42,16 +42,24 @@ completed.
 ## Participation and attention
 
 - Autonomous work: execute without asking permission.
-- Delegated independent judgment: when dry-run's `standingDelegation`
-  `applicableEvidence` contains an exact Revision, assemble a reviewer packet only
-  from dry-run plus public `req show`/`req schema` projections. Pipe that packet to
-  a fresh read-only pi session using `pi -p --no-session --no-tools`; require the
-  session to return the judgment and proposed authority-evidence output. The
-  operating session prepares the declared authority-evidence output and executes
-  with `--delegation '<exact-delegation-revision>'`. Do not reuse the current
-  session's judgment and do not request repeated stakeholder permission.
-- Attended or delegated work without exact applicable delegation: do not infer
-  authority. Stop when attention is immediate or authority is nondelegable.
+- Package-delegated work with attention timing `none`: the Process Package has
+  already selected a separate authority; this does not require stakeholder
+  authorization merely because `standingDelegation.applicableEvidence` is empty.
+  Assemble the delegate packet only from dry-run plus public `req show` and
+  `req schema` projections. For contextual judgment, expand every exact
+  definition and evidence member named by the frozen context with `req show`.
+  Pipe the complete packet to a fresh read-only pi session using
+  `pi -p --no-session --no-tools`; require it to return the judgment and proposed
+  authority-evidence output. Do not reuse the operating session's judgment.
+  After a valid delegate response, execute with `--authorize '<projected-authority>'`.
+- Exact standing delegation: when dry-run projects an applicable reviewed
+  Revision, the operating session may instead execute through the same prepared
+  response using `--delegation '<exact-delegation-revision>'`. Standing delegation
+  remains reusable exact evidence, but it is not a prerequisite for
+  package-delegated work whose attention timing is `none`.
+- Attended or otherwise attention-bearing work: stop for the projected authority
+  unless exact applicable standing-delegation evidence is allowed and supplied.
+  Never convert nondelegable stakeholder judgment into package-delegated work.
 - Reached checkpoint attention: only when `req next` selects an item whose
   attention timing is `checkpoint`, run `./bin/req loose-ends --json` and collect
   all ready items with the same declared checkpoint and `consolidationGroup`. Present them
@@ -59,16 +67,17 @@ completed.
   attention consolidation only; execute each authorized Scenario as its own
   declared atomic transaction.
 
-When the user supplies the requested exact authority, apply it to the pending
+When the user supplies requested attended authority, apply it to the pending
 Scenario with `--authorize '<projected-authority>'`, publish the required exact
 authority evidence, and Resume the loop immediately. Do not ask the user to run a
 command, restate approval, or say continue.
 
 ## Stop boundaries
 
-Stop only at a projected nondelegable Authority Requirement, unresolved attention
-at the currently reached checkpoint, genuine ambiguity or command failure, failed doctor check,
-or completed profile boundary. If `next.item` is null, run
+Stop only at an attended Authority Requirement without exact applicable delegation,
+unresolved attention at the currently reached checkpoint, genuine ambiguity or
+command failure, failed doctor check, or completed profile boundary. A
+package-delegated/no-attention requirement is not a stop boundary. If `next.item` is null, run
 `./bin/req phase status --json` and `./bin/req loose-ends --json`; stop only when
 those public projections prove the completed profile boundary or identify a real
 blocker. Report the exact projection and do not invent an explicitly initiated
