@@ -1,0 +1,12 @@
+kind: selector-definition
+id: source-boundary-evidence
+version: 1
+description: Exact evidence members stored by one source-boundary BSL Revision.
+parameters:
+  - {name: boundary, kind: revision, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: boundary, emit: entity}
+  as: evidence
+  distinct: true
+  order_by: [identity.revision_id]

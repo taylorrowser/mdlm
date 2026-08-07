@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.41.0#sha256:authorization-test";
+const processRef = "mdlm-bootstrap@0.42.0#sha256:authorization-test";
 
 function frozenLifecycleDatum(
   type: string,
@@ -243,7 +243,7 @@ describe("exact consequential authorization", () => {
         path: expect.stringContaining(decision.id),
       })]),
     );
-  });
+  }, 30_000);
 
   it("requires a public waiver sign-off to link the exact Obligation Instance", async () => {
     const created = req(

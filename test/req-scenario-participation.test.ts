@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { participationProcessPackage } from "./helpers/participation-process.js";
 import { req } from "./helpers/req.js";
+import { freezeQuestionSource } from "./helpers/source-boundary.js";
 
 interface LooseEnd {
   id: string;
@@ -172,7 +173,7 @@ process.stdin.on("end", () => {
     );
   }, 15_000);
 
-  it("projects autonomous, delegated, immediate, and checkpoint participation consistently", () => {
+  it("projects autonomous, delegated, immediate, and checkpoint participation consistently", async () => {
     const target = req(
       repositoryRoot,
       "new",
@@ -266,6 +267,9 @@ process.stdin.on("end", () => {
         },
       ],
     ]);
+    for (const revisionId of expectedBySubject.keys()) {
+      await freezeQuestionSource(repositoryRoot, revisionId);
+    }
 
     const looseResult = req(
       repositoryRoot,
@@ -333,5 +337,5 @@ process.stdin.on("end", () => {
     expect(nextItem.participation).toEqual(
       looseEnds.find((item) => item.id === nextItem.id)?.participation,
     );
-  }, 20_000);
+  }, 45_000);
 });

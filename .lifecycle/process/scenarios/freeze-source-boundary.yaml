@@ -1,0 +1,29 @@
+kind: scenario-definition
+id: freeze-source-boundary
+version: 1
+description: Freeze one exact editable QST Revision as the truthful source boundary for a subsequent same-lineage Scenario output.
+phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
+inputs:
+  - name: source
+    types: [QST]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      source.payload.state == "open"
+      && none("source-boundaries-for@1", {source: source})
+outputs:
+  - {name: boundary, types: [BSL], cardinality: one, required_links: []}
+prompt_ref: prompts/freeze-source-boundary.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && boundary.storage.frozen == true
+  && boundary.payload.kind == "source-boundary"
+  && boundary.payload.role == "source-boundary"
+  && boundary.payload.scope == source.identity.revision_id
+  && boundary.payload.group == "SAME-LINEAGE"
+  && boundary.payload.definition_members == [source.identity.revision_id]
+  && none("source-boundary-evidence@1", {boundary: boundary})
+resolves: [source-boundary-required]
+prohibited_inputs: [mutable latest aliases, unrelated revisions, borrowed Review Context provenance]
+batching: single

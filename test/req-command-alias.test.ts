@@ -6,6 +6,7 @@ import { parse, stringify } from "yaml";
 import { afterEach, describe, expect, it } from "vitest";
 import { copiedProcessPackage } from "./helpers/process-package.js";
 import { req } from "./helpers/req.js";
+import { freezeQuestionSource } from "./helpers/source-boundary.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 
@@ -57,35 +58,11 @@ async function repositoryWithQuestion(): Promise<{
   );
   expect(created.status, created.stderr).toBe(0);
   const question = JSON.parse(created.stdout).created;
-  const baseline = req(
-    root,
-    "baseline",
-    "create",
-    "--type",
-    "BSL",
-    "--scenario",
-    "create-review-context@1",
-    "--set",
-    "title=Alias source baseline",
-    "--set",
-    "kind=review-context",
-    "--set",
-    "role=review-context",
-    "--set",
-    "scope=alias source",
-    "--set",
-    "group=DEFAULT",
-    "--json",
-  );
-  expect(baseline.status, baseline.stderr).toBe(0);
-  const baselineCreated = JSON.parse(baseline.stdout).created;
-  const baselineId = baselineCreated.id;
-  expect(req(root, "baseline", "add", baselineId, question.revisionId, "--json").status).toBe(0);
-  expect(req(root, "baseline", "freeze", baselineId, "--json").status).toBe(0);
+  await freezeQuestionSource(root, question.revisionId);
   return {
     root,
     question,
-    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.41.0#${packageDigest}`,
+    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.42.0#${packageDigest}`,
   };
 }
 
@@ -311,6 +288,7 @@ describe("req Package Command Alias", () => {
     );
     expect(preferential.status, preferential.stderr).toBe(0);
     const preferentialRevision = JSON.parse(preferential.stdout).created.revisionId;
+    await freezeQuestionSource(configured.root, preferentialRevision);
     const secondSeparator = configured.obligation.indexOf(
       ":",
       configured.obligation.indexOf(":") + 1,

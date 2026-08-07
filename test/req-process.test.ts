@@ -43,8 +43,8 @@ describe("req process package commands", () => {
       command: "process.install",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.41.0",
-        reference: "mdlm-bootstrap@0.41.0",
+        version: "0.42.0",
+        reference: "mdlm-bootstrap@0.42.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -62,7 +62,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "use",
-      "mdlm-bootstrap@0.41.0",
+      "mdlm-bootstrap@0.42.0",
       "--json",
     );
     expect(selected.status, selected.stderr).toBe(0);
@@ -85,10 +85,10 @@ describe("req process package commands", () => {
       schemaVersion: 1,
       package: {
         id: "mdlm-bootstrap",
-        version: "0.41.0",
-        reference: "mdlm-bootstrap@0.41.0",
+        version: "0.42.0",
+        reference: "mdlm-bootstrap@0.42.0",
         digest: installation.package.digest,
-        path: ".lifecycle/packages/mdlm-bootstrap@0.41.0",
+        path: ".lifecycle/packages/mdlm-bootstrap@0.42.0",
       },
       language: { expressions: "mdlm-expression@1" },
     });
@@ -101,7 +101,7 @@ describe("req process package commands", () => {
     await fs.writeFile(
       manifestPath,
       (await fs.readFile(manifestPath, "utf8")).replace(
-        "version: 0.41.0",
+        "version: 0.42.0",
         "version: 0.40.0",
       ),
     );
@@ -281,13 +281,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, incompatiblePackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [incompatiblePackage, "0.42.0"],
+      [incompatiblePackage, "0.43.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.41.0",
+          "version: 0.42.0",
           `version: ${version}`,
         ),
       );
@@ -335,7 +335,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.42.0",
+      "mdlm-bootstrap@0.43.0",
       "--json",
     );
 
@@ -354,13 +354,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, incompatiblePackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [incompatiblePackage, "0.42.0"],
+      [incompatiblePackage, "0.43.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.41.0",
+          "version: 0.42.0",
           `version: ${version}`,
         ),
       );
@@ -424,7 +424,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.42.0",
+      "mdlm-bootstrap@0.43.0",
       "--json",
     );
 
@@ -443,13 +443,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [targetPackage, "0.42.0"],
+      [targetPackage, "0.43.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.41.0",
+          "version: 0.42.0",
           `version: ${version}`,
         ),
       );
@@ -531,7 +531,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.42.0",
+      "mdlm-bootstrap@0.43.0",
       "--json",
     );
 
@@ -550,7 +550,7 @@ describe("req process package commands", () => {
     await fs.writeFile(
       manifestPath,
       (await fs.readFile(manifestPath, "utf8")).replace(
-        "version: 0.41.0",
+        "version: 0.42.0",
         "version: 0.40.0",
       ),
     );
@@ -581,7 +581,7 @@ describe("req process package commands", () => {
         repositoryRoot,
         "process",
         "migrate",
-        "mdlm-bootstrap@0.41.0",
+        "mdlm-bootstrap@0.42.0",
         "--json",
       );
     } finally {
@@ -608,13 +608,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [targetPackage, "0.42.0"],
+      [targetPackage, "0.43.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.41.0",
+          "version: 0.42.0",
           `version: ${version}`,
         ),
       );
@@ -633,7 +633,7 @@ describe("req process package commands", () => {
     ).toBe(0);
     const installedObligation = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.42.0/obligations/review-context-required.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.43.0/obligations/review-context-required.yaml",
     );
     await fs.writeFile(
       installedObligation,
@@ -653,7 +653,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.42.0",
+      "mdlm-bootstrap@0.43.0",
       "--json",
     );
 
@@ -679,7 +679,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.validate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -694,7 +694,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "validate");
     expect(human.status, human.stderr).toBe(0);
     expect(human.stdout).toContain(
-      "Validated Process Package: mdlm-bootstrap@0.41.0",
+      "Validated Process Package: mdlm-bootstrap@0.42.0",
     );
     expect(human.stdout).toContain("Expression Language: mdlm-expression@1");
     expect(human.stdout).toContain("Compilation: passed");
@@ -712,7 +712,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.show",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
         language: "mdlm-expression@1",
       }),
       installed: true,
@@ -744,7 +744,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "show");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.41.0",
+      "Process Package: mdlm-bootstrap@0.42.0",
       "Expression Language: mdlm-expression@1",
       "Status: experimental",
       "Kernel Contract: mdlm-kernel-process-interface@1",
@@ -827,7 +827,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.capabilities",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -907,7 +907,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "capabilities");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.41.0",
+      "Process Package: mdlm-bootstrap@0.42.0",
       "Expression Language: mdlm-expression@1",
       "Context Roots: execution, phase, process",
       "Host Functions: count, every, exists, none, one, policy, present, select, state",

@@ -1085,7 +1085,9 @@ const entityPaths: Record<string, ValueType> = {
   "integrity.identity_valid": "boolean",
   "integrity.references_valid": "boolean",
   "integrity.hash_valid": "boolean",
+  "integrity.scenario_execution_valid": "boolean",
   "provenance.process_ref": "string",
+  "provenance.scenario": "string",
 };
 
 const scalarParameterValueTypes: Record<string, ValueType> = {

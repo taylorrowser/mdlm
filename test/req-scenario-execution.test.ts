@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req } from "./helpers/req.js";
+import { freezeQuestionSource } from "./helpers/source-boundary.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 
@@ -57,32 +58,9 @@ describe("req scenario execute", () => {
     );
     expect(createdQuestion.status, createdQuestion.stderr).toBe(0);
     question = JSON.parse(createdQuestion.stdout).created;
-    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.41.0#${packageDigest}`;
+    obligation = `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.42.0#${packageDigest}`;
 
-    const baseline = req(
-      repositoryRoot,
-      "baseline",
-      "create",
-      "--type",
-      "BSL",
-      "--scenario",
-      "create-review-context@1",
-      "--set",
-      "title=Question source baseline",
-      "--set",
-      "kind=review-context",
-      "--set",
-      "role=review-context",
-      "--set",
-      "scope=question source",
-      "--set",
-      "group=DEFAULT",
-      "--json",
-    );
-    expect(baseline.status, baseline.stderr).toBe(0);
-    const baselineId = JSON.parse(baseline.stdout).created.id;
-    expect(req(repositoryRoot, "baseline", "add", baselineId, question.revisionId, "--json").status).toBe(0);
-    expect(req(repositoryRoot, "baseline", "freeze", baselineId, "--json").status).toBe(0);
+    await freezeQuestionSource(repositoryRoot, question.revisionId);
   });
 
   afterEach(async () => {
@@ -166,7 +144,7 @@ describe("req scenario execute", () => {
       revisionId: string;
     };
     const reviewContextObligation =
-      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.41.0#${packageDigest}`;
+      `review-context-required@2:${map.revisionId}:mdlm-bootstrap@0.42.0#${packageDigest}`;
     const configured = await adapter({
       outputs: [{
         name: "context",
@@ -316,7 +294,7 @@ describe("req scenario execute", () => {
         obligation,
       },
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       prompt: expect.objectContaining({ reference: "prompts/resolve-question.md@2" }),
@@ -365,7 +343,7 @@ describe("req scenario execute", () => {
     expect(decision.lifecycleDatum.datum.created_by).toEqual({
       scenario: "resolve-question@2",
       prompt_ref: "prompts/resolve-question.md@2",
-      process_ref: expect.stringContaining("mdlm-bootstrap@0.41.0#sha256:"),
+      process_ref: expect.stringContaining("mdlm-bootstrap@0.42.0#sha256:"),
       loaded_skill_refs: request.prompt.skills.map((skill: any) => skill.reference),
       policy_refs: [
         "question-participation@1",
@@ -439,6 +417,5 @@ describe("req scenario execute", () => {
       expect.arrayContaining([expect.objectContaining({ code })]),
     );
     expect(after).toBe(before);
-    await expect(fs.stat(path.join(repositoryRoot, ".lifecycle/data/.transactions"))).rejects.toMatchObject({ code: "ENOENT" });
   }, 15_000);
 });

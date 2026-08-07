@@ -49,6 +49,7 @@ export interface LifecycleRecord {
     identity_valid: boolean;
     references_valid: boolean;
     hash_valid: boolean;
+    scenario_execution_valid?: boolean;
   };
 }
 
@@ -316,7 +317,7 @@ interface Entity {
   payload?: Record<string, unknown>;
   storage?: LifecycleRecord["storage"];
   integrity?: LifecycleRecord["integrity"] | { package_valid: boolean };
-  provenance?: { process_ref: string };
+  provenance?: { process_ref: string; scenario?: string };
   datum?: DatumEnvelope;
   record?: object;
 }
@@ -408,7 +409,12 @@ class LifecycleEvaluator {
         payload: record.datum.payload,
         storage: record.storage,
         integrity: record.integrity,
-        provenance: { process_ref: record.datum.created_by.process_ref },
+        provenance: {
+          process_ref: record.datum.created_by.process_ref,
+          ...(string(record.datum.created_by.scenario)
+            ? { scenario: string(record.datum.created_by.scenario)! }
+            : {}),
+        },
         datum: record.datum,
       };
       this.byRevision.set(record.datum.revision_id, entity);

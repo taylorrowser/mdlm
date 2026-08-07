@@ -711,30 +711,23 @@ async function exactDatumProcessPackage(
   return resolution;
 }
 
-async function authorityEvidenceExecutionDiagnostic(
+interface ScenarioExecutionProvenance {
+  processPackage?: ProcessPackage;
+  valid: boolean;
+}
+
+async function scenarioExecutionProvenance(
   root: string,
-  selectedPackage: ProcessPackage,
   item: ParsedDatum,
   packageCache: Map<string, Promise<ProcessPackage | undefined>>,
-): Promise<ProcessDiagnostic | undefined> {
+): Promise<ScenarioExecutionProvenance> {
   const datum = item.lifecycleDatum.datum;
   const processPackage = await exactDatumProcessPackage(
     root,
     datum.created_by.process_ref,
     packageCache,
   );
-  if (!processPackage) {
-    return datum.created_by.process_ref.includes("#sha256:")
-      ? {
-          code: "datum-authoring-package-unavailable",
-          path: item.relativePath,
-          message: `Revision '${datum.revision_id}' requires its exact installed authoring Process Package '${datum.created_by.process_ref}'`,
-        }
-      : undefined;
-  }
-  if (authorityEvidenceScenarioReferences(processPackage, datum.type).length === 0) {
-    return undefined;
-  }
+  if (!processPackage) return { valid: false };
   const transaction = /^\.lifecycle\/data\/\.transactions\/([^/]+)\//
     .exec(item.relativePath)?.[1];
   let execution: Record<string, unknown> | undefined;
@@ -812,13 +805,36 @@ async function authorityEvidenceExecutionDiagnostic(
       datum.created_by.process_ref &&
     matchingOutput
   ) {
-    return undefined;
+    return { processPackage, valid: true };
   }
-  return {
-    code: "authority-evidence-execution-required",
-    path: item.relativePath,
-    message: `Authority-evidence Revision '${datum.revision_id}' requires its matching completed Scenario execution transaction`,
-  };
+  return { processPackage, valid: false };
+}
+
+function authorityEvidenceExecutionDiagnostic(
+  item: ParsedDatum,
+  provenance: ScenarioExecutionProvenance,
+): ProcessDiagnostic | undefined {
+  const datum = item.lifecycleDatum.datum;
+  if (!provenance.processPackage) {
+    return datum.created_by.process_ref.includes("#sha256:")
+      ? {
+          code: "datum-authoring-package-unavailable",
+          path: item.relativePath,
+          message: `Revision '${datum.revision_id}' requires its exact installed authoring Process Package '${datum.created_by.process_ref}'`,
+        }
+      : undefined;
+  }
+  if (
+    authorityEvidenceScenarioReferences(provenance.processPackage, datum.type)
+      .length === 0
+  ) return undefined;
+  return provenance.valid
+    ? undefined
+    : {
+        code: "authority-evidence-execution-required",
+        path: item.relativePath,
+        message: `Authority-evidence Revision '${datum.revision_id}' requires its matching completed Scenario execution transaction`,
+      };
 }
 
 export async function readRepositoryData(
@@ -847,11 +863,16 @@ export async function readRepositoryData(
     Promise.resolve(processPackage),
   );
   for (const item of parsed) {
-    const authorityDiagnostic = await authorityEvidenceExecutionDiagnostic(
+    const executionProvenance = await scenarioExecutionProvenance(
       root,
-      processPackage,
       item,
       authoringPackages,
+    );
+    item.lifecycleDatum.integrity.scenario_execution_valid =
+      executionProvenance.valid;
+    const authorityDiagnostic = authorityEvidenceExecutionDiagnostic(
+      item,
+      executionProvenance,
     );
     if (authorityDiagnostic) diagnostics.push(authorityDiagnostic);
   }

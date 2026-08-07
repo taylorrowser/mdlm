@@ -88,50 +88,70 @@ describe("req prototype-bound empirical question routing", () => {
     return JSON.parse(created.stdout).created;
   }
 
-  function createPrototypeQuestion(): CreatedDatum {
-    const question = createQuestion("Exact converter prototype", [
+  function createUnfrozenPrototypeQuestion(): CreatedDatum {
+    return createQuestion("Exact converter prototype", [
       "resolution_evidence=prototype",
       `prototype_evidence=${JSON.stringify(prototypeEvidence)}`,
     ]);
-    const context = req(
+  }
+
+  async function freezeSourceBoundary(
+    question: CreatedDatum,
+    boundaryId = "BSL-012345678B",
+  ): Promise<{ boundary: CreatedDatum; execution: Record<string, unknown> }> {
+    const obligation = looseEnds().find((candidate) =>
+      candidate.obligation === "source-boundary-required" &&
+      candidate.subject === question.revisionId
+    );
+    expect(obligation).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      eventualResolver: "freeze-source-boundary@1",
+      actionableResolver: "freeze-source-boundary@1",
+    }));
+    const executable = await adapter({
+      outputs: [{
+        name: "boundary",
+        invocation: 0,
+        lifecycleDatum: {
+          id: boundaryId,
+          type: "BSL",
+          payload: {
+            title: "Exact source boundary",
+            kind: "source-boundary",
+            role: "source-boundary",
+            scope: question.revisionId,
+            group: "SAME-LINEAGE",
+            definition_members: [question.revisionId],
+            evidence: [],
+          },
+          links: [],
+          body: "Freezes exactly the editable source Revision.\n",
+        },
+      }],
+      completionEvidence: { summary: "Exact source Revision frozen." },
+    }, "source-boundary-adapter.mjs");
+    const result = req(
       repositoryRoot,
-      "baseline",
-      "create",
-      "--type",
-      "BSL",
-      "--scenario",
-      "create-review-context@1",
-      "--set",
-      "title=Prototype question evidence boundary",
-      "--set",
-      "kind=review-context",
-      "--set",
-      "role=review-context",
-      "--set",
-      "scope=prototype-bound question",
-      "--set",
-      "group=DEFAULT",
+      "scenario",
+      "execute",
+      "freeze-source-boundary@1",
+      "--obligation",
+      String((obligation as { id: string }).id),
+      "--adapter",
+      executable,
+      "--input",
+      `source=${question.revisionId}`,
       "--json",
     );
-    expect(context.status, `${context.stderr}${context.stdout}`).toBe(0);
-    const baseline = JSON.parse(context.stdout).created as CreatedDatum;
-    const added = req(
-      repositoryRoot,
-      "baseline",
-      "add",
-      baseline.id,
-      question.revisionId,
-      "--json",
-    );
-    expect(added.status, `${added.stderr}${added.stdout}`).toBe(0);
-    const frozen = req(
-      repositoryRoot,
-      "baseline",
-      "freeze",
-      baseline.id,
-      "--json",
-    );
-    expect(frozen.status, `${frozen.stderr}${frozen.stdout}`).toBe(0);
+    expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+    const execution = JSON.parse(result.stdout).execution;
+    return { boundary: execution.outputs[0].lifecycleDatum, execution };
+  }
+
+  async function createPrototypeQuestion(): Promise<CreatedDatum> {
+    const question = createUnfrozenPrototypeQuestion();
+    await freezeSourceBoundary(question);
     return question;
   }
 
@@ -220,6 +240,63 @@ describe("req prototype-bound empirical question routing", () => {
     ];
   }
 
+  async function routeQuestionToPrototype(
+    question: CreatedDatum,
+  ): Promise<CreatedDatum> {
+    const executable = await adapter({
+      outputs: [{
+        name: "map",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "MAP-012345678D",
+          type: "MAP",
+          payload: {
+            title: "Prototype routing frontier",
+            purpose: "Route the preserved empirical question to exact prototype evidence.",
+            frontier: ["Bounded temperature-converter feasibility"],
+          },
+          links: [{ type: "indexes", target: question.id }],
+          body: "Indexes the preserved question without restating its claim.\n",
+        },
+      }, {
+        name: "questions",
+        invocation: 0,
+        lifecycleDatum: {
+          id: question.id,
+          type: "QST",
+          payload: {
+            title: "Exact converter prototype",
+            kind: "empirical",
+            evidence_available: true,
+            question: "Does the exact converter prototype discriminate its bounded behavior?",
+            state: "open",
+            blocking_impact: "Prototype feasibility remains unrecorded",
+            resolution_evidence: "prototype",
+            prototype_evidence: prototypeEvidence,
+          },
+          links: [],
+          body: "Routes the preserved lineage to one exact prototype target.\n",
+        },
+      }],
+      completionEvidence: { summary: "Preserved question routed to exact evidence." },
+    }, "chart-prototype-route-adapter.mjs");
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "chart-wayfinding-map@1",
+      "--initiate",
+      "--adapter",
+      executable,
+      "--json",
+    );
+    expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+    const output = JSON.parse(result.stdout).execution.outputs.find(
+      (candidate: { name: string }) => candidate.name === "questions",
+    );
+    return output.lifecycleDatum;
+  }
+
   function prototypeObligation(question: CreatedDatum): Record<string, unknown> {
     const obligation = looseEnds().find((candidate) =>
       candidate.obligation === "prototype-question-resolution" &&
@@ -229,8 +306,27 @@ describe("req prototype-bound empirical question routing", () => {
     return obligation!;
   }
 
-  it("keeps a generic empirical QST on the non-prototype resolution path", () => {
+  it("keeps a generic empirical QST on the non-prototype resolution path", async () => {
     const question = createQuestion("Generic empirical evidence");
+
+    expect(looseEnds()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        obligation: "open-question-resolution",
+        subject: question.revisionId,
+        status: "blocked",
+        dispatchable: false,
+        eventualResolver: "resolve-question@2",
+        actionableResolver: "freeze-source-boundary@1",
+      }),
+    ]));
+    expect(looseEnds()).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        obligation: "prototype-question-resolution",
+        subject: question.revisionId,
+      }),
+    ]));
+
+    await freezeSourceBoundary(question);
 
     expect(looseEnds()).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -240,12 +336,6 @@ describe("req prototype-bound empirical question routing", () => {
         dispatchable: true,
         eventualResolver: "resolve-question@2",
         actionableResolver: "resolve-question@2",
-      }),
-    ]));
-    expect(looseEnds()).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        obligation: "prototype-question-resolution",
-        subject: question.revisionId,
       }),
     ]));
   });
@@ -283,8 +373,221 @@ describe("req prototype-bound empirical question routing", () => {
     );
   });
 
+  it("discovers and atomically freezes the exact source before same-lineage resolution", async () => {
+    const question = createUnfrozenPrototypeQuestion();
+
+    expect(prototypeObligation(question)).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      eventualResolver: "resolve-question-with-prototype@2",
+      actionableResolver: "freeze-source-boundary@1",
+    }));
+
+    const { boundary, execution } = await freezeSourceBoundary(question);
+    expect(execution).toEqual(expect.objectContaining({
+      contract: "mdlm-scenario-execution@1",
+      status: "completed",
+      definition: {
+        obligation: "source-boundary-required@1",
+        scenario: "freeze-source-boundary@1",
+      },
+      outputs: [expect.objectContaining({
+        name: "boundary",
+        data: expect.objectContaining({
+          created_by: expect.objectContaining({
+            scenario: "freeze-source-boundary@1",
+            prompt_ref: "prompts/freeze-source-boundary.md@1",
+          }),
+        }),
+      })],
+    }));
+    expect(boundary).toEqual(expect.objectContaining({
+      type: "BSL",
+      revisionId: "BSL-012345678B-r00001",
+    }));
+    const verified = req(
+      repositoryRoot,
+      "baseline",
+      "verify",
+      boundary.revisionId,
+      "--json",
+    );
+    expect(verified.status, `${verified.stderr}${verified.stdout}`).toBe(0);
+    expect(JSON.parse(verified.stdout).baselineVerification).toEqual(
+      expect.objectContaining({
+        baselineRevision: boundary.revisionId,
+        valid: true,
+        definitionMembers: [question.revisionId],
+        evidence: [],
+      }),
+    );
+    const boundaryShown = req(
+      repositoryRoot,
+      "show",
+      boundary.revisionId,
+      "--json",
+    );
+    expect(
+      boundaryShown.status,
+      `${boundaryShown.stderr}${boundaryShown.stdout}`,
+    ).toBe(0);
+    expect(
+      JSON.parse(boundaryShown.stdout).lifecycleDatum.integrity
+        .scenario_execution_valid,
+    ).toBe(true);
+    const shown = req(repositoryRoot, "show", question.revisionId, "--json");
+    expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
+    expect(JSON.parse(shown.stdout).lifecycleDatum.storage).toEqual({
+      editable: false,
+      frozen: true,
+    });
+    expect(prototypeObligation(question)).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "resolve-question-with-prototype@2",
+    }));
+  });
+
+  it("does not accept a piecemeal boundary claiming the authored Scenario", async () => {
+    const question = createUnfrozenPrototypeQuestion();
+    const borrowed = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "freeze-source-boundary@1",
+      "--set",
+      "title=Forged source boundary",
+      "--set",
+      "kind=source-boundary",
+      "--set",
+      "role=source-boundary",
+      "--set",
+      `scope=${question.revisionId}`,
+      "--set",
+      "group=SAME-LINEAGE",
+      "--json",
+    );
+    expect(borrowed.status, `${borrowed.stderr}${borrowed.stdout}`).toBe(0);
+    const borrowedBoundary = JSON.parse(borrowed.stdout).created;
+    const borrowedId = borrowedBoundary.id;
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      borrowedId,
+      question.revisionId,
+      "--json",
+    ).status).toBe(0);
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      borrowedId,
+      "--json",
+    ).status).toBe(0);
+    const forged = req(
+      repositoryRoot,
+      "show",
+      borrowedBoundary.revisionId,
+      "--json",
+    );
+    expect(forged.status, `${forged.stderr}${forged.stdout}`).toBe(0);
+    expect(
+      JSON.parse(forged.stdout).lifecycleDatum.integrity
+        .scenario_execution_valid,
+    ).toBe(false);
+
+    expect(prototypeObligation(question)).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: "freeze-source-boundary@1",
+    }));
+    await freezeSourceBoundary(question);
+    expect(prototypeObligation(question)).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "resolve-question-with-prototype@2",
+    }));
+  });
+
+  it.each([
+    "missing source",
+    "extra member",
+    "wrong source",
+    "mismatched scope",
+    "extra evidence",
+  ])(
+    "publishes neither a boundary nor execution for %s",
+    async (failure) => {
+    const question = createUnfrozenPrototypeQuestion();
+    const unrelated = createQuestion("Unrelated exact question");
+    const obligation = looseEnds().find((candidate) =>
+      candidate.obligation === "source-boundary-required" &&
+      candidate.subject === question.revisionId
+    ) as { id: string };
+    expect(obligation).toBeDefined();
+    const executable = await adapter({
+      outputs: [{
+        name: "boundary",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "BSL-012345678C",
+          type: "BSL",
+          payload: {
+            title: "Incomplete source boundary",
+            kind: "source-boundary",
+            role: "source-boundary",
+            scope: failure === "mismatched scope"
+              ? unrelated.revisionId
+              : question.revisionId,
+            group: "SAME-LINEAGE",
+            definition_members: failure === "missing source"
+              ? []
+              : failure === "extra member"
+              ? [question.revisionId, unrelated.revisionId]
+              : failure === "wrong source"
+              ? [unrelated.revisionId]
+              : [question.revisionId],
+            evidence: failure === "extra evidence"
+              ? [unrelated.revisionId]
+              : [],
+          },
+          links: [],
+          body: "The exact source is missing.\n",
+        },
+      }],
+      completionEvidence: { summary: "Must not publish." },
+    }, "invalid-source-boundary-adapter.mjs");
+    const before = await treeDigest(path.join(repositoryRoot, ".lifecycle"));
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "freeze-source-boundary@1",
+      "--obligation",
+      obligation.id,
+      "--adapter",
+      executable,
+      "--input",
+      `source=${question.revisionId}`,
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-completion-failed" }),
+      ]),
+    );
+    expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(before);
+  });
+
   it("dry-runs the exact target, bounded claims, complete contract, and package instructions", async () => {
-    const question = createPrototypeQuestion();
+    const question = await createPrototypeQuestion();
     const obligation = prototypeObligation(question);
 
     const result = req(
@@ -393,8 +696,15 @@ describe("req prototype-bound empirical question routing", () => {
     }));
   });
 
-  it("atomically publishes exact ART, bounded DEC, and a satisfying QST Revision", async () => {
-    const question = createPrototypeQuestion();
+  it("preserves repeated source boundaries through charting and prototype resolution", async () => {
+    const originalQuestion = createQuestion("Preserved empirical question");
+    await freezeSourceBoundary(originalQuestion);
+    const question = await routeQuestionToPrototype(originalQuestion);
+    expect(question).toEqual(expect.objectContaining({
+      id: originalQuestion.id,
+      revisionId: `${originalQuestion.id}-r00002`,
+    }));
+    await freezeSourceBoundary(question, "BSL-012345678D");
     const obligation = prototypeObligation(question);
     const executable = await adapter({
       outputs: successfulOutputs(question),
@@ -482,8 +792,8 @@ describe("req prototype-bound empirical question routing", () => {
           name: "updated_question",
           lifecycleDatum: expect.objectContaining({
             id: question.id,
-            revision: 2,
-            revisionId: `${question.id}-r00002`,
+            revision: 3,
+            revisionId: `${question.id}-r00003`,
             type: "QST",
           }),
           data: expect.objectContaining({
@@ -496,7 +806,7 @@ describe("req prototype-bound empirical question routing", () => {
       expect(output.data.created_by).toEqual(expect.objectContaining({
         scenario: "resolve-question-with-prototype@2",
         prompt_ref: "prompts/resolve-question-with-prototype.md@2",
-        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.41\.0#sha256:/),
+        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.42\.0#sha256:/),
         policy_refs: [
           "question-participation@1",
           "review-applicability@1",
@@ -504,6 +814,28 @@ describe("req prototype-bound empirical question routing", () => {
         ],
       }));
     }
+    const history = req(repositoryRoot, "history", question.id, "--json");
+    expect(history.status, `${history.stderr}${history.stdout}`).toBe(0);
+    expect(JSON.parse(history.stdout).history.revisions).toEqual([
+      expect.objectContaining({
+        revision: 1,
+        revisionId: originalQuestion.revisionId,
+        classification: "frozen-history",
+        frozenBy: ["BSL-012345678B-r00001"],
+      }),
+      expect.objectContaining({
+        revision: 2,
+        revisionId: question.revisionId,
+        classification: "frozen-history",
+        frozenBy: ["BSL-012345678D-r00001"],
+      }),
+      expect.objectContaining({
+        revision: 3,
+        revisionId: `${question.id}-r00003`,
+        classification: "editable-work",
+        frozenBy: [],
+      }),
+    ]);
     expect(looseEnds()).not.toEqual(expect.arrayContaining([
       expect.objectContaining({
         obligation: "prototype-question-resolution",
@@ -519,7 +851,7 @@ describe("req prototype-bound empirical question routing", () => {
     ["RUN evidence substitution", "scenario-output-type-invalid"],
     ["RES evidence substitution", "scenario-output-type-invalid"],
   ])("publishes nothing for %s", async (failure, diagnosticCode) => {
-    const question = createPrototypeQuestion();
+    const question = await createPrototypeQuestion();
     const obligation = prototypeObligation(question);
     const outputs = structuredClone(successfulOutputs(question));
     if (failure === "unsupported conclusion") {
@@ -559,8 +891,8 @@ describe("req prototype-bound empirical question routing", () => {
     expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(before);
   }, 15_000);
 
-  it("routes an explicitly prototype-bound empirical QST to the prototype-producing Resolver", () => {
-    const question = createPrototypeQuestion();
+  it("routes an explicitly prototype-bound empirical QST to the prototype-producing Resolver", async () => {
+    const question = await createPrototypeQuestion();
 
     expect(looseEnds()).toEqual(expect.arrayContaining([
       expect.objectContaining({

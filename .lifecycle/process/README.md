@@ -188,10 +188,18 @@ addition to its question, decision, product, stakeholder, review, and baseline
 data. `chart-wayfinding-map@1` and `build-exploratory-prototype@1` provide exact
 authoring provenance for that evidence. An empirical QST may explicitly bind
 resolution to one exact Git prototype target, bounded supported and unsupported
-behavior, and two allowed findings. That declaration routes its exact frozen
-Revision to `resolve-question-with-prototype@2`, which atomically publishes ART,
-DEC, and the satisfying QST Revision; other empirical questions retain the generic
-resolver. Package-owned Obligations now discover the required MAP, PSP, STK set,
+behavior, and two allowed findings. Before any open QST can publish a satisfying
+same-lineage Revision, `source-boundary-required@1` projects
+`freeze-source-boundary@1`, which atomically publishes and kernel-finalizes one
+truthful `source-boundary` BSL containing exactly the source Revision. The
+package requires the kernel's matching valid Scenario-execution projection, not
+merely a caller-supplied Scenario name. The generic and prototype Resolvers remain
+blocked behind that discoverable work;
+no piecemeal baseline commands or borrowed Review Context provenance are needed.
+A prototype declaration then routes its exact frozen Revision to
+`resolve-question-with-prototype@2`, which atomically publishes ART, DEC, and the
+satisfying QST Revision; other empirical questions retain the generic resolver.
+Package-owned Obligations now discover the required MAP, PSP, STK set,
 Review Contexts, Reviews, and exact intent candidate from an empty initialized
 repository. MAP, PSP, and STK are substantive review subjects: their ready Review
 Context work sorts ahead of blocked Review work; one frozen context may contain

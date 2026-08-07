@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req } from "./helpers/req.js";
+import { freezeQuestionSource } from "./helpers/source-boundary.js";
 
 const examplePackage = path.join(process.cwd(), ".lifecycle/process");
 
@@ -586,6 +587,7 @@ describe("req system decomposition slice", () => {
         ]),
       }),
     );
+    await freezeQuestionSource(repositoryRoot, question.revisionId);
     const questionWork = phaseItems().find((item) =>
       item.obligation === "open-question-resolution" && item.subject === question.revisionId
     );

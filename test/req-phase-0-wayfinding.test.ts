@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req } from "./helpers/req.js";
+import { freezeQuestionSource } from "./helpers/source-boundary.js";
 
 const examplePackage = path.join(process.cwd(), ".lifecycle/process");
 
@@ -754,48 +755,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "--set",
       `prototype_evidence=${JSON.stringify(prototypeEvidence)}`,
     );
-    const sourceBoundaryResult = req(
-      repositoryRoot,
-      "baseline",
-      "create",
-      "--type",
-      "BSL",
-      "--scenario",
-      "create-review-context@1",
-      "--set",
-      "title=Prototype question source boundary",
-      "--set",
-      "kind=review-context",
-      "--set",
-      "role=review-context",
-      "--set",
-      `scope=${question.revisionId}`,
-      "--set",
-      "group=DEFAULT",
-      "--json",
-    );
-    expect(
-      sourceBoundaryResult.status,
-      `${sourceBoundaryResult.stderr}${sourceBoundaryResult.stdout}`,
-    ).toBe(0);
-    const sourceBoundary = JSON.parse(sourceBoundaryResult.stdout).created as {
-      id: string;
-    };
-    expect(req(
-      repositoryRoot,
-      "baseline",
-      "add",
-      sourceBoundary.id,
-      question.revisionId,
-      "--json",
-    ).status).toBe(0);
-    expect(req(
-      repositoryRoot,
-      "baseline",
-      "freeze",
-      sourceBoundary.id,
-      "--json",
-    ).status).toBe(0);
+    await freezeQuestionSource(repositoryRoot, question.revisionId);
     const prototypeWork = looseEnd(
       "prototype-question-resolution@1",
       question.revisionId,

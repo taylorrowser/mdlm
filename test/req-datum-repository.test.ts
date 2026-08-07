@@ -93,8 +93,8 @@ describe("req durable Lifecycle Datum repository", () => {
       command: "init",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.41.0",
-        reference: "mdlm-bootstrap@0.41.0",
+        version: "0.42.0",
+        reference: "mdlm-bootstrap@0.42.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -113,7 +113,7 @@ describe("req durable Lifecycle Datum repository", () => {
       schemaVersion: 1,
       repositoryContract: "mdlm-repository@1",
       package: {
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
         digest: output.package.digest,
       },
       contracts: {
@@ -128,7 +128,7 @@ describe("req durable Lifecycle Datum repository", () => {
       "utf8",
     ))).toEqual(expect.objectContaining({
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
         digest: output.package.digest,
       }),
       language: { expressions: "mdlm-expression@1" },
@@ -138,7 +138,7 @@ describe("req durable Lifecycle Datum repository", () => {
 
     const human = req(repositoryRoot, "process", "show");
     expect(human.status, human.stderr).toBe(0);
-    expect(human.stdout).toContain("Process Package: mdlm-bootstrap@0.41.0");
+    expect(human.stdout).toContain("Process Package: mdlm-bootstrap@0.42.0");
   });
 
   it("rejects invalid payloads and links without partial durable state", async () => {
@@ -293,7 +293,7 @@ describe("req durable Lifecycle Datum repository", () => {
       ok: true,
       command: "new",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
       }),
       created: {
         id: expect.stringMatching(/^PSP-[0-9A-HJKMNP-TV-Z]{10}$/),
@@ -322,7 +322,7 @@ describe("req durable Lifecycle Datum repository", () => {
       ok: true,
       command: "show",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.41.0",
+        reference: "mdlm-bootstrap@0.42.0",
       }),
       lifecycleDatum: {
         datum: expect.objectContaining({
@@ -338,7 +338,7 @@ describe("req durable Lifecycle Datum repository", () => {
           created_by: expect.objectContaining({
             scenario: "compile-psp@2",
             prompt_ref: "prompts/compile-psp.md@2",
-            process_ref: expect.stringContaining("mdlm-bootstrap@0.41.0#sha256:"),
+            process_ref: expect.stringContaining("mdlm-bootstrap@0.42.0#sha256:"),
           }),
           body: "Narrative body.\n",
         }),
@@ -349,6 +349,7 @@ describe("req durable Lifecycle Datum repository", () => {
           identity_valid: true,
           references_valid: true,
           hash_valid: true,
+          scenario_execution_valid: false,
         },
       },
       projections: {

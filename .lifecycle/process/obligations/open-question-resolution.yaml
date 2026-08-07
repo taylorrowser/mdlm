@@ -11,6 +11,15 @@ satisfied_when: >-
   || exists("applicable-question-dispositions-for@1", {question: question})
 status_rules:
   - status: blocked
+    priority: 600
+    when: >-
+      question.payload.state == "open"
+      && none("source-boundaries-for@1", {source: question})
+    reason: The exact editable source QST Revision must be frozen through the package-authored source-boundary Scenario before a satisfying Revision can be published.
+    blocked_by:
+      - obligation: source-boundary-required@1
+        subjects: '[question]'
+  - status: blocked
     priority: 500
     when: >-
       question.payload.kind == "preferential"

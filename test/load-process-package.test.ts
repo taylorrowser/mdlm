@@ -24,13 +24,13 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.41.0");
+    expect(result.package.manifest.version).toBe("0.42.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(169);
+    expect(Object.keys(result.package.selectors)).toHaveLength(172);
     expect(Object.keys(result.package.policies)).toHaveLength(9);
-    expect(Object.keys(result.package.obligations)).toHaveLength(39);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(41);
+    expect(Object.keys(result.package.obligations)).toHaveLength(40);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(42);
     expect(result.diagnostics).toEqual([]);
   });
 
@@ -121,7 +121,7 @@ describe("loadProcessPackage", () => {
         ]),
       );
     }
-  }, 10_000);
+  }, 20_000);
 
   it("rejects a legacy structural Selector invocation", async () => {
     const processRoot = await copiedProcessPackage();

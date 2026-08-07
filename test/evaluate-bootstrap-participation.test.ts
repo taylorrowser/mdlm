@@ -13,7 +13,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.41.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.42.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -328,8 +328,9 @@ describe("bootstrap Scenario participation Policies", () => {
       ));
     expect(obligationFor("open-question-resolution", blockingPreference))
       .toEqual(expect.objectContaining({
-        status: "ready",
-        dispatchable: true,
+        status: "blocked",
+        dispatchable: false,
+        actionableResolver: "freeze-source-boundary@1",
         participation: projectedParticipation(
           "question-participation@1",
           "attended",
@@ -343,8 +344,9 @@ describe("bootstrap Scenario participation Policies", () => {
       }));
     expect(obligationFor("open-question-resolution", checkpointPreference))
       .toEqual(expect.objectContaining({
-        status: "ready",
-        dispatchable: true,
+        status: "blocked",
+        dispatchable: false,
+        actionableResolver: "freeze-source-boundary@1",
         satisfied: false,
         participation: projectedParticipation(
           "question-participation@1",
@@ -487,7 +489,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "resolve-question@2",
+      actionableResolver: "freeze-source-boundary@1",
       participation: projectedParticipation(
         "gate-signoff-participation@1",
         "attended",

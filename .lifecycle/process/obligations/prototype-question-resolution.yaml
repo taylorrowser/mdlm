@@ -27,8 +27,11 @@ status_rules:
     reason: Deferred or cancelled prototype-bound state is not applicable without an exact valid scoped Decision.
   - status: blocked
     priority: 200
-    when: 'question.storage.frozen != true'
-    reason: The prototype evidence boundary must freeze the exact source QST Revision before a satisfying Revision can be published.
+    when: 'none("source-boundaries-for@1", {source: question})'
+    reason: The exact editable source QST Revision must be frozen through the package-authored source-boundary Scenario before a satisfying Revision can be published.
+    blocked_by:
+      - obligation: source-boundary-required@1
+        subjects: '[question]'
   - status: ready
     priority: 100
     when: >-

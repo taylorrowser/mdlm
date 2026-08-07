@@ -243,7 +243,7 @@ describe("req lifecycle status and next work", () => {
       repositoryRoot,
       "process",
       "use",
-      "mdlm-distinct-progression@0.41.0",
+      "mdlm-distinct-progression@0.42.0",
       "--json",
     );
     expect(selected.status, selected.stderr).toBe(0);

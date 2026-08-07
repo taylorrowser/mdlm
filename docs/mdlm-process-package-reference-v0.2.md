@@ -169,8 +169,10 @@ Expressions may read:
 - `payload.*` fields validated by the resolved type;
 - `storage.editable` and `storage.frozen`;
 - `integrity.parseable`, `schema_valid`, `identity_valid`,
-  `references_valid`, and `hash_valid`;
-- `provenance.process_ref`;
+  `references_valid`, `hash_valid`, and `scenario_execution_valid`; the last is
+  true only when the Revision matches an output in its complete validated atomic
+  Scenario execution transaction;
+- `provenance.process_ref` and `provenance.scenario`;
 - context values such as `process.current_ref`, `phase.id`, and
   `execution.integrity.contract_valid`.
 

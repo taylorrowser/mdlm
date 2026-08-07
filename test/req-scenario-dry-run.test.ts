@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req, selectProcessPackage } from "./helpers/req.js";
+import { freezeQuestionSource } from "./helpers/source-boundary.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 const prototypeSnapshot = path.join(
@@ -106,8 +107,9 @@ describe("req scenario dry-run", () => {
       `${createdQuestion.stderr}${createdQuestion.stdout}`,
     ).toBe(0);
     const question = JSON.parse(createdQuestion.stdout).created;
+    await freezeQuestionSource(repositoryRoot, question.revisionId);
     const obligation =
-      `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.41.0#${packageDigest}`;
+      `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.42.0#${packageDigest}`;
     const before = await treeDigest(repositoryRoot);
 
     const result = req(
@@ -205,7 +207,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.41.0",
+          reference: "mdlm-bootstrap@0.42.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -437,7 +439,7 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.41.0",
+        "mdlm-bootstrap@0.42.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(
