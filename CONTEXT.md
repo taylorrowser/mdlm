@@ -113,6 +113,10 @@ _Avoid_: Chat approval as lifecycle evidence, user-operated sign-off command
 The exact Scenario output named by the package as the durable record of consequential authority: REV for Review judgment and DEC for gates, scope, waiver, deferral, delegation, progression, and comparable Decisions.
 _Avoid_: Adapter prose, completion summary, execution log alone
 
+**Authority-Evidence Type**:
+A Lifecycle type named by at least one exact selected-package Scenario `authority_evidence.type` contract. The kernel derives this set without recognizing package type IDs; direct creation and Revision creation cannot publish these types, and repository validation requires their matching completed Scenario transaction.
+_Avoid_: Hard-coded REV/DEC handling, a type inferred from the claimed creation Scenario alone
+
 **Standing Delegation**:
 A reviewed exact DEC authorizing one named delegate for one authority, exact target Revision, and exact Scenario, with declared expiry and reactivation conditions. It is reusable authorization evidence, unlike a reviewer explicitly supplying authority for one execution. When supplied as `--delegation`, it must satisfy the Scenario's exact package Selector before it can replace a per-execution `--authorize` supply.
 _Avoid_: Per-execution authority assertion, role assumption, unbounded permission

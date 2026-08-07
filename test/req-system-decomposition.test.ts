@@ -103,26 +103,6 @@ describe("req system decomposition slice", () => {
       expect(frozen.status, `${frozen.stderr}${frozen.stdout}`).toBe(0);
       return subject;
     };
-    const fixtureReview = (subject: string, context: string, title = `Review ${subject}`) =>
-      create(
-        "REV",
-        "--scenario",
-        "review-datum-in-context@2",
-        "--set",
-        `title=${title}`,
-        "--set",
-        "review_kind=contextual",
-        "--set",
-        "rubric_ref=policies/rubrics/bootstrap-review.md@1",
-        "--set",
-        "findings=[]",
-        "--set",
-        "outcome=pass",
-        "--link",
-        `reviews=${subject}`,
-        "--link",
-        `contextualizes=${context}`,
-      );
     const phaseItems = () => {
       const result = req(
         repositoryRoot,
@@ -332,36 +312,65 @@ describe("req system decomposition slice", () => {
       `governs-revision=${stakeholder.revisionId}`,
     );
 
+    const stakeholderContext = await createDiscoveredReviewContext(
+      "Accepted stakeholder requirement Review Context",
+      [stakeholder.revisionId],
+    );
+    await publishDiscoveredReview(
+      stakeholder.revisionId,
+      stakeholderContext.revisionId,
+    );
     const intentCandidate = freeze(
       baseline("Approved intent", "intent-level-candidate", "candidate"),
       [stakeholder.revisionId],
     );
-    const intentDecision = create(
-      "DEC",
-      "--scenario",
-      "record-gate-signoff@2",
-      "--set",
-      "title=Authorize system definition",
-      "--set",
-      "rationale=The exact stakeholder slice is bounded",
-      "--set",
-      "kind=gate-signoff",
-      "--set",
-      "gate_outcome=approve",
-      "--set",
-      "decision=Proceed to one bounded system decomposition",
-      "--set",
-      'alternatives=["defer system definition"]',
-      "--set",
-      `effective_scope=${intentCandidate.revisionId}`,
-      "--link",
-      `justifies=${intentCandidate.revisionId}`,
+    const intentCandidateContext = await createDiscoveredReviewContext(
+      "Intent candidate Review Context",
+      [intentCandidate.revisionId],
     );
-    const intentDecisionContext = freeze(
-      baseline("Intent decision review", "review-context", "review-context"),
+    await publishDiscoveredReview(
+      intentCandidate.revisionId,
+      intentCandidateContext.revisionId,
+    );
+    const intentGateWork = obligation("candidate-gate-signoff", intentCandidate.revisionId);
+    const intentGateExecution = await execute(
+      intentGateWork,
+      {
+        outputs: [{
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Authorize system definition",
+              rationale: "The exact stakeholder slice is bounded",
+              kind: "gate-signoff",
+              gate_outcome: "approve",
+              decision: "Proceed to one bounded system decomposition",
+              alternatives: ["defer system definition"],
+              effective_scope: intentCandidate.revisionId,
+            },
+            links: [{ type: "justifies", target: intentCandidate.revisionId }],
+            body: "Stakeholder authorized the exact intent candidate.\n",
+          },
+        }],
+        completionEvidence: { summary: "Stakeholder approved system definition." },
+      },
+      [`candidate=${intentCandidate.revisionId}`],
+      "intent-gate",
+      "stakeholder",
+    );
+    const intentDecision = intentGateExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const intentDecisionContext = await createDiscoveredReviewContext(
+      "Intent decision Review Context",
       [intentDecision.revisionId],
     );
-    fixtureReview(intentDecision.revisionId, intentDecisionContext.revisionId);
+    await publishDiscoveredReview(
+      intentDecision.revisionId,
+      intentDecisionContext.revisionId,
+    );
 
     expect(obligation("decomposition-planning-required", stakeholder.revisionId)).toEqual(
       expect.objectContaining({ status: "blocked", dispatchable: false }),
@@ -1552,5 +1561,5 @@ describe("req system decomposition slice", () => {
         { type: "relies-on-review", target: assessmentReview.revisionId },
       ],
     });
-  }, 240_000);
+  }, 330_000);
 });

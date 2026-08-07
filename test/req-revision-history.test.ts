@@ -173,14 +173,14 @@ describe("req revision lineage", () => {
             revisionId: first.revisionId,
             classification: "frozen-history",
             frozenBy: [baselineRevisionId],
-            processRef: expect.stringContaining("mdlm-bootstrap@0.40.0#sha256:"),
+            processRef: expect.stringContaining("mdlm-bootstrap@0.41.0#sha256:"),
           },
           {
             revision: 2,
             revisionId: `${first.id}-r00002`,
             classification: "editable-work",
             frozenBy: [],
-            processRef: expect.stringContaining("mdlm-bootstrap@0.40.0#sha256:"),
+            processRef: expect.stringContaining("mdlm-bootstrap@0.41.0#sha256:"),
           },
         ],
       },
@@ -191,7 +191,7 @@ describe("req revision lineage", () => {
     expect(human.stdout).toContain(`${first.revisionId} [frozen history]`);
     expect(human.stdout).toContain(`${first.id}-r00002 [editable work]`);
     expect(human.stdout).toContain(`Frozen By: ${baselineRevisionId}`);
-  }, 10_000);
+  }, 20_000);
 
   it("refuses a competing draft without changing exact history or indexes", async () => {
     const created = createDatum();

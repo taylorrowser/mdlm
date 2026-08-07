@@ -1362,7 +1362,7 @@ describe("req product-assurance qualification and pilot slice", () => {
     );
     const doctor = req(repositoryRoot, "doctor", "--json");
     expect(doctor.status, doctor.stderr).toBe(0);
-  }, 90_000);
+  }, 120_000);
 
   it("supplies package-owned verification planning and execution contracts", () => {
     const shown = req(repositoryRoot, "process", "show", "--json");

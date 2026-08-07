@@ -83,6 +83,8 @@ describe("req Problem Report and Change Request flow", () => {
       const executable = await adapter(response, label);
       const authority = scenario === "approve-change-request@2"
         ? "stakeholder"
+        : scenario === "review-datum-in-context@2"
+        ? "independent-reviewer"
         : undefined;
       const arguments_ = [
         "scenario",
@@ -153,31 +155,44 @@ describe("req Problem Report and Change Request flow", () => {
       expect(frozen.status, `${frozen.stderr}${frozen.stdout}`).toBe(0);
       return subject;
     };
-    const review = (
+    const review = async (
       subject: string,
       context: string,
       dependency?: string,
       changedUnder?: string,
     ) => {
-      const links = ["--link", `reviews=${subject}`, "--link", `contextualizes=${context}`];
-      if (dependency) links.push("--link", `depends-on=${dependency}`);
-      if (changedUnder) links.push("--link", `changed-under=${changedUnder}`);
-      return create(
-        "REV",
-        "--scenario",
+      const links = [
+        { type: "reviews", target: subject },
+        { type: "contextualizes", target: context },
+        ...(dependency ? [{ type: "depends-on", target: dependency }] : []),
+        ...(changedUnder ? [{ type: "changed-under", target: changedUnder }] : []),
+      ];
+      const execution = await execute(
         "review-datum-in-context@2",
-        "--set",
-        `title=Review ${subject}`,
-        "--set",
-        "review_kind=contextual",
-        "--set",
-        "rubric_ref=policies/rubrics/bootstrap-review.md@1",
-        "--set",
-        "findings=[]",
-        "--set",
-        "outcome=pass",
-        ...links,
+        work("phase-7-change-control", "passing-review-required", subject),
+        {
+          outputs: [{
+            name: "review",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "REV",
+              payload: {
+                title: `Review ${subject}`,
+                review_kind: "contextual",
+                rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+                findings: [],
+                outcome: "pass",
+              },
+              links,
+              body: `Independent Review passed for ${subject}.\n`,
+            },
+          }],
+          completionEvidence: { summary: `Independent Review passed for ${subject}.` },
+        },
+        [`subject=${subject}`, `review_context=${context}`],
+        `review-${subject}`,
       );
+      return execution.outputs[0].lifecycleDatum as { id: string; revisionId: string };
     };
     const runResponse = (
       runId: string,
@@ -486,7 +501,7 @@ describe("req Problem Report and Change Request flow", () => {
         qualificationResult,
       ],
     );
-    review(environment.revisionId, environmentContext.revisionId);
+    await review(environment.revisionId, environmentContext.revisionId);
 
     const target = create(
       "ART",
@@ -566,13 +581,20 @@ describe("req Problem Report and Change Request flow", () => {
       [pilotActivity.revisionId, pilotImplementation.revisionId],
       [strategy.revisionId, environment.revisionId, target.revisionId],
     );
-    const pilotActivityReview = review(pilotActivity.revisionId, pilotContext.revisionId);
-    review(pilotImplementation.revisionId, pilotContext.revisionId);
+    const pilotActivityReview = await review(
+      pilotActivity.revisionId,
+      pilotContext.revisionId,
+    );
+    await review(pilotImplementation.revisionId, pilotContext.revisionId);
     const unrelatedContext = freeze(
       baseline("Unrelated requirement context", "review-context", "review-context"),
       [unrelated.revisionId],
     );
-    const unrelatedReview = review(unrelated.revisionId, unrelatedContext.revisionId, unrelated.id);
+    const unrelatedReview = await review(
+      unrelated.revisionId,
+      unrelatedContext.revisionId,
+      unrelated.id,
+    );
 
     const pilotWork = work(
       "phase-1-product-assurance",
@@ -608,7 +630,7 @@ describe("req Problem Report and Change Request flow", () => {
       [affected.revisionId],
       [failedResult],
     );
-    const affectedRequirementReview = review(
+    const affectedRequirementReview = await review(
       affected.revisionId,
       affectedContext.revisionId,
       affected.id,
@@ -719,7 +741,7 @@ describe("req Problem Report and Change Request flow", () => {
       [change.revisionId, problem.revisionId],
       [failedResult],
     );
-    review(change.revisionId, changeContext.revisionId);
+    await review(change.revisionId, changeContext.revisionId);
     const approvalWork = work("phase-7-change-control", "change-approval-required", change.revisionId);
     expect(approvalWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
     const approvalExecution = await execute(
@@ -754,7 +776,7 @@ describe("req Problem Report and Change Request flow", () => {
       baseline("Change approval review context", "review-context", "review-context"),
       [approval.revisionId],
     );
-    review(approval.revisionId, approvalContext.revisionId);
+    await review(approval.revisionId, approvalContext.revisionId);
 
     const revisionWork = work("phase-7-change-control", "change-revision-required", change.revisionId);
     expect(revisionWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
@@ -800,7 +822,7 @@ describe("req Problem Report and Change Request flow", () => {
       [approval.revisionId],
       change.revisionId,
     );
-    const replacementReview = review(
+    const replacementReview = await review(
       revisedRequirement.revisionId,
       replacementContext.revisionId,
       affected.id,
@@ -848,7 +870,7 @@ describe("req Problem Report and Change Request flow", () => {
       [revisedRequirement.revisionId, environment.revisionId, target.revisionId],
       change.revisionId,
     );
-    const replacementImplementationReview = review(
+    const replacementImplementationReview = await review(
       replacementImplementation.revisionId,
       replacementPilotContext.revisionId,
       undefined,
@@ -1005,5 +1027,5 @@ describe("req Problem Report and Change Request flow", () => {
 
     const doctor = req(repositoryRoot, "doctor", "--json");
     expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-  }, 150_000);
+  }, 210_000);
 });

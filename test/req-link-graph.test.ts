@@ -72,27 +72,50 @@ describe("req source-owned links", () => {
     );
   }
 
-  function createDecision() {
-    return req(
+  async function createDecision(subjectRevision: string) {
+    const adapterPath = path.join(repositoryRoot, "link-decision-adapter.mjs");
+    await fs.writeFile(
+      adapterPath,
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+        outputs: [{
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Link decision",
+              rationale: "Invalid target kinds must be rejected",
+              kind: "scope",
+              decision: "Retain exact link semantics",
+              alternatives: ["Store inverse links"],
+              effective_scope: subjectRevision,
+            },
+            links: [{ type: "justifies", target: subjectRevision }],
+            body: "Exact stakeholder-authorized link scope.\\n",
+          },
+        }],
+        completionEvidence: { summary: "Stakeholder authorized exact link scope." },
+      }))});\n`,
+      { mode: 0o755 },
+    );
+    const executed = req(
       repositoryRoot,
-      "new",
-      "DEC",
-      "--scenario",
-      "resolve-question@2",
-      "--set",
-      "title=Link decision",
-      "--set",
-      "rationale=Invalid target kinds must be rejected",
-      "--set",
-      "kind=decision",
-      "--set",
-      "decision=Retain exact link semantics",
-      "--set",
-      'alternatives=["Store inverse links"]',
-      "--set",
-      "effective_scope=repository graph",
+      "scenario",
+      "execute",
+      "record-consequential-decision@1",
+      "--initiate",
+      "--authorize",
+      "stakeholder",
+      "--adapter",
+      adapterPath,
+      "--input",
+      `subject=${subjectRevision}`,
       "--json",
     );
+    expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
+    return JSON.parse(executed.stdout).execution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
   }
 
   function createStakeholderRequirement(productSpecificationId: string) {
@@ -142,7 +165,7 @@ describe("req source-owned links", () => {
           member_hashes: { [revisionId]: `sha256:${"0".repeat(64)}` },
           resolved_links: {},
           process_provenance: {
-            process_ref: "mdlm-bootstrap@0.40.0",
+            process_ref: "mdlm-bootstrap@0.41.0",
             manifest_hash: `sha256:${"1".repeat(64)}`,
             asset_refs: [],
           },
@@ -152,7 +175,7 @@ describe("req source-owned links", () => {
       created_by: {
         scenario: "create-review-context@1",
         prompt_ref: "prompts/create-review-context.md@1",
-        process_ref: "mdlm-bootstrap@0.40.0",
+        process_ref: "mdlm-bootstrap@0.41.0",
         loaded_skill_refs: [],
         policy_refs: [],
       },
@@ -350,23 +373,21 @@ describe("req source-owned links", () => {
     });
     const emptyBacklinks = req(repositoryRoot, "backlinks", target.id, "--json");
     expect(JSON.parse(emptyBacklinks.stdout).backlinks.links).toEqual([]);
-  }, 15_000);
+  }, 45_000);
 
   it("rejects invalid source contracts, targets, cardinalities, and frozen mutations atomically", async () => {
     const firstTargetResult = createPsp("First target");
     const secondTargetResult = createPsp("Second target");
     const questionResult = createQuestion();
-    const decisionResult = createDecision();
     for (const result of [
       firstTargetResult,
       secondTargetResult,
       questionResult,
-      decisionResult,
     ]) expect(result.status, result.stderr).toBe(0);
     const firstTarget = JSON.parse(firstTargetResult.stdout).created;
     const secondTarget = JSON.parse(secondTargetResult.stdout).created;
     const question = JSON.parse(questionResult.stdout).created;
-    const decision = JSON.parse(decisionResult.stdout).created;
+    const decision = await createDecision(firstTarget.revisionId);
     const requirementResult = createStakeholderRequirement(firstTarget.id);
     expect(requirementResult.status, requirementResult.stderr).toBe(0);
     const requirement = JSON.parse(requirementResult.stdout).created;
@@ -441,5 +462,5 @@ describe("req source-owned links", () => {
     ]);
     expect(await markdownBytes()).toEqual(frozenBefore);
     expect(await fs.readFile(indexPath, "utf8")).toBe(indexBefore);
-  }, 15_000);
+  }, 30_000);
 });

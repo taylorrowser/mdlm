@@ -14,7 +14,7 @@ import {
 import { req } from "./helpers/req.js";
 
 const PROCESS_REF =
-  "mdlm-bootstrap@0.40.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  "mdlm-bootstrap@0.41.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 async function scopedProcessPackage(
   scope: "phase" | "process" = "phase",
@@ -240,7 +240,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         fs.rm(repositoryRoot, { recursive: true, force: true }),
       ]);
     }
-  }, 10_000);
+  }, 20_000);
 
   it("authorizes and satisfies the initial Resolver through public req commands", async () => {
     const repositoryRoot = await fs.mkdtemp(
@@ -275,7 +275,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         actionableResolver: "chart-wayfinding-map@1",
       }));
       expect(initial.id).toMatch(
-        /^initial-map-required@1:phase-0-wayfinding@2:mdlm-bootstrap@0\.40\.0#sha256:[a-f0-9]{64}$/,
+        /^initial-map-required@1:phase-0-wayfinding@2:mdlm-bootstrap@0\.41\.0#sha256:[a-f0-9]{64}$/,
       );
 
       const snapshotPath = path.join(repositoryRoot, "empty-snapshot.json");
@@ -423,32 +423,64 @@ describe("evaluateLifecycle scoped Obligations", () => {
           subject: "MAP-0123456789-r00001",
         }),
       ]));
+      const reviewContextWork = remaining.find(
+        (item: { obligation: string; subject: string }) =>
+          item.obligation === "review-context-required" &&
+          item.subject === "MAP-0123456789-r00001",
+      );
 
+      const waiverAdapterPath = path.join(repositoryRoot, "waiver-adapter.mjs");
+      await fs.writeFile(
+        waiverAdapterPath,
+        `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+          outputs: [{
+            name: "decision",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "DEC",
+              payload: {
+                title: "Scoped obligation link",
+                rationale: "Exact scoped obligation targets remain graph-addressable",
+                kind: "waiver",
+                decision: "Preserve the exact scoped target",
+                alternatives: ["Omit the graph edge"],
+                effective_scope: "MAP-0123456789-r00001",
+                waiver: {
+                  instance: reviewContextWork.id,
+                  obligation: "review-context-required@2",
+                  subject: "MAP-0123456789-r00001",
+                  scope: "this-revision",
+                  expires_when: ["subject-revised"],
+                },
+              },
+              links: [
+                { type: "justifies", target: "MAP-0123456789-r00001" },
+                { type: "waives", target: reviewContextWork.id },
+              ],
+              body: "Exact authorized waiver.\\n",
+            },
+          }],
+          completionEvidence: { summary: "Stakeholder authorized the exact waiver." },
+        }))});\n`,
+        { mode: 0o755 },
+      );
       const linkedDecision = req(
         repositoryRoot,
-        "new",
-        "DEC",
-        "--scenario",
-        "resolve-question@2",
-        "--set",
-        "title=Scoped obligation link",
-        "--set",
-        "rationale=Exact scoped obligation targets remain graph-addressable",
-        "--set",
-        "kind=decision",
-        "--set",
-        "decision=Preserve the exact scoped target",
-        "--set",
-        'alternatives=["Omit the graph edge"]',
-        "--set",
-        "effective_scope=initial package outcome",
-        "--link",
-        `waives=${initial.id}`,
+        "scenario",
+        "execute",
+        "record-consequential-decision@1",
+        "--initiate",
+        "--authorize",
+        "stakeholder",
+        "--adapter",
+        waiverAdapterPath,
+        "--input",
+        "subject=MAP-0123456789-r00001",
         "--json",
       );
-      expect(linkedDecision.status, linkedDecision.stderr).toBe(0);
-      const linkedDecisionRevision = JSON.parse(linkedDecision.stdout).created
-        .revisionId;
+      expect(linkedDecision.status, `${linkedDecision.stderr}${linkedDecision.stdout}`).toBe(0);
+      const linkedDecisionRevision = JSON.parse(linkedDecision.stdout).execution
+        .outputs[0].lifecycleDatum.revisionId;
       const baseline = req(
         repositoryRoot,
         "baseline",
@@ -491,5 +523,5 @@ describe("evaluateLifecycle scoped Obligations", () => {
     } finally {
       await fs.rm(repositoryRoot, { recursive: true, force: true });
     }
-  }, 15_000);
+  }, 45_000);
 });

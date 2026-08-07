@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
@@ -89,6 +89,7 @@ import {
   readScenarioExecution,
   type ScenarioExecution,
 } from "./scenario-execution.js";
+import { processPackageDigest } from "./process-package-digest.js";
 import {
   scaffoldProcessDefinition,
   scaffoldProcessFixture,
@@ -195,29 +196,6 @@ function languageVersion(processPackage: ProcessPackage): string {
   return typeof expressions === "string" ? expressions : "";
 }
 
-async function filePaths(root: string, directory = root): Promise<string[]> {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  const nested = await Promise.all(entries.map(async (entry) => {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return filePaths(root, entryPath);
-    return entry.isFile() ? [path.relative(root, entryPath)] : [];
-  }));
-  return nested.flat().sort();
-}
-
-async function packageDigest(root: string): Promise<string> {
-  const hash = createHash("sha256");
-  for (const relativePath of await filePaths(root)) {
-    const contents = await fs.readFile(path.join(root, relativePath));
-    hash.update(relativePath);
-    hash.update("\0");
-    hash.update(String(contents.byteLength));
-    hash.update("\0");
-    hash.update(contents);
-  }
-  return `sha256:${hash.digest("hex")}`;
-}
-
 async function packageSummary(
   processPackage: ProcessPackage,
   root: string,
@@ -228,7 +206,7 @@ async function packageSummary(
     version,
     reference: `${id}@${version}`,
     language: languageVersion(processPackage),
-    digest: await packageDigest(root),
+    digest: await processPackageDigest(root),
   };
 }
 
@@ -355,7 +333,7 @@ async function installPackage(
 
   let installed = true;
   try {
-    const destinationDigest = await packageDigest(destination);
+    const destinationDigest = await processPackageDigest(destination);
     if (destinationDigest !== summary.digest) {
       return failure(
         "process-package-version-conflict",

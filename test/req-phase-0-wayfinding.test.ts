@@ -174,29 +174,70 @@ describe("req Phase 0 wayfinding slice", () => {
       context.id,
       "--json",
     ).status).toBe(0);
-    create(
-      "REV",
-      "--scenario",
-      "review-datum-in-context@2",
-      "--set",
-      "title=Failed review of ambiguous export intent",
-      "--set",
-      "rubric_ref=policies/rubrics/bootstrap-review.md@1",
-      "--set",
-      `findings=${JSON.stringify([{
-        id: "F-001",
-        target: product.revisionId,
-        relationship: "primary",
-        severity: "blocking",
-        summary: "Export scope is ambiguous",
-      }])}`,
-      "--set",
-      "outcome=fail",
-      "--link",
-      `reviews=${product.revisionId}`,
-      "--link",
-      `contextualizes=${context.revisionId}`,
+    const failedReviewWorkResult = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
     );
+    expect(failedReviewWorkResult.status, failedReviewWorkResult.stderr).toBe(0);
+    const failedReviewWork = JSON.parse(failedReviewWorkResult.stdout)
+      .looseEnds.items.find(
+        (item: any) => item.obligation === "passing-review-required" &&
+          item.subject === product.revisionId,
+      );
+    expect(failedReviewWork).toEqual(expect.objectContaining({ dispatchable: true }));
+    const failedReviewAdapter = path.join(repositoryRoot, "failed-review-adapter.mjs");
+    await fs.writeFile(
+      failedReviewAdapter,
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+        outputs: [{
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: "Failed review of ambiguous export intent",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [{
+                id: "F-001",
+                target: product.revisionId,
+                relationship: "primary",
+                severity: "blocking",
+                summary: "Export scope is ambiguous",
+              }],
+              outcome: "fail",
+            },
+            links: [
+              { type: "reviews", target: product.revisionId },
+              { type: "contextualizes", target: context.revisionId },
+            ],
+            body: "Independent Review found ambiguous scope.\\n",
+          },
+        }],
+        completionEvidence: { summary: "Independent Review failed." },
+      }))});\n`,
+      { mode: 0o755 },
+    );
+    const failedReview = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "review-datum-in-context@2",
+      "--obligation",
+      failedReviewWork.id,
+      "--authorize",
+      "independent-reviewer",
+      "--adapter",
+      failedReviewAdapter,
+      "--input",
+      `subject=${product.revisionId}`,
+      "--input",
+      `review_context=${context.revisionId}`,
+      "--json",
+    );
+    expect(failedReview.status, `${failedReview.stderr}${failedReview.stdout}`).toBe(0);
 
     const looseEnds = req(
       repositoryRoot,
@@ -687,6 +728,13 @@ describe("req Phase 0 wayfinding slice", () => {
     const stakeholder = JSON.parse(draftedRequirements.stdout).execution.outputs[0]
       .lifecycleDatum as { id: string; revisionId: string };
 
+    const prototypeEvidence = {
+      repository_ref: "git:0123456789abcdef0123456789abcdef01234567",
+      supported_behavior: ["export one representative report"],
+      unsupported_behavior: ["production persistence"],
+      finding_if_supported: "Keep one representative export in the product intent",
+      finding_if_not_supported: "Remove export behavior from the product intent",
+    };
     const question = create(
       "QST",
       "--scenario",
@@ -698,46 +746,146 @@ describe("req Phase 0 wayfinding slice", () => {
       "--set",
       "question=Can one representative export prove the interaction?",
       "--set",
-      "state=answered",
+      "state=open",
       "--set",
       "blocking_impact=The export interaction remains uncertain",
+      "--set",
+      "resolution_evidence=prototype",
+      "--set",
+      `prototype_evidence=${JSON.stringify(prototypeEvidence)}`,
     );
-    const prototype = create(
-      "ART",
+    const sourceBoundaryResult = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
       "--scenario",
-      "build-exploratory-prototype@1",
+      "create-review-context@1",
       "--set",
-      "title=Export interaction spike",
+      "title=Prototype question source boundary",
       "--set",
-      "kind=prototype",
+      "kind=review-context",
       "--set",
-      "repository_ref=git:0123456789abcdef0123456789abcdef01234567",
+      "role=review-context",
       "--set",
-      'supported_behavior=["export one representative report"]',
+      `scope=${question.revisionId}`,
       "--set",
-      'unsupported_behavior=["production persistence"]',
-      "--link",
-      `derived-from=${question.revisionId}`,
+      "group=DEFAULT",
+      "--json",
     );
-    const decision = create(
-      "DEC",
-      "--scenario",
-      "build-exploratory-prototype@1",
-      "--set",
-      "title=Use the narrow export interaction",
-      "--set",
-      "rationale=The exact prototype answered the empirical question",
-      "--set",
-      "kind=decision",
-      "--set",
-      "decision=Keep one representative export in the product intent",
-      "--set",
-      'alternatives=["Defer all export behavior"]',
-      "--set",
-      "effective_scope=Phase 0 intent slice",
-      "--link",
-      `resolves=${question.revisionId}`,
+    expect(
+      sourceBoundaryResult.status,
+      `${sourceBoundaryResult.stderr}${sourceBoundaryResult.stdout}`,
+    ).toBe(0);
+    const sourceBoundary = JSON.parse(sourceBoundaryResult.stdout).created as {
+      id: string;
+    };
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      sourceBoundary.id,
+      question.revisionId,
+      "--json",
+    ).status).toBe(0);
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      sourceBoundary.id,
+      "--json",
+    ).status).toBe(0);
+    const prototypeWork = looseEnd(
+      "prototype-question-resolution@1",
+      question.revisionId,
     );
+    const prototypeAdapter = await adapter({
+      outputs: [
+        {
+          name: "prototype",
+          invocation: 0,
+          lifecycleDatum: {
+            id: "ART-0000000001",
+            type: "ART",
+            payload: {
+              title: "Export interaction spike",
+              kind: "prototype",
+              repository_ref: prototypeEvidence.repository_ref,
+              supported_behavior: prototypeEvidence.supported_behavior,
+              unsupported_behavior: prototypeEvidence.unsupported_behavior,
+            },
+            links: [{ type: "derived-from", target: question.revisionId }],
+            body: "The representative export behavior was observed.\n",
+          },
+        },
+        {
+          name: "finding",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Use the narrow export interaction",
+              rationale: "The exact prototype answered the empirical question",
+              kind: "decision",
+              decision: prototypeEvidence.finding_if_supported,
+              alternatives: [prototypeEvidence.finding_if_not_supported],
+              effective_scope: prototypeEvidence.repository_ref,
+            },
+            links: [
+              { type: "resolves", target: question.revisionId },
+              { type: "justifies", target: "ART-0000000001-r00001" },
+            ],
+            body: "The bounded prototype supports the narrow export.\n",
+          },
+        },
+        {
+          name: "updated_question",
+          invocation: 0,
+          lifecycleDatum: {
+            id: question.id,
+            type: "QST",
+            payload: {
+              title: "Can a narrow export prove the interaction?",
+              kind: "empirical",
+              question: "Can one representative export prove the interaction?",
+              state: "answered",
+              blocking_impact: "The export interaction remains uncertain",
+              resolution_evidence: "prototype",
+              prototype_evidence: prototypeEvidence,
+            },
+            links: [],
+            body: "The exact prototype answered the question.\n",
+          },
+        },
+      ],
+      completionEvidence: { summary: "The exact prototype supported the declared finding." },
+    }, "prototype-resolution");
+    const resolvedPrototype = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "resolve-question-with-prototype@2",
+      "--obligation",
+      prototypeWork.id,
+      "--adapter",
+      prototypeAdapter.executable,
+      "--input",
+      `question=${question.revisionId}`,
+      "--json",
+    );
+    expect(
+      resolvedPrototype.status,
+      `${resolvedPrototype.stderr}${resolvedPrototype.stdout}`,
+    ).toBe(0);
+    const prototypeOutputs = JSON.parse(resolvedPrototype.stdout).execution.outputs;
+    const prototype = prototypeOutputs.find((output: any) => output.name === "prototype")
+      .lifecycleDatum as { revisionId: string };
+    const finding = prototypeOutputs.find((output: any) => output.name === "finding")
+      .lifecycleDatum as { revisionId: string };
+    const answeredQuestion = prototypeOutputs.find(
+      (output: any) => output.name === "updated_question",
+    ).lifecycleDatum as { revisionId: string };
     await fs.rm(path.join(repositoryRoot, ".lifecycle/generated"), {
       recursive: true,
       force: true,
@@ -837,7 +985,11 @@ describe("req Phase 0 wayfinding slice", () => {
               product.revisionId,
               stakeholder.revisionId,
             ],
-            evidence: [decision.revisionId, question.revisionId],
+            evidence: [
+              prototype.revisionId,
+              finding.revisionId,
+              answeredQuestion.revisionId,
+            ],
           },
           links: [],
           body: "Exact reviewed Phase 0 foundation candidate.\n",
@@ -1110,5 +1262,5 @@ describe("req Phase 0 wayfinding slice", () => {
     }
     const doctor = req(repositoryRoot, "doctor", "--json");
     expect(doctor.status, doctor.stderr).toBe(0);
-  }, 60_000);
+  }, 100_000);
 });

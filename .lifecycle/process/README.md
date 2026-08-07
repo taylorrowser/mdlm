@@ -132,7 +132,11 @@ attention without satisfying or deferring open questions. Delegated and attended
 execution requires an exact matching `--authorize` supply or applicable reviewed
 `--delegation` DEC before the adapter and
 publishes the package-declared REV or DEC authority-evidence output atomically.
-Gate, change approval, pilot expansion, and explicitly initiated
+Because those types are derived from package `authority_evidence` contracts,
+normal `req new --scenario` authorship cannot publish either type or launder it
+through another Scenario's provenance. Repository validation requires each such
+Revision's matching completed atomic execution transaction; raw imports do not
+participate as authority. Gate, change approval, pilot expansion, and explicitly initiated
 scope, waiver, standing-delegation, retirement, or cancellation sign-off use nondelegable stakeholder
 authority; contextual Review records delegated judgment in REV. Waiver sign-off
 must publish an exact `waives` link matching its structured Obligation Instance.

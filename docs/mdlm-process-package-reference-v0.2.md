@@ -444,8 +444,19 @@ invoking an adapter for a delegated or attended execution, the kernel requires
 assertion authorizes publication but is not lifecycle satisfaction. Each invocation
 must return the named exact Lifecycle Data output; omission fails before completion
 or publication. The kernel validates the package-declared output name and type but
-does not recognize Review or Decision type IDs. The bundled package declares REV
-for Review judgment and DEC for consequential Decisions. The execution record and adapter request preserve the supplied
+does not recognize Review or Decision type IDs. Instead, it derives the protected
+Lifecycle types from every selected-package `authority_evidence.type` contract.
+`req new --scenario` refuses all such types, even when the claimed Scenario names
+a different non-authority output, so chat text, completion summaries, and borrowed
+provenance cannot publish applicable authority evidence. These types publish only
+inside validated atomic Scenario execution. Repository loading also requires each
+such Revision to reside in its matching completed Scenario transaction with exact
+output data and Scenario provenance. Raw or historical direct authority imports are
+not supported and fail repository validation rather than participating in normal
+lifecycle satisfaction. This is the repository's normal integrity boundary, not a
+cryptographic authenticity guarantee against an actor replacing both authoritative
+Markdown and its complete execution transaction. The bundled package declares REV for
+Review judgment and DEC for consequential Decisions. The execution record and adapter request preserve the supplied
 authority, evaluated requirement, exact Policy, and declared evidence output.
 A per-execution delegated authority supply is not a standing delegation. A caller
 using reusable standing authority supplies its exact reviewed DEC with

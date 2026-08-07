@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.40.0#sha256:authorization-test";
+const processRef = "mdlm-bootstrap@0.41.0#sha256:authorization-test";
 
 function frozenLifecycleDatum(
   type: string,
@@ -42,39 +42,39 @@ describe("exact consequential authorization", () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
   });
 
-  it("requires standing delegation to declare bounded Scenario, expiry, and reactivation", () => {
-    const malformed = req(
-      repositoryRoot,
-      "new",
-      "DEC",
-      "--scenario",
-      "resolve-question@2",
-      "--set",
-      "title=Unbounded delegation",
-      "--set",
-      "rationale=Exercise the public payload boundary",
-      "--set",
-      "kind=authority-delegation",
-      "--set",
-      "decision=Delegate authority",
-      "--set",
-      'alternatives=["Keep authority attended"]',
-      "--set",
-      "effective_scope=one exact target",
-      "--set",
-      `delegation=${JSON.stringify({
-        authority: "stakeholder",
-        delegate: "independent-reviewer",
-        scenario: "review-datum-in-context@2",
-        expires_when: "target-revised",
-      })}`,
-      "--json",
-    );
+  it("rejects direct Review, gate, waiver, delegation, and question authority evidence", () => {
+    const attempts = [
+      { type: "REV", scenario: "review-datum-in-context@2" },
+      { type: "DEC", scenario: "record-gate-signoff@2" },
+      { type: "DEC", scenario: "record-consequential-decision@1" },
+      { type: "DEC", scenario: "resolve-question@2" },
+      { type: "DEC", scenario: "record-pilot-observation@2" },
+    ];
 
-    expect(malformed.status).toBe(1);
-    expect(JSON.parse(malformed.stdout).diagnostics).toEqual([
-      expect.objectContaining({ code: "datum-payload" }),
-    ]);
+    for (const attempt of attempts) {
+      const result = req(
+        repositoryRoot,
+        "new",
+        attempt.type,
+        "--scenario",
+        attempt.scenario,
+        "--body",
+        "The user said go ahead and the completion summary claimed success.",
+        "--json",
+      );
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout).diagnostics).toEqual([{
+        code: "authority-evidence-requires-scenario-execution",
+        path: `types.${attempt.type}.lifecycle.authorship`,
+        message: expect.stringContaining(
+          `Lifecycle type '${attempt.type}' is declared as authority evidence`,
+        ),
+      }]);
+    }
+
+    const listed = req(repositoryRoot, "list", "--json");
+    expect(listed.status, listed.stderr).toBe(0);
+    expect(JSON.parse(listed.stdout).data).toEqual([]);
   });
 
   it("lets the operating agent publish an explicitly authorized exact scope DEC", async () => {
@@ -144,7 +144,8 @@ describe("exact consequential authorization", () => {
     );
 
     expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
-    expect(JSON.parse(executed.stdout).execution).toEqual(expect.objectContaining({
+    const execution = JSON.parse(executed.stdout).execution;
+    expect(execution).toEqual(expect.objectContaining({
       contract: "mdlm-scenario-execution@3",
       authority: expect.objectContaining({ supplied: ["stakeholder"] }),
       outputs: [expect.objectContaining({
@@ -152,6 +153,96 @@ describe("exact consequential authorization", () => {
         lifecycleDatum: expect.objectContaining({ type: "DEC" }),
       })],
     }));
+    const decision = execution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    const boundary = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Scope Decision boundary",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      `scope=${decision.revisionId}`,
+      "--set",
+      "group=DEFAULT",
+      "--json",
+    );
+    expect(boundary.status, boundary.stderr).toBe(0);
+    const boundaryId = JSON.parse(boundary.stdout).created.id as string;
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      boundaryId,
+      decision.revisionId,
+      "--json",
+    ).status).toBe(0);
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      boundaryId,
+      "--json",
+    ).status).toBe(0);
+    const revised = req(repositoryRoot, "revise", decision.id, "--json");
+    expect(revised.status).toBe(1);
+    expect(JSON.parse(revised.stdout).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "authority-evidence-requires-scenario-execution",
+      }),
+    ]);
+
+    const executionPath = path.join(
+      repositoryRoot,
+      ".lifecycle/data/.transactions",
+      execution.id,
+      "execution.json",
+    );
+    const executionSource = await fs.readFile(executionPath, "utf8");
+    const mismatchedExecution = JSON.parse(executionSource);
+    mismatchedExecution.outputs[0].name = "not-authority-evidence";
+    await fs.writeFile(executionPath, `${JSON.stringify(mismatchedExecution, null, 2)}\n`);
+    const mismatched = req(repositoryRoot, "doctor", "--json");
+    expect(mismatched.status).toBe(1);
+    expect(JSON.parse(mismatched.stdout).diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({
+        code: "authority-evidence-execution-required",
+      })]),
+    );
+    await fs.writeFile(executionPath, executionSource);
+    expect(req(repositoryRoot, "doctor", "--json").status).toBe(0);
+
+    const executedPath = execution.outputs[0].lifecycleDatum.path as string;
+    const directPath = path.join(
+      repositoryRoot,
+      ".lifecycle/data/DEC",
+      decision.id,
+      "r00001.md",
+    );
+    await fs.mkdir(path.dirname(directPath), { recursive: true });
+    await fs.copyFile(path.join(repositoryRoot, executedPath), directPath);
+    await fs.rm(
+      path.join(repositoryRoot, ".lifecycle/data/.transactions", execution.id),
+      { recursive: true },
+    );
+    const historicalClaim = req(repositoryRoot, "doctor", "--json");
+    expect(historicalClaim.status).toBe(1);
+    expect(JSON.parse(historicalClaim.stdout).diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({
+        code: "authority-evidence-execution-required",
+        path: expect.stringContaining(decision.id),
+      })]),
+    );
   });
 
   it("requires a public waiver sign-off to link the exact Obligation Instance", async () => {
@@ -288,52 +379,64 @@ describe("exact consequential authorization", () => {
       id: string;
       revisionId: string;
     };
-    const delegationAdapterPath = path.join(repositoryRoot, "delegation-adapter.mjs");
-    await fs.writeFile(
-      delegationAdapterPath,
-      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
-        outputs: [{
-          name: "decision",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "DEC",
-            payload: {
-              title: "Delegate exact contextual Review",
-              rationale: "Authorize one reviewer for one target and Scenario",
-              kind: "authority-delegation",
-              decision: "Delegate this exact Review",
-              alternatives: ["Require a per-execution reviewer assertion"],
-              effective_scope: target.revisionId,
-              delegation: {
-                authority: "stakeholder",
-                delegate: "independent-reviewer",
-                scenario: "review-datum-in-context@2",
-                expires_when: "target-revised",
-                reactivation_requires: "new-delegation-decision",
-              },
+    const delegationResponse = (complete: boolean) => ({
+      outputs: [{
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Delegate exact contextual Review",
+            rationale: "Authorize one reviewer for one target and Scenario",
+            kind: "authority-delegation",
+            decision: "Delegate this exact Review",
+            alternatives: ["Require a per-execution reviewer assertion"],
+            effective_scope: target.revisionId,
+            delegation: {
+              authority: "stakeholder",
+              delegate: "independent-reviewer",
+              scenario: "review-datum-in-context@2",
+              expires_when: "target-revised",
+              ...(complete
+                ? { reactivation_requires: "new-delegation-decision" }
+                : {}),
             },
-            links: [{ type: "justifies", target: target.revisionId }],
-            body: "Exact standing delegation.\\n",
           },
-        }],
-        completionEvidence: { summary: "Stakeholder authorized exact delegation." },
-      }))});\n`,
-      { mode: 0o755 },
-    );
-    const delegation = req(
-      repositoryRoot,
-      "scenario",
-      "execute",
-      "record-consequential-decision@1",
-      "--initiate",
-      "--authorize",
-      "stakeholder",
-      "--adapter",
-      delegationAdapterPath,
-      "--input",
-      `subject=${target.revisionId}`,
-      "--json",
-    );
+          links: [{ type: "justifies", target: target.revisionId }],
+          body: "Exact standing delegation.\n",
+        },
+      }],
+      completionEvidence: { summary: "Stakeholder authorized exact delegation." },
+    });
+    const executeDelegation = async (complete: boolean, label: string) => {
+      const adapterPath = path.join(repositoryRoot, `${label}.mjs`);
+      await fs.writeFile(
+        adapterPath,
+        `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(delegationResponse(complete)))});\n`,
+        { mode: 0o755 },
+      );
+      return req(
+        repositoryRoot,
+        "scenario",
+        "execute",
+        "record-consequential-decision@1",
+        "--initiate",
+        "--authorize",
+        "stakeholder",
+        "--adapter",
+        adapterPath,
+        "--input",
+        `subject=${target.revisionId}`,
+        "--json",
+      );
+    };
+    const malformedDelegation = await executeDelegation(false, "malformed-delegation");
+    expect(malformedDelegation.status).toBe(1);
+    expect(JSON.parse(malformedDelegation.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+    ]);
+
+    const delegation = await executeDelegation(true, "delegation-adapter");
     expect(delegation.status, delegation.stderr).toBe(0);
     const delegationDatum = JSON.parse(delegation.stdout).execution.outputs[0]
       .lifecycleDatum as { revisionId: string };

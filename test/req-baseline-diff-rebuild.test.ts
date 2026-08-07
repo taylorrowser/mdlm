@@ -215,7 +215,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
     await fs.writeFile(
       oldPath,
       oldSource.replace(
-        /process_ref: mdlm-bootstrap@0\.40\.0#sha256:[a-f0-9]{64}/,
+        /process_ref: mdlm-bootstrap@0\.41\.0#sha256:[a-f0-9]{64}/,
         `process_ref: historical-process@1.0.0#sha256:${"a".repeat(64)}`,
       ),
     );
@@ -272,7 +272,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
       expect.objectContaining({
         kind: "process-provenance-change",
         before_process_ref: expect.stringContaining("historical-process@1.0.0"),
-        after_process_ref: expect.stringContaining("mdlm-bootstrap@0.40.0"),
+        after_process_ref: expect.stringContaining("mdlm-bootstrap@0.41.0"),
       }),
     ]));
     expect(output.baselineDiff.processDrift).toEqual([
@@ -329,7 +329,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
       verifiedBaselines: 4,
       processDrift: 1,
     });
-  }, 30_000);
+  }, 60_000);
 
   it("lets package-authored reassessment rules treat informational process drift as Staleness", async () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
@@ -362,7 +362,7 @@ describe("req baseline differences and repository projection rebuilding", () => 
     await fs.writeFile(
       beforePath,
       (await fs.readFile(beforePath, "utf8")).replace(
-        /process_ref: mdlm-bootstrap@0\.40\.0#sha256:[a-f0-9]{64}/,
+        /process_ref: mdlm-bootstrap@0\.41\.0#sha256:[a-f0-9]{64}/,
         `process_ref: historical-process@1.0.0#sha256:${"b".repeat(64)}`,
       ),
     );

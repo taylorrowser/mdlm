@@ -13,6 +13,7 @@ import {
   parseObligationInstanceIdentity,
 } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
+import { processPackageDigest } from "./process-package-digest.js";
 import {
   evaluateLifecycle,
   resolveType,
@@ -599,6 +600,184 @@ function validateDatum(
   return diagnostics;
 }
 
+function recordValue(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function scenarioExecutionStructureValid(
+  processPackage: ProcessPackage,
+  execution: Record<string, unknown>,
+  adapter: Record<string, unknown> | undefined,
+  authorityEvidence: Record<string, unknown> | undefined,
+): boolean {
+  const inputs = Array.isArray(execution.inputs) ? execution.inputs : [];
+  const completion = recordValue(execution.completion);
+  const evaluations = Array.isArray(completion?.evaluations)
+    ? completion.evaluations.map(recordValue)
+    : [];
+  const packageIdentity = recordValue(execution.package);
+  const digest = /^sha256:[a-f0-9]{64}$/;
+  const contracts = [
+    ["mdlm-scenario-execution@1", "mdlm-agent-adapter@1"],
+    ["mdlm-scenario-execution@2", "mdlm-agent-adapter@2"],
+    ["mdlm-scenario-execution@3", "mdlm-agent-adapter@3"],
+  ];
+  const commonValid = contracts.some(([executionContract, adapterContract]) =>
+    execution.contract === executionContract && adapter?.contract === adapterContract
+  ) && inputs.length > 0 && completion?.contractValid === true &&
+    completion.expressionPassed === true && typeof completion.expression === "string" &&
+    evaluations.length === inputs.length && evaluations.every(
+      (evaluation, invocation) =>
+        evaluation?.invocation === invocation && evaluation.result === true,
+    ) && typeof adapter?.executable === "string" &&
+    digest.test(String(adapter.digest)) &&
+    digest.test(String(adapter.requestDigest)) &&
+    digest.test(String(adapter.responseDigest)) &&
+    packageIdentity?.reference ===
+      `${processPackage.manifest.id}@${processPackage.manifest.version}`;
+  if (!commonValid || !authorityEvidence) return commonValid;
+
+  const participation = Array.isArray(execution.participation)
+    ? execution.participation.map(recordValue)
+    : [];
+  if (
+    participation.length !== inputs.length || participation.some((item) => {
+      const requirement = recordValue(item?.authorityRequirement);
+      const schedule = recordValue(item?.attentionSchedule);
+      return !item || typeof item.policy !== "string" ||
+        !["autonomous", "delegated", "attended"].includes(
+          String(requirement?.mode),
+        ) || typeof requirement?.authority !== "string" ||
+        typeof requirement.delegationAllowed !== "boolean" ||
+        !["none", "immediate", "checkpoint"].includes(String(schedule?.timing));
+    })
+  ) return false;
+  const nonAutonomous = participation.flatMap((item, invocation) => {
+    const requirement = recordValue(item?.authorityRequirement);
+    return requirement?.mode === "autonomous"
+      ? []
+      : [{ invocation, requirement }];
+  });
+  const authority = recordValue(execution.authority);
+  const requirements = Array.isArray(authority?.requirements)
+    ? authority.requirements.map(recordValue)
+    : [];
+  return nonAutonomous.length === 0
+    ? execution.contract === "mdlm-scenario-execution@2" &&
+      adapter?.contract === "mdlm-agent-adapter@2" && authority === undefined
+    : execution.contract === "mdlm-scenario-execution@3" &&
+      adapter?.contract === "mdlm-agent-adapter@3" &&
+      requirements.length === nonAutonomous.length &&
+      nonAutonomous.every(({ invocation, requirement }) =>
+        requirements.some((candidate) => {
+          const evidence = recordValue(candidate?.evidence);
+          return candidate?.invocation === invocation &&
+            candidate.mode === requirement?.mode &&
+            candidate.authority === requirement?.authority &&
+            candidate.delegationAllowed === requirement?.delegationAllowed &&
+            evidence?.output === authorityEvidence.output &&
+            evidence?.type === authorityEvidence.type;
+        })
+      );
+}
+
+async function authorityEvidenceExecutionDiagnostic(
+  root: string,
+  processPackage: ProcessPackage,
+  item: ParsedDatum,
+): Promise<ProcessDiagnostic | undefined> {
+  const datum = item.lifecycleDatum.datum;
+  if (authorityEvidenceScenarioReferences(processPackage, datum.type).length === 0) {
+    return undefined;
+  }
+  const transaction = /^\.lifecycle\/data\/\.transactions\/([^/]+)\//
+    .exec(item.relativePath)?.[1];
+  let execution: Record<string, unknown> | undefined;
+  if (transaction) {
+    try {
+      const parsed = JSON.parse(await fs.readFile(
+        path.join(root, ".lifecycle/data/.transactions", transaction, "execution.json"),
+        "utf8",
+      )) as unknown;
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        execution = parsed as Record<string, unknown>;
+      }
+    } catch {
+      execution = undefined;
+    }
+  }
+  const scenarioReference = typeof datum.created_by.scenario === "string"
+    ? datum.created_by.scenario
+    : "";
+  const scenarioParts = referenceParts(scenarioReference);
+  const scenario = scenarioParts
+    ? processPackage.scenarios[scenarioParts[0]]
+    : undefined;
+  const authorityEvidenceSource = scenario && scenario.version === scenarioParts?.[1]
+    ? scenario.authority_evidence
+    : undefined;
+  const authorityEvidence = typeof authorityEvidenceSource === "object" &&
+      authorityEvidenceSource !== null && !Array.isArray(authorityEvidenceSource)
+    ? authorityEvidenceSource as Record<string, unknown>
+    : undefined;
+  const outputs = Array.isArray(execution?.outputs) ? execution.outputs : [];
+  const matchingOutput = outputs.find((candidate) => {
+    if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
+      return false;
+    }
+    const output = candidate as Record<string, unknown>;
+    const identity = typeof output.lifecycleDatum === "object" &&
+        output.lifecycleDatum !== null && !Array.isArray(output.lifecycleDatum)
+      ? output.lifecycleDatum as Record<string, unknown>
+      : undefined;
+    const invocation = output.invocation;
+    return Number.isInteger(invocation) && Number(invocation) >= 0 &&
+      Number(invocation) < (Array.isArray(execution?.inputs)
+        ? execution.inputs.length
+        : 0) && identity?.type === datum.type &&
+      identity?.revisionId === datum.revision_id &&
+      structuralValuesEqual(output.data, datum);
+  });
+  const matchingOutputRecord = recordValue(matchingOutput);
+  const declaredOutput = Array.isArray(scenario?.outputs)
+    ? scenario.outputs.map(recordValue).find((output) =>
+        output?.name === matchingOutputRecord?.name &&
+        Array.isArray(output?.types) && output.types.includes(datum.type)
+      )
+    : undefined;
+  const isAuthorityOutput = matchingOutputRecord?.name === authorityEvidence?.output &&
+    datum.type === authorityEvidence?.type;
+  const definition = typeof execution?.definition === "object" &&
+      execution.definition !== null && !Array.isArray(execution.definition)
+    ? execution.definition as Record<string, unknown>
+    : undefined;
+  const adapter = recordValue(execution?.adapter);
+  const packageIdentity = recordValue(execution?.package);
+  const selectedPackageDigest = await processPackageDigest(processPackage.root);
+  if (
+    execution && scenarioExecutionStructureValid(
+      processPackage,
+      execution,
+      adapter,
+      isAuthorityOutput ? authorityEvidence : undefined,
+    ) && execution.id === transaction && execution.status === "completed" &&
+    definition?.scenario === scenarioReference && declaredOutput &&
+    packageIdentity?.digest === selectedPackageDigest &&
+    `${packageIdentity?.reference}#${packageIdentity?.digest}` ===
+      datum.created_by.process_ref &&
+    matchingOutput
+  ) {
+    return undefined;
+  }
+  return {
+    code: "authority-evidence-execution-required",
+    path: item.relativePath,
+    message: `Authority-evidence Revision '${datum.revision_id}' requires its matching completed Scenario execution transaction`,
+  };
+}
+
 export async function readRepositoryData(
   root: string,
   processPackage: ProcessPackage,
@@ -612,6 +791,14 @@ export async function readRepositoryData(
     );
     if (!result.ok) diagnostics.push(...result.diagnostics);
     else parsed.push(result.value);
+  }
+  for (const item of parsed) {
+    const authorityDiagnostic = await authorityEvidenceExecutionDiagnostic(
+      root,
+      processPackage,
+      item,
+    );
+    if (authorityDiagnostic) diagnostics.push(authorityDiagnostic);
   }
   applyStorageFacts(processPackage, parsed);
   const lifecycleData = parsed.map((item) => item.lifecycleDatum);
@@ -700,6 +887,38 @@ function generatedAuthorshipDiagnostic(
     : undefined;
 }
 
+function authorityEvidenceScenarioReferences(
+  processPackage: ProcessPackage,
+  typeId: string,
+): string[] {
+  return Object.entries(processPackage.scenarios)
+    .filter(([, scenario]) => {
+      const evidence = scenario.authority_evidence;
+      return typeof evidence === "object" && evidence !== null &&
+        !Array.isArray(evidence) &&
+        (evidence as Record<string, unknown>).type === typeId;
+    })
+    .map(([id, scenario]) => `${id}@${scenario.version}`)
+    .sort();
+}
+
+function authorityEvidenceAuthorshipDiagnostic(
+  processPackage: ProcessPackage,
+  typeId: string,
+): ProcessDiagnostic | undefined {
+  const declaringScenarios = authorityEvidenceScenarioReferences(
+    processPackage,
+    typeId,
+  );
+  return declaringScenarios.length > 0
+    ? {
+        code: "authority-evidence-requires-scenario-execution",
+        path: `types.${typeId}.lifecycle.authorship`,
+        message: `Lifecycle type '${typeId}' is declared as authority evidence by ${declaringScenarios.join(", ")} and may be published only through validated Scenario execution`,
+      }
+    : undefined;
+}
+
 export async function createDatum(
   root: string,
   processPackage: ProcessPackage,
@@ -714,10 +933,10 @@ export async function createDatum(
 ): Promise<RepositoryResult<CreatedDatum>> {
   const resolved = resolveType(processPackage, typeId);
   if (!resolved.ok) return resolved;
-  const authorshipDiagnostic = generatedAuthorshipDiagnostic(
+  const authorshipDiagnostic = authorityEvidenceAuthorshipDiagnostic(
+    processPackage,
     typeId,
-    resolved.type.lifecycle,
-  );
+  ) ?? generatedAuthorshipDiagnostic(typeId, resolved.type.lifecycle);
   if (authorshipDiagnostic) {
     return { ok: false, diagnostics: [authorshipDiagnostic] };
   }
@@ -1043,10 +1262,10 @@ export async function reviseDatum(
   const sourceDatum = source.lifecycleDatum.datum;
   const resolved = resolveType(processPackage, sourceDatum.type);
   if (!resolved.ok) return resolved;
-  const authorshipDiagnostic = generatedAuthorshipDiagnostic(
+  const authorshipDiagnostic = authorityEvidenceAuthorshipDiagnostic(
+    processPackage,
     sourceDatum.type,
-    resolved.type.lifecycle,
-  );
+  ) ?? generatedAuthorshipDiagnostic(sourceDatum.type, resolved.type.lifecycle);
   if (authorshipDiagnostic) {
     return { ok: false, diagnostics: [authorshipDiagnostic] };
   }
