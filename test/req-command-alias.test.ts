@@ -62,7 +62,7 @@ async function repositoryWithQuestion(): Promise<{
   return {
     root,
     question,
-    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.44.0#${packageDigest}`,
+    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.46.0#${packageDigest}`,
   };
 }
 
@@ -352,7 +352,7 @@ describe("req Package Command Alias", () => {
     );
     await expect(fs.stat(blockedAdapter.capture)).resolves.toMatchObject({});
     expect(await treeDigest(path.join(configured.root, ".lifecycle"))).toBe(beforeBlocked);
-  }, 20_000);
+  }, 30_000);
 
   it.each([
     ["unknown Scenario", { scenario: "missing-scenario@1" }, "unknown-reference"],

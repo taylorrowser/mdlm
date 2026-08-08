@@ -1,0 +1,32 @@
+kind: scenario-definition
+id: register-pilot-target
+version: 1
+description: Register one existing immutable bounded repository artifact as the exact pilot target for one requirement Revision.
+phases: [phase-1-product-assurance]
+inputs:
+  - name: requirement
+    types: [STK]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      exists("pilot-verification-activities-for-requirement@1", {requirement: requirement})
+      && none("current-pilot-targets-for-requirement@1", {requirement: requirement})
+outputs:
+  - name: target
+    types: [ART]
+    cardinality: one
+    required_links:
+      - {link: derived-from, target: {input: requirement}}
+prompt_ref: prompts/register-pilot-target.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && target.payload.kind in ["implementation", "prototype"]
+  && target.payload.supported_behavior != []
+  && target.payload.unsupported_behavior != []
+  && target.payload.evidence_refs != []
+  && count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1
+  && one("current-pilot-targets-for-requirement@1", {requirement: requirement}) == target
+resolves: [pilot-target-required]
+prohibited_inputs: [mutable repository reference, product source as verification evidence, requirement acceptance claim, unbounded supported behavior, omitted unsupported boundary]
+batching: single

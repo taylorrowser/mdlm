@@ -1,0 +1,23 @@
+kind: obligation-definition
+id: pilot-target-required
+version: 1
+description: Every current Phase 1 requirement with pilot activity work needs one unambiguous exact bounded repository target.
+phases: [phase-1-product-assurance]
+for_each: 'select("requirements-requiring-pilot-target@1", {})'
+subject_as: requirement
+satisfied_when: 'count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: 'count("current-pilot-targets-for-requirement@1", {requirement: requirement}) > 1'
+    reason: Multiple current exact ART targets are ambiguous and require an explicit disposition before pilot implementation.
+  - status: ready
+    priority: 100
+    when: 'none("current-pilot-targets-for-requirement@1", {requirement: requirement})'
+    reason: The exact requirement has pilot activity work but no bounded repository target is recorded.
+default_status: blocked
+resolve_with:
+  scenario: register-pilot-target@1
+  inputs:
+    requirement: requirement
+waiver_policy_ref: waiver-applicability@1

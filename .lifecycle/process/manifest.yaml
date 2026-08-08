@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.44.0
+version: 0.46.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -55,6 +55,7 @@ catalog:
     - current-phase-1-verification-strategies
     - strategies-for-verification-activity
     - pilot-verification-activities-for-requirement
+    - requirements-requiring-pilot-target
     - pilot-activity-matches-requirement
     - requirements-for-pilot-activity
     - current-pilot-verification-activities
@@ -245,6 +246,7 @@ catalog:
     - verification-strategy-required
     - environment-assurance-required
     - pilot-verification-activity-required
+    - pilot-target-required
     - pilot-verification-implementation-required
     - verification-run-required
     - verification-strategy-review-correction-required
@@ -293,6 +295,7 @@ catalog:
     - define-verification-strategy
     - realize-verification-environment
     - write-verification-activity
+    - register-pilot-target
     - implement-verification-activity
     - execute-verification-run
     - revise-verification-strategy-after-review
@@ -342,6 +345,7 @@ assets:
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
     - prompts/write-verification-activity.md@1
+    - prompts/register-pilot-target.md@1
     - prompts/implement-verification-activity.md@1
     - prompts/execute-verification-run.md@1
     - prompts/revise-verification-strategy-after-review.md@1
@@ -399,9 +403,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@18
+  default: bootstrap@20
   available:
-    - profiles/bootstrap.yaml@18
+    - profiles/bootstrap.yaml@20
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

@@ -14,6 +14,7 @@ scenarios:
   - define-verification-strategy@1
   - realize-verification-environment@1
   - write-verification-activity@1
+  - register-pilot-target@1
   - implement-verification-activity@1
   - execute-verification-run@1
   - revise-verification-strategy-after-review@1
@@ -29,6 +30,7 @@ obligations:
   - verification-strategy-required@1
   - environment-assurance-required@1
   - pilot-verification-activity-required@1
+  - pilot-target-required@1
   - pilot-verification-implementation-required@1
   - review-context-required@2
   - passing-review-required@2

@@ -38,6 +38,9 @@ status_rules:
     priority: 200
     when: 'count("eligible-pilot-targets-for-activity@1", {activity: activity}) != 1'
     reason: Pilot implementation waits for one unambiguous current exact ART derived from the activity's requirement Revision.
+    blocked_by:
+      - obligation: pilot-target-required@1
+        subjects: 'select("requirements-for-pilot-activity@1", {activity: activity})'
   - status: ready
     priority: 100
     when: >-

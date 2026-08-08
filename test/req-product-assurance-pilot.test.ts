@@ -1,10 +1,15 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req } from "./helpers/req.js";
 
 const examplePackage = path.join(process.cwd(), ".lifecycle/process");
+const existingRepositoryCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: process.cwd(),
+  encoding: "utf8",
+}).trim();
 
 describe("req product-assurance qualification and pilot slice", () => {
   let repositoryRoot: string;
@@ -317,6 +322,18 @@ describe("req product-assurance qualification and pilot slice", () => {
       "--link",
       `derived-from=${product.id}`,
     );
+    const productContext = await createDiscoveredReviewContext(
+      product.revisionId,
+      "Product specification Review Context",
+      [product.revisionId],
+    );
+    await review(product.revisionId, productContext.revisionId);
+    const requirementContext = await createDiscoveredReviewContext(
+      requirement.revisionId,
+      "Stakeholder requirement Review Context",
+      [requirement.revisionId, product.revisionId],
+    );
+    await review(requirement.revisionId, requirementContext.revisionId);
     const strategyWork = looseEnds().find((item) =>
       item.obligation === "verification-strategy-required"
     );
@@ -974,23 +991,6 @@ describe("req product-assurance qualification and pilot slice", () => {
     expect(JSON.parse(failedReviewInspection.stdout).lifecycleDatum.datum.payload.outcome)
       .toBe("fail");
 
-    const pilotTarget = create(
-      "ART",
-      "--scenario",
-      "build-exploratory-prototype@1",
-      "--set",
-      "title=Controlled export pilot target",
-      "--set",
-      "kind=prototype",
-      "--set",
-      "repository_ref=git:0123456789abcdef0123456789abcdef01234567",
-      "--set",
-      'supported_behavior=["export the representative visible report"]',
-      "--set",
-      'unsupported_behavior=["export an intentionally unsupported binary format"]',
-      "--link",
-      `derived-from=${requirement.revisionId}`,
-    );
     const pilotActivityWork = looseEnds().find((item) =>
       item.obligation === "pilot-verification-activity-required" &&
       item.subject === requirement.revisionId
@@ -1050,6 +1050,204 @@ describe("req product-assurance qualification and pilot slice", () => {
     ).toBe(0);
     const pilotActivity = JSON.parse(pilotActivityExecution.stdout).execution.outputs[0]
       .lifecycleDatum as { id: string; revisionId: string };
+    const targetWork = looseEnds().find((item) =>
+      item.obligation === "pilot-target-required" &&
+      item.subject === requirement.revisionId
+    );
+    expect(targetWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "register-pilot-target@1",
+      unresolvedBindings: [],
+    }));
+    const targetNext = req(
+      repositoryRoot,
+      "next",
+      "--phase",
+      "phase-1-product-assurance",
+      "--json",
+    );
+    expect(targetNext.status, targetNext.stderr).toBe(0);
+    expect(JSON.parse(targetNext.stdout).next.item).toEqual(
+      expect.objectContaining({
+        id: targetWork?.id,
+        actionableResolver: "register-pilot-target@1",
+        dispatchable: true,
+      }),
+    );
+    const targetResponse = {
+      outputs: [{
+        name: "target",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "ART-0000000001",
+          type: "ART",
+          payload: {
+            title: "Controlled export pilot target",
+            kind: "prototype",
+            repository_ref: `git:${existingRepositoryCommit}`,
+            supported_behavior: ["export the representative visible report"],
+            unsupported_behavior: ["export an intentionally unsupported binary format"],
+            evidence_refs: [`git-object-observed:${existingRepositoryCommit}`],
+          },
+          links: [{ type: "derived-from", target: requirement.revisionId }],
+          body: "Exact existing repository evidence registered for bounded pilot execution.\n",
+        },
+      }],
+      completionEvidence: {
+        summary: "One exact bounded repository target is registered for the exact requirement Revision.",
+      },
+    };
+    const mutableTargetResponse = structuredClone(targetResponse);
+    mutableTargetResponse.outputs[0]!.lifecycleDatum.payload.repository_ref =
+      "git:main";
+    const mutableTargetAdapter = await adapter(
+      mutableTargetResponse,
+      "mutable-pilot-target",
+    );
+    const mutableTarget = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      mutableTargetAdapter.executable,
+      "--json",
+    );
+    expect(mutableTarget.status).toBe(1);
+    expect(JSON.parse(mutableTarget.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+    ]);
+
+    const unobservedTargetResponse = structuredClone(targetResponse);
+    unobservedTargetResponse.outputs[0]!.lifecycleDatum.payload.evidence_refs = [];
+    const unobservedTargetAdapter = await adapter(
+      unobservedTargetResponse,
+      "unobserved-pilot-target",
+    );
+    const unobservedTarget = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      unobservedTargetAdapter.executable,
+      "--json",
+    );
+    expect(unobservedTarget.status).toBe(1);
+    expect(JSON.parse(unobservedTarget.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    ]);
+
+    const unboundedTargetResponse = structuredClone(targetResponse);
+    unboundedTargetResponse.outputs[0]!.lifecycleDatum.payload.supported_behavior = [];
+    const unboundedTargetAdapter = await adapter(
+      unboundedTargetResponse,
+      "unbounded-pilot-target",
+    );
+    const unboundedTarget = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      unboundedTargetAdapter.executable,
+      "--json",
+    );
+    expect(unboundedTarget.status).toBe(1);
+    expect(JSON.parse(unboundedTarget.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    ]);
+
+    const mismatchedTargetResponse = structuredClone(targetResponse);
+    mismatchedTargetResponse.outputs[0]!.lifecycleDatum.links = [
+      { type: "derived-from", target: product.revisionId },
+    ];
+    const mismatchedTargetAdapter = await adapter(
+      mismatchedTargetResponse,
+      "mismatched-pilot-target",
+    );
+    const mismatchedTarget = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      mismatchedTargetAdapter.executable,
+      "--json",
+    );
+    expect(mismatchedTarget.status).toBe(1);
+    expect(JSON.parse(mismatchedTarget.stdout).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "scenario-output-required-link-missing",
+        path: "outputs.target.links.derived-from",
+      }),
+    ]);
+    expect(req(
+      repositoryRoot,
+      "show",
+      "ART-0000000001-r00001",
+      "--json",
+    ).status).toBe(1);
+
+    const targetAdapter = await adapter(targetResponse, "pilot-target");
+    const targetExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      targetAdapter.executable,
+      "--json",
+    );
+    expect(targetExecution.status, `${targetExecution.stderr}${targetExecution.stdout}`)
+      .toBe(0);
+    const pilotTarget = JSON.parse(targetExecution.stdout).execution.outputs[0]
+      .lifecycleDatum as { id: string; revisionId: string };
+    expect(looseEnds().find((item) =>
+      item.obligation === "pilot-target-required" &&
+      item.subject === requirement.revisionId
+    )).toBeUndefined();
+    const duplicateTargetResponse = structuredClone(targetResponse);
+    duplicateTargetResponse.outputs[0]!.lifecycleDatum.id = "ART-0000000002";
+    const duplicateTargetAdapter = await adapter(
+      duplicateTargetResponse,
+      "duplicate-pilot-target",
+    );
+    const duplicateTarget = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "register-pilot-target@1",
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      duplicateTargetAdapter.executable,
+      "--json",
+    );
+    expect(duplicateTarget.status).toBe(1);
+    expect(JSON.parse(duplicateTarget.stdout).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "obligation-not-dispatchable",
+        message: expect.stringContaining("status 'satisfied'"),
+      }),
+    ]);
+    expect(req(
+      repositoryRoot,
+      "show",
+      "ART-0000000002-r00001",
+      "--json",
+    ).status).toBe(1);
     const blockedPilotImplementationWork = looseEnds().find((item) =>
       item.obligation === "pilot-verification-implementation-required" &&
       item.subject === pilotActivity.revisionId
