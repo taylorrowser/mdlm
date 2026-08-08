@@ -43,8 +43,8 @@ describe("req process package commands", () => {
       command: "process.install",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.46.0",
-        reference: "mdlm-bootstrap@0.46.0",
+        version: "0.49.0",
+        reference: "mdlm-bootstrap@0.49.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -62,7 +62,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "use",
-      "mdlm-bootstrap@0.46.0",
+      "mdlm-bootstrap@0.49.0",
       "--json",
     );
     expect(selected.status, selected.stderr).toBe(0);
@@ -85,10 +85,10 @@ describe("req process package commands", () => {
       schemaVersion: 1,
       package: {
         id: "mdlm-bootstrap",
-        version: "0.46.0",
-        reference: "mdlm-bootstrap@0.46.0",
+        version: "0.49.0",
+        reference: "mdlm-bootstrap@0.49.0",
         digest: installation.package.digest,
-        path: ".lifecycle/packages/mdlm-bootstrap@0.46.0",
+        path: ".lifecycle/packages/mdlm-bootstrap@0.49.0",
       },
       language: { expressions: "mdlm-expression@1" },
     });
@@ -101,8 +101,19 @@ describe("req process package commands", () => {
     await fs.writeFile(
       manifestPath,
       (await fs.readFile(manifestPath, "utf8")).replace(
-        "version: 0.46.0",
+        "version: 0.49.0",
         "version: 0.40.0",
+      ),
+    );
+    const previousTargetSelectorPath = path.join(
+      previousPackage,
+      "selectors/current-pilot-targets-for-requirement.yaml",
+    );
+    await fs.writeFile(
+      previousTargetSelectorPath,
+      (await fs.readFile(previousTargetSelectorPath, "utf8")).replace(
+        "target.payload.public_interface.interface_version == 2",
+        "target.payload.public_interface.interface_version == 1",
       ),
     );
 
@@ -144,6 +155,132 @@ describe("req process package commands", () => {
     };
     const createdPath = path.join(repositoryRoot, createdOutput.path);
     const historicalDatum = await fs.readFile(createdPath, "utf8");
+    const historicalRequirementCreated = req(
+      repositoryRoot,
+      "new",
+      "STK",
+      "--scenario",
+      "draft-stakeholder-requirements@2",
+      "--set",
+      "title=Historical public target requirement",
+      "--set",
+      "rationale=Migration must preserve the exact earlier target contract",
+      "--set",
+      "statement=The product shall expose one historical public behavior.",
+      "--set",
+      "verification_intent=Invoke the historical public command.",
+      "--set",
+      "stakeholder=lifecycle author",
+      "--set",
+      "priority=must",
+      "--link",
+      `derived-from=${createdOutput.revisionId.replace(/-r[0-9]{5}$/, "")}`,
+      "--json",
+    );
+    expect(
+      historicalRequirementCreated.status,
+      `${historicalRequirementCreated.stderr}${historicalRequirementCreated.stdout}`,
+    ).toBe(0);
+    const historicalRequirement = JSON.parse(
+      historicalRequirementCreated.stdout,
+    ).created as { revisionId: string };
+    const legacyInterface = {
+      interface_version: 1,
+      repository_locator: "file:///historical/repository",
+      command: ["node", "{checkout}/bin/historical.mjs", "{input}"],
+      parameters: ["input"],
+      parameter_encodings: { input: "exact UTF-8 visible input" },
+      working_directory: "fresh-temporary-directory",
+      observation_protocol: {
+        success: {
+          exit_status: 0,
+          stdout_contract: "one visible line",
+          stderr_contract: "empty",
+        },
+        rejection: {
+          exit_status: 2,
+          stdout_contract: "empty",
+          stderr_contract: "one diagnostic line",
+        },
+      },
+    };
+    const historicalTargetCreated = req(
+      repositoryRoot,
+      "new",
+      "ART",
+      "--scenario",
+      "register-pilot-target@1",
+      "--set",
+      "title=Historical version-one public target",
+      "--set",
+      "kind=prototype",
+      "--set",
+      "repository_ref=git:1111111111111111111111111111111111111111",
+      "--set",
+      'supported_behavior=["historical visible behavior"]',
+      "--set",
+      'unsupported_behavior=["historical excluded behavior"]',
+      "--set",
+      'evidence_refs=["historical observation"]',
+      "--set",
+      `public_interface=${JSON.stringify(legacyInterface)}`,
+      "--link",
+      `derived-from=${historicalRequirement.revisionId}`,
+      "--json",
+    );
+    expect(
+      historicalTargetCreated.status,
+      `${historicalTargetCreated.stderr}${historicalTargetCreated.stdout}`,
+    ).toBe(0);
+    const historicalTarget = JSON.parse(historicalTargetCreated.stdout).created as {
+      path: string;
+      revisionId: string;
+    };
+    const historicalTargetPath = path.join(repositoryRoot, historicalTarget.path);
+    const historicalTargetDatum = await fs.readFile(historicalTargetPath, "utf8");
+    const historicalSelectorSnapshotPath = path.join(
+      repositoryRoot,
+      "historical-target-snapshot.json",
+    );
+    const historicalSelectorRecords = [
+      historicalRequirement.revisionId,
+      historicalTarget.revisionId,
+    ].map((revisionId) => {
+      const shown = req(repositoryRoot, "show", revisionId, "--json");
+      expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
+      return JSON.parse(shown.stdout).lifecycleDatum;
+    });
+    await fs.writeFile(
+      historicalSelectorSnapshotPath,
+      JSON.stringify({
+        processRef: `${previous.reference}#${previous.digest}`,
+        phaseId: "phase-1-product-assurance",
+        records: historicalSelectorRecords,
+        dependencyComparisons: [],
+      }),
+    );
+    const evaluateHistoricalTarget = () => req(
+      repositoryRoot,
+      "selector",
+      "evaluate",
+      "current-pilot-targets-for-requirement@1",
+      "--snapshot",
+      historicalSelectorSnapshotPath,
+      "--arg",
+      `requirement=${historicalRequirement.revisionId}`,
+      "--json",
+    );
+    const previouslyEligibleTarget = evaluateHistoricalTarget();
+    expect(
+      previouslyEligibleTarget.status,
+      `${previouslyEligibleTarget.stderr}${previouslyEligibleTarget.stdout}`,
+    ).toBe(0);
+    expect(JSON.parse(previouslyEligibleTarget.stdout).evaluation.result).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({ revision_id: historicalTarget.revisionId }),
+      }),
+    ]);
+
     const adapterPath = path.join(repositoryRoot, "historical-scope-adapter.mjs");
     await fs.writeFile(
       adapterPath,
@@ -242,6 +379,10 @@ describe("req process package commands", () => {
     });
     expect(await fs.readFile(descriptorPath, "utf8")).not.toBe(descriptorBefore);
     expect(await fs.readFile(createdPath, "utf8")).toBe(historicalDatum);
+    expect(await fs.readFile(historicalTargetPath, "utf8")).toBe(historicalTargetDatum);
+    const migratedHistoricalTarget = evaluateHistoricalTarget();
+    expect(migratedHistoricalTarget.status, migratedHistoricalTarget.stderr).toBe(0);
+    expect(JSON.parse(migratedHistoricalTarget.stdout).evaluation.result).toEqual([]);
     expect(await fs.readFile(executionPath, "utf8")).toBe(historicalExecution);
     expect(await fs.readFile(decisionPath, "utf8")).toBe(historicalDecision);
     expect(JSON.parse(await fs.readFile(descriptorPath, "utf8")).package).toEqual({
@@ -272,7 +413,7 @@ describe("req process package commands", () => {
     expect(human.stdout).toContain(
       `Current Process Package: ${next.reference}#${next.digest}`,
     );
-  }, 30_000);
+  }, 45_000);
 
   it("leaves repository contract files unchanged when migration changes kernel-owned contracts", async () => {
     const previousPackage = path.join(repositoryRoot, "previous-process");
@@ -281,13 +422,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, incompatiblePackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [incompatiblePackage, "0.46.0"],
+      [incompatiblePackage, "0.49.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.46.0",
+          "version: 0.49.0",
           `version: ${version}`,
         ),
       );
@@ -335,7 +476,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.46.0",
+      "mdlm-bootstrap@0.49.0",
       "--json",
     );
 
@@ -354,13 +495,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, incompatiblePackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [incompatiblePackage, "0.46.0"],
+      [incompatiblePackage, "0.49.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.46.0",
+          "version: 0.49.0",
           `version: ${version}`,
         ),
       );
@@ -424,7 +565,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.46.0",
+      "mdlm-bootstrap@0.49.0",
       "--json",
     );
 
@@ -443,13 +584,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [targetPackage, "0.46.0"],
+      [targetPackage, "0.49.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.46.0",
+          "version: 0.49.0",
           `version: ${version}`,
         ),
       );
@@ -531,7 +672,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.46.0",
+      "mdlm-bootstrap@0.49.0",
       "--json",
     );
 
@@ -550,7 +691,7 @@ describe("req process package commands", () => {
     await fs.writeFile(
       manifestPath,
       (await fs.readFile(manifestPath, "utf8")).replace(
-        "version: 0.46.0",
+        "version: 0.49.0",
         "version: 0.40.0",
       ),
     );
@@ -581,7 +722,7 @@ describe("req process package commands", () => {
         repositoryRoot,
         "process",
         "migrate",
-        "mdlm-bootstrap@0.46.0",
+        "mdlm-bootstrap@0.49.0",
         "--json",
       );
     } finally {
@@ -608,13 +749,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [targetPackage, "0.46.0"],
+      [targetPackage, "0.49.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.46.0",
+          "version: 0.49.0",
           `version: ${version}`,
         ),
       );
@@ -633,7 +774,7 @@ describe("req process package commands", () => {
     ).toBe(0);
     const installedObligation = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.46.0/obligations/review-context-required.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.49.0/obligations/review-context-required.yaml",
     );
     await fs.writeFile(
       installedObligation,
@@ -653,7 +794,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.46.0",
+      "mdlm-bootstrap@0.49.0",
       "--json",
     );
 
@@ -679,7 +820,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.validate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.46.0",
+        reference: "mdlm-bootstrap@0.49.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -694,7 +835,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "validate");
     expect(human.status, human.stderr).toBe(0);
     expect(human.stdout).toContain(
-      "Validated Process Package: mdlm-bootstrap@0.46.0",
+      "Validated Process Package: mdlm-bootstrap@0.49.0",
     );
     expect(human.stdout).toContain("Expression Language: mdlm-expression@1");
     expect(human.stdout).toContain("Compilation: passed");
@@ -712,7 +853,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.show",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.46.0",
+        reference: "mdlm-bootstrap@0.49.0",
         language: "mdlm-expression@1",
       }),
       installed: true,
@@ -744,7 +885,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "show");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.46.0",
+      "Process Package: mdlm-bootstrap@0.49.0",
       "Expression Language: mdlm-expression@1",
       "Status: experimental",
       "Kernel Contract: mdlm-kernel-process-interface@1",
@@ -827,7 +968,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.capabilities",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.46.0",
+        reference: "mdlm-bootstrap@0.49.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -907,7 +1048,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "capabilities");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.46.0",
+      "Process Package: mdlm-bootstrap@0.49.0",
       "Expression Language: mdlm-expression@1",
       "Context Roots: execution, phase, process",
       "Host Functions: count, every, exists, none, one, policy, present, select, state",

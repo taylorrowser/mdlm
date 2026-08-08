@@ -1089,6 +1089,39 @@ describe("req product-assurance qualification and pilot slice", () => {
             supported_behavior: ["export the representative visible report"],
             unsupported_behavior: ["export an intentionally unsupported binary format"],
             evidence_refs: [`git-object-observed:${existingRepositoryCommit}`],
+            public_interface: {
+              interface_version: 2,
+              repository_locator: `file://${process.cwd()}`,
+              command: [
+                { literal: "node" },
+                { checkout_path: "bin/report.mjs" },
+                {
+                  parameter: {
+                    name: "input",
+                    encoding: "exact UTF-8 path to the controlled input fixture",
+                  },
+                },
+                {
+                  parameter: {
+                    name: "format",
+                    encoding: "visible report -> text; excluded binary report -> binary",
+                  },
+                },
+              ],
+              working_directory: "fresh-temporary-directory",
+              observation_protocol: {
+                success: {
+                  exit_status: 0,
+                  stdout_contract: "one exact visible report followed by a newline",
+                  stderr_contract: "empty",
+                },
+                rejection: {
+                  exit_status: 2,
+                  stdout_contract: "empty",
+                  stderr_contract: "one diagnostic line followed by a newline",
+                },
+              },
+            },
           },
           links: [{ type: "derived-from", target: requirement.revisionId }],
           body: "Exact existing repository evidence registered for bounded pilot execution.\n",
@@ -1098,6 +1131,58 @@ describe("req product-assurance qualification and pilot slice", () => {
         summary: "One exact bounded repository target is registered for the exact requirement Revision.",
       },
     };
+    const incompleteBoundaryResponse = structuredClone(targetResponse);
+    delete (incompleteBoundaryResponse.outputs[0]!.lifecycleDatum.payload as {
+      public_interface?: unknown;
+    }).public_interface;
+    const incompleteBoundaryAdapter = await adapter(
+      incompleteBoundaryResponse,
+      "incomplete-boundary-pilot-target",
+    );
+    const incompleteBoundary = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      incompleteBoundaryAdapter.executable,
+      "--json",
+    );
+    expect(incompleteBoundary.status).toBe(1);
+    expect(JSON.parse(incompleteBoundary.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-completion-failed" }),
+    ]);
+
+    const unencodedParameterResponse = structuredClone(targetResponse);
+    const parameterToken = unencodedParameterResponse.outputs[0]!.lifecycleDatum
+      .payload.public_interface.command[2] as {
+        parameter: { name: string; encoding?: string };
+      };
+    delete parameterToken.parameter.encoding;
+    const unencodedParameterAdapter = await adapter(
+      unencodedParameterResponse,
+      "unencoded-parameter-pilot-target",
+    );
+    const unencodedParameter = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      unencodedParameterAdapter.executable,
+      "--json",
+    );
+    expect(unencodedParameter.status).toBe(1);
+    expect(JSON.parse(unencodedParameter.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+      ]),
+    );
+
     const mutableTargetResponse = structuredClone(targetResponse);
     mutableTargetResponse.outputs[0]!.lifecycleDatum.payload.repository_ref =
       "git:main";
@@ -1281,6 +1366,34 @@ describe("req product-assurance qualification and pilot slice", () => {
         }),
       })],
     }));
+    const pilotImplementationDryRun = req(
+      repositoryRoot,
+      "scenario",
+      "dry-run",
+      String(pilotImplementationWork!.actionableResolver),
+      "--obligation",
+      String(pilotImplementationWork!.id),
+      "--json",
+    );
+    expect(
+      pilotImplementationDryRun.status,
+      `${pilotImplementationDryRun.stderr}${pilotImplementationDryRun.stdout}`,
+    ).toBe(0);
+    const publicImplementationInputs = JSON.parse(
+      pilotImplementationDryRun.stdout,
+    ).scenarioDryRun.invocations[0].inputs;
+    expect(publicImplementationInputs.find(
+      (input: { name: string }) => input.name === "execution_target",
+    )).toEqual(expect.objectContaining({
+      values: [expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            public_interface: targetResponse.outputs[0]!.lifecycleDatum.payload.public_interface,
+          }),
+        }),
+      })],
+    }));
+
     const pilotImplementationAdapter = await adapter({
       outputs: [
         {
@@ -1454,6 +1567,8 @@ describe("req product-assurance qualification and pilot slice", () => {
       'supported_behavior=["unrelated supported behavior"]',
       "--set",
       'unsupported_behavior=["unrelated negative control"]',
+      "--set",
+      `public_interface=${JSON.stringify(targetResponse.outputs[0]!.lifecycleDatum.payload.public_interface)}`,
       "--json",
     );
     expect(

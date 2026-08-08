@@ -25,8 +25,10 @@ completion: >-
   && target.payload.supported_behavior != []
   && target.payload.unsupported_behavior != []
   && target.payload.evidence_refs != []
+  && target.payload.public_interface.interface_version == 2
+  && target.payload.public_interface.working_directory == "fresh-temporary-directory"
   && count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1
   && one("current-pilot-targets-for-requirement@1", {requirement: requirement}) == target
 resolves: [pilot-target-required]
-prohibited_inputs: [mutable repository reference, product source as verification evidence, requirement acceptance claim, unbounded supported behavior, omitted unsupported boundary]
+prohibited_inputs: [mutable repository reference, product source as verification evidence, product unit tests, private implementation detail, requirement acceptance claim, verification result claim, authority claim, unbounded supported behavior, omitted unsupported boundary, incomplete public execution interface]
 batching: single

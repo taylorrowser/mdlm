@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.46.0`
+- **Implementation package:** `mdlm-bootstrap@0.49.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -43,7 +43,7 @@ the accepted overview and the reviewed pilot Decision.
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
 | Authorized dry-run, atomic adapter execution, provenance, authority-only Scenario publication, and safe aliases | 43–47, 57–60 | #41–#43, #71 | `test/req-scenario-dry-run.test.ts`, `test/req-scenario-execution.test.ts`, `test/req-consequential-authorization.test.ts`, `test/req-command-alias.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
-| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact bounded ART registration, separately authorized pilot implementation, and exact-target pilot evidence | 55, 57–58 | #45, #65–#66, #74–#75 | `test/req-product-assurance-pilot.test.ts` |
+| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact bounded ART registration, separately authorized pilot implementation, and exact-target pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76 | `test/req-product-assurance-pilot.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
 | Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
@@ -109,8 +109,11 @@ the reviewed `change` expansion Decision.
   correction. Exact failed REV links are complete, and corrected ENV assurance
   requires a fresh qualification chain before fresh context and Review.
 - Current pilot activity requirements project exact bounded ART registration when
-  no target exists; existing singular evidence satisfies work and duplicates stay
-  ambiguous rather than being silently selected.
+  no boundary-complete target exists. The target carries the public repository,
+  versioned typed command with co-located exact parameter encodings, isolation,
+  and observation protocol needed by a fresh
+  source-blind implementer; existing singular evidence satisfies work and duplicates
+  stay ambiguous rather than being silently selected.
 - Complete reviewed Phase 2 candidates derive durable observation and exact
   assessment-context work. PAS publication, failed-Review correction, fresh
   independent Review, and the final nondelegable stakeholder Expansion Decision

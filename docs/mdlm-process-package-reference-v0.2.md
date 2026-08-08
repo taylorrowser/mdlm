@@ -903,10 +903,14 @@ correction also publishes a new qualification VER/VAI pair atomically; qualifica
 RUN/RES evidence from the failed ENV Revision cannot be borrowed by its replacement.
 Exact requirement and VSP Revision evidence then derives pilot VER work. The
 presence of current pilot activity work also derives exact ART registration when
-its requirement has no target. That Resolver records one immutable Git commit and
-bounded supported/unsupported behavior without making a verification, acceptance,
-or scope-authorization claim; an existing singular target satisfies the work while
-multiple current targets remain ambiguous. A passing VER Review plus one qualified
+its requirement has no target. That Resolver records one immutable Git commit,
+bounded supported/unsupported behavior, and a controlled public execution interface
+containing the repository locator, versioned typed command vector with every
+parameter co-located with its exact encoding, isolated working-directory
+contract, and exact observable success/rejection protocol. It makes no verification,
+acceptance, or scope-authorization claim; an existing singular boundary-complete
+target satisfies the work while multiple current targets remain ambiguous. A passing
+VER Review plus one qualified
 reviewed ENV Revision and one ART Revision derive separately authorized VAI work; that transaction records both the VAI
 Revision and its exact authorization DEC. The VAI Review then unlocks execution
 bound to the package-resolved exact target Revision without an operator selecting

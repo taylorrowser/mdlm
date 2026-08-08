@@ -237,8 +237,12 @@ Each current entry requirement Revision and applicable VSP Revision then derives
 exact requirement coverage. Once pilot activity work exists,
 `pilot-target-required@1` records one existing immutable repository commit as a
 bounded ART derived from the exact requirement. Registration records supported and
-intentionally unsupported behavior without claiming verification, acceptance, or
-new stakeholder scope. Existing singular evidence satisfies the work; multiple
+intentionally unsupported behavior plus the complete controlled public execution
+interface: repository locator, versioned typed command vector with each parameter
+co-located with its exact encoding, isolated working
+directory, and observable success/rejection protocol. It does not claim verification,
+acceptance, or new stakeholder scope. Existing singular boundary-complete evidence
+satisfies the work; multiple
 current targets remain explicitly ambiguous. The pilot VER Review unlocks
 `pilot-verification-implementation-required@1` only when one qualified reviewed
 ENV Revision and one current ART Revision are unambiguous. Independent implementation
