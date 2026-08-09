@@ -83,6 +83,18 @@ describe("MDLM Assignment leasing and preparation", () => {
       retryAvailability: { malformedResponseCorrection: 1 },
     }));
 
+    const extraArgument = mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      outcome.assignment.id,
+      "extra",
+    );
+    expect(extraArgument.status).toBe(1);
+    expect(JSON.parse(extraArgument.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-prepare-arguments-invalid" }),
+    ]);
+
     const prepared = mdlm(
       repository,
       "scenario",
@@ -91,11 +103,41 @@ describe("MDLM Assignment leasing and preparation", () => {
     );
     expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
     const packet = JSON.parse(prepared.stdout);
+    expect(Object.keys(packet).sort()).toEqual([
+      "allowedProjections",
+      "assets",
+      "assignment",
+      "authority",
+      "command",
+      "completion",
+      "contract",
+      "diagnostics",
+      "exactInputs",
+      "obligation",
+      "ok",
+      "outputLinks",
+      "outputs",
+      "package",
+      "participation",
+      "phase",
+      "policies",
+      "prohibitions",
+      "prompt",
+      "repository",
+      "responseSchema",
+      "scenario",
+    ]);
     expect(packet).toEqual(expect.objectContaining({
       ok: true,
       command: "scenario.prepare",
       contract: "mdlm-assignment-packet@1",
       assignment: { id: outcome.assignment.id },
+      package: {
+        reference: lease.package.reference,
+        digest: lease.package.digest,
+        language: lease.package.language,
+      },
+      repository: lease.repository,
       phase: "phase-0-wayfinding@2",
       obligation: lease.obligation,
       scenario: expect.objectContaining({
@@ -183,11 +225,26 @@ describe("MDLM Assignment leasing and preparation", () => {
       command: "scenario.prepare",
       diagnostics: [expect.objectContaining({ code: "assignment-stale" })],
     }));
-    const lease = JSON.parse(await fs.readFile(
-      path.join(repository, ".lifecycle/work/active-assignment.json"),
-      "utf8",
-    ));
-    expect(lease.disposition).toBe("stale");
+
+    expect(git(repository, "checkout", "--", ".gitignore").status).toBe(0);
+    const restored = mdlm(repository, "scenario", "prepare", assignment);
+    expect(restored.status).toBe(1);
+    expect(JSON.parse(restored.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "assignment-unavailable" }),
+    ]);
+  });
+
+  it("does not retain the old next projection options", () => {
+    const next = mdlm(repository, "next", "--phase", "phase-0-wayfinding");
+
+    expect(next.status).toBe(1);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      command: "next",
+      diagnostics: [expect.objectContaining({
+        code: "next-arguments-unsupported",
+      })],
+    }));
   });
 
   it("rejects preparation after the selected Process Package changes", async () => {

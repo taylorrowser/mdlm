@@ -683,22 +683,6 @@ describe("req product-assurance qualification and pilot slice", () => {
         expect.objectContaining({ name: "qualification_implementation", types: ["VAI"] }),
       ]),
     }));
-    const nextCorrection = req(
-      repositoryRoot,
-      "next",
-      "--phase",
-      "phase-1-product-assurance",
-      "--json",
-    );
-    expect(nextCorrection.status, nextCorrection.stderr).toBe(0);
-    expect(JSON.parse(nextCorrection.stdout).next.item).toEqual(
-      expect.objectContaining({
-        id: correctionWork?.id,
-        subject: environment.revisionId,
-        dispatchable: true,
-        actionableResolver: "revise-environment-assurance-after-review@1",
-      }),
-    );
     expect(failedEnvironmentReview).toMatch(/^REV-[0-9A-HJKMNP-TV-Z]{10,12}-r00001$/);
     const correctionResponse = {
       outputs: [
@@ -1060,21 +1044,6 @@ describe("req product-assurance qualification and pilot slice", () => {
       actionableResolver: "register-pilot-target@1",
       unresolvedBindings: [],
     }));
-    const targetNext = req(
-      repositoryRoot,
-      "next",
-      "--phase",
-      "phase-1-product-assurance",
-      "--json",
-    );
-    expect(targetNext.status, targetNext.stderr).toBe(0);
-    expect(JSON.parse(targetNext.stdout).next.item).toEqual(
-      expect.objectContaining({
-        id: targetWork?.id,
-        actionableResolver: "register-pilot-target@1",
-        dispatchable: true,
-      }),
-    );
     const targetResponse = {
       outputs: [{
         name: "target",

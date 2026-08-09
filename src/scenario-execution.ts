@@ -490,6 +490,7 @@ async function prepareRepositoryScenario(
   scenarioReference: string,
   authorizationRequest: ScenarioExecutionAuthorizationRequest,
   requestedInputs: { name: string; value: string }[],
+  requiredPhaseId?: string,
 ): Promise<RepositoryScenarioPreparationResult> {
   const selectedScenario = versionedDefinition(
     processPackage.scenarios,
@@ -517,8 +518,13 @@ async function prepareRepositoryScenario(
       parsedObligation?.subject.kind === "process"
       ? parsedObligation.subject.phaseId
       : undefined;
-  const phaseId = obligationPhaseId
-    ? scenarioPhases.find((candidate) => candidate === obligationPhaseId)
+  const exactPhaseId = requiredPhaseId ?? obligationPhaseId;
+  const phaseId = exactPhaseId
+    ? scenarioPhases.find((candidate) =>
+        candidate === exactPhaseId &&
+        (authorizationRequest.mode === "explicit-initiation" ||
+          obligationPhases.has(candidate))
+      )
     : authorizationRequest.mode === "dispatchable-obligation"
     ? scenarioPhases.find((candidate) => obligationPhases.has(candidate))
     : scenarioPhases[0];
@@ -570,6 +576,7 @@ export async function prepareRepositoryResolverScenario(
   scenarioReference: string,
   obligationInstance: string,
   requestedInputs: { name: string; value: string }[],
+  requiredPhaseId?: string,
 ): Promise<RepositoryScenarioPreparationResult> {
   return prepareRepositoryScenario(
     repositoryRoot,
@@ -578,6 +585,7 @@ export async function prepareRepositoryResolverScenario(
     scenarioReference,
     { mode: "dispatchable-obligation", obligationInstance },
     requestedInputs,
+    requiredPhaseId,
   );
 }
 

@@ -325,17 +325,5 @@ process.stdin.on("end", () => {
         .toEqual(item.participation);
     }
 
-    const nextResult = req(
-      repositoryRoot,
-      "next",
-      "--phase",
-      "phase-0-wayfinding",
-      "--json",
-    );
-    expect(nextResult.status, nextResult.stderr).toBe(0);
-    const nextItem = JSON.parse(nextResult.stdout).next.item as LooseEnd;
-    expect(nextItem.participation).toEqual(
-      looseEnds.find((item) => item.id === nextItem.id)?.participation,
-    );
   }, 45_000);
 });

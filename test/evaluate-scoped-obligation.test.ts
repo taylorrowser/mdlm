@@ -204,15 +204,15 @@ describe("evaluateLifecycle scoped Obligations", () => {
         "--json",
       );
       expect(initialized.status, initialized.stderr).toBe(0);
-      const next = req(
+      const looseEnds = req(
         repositoryRoot,
-        "next",
+        "loose-ends",
         "--phase",
         "phase-0-wayfinding",
         "--json",
       );
-      expect(next.status, next.stderr).toBe(0);
-      const item = JSON.parse(next.stdout).next.item;
+      expect(looseEnds.status, looseEnds.stderr).toBe(0);
+      const item = JSON.parse(looseEnds.stdout).looseEnds.items[0];
       expect(item).toEqual(expect.objectContaining({
         subject: "process@phase-0-wayfinding@2",
         dispatchable: true,
@@ -322,15 +322,15 @@ describe("evaluateLifecycle scoped Obligations", () => {
         matches: true,
       });
 
-      const next = req(
+      const inspection = req(
         repositoryRoot,
-        "next",
+        "loose-ends",
         "--phase",
         "phase-0-wayfinding",
         "--json",
       );
-      expect(next.status, next.stderr).toBe(0);
-      expect(JSON.parse(next.stdout).next.item).toEqual(
+      expect(inspection.status, inspection.stderr).toBe(0);
+      expect(JSON.parse(inspection.stdout).looseEnds.items[0]).toEqual(
         expect.objectContaining({ id: initial.id }),
       );
 

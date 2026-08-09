@@ -22,6 +22,7 @@ import type {
   ScenarioDryRun,
   ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
+import { selectedRepositoryPackage } from "./selected-package.js";
 
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
@@ -42,7 +43,7 @@ interface AssignmentBinding {
 export interface AssignmentLease {
   contract: "mdlm-assignment-lease@1";
   id: string;
-  disposition: "active" | "stale";
+  disposition: "active";
   package: PackageExecutionIdentity;
   repository: RepositoryFingerprint;
   phase: string;
@@ -204,7 +205,7 @@ async function writeLease(
   await fs.rename(temporary, target);
 }
 
-export async function readAssignmentLease(
+async function readAssignmentLease(
   repositoryRoot: string,
 ): Promise<AssignmentLease | undefined> {
   try {
@@ -215,13 +216,12 @@ export async function readAssignmentLease(
   }
 }
 
-export async function markAssignmentStale(
-  repositoryRoot: string,
-  assignmentId: string,
-): Promise<void> {
-  const lease = await readAssignmentLease(repositoryRoot);
-  if (lease?.id !== assignmentId || lease.disposition === "stale") return;
-  await writeLease(repositoryRoot, { ...lease, disposition: "stale" });
+async function invalidateLease(repositoryRoot: string): Promise<void> {
+  await fs.rm(leasePath(repositoryRoot), { force: true });
+}
+
+function exactEntityId(value: ScenarioDryRunInvocation["inputs"][number]["values"][number]): string {
+  return value.identity.revision_id ?? value.identity.id;
 }
 
 function bindings(invocations: ScenarioDryRunInvocation[]): AssignmentBinding[] {
@@ -229,9 +229,7 @@ function bindings(invocations: ScenarioDryRunInvocation[]): AssignmentBinding[] 
     invocation: invocationIndex,
     inputs: invocation.inputs.map((input) => ({
       name: input.name,
-      values: input.values.map((value) =>
-        value.identity.revision_id ?? value.identity.id
-      ),
+      values: input.values.map(exactEntityId),
     })),
   }));
 }
@@ -255,6 +253,7 @@ async function exactPreparation(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   identity: PackageExecutionIdentity,
+  phase: string,
   item: ObligationEvaluation,
 ) {
   return prepareRepositoryResolverScenario(
@@ -264,6 +263,7 @@ async function exactPreparation(
     item.actionableResolver ?? item.eventualResolver,
     item.id,
     [],
+    /^(.*)@[1-9][0-9]*$/.exec(phase)?.[1],
   );
 }
 
@@ -323,7 +323,7 @@ export async function leaseNextAssignment(
 
   const [fingerprint, preparation] = await Promise.all([
     repositoryFingerprint(repositoryRoot),
-    exactPreparation(repositoryRoot, processPackage, identity, item),
+    exactPreparation(repositoryRoot, processPackage, identity, next.phase, item),
   ]);
   if (!fingerprint.ok) return fingerprint;
   if (!preparation.ok) return preparation;
@@ -335,7 +335,7 @@ export async function leaseNextAssignment(
     preparation.value.dryRun,
   );
   const active = await readAssignmentLease(repositoryRoot);
-  if (active?.disposition === "active" && sameExactState(active, exact)) {
+  if (active && sameExactState(active, exact)) {
     return {
       ok: true,
       value: {
@@ -346,10 +346,6 @@ export async function leaseNextAssignment(
       diagnostics: [],
     };
   }
-  if (active?.disposition === "active") {
-    await writeLease(repositoryRoot, { ...active, disposition: "stale" });
-  }
-
   const lease: AssignmentLease = {
     contract: "mdlm-assignment-lease@1",
     id: randomUUID(),
@@ -509,9 +505,7 @@ function outputSchemas(
 
 function exactLifecycleData(dryRun: ScenarioDryRun): string[] {
   return [...new Set(dryRun.invocations.flatMap((invocation) =>
-    invocation.inputs.flatMap((input) => input.values.map((value) =>
-      value.identity.revision_id ?? value.identity.id
-    ))
+    invocation.inputs.flatMap((input) => input.values.map(exactEntityId))
   ))].sort();
 }
 
@@ -579,8 +573,6 @@ function packet(
 /** Revalidate one active exact Assignment and expand its harness-neutral packet. */
 export async function prepareAssignment(
   repositoryRoot: string,
-  processPackage: ProcessPackage,
-  identity: PackageExecutionIdentity,
   assignmentId: string,
 ): Promise<AssignmentResult<AssignmentPacket>> {
   const lease = await readAssignmentLease(repositoryRoot);
@@ -591,51 +583,55 @@ export async function prepareAssignment(
       assignmentId,
     );
   }
-  if (lease.disposition !== "active") {
-    return failure(
-      "assignment-stale",
-      `Assignment '${assignmentId}' is stale and cannot be rebased`,
-      assignmentId,
-    );
-  }
 
   const fingerprint = await repositoryFingerprint(repositoryRoot);
   if (!fingerprint.ok) return fingerprint;
-  if (
-    JSON.stringify(lease.package) !== JSON.stringify(packageIdentity(identity)) ||
-    JSON.stringify(lease.repository) !== JSON.stringify(fingerprint.value)
-  ) {
-    await markAssignmentStale(repositoryRoot, assignmentId);
+  if (JSON.stringify(lease.repository) !== JSON.stringify(fingerprint.value)) {
+    await invalidateLease(repositoryRoot);
     return failure(
       "assignment-stale",
-      `Assignment '${assignmentId}' no longer matches its exact Process Package and tracked repository state; prepare will not rebase it`,
+      `Assignment '${assignmentId}' no longer matches its exact tracked repository state; prepare will not rebase it`,
       assignmentId,
     );
   }
 
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (
+    !selected.ok ||
+    JSON.stringify(lease.package) !==
+      JSON.stringify(packageIdentity(selected.summary))
+  ) {
+    await invalidateLease(repositoryRoot);
+    return failure(
+      "assignment-stale",
+      `Assignment '${assignmentId}' no longer matches its exact selected Process Package; prepare will not rebase it`,
+      assignmentId,
+    );
+  }
   const preparation = await prepareRepositoryResolverScenario(
     repositoryRoot,
-    processPackage,
-    identity,
+    selected.processPackage,
+    selected.summary,
     lease.scenario,
     lease.obligation.instance,
     [],
+    /^(.*)@[1-9][0-9]*$/.exec(lease.phase)?.[1],
   );
   if (!preparation.ok) {
-    await markAssignmentStale(repositoryRoot, assignmentId);
+    await invalidateLease(repositoryRoot);
     return failure(
       "assignment-stale",
       `Assignment '${assignmentId}' no longer resolves to its exact Dispatchable Obligation Instance; prepare will not rebase it`,
       assignmentId,
     );
   }
-  const currentBindings = bindings(preparation.value.dryRun.invocations);
-  const currentParticipation = preparation.value.dryRun.participation ?? [];
   if (
-    JSON.stringify(lease.bindings) !== JSON.stringify(currentBindings) ||
-    JSON.stringify(lease.participation) !== JSON.stringify(currentParticipation)
+    JSON.stringify(lease.bindings) !==
+      JSON.stringify(bindings(preparation.value.dryRun.invocations)) ||
+    JSON.stringify(lease.participation) !==
+      JSON.stringify(preparation.value.dryRun.participation ?? [])
   ) {
-    await markAssignmentStale(repositoryRoot, assignmentId);
+    await invalidateLease(repositoryRoot);
     return failure(
       "assignment-stale",
       `Assignment '${assignmentId}' no longer matches its exact bindings or participation; prepare will not rebase it`,
@@ -645,8 +641,8 @@ export async function prepareAssignment(
   return {
     ok: true,
     value: packet(
-      processPackage,
-      identity,
+      selected.processPackage,
+      selected.summary,
       lease,
       preparation.value.dryRun,
       preparation.value.scenario,
