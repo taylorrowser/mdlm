@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { commandResult } from "./frontier-command.mjs";
-import { validationCommands } from "./frontier-agent-runner.mjs";
+import { formatIssueReviewEvidence, issueReviewEvidenceArguments, validationCommands } from "./frontier-agent-runner.mjs";
 import {
   complexityReasonsFromStats,
   failureBaseState,
@@ -101,6 +101,25 @@ test("body parent discovery reads only the explicit Parent section", () => {
   const oldParent = "## Parent\n\n- #57\n\n## Notes\nSee #83";
   assert.equal(bodyReferencesParent(oldParent, 83), false);
   assert.equal(referencedParentNumber(oldParent), 57);
+});
+
+test("review evidence requests and preserves the issue body and comments", () => {
+  assert.deepEqual(issueReviewEvidenceArguments(84), [
+    "issue",
+    "view",
+    "84",
+    "--json",
+    "number,title,body,comments",
+  ]);
+  const evidence = formatIssueReviewEvidence({
+    number: 84,
+    title: "Shared command application",
+    body: "Acceptance criteria are authoritative.",
+    comments: [{ author: { login: "operator" }, body: "Contract clarification." }],
+  });
+  assert.match(evidence, /Acceptance criteria are authoritative/);
+  assert.match(evidence, /Comment by operator/);
+  assert.match(evidence, /Contract clarification/);
 });
 
 test("child commands have a finite timeout", () => {
