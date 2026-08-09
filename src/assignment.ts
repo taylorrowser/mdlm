@@ -637,6 +637,9 @@ interface ProposalAssignmentResponse {
   };
 }
 
+const validateAssignmentResponse = new Ajv2020({ allErrors: true, strict: false })
+  .compile(responseSchema());
+
 function responseDiagnostics(errors: ErrorObject[] | null | undefined): ProcessDiagnostic[] {
   return (errors ?? []).map((error) => ({
     code: "assignment-response-invalid",
@@ -658,11 +661,11 @@ function parseAssignmentResponse(
       "response",
     );
   }
-  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
-    responseSchema(),
-  );
-  if (!validate(value)) {
-    return { ok: false, diagnostics: responseDiagnostics(validate.errors) };
+  if (!validateAssignmentResponse(value)) {
+    return {
+      ok: false,
+      diagnostics: responseDiagnostics(validateAssignmentResponse.errors),
+    };
   }
   const response = value as Record<string, unknown>;
   if (response.kind !== "proposal") {

@@ -389,12 +389,6 @@ describe("MDLM Assignment leasing and preparation", () => {
       {
         code: "scenario-skill-provenance-mismatch",
         mutate(candidate: typeof response) {
-          candidate.proposal.loadedSkillRefs = [];
-        },
-      },
-      {
-        code: "scenario-skill-provenance-mismatch",
-        mutate(candidate: typeof response) {
           candidate.proposal.loadedSkillRefs.reverse();
         },
       },
