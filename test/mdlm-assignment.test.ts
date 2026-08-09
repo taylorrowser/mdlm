@@ -348,6 +348,10 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(git(repository, "status", "--porcelain").stdout).toContain(
       "?? .lifecycle/data/.transactions/",
     );
+    expect(git(repository, "add", "-N", ".lifecycle/data").status).toBe(0);
+    expect(git(repository, "diff", "--", ".lifecycle/data").stdout).toContain(
+      "mdlm-scenario-execution@4",
+    );
 
     const published = await directoryBytes(path.join(repository, ".lifecycle/data"));
     await fs.writeFile(responsePath, `${JSON.stringify(response)}\n`);

@@ -98,7 +98,9 @@ node ../dist/mdlm.js scenario prepare <assignment-id>
 node ../dist/mdlm.js scenario submit ./assignment-response.json
 cat ./assignment-response.json | node ../dist/mdlm.js scenario submit
 node ../dist/mdlm.js doctor
-# Inspect and commit the canonical Scenario transaction with ordinary Git.
+# Inspect untracked transaction files and commit them with ordinary Git.
+git status --short
+git add -N .lifecycle/data
 git diff -- .lifecycle/data
 git add .lifecycle/data && git commit -m "Publish Scenario transaction"
 node ../dist/mdlm.js phase status phase-0-wayfinding
