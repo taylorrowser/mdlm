@@ -1526,7 +1526,7 @@ async function selectedPackage(
       diagnostics: [{
         code: "process-package-not-selected",
         message:
-          "No Process Package is selected; run 'mdlm process use <package@version>'",
+          "No Process Package is selected; run 'req process use <package@version>'",
       }],
     };
   }
@@ -1578,7 +1578,7 @@ async function selectedRepositoryPackage(
           : "repository-contract",
         path: descriptorPath,
         message: (error as NodeJS.ErrnoException).code === "ENOENT"
-          ? "No MDLM repository descriptor exists; run 'mdlm init --process <package-ref>'"
+          ? "No MDLM repository descriptor exists; run 'req init --process <package-ref>'"
           : `Cannot read the MDLM repository descriptor: ${error instanceof Error ? error.message : String(error)}`,
       }],
     };
@@ -3042,7 +3042,7 @@ if (import.meta.main) {
     result = await dispatchCommand(arguments_, process.cwd());
   } catch (error) {
     result = failure(
-      "mdlm-error",
+      "req-error",
       error instanceof Error ? error.message : String(error),
     );
   }

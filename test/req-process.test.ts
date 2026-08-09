@@ -25,7 +25,7 @@ describe("req process package commands", () => {
       diagnostics: [{
         code: "process-package-not-selected",
         message:
-          "No Process Package is selected; run 'mdlm process use <package@version>'",
+          "No Process Package is selected; run 'req process use <package@version>'",
       }],
     });
 
