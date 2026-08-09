@@ -60,7 +60,7 @@ export function isTransientInfrastructureFailure(error) {
 
 export function isTransientAgentFailure(error) {
   const message = error instanceof Error ? error.message : String(error);
-  return /(fetch failed|ECONN(?:RESET|REFUSED)|ENETUNREACH|EAI_AGAIN|socket hang up|connection (?:reset|refused)|network is unreachable|temporary failure|provider.*(?:429|5\d\d)|rate limit|bad gateway|gateway timeout)/i.test(message);
+  return /(fetch failed|ETIMEDOUT|timed out|ECONN(?:RESET|REFUSED)|ENETUNREACH|EAI_AGAIN|socket hang up|connection (?:reset|refused)|network is unreachable|temporary failure|provider.*(?:429|5\d\d)|rate limit|bad gateway|gateway timeout)/i.test(message);
 }
 
 export function reviewerVerdict(output) {

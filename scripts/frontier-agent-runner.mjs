@@ -106,7 +106,18 @@ export function createAgentRunner({
   function runReadOnlyReviewer(worktree, prompt, logPath) {
     let lastOutput = "";
     for (let attempt = 1; attempt <= maximumInfrastructureAttempts; attempt += 1) {
-      const result = baseCommandResult("pi", ["-p", "--no-session", "--no-extensions", "--tools", "read,grep,find,ls", prompt], { cwd: worktree });
+      let result;
+      try {
+        result = baseCommandResult("pi", ["-p", "--no-session", "--no-extensions", "--tools", "read,grep,find,ls", prompt], { cwd: worktree });
+      } catch (error) {
+        const output = error instanceof Error ? error.message : String(error);
+        lastOutput = output;
+        appendAgentLog(logPath, `independent read-only code review ${attempt}/${maximumInfrastructureAttempts}`, output);
+        if (!isTransientAgentFailure(error) || attempt === maximumInfrastructureAttempts) return { valid: false, output };
+        appendAgentLog(logPath, "transient review-provider failure", `Retrying read-only review in ${attempt * 15} seconds.\n`);
+        sleep(attempt * 15_000);
+        continue;
+      }
       const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
       lastOutput = output;
       appendAgentLog(logPath, `independent read-only code review ${attempt}/${maximumInfrastructureAttempts}`, output);

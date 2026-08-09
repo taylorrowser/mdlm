@@ -194,6 +194,7 @@ test("transient infrastructure and Pi provider failures are classified narrowly"
   assert.equal(isTransientInfrastructureFailure(new Error("gh repo view failed: HTTP 502: Please try resubmitting your request")), true);
   assert.equal(isTransientInfrastructureFailure(new Error("gh auth status failed: authentication required")), false);
   assert.equal(isTransientAgentFailure(new Error("TypeError: fetch failed caused by ECONNRESET")), true);
+  assert.equal(isTransientAgentFailure(new Error("spawnSync pi ETIMEDOUT")), true);
   assert.equal(isTransientAgentFailure(new Error("tests failed with assertion error")), false);
 });
 

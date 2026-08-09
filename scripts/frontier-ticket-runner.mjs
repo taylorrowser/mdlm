@@ -48,6 +48,12 @@ export function createTicketRunner({
     throw new Error(message);
   }
 
+  function publicationRetry(message) {
+    const error = new Error(message);
+    error.name = "PublicationRetryError";
+    return error;
+  }
+
   function viewerLogin() {
     return commandOutput("gh", ["api", "user", "--jq", ".login"]);
   }
@@ -176,9 +182,7 @@ export function createTicketRunner({
       return inspectPullRequestChecks(prNumber, worktree, logPath);
     } catch (error) {
       if (isRemoteValidationFailure(error)) throw error;
-      const retry = new Error(`Remote-check infrastructure requires publication retry for PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
-      retry.name = "PublicationRetryError";
-      throw retry;
+      throw publicationRetry(`Remote-check infrastructure requires publication retry for PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -187,15 +191,19 @@ export function createTicketRunner({
   }
 
   function waitForMergedPullRequest(prNumber, worktree, logPath) {
-    for (let attempt = 1; attempt <= 60; attempt += 1) {
-      const detail = commandJson("gh", ["pr", "view", String(prNumber), "--json", "state,mergeCommit"], { cwd: worktree });
-      if (detail?.state === "MERGED") {
-        appendAgentLog(logPath, "merge confirmation", `PR #${prNumber} merged as ${detail.mergeCommit?.oid ?? "unknown"}.\n`);
-        return;
+    try {
+      for (let attempt = 1; attempt <= 60; attempt += 1) {
+        const detail = commandJson("gh", ["pr", "view", String(prNumber), "--json", "state,mergeCommit"], { cwd: worktree });
+        if (detail?.state === "MERGED") {
+          appendAgentLog(logPath, "merge confirmation", `PR #${prNumber} merged as ${detail.mergeCommit?.oid ?? "unknown"}.\n`);
+          return;
+        }
+        sleep(10_000);
       }
-      sleep(10_000);
+    } catch (error) {
+      throw publicationRetry(`Merge confirmation infrastructure requires retry for PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }
-    fail(`PR #${prNumber} did not reach confirmed MERGED state; publication will resume without closing the issue`);
+    throw publicationRetry(`PR #${prNumber} did not reach confirmed MERGED state; publication will resume without closing the issue`);
   }
 
   function publishAndMerge(issue, worktree, branch, logPath, validatedHead, preferredPullRequest, onPullRequest) {
