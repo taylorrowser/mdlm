@@ -24,7 +24,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.49.0");
+    expect(result.package.manifest.version).toBe("0.50.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(183);
@@ -66,6 +66,91 @@ describe("loadProcessPackage", () => {
         .toBeUndefined();
     }
     expect(result.diagnostics).toEqual([]);
+  });
+
+  it("compiles package-authored terminal outcome conditions", async () => {
+    const result = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.package.profiles.bootstrap?.terminal_outcomes).toEqual({
+      profile_boundary: {
+        condition: expect.objectContaining({
+          source: expect.stringContaining('phase.id == "phase-2-pilot-assessment"'),
+        }),
+        explanation: expect.stringContaining("Phases 3–6"),
+      },
+    });
+  });
+
+  it("rejects malformed, unresolved, and ambiguous terminal outcome declarations", async () => {
+    const malformedRoot = await copiedProcessPackage();
+    const malformedPath = path.join(malformedRoot, "profiles/bootstrap.yaml");
+    const malformed = await fs.readFile(malformedPath, "utf8");
+    await fs.writeFile(
+      malformedPath,
+      malformed.replace(
+        /    explanation: The reviewed pilot[^\n]+/,
+        "    explanation: ''",
+      ),
+    );
+    const unresolvedRoot = await copiedProcessPackage();
+    const unresolvedPath = path.join(unresolvedRoot, "profiles/bootstrap.yaml");
+    const unresolved = await fs.readFile(unresolvedPath, "utf8");
+    await fs.writeFile(
+      unresolvedPath,
+      unresolved.replace(
+        'exists("all-pilot-assessments@1", {})',
+        'exists("unknown-terminal-evidence@1", {})',
+      ),
+    );
+    const ambiguousRoot = await copiedProcessPackage();
+    const ambiguousPath = path.join(ambiguousRoot, "profiles/bootstrap.yaml");
+    const ambiguous = await fs.readFile(ambiguousPath, "utf8");
+    await fs.writeFile(
+      ambiguousPath,
+      ambiguous.replace(
+        "terminal_outcomes:\n  profile_boundary:",
+        "terminal_outcomes:\n  lifecycle_complete:\n    condition: 'true'\n    explanation: Everything is complete.\n  profile_boundary:\n",
+      ).replace(
+        /    condition: >-[\s\S]*?    explanation: The reviewed pilot/,
+        "    condition: 'true'\n    explanation: The reviewed pilot",
+      ),
+    );
+
+    const [malformedResult, unresolvedResult, ambiguousResult] = await Promise.all([
+      loadProcessPackage(malformedRoot),
+      loadProcessPackage(unresolvedRoot),
+      loadProcessPackage(ambiguousRoot),
+    ]);
+
+    expect(malformedResult).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: expect.arrayContaining([expect.objectContaining({
+        code: "meta-schema",
+        path: expect.stringContaining(
+          "bootstrap.yaml/terminal_outcomes/profile_boundary/explanation",
+        ),
+      })]),
+    }));
+    expect(unresolvedResult).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: expect.arrayContaining([expect.objectContaining({
+        code: "expression-unknown-selector",
+        path: expect.stringContaining(
+          "terminal_outcomes.profile_boundary.condition",
+        ),
+      })]),
+    }));
+    expect(ambiguousResult).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "ambiguous-terminal-outcomes",
+        path: "profiles.bootstrap.terminal_outcomes",
+      })],
+    });
   });
 
   it("rejects ambiguous explicit-initiation and Resolver semantics", async () => {

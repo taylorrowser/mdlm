@@ -1938,6 +1938,33 @@ function compileAliasDefinition(
   }
 }
 
+function compileProfileDefinition(
+  definition: VersionedDefinition,
+  filePath: string,
+  catalogs: ExpressionDefinitionCatalogs,
+  diagnostics: ProcessDiagnostic[],
+): void {
+  const terminalOutcomes = typeof definition.terminal_outcomes === "object" &&
+      definition.terminal_outcomes !== null
+    ? definition.terminal_outcomes as Record<string, unknown>
+    : {};
+  for (const outcome of ["profile_boundary", "lifecycle_complete"]) {
+    const declaration = typeof terminalOutcomes[outcome] === "object" &&
+        terminalOutcomes[outcome] !== null
+      ? terminalOutcomes[outcome] as Record<string, unknown>
+      : undefined;
+    if (!declaration) continue;
+    compileField(
+      declaration,
+      "condition",
+      `${filePath}#terminal_outcomes.${outcome}.condition`,
+      { ...baseBindings },
+      catalogs,
+      diagnostics,
+    );
+  }
+}
+
 function compilePhaseDefinition(
   definition: VersionedDefinition,
   filePath: string,
@@ -2077,6 +2104,8 @@ export function compileDefinitionExpressions(
     compileScenarioDefinition(definition, filePath, catalogs, diagnostics);
   } else if (definition.kind === "phase-definition") {
     compilePhaseDefinition(definition, filePath, catalogs, diagnostics);
+  } else if (definition.kind === "implementation-profile-definition") {
+    compileProfileDefinition(definition, filePath, catalogs, diagnostics);
   } else if (definition.kind === "command-alias-definition") {
     compileAliasDefinition(definition, filePath, catalogs, diagnostics);
   } else {

@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.34 — experimental implementation reference**
+**Bootstrap package 0.50 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -655,8 +655,21 @@ A nonterminal `progression` names its next Phase, readiness expression, exact
 authorization condition, standardized participation Policy, sign-off Scenario,
 and evidence Selector. Policy arguments and exact authorization-subject selection
 are authored as typed expressions; the generic evaluator does not know the
-package's authority vocabulary. A terminal or intentionally bounded Phase declares
-`progression: null`.
+package's authority vocabulary. A Phase with no declared progression uses
+`progression: null`; that absence alone never claims successful termination.
+
+The selected implementation Profile declares successful terminal semantics under
+`terminal_outcomes`. Each optional `profile_boundary` or `lifecycle_complete`
+declaration contains one typed `mdlm-expression@1` `condition` and one non-empty
+package-authored `explanation`. The evaluator retains the exact condition source,
+Boolean result, selected Profile reference, and ordered Selector evidence. Profile
+Boundary additionally reports the Profile's `disabled_capabilities` and the Active
+Phase's `omitted_capabilities`. If neither exact condition holds after reachable
+Assignment and immediate Attention work is considered, the Operator Outcome is
+Process Dead End. If both hold for one exact state, evaluation is Invalid rather
+than choosing a success result. Package loading rejects malformed declarations,
+unresolved expression references, and statically identical conditions for the two
+incompatible results.
 
 `evaluateLifecycle` resolves the requested Phase from the loaded catalog and
 returns its entry result and selected exact typed candidate identities. Both
@@ -871,7 +884,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.34 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.50 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring

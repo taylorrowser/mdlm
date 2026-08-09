@@ -102,6 +102,24 @@ export type OperatorOutcome =
       explanation: string;
     }
   | OperatorOutcomeBase & {
+      outcome: "profile-boundary-reached";
+      explanation: string;
+      omittedCoverage: {
+        profile: string[];
+        phase: string[];
+      };
+      evidence: Extract<OperatorOutcomeClassification, {
+        kind: "profile-boundary-reached";
+      }>["evidence"];
+    }
+  | OperatorOutcomeBase & {
+      outcome: "lifecycle-complete";
+      explanation: string;
+      evidence: Extract<OperatorOutcomeClassification, {
+        kind: "lifecycle-complete";
+      }>["evidence"];
+    }
+  | OperatorOutcomeBase & {
       outcome: "process-dead-end";
       explanation: string;
       blockers: Extract<OperatorOutcomeClassification, { kind: "process-dead-end" }>["blockers"];
@@ -152,6 +170,24 @@ export interface OperatorStatus {
         authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
         attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
         explanation: string;
+      }
+    | {
+        outcome: "profile-boundary-reached";
+        explanation: string;
+        omittedCoverage: {
+          profile: string[];
+          phase: string[];
+        };
+        evidence: Extract<OperatorOutcomeClassification, {
+          kind: "profile-boundary-reached";
+        }>["evidence"];
+      }
+    | {
+        outcome: "lifecycle-complete";
+        explanation: string;
+        evidence: Extract<OperatorOutcomeClassification, {
+          kind: "lifecycle-complete";
+        }>["evidence"];
       }
     | {
         outcome: "process-dead-end";
@@ -578,7 +614,10 @@ async function exactOperatorState(
   if (evaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: evaluation.diagnostics };
   }
-  const classification = classifyOperatorOutcome(operatorWork(evaluation));
+  const classification = classifyOperatorOutcome(
+    operatorWork(evaluation),
+    evaluation.terminalOutcome,
+  );
   const state: ExactOperatorState = {
     summary: selected.summary,
     processPackage: selected.processPackage,
@@ -586,7 +625,10 @@ async function exactOperatorState(
     fingerprint: fingerprint.value,
     classification,
   };
-  if (classification.kind === "process-dead-end") {
+  if (
+    classification.kind !== "assignment" &&
+    classification.kind !== "attention-required"
+  ) {
     return { ok: true, value: state, diagnostics: [] };
   }
 
@@ -731,20 +773,39 @@ export async function leaseNextAssignment(
     ) await fs.rm(leasePath(repositoryRoot), { force: true });
     return state;
   }
-  if (state.value.classification.kind === "process-dead-end") {
+  if (
+    state.value.classification.kind !== "assignment" &&
+    state.value.classification.kind !== "attention-required"
+  ) {
     if (persisted.value) await fs.rm(leasePath(repositoryRoot), { force: true });
-    return {
-      ok: true,
-      value: {
-        package: state.value.summary,
-        contract: "mdlm-next@1",
-        outcome: "process-dead-end",
-        phase: phaseReference(state.value.evaluation),
-        explanation: state.value.classification.explanation,
-        blockers: state.value.classification.blockers,
-      },
-      diagnostics: [],
+    const classification = state.value.classification;
+    const base = {
+      package: state.value.summary,
+      contract: "mdlm-next@1" as const,
+      phase: phaseReference(state.value.evaluation),
     };
+    const value: AssignmentOutcome = classification.kind === "process-dead-end"
+      ? {
+          ...base,
+          outcome: "process-dead-end",
+          explanation: classification.explanation,
+          blockers: classification.blockers,
+        }
+      : classification.kind === "profile-boundary-reached"
+      ? {
+          ...base,
+          outcome: "profile-boundary-reached",
+          explanation: classification.explanation,
+          omittedCoverage: classification.omittedCoverage,
+          evidence: classification.evidence,
+        }
+      : {
+          ...base,
+          outcome: "lifecycle-complete",
+          explanation: classification.explanation,
+          evidence: classification.evidence,
+        };
+    return { ok: true, value, diagnostics: [] };
   }
   const exact = state.value.assignment;
   if (!exact) {
@@ -835,6 +896,21 @@ function statusOutcome(
       outcome: "process-dead-end",
       explanation: classification.explanation,
       blockers: classification.blockers,
+    };
+  }
+  if (classification.kind === "profile-boundary-reached") {
+    return {
+      outcome: "profile-boundary-reached",
+      explanation: classification.explanation,
+      omittedCoverage: classification.omittedCoverage,
+      evidence: classification.evidence,
+    };
+  }
+  if (classification.kind === "lifecycle-complete") {
+    return {
+      outcome: "lifecycle-complete",
+      explanation: classification.explanation,
+      evidence: classification.evidence,
     };
   }
   const exact = state.assignment;

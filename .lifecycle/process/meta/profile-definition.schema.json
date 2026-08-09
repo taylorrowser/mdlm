@@ -22,6 +22,26 @@
       }
     },
     "disabled_capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-    "success_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}
+    "success_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "terminal_outcomes": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "profile_boundary": {"$ref": "#/$defs/terminalOutcome"},
+        "lifecycle_complete": {"$ref": "#/$defs/terminalOutcome"}
+      }
+    }
+  },
+  "$defs": {
+    "terminalOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition", "explanation"],
+      "properties": {
+        "condition": {"$ref": "expression.schema.json"},
+        "explanation": {"type": "string", "minLength": 1}
+      }
+    }
   }
 }

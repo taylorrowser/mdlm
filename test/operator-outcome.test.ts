@@ -50,6 +50,61 @@ async function recordInstalledPackageChange(
   }
 }
 
+async function configureNoWorkProfile(
+  repository: string,
+  terminalOutcomes?: Record<string, {
+    condition: string;
+    explanation: string;
+  }>,
+): Promise<void> {
+  const packageRoot = path.join(
+    repository,
+    ".lifecycle/packages/mdlm-bootstrap@0.50.0",
+  );
+  await fs.writeFile(
+    path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
+    `kind: phase-definition
+id: phase-0-wayfinding
+version: 2
+order: 0
+name: Package-neutral terminal fixture
+purpose: Prove explicit terminal declarations without package lifecycle identifiers in generic source.
+coverage: bootstrap-subset
+omitted_capabilities: [deployment breadth]
+entry: 'true'
+scenarios: [establish-initial-wayfinding-map@1]
+obligations: []
+outputs: [MAP]
+progression: null
+gate:
+  required: false
+  candidate_selector: '[]'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@2
+  completion: 'false'
+`,
+  );
+  const obligationsRoot = path.join(packageRoot, "obligations");
+  for (const file of await fs.readdir(obligationsRoot)) {
+    if (!file.endsWith(".yaml")) continue;
+    const obligationPath = path.join(obligationsRoot, file);
+    const obligation = parse(await fs.readFile(obligationPath, "utf8"));
+    const phases = (obligation.phases as string[]).filter(
+      (phase) => phase !== "phase-0-wayfinding",
+    );
+    obligation.phases = phases.length > 0
+      ? phases
+      : ["phase-1-product-assurance"];
+    await fs.writeFile(obligationPath, stringify(obligation));
+  }
+  const profilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
+  const profile = parse(await fs.readFile(profilePath, "utf8"));
+  if (terminalOutcomes) profile.terminal_outcomes = terminalOutcomes;
+  else delete profile.terminal_outcomes;
+  await fs.writeFile(profilePath, stringify(profile));
+  await recordInstalledPackageChange(repository, packageRoot);
+}
+
 function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {
   return {
     kind: "obligation",
@@ -117,6 +172,47 @@ describe("package-neutral Operator Outcome classification", () => {
     }));
   });
 
+  it("classifies package-declared successful terminal outcomes when no work can advance", () => {
+    const profileBoundary = classifyOperatorOutcome([], {
+      outcome: "profile-boundary-reached",
+      explanation: "The selected profile intentionally stops before deployment.",
+      omittedCoverage: {
+        profile: ["deployment"],
+        phase: ["deployment evidence"],
+      },
+      evidence: {
+        profile: "bounded@1",
+        condition: { source: "true", result: true, selectors: [] },
+      },
+    });
+    const lifecycleComplete = classifyOperatorOutcome([], {
+      outcome: "lifecycle-complete",
+      explanation: "Every package-declared lifecycle objective is satisfied.",
+      evidence: {
+        profile: "complete@1",
+        condition: { source: "true", result: true, selectors: [] },
+      },
+    });
+
+    expect(profileBoundary).toEqual(expect.objectContaining({
+      kind: "profile-boundary-reached",
+      explanation: expect.stringContaining("intentionally stops"),
+    }));
+    expect(lifecycleComplete).toEqual(expect.objectContaining({
+      kind: "lifecycle-complete",
+      explanation: expect.stringContaining("lifecycle objective"),
+    }));
+    expect(classifyOperatorOutcome([work()], {
+      outcome: "profile-boundary-reached",
+      explanation: "Work takes precedence over a matched terminal condition.",
+      omittedCoverage: { profile: [], phase: [] },
+      evidence: {
+        profile: "bounded@1",
+        condition: { source: "true", result: true, selectors: [] },
+      },
+    }).kind).toBe("assignment");
+  });
+
   it("reports a Process Dead End with exact blocker diagnostics", () => {
     const classified = classifyOperatorOutcome([work({
       dispatchable: false,
@@ -163,8 +259,8 @@ describe("public mdlm outcome and status seam", () => {
       ok: true,
       command: "status",
       contract: "mdlm-status@1",
-      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.49.0" }),
-      profile: expect.objectContaining({ reference: "bootstrap@23" }),
+      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.50.0" }),
+      profile: expect.objectContaining({ reference: "bootstrap@24" }),
       integrity: { status: "valid", diagnostics: [] },
       activePhase: expect.objectContaining({
         reference: "phase-0-wayfinding@2",
@@ -437,7 +533,7 @@ describe("public mdlm outcome and status seam", () => {
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.50.0",
     );
     const bootstrapProfilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
     const alternateProfilePath = path.join(packageRoot, "profiles/alternate.yaml");
@@ -447,10 +543,10 @@ describe("public mdlm outcome and status seam", () => {
     const manifestPath = path.join(packageRoot, "manifest.yaml");
     const manifest = parse(await fs.readFile(manifestPath, "utf8"));
     manifest.profiles = {
-      default: "alternate@23",
+      default: "alternate@24",
       available: [
-        "profiles/bootstrap.yaml@23",
-        "profiles/alternate.yaml@23",
+        "profiles/bootstrap.yaml@24",
+        "profiles/alternate.yaml@24",
       ],
     };
     await fs.writeFile(manifestPath, stringify(manifest));
@@ -460,14 +556,14 @@ describe("public mdlm outcome and status seam", () => {
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
-      reference: "alternate@23",
+      reference: "alternate@24",
     }));
   });
 
   it("classifies package-declared Phase progression as immediate attended work", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.50.0",
     );
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
@@ -612,48 +708,115 @@ gate:
     }));
   });
 
+  it("returns a declared Profile Boundary with omitted coverage and exact condition evidence", async () => {
+    await configureNoWorkProfile(repository, {
+      profile_boundary: {
+        condition: 'process.integrity.package_valid == true && phase.id == "phase-0-wayfinding"',
+        explanation: "This exact profile intentionally omits deployment breadth.",
+      },
+    });
+
+    const next = mdlm(repository, "next");
+    const status = mdlm(repository, "status", "--json");
+    const readableStatus = mdlm(repository, "status");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-next@1",
+      outcome: "profile-boundary-reached",
+      phase: "phase-0-wayfinding@2",
+      explanation: "This exact profile intentionally omits deployment breadth.",
+      omittedCoverage: {
+        profile: expect.arrayContaining(["formal verification execution"]),
+        phase: ["deployment breadth"],
+      },
+      evidence: {
+        profile: "bootstrap@24",
+        condition: {
+          source: 'process.integrity.package_valid == true && phase.id == "phase-0-wayfinding"',
+          result: true,
+          selectors: [],
+        },
+      },
+      diagnostics: [],
+    }));
+    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+    expect(JSON.parse(status.stdout).currentOutcome).toEqual(
+      expect.objectContaining({
+        outcome: "profile-boundary-reached",
+        omittedCoverage: expect.objectContaining({
+          phase: ["deployment breadth"],
+        }),
+        evidence: expect.objectContaining({ profile: "bootstrap@24" }),
+      }),
+    );
+    expect(readableStatus.stdout).toContain(
+      "Current Operator Outcome: profile-boundary-reached",
+    );
+    expect(readableStatus.stdout).toContain(
+      "Terminal Evidence: bootstrap@24",
+    );
+  });
+
+  it("returns Lifecycle Complete only from its explicit package condition", async () => {
+    await configureNoWorkProfile(repository, {
+      lifecycle_complete: {
+        condition: 'process.integrity.package_valid == true && phase.id == "phase-0-wayfinding"',
+        explanation: "Every lifecycle objective selected by this package is complete.",
+      },
+    });
+
+    const next = mdlm(repository, "next");
+    const status = mdlm(repository, "status", "--json");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-next@1",
+      outcome: "lifecycle-complete",
+      explanation: "Every lifecycle objective selected by this package is complete.",
+      evidence: {
+        profile: "bootstrap@24",
+        condition: expect.objectContaining({ result: true }),
+      },
+      diagnostics: [],
+    }));
+    expect(JSON.parse(status.stdout).currentOutcome).toEqual(
+      expect.objectContaining({
+        outcome: "lifecycle-complete",
+        evidence: expect.objectContaining({ profile: "bootstrap@24" }),
+      }),
+    );
+  });
+
+  it("returns Invalid when exact terminal conditions are ambiguous", async () => {
+    await configureNoWorkProfile(repository, {
+      profile_boundary: {
+        condition: "process.integrity.package_valid == true",
+        explanation: "The profile boundary holds.",
+      },
+      lifecycle_complete: {
+        condition: 'phase.id == "phase-0-wayfinding"',
+        explanation: "Lifecycle completion also holds.",
+      },
+    });
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status).toBe(1);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      contract: "mdlm-next@1",
+      outcome: "invalid",
+      diagnostics: [expect.objectContaining({
+        code: "ambiguous-terminal-outcomes",
+      })],
+    }));
+  });
+
   it("returns Process Dead End successfully with blocker diagnostics", async () => {
-    const packageRoot = path.join(
-      repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
-    );
-    await fs.writeFile(
-      path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
-      `kind: phase-definition
-id: phase-0-wayfinding
-version: 2
-order: 0
-name: Deliberately unfinished profile
-purpose: Prove that absence of reachable work is not reported as completion.
-coverage: bootstrap-subset
-omitted_capabilities: [all intended lifecycle work]
-entry: 'true'
-scenarios: [establish-initial-wayfinding-map@1]
-obligations: []
-outputs: [MAP]
-progression: null
-gate:
-  required: false
-  candidate_selector: 'select("current-wayfinding-maps@1", {})'
-  candidate_as: candidate
-  obligation: candidate-gate-signoff@2
-  completion: 'true'
-`,
-    );
-    const obligationsRoot = path.join(packageRoot, "obligations");
-    for (const file of await fs.readdir(obligationsRoot)) {
-      if (!file.endsWith(".yaml")) continue;
-      const obligationPath = path.join(obligationsRoot, file);
-      const obligation = parse(await fs.readFile(obligationPath, "utf8"));
-      const phases = (obligation.phases as string[]).filter(
-        (phase) => phase !== "phase-0-wayfinding",
-      );
-      obligation.phases = phases.length > 0
-        ? phases
-        : ["phase-1-product-assurance"];
-      await fs.writeFile(obligationPath, stringify(obligation));
-    }
-    await recordInstalledPackageChange(repository, packageRoot);
+    await configureNoWorkProfile(repository);
 
     const next = mdlm(repository, "next");
 
@@ -694,7 +857,7 @@ gate:
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.49.0/manifest.yaml",
+        ".lifecycle/packages/mdlm-bootstrap@0.50.0/manifest.yaml",
       ),
       "\n# integrity failure\n",
     );

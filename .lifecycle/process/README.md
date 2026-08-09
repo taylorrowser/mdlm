@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.34
+# MDLM bootstrap process package v0.50
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -21,7 +21,11 @@ output, Dispatchability, and waiver dimensions without embedding these example
 Phase or type IDs in the executable. With an explicit `--phase`, those commands
 evaluate durable repository Markdown directly; without one, repository-backed
 status and next-work derive the active Phase from package progression declarations
-and exact authorization evidence rather than a mutable phase pointer. `--snapshot`
+and exact authorization evidence rather than a mutable phase pointer. The selected
+Profile separately declares its exact Profile Boundary condition and explanation;
+`progression: null` alone remains insufficient to claim either Profile Boundary or
+Lifecycle Complete. Public outcomes retain the condition source and exact Selector
+evidence, and report this package's omitted Profile and Phase coverage. `--snapshot`
 retains reproducible fixture and historical evaluation. `req process init` may copy this package
 under a new identity with exact source provenance, but that independently
 versioned copy is ordinary package data rather than inherited kernel behavior.

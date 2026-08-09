@@ -2558,6 +2558,13 @@ function renderCommandResult(result: CommandResult): string {
         ? `active ${result.currentOutcome.assignment.id}`
         : "not allocated"
       : "none";
+    const terminal = "evidence" in result.currentOutcome
+      ? [
+          `Terminal Explanation: ${result.currentOutcome.explanation}`,
+          `Terminal Evidence: ${result.currentOutcome.evidence.profile} — ${result.currentOutcome.evidence.condition.source} => ${result.currentOutcome.evidence.condition.result}`,
+          `Terminal Selector Evidence: ${JSON.stringify(result.currentOutcome.evidence.condition.selectors)}`,
+        ]
+      : [];
     return [
       `Process Package: ${result.package.reference}`,
       `Implementation Profile: ${result.profile.reference} [${result.profile.status}]`,
@@ -2571,6 +2578,7 @@ function renderCommandResult(result: CommandResult): string {
       `Unresolved Work: total=${result.unresolvedWork.total}, dispatchable=${result.unresolvedWork.dispatchable}, by-status=${JSON.stringify(result.unresolvedWork.byStatus)}`,
       `Current Operator Outcome: ${result.currentOutcome.outcome}`,
       `Assignment: ${assignment}`,
+      ...terminal,
       `Drill Down:`,
       ...result.drillDownCommands.map((command) => `  ${command}`),
     ].join("\n");

@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.49.0`
+- **Implementation package:** `mdlm-bootstrap@0.50.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -82,7 +82,11 @@ direct authorship, and migrates public flows to exact Scenario execution. Issues
 stakeholder choice and bind each Review Context to one exact primary scope even
 when supporting parents are members. They do
 not add Phase 3–6 scope or change
-the reviewed `change` expansion Decision.
+the reviewed `change` expansion Decision. Issue #89 adds exact Profile-authored
+Profile Boundary and Lifecycle Complete conditions to the package-neutral Operator
+Outcome seam. The bootstrap declares only its reviewed Phase 0–2 pilot boundary;
+`progression: null` by itself remains a Process Dead End and does not claim that
+Phases 3–6 are complete.
 
 ## Demonstrated invariants
 
@@ -123,7 +127,8 @@ the reviewed `change` expansion Decision.
   independent Review, and the final nondelegable stakeholder Expansion Decision
   are all projected through package Obligations and public Scenario execution.
 - The reviewed pilot recommendation is `change`; no Phase 3–6 definitions are
-  present.
+  present, and the selected Profile reports that exact terminal evidence as a
+  Profile Boundary rather than Lifecycle Complete.
 
 ## Pilot outcome and remaining limits
 
