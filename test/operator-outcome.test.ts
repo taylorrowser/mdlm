@@ -9,6 +9,7 @@ import {
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
+import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -48,61 +49,6 @@ async function recordInstalledPackageChange(
     contract.package.digest = digest;
     await fs.writeFile(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
   }
-}
-
-async function configureNoWorkProfile(
-  repository: string,
-  terminalOutcomes?: Record<string, {
-    condition: string;
-    explanation: string;
-  }>,
-): Promise<void> {
-  const packageRoot = path.join(
-    repository,
-    ".lifecycle/packages/mdlm-bootstrap@0.50.0",
-  );
-  await fs.writeFile(
-    path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
-    `kind: phase-definition
-id: phase-0-wayfinding
-version: 2
-order: 0
-name: Package-neutral terminal fixture
-purpose: Prove explicit terminal declarations without package lifecycle identifiers in generic source.
-coverage: bootstrap-subset
-omitted_capabilities: [deployment breadth]
-entry: 'true'
-scenarios: [establish-initial-wayfinding-map@1]
-obligations: []
-outputs: [MAP]
-progression: null
-gate:
-  required: false
-  candidate_selector: '[]'
-  candidate_as: candidate
-  obligation: candidate-gate-signoff@2
-  completion: 'false'
-`,
-  );
-  const obligationsRoot = path.join(packageRoot, "obligations");
-  for (const file of await fs.readdir(obligationsRoot)) {
-    if (!file.endsWith(".yaml")) continue;
-    const obligationPath = path.join(obligationsRoot, file);
-    const obligation = parse(await fs.readFile(obligationPath, "utf8"));
-    const phases = (obligation.phases as string[]).filter(
-      (phase) => phase !== "phase-0-wayfinding",
-    );
-    obligation.phases = phases.length > 0
-      ? phases
-      : ["phase-1-product-assurance"];
-    await fs.writeFile(obligationPath, stringify(obligation));
-  }
-  const profilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
-  const profile = parse(await fs.readFile(profilePath, "utf8"));
-  if (terminalOutcomes) profile.terminal_outcomes = terminalOutcomes;
-  else delete profile.terminal_outcomes;
-  await fs.writeFile(profilePath, stringify(profile));
-  await recordInstalledPackageChange(repository, packageRoot);
 }
 
 function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {
@@ -709,10 +655,10 @@ gate:
   });
 
   it("returns a declared Profile Boundary with omitted coverage and exact condition evidence", async () => {
-    await configureNoWorkProfile(repository, {
+    repository = await terminalProcessRepository(parent, {
       profile_boundary: {
-        condition: 'process.integrity.package_valid == true && phase.id == "phase-0-wayfinding"',
-        explanation: "This exact profile intentionally omits deployment breadth.",
+        condition: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
+        explanation: "This exact profile intentionally omits external breadth.",
       },
     });
 
@@ -725,18 +671,22 @@ gate:
       ok: true,
       contract: "mdlm-next@1",
       outcome: "profile-boundary-reached",
-      phase: "phase-0-wayfinding@2",
-      explanation: "This exact profile intentionally omits deployment breadth.",
+      phase: "phase-0-terminal@1",
+      explanation: "This exact profile intentionally omits external breadth.",
       omittedCoverage: {
-        profile: expect.arrayContaining(["formal verification execution"]),
-        phase: ["deployment breadth"],
+        profile: ["broader fixture coverage"],
+        phase: ["external fixture work"],
       },
       evidence: {
-        profile: "bootstrap@24",
+        profile: "terminal@1",
         condition: {
-          source: 'process.integrity.package_valid == true && phase.id == "phase-0-wayfinding"',
+          source: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
           result: true,
-          selectors: [],
+          selectors: [{
+            selector: "terminal-evidence@1",
+            arguments: {},
+            result: [],
+          }],
         },
       },
       diagnostics: [],
@@ -746,23 +696,23 @@ gate:
       expect.objectContaining({
         outcome: "profile-boundary-reached",
         omittedCoverage: expect.objectContaining({
-          phase: ["deployment breadth"],
+          phase: ["external fixture work"],
         }),
-        evidence: expect.objectContaining({ profile: "bootstrap@24" }),
+        evidence: expect.objectContaining({ profile: "terminal@1" }),
       }),
     );
     expect(readableStatus.stdout).toContain(
       "Current Operator Outcome: profile-boundary-reached",
     );
     expect(readableStatus.stdout).toContain(
-      "Terminal Evidence: bootstrap@24",
+      "Terminal Evidence: terminal@1",
     );
   });
 
   it("returns Lifecycle Complete only from its explicit package condition", async () => {
-    await configureNoWorkProfile(repository, {
+    repository = await terminalProcessRepository(parent, {
       lifecycle_complete: {
-        condition: 'process.integrity.package_valid == true && phase.id == "phase-0-wayfinding"',
+        condition: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
         explanation: "Every lifecycle objective selected by this package is complete.",
       },
     });
@@ -777,27 +727,35 @@ gate:
       outcome: "lifecycle-complete",
       explanation: "Every lifecycle objective selected by this package is complete.",
       evidence: {
-        profile: "bootstrap@24",
-        condition: expect.objectContaining({ result: true }),
+        profile: "terminal@1",
+        condition: {
+          source: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
+          result: true,
+          selectors: [{
+            selector: "terminal-evidence@1",
+            arguments: {},
+            result: [],
+          }],
+        },
       },
       diagnostics: [],
     }));
     expect(JSON.parse(status.stdout).currentOutcome).toEqual(
       expect.objectContaining({
         outcome: "lifecycle-complete",
-        evidence: expect.objectContaining({ profile: "bootstrap@24" }),
+        evidence: expect.objectContaining({ profile: "terminal@1" }),
       }),
     );
   });
 
   it("returns Invalid when exact terminal conditions are ambiguous", async () => {
-    await configureNoWorkProfile(repository, {
+    repository = await terminalProcessRepository(parent, {
       profile_boundary: {
-        condition: "process.integrity.package_valid == true",
+        condition: 'none("terminal-evidence@1", {})',
         explanation: "The profile boundary holds.",
       },
       lifecycle_complete: {
-        condition: 'phase.id == "phase-0-wayfinding"',
+        condition: 'phase.id == "phase-0-terminal"',
         explanation: "Lifecycle completion also holds.",
       },
     });
@@ -816,7 +774,7 @@ gate:
   });
 
   it("returns Process Dead End successfully with blocker diagnostics", async () => {
-    await configureNoWorkProfile(repository);
+    repository = await terminalProcessRepository(parent);
 
     const next = mdlm(repository, "next");
 
@@ -825,7 +783,7 @@ gate:
       ok: true,
       contract: "mdlm-next@1",
       outcome: "process-dead-end",
-      phase: "phase-0-wayfinding@2",
+      phase: "phase-0-terminal@1",
       explanation: expect.stringContaining("unfinished"),
       blockers: [],
       diagnostics: [],

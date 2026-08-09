@@ -17,6 +17,7 @@ import {
   nextWorkProjection,
 } from "./lifecycle-inspection.js";
 import { verifyRepositoryBaselines } from "./exact-baseline-repository.js";
+import { selectedImplementationProfile } from "./implementation-profile.js";
 import { repositoryLifecycleSnapshot } from "./lifecycle-repository.js";
 import {
   classifyOperatorOutcome,
@@ -791,20 +792,7 @@ export async function leaseNextAssignment(
           explanation: classification.explanation,
           blockers: classification.blockers,
         }
-      : classification.kind === "profile-boundary-reached"
-      ? {
-          ...base,
-          outcome: "profile-boundary-reached",
-          explanation: classification.explanation,
-          omittedCoverage: classification.omittedCoverage,
-          evidence: classification.evidence,
-        }
-      : {
-          ...base,
-          outcome: "lifecycle-complete",
-          explanation: classification.explanation,
-          evidence: classification.evidence,
-        };
+      : { ...base, ...terminalOutcomeProjection(classification) };
     return { ok: true, value, diagnostics: [] };
   }
   const exact = state.value.assignment;
@@ -886,6 +874,27 @@ async function recentTransaction(
     : { available: false };
 }
 
+function terminalOutcomeProjection(
+  classification: Extract<OperatorOutcomeClassification, {
+    kind: "profile-boundary-reached" | "lifecycle-complete";
+  }>,
+): Extract<OperatorStatus["currentOutcome"], {
+  outcome: "profile-boundary-reached" | "lifecycle-complete";
+}> {
+  return classification.kind === "profile-boundary-reached"
+    ? {
+        outcome: "profile-boundary-reached",
+        explanation: classification.explanation,
+        omittedCoverage: classification.omittedCoverage,
+        evidence: classification.evidence,
+      }
+    : {
+        outcome: "lifecycle-complete",
+        explanation: classification.explanation,
+        evidence: classification.evidence,
+      };
+}
+
 function statusOutcome(
   state: ExactOperatorState,
   activeLease: AssignmentLease | undefined,
@@ -898,21 +907,10 @@ function statusOutcome(
       blockers: classification.blockers,
     };
   }
-  if (classification.kind === "profile-boundary-reached") {
-    return {
-      outcome: "profile-boundary-reached",
-      explanation: classification.explanation,
-      omittedCoverage: classification.omittedCoverage,
-      evidence: classification.evidence,
-    };
-  }
-  if (classification.kind === "lifecycle-complete") {
-    return {
-      outcome: "lifecycle-complete",
-      explanation: classification.explanation,
-      evidence: classification.evidence,
-    };
-  }
+  if (
+    classification.kind === "profile-boundary-reached" ||
+    classification.kind === "lifecycle-complete"
+  ) return terminalOutcomeProjection(classification);
   const exact = state.assignment;
   const assignment = exact && activeLease && sameAssignment(activeLease, exact)
     ? { allocation: "active" as const, id: activeLease.id }
@@ -931,16 +929,12 @@ function statusOutcome(
 function selectedProfile(
   processPackage: ProcessPackage,
 ): AssignmentResult<VersionedDefinition> {
-  const profiles = object(processPackage.manifest.profiles);
-  const reference = typeof profiles?.default === "string"
-    ? profiles.default
-    : "";
-  const profile = definition(processPackage.profiles, reference);
-  return profile
-    ? { ok: true, value: profile, diagnostics: [] }
+  const selected = selectedImplementationProfile(processPackage);
+  return selected
+    ? { ok: true, value: selected.definition, diagnostics: [] }
     : failure(
         "profile-selection-invalid",
-        `The Process Package default implementation profile '${reference || "(missing)"}' does not resolve exactly`,
+        `The Process Package default implementation profile '${String(object(processPackage.manifest.profiles)?.default ?? "(missing)")}' does not resolve exactly`,
         "manifest.profiles.default",
       );
 }

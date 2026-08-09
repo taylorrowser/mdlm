@@ -14,6 +14,7 @@ import type {
   ProcessPackage,
   VersionedDefinition,
 } from "./index.js";
+import { selectedImplementationProfile } from "./implementation-profile.js";
 import {
   formatObligationInstanceIdentity,
   phaseObligationSubjectIdentity,
@@ -981,11 +982,9 @@ class LifecycleEvaluator {
     outcome: TerminalOutcomeEvaluation | null;
     diagnostics: ProcessDiagnostic[];
   } {
-    const profileReference = string(
-      object(this.processPackage.manifest.profiles)?.default,
-    ) ?? "";
-    const profileId = /^(.+)@[1-9][0-9]*$/.exec(profileReference)?.[1];
-    const profile = profileId ? this.processPackage.profiles[profileId] : undefined;
+    const selectedProfile = selectedImplementationProfile(this.processPackage);
+    const profileReference = selectedProfile?.reference ?? "";
+    const profile = selectedProfile?.definition;
     const declarations = object(profile?.terminal_outcomes);
     const matches = (
       ["profile_boundary", "lifecycle_complete"] as const
