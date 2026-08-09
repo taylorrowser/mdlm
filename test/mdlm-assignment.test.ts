@@ -257,6 +257,56 @@ describe("MDLM Assignment leasing and preparation", () => {
       .toEqual([".gitkeep"]);
   });
 
+  it("keeps Scenario submission as the only normal mdlm Lifecycle Data writer", async () => {
+    const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
+    const directCreation = mdlm(
+      repository,
+      "new",
+      "QST",
+      "--scenario",
+      "resolve-question@2",
+      "--set",
+      "title=Direct publication bypass",
+      "--set",
+      "kind=empirical",
+      "--set",
+      "evidence_available=true",
+      "--set",
+      "question=Can mdlm publish without an Assignment Response?",
+      "--set",
+      "state=open",
+      "--set",
+      "blocking_impact=The canonical writer invariant would fail",
+      "--json",
+    );
+
+    expect(directCreation.status).toBe(1);
+    expect(JSON.parse(directCreation.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "unknown-command" }),
+    ]);
+
+    const otherBypasses = [
+      ["revise", "QST-0123456789"],
+      ["link", "QST-0123456789-r00001", "QST-ABCDEFGHIJ", "--type", "blocks"],
+      ["unlink", "QST-0123456789-r00001", "QST-ABCDEFGHIJ", "--type", "blocks"],
+      ["baseline", "create", "--type", "BSL"],
+      ["baseline", "add", "BSL-0123456789", "QST-0123456789-r00001"],
+      ["baseline", "remove", "BSL-0123456789", "QST-0123456789-r00001"],
+      ["baseline", "evidence", "add", "BSL-0123456789", "REV-0123456789-r00001"],
+      ["baseline", "evidence", "remove", "BSL-0123456789", "REV-0123456789-r00001"],
+      ["baseline", "compose", "BSL-0123456789", "BSL-ABCDEFGHIJ-r00001"],
+      ["baseline", "freeze", "BSL-0123456789"],
+    ];
+    for (const arguments_ of otherBypasses) {
+      const result = mdlm(repository, ...arguments_, "--json");
+      expect(result.status, `${arguments_.join(" ")}\n${result.stdout}`).toBe(1);
+      expect(JSON.parse(result.stdout).diagnostics).toEqual([
+        expect.objectContaining({ code: "unknown-command" }),
+      ]);
+    }
+    expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
+  });
+
   it("does not expose adapter execution through mdlm", async () => {
     const marker = path.join(parent, "adapter-invoked");
     const adapter = path.join(parent, "adapter.mjs");

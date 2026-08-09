@@ -2633,32 +2633,11 @@ function commandOperands(arguments_: string[]): string[] {
   );
 }
 
-async function dispatchCommand(
+async function dispatchLegacyLifecycleMutation(
   arguments_: string[],
   repositoryRoot: string,
-  standardInput?: string,
-): Promise<CommandResult> {
+): Promise<CommandResult | undefined> {
   const operands = commandOperands(arguments_);
-  if (operands[0] === "init") {
-    if (arguments_.includes("--process")) {
-      return failure(
-        "init-custom-process-unsupported",
-        "mdlm init uses the bundled Example Process Package and does not accept '--process'",
-      );
-    }
-    const initArguments = arguments_.filter((argument) => argument !== "--json");
-    if (initArguments.length !== 2 || initArguments[1]?.startsWith("--")) {
-      return failure(
-        "init-destination-required",
-        "Expected 'mdlm init <destination>'",
-      );
-    }
-    const initialized = await initializeBundledRepository(
-      path.resolve(repositoryRoot, initArguments[1]!),
-    );
-    return { ...initialized, command: "init" };
-  }
-  if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
   if (operands[0] === "new" && operands[1]) {
     return newDatum(repositoryRoot, operands[1], arguments_);
   }
@@ -2709,17 +2688,6 @@ async function dispatchCommand(
     return freezeBaseline(repositoryRoot, operands[2]);
   }
   if (
-    operands[0] === "baseline" && operands[1] === "verify" && operands[2]
-  ) {
-    return verifyBaseline(repositoryRoot, operands[2]);
-  }
-  if (
-    operands[0] === "baseline" && operands[1] === "diff" &&
-    operands[2] && operands[3]
-  ) {
-    return diffBaselines(repositoryRoot, operands[2], operands[3]);
-  }
-  if (
     (operands[0] === "link" || operands[0] === "unlink") &&
     operands[1] && operands[2]
   ) {
@@ -2730,6 +2698,46 @@ async function dispatchCommand(
       operands[2],
       arguments_,
     );
+  }
+  return undefined;
+}
+
+async function dispatchCommand(
+  arguments_: string[],
+  repositoryRoot: string,
+  standardInput?: string,
+): Promise<CommandResult> {
+  const operands = commandOperands(arguments_);
+  if (operands[0] === "init") {
+    if (arguments_.includes("--process")) {
+      return failure(
+        "init-custom-process-unsupported",
+        "mdlm init uses the bundled Example Process Package and does not accept '--process'",
+      );
+    }
+    const initArguments = arguments_.filter((argument) => argument !== "--json");
+    if (initArguments.length !== 2 || initArguments[1]?.startsWith("--")) {
+      return failure(
+        "init-destination-required",
+        "Expected 'mdlm init <destination>'",
+      );
+    }
+    const initialized = await initializeBundledRepository(
+      path.resolve(repositoryRoot, initArguments[1]!),
+    );
+    return { ...initialized, command: "init" };
+  }
+  if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+  if (
+    operands[0] === "baseline" && operands[1] === "verify" && operands[2]
+  ) {
+    return verifyBaseline(repositoryRoot, operands[2]);
+  }
+  if (
+    operands[0] === "baseline" && operands[1] === "diff" &&
+    operands[2] && operands[3]
+  ) {
+    return diffBaselines(repositoryRoot, operands[2], operands[3]);
   }
   if (operands[0] === "backlinks" && operands[1]) {
     return showStoredBacklinks(repositoryRoot, operands[1]);
@@ -2950,6 +2958,11 @@ async function dispatchLegacyReqCommand(
     );
   }
   const operands = commandOperands(arguments_);
+  const lifecycleMutation = await dispatchLegacyLifecycleMutation(
+    arguments_,
+    repositoryRoot,
+  );
+  if (lifecycleMutation) return lifecycleMutation;
   if (
     operands[0] === "scenario" && operands[1] === "execute" && operands[2]
   ) {
