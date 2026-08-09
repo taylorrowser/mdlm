@@ -2,9 +2,10 @@
 import { executeCommandApplication } from "./command-application.js";
 
 const arguments_ = process.argv.slice(2);
-const readsAssignmentResponse = arguments_[0] === "scenario" &&
-  arguments_[1] === "submit" &&
-  (arguments_[2] === undefined || arguments_[2] === "-" || arguments_[2] === "--json");
+const submitArguments = arguments_.filter((argument) => argument !== "--json");
+const readsAssignmentResponse = submitArguments[0] === "scenario" &&
+  submitArguments[1] === "submit" &&
+  (submitArguments[2] === undefined || submitArguments[2] === "-");
 let standardInput: string | undefined;
 if (readsAssignmentResponse) {
   process.stdin.setEncoding("utf8");

@@ -706,12 +706,13 @@ function scenarioExecutionStructureValid(
         requirements.some((candidate) => {
           const evidence = recordValue(candidate?.evidence);
           const authorization = recordValue(candidate?.authorization);
-          const sourceValid = authorization?.kind === "authority-supply"
-            ? authorization.authority === requirement?.authority &&
-              supplied.includes(String(authorization.authority))
-            : authorization?.kind === "standing-delegation" &&
-              requirement?.delegationAllowed === true &&
-              delegations.includes(String(authorization.revision));
+          const sourceValid = execution.contract !== "mdlm-scenario-execution@4" ||
+            (authorization?.kind === "authority-supply"
+              ? authorization.authority === requirement?.authority &&
+                supplied.includes(String(authorization.authority))
+              : authorization?.kind === "standing-delegation" &&
+                requirement?.delegationAllowed === true &&
+                delegations.includes(String(authorization.revision)));
           return candidate?.invocation === invocation &&
             candidate.mode === requirement?.mode &&
             candidate.authority === requirement?.authority &&

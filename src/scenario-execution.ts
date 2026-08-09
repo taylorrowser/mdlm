@@ -77,7 +77,7 @@ export interface ScenarioExecutionAuthority {
     authority: string;
     delegationAllowed: boolean;
     evidence: { output: string; type: string };
-    authorization:
+    authorization?:
       | { kind: "authority-supply"; authority: string }
       | { kind: "standing-delegation"; revision: string };
   }[];
@@ -740,7 +740,13 @@ async function executeScenario(
           delegations: [...usedDelegations].sort(),
           requirements: authorityRequirements.map((requirement) => ({
             ...requirement,
-            authorization: requirementAuthorizations.get(requirement.invocation)!,
+            ...(submittedResponse
+              ? {
+                  authorization: requirementAuthorizations.get(
+                    requirement.invocation,
+                  )!,
+                }
+              : {}),
           })),
         }
       : undefined;
@@ -773,16 +779,15 @@ async function executeScenario(
   const loadedSkillRefs = submittedResponse
     ? submittedResponse.loadedSkillRefs
     : declaredSkillRefs;
-  const unknownSkillRefs = loadedSkillRefs.filter((reference) =>
-    !declaredSkillRefs.includes(reference)
-  );
-  if (unknownSkillRefs.length > 0) {
+  const exactSkillProvenance = loadedSkillRefs.length === declaredSkillRefs.length &&
+    loadedSkillRefs.every((reference, index) => reference === declaredSkillRefs[index]);
+  if (!exactSkillProvenance) {
     return {
       ok: false,
       diagnostics: [{
-        code: "scenario-skill-reference-unknown",
+        code: "scenario-skill-provenance-mismatch",
         path: `${scenarioReference}#skills`,
-        message: `Scenario Proposal reports skills outside its exact Assignment packet: ${unknownSkillRefs.join(", ")}`,
+        message: "Scenario Proposal must report every exact Assignment skill in packet order",
       }],
     };
   }

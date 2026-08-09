@@ -381,9 +381,21 @@ describe("MDLM Assignment leasing and preparation", () => {
         },
       },
       {
-        code: "scenario-skill-reference-unknown",
+        code: "scenario-skill-provenance-mismatch",
         mutate(candidate: typeof response) {
           candidate.proposal.loadedSkillRefs = ["skills/not-in-the-assignment.md@1"];
+        },
+      },
+      {
+        code: "scenario-skill-provenance-mismatch",
+        mutate(candidate: typeof response) {
+          candidate.proposal.loadedSkillRefs = [];
+        },
+      },
+      {
+        code: "scenario-skill-provenance-mismatch",
+        mutate(candidate: typeof response) {
+          candidate.proposal.loadedSkillRefs.reverse();
         },
       },
       {
@@ -413,7 +425,13 @@ describe("MDLM Assignment leasing and preparation", () => {
       const invalid = structuredClone(response);
       rejectionCase.mutate(invalid);
       await fs.writeFile(responsePath, `${JSON.stringify(invalid)}\n`);
-      const rejected = mdlm(repository, "scenario", "submit", responsePath);
+      const rejected = mdlm(
+        repository,
+        "scenario",
+        "submit",
+        "--json",
+        responsePath,
+      );
       expect(rejected.status).toBe(1);
       expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
         expect.arrayContaining([
