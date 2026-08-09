@@ -19,7 +19,7 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   repository snapshots, and explanations from primitive graph and integrity data.
 - The `mdlm` executable initializes the bundled repository, exposes package-neutral
   inspection and validation, leases the next exact Assignment, prepares its
-  harness-neutral packet, and accepts a complete Assignment Response. Submission
+  harness-neutral packet, and accepts a complete Scenario Proposal response. Submission
   validates every Scenario Proposal output and publishes the whole canonical
   transaction atomically with exact response provenance; rejection publishes
   nothing. MDLM does not invoke an adapter or execute Package Command Aliases.

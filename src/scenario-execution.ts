@@ -77,6 +77,9 @@ export interface ScenarioExecutionAuthority {
     authority: string;
     delegationAllowed: boolean;
     evidence: { output: string; type: string };
+    authorization:
+      | { kind: "authority-supply"; authority: string }
+      | { kind: "standing-delegation"; revision: string };
   }[];
 }
 
@@ -664,8 +667,18 @@ async function executeScenario(
   const supplied = [...new Set(suppliedAuthorities)].sort();
   const delegations = [...new Set(suppliedDelegations)].sort();
   const usedDelegations = new Set<string>();
+  const requirementAuthorizations = new Map<
+    number,
+    ScenarioExecutionAuthority["requirements"][number]["authorization"]
+  >();
   const unsatisfiedRequirements = authorityRequirements.filter((requirement) => {
-    if (supplied.includes(requirement.authority)) return false;
+    if (supplied.includes(requirement.authority)) {
+      requirementAuthorizations.set(requirement.invocation, {
+        kind: "authority-supply",
+        authority: requirement.authority,
+      });
+      return false;
+    }
     if (
       !requirement.delegationAllowed ||
       !standingDelegation ||
@@ -679,6 +692,10 @@ async function executeScenario(
     );
     if (!matched) return true;
     usedDelegations.add(matched);
+    requirementAuthorizations.set(requirement.invocation, {
+      kind: "standing-delegation",
+      revision: matched,
+    });
     return false;
   });
   if (unsatisfiedRequirements.length > 0) {
@@ -721,7 +738,10 @@ async function executeScenario(
       ? {
           supplied,
           delegations: [...usedDelegations].sort(),
-          requirements: authorityRequirements,
+          requirements: authorityRequirements.map((requirement) => ({
+            ...requirement,
+            authorization: requirementAuthorizations.get(requirement.invocation)!,
+          })),
         }
       : undefined;
   const participationPolicyReferences = [...new Set(
@@ -1172,30 +1192,42 @@ export async function executeResolverScenario(
   );
 }
 
+export interface ResolverScenarioSubmission {
+  scenarioReference: string;
+  obligationInstance: string;
+  proposal: ScenarioProposal;
+  assignment: string;
+  responseDigest: string;
+  suppliedAuthorities: string[];
+  suppliedDelegations: string[];
+  loadedSkillRefs: string[];
+}
+
 export async function submitResolverScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   packageIdentity: PackageExecutionIdentity,
-  scenarioReference: string,
-  obligationInstance: string,
-  proposal: ScenarioProposal,
-  assignment: string,
-  responseDigest: string,
-  suppliedAuthorities: string[] = [],
-  suppliedDelegations: string[] = [],
-  loadedSkillRefs: string[] = [],
+  submission: ResolverScenarioSubmission,
 ): Promise<ScenarioExecutionResult> {
   return executeScenario(
     repositoryRoot,
     processPackage,
     packageIdentity,
-    scenarioReference,
-    { mode: "dispatchable-obligation", obligationInstance },
+    submission.scenarioReference,
+    {
+      mode: "dispatchable-obligation",
+      obligationInstance: submission.obligationInstance,
+    },
     [],
     undefined,
-    suppliedAuthorities,
-    suppliedDelegations,
-    { assignment, digest: responseDigest, proposal, loadedSkillRefs },
+    submission.suppliedAuthorities,
+    submission.suppliedDelegations,
+    {
+      assignment: submission.assignment,
+      digest: submission.responseDigest,
+      proposal: submission.proposal,
+      loadedSkillRefs: submission.loadedSkillRefs,
+    },
   );
 }
 

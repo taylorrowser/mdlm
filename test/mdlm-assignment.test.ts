@@ -387,6 +387,14 @@ describe("MDLM Assignment leasing and preparation", () => {
         },
       },
       {
+        code: "scenario-authority-unexpected",
+        mutate(candidate: typeof response) {
+          (candidate.proposal.standingDelegations as string[]).push(
+            "DEC-0123456789-r00001",
+          );
+        },
+      },
+      {
         code: "scenario-output-local-id-duplicate",
         mutate(candidate: typeof response) {
           candidate.proposal.outputs[1]!.localId = "map";
@@ -744,12 +752,37 @@ describe("MDLM Assignment leasing and preparation", () => {
     });
 
     expect(reviewExecution.authority.supplied).toEqual(["independent-reviewer"]);
+    expect(reviewExecution.authority.requirements).toEqual([
+      expect.objectContaining({
+        authorization: {
+          kind: "authority-supply",
+          authority: "independent-reviewer",
+        },
+      }),
+    ]);
     expect(reviewExecution.outputs[0].data.payload).toEqual(expect.objectContaining({
       outcome: "fail",
       findings: [finding],
     }));
     expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-  }, 20_000);
+
+    const executionPath = path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      reviewExecution.id,
+      "execution.json",
+    );
+    const falsifiedExecution = JSON.parse(await fs.readFile(executionPath, "utf8"));
+    falsifiedExecution.authority.supplied = [];
+    await fs.writeFile(executionPath, `${JSON.stringify(falsifiedExecution, null, 2)}\n`);
+    const falsifiedDoctor = mdlm(repository, "doctor", "--json");
+    expect(falsifiedDoctor.status).toBe(1);
+    expect(JSON.parse(falsifiedDoctor.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "authority-evidence-execution-required" }),
+      ]),
+    );
+  }, 30_000);
 
   it("keeps the versioned Assignment Response schema stable across Assignments", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);

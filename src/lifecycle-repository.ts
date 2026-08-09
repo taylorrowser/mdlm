@@ -675,6 +675,24 @@ function scenarioExecutionStructureValid(
   const requirements = Array.isArray(authority?.requirements)
     ? authority.requirements.map(recordValue)
     : [];
+  const supplied = Array.isArray(authority?.supplied)
+    ? authority.supplied.filter((value): value is string => typeof value === "string")
+    : [];
+  const delegations = Array.isArray(authority?.delegations)
+    ? authority.delegations.filter((value): value is string => typeof value === "string")
+    : [];
+  const authoritySourcesValid = authority !== undefined &&
+    Array.isArray(authority.supplied) &&
+    supplied.length === authority.supplied.length &&
+    new Set(supplied).size === supplied.length &&
+    Array.isArray(authority.delegations) &&
+    delegations.length === authority.delegations.length &&
+    new Set(delegations).size === delegations.length &&
+    supplied.every((value) =>
+      nonAutonomous.some(({ requirement }) => requirement?.authority === value)
+    ) && delegations.every((value) =>
+      /^[A-Z]{3,8}-[0-9A-Z]{10,12}-r[0-9]{5}$/.test(value)
+    );
   return nonAutonomous.length === 0
     ? (execution.contract === "mdlm-scenario-execution@2" &&
         adapter?.contract === "mdlm-agent-adapter@2" ||
@@ -683,16 +701,23 @@ function scenarioExecutionStructureValid(
     : (execution.contract === "mdlm-scenario-execution@3" &&
         adapter?.contract === "mdlm-agent-adapter@3" ||
         execution.contract === "mdlm-scenario-execution@4") &&
-      requirements.length === nonAutonomous.length &&
+      authoritySourcesValid && requirements.length === nonAutonomous.length &&
       nonAutonomous.every(({ invocation, requirement }) =>
         requirements.some((candidate) => {
           const evidence = recordValue(candidate?.evidence);
+          const authorization = recordValue(candidate?.authorization);
+          const sourceValid = authorization?.kind === "authority-supply"
+            ? authorization.authority === requirement?.authority &&
+              supplied.includes(String(authorization.authority))
+            : authorization?.kind === "standing-delegation" &&
+              requirement?.delegationAllowed === true &&
+              delegations.includes(String(authorization.revision));
           return candidate?.invocation === invocation &&
             candidate.mode === requirement?.mode &&
             candidate.authority === requirement?.authority &&
             candidate.delegationAllowed === requirement?.delegationAllowed &&
             evidence?.output === authorityEvidence.output &&
-            evidence?.type === authorityEvidence.type;
+            evidence?.type === authorityEvidence.type && sourceValid;
         })
       );
 }

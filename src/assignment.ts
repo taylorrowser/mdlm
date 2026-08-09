@@ -793,17 +793,19 @@ export async function submitAssignmentResponse(
     repositoryRoot,
     exact.value.processPackage,
     exact.value.lease.package,
-    exact.value.lease.scenario,
-    exact.value.lease.obligation.instance,
     {
-      outputs: proposal.outputs,
-      completionEvidence: proposal.completionEvidence,
+      scenarioReference: exact.value.lease.scenario,
+      obligationInstance: exact.value.lease.obligation.instance,
+      proposal: {
+        outputs: proposal.outputs,
+        completionEvidence: proposal.completionEvidence,
+      },
+      assignment: lease.id,
+      responseDigest: sha256(responseSource),
+      suppliedAuthorities: proposal.authoritySupplies,
+      suppliedDelegations: proposal.standingDelegations,
+      loadedSkillRefs: proposal.loadedSkillRefs,
     },
-    lease.id,
-    sha256(responseSource),
-    proposal.authoritySupplies,
-    proposal.standingDelegations,
-    proposal.loadedSkillRefs,
   );
   if (!submitted.ok) return submitted;
   await fs.rm(leasePath(repositoryRoot), { force: true });
