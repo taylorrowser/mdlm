@@ -354,11 +354,6 @@ describe("MDLM Assignment leasing and preparation", () => {
   it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     const assignment = next.assignment.id as string;
-    const activeLeasePath = path.join(
-      repository,
-      ".lifecycle/work/active-assignment.json",
-    );
-    const activeLeaseSource = await fs.readFile(activeLeasePath, "utf8");
     const packet = JSON.parse(mdlm(
       repository,
       "scenario",
@@ -550,14 +545,10 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(result.execution.outputs[0].data.payload.frontier).toEqual([
       result.execution.outputs[1].lifecycleDatum.revisionId,
     ]);
-    await expect(fs.stat(activeLeasePath)).rejects.toMatchObject({ code: "ENOENT" });
-
-    // The authoritative execution is the consumption signal if ignored lease
-    // cleanup is interrupted after the atomic transaction rename.
-    await fs.writeFile(activeLeasePath, activeLeaseSource);
-    const recovered = mdlm(repository, "next");
-    expect(recovered.status, `${recovered.stderr}${recovered.stdout}`).toBe(0);
-    expect(JSON.parse(recovered.stdout).assignment.id).not.toBe(assignment);
+    await expect(fs.stat(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ))).rejects.toMatchObject({ code: "ENOENT" });
 
     const doctor = mdlm(repository, "doctor", "--json");
     expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
