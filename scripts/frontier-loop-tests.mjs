@@ -17,6 +17,7 @@ import {
 import {
   actionProgressed,
   complexityReasonsFromStats,
+  contractReviewRecoveryState,
   failureBaseState,
   isPublicationRetryFailure,
   isRemoteValidationFailure,
@@ -278,6 +279,25 @@ test("validation rotates through remediation, diagnosis, design, and contract re
   assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 0, designEscalations: 0 }), "diagnose");
   assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 2, designEscalations: 0 }), "simplify");
   assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 2, designEscalations: 2 }), "contract-review");
+});
+
+test("contract review preserves the ticket-wide correction budget", () => {
+  assert.deepEqual(
+    contractReviewRecoveryState({
+      remediationUsed: true,
+      diagnosticEscalations: 1,
+      designEscalations: 1,
+      contractReviews: 2,
+      complexityReviewedHead: "reviewed-head",
+    }),
+    {
+      remediationUsed: true,
+      diagnosticEscalations: 1,
+      designEscalations: 1,
+      contractReviews: 3,
+      complexityReviewedHead: "reviewed-head",
+    },
+  );
 });
 
 test("complexity budget reports every crossed threshold", () => {

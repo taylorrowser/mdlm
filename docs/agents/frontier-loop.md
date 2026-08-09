@@ -23,7 +23,9 @@ A failed ticket does not immediately stop the delivery run. The correction ladde
 1. one broad remediation after the first failed validation;
 2. one independent root-cause diagnostic instance;
 3. one independent design-simplification instance; and
-4. an autonomous contract review, after which the correction budgets reset and validation continues.
+4. autonomous contract review without renewing the ticket's spent correction passes.
+
+Correction budgets are cumulative for the whole ticket. Contract review preserves remediation, diagnosis, simplification, and numeric-complexity review history so the same ticket cannot restart the ladder.
 
 Every session that edits code starts with `/skill:implement`. Diagnostic sessions explicitly apply the diagnosing-bugs method. Simplification sessions explicitly apply codebase-design and grilling before editing, choose their recommended boundary autonomously, and never pause for stakeholder confirmation. The independent reviewer treats the active child as the current delivery boundary: parent invariants remain binding, while explicitly deferred sibling and final-contraction work remains deferred.
 

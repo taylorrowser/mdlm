@@ -52,6 +52,22 @@ export function validationFailureAction({
   return "contract-review";
 }
 
+export function contractReviewRecoveryState({
+  remediationUsed,
+  diagnosticEscalations,
+  designEscalations,
+  contractReviews,
+  complexityReviewedHead,
+}) {
+  return {
+    remediationUsed,
+    diagnosticEscalations,
+    designEscalations,
+    contractReviews: contractReviews + 1,
+    complexityReviewedHead,
+  };
+}
+
 export function isPublicationRetryFailure(error) {
   return error instanceof Error && error.name === "PublicationRetryError";
 }

@@ -14,6 +14,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
+  contractReviewRecoveryState,
   failureBaseState,
   isPublicationRetryFailure,
   isRemoteValidationFailure,
@@ -366,10 +367,13 @@ function runLoop(parent) {
             designEscalations += 1;
             pendingAction = { kind: "simplification", reasons: [message] };
           } else {
-            remediationUsed = false;
-            diagnosticEscalations = 0;
-            designEscalations = 0;
-            contractReviews += 1;
+            ({ remediationUsed, diagnosticEscalations, designEscalations, contractReviews } = contractReviewRecoveryState({
+              remediationUsed,
+              diagnosticEscalations,
+              designEscalations,
+              contractReviews,
+              complexityReviewedHead: state.complexityReviewedHead,
+            }));
             pendingAction = { kind: "contract-review" };
           }
           state = writeState(paths, state, {
@@ -378,7 +382,7 @@ function runLoop(parent) {
             diagnosticEscalations,
             designEscalations,
             contractReviews,
-            complexityReviewedHead: action === "contract-review" ? null : state.complexityReviewedHead,
+            complexityReviewedHead: state.complexityReviewedHead,
             pendingAction,
             message: `Remote validation failed; scheduling ${pendingAction.kind}`,
             validatedHead: null,

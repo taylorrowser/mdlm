@@ -4,6 +4,7 @@ import { appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
   actionProgressed,
+  contractReviewRecoveryState,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
   parsePullRequestNumber,
@@ -524,11 +525,13 @@ export function createTicketRunner({
         continue;
       }
 
-      contractReviews += 1;
-      remediationUsed = false;
-      diagnosticEscalations = 0;
-      designEscalations = 0;
-      complexityReviewedHead = null;
+      ({ remediationUsed, diagnosticEscalations, designEscalations, contractReviews, complexityReviewedHead } = contractReviewRecoveryState({
+        remediationUsed,
+        diagnosticEscalations,
+        designEscalations,
+        contractReviews,
+        complexityReviewedHead,
+      }));
       state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "contract-review" }, {
         remediationUsed,
         diagnosticEscalations,
