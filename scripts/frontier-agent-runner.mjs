@@ -9,13 +9,10 @@ import {
   validationPassed,
 } from "./frontier-loop-core.mjs";
 import { referencedParentNumber } from "./frontier-issue-contract.mjs";
+import { sleep } from "./frontier-time.mjs";
 
 function isoNow() {
   return new Date().toISOString();
-}
-
-function sleep(milliseconds) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 export function appendAgentLog(path, heading, output = "") {

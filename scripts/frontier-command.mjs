@@ -1,9 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { isTransientInfrastructureFailure } from "./frontier-loop-core.mjs";
-
-function sleep(milliseconds) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
-}
+import { sleep } from "./frontier-time.mjs";
 
 export function commandResult(command, args, options = {}) {
   const maximumAttempts = options.maximumAttempts ?? (command === "gh" ? 5 : 1);

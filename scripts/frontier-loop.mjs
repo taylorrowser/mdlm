@@ -31,6 +31,7 @@ import {
   selectSnapshottedIssues,
 } from "./frontier-issue-contract.mjs";
 import { createTicketRunner } from "./frontier-ticket-runner.mjs";
+import { sleep } from "./frontier-time.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const defaultParent = 83;
@@ -89,10 +90,6 @@ function commandJson(command, args, options = {}) {
 
 function ghJson(args, options = {}) {
   return commandJson("gh", [...args, "--json", options.fields], options);
-}
-
-function sleep(milliseconds) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 function isoNow() {
@@ -277,7 +274,7 @@ function runLoop(parent) {
     while (!stopped(paths)) {
       try {
         const plan = deliveryPlan(parent, state.priorityIssueNumbers, state.backlogIssueNumbers);
-        state = ticketRunner.reconcileClosedCurrentIssue(plan, paths, state);
+        state = ticketRunner.reconcileCurrentIssue(plan, paths, state);
         if (plan.primaryOpen.length === 0 && plan.backlog.every((issue) => issue.state === "CLOSED")) {
           state = writeState(paths, state, {
             phase: "complete",

@@ -9,10 +9,7 @@ import {
   validatedHeadMatches,
   validationFailureAction,
 } from "./frontier-loop-core.mjs";
-
-function sleep(milliseconds) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
-}
+import { sleep } from "./frontier-time.mjs";
 
 export function createTicketRunner({
   repositoryRoot,
@@ -292,10 +289,9 @@ export function createTicketRunner({
     return writeState(paths, state, betweenTicketsPatch());
   }
 
-  function reconcileClosedCurrentIssue(plan, paths, state) {
+  function reconcileCurrentIssue(plan, paths, state) {
     if (!state.currentIssue) return state;
     const current = [...plan.children, ...plan.backlog].find((issue) => issue.number === state.currentIssue);
-    if (current?.state !== "CLOSED") return state;
     const cwd = state.worktree && existsSync(state.worktree) ? state.worktree : repositoryRoot;
     let merged = [];
     if (state.pullRequest) {
@@ -304,14 +300,21 @@ export function createTicketRunner({
     } else if (state.branch) {
       merged = commandJson("gh", ["pr", "list", "--head", state.branch, "--state", "merged", "--json", "number"], { cwd }) ?? [];
     }
-    if (merged.length === 0) fail(`Issue #${state.currentIssue} closed without a confirmed merged PR; preserving its branch and worktree`);
+    if (merged.length === 0) {
+      if (current?.state === "CLOSED") fail(`Issue #${state.currentIssue} closed without a confirmed merged PR; preserving its branch and worktree`);
+      return state;
+    }
+    const prNumber = merged[0].number;
+    if (current?.state === "OPEN") {
+      commandOutput("gh", ["issue", "close", String(state.currentIssue), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`], { cwd });
+    }
     if (state.worktree && existsSync(state.worktree)) {
       const dirty = commandOutput("git", ["status", "--porcelain"], { cwd: state.worktree });
-      if (dirty) fail(`Closed issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
+      if (dirty) fail(`Merged issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
     }
     deleteRemoteBranch(cwd, state.branch);
     removeWorktree(state.worktree, state.branch);
-    log(`Reconciled confirmed merged issue #${state.currentIssue} after interrupted cleanup`);
+    log(`Reconciled confirmed merged issue #${state.currentIssue} after interrupted publication or cleanup`);
     return writeState(paths, state, betweenTicketsPatch());
   }
 
@@ -473,5 +476,5 @@ export function createTicketRunner({
   }
 
 
-  return { processIssue, reconcileClosedCurrentIssue };
+  return { processIssue, reconcileCurrentIssue };
 }
