@@ -93,6 +93,10 @@ _Avoid_: Todo, incomplete artifact
 The declared scenario capable of producing evidence that satisfies an obligation.
 _Avoid_: Handler, automatic fix
 
+**Correction**:
+Package-declared work that addresses exact blocking evidence through a same-lineage replacement while preserving the failed Revision and judgment, after which normal reevaluation resumes at the blocked obligation.
+_Avoid_: Retrying without new evidence, Change Request when no accepted definition changes
+
 **Dispatchable**:
 A loose end whose resolver may safely run now because its required inputs and dependencies are satisfied.
 _Avoid_: Ready when referring only to maturity
@@ -100,6 +104,34 @@ _Avoid_: Ready when referring only to maturity
 **Scenario**:
 A versioned contract for agent work with typed inputs, outputs, prohibited inputs, prompt, policy, and completion conditions.
 _Avoid_: Workflow step, command
+
+**Assignment**:
+An exact state-bound projection of one Scenario transaction prepared for one agent to return a proposal; it is orchestration context, not authoritative Lifecycle Data.
+_Avoid_: Durable task, permission to select unrelated work
+
+**Scenario Proposal**:
+Complete candidate publication content for one exact Assignment that becomes Lifecycle Data only after canonical validation and publication.
+_Avoid_: Published lifecycle truth, partial direct Markdown edits
+
+**Assignment Response**:
+A versioned harness-neutral return for one exact Assignment containing either a complete Scenario Proposal or a typed inability to complete; only a valid proposal can publish Lifecycle Data.
+_Avoid_: Free-form completion prose, partial proposal
+
+**Operator Outcome**:
+One exact result of normal repository and Process Package reevaluation: Assignment, Attention Required, Profile Boundary Reached, Lifecycle Complete, Process Dead End, or Invalid.
+_Avoid_: Null next item, hidden workflow cursor
+
+**Profile Boundary**:
+A package-declared successful stop where the selected implementation profile intentionally omits further lifecycle breadth without claiming that the lifecycle itself is complete.
+_Avoid_: Process Dead End, Lifecycle Complete
+
+**Process Dead End**:
+An explicit outcome in which the supported profile is unfinished but the selected Process Package derives no Assignment or Attention Requirement that can advance it.
+_Avoid_: Completed boundary, command failure
+
+**Package Liveness Defect**:
+A reachable Process Dead End inside the Process Package's declared supported profile where an expected outcome lacks correction, escalation, or explicit terminal disposition.
+_Avoid_: Structurally invalid package, intentionally declared profile boundary
 
 **Authority Requirement**:
 A machine-readable Scenario participation result stating whether work is autonomous, package-delegated to a separate authority, or attended by an authority holder, which package-defined authority is required, and whether attended authority may be delegated. Package-delegated work with no scheduled attention requires the separate delegate's judgment, not repeated stakeholder permission.
@@ -118,7 +150,7 @@ A Lifecycle type named by at least one exact selected-package Scenario `authorit
 _Avoid_: Hard-coded REV/DEC handling, a type inferred from the claimed creation Scenario alone
 
 **Standing Delegation**:
-A reviewed exact DEC authorizing one named delegate for one authority, exact target Revision, and exact Scenario, with declared expiry and reactivation conditions. It is reusable authorization evidence, unlike a delegate explicitly supplying authority for one execution. When supplied as `--delegation`, it must satisfy the Scenario's exact package Selector before it can replace a per-execution `--authorize` supply. It is not a prerequisite when the package itself declares delegated authority with no scheduled attention.
+A reviewed exact DEC authorizing one named delegate for one authority, exact target Revision, and exact Scenario, with declared expiry and reactivation conditions. It is reusable authorization evidence, unlike a delegate explicitly supplying authority for one execution. When supplied for an Assignment, it must satisfy the Scenario's exact package Selector before it can replace a per-execution Authority Supply. It is not a prerequisite when the package itself declares delegated authority with no scheduled attention.
 _Avoid_: Per-execution authority assertion, role assumption, unbounded permission
 
 **Attention Schedule**:
@@ -142,6 +174,10 @@ A package declaration combining readiness, a named next Phase, an Authority Requ
 _Avoid_: Chat-based progression, redundant approval by default
 
 ## Definition and decomposition
+
+**Accepted Requirement Revision**:
+An exact requirement Revision included in an Accepted Baseline; Review alone does not make a requirement accepted, and later substantive revision follows package-declared change control.
+_Avoid_: Reviewed requirement, latest requirement
 
 **Decomposition Work Package (DWP)**:
 The durable planning and completion lineage for one bounded many-to-many decomposition from exact parent requirement Revisions to exact child requirement Revisions.
@@ -196,6 +232,10 @@ _Avoid_: Review completion, scope clarification without removal
 **Review Context**:
 An exact frozen baseline containing the primary subject and the minimum complete context needed for independent judgment.
 _Avoid_: Snapshot when its review purpose matters
+
+**Review Finding**:
+A structured concern inside one exact Review naming its exact target, relationship, severity, summary, and optional evidence; package rules may turn blocking findings into Correction work.
+_Avoid_: Generic comment, mutable annotation
 
 **Candidate Baseline**:
 An exact frozen definition proposed for downstream authorization but not yet historically accepted.
