@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -15,7 +14,6 @@ import {
   type PackageSummary,
   type RepositorySummary,
 } from "./repository-contract.js";
-import { processPackageDigest } from "./process-package-digest.js";
 
 const executeFile = promisify(execFile);
 const bundledProcessPackage = fileURLToPath(
@@ -57,40 +55,41 @@ async function prepareRepository(
   summary: PackageSummary,
 ): Promise<void> {
   const lifecycleRoot = path.join(preparationRoot, ".lifecycle");
-  await Promise.all([
-    fs.cp(
-      bundledProcessPackage,
-      path.join(preparationRoot, packagesRelativePath, summary.reference),
-      { recursive: true },
-    ),
-    fs.mkdir(path.join(lifecycleRoot, "data"), { recursive: true }),
-    fs.mkdir(path.join(lifecycleRoot, "work"), { recursive: true }),
-    fs.mkdir(path.join(lifecycleRoot, "generated"), { recursive: true }),
-  ]);
-  await Promise.all([
-    writeJson(
-      path.join(preparationRoot, selectionRelativePath),
-      processSelection(summary),
-    ),
-    writeJson(
-      path.join(lifecycleRoot, "repository.json"),
-      repositoryDescriptor(processPackage, summary),
-    ),
-    fs.writeFile(path.join(lifecycleRoot, "data/.gitkeep"), ""),
-    fs.writeFile(
-      path.join(preparationRoot, ".gitignore"),
-      ".lifecycle/generated/\n.lifecycle/work/\n",
-    ),
-  ]);
+  await fs.cp(
+    bundledProcessPackage,
+    path.join(preparationRoot, packagesRelativePath, summary.reference),
+    { recursive: true },
+  );
+  await fs.mkdir(path.join(lifecycleRoot, "data"), { recursive: true });
+  await fs.mkdir(path.join(lifecycleRoot, "work"), { recursive: true });
+  await fs.mkdir(path.join(lifecycleRoot, "generated"), { recursive: true });
+  await writeJson(
+    path.join(preparationRoot, selectionRelativePath),
+    processSelection(summary),
+  );
+  await writeJson(
+    path.join(lifecycleRoot, "repository.json"),
+    repositoryDescriptor(processPackage, summary),
+  );
+  await fs.writeFile(path.join(lifecycleRoot, "data/.gitkeep"), "");
+  await fs.writeFile(
+    path.join(preparationRoot, ".gitignore"),
+    ".lifecycle/generated/\n.lifecycle/work/\n",
+  );
 }
 
 async function git(
   repositoryRoot: string,
   arguments_: string[],
 ): Promise<string> {
+  const environment = { ...process.env };
+  for (const name of Object.keys(environment)) {
+    if (name.startsWith("GIT_")) delete environment[name];
+  }
   const result = await executeFile("git", arguments_, {
     cwd: repositoryRoot,
     encoding: "utf8",
+    env: environment,
   });
   return result.stdout;
 }
@@ -156,20 +155,13 @@ async function publish(
     return;
   }
 
-  const backup = path.join(
-    path.dirname(destination),
-    `.mdlm-empty-${randomUUID()}`,
-  );
-  await fs.rename(destination, backup);
+  await fs.rmdir(destination);
   try {
     await fs.rename(preparationRoot, destination);
   } catch (error) {
-    await fs.rename(backup, destination);
+    await fs.mkdir(destination);
     throw error;
   }
-  // The destination has been atomically published. Failure to remove the
-  // original empty directory's backup cannot make that repository partial.
-  await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
 }
 
 /** Initialize one destination with MDLM's bundled Example Process Package. */
@@ -230,23 +222,6 @@ export async function initializeBundledRepository(
         "initialization-preparation-failed",
         `Could not prepare the MDLM repository: ${error instanceof Error ? error.message : String(error)}`,
         resolvedDestination,
-      );
-    }
-
-    const preparedPackageRoot = path.join(
-      preparationRoot,
-      packagesRelativePath,
-      summary.reference,
-    );
-    const preparedPackage = await loadProcessPackage(preparedPackageRoot);
-    if (!preparedPackage.ok) {
-      return { ok: false, diagnostics: preparedPackage.diagnostics };
-    }
-    if (await processPackageDigest(preparedPackageRoot) !== summary.digest) {
-      return failure(
-        "bundled-process-package-copy-mismatch",
-        "Prepared Process Package bytes do not match the validated bundle",
-        preparedPackageRoot,
       );
     }
 

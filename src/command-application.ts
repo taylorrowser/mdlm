@@ -254,7 +254,7 @@ async function atomicJsonPair(
   }
 }
 
-async function initializeLegacyRepository(
+async function initializeRepository(
   repositoryRoot: string,
   processReference: string | undefined,
 ): Promise<CommandResult> {
@@ -1473,24 +1473,12 @@ async function selectedRepositoryPackage(
       }],
     };
   }
-  const packageContract = typeof descriptor.package === "object" &&
-      descriptor.package !== null
-    ? descriptor.package as Record<string, unknown>
-    : {};
-  const contracts = typeof descriptor.contracts === "object" &&
-      descriptor.contracts !== null
-    ? descriptor.contracts as Record<string, unknown>
-    : {};
-  const repository = repositorySummary(selected.processPackage);
   if (
-    descriptor.schemaVersion !== 1 ||
-    descriptor.repositoryContract !== repository.contract ||
-    packageContract.reference !== selected.summary.reference ||
-    packageContract.digest !== selected.summary.digest ||
-    contracts.datumEnvelope !== repository.datumEnvelope ||
-    contracts.artifactFormat !== repository.artifactFormat ||
-    contracts.expressionLanguage !== selected.summary.language ||
-    contracts.primitiveCatalog !== repository.primitiveCatalog
+    !repositoryDescriptorMatches(
+      descriptor,
+      selected.processPackage,
+      selected.summary,
+    )
   ) {
     return {
       ok: false,
@@ -2688,14 +2676,9 @@ function directArguments(arguments_: string[]): Record<string, unknown> {
   return result;
 }
 
-interface CommandApplicationOptions {
-  legacyRepositoryInitialization?: boolean;
-}
-
 async function dispatchCommand(
   arguments_: string[],
   repositoryRoot: string,
-  options: CommandApplicationOptions,
 ): Promise<CommandResult> {
   const operands = arguments_.filter((argument, index) =>
     argument !== "--json" &&
@@ -2703,12 +2686,6 @@ async function dispatchCommand(
     arguments_[index - 1] !== "--ref"
   );
   if (operands[0] === "init") {
-    if (options.legacyRepositoryInitialization && arguments_.includes("--process")) {
-      return initializeLegacyRepository(
-        repositoryRoot,
-        optionValue(arguments_, "--process"),
-      );
-    }
     if (arguments_.includes("--process")) {
       return failure(
         "init-custom-process-unsupported",
@@ -2952,16 +2929,13 @@ export interface CommandApplicationExecution {
   output: string;
 }
 
-/** Dispatch and render one MDLM invocation without owning process startup. */
-export async function executeCommandApplication(
+async function executeCommand(
   arguments_: string[],
-  repositoryRoot: string,
-  options: CommandApplicationOptions = {},
+  dispatch: () => Promise<CommandResult>,
 ): Promise<CommandApplicationExecution> {
-  const json = arguments_.includes("--json");
   let result: CommandResult;
   try {
-    result = await dispatchCommand(arguments_, repositoryRoot, options);
+    result = await dispatch();
   } catch (error) {
     result = failure(
       "mdlm-error",
@@ -2970,6 +2944,34 @@ export async function executeCommandApplication(
   }
   return {
     exitCode: result.ok ? 0 : 1,
-    output: `${json ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
+    output: `${arguments_.includes("--json") ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
   };
+}
+
+/** Dispatch and render one MDLM invocation without owning process startup. */
+export function executeCommandApplication(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandApplicationExecution> {
+  return executeCommand(
+    arguments_,
+    () => dispatchCommand(arguments_, repositoryRoot),
+  );
+}
+
+/** Keep the temporary req initialization bridge separate from mdlm dispatch. */
+export function executeLegacyReqApplication(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandApplicationExecution> {
+  return executeCommand(
+    arguments_,
+    () => arguments_.find((argument) => argument !== "--json") === "init" &&
+      arguments_.includes("--process")
+      ? initializeRepository(
+        repositoryRoot,
+        optionValue(arguments_, "--process"),
+      )
+      : dispatchCommand(arguments_, repositoryRoot),
+  );
 }

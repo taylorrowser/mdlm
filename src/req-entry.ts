@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-import { executeCommandApplication } from "./command-application.js";
+import { executeLegacyReqApplication } from "./command-application.js";
 
-const execution = await executeCommandApplication(
+const execution = await executeLegacyReqApplication(
   process.argv.slice(2),
   process.cwd(),
-  { legacyRepositoryInitialization: true },
 );
 process.stdout.write(execution.output);
 process.exitCode = execution.exitCode;

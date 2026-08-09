@@ -42,6 +42,28 @@ function git(repository: string, ...arguments_: string[]) {
   });
 }
 
+async function copyDistribution(distribution: string): Promise<void> {
+  await fs.mkdir(path.join(distribution, ".lifecycle"), { recursive: true });
+  await Promise.all([
+    fs.cp(path.join(projectRoot, "dist"), path.join(distribution, "dist"), {
+      recursive: true,
+    }),
+    fs.cp(
+      path.join(projectRoot, ".lifecycle/process"),
+      path.join(distribution, ".lifecycle/process"),
+      { recursive: true },
+    ),
+    fs.writeFile(
+      path.join(distribution, "package.json"),
+      '{"type":"module"}\n',
+    ),
+    fs.symlink(
+      dependenciesRoot,
+      path.join(distribution, "node_modules"),
+    ),
+  ]);
+}
+
 describe("mdlm init", () => {
   let parent: string;
 
@@ -158,27 +180,35 @@ describe("mdlm init", () => {
     await expect(fs.stat(destination)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("ignores ambient Git routing and identity configuration", async () => {
+    const destination = path.join(parent, "product");
+    const otherRepository = path.join(parent, "other");
+    await fs.mkdir(otherRepository);
+    expect(git(otherRepository, "init", "--quiet").status).toBe(0);
+
+    const initialized = execute(parent, ["init", destination, "--json"], {
+      ...process.env,
+      GIT_DIR: path.join(otherRepository, ".git"),
+      GIT_WORK_TREE: otherRepository,
+      GIT_INDEX_FILE: path.join(parent, "outside-index"),
+      GIT_AUTHOR_NAME: "Ambient Author",
+      GIT_AUTHOR_EMAIL: "ambient@example.com",
+      GIT_COMMITTER_NAME: "Ambient Committer",
+      GIT_COMMITTER_EMAIL: "ambient@example.com",
+    });
+
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    expect(git(destination, "log", "--format=%an <%ae>").stdout).toBe(
+      "MDLM <mdlm@localhost>\n",
+    );
+    expect(git(otherRepository, "rev-list", "--all", "--count").stdout).toBe("0\n");
+    await expect(fs.stat(path.join(parent, "outside-index")))
+      .rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("leaves no destination when its bundled package fails validation", async () => {
     const distribution = path.join(parent, "distribution");
-    await fs.mkdir(path.join(distribution, ".lifecycle"), { recursive: true });
-    await Promise.all([
-      fs.cp(path.join(projectRoot, "dist"), path.join(distribution, "dist"), {
-        recursive: true,
-      }),
-      fs.cp(
-        path.join(projectRoot, ".lifecycle/process"),
-        path.join(distribution, ".lifecycle/process"),
-        { recursive: true },
-      ),
-      fs.writeFile(
-        path.join(distribution, "package.json"),
-        '{"type":"module"}\n',
-      ),
-      fs.symlink(
-        dependenciesRoot,
-        path.join(distribution, "node_modules"),
-      ),
-    ]);
+    await copyDistribution(distribution);
     await fs.writeFile(
       path.join(distribution, ".lifecycle/process/types/PSP.yaml"),
       "kind: not-a-type\n",
@@ -196,7 +226,34 @@ describe("mdlm init", () => {
     expect(JSON.parse(initialized.stdout).diagnostics.length).toBeGreaterThan(0);
     await expect(fs.stat(destination)).rejects.toMatchObject({ code: "ENOENT" });
     expect((await fs.readdir(parent)).filter((entry) =>
-      entry.startsWith(".mdlm-init-") || entry.startsWith(".mdlm-empty-")
+      entry.startsWith(".mdlm-init-")
+    )).toEqual([]);
+  });
+
+  it("leaves no destination when repository preparation fails", async () => {
+    const distribution = path.join(parent, "distribution");
+    await copyDistribution(distribution);
+    const fifo = path.join(distribution, ".lifecycle/process/copy-failure");
+    const createdFifo = spawnSync("mkfifo", [fifo], { encoding: "utf8" });
+    expect(createdFifo.status, createdFifo.stderr).toBe(0);
+    const destination = path.join(parent, "product");
+
+    const initialized = executeFrom(
+      path.join(distribution, "dist/mdlm.js"),
+      parent,
+      ["init", destination, "--json"],
+    );
+
+    expect(initialized.status).toBe(1);
+    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "initialization-preparation-failed",
+      })],
+    }));
+    await expect(fs.stat(destination)).rejects.toMatchObject({ code: "ENOENT" });
+    expect((await fs.readdir(parent)).filter((entry) =>
+      entry.startsWith(".mdlm-init-")
     )).toEqual([]);
   });
 
@@ -223,7 +280,39 @@ describe("mdlm init", () => {
     }));
     expect(await fs.readdir(destination)).toEqual([]);
     expect((await fs.readdir(parent)).filter((entry) =>
-      entry.startsWith(".mdlm-init-") || entry.startsWith(".mdlm-empty-")
+      entry.startsWith(".mdlm-init-")
+    )).toEqual([]);
+  });
+
+  it("does not publish over a destination populated during preparation", async () => {
+    const destination = path.join(parent, "product");
+    await fs.mkdir(destination);
+    const fakeBin = path.join(parent, "fake-bin");
+    await fs.mkdir(fakeBin);
+    const realGit = spawnSync("which", ["git"], { encoding: "utf8" })
+      .stdout.trim();
+    await fs.writeFile(
+      path.join(fakeBin, "git"),
+      `#!/bin/sh\nif [ "$1" = status ]; then\n  touch "$MDLM_PUBLICATION_BLOCKER/keep.txt"\nfi\nexec "${realGit}" "$@"\n`,
+      { mode: 0o755 },
+    );
+
+    const initialized = execute(parent, ["init", destination, "--json"], {
+      ...process.env,
+      MDLM_PUBLICATION_BLOCKER: destination,
+      PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}`,
+    });
+
+    expect(initialized.status).toBe(1);
+    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "initialization-publication-failed",
+      })],
+    }));
+    expect(await fs.readdir(destination)).toEqual(["keep.txt"]);
+    expect((await fs.readdir(parent)).filter((entry) =>
+      entry.startsWith(".mdlm-init-")
     )).toEqual([]);
   });
 });
