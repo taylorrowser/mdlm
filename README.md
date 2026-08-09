@@ -94,6 +94,13 @@ node ../dist/mdlm.js loose-ends --phase phase-0-wayfinding
 # Lease one exact Assignment, then expand it for a harness or agent:
 node ../dist/mdlm.js next
 node ../dist/mdlm.js scenario prepare <assignment-id>
+# After a harness returns mdlm-assignment-response@1, publish from a file or stdin.
+node ../dist/mdlm.js scenario submit ./assignment-response.json
+cat ./assignment-response.json | node ../dist/mdlm.js scenario submit
+node ../dist/mdlm.js doctor
+# Inspect and commit the canonical Scenario transaction with ordinary Git.
+git diff -- .lifecycle/data
+git add .lifecycle/data && git commit -m "Publish Scenario transaction"
 node ../dist/mdlm.js phase status phase-0-wayfinding
 node ../dist/mdlm.js schema STK
 # Explicitly prepare and execute one package-authored non-Resolver Scenario:

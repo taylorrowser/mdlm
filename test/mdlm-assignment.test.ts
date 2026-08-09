@@ -15,10 +15,36 @@ function mdlm(repository: string, ...arguments_: string[]) {
   });
 }
 
+function mdlmWithInput(repository: string, input: string, ...arguments_: string[]) {
+  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
+    cwd: repository,
+    encoding: "utf8",
+    input,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
+
 function git(repository: string, ...arguments_: string[]) {
   return spawnSync("git", ["-C", repository, ...arguments_], {
     encoding: "utf8",
   });
+}
+
+async function directoryBytes(root: string): Promise<string> {
+  const files: string[] = [];
+  async function visit(directory: string): Promise<void> {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) await visit(absolute);
+      else files.push(path.relative(root, absolute));
+    }
+  }
+  await visit(root);
+  const content = await Promise.all(files.sort().map(async (file) => [
+    file,
+    (await fs.readFile(path.join(root, file))).toString("base64"),
+  ]));
+  return JSON.stringify(content);
 }
 
 describe("MDLM Assignment leasing and preparation", () => {
@@ -217,6 +243,407 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
       .toEqual([".gitkeep"]);
   });
+
+  it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const response = {
+      contract: "mdlm-assignment-response@1",
+      assignment,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          name: "map",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "MAP",
+            payload: {
+              title: "Initial product wayfinding",
+              purpose: "Bound the first product-intent conversation.",
+              frontier: ["Clarify the intended product outcome"],
+            },
+            links: [],
+            body: "One exact initial decision frontier.\n",
+          },
+        }],
+        completionEvidence: {
+          summary: "The initial decision frontier is explicit.",
+        },
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    };
+    const responsePath = path.join(parent, "response.json");
+    const invalid = structuredClone(response);
+    invalid.proposal.outputs[0]!.lifecycleDatum.payload.frontier = [];
+    await fs.writeFile(responsePath, `${JSON.stringify(invalid)}\n`);
+    const before = git(repository, "diff", "--binary", "HEAD").stdout;
+
+    const rejected = mdlm(repository, "scenario", "submit", responsePath);
+
+    expect(rejected.status).toBe(1);
+    expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-completion-failed" }),
+      ]),
+    );
+    expect(git(repository, "diff", "--binary", "HEAD").stdout).toBe(before);
+    expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
+      .toEqual([".gitkeep"]);
+
+    const forgedIdentity = structuredClone(response);
+    Object.assign(forgedIdentity.proposal.outputs[0]!.lifecycleDatum, {
+      id: "MAP-0123456789",
+    });
+    await fs.writeFile(responsePath, `${JSON.stringify(forgedIdentity)}\n`);
+    const identityRejected = mdlm(repository, "scenario", "submit", responsePath);
+    expect(identityRejected.status).toBe(1);
+    expect(JSON.parse(identityRejected.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-output-identity-kernel-managed" }),
+    ]);
+    expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
+      .toEqual([".gitkeep"]);
+
+    const submitted = mdlmWithInput(
+      repository,
+      `${JSON.stringify(response)}\n`,
+      "scenario",
+      "submit",
+    );
+
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    const result = JSON.parse(submitted.stdout);
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      command: "scenario.submit",
+      contract: "mdlm-scenario-execution@4",
+      execution: expect.objectContaining({
+        contract: "mdlm-scenario-execution@4",
+        status: "completed",
+        response: {
+          contract: "mdlm-assignment-response@1",
+          assignment,
+          digest: expect.stringMatching(/^sha256:/),
+        },
+        outputs: [expect.objectContaining({
+          name: "map",
+          lifecycleDatum: expect.objectContaining({
+            id: expect.stringMatching(/^MAP-/),
+            revision: 1,
+            revisionId: expect.stringMatching(/^MAP-.*-r00001$/),
+            type: "MAP",
+          }),
+        })],
+      }),
+      diagnostics: [],
+    }));
+    expect(result.execution).not.toHaveProperty("adapter");
+    await expect(fs.stat(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ))).rejects.toMatchObject({ code: "ENOENT" });
+
+    const doctor = mdlm(repository, "doctor", "--json");
+    expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+    expect(git(repository, "status", "--porcelain").stdout).toContain(
+      "?? .lifecycle/data/.transactions/",
+    );
+
+    const published = await directoryBytes(path.join(repository, ".lifecycle/data"));
+    await fs.writeFile(responsePath, `${JSON.stringify(response)}\n`);
+    const replay = mdlm(repository, "scenario", "submit", responsePath);
+    expect(replay.status).toBe(1);
+    expect(JSON.parse(replay.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "assignment-unavailable" }),
+    ]);
+    expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(
+      published,
+    );
+
+    expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
+    expect(git(
+      repository,
+      "-c",
+      "user.name=MDLM Test",
+      "-c",
+      "user.email=mdlm-test@example.invalid",
+      "commit",
+      "-m",
+      "Publish initial Scenario transaction",
+    ).status).toBe(0);
+    expect(git(repository, "status", "--porcelain").stdout).toBe("");
+  }, 15_000);
+
+  it("publishes a contract-valid unfavorable independent judgment unchanged", async () => {
+    const commitTransaction = (message: string) => {
+      expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
+      expect(git(
+        repository,
+        "-c",
+        "user.name=MDLM Test",
+        "-c",
+        "user.email=mdlm-test@example.invalid",
+        "commit",
+        "-m",
+        message,
+      ).status).toBe(0);
+    };
+    const submit = (assignment: string, proposal: Record<string, unknown>) => {
+      const result = mdlmWithInput(
+        repository,
+        `${JSON.stringify({
+          contract: "mdlm-assignment-response@1",
+          assignment,
+          kind: "proposal",
+          proposal,
+        })}\n`,
+        "scenario",
+        "submit",
+      );
+      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+      return JSON.parse(result.stdout).execution;
+    };
+
+    const mapAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
+    const mapExecution = submit(mapAssignment, {
+      outputs: [{
+        name: "map",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "MAP",
+          payload: {
+            title: "Review target",
+            purpose: "Prove independent unfavorable judgment publication.",
+            frontier: ["Independently review this exact map"],
+          },
+          links: [],
+          body: "Exact subject for independent review.\n",
+        },
+      }],
+      completionEvidence: { summary: "Map proposed." },
+      authoritySupplies: [],
+      standingDelegations: [],
+    });
+    const mapRevision = mapExecution.outputs[0].lifecycleDatum.revisionId as string;
+    commitTransaction("Publish map");
+
+    const contextAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
+    const contextExecution = submit(contextAssignment, {
+      outputs: [{
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Map review context",
+            kind: "review-context",
+            role: "review-context",
+            scope: mapRevision,
+            group: "phase-0-wayfinding",
+            definition_members: [mapRevision],
+            evidence: [],
+          },
+          links: [],
+          body: "Exact frozen review context.\n",
+        },
+      }],
+      completionEvidence: { summary: "Context proposed." },
+      authoritySupplies: [],
+      standingDelegations: [],
+    });
+    const contextRevision = contextExecution.outputs[0].lifecycleDatum.revisionId as string;
+    commitTransaction("Publish review context");
+
+    const pspAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
+    const pspExecution = submit(pspAssignment, {
+      outputs: [{
+        name: "product_specification",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "PSP",
+          payload: {
+            title: "Independent-review publication tracer",
+            rationale: "A minimal product definition makes the review route reachable.",
+            problem: "Unfavorable independent judgments must publish unchanged.",
+            users: ["MDLM operator"],
+            goals: ["Preserve exact independent judgment"],
+            non_goals: [],
+            success_measures: ["One failed Review publishes exactly"],
+          },
+          links: [],
+          body: "Minimal exact product intent.\n",
+        },
+      }],
+      completionEvidence: { summary: "Product specification proposed." },
+      authoritySupplies: [],
+      standingDelegations: [],
+    });
+    const pspRevision = pspExecution.outputs[0].lifecycleDatum.revisionId as string;
+    const pspStable = pspExecution.outputs[0].lifecycleDatum.id as string;
+    commitTransaction("Publish product specification");
+
+    let requirementOutcome = JSON.parse(mdlm(repository, "next").stdout);
+    let requirementPacket = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      requirementOutcome.assignment.id,
+    ).stdout);
+    while (requirementPacket.scenario.reference === "create-review-context@1") {
+      const subject = requirementPacket.exactInputs[0].inputs
+        .find((input: any) => input.name === "subject").values[0].identity.revision_id as string;
+      submit(requirementOutcome.assignment.id, {
+        outputs: [{
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: `Review context for ${subject}`,
+              kind: "review-context",
+              role: "review-context",
+              scope: subject,
+              group: "phase-0-wayfinding",
+              definition_members: [subject],
+              evidence: [],
+            },
+            links: [],
+            body: "Exact frozen review context.\n",
+          },
+        }],
+        completionEvidence: { summary: "Context proposed." },
+        authoritySupplies: [],
+        standingDelegations: [],
+      });
+      commitTransaction(`Publish context for ${subject}`);
+      requirementOutcome = JSON.parse(mdlm(repository, "next").stdout);
+      requirementPacket = JSON.parse(mdlm(
+        repository,
+        "scenario",
+        "prepare",
+        requirementOutcome.assignment.id,
+      ).stdout);
+    }
+    expect(requirementPacket.scenario.reference).toBe("draft-stakeholder-requirements@2");
+    submit(requirementOutcome.assignment.id, {
+      outputs: [{
+        name: "requirements",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "STK",
+          payload: {
+            title: "Preserve unfavorable judgments",
+            rationale: "Independent authority evidence must not be suppressed.",
+            statement: "MDLM shall publish a contract-valid unfavorable independent judgment unchanged.",
+            verification_intent: "Submit an exact failed Review and inspect its canonical payload.",
+            stakeholder: "MDLM operator",
+            priority: "must",
+          },
+          links: [{ type: "derived-from", target: pspStable }],
+          body: "One stakeholder-visible publication commitment.\n",
+        },
+      }],
+      completionEvidence: { summary: "Stakeholder requirement proposed." },
+      authoritySupplies: [],
+      standingDelegations: [],
+    });
+    commitTransaction("Publish stakeholder requirement");
+
+    let reviewOutcome = JSON.parse(mdlm(repository, "next").stdout);
+    let reviewPacket = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      reviewOutcome.assignment.id,
+    ).stdout);
+    while (reviewPacket.scenario.reference === "create-review-context@1") {
+      const subject = reviewPacket.exactInputs[0].inputs
+        .find((input: any) => input.name === "subject").values[0].identity.revision_id as string;
+      submit(reviewOutcome.assignment.id, {
+        outputs: [{
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: `Review context for ${subject}`,
+              kind: "review-context",
+              role: "review-context",
+              scope: subject,
+              group: "phase-0-wayfinding",
+              definition_members: [subject],
+              evidence: [],
+            },
+            links: [],
+            body: "Exact frozen review context.\n",
+          },
+        }],
+        completionEvidence: { summary: "Context proposed." },
+        authoritySupplies: [],
+        standingDelegations: [],
+      });
+      commitTransaction(`Publish context for ${subject}`);
+      reviewOutcome = JSON.parse(mdlm(repository, "next").stdout);
+      reviewPacket = JSON.parse(mdlm(
+        repository,
+        "scenario",
+        "prepare",
+        reviewOutcome.assignment.id,
+      ).stdout);
+    }
+    expect(pspRevision).toMatch(/^PSP-.*-r00001$/);
+    expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
+    expect(reviewPacket.authority.requirements).toEqual([
+      expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "delegated",
+          authority: "independent-reviewer",
+        }),
+      }),
+    ]);
+    const reviewedSubject = reviewPacket.exactInputs[0].inputs
+      .find((input: any) => input.name === "subject").values[0].identity.revision_id as string;
+    const reviewedContext = reviewPacket.exactInputs[0].inputs
+      .find((input: any) => input.name === "review_context").values[0].identity.revision_id as string;
+    const finding = {
+      id: "F-001",
+      target: reviewedSubject,
+      relationship: "primary",
+      severity: "blocking",
+      summary: "The proposed frontier does not yet identify the intended product outcome.",
+    };
+    const reviewExecution = submit(reviewOutcome.assignment.id, {
+      outputs: [{
+        name: "review",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "REV",
+          payload: {
+            title: "Independent map review",
+            review_kind: "contextual",
+            rubric_ref: "policies/rubrics/contextual-review.md@1",
+            findings: [finding],
+            outcome: "fail",
+          },
+          links: [
+            { type: "reviews", target: reviewedSubject },
+            { type: "contextualizes", target: reviewedContext },
+          ],
+          body: "The exact independent judgment is unfavorable.\n",
+        },
+      }],
+      completionEvidence: { summary: "Independent review completed." },
+      authoritySupplies: ["independent-reviewer"],
+      standingDelegations: [],
+    });
+
+    expect(reviewExecution.authority.supplied).toEqual(["independent-reviewer"]);
+    expect(reviewExecution.outputs[0].data.payload).toEqual(expect.objectContaining({
+      outcome: "fail",
+      findings: [finding],
+    }));
+    expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+  }, 20_000);
 
   it("keeps the versioned Assignment Response schema stable across Assignments", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);

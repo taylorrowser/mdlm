@@ -625,18 +625,27 @@ function scenarioExecutionStructureValid(
     ["mdlm-scenario-execution@2", "mdlm-agent-adapter@2"],
     ["mdlm-scenario-execution@3", "mdlm-agent-adapter@3"],
   ];
-  const commonValid = contracts.some(([executionContract, adapterContract]) =>
+  const response = recordValue(execution.response);
+  const adapterSourceValid = contracts.some(([executionContract, adapterContract]) =>
     execution.contract === executionContract && adapter?.contract === adapterContract
-  ) && inputs.length > 0 && completion?.contractValid === true &&
+  ) && typeof adapter?.executable === "string" &&
+    digest.test(String(adapter.digest)) &&
+    digest.test(String(adapter.requestDigest)) &&
+    digest.test(String(adapter.responseDigest));
+  const assignmentSourceValid =
+    execution.contract === "mdlm-scenario-execution@4" &&
+    adapter === undefined &&
+    response?.contract === "mdlm-assignment-response@1" &&
+    typeof response.assignment === "string" &&
+    /^[0-9a-f-]{36}$/i.test(response.assignment) &&
+    digest.test(String(response.digest));
+  const commonValid = (adapterSourceValid || assignmentSourceValid) &&
+    inputs.length > 0 && completion?.contractValid === true &&
     completion.expressionPassed === true && typeof completion.expression === "string" &&
     evaluations.length === inputs.length && evaluations.every(
       (evaluation, invocation) =>
         evaluation?.invocation === invocation && evaluation.result === true,
-    ) && typeof adapter?.executable === "string" &&
-    digest.test(String(adapter.digest)) &&
-    digest.test(String(adapter.requestDigest)) &&
-    digest.test(String(adapter.responseDigest)) &&
-    packageIdentity?.reference ===
+    ) && packageIdentity?.reference ===
       `${processPackage.manifest.id}@${processPackage.manifest.version}`;
   if (!commonValid || !authorityEvidence) return commonValid;
 
@@ -666,10 +675,13 @@ function scenarioExecutionStructureValid(
     ? authority.requirements.map(recordValue)
     : [];
   return nonAutonomous.length === 0
-    ? execution.contract === "mdlm-scenario-execution@2" &&
-      adapter?.contract === "mdlm-agent-adapter@2" && authority === undefined
-    : execution.contract === "mdlm-scenario-execution@3" &&
-      adapter?.contract === "mdlm-agent-adapter@3" &&
+    ? (execution.contract === "mdlm-scenario-execution@2" &&
+        adapter?.contract === "mdlm-agent-adapter@2" ||
+        execution.contract === "mdlm-scenario-execution@4") &&
+      authority === undefined
+    : (execution.contract === "mdlm-scenario-execution@3" &&
+        adapter?.contract === "mdlm-agent-adapter@3" ||
+        execution.contract === "mdlm-scenario-execution@4") &&
       requirements.length === nonAutonomous.length &&
       nonAutonomous.every(({ invocation, requirement }) =>
         requirements.some((candidate) => {

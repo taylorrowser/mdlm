@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
+import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import type {
   ObligationEvaluation,
   ProcessDiagnostic,
@@ -23,7 +24,12 @@ import {
   type ScenarioDryRun,
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
-import type { PackageExecutionIdentity } from "./scenario-execution.js";
+import {
+  submitResolverScenario,
+  type PackageExecutionIdentity,
+  type ScenarioExecution,
+  type ScenarioProposal,
+} from "./scenario-execution.js";
 import { selectedRepositoryPackage } from "./selected-package.js";
 import type { PackageSummary } from "./repository-contract.js";
 
@@ -68,6 +74,10 @@ export interface AssignmentOutcome {
   contract: "mdlm-next@1";
   outcome: "assignment";
   assignment: { id: string };
+}
+
+export interface AssignmentSubmission extends ScenarioExecution {
+  contract: "mdlm-scenario-execution@4";
 }
 
 export interface AssignmentPacket {
@@ -500,7 +510,10 @@ function responseSchema(): Record<string, unknown> {
     additionalProperties: false,
     required: ["type", "payload", "links", "body"],
     properties: {
-      id: { type: "string" },
+      id: {
+        type: "string",
+        description: "Existing Stable Datum identity for a same-lineage replacement; omit for a new Stable Datum",
+      },
       type: { type: "string", pattern: "^[A-Z]{3,8}$" },
       payload: { type: "object" },
       links: {
@@ -602,6 +615,58 @@ function responseSchema(): Record<string, unknown> {
   };
 }
 
+interface ProposalAssignmentResponse {
+  contract: "mdlm-assignment-response@1";
+  assignment: string;
+  kind: "proposal";
+  proposal: ScenarioProposal & {
+    authoritySupplies: string[];
+    standingDelegations: string[];
+  };
+}
+
+function responseDiagnostics(errors: ErrorObject[] | null | undefined): ProcessDiagnostic[] {
+  return (errors ?? []).map((error) => ({
+    code: "assignment-response-invalid",
+    path: error.instancePath.length > 0 ? `response${error.instancePath}` : "response",
+    message: `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
+  }));
+}
+
+function parseAssignmentResponse(
+  source: string,
+): AssignmentResult<ProposalAssignmentResponse> {
+  let value: unknown;
+  try {
+    value = JSON.parse(source);
+  } catch (error) {
+    return failure(
+      "assignment-response-invalid",
+      `Assignment Response must contain one JSON value: ${error instanceof Error ? error.message : String(error)}`,
+      "response",
+    );
+  }
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
+    responseSchema(),
+  );
+  if (!validate(value)) {
+    return { ok: false, diagnostics: responseDiagnostics(validate.errors) };
+  }
+  const response = value as Record<string, unknown>;
+  if (response.kind !== "proposal") {
+    return failure(
+      "assignment-response-kind-unsupported",
+      "This implementation boundary accepts Scenario Proposals; typed inability is handled separately",
+      "response.kind",
+    );
+  }
+  return {
+    ok: true,
+    value: value as ProposalAssignmentResponse,
+    diagnostics: [],
+  };
+}
+
 function outputSchemas(
   processPackage: ProcessPackage,
   dryRun: ScenarioDryRun,
@@ -683,6 +748,56 @@ function packet(
     })),
     completion: exact.dryRun.completion,
     responseSchema: responseSchema(),
+  };
+}
+
+/** Revalidate and atomically publish one complete Scenario Proposal. */
+export async function submitAssignmentResponse(
+  repositoryRoot: string,
+  responseSource: string,
+): Promise<AssignmentResult<AssignmentSubmission>> {
+  const parsed = parseAssignmentResponse(responseSource);
+  if (!parsed.ok) return parsed;
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.id !== parsed.value.assignment) {
+    return failure(
+      "assignment-unavailable",
+      `Assignment '${parsed.value.assignment}' is not the active Assignment`,
+      parsed.value.assignment,
+    );
+  }
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok || !sameAssignment(lease, exact.value)) {
+    return failure(
+      "assignment-stale",
+      `Assignment '${lease.id}' no longer matches the current exact repository state; submit will not rebase it`,
+      lease.id,
+    );
+  }
+  const proposal = parsed.value.proposal;
+  const submitted = await submitResolverScenario(
+    repositoryRoot,
+    exact.value.processPackage,
+    exact.value.lease.package,
+    exact.value.lease.scenario,
+    exact.value.lease.obligation.instance,
+    {
+      outputs: proposal.outputs,
+      completionEvidence: proposal.completionEvidence,
+    },
+    lease.id,
+    sha256(responseSource),
+    proposal.authoritySupplies,
+    proposal.standingDelegations,
+  );
+  if (!submitted.ok) return submitted;
+  await fs.rm(leasePath(repositoryRoot), { force: true });
+  return {
+    ok: true,
+    value: submitted.value as AssignmentSubmission,
+    diagnostics: [],
   };
 }
 
