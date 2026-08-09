@@ -28,6 +28,11 @@ export {
   type PhaseProgressionEvaluation,
   type SelectorEvaluationEvidence,
 } from "./evaluator.js";
+export {
+  classifyOperatorOutcome,
+  type OperatorOutcomeClassification,
+  type OperatorWorkFacts,
+} from "./operator-outcome.js";
 export type {
   BaselineCompositionDependencyChange,
   BaselineMembershipDependencyChange,

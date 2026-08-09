@@ -5,6 +5,7 @@ import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import type {
+  LifecycleEvaluation,
   ObligationEvaluation,
   ProcessDiagnostic,
   ProcessPackage,
@@ -13,9 +14,14 @@ import type {
 import {
   activeLifecycleEvaluation,
   initialPhaseId,
-  nextWorkProjection,
 } from "./lifecycle-inspection.js";
+import { verifyRepositoryBaselines } from "./exact-baseline-repository.js";
 import { repositoryLifecycleSnapshot } from "./lifecycle-repository.js";
+import {
+  classifyOperatorOutcome,
+  type OperatorOutcomeClassification,
+  type OperatorWorkFacts,
+} from "./operator-outcome.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
 import { authorityEvidenceContract } from "./participation.js";
 import { resolveType } from "./index.js";
@@ -69,11 +75,82 @@ interface AssignmentLease {
   };
 }
 
-export interface AssignmentOutcome {
+interface OperatorOutcomeBase {
   package: PackageSummary;
   contract: "mdlm-next@1";
-  outcome: "assignment";
-  assignment: { id: string };
+  phase: string;
+}
+
+export type OperatorOutcome =
+  | OperatorOutcomeBase & {
+      outcome: "assignment";
+      assignment: { id: string };
+    }
+  | OperatorOutcomeBase & {
+      outcome: "attention-required";
+      assignment: { id: string };
+      authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
+      attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
+      explanation: string;
+    }
+  | OperatorOutcomeBase & {
+      outcome: "process-dead-end";
+      explanation: string;
+      blockers: Extract<OperatorOutcomeClassification, { kind: "process-dead-end" }>["blockers"];
+    };
+
+export type AssignmentOutcome = OperatorOutcome;
+
+export interface OperatorStatus {
+  contract: "mdlm-status@1";
+  package: PackageSummary;
+  profile: {
+    reference: string;
+    status: string;
+    description: string;
+  };
+  integrity: { status: "valid"; diagnostics: [] };
+  activePhase: {
+    reference: string;
+    name: string;
+    purpose: string;
+    coverage: string;
+  };
+  omittedCoverage: {
+    profile: string[];
+    phase: string[];
+  };
+  recentTransaction:
+    | { available: false }
+    | {
+        available: true;
+        id: string;
+        status: string;
+        scenario: string;
+      };
+  unresolvedWork: {
+    total: number;
+    dispatchable: number;
+    byStatus: Record<string, number>;
+  };
+  currentOutcome:
+    | {
+        outcome: "assignment";
+        assignment: { allocation: "active"; id: string } | { allocation: "not-allocated" };
+      }
+    | {
+        outcome: "attention-required";
+        assignment: { allocation: "active"; id: string } | { allocation: "not-allocated" };
+        authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
+        attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
+        explanation: string;
+      }
+    | {
+        outcome: "process-dead-end";
+        explanation: string;
+        blockers: Extract<OperatorOutcomeClassification, { kind: "process-dead-end" }>["blockers"];
+      };
+  drillDownCommands: string[];
 }
 
 export interface AssignmentSubmission extends ScenarioExecution {
@@ -135,6 +212,18 @@ interface ExactAssignment {
   lease: Omit<AssignmentLease, "id">;
   dryRun: ScenarioDryRun;
   scenario: VersionedDefinition;
+  classification: Extract<OperatorOutcomeClassification, {
+    kind: "assignment" | "attention-required";
+  }>;
+}
+
+interface ExactOperatorState {
+  summary: PackageSummary;
+  processPackage: ProcessPackage;
+  evaluation: LifecycleEvaluation;
+  fingerprint: RepositoryFingerprint;
+  classification: OperatorOutcomeClassification;
+  assignment?: ExactAssignment;
 }
 
 function failure(code: string, message: string, pathValue?: string): AssignmentResult<never> {
@@ -344,26 +433,60 @@ function unversioned(reference: string): string | undefined {
   return /^(.*)@[1-9][0-9]*$/.exec(reference)?.[1];
 }
 
-async function exactAssignment(
+function phaseReference(evaluation: LifecycleEvaluation): string {
+  const phase = evaluation.phase;
+  return phase ? `${phase.id}@${phase.version}` : "";
+}
+
+function operatorWork(evaluation: LifecycleEvaluation): OperatorWorkFacts[] {
+  const phase = phaseReference(evaluation);
+  return evaluation.looseEnds.map((item) => ({
+    phase,
+    instance: item.id,
+    definition: obligationDefinition(item),
+    subject: item.subject,
+    scenario: item.actionableResolver ?? item.eventualResolver,
+    dispatchable: item.dispatchable,
+    authorityRequirements: (item.participation ?? []).map((participation) => ({
+      policy: participation.policy,
+      authorityRequirement: participation.authorityRequirement,
+      attentionSchedule: participation.attentionSchedule,
+    })),
+    explanation: item.explanation,
+    status: item.status,
+    blockedBy: item.blockedBy,
+    blockerChains: item.blockerChains,
+    unresolvedBindings: item.unresolvedBindings,
+  }));
+}
+
+async function exactOperatorState(
   repositoryRoot: string,
-): Promise<AssignmentResult<ExactAssignment>> {
+): Promise<AssignmentResult<ExactOperatorState>> {
   const selected = await selectedRepositoryPackage(repositoryRoot);
   if (!selected.ok) return { ok: false, diagnostics: selected.diagnostics };
   const firstPhase = initialPhaseId(selected.processPackage);
   if (!firstPhase) {
     return failure("phase-required", "The selected Process Package declares no Phase");
   }
-  const [loaded, fingerprint] = await Promise.all([
+  const processReference = `${selected.summary.reference}#${selected.summary.digest}`;
+  const [loaded, fingerprint, baselines] = await Promise.all([
     repositoryLifecycleSnapshot(
       repositoryRoot,
       selected.processPackage,
-      `${selected.summary.reference}#${selected.summary.digest}`,
+      processReference,
       firstPhase,
     ),
     repositoryFingerprint(repositoryRoot),
+    verifyRepositoryBaselines(
+      repositoryRoot,
+      selected.processPackage,
+      processReference,
+    ),
   ]);
   if (!loaded.ok) return loaded;
   if (!fingerprint.ok) return fingerprint;
+  if (!baselines.ok) return baselines;
   const evaluation = activeLifecycleEvaluation(
     selected.processPackage,
     loaded.value,
@@ -371,21 +494,29 @@ async function exactAssignment(
   if (evaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: evaluation.diagnostics };
   }
-  const next = nextWorkProjection(evaluation);
-  const item = next?.item;
-  if (!next || !item || !("obligation" in item) || !item.dispatchable) {
-    return failure(
-      "assignment-unavailable",
-      "The current declarative evaluation did not select a Dispatchable Obligation Instance",
-    );
+  const classification = classifyOperatorOutcome(operatorWork(evaluation));
+  const state: ExactOperatorState = {
+    summary: selected.summary,
+    processPackage: selected.processPackage,
+    evaluation,
+    fingerprint: fingerprint.value,
+    classification,
+  };
+  if (classification.kind === "process-dead-end") {
+    return { ok: true, value: state, diagnostics: [] };
   }
-  const scenarioReference = item.actionableResolver ?? item.eventualResolver;
+
+  const work = classification.work;
+  const item = evaluation.looseEnds.find((candidate) =>
+    candidate.id === work.instance
+  );
+  const scenarioReference = work.scenario;
   const scenario = definition(selected.processPackage.scenarios, scenarioReference);
-  const phaseId = unversioned(next.phase);
-  if (!scenario || !phaseId) {
+  const phaseId = unversioned(work.phase);
+  if (!item || !scenario || !phaseId) {
     return failure(
       "scenario-definition-unavailable",
-      `Could not resolve exact Scenario '${scenarioReference}' in Phase '${next.phase}'`,
+      `Could not resolve exact Scenario '${scenarioReference}' in Phase '${work.phase}'`,
       scenarioReference,
     );
   }
@@ -397,32 +528,43 @@ async function exactAssignment(
     [],
   );
   if (!prepared.ok) return prepared;
-  return {
-    ok: true,
-    value: {
-      summary: selected.summary,
-      processPackage: selected.processPackage,
-      lease: {
-        contract: "mdlm-assignment-lease@1",
-        disposition: "active",
-        package: packageIdentity(selected.summary),
-        repository: fingerprint.value,
-        phase: next.phase,
-        obligation: {
-          instance: item.id,
-          definition: obligationDefinition(item),
-          subject: item.subject,
-        },
-        scenario: scenarioReference,
-        bindings: bindings(prepared.value.invocations),
-        participation: prepared.value.participation ?? [],
-        retryAvailability: { malformedResponseCorrection: 1 },
+  state.assignment = {
+    summary: selected.summary,
+    processPackage: selected.processPackage,
+    lease: {
+      contract: "mdlm-assignment-lease@1",
+      disposition: "active",
+      package: packageIdentity(selected.summary),
+      repository: fingerprint.value,
+      phase: work.phase,
+      obligation: {
+        instance: item.id,
+        definition: obligationDefinition(item),
+        subject: item.subject,
       },
-      dryRun: prepared.value,
-      scenario,
+      scenario: scenarioReference,
+      bindings: bindings(prepared.value.invocations),
+      participation: prepared.value.participation ?? [],
+      retryAvailability: { malformedResponseCorrection: 1 },
     },
-    diagnostics: [],
+    dryRun: prepared.value,
+    scenario,
+    classification,
   };
+  return { ok: true, value: state, diagnostics: [] };
+}
+
+async function exactAssignment(
+  repositoryRoot: string,
+): Promise<AssignmentResult<ExactAssignment>> {
+  const state = await exactOperatorState(repositoryRoot);
+  if (!state.ok) return state;
+  return state.value.assignment
+    ? { ok: true, value: state.value.assignment, diagnostics: [] }
+    : failure(
+        "assignment-unavailable",
+        "The current Operator Outcome does not contain an Assignment",
+      );
 }
 
 function sameAssignment(lease: AssignmentLease, exact: ExactAssignment): boolean {
@@ -446,49 +588,258 @@ function invalidLease(repositoryRoot: string): AssignmentResult<never> {
   );
 }
 
-/** Lease the one exact Assignment selected from the current repository. */
+function leasedOutcome(
+  exact: ExactAssignment,
+  assignmentId: string,
+): AssignmentOutcome {
+  const base = {
+    package: exact.summary,
+    contract: "mdlm-next@1" as const,
+    phase: exact.lease.phase,
+    assignment: { id: assignmentId },
+  };
+  return exact.classification.kind === "attention-required"
+    ? {
+        ...base,
+        outcome: "attention-required",
+        authorityRequirement: exact.classification.authorityRequirement,
+        attentionSchedule: exact.classification.attentionSchedule,
+        explanation: exact.classification.explanation,
+      }
+    : { ...base, outcome: "assignment" };
+}
+
+/** Classify the current repository and lease its one exact Assignment when present. */
 export async function leaseNextAssignment(
   repositoryRoot: string,
 ): Promise<AssignmentResult<AssignmentOutcome>> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
-  const exact = await exactAssignment(repositoryRoot);
-  if (!exact.ok) {
+  const state = await exactOperatorState(repositoryRoot);
+  if (!state.ok) {
     if (
       persisted.value &&
-      !exact.diagnostics.some((item) =>
+      !state.diagnostics.some((item) =>
         item.code === "assignment-repository-fingerprint-failed"
       )
     ) await fs.rm(leasePath(repositoryRoot), { force: true });
-    return exact;
+    return state;
   }
-  if (persisted.value && sameAssignment(persisted.value, exact.value)) {
+  if (state.value.classification.kind === "process-dead-end") {
+    if (persisted.value) await fs.rm(leasePath(repositoryRoot), { force: true });
     return {
       ok: true,
       value: {
-        package: exact.value.summary,
+        package: state.value.summary,
         contract: "mdlm-next@1",
-        outcome: "assignment",
-        assignment: { id: persisted.value.id },
+        outcome: "process-dead-end",
+        phase: phaseReference(state.value.evaluation),
+        explanation: state.value.classification.explanation,
+        blockers: state.value.classification.blockers,
       },
       diagnostics: [],
     };
   }
-  if (persisted.value && sameAssignmentSource(persisted.value, exact.value)) {
+  const exact = state.value.assignment;
+  if (!exact) {
+    return failure(
+      "assignment-unavailable",
+      "The classified Operator Outcome did not prepare its exact Assignment",
+    );
+  }
+  if (persisted.value && sameAssignment(persisted.value, exact)) {
+    return {
+      ok: true,
+      value: leasedOutcome(exact, persisted.value.id),
+      diagnostics: [],
+    };
+  }
+  if (persisted.value && sameAssignmentSource(persisted.value, exact)) {
     return invalidLease(repositoryRoot);
   }
   const lease: AssignmentLease = {
-    ...exact.value.lease,
+    ...exact.lease,
     id: randomUUID(),
   };
   await writeLease(repositoryRoot, lease);
   return {
     ok: true,
+    value: leasedOutcome(exact, lease.id),
+    diagnostics: [],
+  };
+}
+
+async function recentTransaction(
+  repositoryRoot: string,
+): Promise<OperatorStatus["recentTransaction"]> {
+  const root = path.join(repositoryRoot, ".lifecycle/data/.transactions");
+  let entries: string[];
+  try {
+    entries = await fs.readdir(root);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { available: false };
+    }
+    throw error;
+  }
+  const executions = await Promise.all(entries.map(async (id) => {
+    const executionPath = path.join(root, id, "execution.json");
+    try {
+      const [source, statistics] = await Promise.all([
+        fs.readFile(executionPath, "utf8"),
+        fs.stat(executionPath),
+      ]);
+      const execution = object(JSON.parse(source));
+      const definitionValue = object(execution?.definition);
+      return {
+        modified: statistics.mtimeMs,
+        id: typeof execution?.id === "string" ? execution.id : id,
+        status: typeof execution?.status === "string"
+          ? execution.status
+          : "unknown",
+        scenario: typeof definitionValue?.scenario === "string"
+          ? definitionValue.scenario
+          : "unknown",
+      };
+    } catch {
+      return undefined;
+    }
+  }));
+  const latest = executions.filter((value) => value !== undefined).sort(
+    (left, right) =>
+      right.modified - left.modified || right.id.localeCompare(left.id),
+  )[0];
+  return latest
+    ? {
+        available: true,
+        id: latest.id,
+        status: latest.status,
+        scenario: latest.scenario,
+      }
+    : { available: false };
+}
+
+function statusOutcome(
+  state: ExactOperatorState,
+  activeLease: AssignmentLease | undefined,
+): OperatorStatus["currentOutcome"] {
+  const classification = state.classification;
+  if (classification.kind === "process-dead-end") {
+    return {
+      outcome: "process-dead-end",
+      explanation: classification.explanation,
+      blockers: classification.blockers,
+    };
+  }
+  const exact = state.assignment;
+  const assignment = exact && activeLease && sameAssignment(activeLease, exact)
+    ? { allocation: "active" as const, id: activeLease.id }
+    : { allocation: "not-allocated" as const };
+  return classification.kind === "attention-required"
+    ? {
+        outcome: "attention-required",
+        assignment,
+        authorityRequirement: classification.authorityRequirement,
+        attentionSchedule: classification.attentionSchedule,
+        explanation: classification.explanation,
+      }
+    : { outcome: "assignment", assignment };
+}
+
+/** Inspect current operator truth without allocating or replacing an Assignment. */
+export async function inspectOperatorStatus(
+  repositoryRoot: string,
+): Promise<AssignmentResult<OperatorStatus>> {
+  const [state, persisted, recent] = await Promise.all([
+    exactOperatorState(repositoryRoot),
+    readLease(repositoryRoot),
+    recentTransaction(repositoryRoot),
+  ]);
+  if (!state.ok) return state;
+  if (!persisted.ok) return persisted;
+  const profiles = Object.values(state.value.processPackage.profiles);
+  if (profiles.length !== 1 || !profiles[0]) {
+    return failure(
+      "profile-selection-invalid",
+      `Operator status requires one selected implementation profile; found ${profiles.length}`,
+      "profiles",
+    );
+  }
+  const profile = profiles[0];
+  const phase = state.value.evaluation.phase;
+  const phaseDefinition = phase
+    ? state.value.processPackage.phases[phase.id]
+    : undefined;
+  if (!phase || !phaseDefinition) {
+    return failure(
+      "phase-required",
+      "Operator status requires one derived Active Phase",
+      "phases",
+    );
+  }
+  const disabledCapabilities = Array.isArray(profile.disabled_capabilities)
+    ? profile.disabled_capabilities.filter(
+      (value): value is string => typeof value === "string",
+    )
+    : [];
+  const phaseOmissions = Array.isArray(phaseDefinition.omitted_capabilities)
+    ? phaseDefinition.omitted_capabilities.filter(
+      (value): value is string => typeof value === "string",
+    )
+    : [];
+  const byStatus: Record<string, number> = {};
+  for (const item of state.value.evaluation.looseEnds) {
+    byStatus[item.status] = (byStatus[item.status] ?? 0) + 1;
+  }
+  return {
+    ok: true,
     value: {
-      package: exact.value.summary,
-      contract: "mdlm-next@1",
-      outcome: "assignment",
-      assignment: { id: lease.id },
+      contract: "mdlm-status@1",
+      package: state.value.summary,
+      profile: {
+        reference: `${profile.id}@${profile.version}`,
+        status: typeof profile.status === "string" ? profile.status : "unknown",
+        description: typeof profile.description === "string"
+          ? profile.description
+          : "",
+      },
+      integrity: { status: "valid", diagnostics: [] },
+      activePhase: {
+        reference: `${phase.id}@${phase.version}`,
+        name: typeof phaseDefinition.name === "string"
+          ? phaseDefinition.name
+          : phase.id,
+        purpose: typeof phaseDefinition.purpose === "string"
+          ? phaseDefinition.purpose
+          : "",
+        coverage: typeof phaseDefinition.coverage === "string"
+          ? phaseDefinition.coverage
+          : "",
+      },
+      omittedCoverage: {
+        profile: disabledCapabilities,
+        phase: phaseOmissions,
+      },
+      recentTransaction: recent,
+      unresolvedWork: {
+        total: state.value.evaluation.looseEnds.length,
+        dispatchable: state.value.evaluation.looseEnds.filter((item) =>
+          item.dispatchable
+        ).length,
+        byStatus: Object.fromEntries(
+          Object.entries(byStatus).sort(([left], [right]) =>
+            left.localeCompare(right)
+          ),
+        ),
+      },
+      currentOutcome: statusOutcome(state.value, persisted.value),
+      drillDownCommands: [
+        "mdlm next",
+        "mdlm loose-ends --json",
+        `mdlm phase status ${phase.id} --json`,
+        "mdlm doctor --json",
+        "mdlm process show --json",
+      ],
     },
     diagnostics: [],
   };

@@ -100,12 +100,14 @@ import {
 } from "./process-package-scaffolding.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import {
+  inspectOperatorStatus,
   leaseNextAssignment,
   prepareAssignment,
   submitAssignmentResponse,
   type AssignmentOutcome,
   type AssignmentPacket,
   type AssignmentSubmission,
+  type OperatorStatus,
 } from "./assignment.js";
 import {
   readSelection,
@@ -152,10 +154,21 @@ interface TypeSchemaInspection {
 interface CommandResultBase {
   ok: boolean;
   command?: string;
-  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"];
-  outcome?: AssignmentOutcome["outcome"];
-  assignment?: AssignmentOutcome["assignment"];
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | OperatorStatus["contract"];
+  outcome?: AssignmentOutcome["outcome"] | "invalid";
+  assignment?: { id: string };
+  integrity?: OperatorStatus["integrity"] | { status: "invalid" };
   package?: PackageSummary | AssignmentPacket["package"];
+  profile?: OperatorStatus["profile"];
+  activePhase?: OperatorStatus["activePhase"];
+  omittedCoverage?: OperatorStatus["omittedCoverage"];
+  recentTransaction?: OperatorStatus["recentTransaction"];
+  unresolvedWork?: OperatorStatus["unresolvedWork"];
+  currentOutcome?: OperatorStatus["currentOutcome"] | {
+    outcome: "invalid";
+    diagnostics: ProcessDiagnostic[];
+  };
+  drillDownCommands?: OperatorStatus["drillDownCommands"];
   installed?: boolean;
   selected?: boolean;
   inspection?: ProcessInspection;
@@ -1665,7 +1678,34 @@ async function showNextAssignment(
     : {
         ok: false,
         command: "next",
+        contract: "mdlm-next@1",
+        outcome: "invalid",
+        integrity: { status: "invalid" },
         diagnostics: leased.diagnostics,
+      };
+}
+
+async function showOperatorStatus(
+  repositoryRoot: string,
+): Promise<CommandResult> {
+  const inspected = await inspectOperatorStatus(repositoryRoot);
+  return inspected.ok
+    ? {
+        ok: true,
+        command: "status",
+        ...inspected.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "status",
+        contract: "mdlm-status@1",
+        integrity: { status: "invalid" },
+        currentOutcome: {
+          outcome: "invalid",
+          diagnostics: inspected.diagnostics,
+        },
+        diagnostics: inspected.diagnostics,
       };
 }
 
@@ -2505,6 +2545,36 @@ function renderCommandResult(result: CommandResult): string {
   if (result.looseEnds && result.package) {
     return humanLooseEnds(result.package.reference, result.looseEnds);
   }
+  if (
+    result.contract === "mdlm-status@1" && result.package && result.profile &&
+    result.activePhase && result.omittedCoverage && result.recentTransaction &&
+    result.unresolvedWork && result.currentOutcome && result.drillDownCommands
+  ) {
+    const transaction = result.recentTransaction.available
+      ? `${result.recentTransaction.id} [${result.recentTransaction.status}] ${result.recentTransaction.scenario}`
+      : "none";
+    const assignment = "assignment" in result.currentOutcome
+      ? result.currentOutcome.assignment.allocation === "active"
+        ? `active ${result.currentOutcome.assignment.id}`
+        : "not allocated"
+      : "none";
+    return [
+      `Process Package: ${result.package.reference}`,
+      `Implementation Profile: ${result.profile.reference} [${result.profile.status}]`,
+      `Integrity: valid`,
+      `Active Phase: ${result.activePhase.reference} — ${result.activePhase.name}`,
+      `Purpose: ${result.activePhase.purpose}`,
+      `Coverage: ${result.activePhase.coverage}`,
+      `Profile Omitted Coverage: ${result.omittedCoverage.profile.join(", ") || "none"}`,
+      `Phase Omitted Coverage: ${result.omittedCoverage.phase.join(", ") || "none"}`,
+      `Recent Transaction: ${transaction}`,
+      `Unresolved Work: total=${result.unresolvedWork.total}, dispatchable=${result.unresolvedWork.dispatchable}, by-status=${JSON.stringify(result.unresolvedWork.byStatus)}`,
+      `Current Operator Outcome: ${result.currentOutcome.outcome}`,
+      `Assignment: ${assignment}`,
+      `Drill Down:`,
+      ...result.drillDownCommands.map((command) => `  ${command}`),
+    ].join("\n");
+  }
   if (result.evaluation && result.package) {
     const evaluation = result.evaluation;
     const evidence = evaluation.evidence.map((item) => {
@@ -2728,6 +2798,18 @@ async function dispatchCommand(
     return { ...initialized, command: "init" };
   }
   if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+  if (operands[0] === "status") {
+    const statusArguments = arguments_.filter((argument) => argument !== "--json");
+    return statusArguments.length === 1
+      ? showOperatorStatus(repositoryRoot)
+      : {
+          ...failure(
+            "status-arguments-unsupported",
+            "Expected 'mdlm status' without operands",
+          ),
+          command: "status",
+        };
+  }
   if (
     operands[0] === "baseline" && operands[1] === "verify" && operands[2]
   ) {
@@ -2923,7 +3005,8 @@ async function executeCommand(
   }
   return {
     exitCode: result.ok ? 0 : 1,
-    output: `${arguments_.includes("--json") || result.contract ||
+    output: `${arguments_.includes("--json") ||
+        (result.contract && arguments_[0] !== "status") ||
         arguments_[0] === "next" ||
         (arguments_[0] === "scenario" &&
           (arguments_[1] === "prepare" || arguments_[1] === "submit"))
