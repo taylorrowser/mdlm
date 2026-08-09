@@ -697,7 +697,7 @@ describe("MDLM Assignment leasing and preparation", () => {
         const subject = packet.exactInputs[0].inputs
           .find((input: any) => input.name === "subject")
           .values[0].identity.revision_id as string;
-        submit(outcome.assignment.id, {
+        const execution = submit(outcome.assignment.id, {
           outputs: [{
             localId: `context-${subject}`,
             name: "context",
@@ -721,6 +721,9 @@ describe("MDLM Assignment leasing and preparation", () => {
           authoritySupplies: [],
           standingDelegations: [],
         }, packet);
+        const revision = execution.outputs[0].lifecycleDatum.revisionId as string;
+        const verified = mdlm(repository, "baseline", "verify", revision, "--json");
+        expect(verified.status, `${verified.stderr}${verified.stdout}`).toBe(0);
         commitTransaction(`Publish context for ${subject}`);
         outcome = JSON.parse(mdlm(repository, "next").stdout);
         packet = JSON.parse(mdlm(

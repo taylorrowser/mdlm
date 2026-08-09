@@ -1,12 +1,30 @@
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
+import {
+  copiedProcessPackage,
+  suppressPhase0FoundationObligations,
+} from "./helpers/process-package.js";
 import { req } from "./helpers/req.js";
 
 const processRef = "mdlm-bootstrap@0.49.0#sha256:authorization-test";
+const mdlmExecutable = path.join(process.cwd(), "dist/mdlm.js");
+
+function mdlm(repository: string, input: string | undefined, ...arguments_: string[]) {
+  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
+    cwd: repository,
+    encoding: "utf8",
+    ...(input === undefined ? {} : { input }),
+  });
+}
+
+function git(repository: string, ...arguments_: string[]) {
+  return spawnSync("git", ["-C", repository, ...arguments_], { encoding: "utf8" });
+}
 
 function frozenLifecycleDatum(
   type: string,
@@ -352,6 +370,16 @@ describe("exact consequential authorization", () => {
   });
 
   it("uses only an applicable exact standing delegation to authorize Review execution", async () => {
+    await fs.rm(repositoryRoot, { recursive: true, force: true });
+    repositoryRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-submit-standing-delegation-"),
+    );
+    const processRoot = await copiedProcessPackage("mdlm-submit-delegation-process-");
+    await suppressPhase0FoundationObligations(processRoot);
+    const initialized = req(repositoryRoot, "init", "--process", processRoot, "--json");
+    expect(initialized.status, initialized.stderr).toBe(0);
+    await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+
     const created = req(
       repositoryRoot,
       "new",
@@ -606,38 +634,43 @@ describe("exact consequential authorization", () => {
         item.obligation === "passing-review-required" &&
         item.subject === target.revisionId,
     ) as { id: string };
-    const delegatedDryRun = req(
+    expect(git(repositoryRoot, "init").status).toBe(0);
+    expect(git(repositoryRoot, "add", ".").status).toBe(0);
+    expect(git(
       repositoryRoot,
-      "scenario",
-      "dry-run",
-      "review-datum-in-context@2",
-      "--obligation",
-      reviewWork.id,
-      "--input",
-      `subject=${target.revisionId}`,
-      "--input",
-      `review_context=${targetContext.revisionId}`,
-      "--json",
-    );
-    expect(delegatedDryRun.status, delegatedDryRun.stderr).toBe(0);
-    expect(JSON.parse(delegatedDryRun.stdout).scenarioDryRun.standingDelegation)
-      .toEqual({
-        selector: "applicable-authority-delegations-for@1",
-        authority: "stakeholder",
-        delegate: "independent-reviewer",
-        targetInput: "subject",
-        invocations: [{
-          invocation: 0,
-          target: target.revisionId,
-          applicableEvidence: [delegationDatum.revisionId],
-        }],
-      });
-
-    const adapterPath = path.join(repositoryRoot, "delegated-review.mjs");
-    await fs.writeFile(
-      adapterPath,
-      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+      "-c",
+      "user.name=MDLM Test",
+      "-c",
+      "user.email=mdlm-test@example.invalid",
+      "commit",
+      "-m",
+      "Prepare delegated Review",
+    ).status).toBe(0);
+    const next = mdlm(repositoryRoot, undefined, "next");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const assignment = JSON.parse(next.stdout).assignment.id as string;
+    const prepared = mdlm(repositoryRoot, undefined, "scenario", "prepare", assignment);
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    const packet = JSON.parse(prepared.stdout);
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    expect(packet.authority.standingDelegation).toEqual({
+      selector: "applicable-authority-delegations-for@1",
+      authority: "stakeholder",
+      delegate: "independent-reviewer",
+      targetInput: "subject",
+      invocations: [{
+        invocation: 0,
+        target: target.revisionId,
+        applicableEvidence: [delegationDatum.revisionId],
+      }],
+    });
+    const response = {
+      contract: "mdlm-assignment-response@1",
+      assignment,
+      kind: "proposal",
+      proposal: {
         outputs: [{
+          localId: "review",
           name: "review",
           invocation: 0,
           lifecycleDatum: {
@@ -653,29 +686,22 @@ describe("exact consequential authorization", () => {
               { type: "reviews", target: target.revisionId },
               { type: "contextualizes", target: targetContext.revisionId },
             ],
-            body: "The exact delegated Review passes.\\n",
+            body: "The exact delegated Review passes.\n",
           },
         }],
         completionEvidence: { summary: "Applicable standing delegation used." },
-      }))});\n`,
-      { mode: 0o755 },
-    );
-    const executed = req(
+        loadedSkillRefs: packet.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: [],
+        standingDelegations: [delegationDatum.revisionId],
+      },
+    };
+    const executed = mdlm(
       repositoryRoot,
+      `${JSON.stringify(response)}\n`,
       "scenario",
-      "execute",
-      "review-datum-in-context@2",
-      "--obligation",
-      reviewWork.id,
-      "--delegation",
-      delegationDatum.revisionId,
-      "--adapter",
-      adapterPath,
-      "--input",
-      `subject=${target.revisionId}`,
-      "--input",
-      `review_context=${targetContext.revisionId}`,
-      "--json",
+      "submit",
     );
 
     expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
