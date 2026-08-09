@@ -72,10 +72,9 @@ node dist/mdlm.js process validate --ref .lifecycle/process
 node dist/mdlm.js process init ./case-process
 node dist/mdlm.js process validate --ref ./case-process
 
-# Initialize a repository against an explicit package
-mkdir example-repository
+# Initialize a clean Git repository with the bundled Example Process Package
+node dist/mdlm.js init ./example-repository
 cd example-repository
-node ../dist/mdlm.js init --process ../.lifecycle/process
 # Installation adds an immutable package without activating it; `use` changes
 # only package selection. Migrate an initialized repository contract atomically:
 node ../dist/mdlm.js process install ../next-process

@@ -1,0 +1,229 @@
+import { spawnSync } from "node:child_process";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+const projectRoot = process.cwd();
+const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
+const resolvedDependency = fileURLToPath(import.meta.resolve("yaml"));
+const nodeModulesMarker = `${path.sep}node_modules`;
+const dependenciesRoot = resolvedDependency.slice(
+  0,
+  resolvedDependency.indexOf(nodeModulesMarker) + nodeModulesMarker.length,
+);
+
+function executeFrom(
+  executable: string,
+  cwd: string,
+  arguments_: string[],
+  env?: NodeJS.ProcessEnv,
+) {
+  return spawnSync(process.execPath, [executable, ...arguments_], {
+    cwd,
+    encoding: "utf8",
+    env: env ?? process.env,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
+
+function execute(
+  cwd: string,
+  arguments_: string[],
+  env?: NodeJS.ProcessEnv,
+) {
+  return executeFrom(mdlmExecutable, cwd, arguments_, env);
+}
+
+function git(repository: string, ...arguments_: string[]) {
+  return spawnSync("git", ["-C", repository, ...arguments_], {
+    encoding: "utf8",
+  });
+}
+
+describe("mdlm init", () => {
+  let parent: string;
+
+  beforeEach(async () => {
+    parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-init-public-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(parent, { recursive: true, force: true });
+  });
+
+  it("initializes an absent destination with the bundled package and one clean setup commit", async () => {
+    const destination = path.join(parent, "product");
+    const initialized = execute(parent, ["init", destination, "--json"]);
+
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      command: "init",
+      package: expect.objectContaining({
+        reference: "mdlm-bootstrap@0.49.0",
+      }),
+      repository: expect.objectContaining({
+        contract: "mdlm-repository@1",
+      }),
+    }));
+
+    const selection = JSON.parse(await fs.readFile(
+      path.join(destination, ".lifecycle/process-selection.json"),
+      "utf8",
+    ));
+    expect(selection.package.reference).toBe("mdlm-bootstrap@0.49.0");
+    await expect(fs.stat(path.join(destination, ".lifecycle/data")))
+      .resolves.toMatchObject({});
+    await expect(fs.stat(path.join(destination, ".lifecycle/work")))
+      .resolves.toMatchObject({});
+
+    const history = git(
+      destination,
+      "log",
+      "--format=%an <%ae>%n%s",
+    );
+    expect(history.status, history.stderr).toBe(0);
+    expect(history.stdout).toBe(
+      "MDLM <mdlm@localhost>\nInitialize MDLM repository\n",
+    );
+    expect(git(destination, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
+    expect(git(destination, "status", "--porcelain").stdout).toBe("");
+
+    const ignored = git(
+      destination,
+      "check-ignore",
+      ".lifecycle/work",
+      ".lifecycle/generated",
+    );
+    expect(ignored.status, ignored.stderr).toBe(0);
+    expect(ignored.stdout).toBe(
+      ".lifecycle/work\n.lifecycle/generated\n",
+    );
+
+    const doctor = execute(destination, ["doctor", "--json"]);
+    expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+    expect(git(destination, "status", "--porcelain").stdout).toBe("");
+  });
+
+  it("initializes an existing empty destination", async () => {
+    const destination = path.join(parent, "product");
+    await fs.mkdir(destination);
+
+    const initialized = execute(parent, ["init", destination, "--json"]);
+
+    expect(initialized.status, initialized.stderr).toBe(0);
+    expect(git(destination, "status", "--porcelain").stdout).toBe("");
+    expect(git(destination, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
+  });
+
+  it("rejects a nonempty destination without altering it", async () => {
+    const destination = path.join(parent, "product");
+    await fs.mkdir(destination);
+    await fs.writeFile(path.join(destination, "keep.txt"), "preserve me\n");
+
+    const initialized = execute(parent, ["init", destination, "--json"]);
+
+    expect(initialized.status).toBe(1);
+    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "destination-not-empty",
+      })],
+    }));
+    expect(await fs.readdir(destination)).toEqual(["keep.txt"]);
+    expect(await fs.readFile(path.join(destination, "keep.txt"), "utf8"))
+      .toBe("preserve me\n");
+  });
+
+  it("rejects custom Process Package options without creating a destination", async () => {
+    const destination = path.join(parent, "product");
+
+    const initialized = execute(parent, [
+      "init",
+      destination,
+      "--process",
+      path.join(projectRoot, ".lifecycle/process"),
+      "--json",
+    ]);
+
+    expect(initialized.status).toBe(1);
+    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "init-custom-process-unsupported",
+      })],
+    }));
+    await expect(fs.stat(destination)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("leaves no destination when its bundled package fails validation", async () => {
+    const distribution = path.join(parent, "distribution");
+    await fs.mkdir(path.join(distribution, ".lifecycle"), { recursive: true });
+    await Promise.all([
+      fs.cp(path.join(projectRoot, "dist"), path.join(distribution, "dist"), {
+        recursive: true,
+      }),
+      fs.cp(
+        path.join(projectRoot, ".lifecycle/process"),
+        path.join(distribution, ".lifecycle/process"),
+        { recursive: true },
+      ),
+      fs.writeFile(
+        path.join(distribution, "package.json"),
+        '{"type":"module"}\n',
+      ),
+      fs.symlink(
+        dependenciesRoot,
+        path.join(distribution, "node_modules"),
+      ),
+    ]);
+    await fs.writeFile(
+      path.join(distribution, ".lifecycle/process/types/PSP.yaml"),
+      "kind: not-a-type\n",
+    );
+    const destination = path.join(parent, "product");
+
+    const initialized = executeFrom(
+      path.join(distribution, "dist/mdlm.js"),
+      parent,
+      ["init", destination, "--json"],
+    );
+
+    expect(initialized.status, initialized.stderr).toBe(1);
+    expect(initialized.stdout, initialized.stderr).not.toBe("");
+    expect(JSON.parse(initialized.stdout).diagnostics.length).toBeGreaterThan(0);
+    await expect(fs.stat(destination)).rejects.toMatchObject({ code: "ENOENT" });
+    expect((await fs.readdir(parent)).filter((entry) =>
+      entry.startsWith(".mdlm-init-") || entry.startsWith(".mdlm-empty-")
+    )).toEqual([]);
+  });
+
+  it("rolls back an existing empty destination when Git setup fails", async () => {
+    const destination = path.join(parent, "product");
+    await fs.mkdir(destination);
+    const fakeBin = path.join(parent, "fake-bin");
+    await fs.mkdir(fakeBin);
+    await fs.writeFile(
+      path.join(fakeBin, "git"),
+      "#!/bin/sh\necho 'injected git failure' >&2\nexit 73\n",
+      { mode: 0o755 },
+    );
+
+    const initialized = execute(parent, ["init", destination, "--json"], {
+      ...process.env,
+      PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ""}`,
+    });
+
+    expect(initialized.status).toBe(1);
+    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: [expect.objectContaining({ code: "git-setup-failed" })],
+    }));
+    expect(await fs.readdir(destination)).toEqual([]);
+    expect((await fs.readdir(parent)).filter((entry) =>
+      entry.startsWith(".mdlm-init-") || entry.startsWith(".mdlm-empty-")
+    )).toEqual([]);
+  });
+});
