@@ -18,8 +18,9 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   Policy applicability, generated historical Obligation explanations from explicit
   repository snapshots, and explanations from primitive graph and integrity data.
 - The `mdlm` executable initializes the bundled repository, exposes package-neutral
-  inspection and validation, leases the next exact Assignment, prepares its
-  harness-neutral packet, and accepts a complete Scenario Proposal response. Submission
+  inspection and validation, classifies the current Operator Outcome, leases its
+  next exact Assignment when work can advance, prepares a harness-neutral packet,
+  and accepts a complete Scenario Proposal response. Submission
   validates every Scenario Proposal output and publishes the whole canonical
   transaction atomically with exact response provenance; rejection publishes
   nothing. MDLM does not invoke an adapter or execute Package Command Aliases.
@@ -51,7 +52,8 @@ node dist/mdlm.js process validate --ref .lifecycle/process
 node dist/mdlm.js init ./example-repository
 cd example-repository
 
-# Lease one exact Assignment, then expand it for a harness or agent.
+# Orient without allocating work, then obtain the exact current Operator Outcome.
+node ../dist/mdlm.js status
 node ../dist/mdlm.js next
 node ../dist/mdlm.js scenario prepare <assignment-id>
 # After a harness returns mdlm-assignment-response@1, publish from a file or stdin.
@@ -73,6 +75,13 @@ node ../dist/mdlm.js trace <identity>
 node ../dist/mdlm.js baseline verify <baseline-revision>
 node ../dist/mdlm.js baseline diff <old-baseline> <new-baseline>
 ```
+
+`mdlm next` emits `mdlm-next@1` JSON. Runnable autonomous or delegated work is
+an `assignment`; immediate attended work is `attention-required`; unfinished
+supported work with no reachable Assignment or attention is
+`process-dead-end`; repository or package integrity failure is `invalid` and
+exits nonzero. `mdlm status` reports the same classification without allocating
+an Assignment.
 
 `npm run prototype -- <arguments>` and the `req` executable remain temporary
 branch-green bridges for prototype tests pending the clean-interface contract.

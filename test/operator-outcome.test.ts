@@ -1,0 +1,723 @@
+import { spawnSync } from "node:child_process";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parse, stringify } from "yaml";
+import {
+  classifyOperatorOutcome,
+  type OperatorWorkFacts,
+} from "../src/operator-outcome.js";
+import { processPackageDigest } from "../src/process-package-digest.js";
+
+const projectRoot = process.cwd();
+const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
+
+function mdlm(repository: string, ...arguments_: string[]) {
+  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
+    cwd: repository,
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
+
+function mdlmWithInput(
+  repository: string,
+  input: string,
+  ...arguments_: string[]
+) {
+  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
+    cwd: repository,
+    encoding: "utf8",
+    input,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
+
+async function recordInstalledPackageChange(
+  repository: string,
+  packageRoot: string,
+): Promise<void> {
+  const digest = await processPackageDigest(packageRoot);
+  for (const relativePath of [
+    ".lifecycle/process-selection.json",
+    ".lifecycle/repository.json",
+  ]) {
+    const contractPath = path.join(repository, relativePath);
+    const contract = JSON.parse(await fs.readFile(contractPath, "utf8"));
+    contract.package.digest = digest;
+    await fs.writeFile(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+  }
+}
+
+function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {
+  return {
+    kind: "obligation",
+    phase: "discovery@7",
+    instance: "clarify-scope@3:subject-1:package@1#digest",
+    definition: "clarify-scope@3",
+    subject: "subject-1",
+    scenario: "resolve-scope@2",
+    dispatchable: true,
+    authorityRequirements: [],
+    explanation: "The exact scope decision is unresolved.",
+    status: "ready",
+    blockedBy: [],
+    blockerChains: [],
+    unresolvedBindings: [],
+    ...overrides,
+  };
+}
+
+describe("package-neutral Operator Outcome classification", () => {
+  it("classifies autonomous and delegated work as runnable Assignments", () => {
+    expect(classifyOperatorOutcome([work()]).kind).toBe("assignment");
+    expect(classifyOperatorOutcome([work({
+      authorityRequirements: [{
+        policy: "independent-participation@4",
+        authorityRequirement: {
+          mode: "delegated",
+          authority: "separate-authority",
+          delegationAllowed: false,
+        },
+        attentionSchedule: {
+          timing: "none",
+          checkpoint: null,
+          consolidationGroup: null,
+        },
+      }],
+    })]).kind).toBe("assignment");
+  });
+
+  it("classifies immediate attended work with its exact authority requirement", () => {
+    const classified = classifyOperatorOutcome([work({
+      authorityRequirements: [{
+        policy: "scope-authority@9",
+        authorityRequirement: {
+          mode: "attended",
+          authority: "scope-owner",
+          delegationAllowed: false,
+        },
+        attentionSchedule: {
+          timing: "immediate",
+          checkpoint: null,
+          consolidationGroup: null,
+        },
+      }],
+    })]);
+
+    expect(classified).toEqual(expect.objectContaining({
+      kind: "attention-required",
+      authorityRequirement: {
+        mode: "attended",
+        authority: "scope-owner",
+        delegationAllowed: false,
+      },
+      explanation: "The exact scope decision is unresolved.",
+    }));
+  });
+
+  it("reports a Process Dead End with exact blocker diagnostics", () => {
+    const classified = classifyOperatorOutcome([work({
+      dispatchable: false,
+      status: "blocked",
+      blockedBy: ["source-required@1:source-1:package@1#digest"],
+      blockerChains: [[
+        "clarify-scope@3:subject-1:package@1#digest",
+        "source-required@1:source-1:package@1#digest",
+      ]],
+    })]);
+
+    expect(classified).toEqual({
+      kind: "process-dead-end",
+      explanation: "The supported profile is unfinished, but no Assignment or immediate Attention Requirement can advance it.",
+      blockers: [expect.objectContaining({
+        instance: "clarify-scope@3:subject-1:package@1#digest",
+        status: "blocked",
+        blockedBy: ["source-required@1:source-1:package@1#digest"],
+      })],
+    });
+  });
+});
+
+describe("public mdlm outcome and status seam", () => {
+  let parent: string;
+  let repository: string;
+
+  beforeEach(async () => {
+    parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-operator-outcome-"));
+    repository = path.join(parent, "repository");
+    const initialized = mdlm(parent, "init", repository, "--json");
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+  });
+
+  afterEach(async () => {
+    await fs.rm(parent, { recursive: true, force: true });
+  });
+
+  it("reports status without allocating an Assignment", async () => {
+    const status = mdlm(repository, "status", "--json");
+
+    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+    expect(JSON.parse(status.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      command: "status",
+      contract: "mdlm-status@1",
+      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.49.0" }),
+      profile: expect.objectContaining({ reference: "bootstrap@23" }),
+      integrity: { status: "valid", diagnostics: [] },
+      activePhase: expect.objectContaining({
+        reference: "phase-0-wayfinding@2",
+        purpose: expect.any(String),
+      }),
+      omittedCoverage: expect.objectContaining({
+        profile: expect.any(Array),
+        phase: expect.any(Array),
+      }),
+      recentTransaction: { available: false },
+      unresolvedWork: expect.objectContaining({ total: expect.any(Number) }),
+      currentOutcome: expect.objectContaining({
+        outcome: "assignment",
+        assignment: { allocation: "not-allocated" },
+      }),
+      drillDownCommands: expect.arrayContaining([
+        "mdlm next",
+        "mdlm loose-ends --json",
+      ]),
+      diagnostics: [],
+    }));
+    const readable = mdlm(repository, "status");
+    expect(readable.status, `${readable.stderr}${readable.stdout}`).toBe(0);
+    expect(readable.stdout).toContain("Active Phase: phase-0-wayfinding@2");
+    expect(readable.stdout).toContain("Current Operator Outcome: assignment");
+    await expect(fs.stat(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ))).rejects.toMatchObject({ code: "ENOENT" });
+
+    const allocated = JSON.parse(mdlm(repository, "next").stdout);
+    const withLease = JSON.parse(mdlm(repository, "status", "--json").stdout);
+    expect(withLease.currentOutcome).toEqual({
+      outcome: "assignment",
+      assignment: { allocation: "active", id: allocated.assignment.id },
+    });
+    expect(JSON.parse(mdlm(repository, "next").stdout).assignment)
+      .toEqual(allocated.assignment);
+  });
+
+  it("returns immediate attended work with an exact Assignment and Authority Requirement", () => {
+    const first = JSON.parse(mdlm(repository, "next").stdout);
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      first.assignment.id,
+    ).stdout);
+    const submitted = mdlmWithInput(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment: first.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "map",
+            name: "map",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "MAP",
+              payload: {
+                title: "Operator outcome tracer",
+                purpose: "Expose one immediate stakeholder participation boundary.",
+                frontier: ["Resolve the exact scope question"],
+              },
+              links: [],
+              body: "A bounded public-process tracer.\n",
+            },
+          }, {
+            localId: "question",
+            name: "questions",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "QST",
+              payload: {
+                title: "Choose the supported scope",
+                kind: "preferential",
+                question: "Which exact scope should this product support?",
+                state: "open",
+                blocking_impact: "Product definition cannot proceed without stakeholder intent.",
+              },
+              links: [],
+              body: "Immediate stakeholder intent is required.\n",
+            },
+          }],
+          completionEvidence: { summary: "Map and exact question proposed." },
+          loadedSkillRefs: packet.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: [],
+          standingDelegations: [],
+        },
+      })}\n`,
+      "scenario",
+      "submit",
+    );
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    const submittedExecution = JSON.parse(submitted.stdout).execution;
+    const questionRevision = submittedExecution.outputs.find(
+      (output: { name: string }) => output.name === "questions",
+    ).lifecycleDatum.revisionId as string;
+    let boundaryOutcome = JSON.parse(mdlm(repository, "next").stdout);
+    let boundaryPacket = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      boundaryOutcome.assignment.id,
+    ).stdout);
+    let productStable = "";
+    while ([
+      "create-review-context@1",
+      "compile-psp@2",
+      "draft-stakeholder-requirements@2",
+    ].includes(boundaryPacket.scenario.reference)) {
+      let outputs: Record<string, unknown>[];
+      if (boundaryPacket.scenario.reference === "create-review-context@1") {
+        const subject = boundaryPacket.exactInputs[0].inputs.find(
+          (input: { name: string }) => input.name === "subject",
+        ).values[0].identity.revision_id as string;
+        outputs = [{
+          localId: "context",
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: `Review context for ${subject}`,
+              kind: "review-context",
+              role: "review-context",
+              scope: subject,
+              group: "operator-outcome-test",
+              definition_members: [subject],
+              evidence: [],
+            },
+            links: [],
+            body: "Exact public-process review context.\n",
+          },
+        }];
+      } else if (boundaryPacket.scenario.reference === "compile-psp@2") {
+        outputs = [{
+          localId: "product",
+          name: "product_specification",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "PSP",
+            payload: {
+              title: "Operator outcome product",
+              rationale: "A minimal product makes the attended question route current.",
+              problem: "The supported scope requires exact stakeholder intent.",
+              users: ["MDLM operator"],
+              goals: ["Expose attended work truthfully"],
+              non_goals: [],
+              success_measures: ["The next outcome requires attention"],
+            },
+            links: [],
+            body: "Minimal product definition.\n",
+          },
+        }];
+      } else {
+        outputs = [{
+          localId: "requirement",
+          name: "requirements",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "STK",
+            payload: {
+              title: "Report attended work",
+              rationale: "Operators need the exact authority boundary.",
+              statement: "MDLM shall report immediate attended work with its exact Authority Requirement.",
+              verification_intent: "Inspect the public next outcome.",
+              stakeholder: "MDLM operator",
+              priority: "must",
+            },
+            links: [{ type: "derived-from", target: productStable }],
+            body: "One operator-facing requirement.\n",
+          },
+        }];
+      }
+      const completed = mdlmWithInput(
+        repository,
+        `${JSON.stringify({
+          contract: "mdlm-assignment-response@1",
+          assignment: boundaryOutcome.assignment.id,
+          kind: "proposal",
+          proposal: {
+            outputs,
+            completionEvidence: { summary: "Prerequisite proposed." },
+            loadedSkillRefs: boundaryPacket.prompt.skills.map(
+              (skill: { reference: string }) => skill.reference,
+            ),
+            authoritySupplies: [],
+            standingDelegations: [],
+          },
+        })}\n`,
+        "scenario",
+        "submit",
+      );
+      expect(completed.status, `${completed.stderr}${completed.stdout}`).toBe(0);
+      if (boundaryPacket.scenario.reference === "compile-psp@2") {
+        productStable = JSON.parse(completed.stdout).execution.outputs[0]
+          .lifecycleDatum.id as string;
+      }
+      boundaryOutcome = JSON.parse(mdlm(repository, "next").stdout);
+      boundaryPacket = JSON.parse(mdlm(
+        repository,
+        "scenario",
+        "prepare",
+        boundaryOutcome.assignment.id,
+      ).stdout);
+    }
+    expect(boundaryPacket.scenario.reference).toBe("freeze-source-boundary@1");
+    const boundary = mdlmWithInput(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment: boundaryOutcome.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "boundary",
+            name: "boundary",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "BSL",
+              payload: {
+                title: "Exact question source boundary",
+                kind: "source-boundary",
+                role: "source-boundary",
+                scope: questionRevision,
+                group: "SAME-LINEAGE",
+                definition_members: [questionRevision],
+                evidence: [],
+              },
+              links: [],
+              body: "Freezes the exact stakeholder question source.\n",
+            },
+          }],
+          completionEvidence: { summary: "Question source frozen." },
+          loadedSkillRefs: boundaryPacket.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: [],
+          standingDelegations: [],
+        },
+      })}\n`,
+      "scenario",
+      "submit",
+    );
+    expect(boundary.status, `${boundary.stderr}${boundary.stdout}`).toBe(0);
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-next@1",
+      outcome: "attention-required",
+      assignment: { id: expect.any(String) },
+      authorityRequirement: {
+        mode: "attended",
+        authority: "stakeholder",
+        delegationAllowed: false,
+      },
+      attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+      explanation: expect.any(String),
+    }));
+  });
+
+  it("resolves the package-declared default from multiple valid profiles", async () => {
+    const packageRoot = path.join(
+      repository,
+      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+    );
+    const bootstrapProfilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
+    const alternateProfilePath = path.join(packageRoot, "profiles/alternate.yaml");
+    const alternateProfile = (await fs.readFile(bootstrapProfilePath, "utf8"))
+      .replace("id: bootstrap", "id: alternate");
+    await fs.writeFile(alternateProfilePath, alternateProfile);
+    const manifestPath = path.join(packageRoot, "manifest.yaml");
+    const manifest = parse(await fs.readFile(manifestPath, "utf8"));
+    manifest.profiles = {
+      default: "alternate@23",
+      available: [
+        "profiles/bootstrap.yaml@23",
+        "profiles/alternate.yaml@23",
+      ],
+    };
+    await fs.writeFile(manifestPath, stringify(manifest));
+    await recordInstalledPackageChange(repository, packageRoot);
+
+    const status = mdlm(repository, "status", "--json");
+
+    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+    expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
+      reference: "alternate@23",
+    }));
+  });
+
+  it("classifies package-declared Phase progression as immediate attended work", async () => {
+    const packageRoot = path.join(
+      repository,
+      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+    );
+    await fs.writeFile(
+      path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
+      `kind: phase-definition
+id: phase-0-wayfinding
+version: 2
+order: 0
+name: Progression-only profile
+purpose: Prove package-declared progression remains reachable operator work.
+coverage: bootstrap-subset
+omitted_capabilities: [all other lifecycle work]
+entry: 'true'
+scenarios: [establish-initial-wayfinding-map@1, record-consequential-decision@1]
+obligations: [initial-wayfinding-map-required@1]
+outputs: [MAP, DEC]
+progression:
+  next_phase: phase-1-product-assurance
+  readiness: 'exists("current-wayfinding-maps@1", {})'
+  authorization:
+    condition: 'false'
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: 'phase'}
+    scenario: record-consequential-decision@1
+    subjects: 'select("current-wayfinding-maps@1", {})'
+    evidence_selector: applicable-disposition-decisions-for@1
+gate:
+  required: false
+  candidate_selector: 'select("current-wayfinding-maps@1", {})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@2
+  completion: 'true'
+`,
+    );
+    const obligationsRoot = path.join(packageRoot, "obligations");
+    for (const file of await fs.readdir(obligationsRoot)) {
+      if (!file.endsWith(".yaml") || file === "initial-wayfinding-map-required.yaml") {
+        continue;
+      }
+      const obligationPath = path.join(obligationsRoot, file);
+      const obligation = parse(await fs.readFile(obligationPath, "utf8"));
+      const phases = (obligation.phases as string[]).filter(
+        (phase) => phase !== "phase-0-wayfinding",
+      );
+      obligation.phases = phases.length > 0
+        ? phases
+        : ["phase-1-product-assurance"];
+      await fs.writeFile(obligationPath, stringify(obligation));
+    }
+    await recordInstalledPackageChange(repository, packageRoot);
+
+    const first = JSON.parse(mdlm(repository, "next").stdout);
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      first.assignment.id,
+    ).stdout);
+    const submitted = mdlmWithInput(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment: first.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "map",
+            name: "map",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "MAP",
+              payload: {
+                title: "Phase progression fixture",
+                purpose: "Supply one exact progression authorization subject.",
+                frontier: ["Authorize the package-declared next Phase"],
+              },
+              links: [],
+              body: "A progression authorization subject.\n",
+            },
+          }],
+          completionEvidence: { summary: "Progression subject proposed." },
+          loadedSkillRefs: packet.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: [],
+          standingDelegations: [],
+        },
+      })}\n`,
+      "scenario",
+      "submit",
+    );
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    const mapRevision = JSON.parse(submitted.stdout).execution.outputs[0]
+      .lifecycleDatum.revisionId as string;
+    const status = JSON.parse(mdlm(repository, "status", "--json").stdout);
+    expect(status.unresolvedWork).toEqual({
+      total: 1,
+      dispatchable: 1,
+      byStatus: { "awaiting-authority": 1 },
+    });
+    expect(status.currentOutcome).toEqual(expect.objectContaining({
+      outcome: "attention-required",
+      assignment: { allocation: "not-allocated" },
+    }));
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    expect(outcome).toEqual(expect.objectContaining({
+      contract: "mdlm-next@1",
+      outcome: "attention-required",
+      assignment: { id: expect.any(String) },
+      authorityRequirement: {
+        mode: "attended",
+        authority: "stakeholder",
+        delegationAllowed: false,
+      },
+    }));
+    const progressionPacket = mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      outcome.assignment.id,
+    );
+    expect(
+      progressionPacket.status,
+      `${progressionPacket.stderr}${progressionPacket.stdout}`,
+    ).toBe(0);
+    expect(JSON.parse(progressionPacket.stdout)).toEqual(expect.objectContaining({
+      phase: "phase-0-wayfinding@2",
+      scenario: expect.objectContaining({
+        reference: "record-consequential-decision@1",
+      }),
+      exactInputs: [expect.objectContaining({
+        inputs: [expect.objectContaining({
+          name: "subject",
+          values: [expect.objectContaining({
+            identity: expect.objectContaining({ revision_id: mapRevision }),
+          })],
+        })],
+      })],
+    }));
+  });
+
+  it("returns Process Dead End successfully with blocker diagnostics", async () => {
+    const packageRoot = path.join(
+      repository,
+      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+    );
+    await fs.writeFile(
+      path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
+      `kind: phase-definition
+id: phase-0-wayfinding
+version: 2
+order: 0
+name: Deliberately unfinished profile
+purpose: Prove that absence of reachable work is not reported as completion.
+coverage: bootstrap-subset
+omitted_capabilities: [all intended lifecycle work]
+entry: 'true'
+scenarios: [establish-initial-wayfinding-map@1]
+obligations: []
+outputs: [MAP]
+progression: null
+gate:
+  required: false
+  candidate_selector: 'select("current-wayfinding-maps@1", {})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@2
+  completion: 'true'
+`,
+    );
+    const obligationsRoot = path.join(packageRoot, "obligations");
+    for (const file of await fs.readdir(obligationsRoot)) {
+      if (!file.endsWith(".yaml")) continue;
+      const obligationPath = path.join(obligationsRoot, file);
+      const obligation = parse(await fs.readFile(obligationPath, "utf8"));
+      const phases = (obligation.phases as string[]).filter(
+        (phase) => phase !== "phase-0-wayfinding",
+      );
+      obligation.phases = phases.length > 0
+        ? phases
+        : ["phase-1-product-assurance"];
+      await fs.writeFile(obligationPath, stringify(obligation));
+    }
+    await recordInstalledPackageChange(repository, packageRoot);
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-next@1",
+      outcome: "process-dead-end",
+      phase: "phase-0-wayfinding@2",
+      explanation: expect.stringContaining("unfinished"),
+      blockers: [],
+      diagnostics: [],
+    }));
+  });
+
+  it("returns versioned Invalid for malformed repository selection JSON", async () => {
+    await fs.writeFile(
+      path.join(repository, ".lifecycle/process-selection.json"),
+      "{not-json\n",
+    );
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status).toBe(1);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      command: "next",
+      contract: "mdlm-next@1",
+      outcome: "invalid",
+      integrity: { status: "invalid" },
+      diagnostics: [expect.objectContaining({
+        code: "process-package-selection-invalid",
+      })],
+    }));
+  });
+
+  it("returns Invalid with a nonzero command status for integrity failure", async () => {
+    await fs.appendFile(
+      path.join(
+        repository,
+        ".lifecycle/packages/mdlm-bootstrap@0.49.0/manifest.yaml",
+      ),
+      "\n# integrity failure\n",
+    );
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status).toBe(1);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      command: "next",
+      contract: "mdlm-next@1",
+      outcome: "invalid",
+      integrity: { status: "invalid" },
+      diagnostics: [expect.objectContaining({
+        code: "process-package-selection-mismatch",
+      })],
+    }));
+    const status = mdlm(repository, "status", "--json");
+    expect(status.status).toBe(1);
+    expect(JSON.parse(status.stdout)).toEqual(expect.objectContaining({
+      contract: "mdlm-status@1",
+      integrity: { status: "invalid" },
+      currentOutcome: expect.objectContaining({ outcome: "invalid" }),
+    }));
+  });
+});
