@@ -101,6 +101,14 @@ import {
 } from "./process-package-scaffolding.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import {
+  leaseNextAssignment,
+  markAssignmentStale,
+  prepareAssignment,
+  readAssignmentLease,
+  type AssignmentOutcome,
+  type AssignmentPacket,
+} from "./assignment.js";
+import {
   packageSummary,
   packagesRelativePath,
   processSelection,
@@ -141,6 +149,24 @@ interface TypeSchemaInspection {
 interface CommandResult {
   ok: boolean;
   command?: string;
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"];
+  outcome?: AssignmentOutcome["outcome"];
+  assignment?: AssignmentOutcome["assignment"];
+  phase?: AssignmentPacket["phase"];
+  obligation?: AssignmentPacket["obligation"];
+  scenario?: AssignmentPacket["scenario"];
+  prompt?: AssignmentPacket["prompt"];
+  assets?: AssignmentPacket["assets"];
+  exactInputs?: AssignmentPacket["exactInputs"];
+  allowedProjections?: AssignmentPacket["allowedProjections"];
+  policies?: AssignmentPacket["policies"];
+  participation?: AssignmentPacket["participation"];
+  authority?: AssignmentPacket["authority"];
+  prohibitions?: AssignmentPacket["prohibitions"];
+  outputs?: AssignmentPacket["outputs"];
+  outputLinks?: AssignmentPacket["outputLinks"];
+  completion?: AssignmentPacket["completion"];
+  responseSchema?: AssignmentPacket["responseSchema"];
   package?: PackageSummary;
   installed?: boolean;
   selected?: boolean;
@@ -1638,6 +1664,7 @@ function activeLifecycleEvaluation(
 type SelectedLifecycleEvaluation =
   | {
       ok: true;
+      processPackage: ProcessPackage;
       summary: PackageSummary;
       evaluation: ReturnType<typeof evaluateLifecycle>;
     }
@@ -1650,7 +1677,9 @@ async function selectedLifecycleEvaluation(
   phaseId?: string,
   deriveActive = false,
 ): Promise<SelectedLifecycleEvaluation> {
-  const resolved = await selectedPackage(repositoryRoot);
+  const resolved = snapshotPath
+    ? await selectedPackage(repositoryRoot)
+    : await selectedRepositoryPackage(repositoryRoot);
   if (!resolved.ok) {
     return {
       ok: false,
@@ -1710,7 +1739,12 @@ async function selectedLifecycleEvaluation(
       },
     };
   }
-  return { ok: true, summary: resolved.summary, evaluation };
+  return {
+    ok: true,
+    processPackage: resolved.processPackage,
+    summary: resolved.summary,
+    evaluation,
+  };
 }
 
 async function phaseStatus(
@@ -1782,6 +1816,94 @@ async function showNextWork(
     package: resolved.summary,
     selected: true,
     next: projection,
+    diagnostics: [],
+  };
+}
+
+async function showNextAssignment(
+  repositoryRoot: string,
+): Promise<CommandResult> {
+  const resolved = await selectedLifecycleEvaluation(
+    repositoryRoot,
+    "next",
+    undefined,
+    undefined,
+    true,
+  );
+  if (!resolved.ok) return resolved.result;
+  const leased = await leaseNextAssignment(
+    repositoryRoot,
+    resolved.processPackage,
+    resolved.summary,
+    resolved.evaluation,
+  );
+  return leased.ok
+    ? {
+        ok: true,
+        command: "next",
+        package: resolved.summary,
+        ...leased.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "next",
+        package: resolved.summary,
+        diagnostics: leased.diagnostics,
+      };
+}
+
+async function prepareExactAssignment(
+  repositoryRoot: string,
+  assignmentId: string,
+): Promise<CommandResult> {
+  const lease = await readAssignmentLease(repositoryRoot);
+  if (!lease || lease.id !== assignmentId) {
+    return {
+      ...failure(
+        "assignment-unavailable",
+        `Assignment '${assignmentId}' is not the active Assignment`,
+        assignmentId,
+      ),
+      command: "scenario.prepare",
+    };
+  }
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    await markAssignmentStale(repositoryRoot, assignmentId);
+    return {
+      ...failure(
+        "assignment-stale",
+        `Assignment '${assignmentId}' no longer matches its exact selected Process Package; prepare will not rebase it`,
+        assignmentId,
+      ),
+      command: "scenario.prepare",
+    };
+  }
+  const prepared = await prepareAssignment(
+    repositoryRoot,
+    selected.processPackage,
+    selected.summary,
+    assignmentId,
+  );
+  if (!prepared.ok) {
+    return {
+      ok: false,
+      command: "scenario.prepare",
+      package: selected.summary,
+      diagnostics: prepared.diagnostics,
+    };
+  }
+  const {
+    package: _exactPackage,
+    repository: _exactRepository,
+    ...packet
+  } = prepared.value;
+  return {
+    ok: true,
+    command: "scenario.prepare",
+    package: selected.summary,
+    ...packet,
     diagnostics: [],
   };
 }
@@ -2679,6 +2801,7 @@ function directArguments(arguments_: string[]): Record<string, unknown> {
 async function dispatchCommand(
   arguments_: string[],
   repositoryRoot: string,
+  legacy = false,
 ): Promise<CommandResult> {
   const operands = arguments_.filter((argument, index) =>
     argument !== "--json" &&
@@ -2821,11 +2944,18 @@ async function dispatchCommand(
     );
   }
   if (operands[0] === "next") {
-    return showNextWork(
-      repositoryRoot,
-      optionValue(arguments_, "--snapshot"),
-      optionValue(arguments_, "--phase"),
-    );
+    return legacy || arguments_.includes("--snapshot") || arguments_.includes("--phase")
+      ? showNextWork(
+          repositoryRoot,
+          optionValue(arguments_, "--snapshot"),
+          optionValue(arguments_, "--phase"),
+        )
+      : showNextAssignment(repositoryRoot);
+  }
+  if (
+    operands[0] === "scenario" && operands[1] === "prepare" && operands[2]
+  ) {
+    return prepareExactAssignment(repositoryRoot, operands[2]);
   }
   if (
     operands[0] === "scenario" && operands[1] === "execute" && operands[2]
@@ -2944,7 +3074,11 @@ async function executeCommand(
   }
   return {
     exitCode: result.ok ? 0 : 1,
-    output: `${arguments_.includes("--json") ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
+    output: `${arguments_.includes("--json") || result.contract ||
+        arguments_[0] === "next" ||
+        (arguments_[0] === "scenario" && arguments_[1] === "prepare")
+      ? JSON.stringify(result, null, 2)
+      : renderCommandResult(result)}\n`,
   };
 }
 
@@ -2972,6 +3106,6 @@ export function executeLegacyReqApplication(
         repositoryRoot,
         optionValue(arguments_, "--process"),
       )
-      : dispatchCommand(arguments_, repositoryRoot),
+      : dispatchCommand(arguments_, repositoryRoot, true),
   );
 }
