@@ -1,0 +1,745 @@
+#!/usr/bin/env node
+
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  bodyReferencesParent,
+  failureBaseState,
+  findBacklogItem,
+  findFrontier,
+  isRemoteValidationFailure,
+  isTransientInfrastructureFailure,
+  panesAreRunning,
+  parsePullRequestNumber,
+  selectOlderReadyBacklog,
+  shouldDiagnoseResume,
+  validatedHeadMatches,
+  validationFailureAction,
+} from "./frontier-loop-core.mjs";
+import { appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
+
+const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const defaultParent = 83;
+const defaultPollSeconds = 60;
+const maximumAgentAttempts = 2;
+const maximumDiagnosticEscalations = 2;
+const maximumDesignEscalations = 2;
+const maximumAgentInfrastructureAttempts = 4;
+const defaultMaximumChangedFiles = 24;
+const defaultMaximumChangedLines = 1_800;
+const defaultMaximumLifecycleModules = 12;
+const agentRunner = createAgentRunner({
+  repositoryRoot,
+  maximumInfrastructureAttempts: maximumAgentInfrastructureAttempts,
+  complexityBudget: {
+    maximumChangedFiles: Number(process.env.MDLM_FRONTIER_MAX_CHANGED_FILES ?? defaultMaximumChangedFiles),
+    maximumChangedLines: Number(process.env.MDLM_FRONTIER_MAX_CHANGED_LINES ?? defaultMaximumChangedLines),
+    maximumLifecycleModules: Number(process.env.MDLM_FRONTIER_MAX_LIFECYCLE_MODULES ?? defaultMaximumLifecycleModules),
+  },
+});
+
+function fail(message) {
+  throw new Error(message);
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", `'"'"'`)}'`;
+}
+
+function commandResult(command, args, options = {}) {
+  const maximumAttempts = command === "gh" ? 5 : 1;
+  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+    const result = spawnSync(command, args, {
+      cwd: options.cwd ?? repositoryRoot,
+      encoding: "utf8",
+      env: { ...process.env, ...options.environment },
+      maxBuffer: 50 * 1024 * 1024,
+    });
+    if (result.error) fail(`${command}: ${result.error.message}`);
+    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n");
+    if (result.status === 0 || !isTransientInfrastructureFailure(new Error(detail)) || attempt === maximumAttempts) {
+      return result;
+    }
+    process.stdout.write(`[${isoNow()}] Transient GitHub failure; retrying ${command} ${args.join(" ")} (${attempt}/${maximumAttempts})\n`);
+    sleep(attempt * 2_000);
+  }
+  fail(`${command} retry loop ended unexpectedly`);
+}
+
+function commandOutput(command, args, options = {}) {
+  const result = commandResult(command, args, options);
+  if (result.status !== 0) {
+    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+    fail(`${command} ${args.join(" ")} failed${detail ? `:\n${detail}` : ""}`);
+  }
+  return result.stdout.trim();
+}
+
+function commandJson(command, args, options = {}) {
+  const output = commandOutput(command, args, options);
+  return output ? JSON.parse(output) : null;
+}
+
+function ghJson(args, options = {}) {
+  return commandJson("gh", [...args, "--json", options.fields], options);
+}
+
+function sleep(milliseconds) {
+  execFileSync(process.execPath, ["-e", `setTimeout(() => {}, ${milliseconds})`]);
+}
+
+function isoNow() {
+  return new Date().toISOString();
+}
+
+function loopPaths(parent) {
+  const root = resolve(process.env.MDLM_FRONTIER_DIR ?? join(repositoryRoot, "artifacts", `frontier-loop-${parent}`));
+  return {
+    root,
+    state: join(root, "status.json"),
+    stop: join(root, "STOP"),
+    runnerLog: join(root, "runner.log"),
+    worktrees: join(root, "worktrees"),
+  };
+}
+
+function sessionName(parent) {
+  return process.env.MDLM_FRONTIER_SESSION ?? `mdlm-frontier-${parent}`;
+}
+
+function readState(paths) {
+  if (!existsSync(paths.state)) return null;
+  return JSON.parse(readFileSync(paths.state, "utf8"));
+}
+
+function writeState(paths, current, patch) {
+  mkdirSync(paths.root, { recursive: true });
+  const next = { ...current, ...patch, updatedAt: isoNow() };
+  const temporary = `${paths.state}.tmp-${process.pid}`;
+  writeFileSync(temporary, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
+  renameSync(temporary, paths.state);
+  return next;
+}
+
+function log(message) {
+  process.stdout.write(`[${isoNow()}] ${message}\n`);
+}
+
+function issueDetails(summary) {
+  const detail = ghJson(["issue", "view", String(summary.number)], {
+    fields: "number,title,state,url,assignees,blockedBy,labels,body",
+  });
+  return {
+    number: detail.number,
+    title: detail.title,
+    state: detail.state,
+    url: detail.url,
+    assignees: detail.assignees ?? [],
+    blockedBy: detail.blockedBy?.nodes ?? [],
+    labels: detail.labels ?? [],
+    body: detail.body ?? "",
+  };
+}
+
+function allIssueSummaries() {
+  return ghJson(["issue", "list", "--state", "all", "--limit", "1000"], {
+    fields: "number,title,state,url,assignees,labels,body",
+  }) ?? [];
+}
+
+function parentIssues(parent, summaries = allIssueSummaries()) {
+  return summaries.filter((issue) => bodyReferencesParent(issue.body, parent)).map(issueDetails);
+}
+
+function readyBacklog(parent, summaries, children) {
+  return selectOlderReadyBacklog(parent, summaries, children).map(issueDetails);
+}
+
+function deliveryPlan(parent) {
+  const summaries = allIssueSummaries();
+  const children = parentIssues(parent, summaries);
+  const primaryOpen = children.filter((issue) => issue.state === "OPEN");
+  const backlog = primaryOpen.length === 0 ? readyBacklog(parent, summaries, children) : [];
+  const pool = primaryOpen.length > 0 ? children : backlog;
+  return {
+    children,
+    primaryOpen,
+    backlog,
+    pool,
+    open: pool.filter((issue) => issue.state === "OPEN"),
+    next: primaryOpen.length > 0 ? findFrontier(pool) : findBacklogItem(pool),
+    scope: primaryOpen.length > 0 ? "priority-map frontier" : "older ready backlog",
+  };
+}
+
+function viewerLogin() {
+  return commandOutput("gh", ["api", "user", "--jq", ".login"]);
+}
+
+function defaultBranch() {
+  const local = commandResult("git", ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+  if (local.status === 0) return local.stdout.trim().replace(/^origin\//, "");
+  return commandOutput("gh", ["repo", "view", "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"]);
+}
+
+function ensurePrerequisites() {
+  for (const [command, args] of [["tmux", ["-V"]], ["pi", ["--version"]], ["gh", ["auth", "status"]], ["git", ["--version"]], ["npm", ["--version"]]]) {
+    const result = commandResult(command, args);
+    if (result.status !== 0) fail(`Required command is unavailable or not configured: ${command}`);
+  }
+  const dirty = commandOutput("git", ["status", "--porcelain"]);
+  if (dirty) fail("Refusing to start from a dirty control checkout. Commit and push the frontier-loop files and any planning docs first.");
+  const branch = defaultBranch();
+  commandOutput("git", ["fetch", "origin", branch]);
+  let localHead = commandOutput("git", ["rev-parse", "HEAD"]);
+  const remoteHead = commandOutput("git", ["rev-parse", `origin/${branch}`]);
+  if (localHead !== remoteHead) {
+    const canFastForward = commandResult("git", ["merge-base", "--is-ancestor", localHead, remoteHead]).status === 0;
+    if (!canFastForward) fail(`Control checkout must be pushed or safely fast-forwardable to origin/${branch} before starting the autonomous merge loop.`);
+    commandOutput("git", ["merge", "--ff-only", `origin/${branch}`]);
+    localHead = commandOutput("git", ["rev-parse", "HEAD"]);
+  }
+  if (localHead !== remoteHead) fail(`Control checkout HEAD does not match origin/${branch} after fast-forward.`);
+}
+
+function tmuxSessionExists(parent) {
+  return commandResult("tmux", ["has-session", "-t", sessionName(parent)]).status === 0;
+}
+
+function tmuxAlive(parent) {
+  if (!tmuxSessionExists(parent)) return false;
+  const result = commandResult("tmux", ["list-panes", "-t", sessionName(parent), "-F", "#{pane_dead}"]);
+  return result.status === 0 && panesAreRunning(result.stdout.trim().split("\n").filter(Boolean));
+}
+
+function start(parent) {
+  ensurePrerequisites();
+  if (tmuxAlive(parent)) fail(`tmux session ${sessionName(parent)} is already running`);
+  if (tmuxSessionExists(parent)) commandResult("tmux", ["kill-session", "-t", sessionName(parent)]);
+  const paths = loopPaths(parent);
+  mkdirSync(paths.worktrees, { recursive: true });
+  rmSync(paths.stop, { force: true });
+  const script = fileURLToPath(import.meta.url);
+  const command = `exec ${shellQuote(process.execPath)} ${shellQuote(script)} supervise --parent ${parent}`;
+  commandOutput("tmux", ["new-session", "-d", "-s", sessionName(parent), "-c", repositoryRoot, command]);
+  commandOutput("tmux", ["set-option", "-t", sessionName(parent), "remain-on-exit", "on"]);
+  commandOutput("tmux", ["pipe-pane", "-o", "-t", sessionName(parent), `cat >> ${shellQuote(paths.runnerLog)}`]);
+  process.stdout.write(`Started ${sessionName(parent)}.\n`);
+  process.stdout.write(`Check progress with: npm run frontier:status\n`);
+  process.stdout.write(`Watch live with:      npm run frontier:attach\n`);
+}
+
+function issueOpen(number) {
+  return commandOutput("gh", ["issue", "view", String(number), "--json", "state", "--jq", ".state"]) === "OPEN";
+}
+
+function removeWorktree(worktree, branch) {
+  if (existsSync(worktree)) commandResult("git", ["worktree", "remove", "--force", worktree]);
+  commandResult("git", ["branch", "-D", branch]);
+}
+
+function prepareWorktree(issue, paths, resumeState) {
+  if (resumeState?.currentIssue === issue.number && resumeState.worktree && existsSync(resumeState.worktree)) {
+    return { worktree: resumeState.worktree, branch: resumeState.branch, resumed: true };
+  }
+  const branch = `agent/issue-${issue.number}-${Date.now()}`;
+  const worktree = join(paths.worktrees, `issue-${issue.number}`);
+  if (existsSync(worktree)) fail(`Unrecognized existing worktree: ${worktree}`);
+  const base = defaultBranch();
+  commandOutput("git", ["fetch", "origin", base]);
+  commandOutput("git", ["worktree", "add", "-b", branch, worktree, `origin/${base}`]);
+  return { worktree, branch, resumed: false };
+}
+
+function remediationPrompt(issue, reasonLog) {
+  return `/skill:implement Continue implementing GitHub issue #${issue.number} on the current branch. An independent validation pass failed; inspect ${reasonLog}, the complete issue and comments, parent spec, existing commits, and any uncommitted work. Reproduce every finding at the narrowest agreed seam, fix its root cause, rerun focused and full validation, invoke code review, and commit the corrections. Prefer deleting accidental complexity over adding flags, callbacks, state, or compatibility layers. Work autonomously. Do not push, create or merge a PR, or close the issue; the tmux orchestrator owns those steps.`;
+}
+
+function implementationPrompt(issue, resumed) {
+  const action = resumed ? "Continue and finish" : "Implement";
+  return `/skill:implement ${action} GitHub issue #${issue.number} (${issue.title}) on the current branch. Read the complete issue and comments, any parent spec, repository instructions, glossary, and relevant ADRs. Treat the issue acceptance criteria as the implementation boundary; parent constraints remain authoritative and open siblings remain deferred. Use TDD where possible at the agreed public-process seam. Keep MDLM lifecycle-neutral and modules deep; simplify before allowing implementation complexity to fan out. Claiming has already been handled. Run focused checks regularly and the full suite at the end, invoke code review, and commit all work with issue #${issue.number} in the commit message. Do not push, create or merge a PR, or close the issue; the tmux orchestrator owns those steps.`;
+}
+
+function diagnosisPrompt(issue, reasonLog) {
+  return `/skill:implement Diagnose and fix the repeatedly failing implementation of GitHub issue #${issue.number} (${issue.title}) on the current branch. Explicitly use the diagnosing-bugs method. The latest failed command validation, explicit VALIDATION: FAIL, or remote PR check in ${reasonLog} is the red-capable signal; inspect failed Actions logs when applicable and reproduce each finding before changing code. Read the complete issue/comments, any parent spec, instructions, glossary, ADRs, branch commits, and validation history. Generate ranked falsifiable hypotheses, then proceed autonomously through regression tests, root-cause repair, cleanup, focused checks, the full suite, and code review. Revert or redesign earlier work rather than layering patches. Preserve the user-visible contract and sibling boundaries. Commit every completed fix with issue #${issue.number}. Do not push, create or merge a PR, or close issues; the tmux orchestrator owns those steps.`;
+}
+
+function simplificationPrompt(issue, reasonLog, reasons) {
+  const trigger = reasons.length > 0 ? reasons.join("; ") : "independent review found disproportionate complexity";
+  return `/skill:implement Simplify and finish GitHub issue #${issue.number} (${issue.title}) on the current branch. Explicitly apply the codebase-design and grilling skills before editing. Complexity escalation was triggered by: ${trigger}. Inspect ${reasonLog}, the complete issue/comments and parent constraints, and the entire diff. Preserve every user-visible invariant and acceptance outcome while deleting accidental machinery, speculative generality, workflow state, recovery knobs, duplicated logic, or shallow interfaces. Prefer a smaller deep module and the existing public test seam. Revert or replace prior work when that is cleaner. Then run focused checks, the full suite, code review, and commit the simplification with issue #${issue.number}. Do not push, open/merge a PR, or close issues.`;
+}
+
+function contractReviewPrompt(issue, reasonLog) {
+  return `/skill:implement Resolve a repeated complexity deadlock for GitHub issue #${issue.number} (${issue.title}) and finish it autonomously. Explicitly apply grilling, codebase-design, and diagnosing-bugs. Read ${reasonLog}, the complete issue/comments, parent spec, glossary, ADRs, and full branch history. First try to replace the implementation with a substantially simpler design that preserves the written contract. If and only if a criterion itself forces unbounded analysis, a generic workflow engine, cross-owner atomicity, or similarly disproportionate machinery, choose the smallest user-goal-preserving contract clarification. Never waive atomic publication, one canonical writer, package neutrality, harness neutrality, independent judgment, tests, or review. Record any clarification as an auditable GitHub comment on the active issue naming retained behavior, intentionally given-up behavior, and why the simpler contract still satisfies the parent goal; do not rewrite history or close issues. Implement that clarified contract, add regression evidence, run focused and full checks, invoke code review, and commit all work with issue #${issue.number}. Do not push or create/merge a PR.`;
+}
+
+function waitForPullRequestChecks(prNumber, worktree, logPath) {
+  sleep(15_000);
+  const initial = commandResult("gh", ["pr", "checks", String(prNumber), "--json", "name,state,bucket"], { cwd: worktree });
+  let checks = [];
+  try {
+    checks = initial.stdout.trim() ? JSON.parse(initial.stdout) : [];
+  } catch {
+    checks = [];
+  }
+  if (checks.length === 0) {
+    appendAgentLog(logPath, "remote checks", "No remote checks were registered after the grace period; local independent validation remains authoritative.\n");
+    return;
+  }
+  const descriptor = openSync(logPath, "a");
+  appendAgentLog(logPath, "remote checks");
+  const watched = spawnSync("gh", ["pr", "checks", String(prNumber), "--watch", "--fail-fast"], {
+    cwd: worktree,
+    env: process.env,
+    stdio: ["ignore", descriptor, descriptor],
+  });
+  closeSync(descriptor);
+  if (watched.error || watched.status !== 0) fail(`Remote checks failed for PR #${prNumber}; inspect ${logPath}`);
+}
+
+function publishAndMerge(issue, worktree, branch, logPath) {
+  const base = defaultBranch();
+  commandOutput("git", ["push", "--set-upstream", "origin", branch], { cwd: worktree });
+  const existing = commandJson("gh", ["pr", "list", "--head", branch, "--state", "open", "--json", "number,url"], { cwd: worktree }) ?? [];
+  let url;
+  let prNumber;
+  if (existing.length > 0) {
+    ({ number: prNumber, url } = existing[0]);
+  } else {
+    const body = `Closes #${issue.number}\n\nImplemented and independently validated by the MDLM frontier loop.`;
+    url = commandOutput("gh", ["pr", "create", "--base", base, "--head", branch, "--title", issue.title, "--body", body], { cwd: worktree });
+    prNumber = parsePullRequestNumber(url);
+  }
+  appendAgentLog(logPath, "pull request", `${url}\n`);
+  waitForPullRequestChecks(prNumber, worktree, logPath);
+  commandOutput("gh", ["pr", "merge", String(prNumber), "--merge"], { cwd: worktree });
+  commandResult("git", ["push", "origin", "--delete", branch], { cwd: worktree });
+  for (let attempt = 0; attempt < 15 && issueOpen(issue.number); attempt += 1) sleep(2_000);
+  if (issueOpen(issue.number)) {
+    commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and merged in PR #${prNumber}.`]);
+  }
+  return prNumber;
+}
+
+function mergeValidatedIssue(issue, paths, state, prepared, issueLog) {
+  const head = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
+  if (!validatedHeadMatches(state, head)) fail(`Validated branch changed before publication for #${issue.number}`);
+  state = writeState(paths, state, { phase: "merging", message: `Publishing and merging #${issue.number}` });
+  log(state.message);
+  const prNumber = publishAndMerge(issue, prepared.worktree, prepared.branch, issueLog);
+  state = writeState(paths, state, { pullRequest: prNumber, message: `Merged #${issue.number} in PR #${prNumber}` });
+  log(state.message);
+  removeWorktree(prepared.worktree, prepared.branch);
+  return writeState(paths, state, {
+    phase: "between-tickets",
+    currentIssue: null,
+    currentIssueTitle: null,
+    branch: null,
+    worktree: null,
+    issueLog: null,
+    pullRequest: null,
+    diagnosticEscalations: 0,
+    designEscalations: 0,
+    contractReviews: 0,
+    validatedHead: null,
+    lastError: null,
+    resumeAction: null,
+  });
+}
+
+function processIssue(issue, paths, state) {
+  const continuingIssue = state?.currentIssue === issue.number;
+  const diagnoseOnResume = shouldDiagnoseResume(state);
+  const prepared = prepareWorktree(issue, paths, state);
+  const issueLog = join(paths.root, `issue-${issue.number}.log`);
+  const currentHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
+  const resumeValidated = !diagnoseOnResume && validatedHeadMatches(state, currentHead);
+  let diagnosticEscalations = continuingIssue ? state.diagnosticEscalations ?? 0 : 0;
+  let designEscalations = continuingIssue ? state.designEscalations ?? 0 : 0;
+  let contractReviews = continuingIssue ? state.contractReviews ?? 0 : 0;
+  state = writeState(paths, state, {
+    phase: resumeValidated ? "merging" : prepared.resumed ? "resuming" : "implementing",
+    message: resumeValidated
+      ? `Retrying publication for validated #${issue.number}`
+      : `${prepared.resumed ? "Resuming" : "Implementing"} #${issue.number}: ${issue.title}`,
+    currentIssue: issue.number,
+    currentIssueTitle: issue.title,
+    branch: prepared.branch,
+    worktree: prepared.worktree,
+    issueLog,
+    pullRequest: null,
+    diagnosticEscalations,
+    designEscalations,
+    contractReviews,
+    validatedHead: resumeValidated ? currentHead : null,
+    lastError: null,
+    resumeAction: null,
+  });
+  const login = viewerLogin();
+  if (!issue.assignees.some((assignee) => assignee.login === login)) {
+    commandOutput("gh", ["issue", "edit", String(issue.number), "--add-assignee", "@me"]);
+  }
+  log(state.message);
+  if (resumeValidated) return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
+  if (diagnoseOnResume && diagnosticEscalations < maximumDiagnosticEscalations) {
+    diagnosticEscalations += 1;
+    state = writeState(paths, state, {
+      phase: "diagnosing",
+      diagnosticEscalations,
+      message: `Independent diagnostic instance ${diagnosticEscalations}/${maximumDiagnosticEscalations} for #${issue.number}`,
+      validatedHead: null,
+    });
+    log(state.message);
+    agentRunner.runImplementation(prepared.worktree, diagnosisPrompt(issue, issueLog), issueLog, `independent diagnostic instance ${diagnosticEscalations}`);
+  } else {
+    agentRunner.runImplementation(prepared.worktree, implementationPrompt(issue, prepared.resumed), issueLog, prepared.resumed ? "resumed implementation" : "initial implementation");
+  }
+
+  if (designEscalations === 0) {
+    const initialComplexity = agentRunner.complexityReasons(prepared.worktree, defaultBranch());
+    if (initialComplexity.length > 0) {
+      designEscalations += 1;
+      state = writeState(paths, state, {
+        phase: "simplifying",
+        designEscalations,
+        message: `Proactive complexity simplification ${designEscalations}/${maximumDesignEscalations} for #${issue.number}`,
+      });
+      log(`${state.message}: ${initialComplexity.join("; ")}`);
+      agentRunner.runImplementation(prepared.worktree, simplificationPrompt(issue, issueLog, initialComplexity), issueLog, `proactive complexity simplification ${designEscalations}`);
+    }
+  }
+
+  let attempt = 1;
+  while (true) {
+    state = writeState(paths, state, {
+      phase: "validating",
+      diagnosticEscalations,
+      designEscalations,
+      contractReviews,
+      message: `Validating #${issue.number} (attempt ${attempt}/${maximumAgentAttempts}, diagnostics ${diagnosticEscalations}/${maximumDiagnosticEscalations}, simplifications ${designEscalations}/${maximumDesignEscalations}, contract reviews ${contractReviews})`,
+    });
+    log(state.message);
+    const commitCount = Number(commandOutput("git", ["rev-list", "--count", `origin/${defaultBranch()}..HEAD`], { cwd: prepared.worktree }));
+    const clean = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
+    const commandsPass = commitCount > 0 && clean && agentRunner.validate(prepared.worktree, issueLog);
+    const review = commandsPass ? agentRunner.review(issue, prepared.worktree, issueLog, defaultBranch()) : { retry: false, passed: false, simplify: false };
+    if (commandsPass && review.retry) {
+      state = writeState(paths, state, {
+        phase: "retrying-review",
+        message: `Reviewer/provider did not return a valid verdict for #${issue.number}; retrying without changing product code`,
+      });
+      log(state.message);
+      sleep(30_000);
+      continue;
+    }
+    if (commandsPass && review.passed && !review.simplify) {
+      const validatedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
+      state = writeState(paths, state, { validatedHead });
+      return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
+    }
+
+    let action = validationFailureAction({
+      attempt,
+      maximumAttempts: maximumAgentAttempts,
+      diagnosticEscalations,
+      maximumDiagnosticEscalations,
+      designEscalations,
+      maximumDesignEscalations,
+    });
+    if (review.simplify && designEscalations < maximumDesignEscalations) action = "simplify";
+
+    if (action === "remediate") {
+      state = writeState(paths, state, {
+        phase: "remediating",
+        message: `Remediating validation findings for #${issue.number}`,
+        validatedHead: null,
+      });
+      log(state.message);
+      agentRunner.runImplementation(prepared.worktree, remediationPrompt(issue, issueLog), issueLog, `remediation ${attempt} after diagnostic ${diagnosticEscalations}`);
+      attempt += 1;
+      continue;
+    }
+
+    if (action === "diagnose") {
+      diagnosticEscalations += 1;
+      state = writeState(paths, state, {
+        phase: "diagnosing",
+        diagnosticEscalations,
+        message: `Independent diagnostic instance ${diagnosticEscalations}/${maximumDiagnosticEscalations} for #${issue.number}`,
+        validatedHead: null,
+      });
+      log(state.message);
+      agentRunner.runImplementation(prepared.worktree, diagnosisPrompt(issue, issueLog), issueLog, `independent diagnostic instance ${diagnosticEscalations}`);
+      attempt = 1;
+      continue;
+    }
+
+    if (action === "simplify") {
+      designEscalations += 1;
+      const reasons = agentRunner.complexityReasons(prepared.worktree, defaultBranch());
+      state = writeState(paths, state, {
+        phase: "simplifying",
+        designEscalations,
+        message: `Independent design simplification ${designEscalations}/${maximumDesignEscalations} for #${issue.number}`,
+        validatedHead: null,
+      });
+      log(state.message);
+      agentRunner.runImplementation(prepared.worktree, simplificationPrompt(issue, issueLog, reasons), issueLog, `independent design simplification ${designEscalations}`);
+      attempt = 1;
+      continue;
+    }
+
+    contractReviews += 1;
+    state = writeState(paths, state, {
+      phase: "contract-review",
+      contractReviews,
+      message: `Autonomous contract simplification review ${contractReviews} for #${issue.number}`,
+      validatedHead: null,
+    });
+    log(state.message);
+    agentRunner.runImplementation(prepared.worktree, contractReviewPrompt(issue, issueLog), issueLog, `autonomous contract review ${contractReviews}`);
+    diagnosticEscalations = 0;
+    designEscalations = 0;
+    attempt = 1;
+  }
+}
+
+function stopped(paths) {
+  return existsSync(paths.stop);
+}
+
+function runLoop(parent) {
+  const paths = loopPaths(parent);
+  mkdirSync(paths.worktrees, { recursive: true });
+  let state = readState(paths) ?? writeState(paths, {}, {
+    schemaVersion: 2,
+    parentIssue: parent,
+    session: sessionName(parent),
+    phase: "starting",
+    message: "Starting frontier loop",
+    startedAt: isoNow(),
+    currentIssue: null,
+  });
+  try {
+    while (!stopped(paths)) {
+      try {
+        const plan = deliveryPlan(parent);
+        if (plan.primaryOpen.length === 0 && plan.backlog.length === 0) {
+          state = writeState(paths, state, {
+            phase: "complete",
+            message: `All ${plan.children.length} priority-map tickets and all older ready backlog tickets are closed`,
+            completedAt: isoNow(),
+            lastError: null,
+          });
+          log(state.message);
+          return;
+        }
+        let issue;
+        if (state.currentIssue && state.worktree && existsSync(state.worktree)) {
+          issue = plan.pool.find((candidate) => candidate.number === state.currentIssue && candidate.state === "OPEN");
+        }
+        issue ??= plan.next;
+        if (!issue) {
+          state = writeState(paths, state, { phase: "waiting", message: `${plan.open.length} ${plan.scope} tickets remain, but no unassigned item is available` });
+          log(`${state.message}; polling again in ${defaultPollSeconds}s`);
+          sleep(defaultPollSeconds * 1_000);
+          continue;
+        }
+        state = processIssue(issue, paths, state);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (isRemoteValidationFailure(error) && !stopped(paths)) {
+          state = failureBaseState(state, readState(paths));
+          state = writeState(paths, state, {
+            phase: "failed",
+            message: "Remote validation failed; launching an independent diagnostic instance",
+            validatedHead: null,
+            lastError: message,
+            resumeAction: "diagnose",
+          });
+          log(`${state.message}: ${message}`);
+          continue;
+        }
+        if (!isTransientInfrastructureFailure(error) || stopped(paths)) throw error;
+        state = failureBaseState(state, readState(paths));
+        state = writeState(paths, state, {
+          phase: "retrying-infrastructure",
+          message: "Transient infrastructure failure; retrying automatically in 30 seconds",
+          lastError: message,
+        });
+        log(`${state.message}: ${message}`);
+        sleep(30_000);
+      }
+    }
+    state = writeState(paths, state, { phase: "stopped", message: "Stopped by request" });
+    log(state.message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const phase = stopped(paths) ? "stopped" : "failed";
+    state = failureBaseState(state, readState(paths));
+    state = writeState(paths, state, { phase, message: phase === "stopped" ? "Stopped by request" : "Frontier loop stopped on failure", lastError: message });
+    log(`${state.message}: ${message}`);
+    process.exitCode = phase === "failed" ? 1 : 0;
+  }
+}
+
+function supervise(parent) {
+  const paths = loopPaths(parent);
+  let restarts = readState(paths)?.supervisorRestarts ?? 0;
+  while (!stopped(paths)) {
+    const script = fileURLToPath(import.meta.url);
+    const result = spawnSync(process.execPath, [script, "run", "--parent", String(parent)], {
+      cwd: repositoryRoot,
+      env: process.env,
+      stdio: "inherit",
+    });
+    const state = readState(paths);
+    if (stopped(paths) || state?.phase === "complete") return;
+    restarts += 1;
+    writeState(paths, state ?? {}, {
+      phase: "supervisor-restarting",
+      supervisorRestarts: restarts,
+      message: `Supervisor restarting the autonomous loop in 30 seconds after exit ${result.status ?? "unknown"}`,
+      lastError: state?.lastError ?? result.error?.message ?? `runner exited ${result.status ?? "unknown"}`,
+    });
+    log(`Supervisor restart ${restarts}; preserved worktree and state`);
+    sleep(30_000);
+  }
+}
+
+function tail(path, count) {
+  if (!existsSync(path)) return [];
+  return readFileSync(path, "utf8").trimEnd().split("\n").slice(-count);
+}
+
+function status(parent) {
+  const paths = loopPaths(parent);
+  const state = readState(paths);
+  const alive = tmuxAlive(parent);
+  process.stdout.write(`Frontier loop: ${alive ? "running" : "not running"}\n`);
+  process.stdout.write(`Session:       ${sessionName(parent)}\n`);
+  process.stdout.write(`Parent:        #${parent}\n`);
+  if (state) {
+    process.stdout.write(`Phase:         ${state.phase}\n`);
+    process.stdout.write(`Message:       ${state.message ?? "-"}\n`);
+    if (state.currentIssue) process.stdout.write(`Current:       #${state.currentIssue} ${state.currentIssueTitle ?? ""}\n`);
+    let pullRequest = state.pullRequest;
+    if (!pullRequest && state.branch) {
+      try {
+        const open = commandJson("gh", ["pr", "list", "--head", state.branch, "--state", "open", "--json", "number"]) ?? [];
+        pullRequest = open[0]?.number;
+      } catch {
+        // The rest of status remains useful when PR lookup is unavailable.
+      }
+    }
+    if (pullRequest) process.stdout.write(`Pull request:  #${pullRequest}\n`);
+    if (state.worktree) process.stdout.write(`Worktree:      ${state.worktree}\n`);
+    if (state.issueLog) process.stdout.write(`Issue log:     ${state.issueLog}\n`);
+    if (state.diagnosticEscalations || state.designEscalations || state.contractReviews) {
+      process.stdout.write(`Escalations:   diagnostic=${state.diagnosticEscalations ?? 0}, design=${state.designEscalations ?? 0}, contract=${state.contractReviews ?? 0}\n`);
+    }
+    if (state.supervisorRestarts) process.stdout.write(`Restarts:      ${state.supervisorRestarts}\n`);
+    if (state.lastError) process.stdout.write(`Last error:    ${state.lastError}\n`);
+    process.stdout.write(`Updated:       ${state.updatedAt}\n`);
+  } else {
+    process.stdout.write("Phase:         never started\n");
+  }
+  try {
+    const plan = deliveryPlan(parent);
+    const closed = plan.children.filter((issue) => issue.state === "CLOSED").length;
+    process.stdout.write(`Priority map:  ${closed}/${plan.children.length} tickets closed\n`);
+    process.stdout.write(`Older backlog: ${plan.backlog.length} ready ticket(s) after priority map\n`);
+    process.stdout.write(`Next item:     ${plan.next ? `#${plan.next.number} ${plan.next.title}` : "none"}\n`);
+  } catch (error) {
+    process.stdout.write(`GitHub status: unavailable (${error instanceof Error ? error.message : String(error)})\n`);
+  }
+  const lines = state?.issueLog ? tail(state.issueLog, 12) : tail(paths.runnerLog, 12);
+  if (lines.length > 0) process.stdout.write(`\nRecent log:\n${lines.join("\n")}\n`);
+}
+
+function watch(parent) {
+  while (true) {
+    process.stdout.write(`\n===== ${isoNow()} =====\n`);
+    status(parent);
+    sleep(30_000);
+  }
+}
+
+function health(parent) {
+  const paths = loopPaths(parent);
+  const state = readState(paths);
+  const healthy = state?.phase === "complete" || tmuxAlive(parent);
+  process.stdout.write(`${healthy ? "healthy" : "unhealthy"}: ${state?.phase ?? "never-started"}\n`);
+  if (!healthy) process.exitCode = 1;
+}
+
+function attach(parent) {
+  if (!tmuxAlive(parent)) fail(`tmux session ${sessionName(parent)} is not running`);
+  const result = spawnSync("tmux", ["attach-session", "-t", sessionName(parent)], { stdio: "inherit" });
+  if (result.error || result.status !== 0) process.exitCode = result.status ?? 1;
+}
+
+function stop(parent) {
+  const paths = loopPaths(parent);
+  mkdirSync(paths.root, { recursive: true });
+  writeFileSync(paths.stop, `${isoNow()}\n`);
+  if (!tmuxAlive(parent)) {
+    if (tmuxSessionExists(parent)) commandResult("tmux", ["kill-session", "-t", sessionName(parent)]);
+    process.stdout.write("Frontier loop is not running. Stop marker recorded.\n");
+    return;
+  }
+  commandResult("tmux", ["send-keys", "-t", sessionName(parent), "C-c"]);
+  sleep(2_000);
+  if (tmuxSessionExists(parent)) commandResult("tmux", ["kill-session", "-t", sessionName(parent)]);
+  process.stdout.write("Frontier loop stopped.\n");
+}
+
+function parseArguments(argv) {
+  const command = argv[0];
+  let parent = Number(process.env.MDLM_FRONTIER_PARENT ?? defaultParent);
+  for (let index = 1; index < argv.length; index += 1) {
+    if (argv[index] === "--parent") {
+      parent = Number(argv[index + 1]);
+      index += 1;
+    } else fail(`Unknown argument: ${argv[index]}`);
+  }
+  if (!Number.isSafeInteger(parent) || parent <= 0) fail("Parent issue must be a positive integer");
+  return { command, parent };
+}
+
+function usage() {
+  process.stdout.write("Usage: node scripts/frontier-loop.mjs start|supervise|run|status|watch|health|attach|stop [--parent ISSUE]\n");
+}
+
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+  try {
+    const { command, parent } = parseArguments(process.argv.slice(2));
+    if (command === "start") start(parent);
+    else if (command === "supervise") supervise(parent);
+    else if (command === "run") runLoop(parent);
+    else if (command === "status") status(parent);
+    else if (command === "watch") watch(parent);
+    else if (command === "health") health(parent);
+    else if (command === "attach") attach(parent);
+    else if (command === "stop") stop(parent);
+    else {
+      usage();
+      process.exitCode = 1;
+    }
+  } catch (error) {
+    console.error(`frontier-loop: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  }
+}
