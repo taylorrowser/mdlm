@@ -7,21 +7,25 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
 
-function mdlm(repository: string, ...arguments_: string[]) {
+function invokeMdlm(
+  repository: string,
+  arguments_: string[],
+  input?: string,
+) {
   return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
     cwd: repository,
     encoding: "utf8",
+    ...(input === undefined ? {} : { input }),
     maxBuffer: 10 * 1024 * 1024,
   });
 }
 
+function mdlm(repository: string, ...arguments_: string[]) {
+  return invokeMdlm(repository, arguments_);
+}
+
 function mdlmWithInput(repository: string, input: string, ...arguments_: string[]) {
-  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
-    cwd: repository,
-    encoding: "utf8",
-    input,
-    maxBuffer: 10 * 1024 * 1024,
-  });
+  return invokeMdlm(repository, arguments_, input);
 }
 
 function git(repository: string, ...arguments_: string[]) {
@@ -231,6 +235,11 @@ describe("MDLM Assignment leasing and preparation", () => {
       }),
       diagnostics: [],
     }));
+    const proposalSchema = packet.responseSchema.oneOf[0].properties.proposal;
+    expect(proposalSchema.required).toContain("loadedSkillRefs");
+    expect(proposalSchema.properties.outputs.items.required).toContain("localId");
+    expect(proposalSchema.properties.outputs.items.properties.localId.description)
+      .toContain("$proposal.<localId>.revision_id");
 
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
     const ignored = git(
@@ -291,12 +300,22 @@ describe("MDLM Assignment leasing and preparation", () => {
   it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout);
+    const loadedSkillRefs = packet.prompt.skills.map(
+      (skill: { reference: string }) => skill.reference,
+    );
     const response = {
       contract: "mdlm-assignment-response@1",
       assignment,
       kind: "proposal",
       proposal: {
         outputs: [{
+          localId: "map",
           name: "map",
           invocation: 0,
           lifecycleDatum: {
@@ -304,33 +323,96 @@ describe("MDLM Assignment leasing and preparation", () => {
             payload: {
               title: "Initial product wayfinding",
               purpose: "Bound the first product-intent conversation.",
-              frontier: ["Clarify the intended product outcome"],
+              frontier: ["$proposal.question.revision_id"],
             },
             links: [],
             body: "One exact initial decision frontier.\n",
+          },
+        }, {
+          localId: "question",
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "QST",
+            payload: {
+              title: "Clarify the intended product outcome",
+              kind: "preferential",
+              question: "Which exact product outcome should this repository pursue?",
+              state: "open",
+              blocking_impact: "Product intent cannot advance without this answer.",
+            },
+            links: [],
+            body: "One exact stakeholder question.\n",
           },
         }],
         completionEvidence: {
           summary: "The initial decision frontier is explicit.",
         },
+        loadedSkillRefs,
         authoritySupplies: [],
         standingDelegations: [],
       },
     };
     const responsePath = path.join(parent, "response.json");
-    const invalid = structuredClone(response);
-    invalid.proposal.outputs[0]!.lifecycleDatum.payload.frontier = [];
-    await fs.writeFile(responsePath, `${JSON.stringify(invalid)}\n`);
     const before = git(repository, "diff", "--binary", "HEAD").stdout;
-
-    const rejected = mdlm(repository, "scenario", "submit", responsePath);
-
-    expect(rejected.status).toBe(1);
-    expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "scenario-completion-failed" }),
-      ]),
-    );
+    const rejectionCases = [
+      {
+        code: "scenario-completion-failed",
+        mutate(candidate: typeof response) {
+          candidate.proposal.outputs[0]!.lifecycleDatum.payload.frontier = [];
+        },
+      },
+      {
+        code: "scenario-output-cardinality-invalid",
+        mutate(candidate: typeof response) {
+          candidate.proposal.outputs = candidate.proposal.outputs.slice(1);
+        },
+      },
+      {
+        code: "scenario-output-undeclared",
+        mutate(candidate: typeof response) {
+          candidate.proposal.outputs[1]!.name = "undeclared";
+        },
+      },
+      {
+        code: "scenario-output-schema-invalid",
+        mutate(candidate: typeof response) {
+          candidate.proposal.outputs[0]!.lifecycleDatum.payload = {} as typeof candidate.proposal.outputs[0]["lifecycleDatum"]["payload"];
+        },
+      },
+      {
+        code: "scenario-skill-reference-unknown",
+        mutate(candidate: typeof response) {
+          candidate.proposal.loadedSkillRefs = ["skills/not-in-the-assignment.md@1"];
+        },
+      },
+      {
+        code: "scenario-output-local-id-duplicate",
+        mutate(candidate: typeof response) {
+          candidate.proposal.outputs[1]!.localId = "map";
+        },
+      },
+      {
+        code: "scenario-output-local-reference-unknown",
+        mutate(candidate: typeof response) {
+          candidate.proposal.outputs[0]!.lifecycleDatum.payload.frontier = [
+            "$proposal.unknown.revision_id",
+          ];
+        },
+      },
+    ];
+    for (const rejectionCase of rejectionCases) {
+      const invalid = structuredClone(response);
+      rejectionCase.mutate(invalid);
+      await fs.writeFile(responsePath, `${JSON.stringify(invalid)}\n`);
+      const rejected = mdlm(repository, "scenario", "submit", responsePath);
+      expect(rejected.status).toBe(1);
+      expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: rejectionCase.code }),
+        ]),
+      );
+    }
     expect(git(repository, "diff", "--binary", "HEAD").stdout).toBe(before);
     expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
       .toEqual([".gitkeep"]);
@@ -369,7 +451,7 @@ describe("MDLM Assignment leasing and preparation", () => {
           assignment,
           digest: expect.stringMatching(/^sha256:/),
         },
-        outputs: [expect.objectContaining({
+        outputs: expect.arrayContaining([expect.objectContaining({
           name: "map",
           lifecycleDatum: expect.objectContaining({
             id: expect.stringMatching(/^MAP-/),
@@ -377,11 +459,18 @@ describe("MDLM Assignment leasing and preparation", () => {
             revisionId: expect.stringMatching(/^MAP-.*-r00001$/),
             type: "MAP",
           }),
-        })],
+        })]),
       }),
       diagnostics: [],
     }));
     expect(result.execution).not.toHaveProperty("adapter");
+    expect(result.execution.skills.map((skill: { reference: string }) => skill.reference))
+      .toEqual(loadedSkillRefs);
+    expect(result.execution.outputs[0].data.created_by.loaded_skill_refs)
+      .toEqual(loadedSkillRefs);
+    expect(result.execution.outputs[0].data.payload.frontier).toEqual([
+      result.execution.outputs[1].lifecycleDatum.revisionId,
+    ]);
     await expect(fs.stat(path.join(
       repository,
       ".lifecycle/work/active-assignment.json",
@@ -436,18 +525,30 @@ describe("MDLM Assignment leasing and preparation", () => {
         message,
       ).status).toBe(0);
     };
-    const submit = (assignment: string, proposal: Record<string, unknown>) => {
-      const result = mdlmWithInput(
+    const respond = (assignment: string, proposal: Record<string, unknown>) => {
+      const packet = JSON.parse(mdlm(
+        repository,
+        "scenario",
+        "prepare",
+        assignment,
+      ).stdout);
+      const loadedSkillRefs = packet.prompt.skills.map(
+        (skill: { reference: string }) => skill.reference,
+      );
+      return mdlmWithInput(
         repository,
         `${JSON.stringify({
           contract: "mdlm-assignment-response@1",
           assignment,
           kind: "proposal",
-          proposal,
+          proposal: { ...proposal, loadedSkillRefs },
         })}\n`,
         "scenario",
         "submit",
       );
+    };
+    const submit = (assignment: string, proposal: Record<string, unknown>) => {
+      const result = respond(assignment, proposal);
       expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
       return JSON.parse(result.stdout).execution;
     };
@@ -465,6 +566,7 @@ describe("MDLM Assignment leasing and preparation", () => {
           .values[0].identity.revision_id as string;
         submit(outcome.assignment.id, {
           outputs: [{
+            localId: `context-${subject}`,
             name: "context",
             invocation: 0,
             lifecycleDatum: {
@@ -501,6 +603,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     const mapAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
     submit(mapAssignment, {
       outputs: [{
+        localId: "map",
         name: "map",
         invocation: 0,
         lifecycleDatum: {
@@ -524,6 +627,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(progression.packet.scenario.reference).toBe("compile-psp@2");
     const pspExecution = submit(progression.outcome.assignment.id, {
       outputs: [{
+        localId: "product-specification",
         name: "product_specification",
         invocation: 0,
         lifecycleDatum: {
@@ -551,8 +655,9 @@ describe("MDLM Assignment leasing and preparation", () => {
 
     progression = publishPendingContexts();
     expect(progression.packet.scenario.reference).toBe("draft-stakeholder-requirements@2");
-    submit(progression.outcome.assignment.id, {
+    const requirementProposal = {
       outputs: [{
+        localId: "stakeholder-requirement",
         name: "requirements",
         invocation: 0,
         lifecycleDatum: {
@@ -572,7 +677,20 @@ describe("MDLM Assignment leasing and preparation", () => {
       completionEvidence: { summary: "Stakeholder requirement proposed." },
       authoritySupplies: [],
       standingDelegations: [],
-    });
+    };
+    const missingRequiredLink = structuredClone(requirementProposal);
+    missingRequiredLink.outputs[0]!.lifecycleDatum.links = [];
+    const linkRejected = respond(
+      progression.outcome.assignment.id,
+      missingRequiredLink,
+    );
+    expect(linkRejected.status).toBe(1);
+    expect(JSON.parse(linkRejected.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-required-link-missing" }),
+      ]),
+    );
+    submit(progression.outcome.assignment.id, requirementProposal);
     commitTransaction("Publish stakeholder requirement");
 
     progression = publishPendingContexts();
@@ -601,6 +719,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     };
     const reviewExecution = submit(reviewOutcome.assignment.id, {
       outputs: [{
+        localId: "review",
         name: "review",
         invocation: 0,
         lifecycleDatum: {

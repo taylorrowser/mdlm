@@ -74,6 +74,8 @@ node ../dist/mdlm.js loose-ends --phase phase-0-wayfinding
 node ../dist/mdlm.js next
 node ../dist/mdlm.js scenario prepare <assignment-id>
 # After a harness returns mdlm-assignment-response@1, publish from a file or stdin.
+# Follow the packet's exact responseSchema: report loadedSkillRefs and give every
+# output a localId for $proposal.<localId>.id/revision_id references.
 node ../dist/mdlm.js scenario submit ./assignment-response.json
 cat ./assignment-response.json | node ../dist/mdlm.js scenario submit
 node ../dist/mdlm.js doctor

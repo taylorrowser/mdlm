@@ -37,6 +37,7 @@ export interface PackageExecutionIdentity {
 }
 
 export interface ScenarioOutputProposal {
+  localId?: string;
   name: string;
   invocation: number;
   lifecycleDatum: {
@@ -617,6 +618,7 @@ async function executeScenario(
     assignment: string;
     digest: string;
     proposal: ScenarioProposal;
+    loadedSkillRefs: string[];
   },
 ): Promise<ScenarioExecutionResult> {
   const dryRunResult = await prepareRepositoryScenario(
@@ -731,7 +733,7 @@ async function executeScenario(
       reference,
     }),
   );
-  const participationContract = submittedResponse
+  const executionContracts = submittedResponse
     ? { execution: "mdlm-scenario-execution@4" as const }
     : executionAuthority
     ? {
@@ -747,9 +749,29 @@ async function executeScenario(
           adapter: "mdlm-agent-adapter@1" as const,
           execution: "mdlm-scenario-execution@1" as const,
         };
+  const declaredSkillRefs = dryRun.prompt.skills.map((skill) => skill.reference);
+  const loadedSkillRefs = submittedResponse
+    ? submittedResponse.loadedSkillRefs
+    : declaredSkillRefs;
+  const unknownSkillRefs = loadedSkillRefs.filter((reference) =>
+    !declaredSkillRefs.includes(reference)
+  );
+  if (unknownSkillRefs.length > 0) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-skill-reference-unknown",
+        path: `${scenarioReference}#skills`,
+        message: `Scenario Proposal reports skills outside its exact Assignment packet: ${unknownSkillRefs.join(", ")}`,
+      }],
+    };
+  }
+  const loadedSkills = loadedSkillRefs.map((reference) =>
+    dryRun.prompt.skills.find((skill) => skill.reference === reference)!
+  );
   const adapterRequest = {
-    ...("adapter" in participationContract
-      ? { contract: participationContract.adapter }
+    ...("adapter" in executionContracts
+      ? { contract: executionContracts.adapter }
       : {}),
     scenario: scenarioReference,
     authorization: dryRun.authorization,
@@ -864,7 +886,7 @@ async function executeScenario(
     ...dryRun.policies.map((policy) => policy.reference),
     ...participationPolicyReferences,
   ])].sort();
-  const outputData = parsedResponse.value.outputs.map((proposal) => {
+  const outputIdentities = parsedResponse.value.outputs.map((proposal) => {
     const requestedId = proposal.lifecycleDatum.id;
     let id = requestedId;
     if (!id) {
@@ -875,24 +897,92 @@ async function executeScenario(
     const revision = lineage.length === 0
       ? 1
       : Math.max(...lineage.map((record) => record.datum.revision)) + 1;
-    const datum: DatumEnvelope = {
+    return {
       id,
       revision,
-      revision_id: `${id}-r${String(revision).padStart(5, "0")}`,
+      revisionId: `${id}-r${String(revision).padStart(5, "0")}`,
+    };
+  });
+  const localIdentities = new Map<string, typeof outputIdentities[number]>();
+  const localIdentityDiagnostics: ProcessDiagnostic[] = [];
+  if (submittedResponse) {
+    parsedResponse.value.outputs.forEach((proposal, index) => {
+      if (!proposal.localId) return;
+      if (localIdentities.has(proposal.localId)) {
+        localIdentityDiagnostics.push({
+          code: "scenario-output-local-id-duplicate",
+          path: `proposal.outputs[${index}].localId`,
+          message: `Scenario Proposal output local identity '${proposal.localId}' is duplicated`,
+        });
+        return;
+      }
+      localIdentities.set(proposal.localId, outputIdentities[index]!);
+    });
+  }
+  if (localIdentityDiagnostics.length > 0) {
+    return { ok: false, diagnostics: localIdentityDiagnostics };
+  }
+  const proposalReferenceDiagnostics: ProcessDiagnostic[] = [];
+  function resolveProposalReferences(value: unknown, pathValue: string): unknown {
+    if (typeof value === "string") {
+      const match = /^\$proposal\.([A-Za-z][A-Za-z0-9_-]*)\.(id|revision_id)$/.exec(value);
+      if (!match) return value;
+      const identity = localIdentities.get(match[1]!);
+      if (!identity) {
+        proposalReferenceDiagnostics.push({
+          code: "scenario-output-local-reference-unknown",
+          path: pathValue,
+          message: `Scenario Proposal references unknown local output '${match[1]}'`,
+        });
+        return value;
+      }
+      return match[2] === "id" ? identity.id : identity.revisionId;
+    }
+    if (Array.isArray(value)) {
+      return value.map((item, index) =>
+        resolveProposalReferences(item, `${pathValue}[${index}]`)
+      );
+    }
+    const record = object(value);
+    return record
+      ? Object.fromEntries(Object.entries(record).map(([key, item]) => [
+          key,
+          resolveProposalReferences(item, `${pathValue}.${key}`),
+        ]))
+      : value;
+  }
+  const outputData = parsedResponse.value.outputs.map((proposal, index) => {
+    const identity = outputIdentities[index]!;
+    const datum: DatumEnvelope = {
+      id: identity.id,
+      revision: identity.revision,
+      revision_id: identity.revisionId,
       type: proposal.lifecycleDatum.type,
-      payload: proposal.lifecycleDatum.payload,
-      links: proposal.lifecycleDatum.links,
+      payload: resolveProposalReferences(
+        proposal.lifecycleDatum.payload,
+        `proposal.outputs[${index}].lifecycleDatum.payload`,
+      ) as Record<string, unknown>,
+      links: proposal.lifecycleDatum.links.map((link, linkIndex) => ({
+        ...link,
+        target: resolveProposalReferences(
+          link.target,
+          `proposal.outputs[${index}].lifecycleDatum.links[${linkIndex}].target`,
+        ) as string,
+      })),
       created_by: {
         scenario: scenarioReference,
         prompt_ref: dryRun.prompt.reference,
         process_ref: `${packageIdentity.reference}#${packageIdentity.digest}`,
-        loaded_skill_refs: dryRun.prompt.skills.map((skill) => skill.reference),
+        loaded_skill_refs: loadedSkillRefs,
         policy_refs: policies,
       },
       body: proposal.lifecycleDatum.body,
     };
     return { proposal, datum };
   });
+  if (proposalReferenceDiagnostics.length > 0) {
+    return { ok: false, diagnostics: proposalReferenceDiagnostics };
+  }
   const linkDiagnostics = requiredLinkDiagnostics(
     processPackage,
     scenario,
@@ -980,9 +1070,9 @@ async function executeScenario(
   const discoveredObligations = resultingObligations
     .filter((id) => !beforeObligations.has(id));
   const executionId = randomUUID();
-  const { skills, ...prompt } = dryRun.prompt;
+  const { skills: _availableSkills, ...prompt } = dryRun.prompt;
   const executionBase = {
-    contract: participationContract.execution,
+    contract: executionContracts.execution,
     id: executionId,
     status: "completed" as const,
     ...(submittedResponse
@@ -995,7 +1085,7 @@ async function executeScenario(
         }
       : {
           adapter: {
-            contract: participationContract.adapter!,
+            contract: executionContracts.adapter!,
             executable: adapterExecutable!,
             digest: adapterDigest!,
             requestDigest: sha256(adapterRequestSource!),
@@ -1008,7 +1098,7 @@ async function executeScenario(
     ...(dryRun.obligation ? { obligation: dryRun.obligation } : {}),
     inputs: dryRun.invocations,
     prompt,
-    skills,
+    skills: loadedSkills,
     policies: [...dryRun.policies, ...participationPolicies],
     ...(dryRun.participation ? { participation: dryRun.participation } : {}),
     ...(executionAuthority ? { authority: executionAuthority } : {}),
@@ -1093,6 +1183,7 @@ export async function submitResolverScenario(
   responseDigest: string,
   suppliedAuthorities: string[] = [],
   suppliedDelegations: string[] = [],
+  loadedSkillRefs: string[] = [],
 ): Promise<ScenarioExecutionResult> {
   return executeScenario(
     repositoryRoot,
@@ -1104,7 +1195,7 @@ export async function submitResolverScenario(
     undefined,
     suppliedAuthorities,
     suppliedDelegations,
-    { assignment, digest: responseDigest, proposal },
+    { assignment, digest: responseDigest, proposal, loadedSkillRefs },
   );
 }
 

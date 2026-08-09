@@ -553,6 +553,7 @@ function responseSchema(): Record<string, unknown> {
             required: [
               "outputs",
               "completionEvidence",
+              "loadedSkillRefs",
               "authoritySupplies",
               "standingDelegations",
             ],
@@ -562,8 +563,13 @@ function responseSchema(): Record<string, unknown> {
                 items: {
                   type: "object",
                   additionalProperties: false,
-                  required: ["name", "invocation", "lifecycleDatum"],
+                  required: ["localId", "name", "invocation", "lifecycleDatum"],
                   properties: {
+                    localId: {
+                      type: "string",
+                      pattern: "^[A-Za-z][A-Za-z0-9_-]*$",
+                      description: "Proposal-local identity used by $proposal.<localId>.id and $proposal.<localId>.revision_id references",
+                    },
                     name: { type: "string" },
                     invocation: { type: "integer", minimum: 0 },
                     lifecycleDatum,
@@ -571,6 +577,11 @@ function responseSchema(): Record<string, unknown> {
                 },
               },
               completionEvidence: {},
+              loadedSkillRefs: {
+                type: "array",
+                items: { type: "string", minLength: 1 },
+                uniqueItems: true,
+              },
               authoritySupplies: {
                 type: "array",
                 items: { type: "string" },
@@ -620,6 +631,7 @@ interface ProposalAssignmentResponse {
   assignment: string;
   kind: "proposal";
   proposal: ScenarioProposal & {
+    loadedSkillRefs: string[];
     authoritySupplies: string[];
     standingDelegations: string[];
   };
@@ -791,6 +803,7 @@ export async function submitAssignmentResponse(
     sha256(responseSource),
     proposal.authoritySupplies,
     proposal.standingDelegations,
+    proposal.loadedSkillRefs,
   );
   if (!submitted.ok) return submitted;
   await fs.rm(leasePath(repositoryRoot), { force: true });
