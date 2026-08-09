@@ -48,10 +48,6 @@ describe("shared MDLM command application", () => {
 
   beforeEach(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-command-"));
-    const initialized = spawnSync("git", ["init", "--quiet", repositoryRoot], {
-      encoding: "utf8",
-    });
-    expect(initialized.status, initialized.stderr).toBe(0);
   });
 
   afterEach(async () => {
@@ -87,8 +83,7 @@ describe("shared MDLM command application", () => {
       executables.mdlm,
       repositoryRoot,
       "init",
-      "--process",
-      bootstrapPackage,
+      ".",
       "--json",
     );
     expect(
@@ -118,7 +113,27 @@ describe("shared MDLM command application", () => {
       { encoding: "utf8" },
     );
     expect(repositoryStatus.status, repositoryStatus.stderr).toBe(0);
-    expect(repositoryStatus.stdout).toBe("?? .lifecycle/\n");
+    expect(repositoryStatus.stdout).toBe("");
+  });
+
+  it("retains custom-package initialization on the temporary req bridge", () => {
+    const initialized = execute(
+      executables.req,
+      repositoryRoot,
+      "--json",
+      "init",
+      "--process",
+      bootstrapPackage,
+    );
+
+    expect(initialized.status, initialized.stderr).toBe(0);
+    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      command: "init",
+      package: expect.objectContaining({
+        reference: "mdlm-bootstrap@0.49.0",
+      }),
+    }));
   });
 
   it("does not add an alternate unselected-package Loose End route", () => {
@@ -147,8 +162,7 @@ describe("shared MDLM command application", () => {
       executables.mdlm,
       repositoryRoot,
       "init",
-      "--process",
-      bootstrapPackage,
+      ".",
       "--json",
     );
     expect(initialized.status, initialized.stderr).toBe(0);

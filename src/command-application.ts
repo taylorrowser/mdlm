@@ -99,33 +99,19 @@ import {
   type FixtureTestSummary,
   type PackageScaffold,
 } from "./process-package-scaffolding.js";
-
-interface PackageSummary {
-  id: string;
-  version: string;
-  reference: string;
-  language: string;
-  digest: string;
-}
-
-interface ProcessSelection {
-  schemaVersion: 1;
-  package: {
-    id: string;
-    version: string;
-    reference: string;
-    digest: string;
-    path: string;
-  };
-  language: { expressions: string };
-}
-
-interface RepositorySummary {
-  contract: "mdlm-repository@1";
-  datumEnvelope: string;
-  artifactFormat: string;
-  primitiveCatalog: string;
-}
+import { initializeBundledRepository } from "./repository-initialization.js";
+import {
+  packageSummary,
+  packagesRelativePath,
+  processSelection,
+  repositoryDescriptor,
+  repositoryDescriptorMatches,
+  repositorySummary,
+  selectionRelativePath,
+  type PackageSummary,
+  type ProcessSelection,
+  type RepositorySummary,
+} from "./repository-contract.js";
 
 interface ExactPackageIdentity {
   reference: string;
@@ -194,30 +180,6 @@ interface CommandResult {
   index?: RepositoryIndexSummary;
   report?: RepositoryReportSummary;
   diagnostics: ProcessDiagnostic[];
-}
-
-const selectionRelativePath = ".lifecycle/process-selection.json";
-const packagesRelativePath = ".lifecycle/packages";
-
-function languageVersion(processPackage: ProcessPackage): string {
-  const language = processPackage.manifest.language;
-  if (typeof language !== "object" || language === null) return "";
-  const expressions = (language as Record<string, unknown>).expressions;
-  return typeof expressions === "string" ? expressions : "";
-}
-
-async function packageSummary(
-  processPackage: ProcessPackage,
-  root: string,
-): Promise<PackageSummary> {
-  const { id, version } = processPackage.manifest;
-  return {
-    id,
-    version,
-    reference: `${id}@${version}`,
-    language: languageVersion(processPackage),
-    digest: await processPackageDigest(root),
-  };
 }
 
 function failure(
@@ -290,77 +252,6 @@ async function atomicJsonPair(
       fs.rm(entry.backupPath, { force: true }),
     ]));
   }
-}
-
-function processSelection(summary: PackageSummary): ProcessSelection {
-  return {
-    schemaVersion: 1,
-    package: {
-      id: summary.id,
-      version: summary.version,
-      reference: summary.reference,
-      digest: summary.digest,
-      path: `${packagesRelativePath}/${summary.reference}`,
-    },
-    language: { expressions: summary.language },
-  };
-}
-
-function repositorySummary(processPackage: ProcessPackage): RepositorySummary {
-  const kernelContract = processPackage.manifest.kernel_contract as
-    | Record<string, unknown>
-    | undefined;
-  const artifactFormat = processPackage.manifest.artifact_format as
-    | Record<string, unknown>
-    | undefined;
-  return {
-    contract: "mdlm-repository@1",
-    datumEnvelope: String(kernelContract?.envelope_schema_id ?? ""),
-    artifactFormat: `${String(artifactFormat?.media_type ?? "")}; metadata=${String(artifactFormat?.metadata ?? "")}; encoding=${String(artifactFormat?.encoding ?? "")}`,
-    primitiveCatalog: String(kernelContract?.primitive_catalog_ref ?? ""),
-  };
-}
-
-function repositoryDescriptor(
-  processPackage: ProcessPackage,
-  summary: PackageSummary,
-): Record<string, unknown> {
-  const repository = repositorySummary(processPackage);
-  return {
-    schemaVersion: 1,
-    repositoryContract: repository.contract,
-    package: { reference: summary.reference, digest: summary.digest },
-    contracts: {
-      datumEnvelope: repository.datumEnvelope,
-      artifactFormat: repository.artifactFormat,
-      expressionLanguage: summary.language,
-      primitiveCatalog: repository.primitiveCatalog,
-    },
-  };
-}
-
-function repositoryDescriptorMatches(
-  descriptor: Record<string, unknown>,
-  processPackage: ProcessPackage,
-  summary: PackageSummary,
-): boolean {
-  const packageContract = typeof descriptor.package === "object" &&
-      descriptor.package !== null && !Array.isArray(descriptor.package)
-    ? descriptor.package as Record<string, unknown>
-    : {};
-  const contracts = typeof descriptor.contracts === "object" &&
-      descriptor.contracts !== null && !Array.isArray(descriptor.contracts)
-    ? descriptor.contracts as Record<string, unknown>
-    : {};
-  const repository = repositorySummary(processPackage);
-  return descriptor.schemaVersion === 1 &&
-    descriptor.repositoryContract === repository.contract &&
-    packageContract.reference === summary.reference &&
-    packageContract.digest === summary.digest &&
-    contracts.datumEnvelope === repository.datumEnvelope &&
-    contracts.artifactFormat === repository.artifactFormat &&
-    contracts.expressionLanguage === summary.language &&
-    contracts.primitiveCatalog === repository.primitiveCatalog;
 }
 
 async function initializeRepository(
@@ -1577,29 +1468,17 @@ async function selectedRepositoryPackage(
           : "repository-contract",
         path: descriptorPath,
         message: (error as NodeJS.ErrnoException).code === "ENOENT"
-          ? "No MDLM repository descriptor exists; run 'mdlm init --process <package-ref>'"
+          ? "No MDLM repository descriptor exists; run 'mdlm init <destination>'"
           : `Cannot read the MDLM repository descriptor: ${error instanceof Error ? error.message : String(error)}`,
       }],
     };
   }
-  const packageContract = typeof descriptor.package === "object" &&
-      descriptor.package !== null
-    ? descriptor.package as Record<string, unknown>
-    : {};
-  const contracts = typeof descriptor.contracts === "object" &&
-      descriptor.contracts !== null
-    ? descriptor.contracts as Record<string, unknown>
-    : {};
-  const repository = repositorySummary(selected.processPackage);
   if (
-    descriptor.schemaVersion !== 1 ||
-    descriptor.repositoryContract !== repository.contract ||
-    packageContract.reference !== selected.summary.reference ||
-    packageContract.digest !== selected.summary.digest ||
-    contracts.datumEnvelope !== repository.datumEnvelope ||
-    contracts.artifactFormat !== repository.artifactFormat ||
-    contracts.expressionLanguage !== selected.summary.language ||
-    contracts.primitiveCatalog !== repository.primitiveCatalog
+    !repositoryDescriptorMatches(
+      descriptor,
+      selected.processPackage,
+      selected.summary,
+    )
   ) {
     return {
       ok: false,
@@ -2807,10 +2686,23 @@ async function dispatchCommand(
     arguments_[index - 1] !== "--ref"
   );
   if (operands[0] === "init") {
-    return initializeRepository(
-      repositoryRoot,
-      optionValue(arguments_, "--process"),
+    if (arguments_.includes("--process")) {
+      return failure(
+        "init-custom-process-unsupported",
+        "mdlm init uses the bundled Example Process Package and does not accept '--process'",
+      );
+    }
+    const initArguments = arguments_.filter((argument) => argument !== "--json");
+    if (initArguments.length !== 2 || initArguments[1]?.startsWith("--")) {
+      return failure(
+        "init-destination-required",
+        "Expected 'mdlm init <destination>'",
+      );
+    }
+    const initialized = await initializeBundledRepository(
+      path.resolve(repositoryRoot, initArguments[1]!),
     );
+    return { ...initialized, command: "init" };
   }
   if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
   if (operands[0] === "new" && operands[1]) {
@@ -3037,15 +2929,13 @@ export interface CommandApplicationExecution {
   output: string;
 }
 
-/** Dispatch and render one MDLM invocation without owning process startup. */
-export async function executeCommandApplication(
+async function executeCommand(
   arguments_: string[],
-  repositoryRoot: string,
+  dispatch: () => Promise<CommandResult>,
 ): Promise<CommandApplicationExecution> {
-  const json = arguments_.includes("--json");
   let result: CommandResult;
   try {
-    result = await dispatchCommand(arguments_, repositoryRoot);
+    result = await dispatch();
   } catch (error) {
     result = failure(
       "mdlm-error",
@@ -3054,6 +2944,34 @@ export async function executeCommandApplication(
   }
   return {
     exitCode: result.ok ? 0 : 1,
-    output: `${json ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
+    output: `${arguments_.includes("--json") ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
   };
+}
+
+/** Dispatch and render one MDLM invocation without owning process startup. */
+export function executeCommandApplication(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandApplicationExecution> {
+  return executeCommand(
+    arguments_,
+    () => dispatchCommand(arguments_, repositoryRoot),
+  );
+}
+
+/** Keep the temporary req initialization bridge separate from mdlm dispatch. */
+export function executeLegacyReqApplication(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandApplicationExecution> {
+  return executeCommand(
+    arguments_,
+    () => arguments_.find((argument) => argument !== "--json") === "init" &&
+      arguments_.includes("--process")
+      ? initializeRepository(
+        repositoryRoot,
+        optionValue(arguments_, "--process"),
+      )
+      : dispatchCommand(arguments_, repositoryRoot),
+  );
 }
