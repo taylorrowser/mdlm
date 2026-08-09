@@ -1,7 +1,7 @@
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const reqExecutable = path.join(process.cwd(), "dist/req.js");
+const reqExecutable = path.join(process.cwd(), "dist/req-entry.js");
 
 export function req(cwd: string, ...arguments_: string[]) {
   return spawnSync(process.execPath, [reqExecutable, ...arguments_], {

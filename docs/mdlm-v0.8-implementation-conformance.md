@@ -13,10 +13,11 @@ rewriting the accepted v0.8 overview's historical evidence labels or claiming a
 production-complete product.
 
 The completed profile validates a process-neutral declarative kernel, generic
-`req` surface, durable Markdown repository, atomic Scenario publication, and a
-bounded Example Process Package through Phases 0–2, localized change control,
-and reviewed pilot assessment. The assessment Decision deliberately defers
-Phases 3–6.
+command surface, durable Markdown repository, atomic Scenario publication, and
+a bounded Example Process Package through Phases 0–2, localized change control,
+and reviewed pilot assessment. The command surface is now exposed primarily by
+`mdlm`; `req` remains only as a temporary bridge while the replacement proceeds.
+The assessment Decision deliberately defers Phases 3–6.
 
 ## Conformance boundary
 
@@ -26,7 +27,10 @@ through its established public seams:
 - `loadProcessPackage(path)`
 - `resolveType(package, typeId)`
 - `evaluateLifecycle(package, snapshot)`
-- the `req` executable
+- the shared generic command application through the `mdlm` executable
+
+The prototype-era `req` executable remains temporarily available but is no
+longer the primary public command identity.
 
 It does not mean regulatory qualification, production hardening, a complete
 software V-model package, or implementation of the items explicitly deferred by
@@ -39,7 +43,7 @@ the accepted overview and the reviewed pilot Decision.
 | Textual, typed, terminating expressions | 7–12 | #15–#20 | `test/textual-expression.test.ts`, `test/req-process-expression.test.ts` |
 | Package types, templates, links, capabilities, and graph validation | 1–6, 18–19, 23–27 | #21–#24 | `test/load-process-package.test.ts`, `test/resolve-type.test.ts`, `test/kernel-capability.test.ts` |
 | Dependency changes, States, Obligations, phases, blockers, Dispatchability, and explanations | 13–17, 35–42 | #25–#31 | `test/dependency-changes.test.ts`, `test/evaluate-*.test.ts`, `test/req-lifecycle.test.ts` |
-| Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54 | `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
+| Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54, #84 | `test/mdlm-command-application.test.ts`, `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
 | Authorized dry-run, atomic adapter execution, provenance, authority-only Scenario publication, and safe aliases | 43–47, 57–60 | #41–#43, #71 | `test/req-scenario-dry-run.test.ts`, `test/req-scenario-execution.test.ts`, `test/req-consequential-authorization.test.ts`, `test/req-command-alias.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |

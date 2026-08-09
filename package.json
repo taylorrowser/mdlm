@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "bin": {
-    "req": "./dist/req.js"
+    "mdlm": "./dist/mdlm.js",
+    "req": "./dist/req-entry.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

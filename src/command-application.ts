@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -1526,7 +1525,7 @@ async function selectedPackage(
       diagnostics: [{
         code: "process-package-not-selected",
         message:
-          "No Process Package is selected; run 'req process use <package@version>'",
+          "No Process Package is selected; run 'mdlm process use <package@version>'",
       }],
     };
   }
@@ -1578,7 +1577,7 @@ async function selectedRepositoryPackage(
           : "repository-contract",
         path: descriptorPath,
         message: (error as NodeJS.ErrnoException).code === "ENOENT"
-          ? "No MDLM repository descriptor exists; run 'req init --process <package-ref>'"
+          ? "No MDLM repository descriptor exists; run 'mdlm init --process <package-ref>'"
           : `Cannot read the MDLM repository descriptor: ${error instanceof Error ? error.message : String(error)}`,
       }],
     };
@@ -2379,7 +2378,7 @@ async function showSelectedPackage(
   };
 }
 
-function humanOutput(result: CommandResult): string {
+function renderCommandResult(result: CommandResult): string {
   if (!result.ok && result.validation) {
     return [
       `Compilation: ${result.validation.compilation}`,
@@ -2798,7 +2797,10 @@ function directArguments(arguments_: string[]): Record<string, unknown> {
   return result;
 }
 
-async function run(arguments_: string[], repositoryRoot: string): Promise<CommandResult> {
+async function dispatchCommand(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandResult> {
   const operands = arguments_.filter((argument, index) =>
     argument !== "--json" &&
     argument !== "--ref" &&
@@ -3030,16 +3032,28 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
   );
 }
 
-const json = process.argv.includes("--json");
-try {
-  const result = await run(process.argv.slice(2), process.cwd());
-  process.stdout.write(`${json ? JSON.stringify(result, null, 2) : humanOutput(result)}\n`);
-  if (!result.ok) process.exitCode = 1;
-} catch (error) {
-  const result = failure(
-    "req-error",
-    error instanceof Error ? error.message : String(error),
-  );
-  process.stdout.write(`${json ? JSON.stringify(result, null, 2) : humanOutput(result)}\n`);
-  process.exitCode = 1;
+export interface CommandApplicationExecution {
+  exitCode: 0 | 1;
+  output: string;
+}
+
+/** Dispatch and render one MDLM invocation without owning process startup. */
+export async function executeCommandApplication(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandApplicationExecution> {
+  const json = arguments_.includes("--json");
+  let result: CommandResult;
+  try {
+    result = await dispatchCommand(arguments_, repositoryRoot);
+  } catch (error) {
+    result = failure(
+      "mdlm-error",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+  return {
+    exitCode: result.ok ? 0 : 1,
+    output: `${json ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
+  };
 }

@@ -1,7 +1,8 @@
 # MDLM v0.8 evaluator prototype
 
 This repository contains the completed concept-validating v0.8 implementation
-profile: a narrow process-neutral TypeScript kernel, generic `req` executable,
+profile: a narrow process-neutral TypeScript kernel, shared generic command
+application exposed by the `mdlm` executable and temporary `req` bridge,
 durable Markdown repository, and bootstrap subset of MDLM's first bundled
 Example Process Package. The example is a software V-model lifecycle; other
 packages may define different types, States, Obligations, Scenarios, and phases.
@@ -16,7 +17,8 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   bindings, Dispatchability, Resolver Scenario output contracts, exact Waiver
   Policy applicability, generated historical Obligation explanations from explicit
   repository snapshots, and explanations from primitive graph and integrity data.
-- The `req` executable explicitly installs, selects, and atomically migrates
+- The `mdlm` executable (and temporary `req` bridge) explicitly installs,
+  selects, and atomically migrates
   repository contracts between compatible exact Process Packages, provides
   package-neutral inspection and validation, and evaluates addressed
   expression fields, Relations, Selectors, Policies, Computed States, and
@@ -61,59 +63,63 @@ packages may define different types, States, Obligations, Scenarios, and phases.
 npm install
 npm test
 npm run typecheck
-npm run prototype
+npm run prototype -- process validate --ref .lifecycle/process
+
+# Run the primary MDLM executable
+node dist/mdlm.js process validate --ref .lifecycle/process
 
 # Scaffold and validate a process-neutral package
-node dist/req.js process init ./case-process
-node dist/req.js process validate --ref ./case-process
+node dist/mdlm.js process init ./case-process
+node dist/mdlm.js process validate --ref ./case-process
 
 # Initialize a repository against an explicit package
 mkdir example-repository
 cd example-repository
-node ../dist/req.js init --process ../.lifecycle/process
+node ../dist/mdlm.js init --process ../.lifecycle/process
 # Installation adds an immutable package without activating it; `use` changes
 # only package selection. Migrate an initialized repository contract atomically:
-node ../dist/req.js process install ../next-process
-node ../dist/req.js process migrate next-process@1.2.3
-node ../dist/req.js revise PSP-0123456789
-node ../dist/req.js history PSP-0123456789
-node ../dist/req.js link QST-0123456789-r00001 PSP-0123456789 --type blocks
-node ../dist/req.js backlinks PSP-0123456789
-node ../dist/req.js trace PSP-0123456789 --relation blocks --depth 2
-node ../dist/req.js baseline add BSL-0123456789 STK-0123456789-r00001
-node ../dist/req.js baseline evidence add BSL-0123456789 REV-0123456789-r00001
-node ../dist/req.js baseline freeze BSL-0123456789
-node ../dist/req.js baseline verify BSL-0123456789
-node ../dist/req.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
-node ../dist/req.js doctor
-node ../dist/req.js loose-ends --phase phase-0-wayfinding
-node ../dist/req.js next --phase phase-0-wayfinding
-node ../dist/req.js phase status phase-0-wayfinding
-node ../dist/req.js schema STK
+node ../dist/mdlm.js process install ../next-process
+node ../dist/mdlm.js process migrate next-process@1.2.3
+node ../dist/mdlm.js revise PSP-0123456789
+node ../dist/mdlm.js history PSP-0123456789
+node ../dist/mdlm.js link QST-0123456789-r00001 PSP-0123456789 --type blocks
+node ../dist/mdlm.js backlinks PSP-0123456789
+node ../dist/mdlm.js trace PSP-0123456789 --relation blocks --depth 2
+node ../dist/mdlm.js baseline add BSL-0123456789 STK-0123456789-r00001
+node ../dist/mdlm.js baseline evidence add BSL-0123456789 REV-0123456789-r00001
+node ../dist/mdlm.js baseline freeze BSL-0123456789
+node ../dist/mdlm.js baseline verify BSL-0123456789
+node ../dist/mdlm.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
+node ../dist/mdlm.js doctor
+node ../dist/mdlm.js loose-ends --phase phase-0-wayfinding
+node ../dist/mdlm.js next --phase phase-0-wayfinding
+node ../dist/mdlm.js phase status phase-0-wayfinding
+node ../dist/mdlm.js schema STK
 # Explicitly prepare and execute one package-authored non-Resolver Scenario:
-node ../dist/req.js scenario dry-run chart-wayfinding-map@1 --initiate
-node ../dist/req.js scenario execute chart-wayfinding-map@1 --initiate \
+node ../dist/mdlm.js scenario dry-run chart-wayfinding-map@1 --initiate
+node ../dist/mdlm.js scenario execute chart-wayfinding-map@1 --initiate \
   --adapter ./configured-agent-adapter
 # Resolver Scenarios retain exact Dispatchable Obligation authorization:
-node ../dist/req.js scenario dry-run create-review-context@1 \
+node ../dist/mdlm.js scenario dry-run create-review-context@1 \
   --obligation '<exact-review-context-obligation-instance>'
 # Prototype-bound QSTs route through their package-owned exact-evidence Resolver:
-node ../dist/req.js scenario dry-run resolve-question-with-prototype@1 \
+node ../dist/mdlm.js scenario dry-run resolve-question-with-prototype@1 \
   --obligation '<exact-prototype-question-obligation-instance>' \
   --input question=QST-0123456789-r00001
 # An explicit fixture remains available for package tests and historical evaluation:
-node ../dist/req.js scenario dry-run create-review-context@1 \
+node ../dist/mdlm.js scenario dry-run create-review-context@1 \
   --obligation 'review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype' \
   --snapshot ../examples/psp-to-sys-snapshot.yaml
 # Selected package convenience over the same generic Scenario execution contract:
-node ../dist/req.js question resolve --question QST-0123456789-r00001 \
+node ../dist/mdlm.js question resolve --question QST-0123456789-r00001 \
   --obligation '<exact-open-question-obligation-instance>' \
   --adapter ./configured-agent-adapter
 ```
 
-`npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
-`examples/psp-to-sys-snapshot.yaml`, and prints ordered loose ends with reasons and
-resolver scenarios.
+`npm run prototype -- <arguments>` and the `req` executable remain temporary
+branch-green bridges. Both delegate transparently to the same package-neutral
+command application and canonical `mdlm` result contract while existing journeys
+move to `mdlm`.
 
 ## References
 
