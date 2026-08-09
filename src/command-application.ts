@@ -23,6 +23,8 @@ import {
   type ProcessInspection,
 } from "./process-package-inspection.js";
 import {
+  activeLifecycleEvaluation,
+  initialPhaseId,
   looseEndsProjection,
   phaseStatusProjection,
   type LooseEndsProjection,
@@ -1514,35 +1516,9 @@ async function readLifecycleSnapshot(
   ) as LifecycleSnapshot;
 }
 
-function initialPhaseId(processPackage: ProcessPackage): string | undefined {
-  return Object.values(processPackage.phases)
-    .sort((left, right) =>
-      Number(left.order) - Number(right.order) || left.id.localeCompare(right.id)
-    )[0]?.id;
-}
-
-function activeLifecycleEvaluation(
-  processPackage: ProcessPackage,
-  snapshot: LifecycleSnapshot,
-): ReturnType<typeof evaluateLifecycle> {
-  let phaseId = initialPhaseId(processPackage) ?? snapshot.phaseId;
-  const visited = new Set<string>();
-  while (!visited.has(phaseId)) {
-    visited.add(phaseId);
-    const evaluation = evaluateLifecycle(processPackage, { ...snapshot, phaseId });
-    const nextPhase = evaluation.phase?.progression?.complete
-      ? evaluation.phase.progression.nextPhase
-      : undefined;
-    if (!nextPhase) return evaluation;
-    phaseId = nextPhase;
-  }
-  return evaluateLifecycle(processPackage, { ...snapshot, phaseId });
-}
-
 type SelectedLifecycleEvaluation =
   | {
       ok: true;
-      processPackage: ProcessPackage;
       summary: PackageSummary;
       evaluation: ReturnType<typeof evaluateLifecycle>;
     }
@@ -1619,7 +1595,6 @@ async function selectedLifecycleEvaluation(
   }
   return {
     ok: true,
-    processPackage: resolved.processPackage,
     summary: resolved.summary,
     evaluation,
   };
@@ -1677,32 +1652,17 @@ async function showLooseEnds(
 async function showNextAssignment(
   repositoryRoot: string,
 ): Promise<CommandResult> {
-  const resolved = await selectedLifecycleEvaluation(
-    repositoryRoot,
-    "next",
-    undefined,
-    undefined,
-    true,
-  );
-  if (!resolved.ok) return resolved.result;
-  const leased = await leaseNextAssignment(
-    repositoryRoot,
-    resolved.processPackage,
-    resolved.summary,
-    resolved.evaluation,
-  );
+  const leased = await leaseNextAssignment(repositoryRoot);
   return leased.ok
     ? {
         ok: true,
         command: "next",
-        package: resolved.summary,
         ...leased.value,
         diagnostics: [],
       }
     : {
         ok: false,
         command: "next",
-        package: resolved.summary,
         diagnostics: leased.diagnostics,
       };
 }

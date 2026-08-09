@@ -2,32 +2,35 @@ import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { promisify } from "node:util";
+import { isDeepStrictEqual, promisify } from "node:util";
 import type {
-  LifecycleEvaluation,
   ObligationEvaluation,
   ProcessDiagnostic,
   ProcessPackage,
   VersionedDefinition,
 } from "./index.js";
-import { nextWorkProjection } from "./lifecycle-inspection.js";
+import {
+  activeLifecycleEvaluation,
+  initialPhaseId,
+  nextWorkProjection,
+} from "./lifecycle-inspection.js";
+import { repositoryLifecycleSnapshot } from "./lifecycle-repository.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
 import { authorityEvidenceContract } from "./participation.js";
 import { resolveType } from "./index.js";
 import {
-  prepareRepositoryResolverScenario,
-  type PackageExecutionIdentity,
-} from "./scenario-execution.js";
-import type {
-  ScenarioDryRun,
-  ScenarioDryRunInvocation,
+  dryRunResolverScenario,
+  type ScenarioDryRun,
+  type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
+import type { PackageExecutionIdentity } from "./scenario-execution.js";
 import { selectedRepositoryPackage } from "./selected-package.js";
+import type { PackageSummary } from "./repository-contract.js";
 
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
 
-export interface RepositoryFingerprint {
+interface RepositoryFingerprint {
   head: string;
   trackedState: string;
 }
@@ -40,7 +43,7 @@ interface AssignmentBinding {
   }[];
 }
 
-export interface AssignmentLease {
+interface AssignmentLease {
   contract: "mdlm-assignment-lease@1";
   id: string;
   disposition: "active";
@@ -61,6 +64,7 @@ export interface AssignmentLease {
 }
 
 export interface AssignmentOutcome {
+  package: PackageSummary;
   contract: "mdlm-next@1";
   outcome: "assignment";
   assignment: { id: string };
@@ -111,9 +115,17 @@ export interface AssignmentPacket {
   responseSchema: Record<string, unknown>;
 }
 
-export type AssignmentResult<T> =
+type AssignmentResult<T> =
   | { ok: true; value: T; diagnostics: [] }
   | { ok: false; diagnostics: ProcessDiagnostic[] };
+
+interface ExactAssignment {
+  summary: PackageSummary;
+  processPackage: ProcessPackage;
+  lease: Omit<AssignmentLease, "id">;
+  dryRun: ScenarioDryRun;
+  scenario: VersionedDefinition;
+}
 
 function failure(code: string, message: string, pathValue?: string): AssignmentResult<never> {
   return {
@@ -148,8 +160,7 @@ function sha256(value: string): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-/** Fingerprint the exact checked-out tracked state without including ignored transport files. */
-export async function repositoryFingerprint(
+async function repositoryFingerprint(
   repositoryRoot: string,
 ): Promise<AssignmentResult<RepositoryFingerprint>> {
   try {
@@ -211,70 +222,7 @@ function object(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function hasFields(
-  value: Record<string, unknown>,
-  fields: readonly string[],
-): boolean {
-  const actual = Object.keys(value);
-  return actual.length === fields.length &&
-    fields.every((field) => Object.hasOwn(value, field));
-}
-
-function nonemptyString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-function validParticipation(value: unknown): boolean {
-  const participation = object(value);
-  const authority = object(participation?.authorityRequirement);
-  const attention = object(participation?.attentionSchedule);
-  if (
-    !participation ||
-    !hasFields(participation, [
-      "policy",
-      "authorityRequirement",
-      "attentionSchedule",
-      "transactionBatching",
-    ]) ||
-    !nonemptyString(participation.policy) ||
-    !authority ||
-    !hasFields(authority, ["mode", "authority", "delegationAllowed"]) ||
-    !["autonomous", "delegated", "attended"].includes(String(authority.mode)) ||
-    !nonemptyString(authority.authority) ||
-    typeof authority.delegationAllowed !== "boolean" ||
-    !attention ||
-    !hasFields(attention, ["timing", "checkpoint", "consolidationGroup"]) ||
-    !["none", "immediate", "checkpoint"].includes(String(attention.timing)) ||
-    !(attention.checkpoint === null || nonemptyString(attention.checkpoint)) ||
-    !(attention.consolidationGroup === null || nonemptyString(attention.consolidationGroup)) ||
-    !["single", "coherent-batch", "either"].includes(
-      String(participation.transactionBatching),
-    )
-  ) return false;
-  return attention.timing === "checkpoint"
-    ? attention.checkpoint !== null
-    : attention.checkpoint === null && attention.consolidationGroup === null;
-}
-
-function validBinding(value: unknown, index: number): boolean {
-  const binding = object(value);
-  if (
-    !binding ||
-    !hasFields(binding, ["invocation", "inputs"]) ||
-    binding.invocation !== index ||
-    !Array.isArray(binding.inputs)
-  ) return false;
-  return binding.inputs.every((candidate) => {
-    const input = object(candidate);
-    return !!input &&
-      hasFields(input, ["name", "values"]) &&
-      nonemptyString(input.name) &&
-      Array.isArray(input.values) &&
-      input.values.every(nonemptyString);
-  });
-}
-
-function validAssignmentLease(value: unknown): value is AssignmentLease {
+function assignmentLease(value: unknown): AssignmentLease | undefined {
   const lease = object(value);
   const packageValue = object(lease?.package);
   const repository = object(lease?.repository);
@@ -283,50 +231,33 @@ function validAssignmentLease(value: unknown): value is AssignmentLease {
   const parsedObligation = typeof obligation?.instance === "string"
     ? parseObligationInstanceIdentity(obligation.instance)
     : undefined;
-  return !!lease &&
-    hasFields(lease, [
-      "contract",
-      "id",
-      "disposition",
-      "package",
-      "repository",
-      "phase",
-      "obligation",
-      "scenario",
-      "bindings",
-      "participation",
-      "retryAvailability",
-    ]) &&
-    lease.contract === "mdlm-assignment-lease@1" &&
-    typeof lease.id === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lease.id) &&
-    lease.disposition === "active" &&
-    !!packageValue &&
-    hasFields(packageValue, ["reference", "digest", "language"]) &&
-    nonemptyString(packageValue.reference) &&
-    /^sha256:[0-9a-f]{64}$/.test(String(packageValue.digest)) &&
-    nonemptyString(packageValue.language) &&
-    !!repository &&
-    hasFields(repository, ["head", "trackedState"]) &&
-    /^[0-9a-f]{40}$/.test(String(repository.head)) &&
-    /^sha256:[0-9a-f]{64}$/.test(String(repository.trackedState)) &&
-    nonemptyString(lease.phase) &&
-    !!obligation &&
-    hasFields(obligation, ["instance", "definition", "subject"]) &&
-    !!parsedObligation &&
-    obligation.definition === parsedObligation.obligationReference &&
-    obligation.subject === parsedObligation.subject.identity &&
-    nonemptyString(lease.scenario) &&
-    Array.isArray(lease.bindings) &&
-    lease.bindings.every(validBinding) &&
-    Array.isArray(lease.participation) &&
-    lease.participation.every(validParticipation) &&
-    !!retry &&
-    hasFields(retry, ["malformedResponseCorrection"]) &&
-    retry.malformedResponseCorrection === 1;
+  return lease?.contract === "mdlm-assignment-lease@1" &&
+      typeof lease.id === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lease.id) &&
+      lease.disposition === "active" &&
+      typeof packageValue?.reference === "string" && packageValue.reference.length > 0 &&
+      typeof packageValue.digest === "string" &&
+      /^sha256:[0-9a-f]{64}$/.test(packageValue.digest) &&
+      typeof packageValue.language === "string" && packageValue.language.length > 0 &&
+      typeof repository?.head === "string" &&
+      /^[0-9a-f]{40}$/.test(repository.head) &&
+      typeof repository.trackedState === "string" &&
+      /^sha256:[0-9a-f]{64}$/.test(repository.trackedState) &&
+      typeof lease.phase === "string" && lease.phase.length > 0 &&
+      typeof obligation?.instance === "string" &&
+      typeof obligation.definition === "string" &&
+      obligation.definition === parsedObligation?.obligationReference &&
+      typeof obligation.subject === "string" &&
+      obligation.subject === parsedObligation?.subject.identity &&
+      typeof lease.scenario === "string" && lease.scenario.length > 0 &&
+      Array.isArray(lease.bindings) &&
+      Array.isArray(lease.participation) &&
+      retry?.malformedResponseCorrection === 1
+    ? lease as unknown as AssignmentLease
+    : undefined;
 }
 
-async function readAssignmentLease(
+async function readLease(
   repositoryRoot: string,
 ): Promise<AssignmentResult<AssignmentLease | undefined>> {
   const target = leasePath(repositoryRoot);
@@ -353,17 +284,14 @@ async function readAssignmentLease(
       target,
     );
   }
-  return validAssignmentLease(value)
-    ? { ok: true, value, diagnostics: [] }
+  const lease = assignmentLease(value);
+  return lease
+    ? { ok: true, value: lease, diagnostics: [] }
     : failure(
         "assignment-lease-invalid",
         "The active Assignment lease does not satisfy mdlm-assignment-lease@1",
         target,
       );
-}
-
-async function invalidateLease(repositoryRoot: string): Promise<void> {
-  await fs.rm(leasePath(repositoryRoot), { force: true });
 }
 
 function exactEntityId(value: ScenarioDryRunInvocation["inputs"][number]["values"][number]): string {
@@ -380,9 +308,7 @@ function bindings(invocations: ScenarioDryRunInvocation[]): AssignmentBinding[] 
   }));
 }
 
-function packageIdentity(
-  identity: PackageExecutionIdentity,
-): PackageExecutionIdentity {
+function packageIdentity(identity: PackageSummary): PackageExecutionIdentity {
   return {
     reference: identity.reference,
     digest: identity.digest,
@@ -395,77 +321,46 @@ function obligationDefinition(instance: ObligationEvaluation): string {
     instance.obligation;
 }
 
-async function exactPreparation(
+function definition(
+  catalog: Record<string, VersionedDefinition>,
+  reference: string,
+): VersionedDefinition | undefined {
+  const match = /^(.*)@([1-9][0-9]*)$/.exec(reference);
+  const candidate = match?.[1] ? catalog[match[1]] : undefined;
+  return candidate?.version === Number(match?.[2]) ? candidate : undefined;
+}
+
+function unversioned(reference: string): string | undefined {
+  return /^(.*)@[1-9][0-9]*$/.exec(reference)?.[1];
+}
+
+async function exactAssignment(
   repositoryRoot: string,
-  processPackage: ProcessPackage,
-  identity: PackageExecutionIdentity,
-  phase: string,
-  item: ObligationEvaluation,
-) {
-  return prepareRepositoryResolverScenario(
-    repositoryRoot,
-    processPackage,
-    identity,
-    item.actionableResolver ?? item.eventualResolver,
-    item.id,
-    [],
-    /^(.*)@[1-9][0-9]*$/.exec(phase)?.[1],
+): Promise<AssignmentResult<ExactAssignment>> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) return { ok: false, diagnostics: selected.diagnostics };
+  const firstPhase = initialPhaseId(selected.processPackage);
+  if (!firstPhase) {
+    return failure("phase-required", "The selected Process Package declares no Phase");
+  }
+  const [loaded, fingerprint] = await Promise.all([
+    repositoryLifecycleSnapshot(
+      repositoryRoot,
+      selected.processPackage,
+      `${selected.summary.reference}#${selected.summary.digest}`,
+      firstPhase,
+    ),
+    repositoryFingerprint(repositoryRoot),
+  ]);
+  if (!loaded.ok) return loaded;
+  if (!fingerprint.ok) return fingerprint;
+  const evaluation = activeLifecycleEvaluation(
+    selected.processPackage,
+    loaded.value,
   );
-}
-
-function exactLeaseState(
-  identity: PackageExecutionIdentity,
-  fingerprint: RepositoryFingerprint,
-  phase: string,
-  item: ObligationEvaluation,
-  dryRun: ScenarioDryRun,
-): Omit<AssignmentLease, "contract" | "id" | "disposition" | "retryAvailability"> {
-  return {
-    package: packageIdentity(identity),
-    repository: fingerprint,
-    phase,
-    obligation: {
-      instance: item.id,
-      definition: obligationDefinition(item),
-      subject: item.subject,
-    },
-    scenario: item.actionableResolver ?? item.eventualResolver,
-    bindings: bindings(dryRun.invocations),
-    participation: dryRun.participation ?? [],
-  };
-}
-
-function sameExactState(
-  lease: AssignmentLease,
-  exact: ReturnType<typeof exactLeaseState>,
-): boolean {
-  const comparable = {
-    contract: lease.contract,
-    disposition: lease.disposition,
-    package: lease.package,
-    repository: lease.repository,
-    phase: lease.phase,
-    obligation: lease.obligation,
-    scenario: lease.scenario,
-    bindings: lease.bindings,
-    participation: lease.participation,
-    retryAvailability: lease.retryAvailability,
-  };
-  return JSON.stringify(comparable) === JSON.stringify({
-    contract: "mdlm-assignment-lease@1",
-    disposition: "active",
-    ...exact,
-    retryAvailability: { malformedResponseCorrection: 1 },
-  });
-}
-
-/** Lease the one exact Dispatchable Obligation selected by declarative evaluation. */
-export async function leaseNextAssignment(
-  repositoryRoot: string,
-  processPackage: ProcessPackage,
-  identity: PackageExecutionIdentity,
-  evaluation: LifecycleEvaluation,
-): Promise<AssignmentResult<AssignmentOutcome>> {
+  if (evaluation.diagnostics.length > 0) {
+    return { ok: false, diagnostics: evaluation.diagnostics };
+  }
   const next = nextWorkProjection(evaluation);
   const item = next?.item;
   if (!next || !item || !("obligation" in item) || !item.dispatchable) {
@@ -474,45 +369,113 @@ export async function leaseNextAssignment(
       "The current declarative evaluation did not select a Dispatchable Obligation Instance",
     );
   }
-
-  const [fingerprint, preparation] = await Promise.all([
-    repositoryFingerprint(repositoryRoot),
-    exactPreparation(repositoryRoot, processPackage, identity, next.phase, item),
-  ]);
-  if (!fingerprint.ok) return fingerprint;
-  if (!preparation.ok) return preparation;
-  const exact = exactLeaseState(
-    identity,
-    fingerprint.value,
-    next.phase,
-    item,
-    preparation.value.dryRun,
+  const scenarioReference = item.actionableResolver ?? item.eventualResolver;
+  const scenario = definition(selected.processPackage.scenarios, scenarioReference);
+  const phaseId = unversioned(next.phase);
+  if (!scenario || !phaseId) {
+    return failure(
+      "scenario-definition-unavailable",
+      `Could not resolve exact Scenario '${scenarioReference}' in Phase '${next.phase}'`,
+      scenarioReference,
+    );
+  }
+  const prepared = await dryRunResolverScenario(
+    selected.processPackage,
+    { ...loaded.value, phaseId },
+    scenarioReference,
+    item.id,
+    [],
   );
-  const activeLease = await readAssignmentLease(repositoryRoot);
-  if (!activeLease.ok) return activeLease;
-  const active = activeLease.value;
-  if (active && sameExactState(active, exact)) {
+  if (!prepared.ok) return prepared;
+  return {
+    ok: true,
+    value: {
+      summary: selected.summary,
+      processPackage: selected.processPackage,
+      lease: {
+        contract: "mdlm-assignment-lease@1",
+        disposition: "active",
+        package: packageIdentity(selected.summary),
+        repository: fingerprint.value,
+        phase: next.phase,
+        obligation: {
+          instance: item.id,
+          definition: obligationDefinition(item),
+          subject: item.subject,
+        },
+        scenario: scenarioReference,
+        bindings: bindings(prepared.value.invocations),
+        participation: prepared.value.participation ?? [],
+        retryAvailability: { malformedResponseCorrection: 1 },
+      },
+      dryRun: prepared.value,
+      scenario,
+    },
+    diagnostics: [],
+  };
+}
+
+function sameAssignment(lease: AssignmentLease, exact: ExactAssignment): boolean {
+  const { id: _id, ...persisted } = lease;
+  return isDeepStrictEqual(persisted, exact.lease);
+}
+
+function sameAssignmentSource(
+  lease: AssignmentLease,
+  exact: ExactAssignment,
+): boolean {
+  return isDeepStrictEqual(lease.package, exact.lease.package) &&
+    isDeepStrictEqual(lease.repository, exact.lease.repository);
+}
+
+function invalidLease(repositoryRoot: string): AssignmentResult<never> {
+  return failure(
+    "assignment-lease-invalid",
+    "The active Assignment lease does not satisfy its exact current state",
+    leasePath(repositoryRoot),
+  );
+}
+
+/** Lease the one exact Assignment selected from the current repository. */
+export async function leaseNextAssignment(
+  repositoryRoot: string,
+): Promise<AssignmentResult<AssignmentOutcome>> {
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok) {
+    if (
+      persisted.value &&
+      !exact.diagnostics.some((item) =>
+        item.code === "assignment-repository-fingerprint-failed"
+      )
+    ) await fs.rm(leasePath(repositoryRoot), { force: true });
+    return exact;
+  }
+  if (persisted.value && sameAssignment(persisted.value, exact.value)) {
     return {
       ok: true,
       value: {
+        package: exact.value.summary,
         contract: "mdlm-next@1",
         outcome: "assignment",
-        assignment: { id: active.id },
+        assignment: { id: persisted.value.id },
       },
       diagnostics: [],
     };
   }
+  if (persisted.value && sameAssignmentSource(persisted.value, exact.value)) {
+    return invalidLease(repositoryRoot);
+  }
   const lease: AssignmentLease = {
-    contract: "mdlm-assignment-lease@1",
+    ...exact.value.lease,
     id: randomUUID(),
-    disposition: "active",
-    ...exact,
-    retryAvailability: { malformedResponseCorrection: 1 },
   };
   await writeLease(repositoryRoot, lease);
   return {
     ok: true,
     value: {
+      package: exact.value.summary,
       contract: "mdlm-next@1",
       outcome: "assignment",
       assignment: { id: lease.id },
@@ -666,43 +629,40 @@ function exactLifecycleData(dryRun: ScenarioDryRun): string[] {
 }
 
 function packet(
-  processPackage: ProcessPackage,
-  identity: PackageExecutionIdentity,
+  exact: ExactAssignment,
   lease: AssignmentLease,
-  dryRun: ScenarioDryRun,
-  scenario: VersionedDefinition,
 ): AssignmentPacket {
-  const participation = dryRun.participation ?? [];
+  const participation = exact.dryRun.participation ?? [];
   return {
     contract: "mdlm-assignment-packet@1",
     assignment: { id: lease.id },
-    package: packageIdentity(identity),
-    repository: lease.repository,
-    phase: lease.phase,
-    obligation: lease.obligation,
+    package: exact.lease.package,
+    repository: exact.lease.repository,
+    phase: exact.lease.phase,
+    obligation: exact.lease.obligation,
     scenario: {
-      reference: lease.scenario,
-      definition: { id: scenario.id, version: scenario.version },
+      reference: exact.lease.scenario,
+      definition: { id: exact.scenario.id, version: exact.scenario.version },
     },
-    prompt: dryRun.prompt,
+    prompt: exact.dryRun.prompt,
     assets: [
       {
-        reference: dryRun.prompt.reference,
-        path: dryRun.prompt.path,
-        digest: dryRun.prompt.digest,
-        content: dryRun.prompt.content,
+        reference: exact.dryRun.prompt.reference,
+        path: exact.dryRun.prompt.path,
+        digest: exact.dryRun.prompt.digest,
+        content: exact.dryRun.prompt.content,
       },
-      ...dryRun.prompt.skills,
+      ...exact.dryRun.prompt.skills,
     ],
-    exactInputs: dryRun.invocations,
+    exactInputs: exact.dryRun.invocations,
     allowedProjections: {
-      exactLifecycleData: exactLifecycleData(dryRun),
-      outputSchemas: outputSchemas(processPackage, dryRun),
+      exactLifecycleData: exactLifecycleData(exact.dryRun),
+      outputSchemas: outputSchemas(exact.processPackage, exact.dryRun),
     },
-    policies: dryRun.policies,
+    policies: exact.dryRun.policies,
     participation,
     authority: {
-      evidence: authorityEvidenceContract(scenario.authority_evidence) ?? null,
+      evidence: authorityEvidenceContract(exact.scenario.authority_evidence) ?? null,
       requirements: participation.flatMap((value, invocation) =>
         value.authorityRequirement.mode === "autonomous"
           ? []
@@ -713,15 +673,15 @@ function packet(
               attentionSchedule: value.attentionSchedule,
             }]
       ),
-      standingDelegation: dryRun.standingDelegation ?? null,
+      standingDelegation: exact.dryRun.standingDelegation ?? null,
     },
-    prohibitions: dryRun.prohibitedInputs,
-    outputs: dryRun.expectedOutputs,
-    outputLinks: dryRun.expectedOutputs.map((output) => ({
+    prohibitions: exact.dryRun.prohibitedInputs,
+    outputs: exact.dryRun.expectedOutputs,
+    outputLinks: exact.dryRun.expectedOutputs.map((output) => ({
       output: output.name,
       requiredLinks: output.requiredLinks,
     })),
-    completion: dryRun.completion,
+    completion: exact.dryRun.completion,
     responseSchema: responseSchema(),
   };
 }
@@ -731,9 +691,9 @@ export async function prepareAssignment(
   repositoryRoot: string,
   assignmentId: string,
 ): Promise<AssignmentResult<AssignmentPacket>> {
-  const activeLease = await readAssignmentLease(repositoryRoot);
-  if (!activeLease.ok) return activeLease;
-  const lease = activeLease.value;
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
   if (!lease || lease.id !== assignmentId) {
     return failure(
       "assignment-unavailable",
@@ -741,70 +701,32 @@ export async function prepareAssignment(
       assignmentId,
     );
   }
-
-  const fingerprint = await repositoryFingerprint(repositoryRoot);
-  if (!fingerprint.ok) return fingerprint;
-  if (JSON.stringify(lease.repository) !== JSON.stringify(fingerprint.value)) {
-    await invalidateLease(repositoryRoot);
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok) {
+    if (exact.diagnostics.some((item) =>
+      item.code === "assignment-repository-fingerprint-failed"
+    )) return exact;
+    await fs.rm(leasePath(repositoryRoot), { force: true });
     return failure(
       "assignment-stale",
-      `Assignment '${assignmentId}' no longer matches its exact tracked repository state; prepare will not rebase it`,
+      `Assignment '${assignmentId}' no longer matches the current exact repository state; prepare will not rebase it`,
       assignmentId,
     );
   }
-
-  const selected = await selectedRepositoryPackage(repositoryRoot);
-  if (
-    !selected.ok ||
-    JSON.stringify(lease.package) !==
-      JSON.stringify(packageIdentity(selected.summary))
-  ) {
-    await invalidateLease(repositoryRoot);
+  if (!sameAssignment(lease, exact.value)) {
+    if (sameAssignmentSource(lease, exact.value)) {
+      return invalidLease(repositoryRoot);
+    }
+    await fs.rm(leasePath(repositoryRoot), { force: true });
     return failure(
       "assignment-stale",
-      `Assignment '${assignmentId}' no longer matches its exact selected Process Package; prepare will not rebase it`,
-      assignmentId,
-    );
-  }
-  const preparation = await prepareRepositoryResolverScenario(
-    repositoryRoot,
-    selected.processPackage,
-    selected.summary,
-    lease.scenario,
-    lease.obligation.instance,
-    [],
-    /^(.*)@[1-9][0-9]*$/.exec(lease.phase)?.[1],
-  );
-  if (!preparation.ok) {
-    await invalidateLease(repositoryRoot);
-    return failure(
-      "assignment-stale",
-      `Assignment '${assignmentId}' no longer resolves to its exact Dispatchable Obligation Instance; prepare will not rebase it`,
-      assignmentId,
-    );
-  }
-  if (
-    JSON.stringify(lease.bindings) !==
-      JSON.stringify(bindings(preparation.value.dryRun.invocations)) ||
-    JSON.stringify(lease.participation) !==
-      JSON.stringify(preparation.value.dryRun.participation ?? [])
-  ) {
-    await invalidateLease(repositoryRoot);
-    return failure(
-      "assignment-stale",
-      `Assignment '${assignmentId}' no longer matches its exact bindings or participation; prepare will not rebase it`,
+      `Assignment '${assignmentId}' no longer matches the current exact repository state; prepare will not rebase it`,
       assignmentId,
     );
   }
   return {
     ok: true,
-    value: packet(
-      selected.processPackage,
-      selected.summary,
-      lease,
-      preparation.value.dryRun,
-      preparation.value.scenario,
-    ),
+    value: packet(exact.value, lease),
     diagnostics: [],
   };
 }

@@ -242,7 +242,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(secondPacket.responseSchema).toEqual(firstPacket.responseSchema);
   });
 
-  it("rejects corrupt Assignment leases with a controlled diagnostic", async () => {
+  it("rejects corrupt exact lease contents instead of recovering automatically", async () => {
     const next = mdlm(repository, "next");
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const leasePath = path.join(
@@ -252,10 +252,8 @@ describe("MDLM Assignment leasing and preparation", () => {
     const lease = JSON.parse(await fs.readFile(leasePath, "utf8"));
     await fs.writeFile(leasePath, JSON.stringify({
       ...lease,
-      contract: "mdlm-assignment-lease@999",
-      id: 7,
-      disposition: "exhausted",
-      retryAvailability: { malformedResponseCorrection: 99 },
+      bindings: [7],
+      participation: ["not-participation"],
     }));
 
     const corrupt = mdlm(repository, "next");
@@ -268,6 +266,28 @@ describe("MDLM Assignment leasing and preparation", () => {
         code: "assignment-lease-invalid",
       })],
     }));
+  });
+
+  it("rejects corrupt package and repository fingerprints instead of recovering", async () => {
+    const next = mdlm(repository, "next");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const leasePath = path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    );
+    const lease = JSON.parse(await fs.readFile(leasePath, "utf8"));
+    await fs.writeFile(leasePath, JSON.stringify({
+      ...lease,
+      package: { ...lease.package, digest: "corrupt" },
+      repository: { ...lease.repository, head: "corrupt" },
+    }));
+
+    const corrupt = mdlm(repository, "next");
+
+    expect(corrupt.status).toBe(1);
+    expect(JSON.parse(corrupt.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "assignment-lease-invalid" }),
+    ]);
   });
 
   it("reports malformed Assignment lease JSON without an untyped command error", async () => {
@@ -338,5 +358,22 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(JSON.parse(prepared.stdout).diagnostics).toEqual([
       expect.objectContaining({ code: "assignment-stale" }),
     ]);
+  });
+
+  it("invalidates the active lease when next observes a package change", async () => {
+    const first = JSON.parse(mdlm(repository, "next").stdout);
+    const promptRelative =
+      ".lifecycle/packages/mdlm-bootstrap@0.49.0/prompts/establish-initial-wayfinding-map.md";
+    await fs.appendFile(path.join(repository, promptRelative), "\nPackage change.\n");
+
+    const changed = mdlm(repository, "next");
+
+    expect(changed.status).toBe(1);
+    expect(JSON.parse(changed.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "process-package-selection-mismatch" }),
+    ]);
+    expect(git(repository, "checkout", "--", promptRelative).status).toBe(0);
+    const fresh = JSON.parse(mdlm(repository, "next").stdout);
+    expect(fresh.assignment.id).not.toBe(first.assignment.id);
   });
 });
