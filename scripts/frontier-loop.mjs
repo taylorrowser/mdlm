@@ -7,6 +7,7 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -30,14 +31,15 @@ import {
   selectOlderReadyBacklog,
   selectSnapshottedIssues,
 } from "./frontier-issue-contract.mjs";
+import { createMaintenanceController } from "./frontier-maintenance.mjs";
 import { createTicketRunner } from "./frontier-ticket-runner.mjs";
 import { sleep } from "./frontier-time.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const defaultParent = 83;
 const defaultPollSeconds = 60;
-const maximumDiagnosticEscalations = 2;
-const maximumDesignEscalations = 2;
+const maximumDiagnosticEscalations = 1;
+const maximumDesignEscalations = 1;
 const maximumAgentInfrastructureAttempts = 4;
 const defaultMaximumChangedFiles = 24;
 const defaultMaximumChangedLines = 1_800;
@@ -230,7 +232,7 @@ function start(parent) {
   if (tmuxSessionExists(parent)) commandResult("tmux", ["kill-session", "-t", sessionName(parent)]);
   const paths = loopPaths(parent);
   mkdirSync(paths.worktrees, { recursive: true });
-  rmSync(paths.stop, { force: true });
+  createMaintenanceController(paths.root).clearForManualStart();
   const script = fileURLToPath(import.meta.url);
   const command = `exec ${shellQuote(process.execPath)} ${shellQuote(script)} supervise --parent ${parent}`;
   commandOutput("tmux", ["new-session", "-d", "-s", sessionName(parent), "-c", repositoryRoot, command]);
@@ -249,6 +251,7 @@ function stopped(paths) {
 function runLoop(parent) {
   const paths = loopPaths(parent);
   mkdirSync(paths.worktrees, { recursive: true });
+  const maintenance = createMaintenanceController(paths.root);
   let state = readState(paths) ?? writeState(paths, {}, {
     schemaVersion: 3,
     parentIssue: parent,
@@ -259,6 +262,15 @@ function runLoop(parent) {
     currentIssue: null,
   });
   try {
+    if (maintenance.acknowledgeReload(state.phase === "supervisor-reloading")) {
+      state = writeState(paths, state, {
+        phase: "starting",
+        message: "Fresh runner acknowledged the safe-boundary reload",
+        lastError: null,
+      });
+      maintenance.finishAcknowledgement();
+      log(state.message);
+    }
     if (!Array.isArray(state.priorityIssueNumbers) || !Array.isArray(state.backlogIssueNumbers)) {
       const summaries = allIssueSummaries();
       const priorityIssueNumbers = priorityIssueSnapshot(parent, summaries);
@@ -275,21 +287,52 @@ function runLoop(parent) {
       try {
         const plan = deliveryPlan(parent, state.priorityIssueNumbers, state.backlogIssueNumbers);
         state = ticketRunner.reconcileCurrentIssue(plan, paths, state);
-        if (plan.primaryOpen.length === 0 && plan.backlog.every((issue) => issue.state === "CLOSED")) {
+        let issue;
+        let completed = false;
+        const boundary = maintenance.reserveOrDrain(state, () => {
+          if (state.currentIssue) {
+            issue = plan.pool.find((candidate) => candidate.number === state.currentIssue && candidate.state === "OPEN");
+          }
+          issue ??= plan.next;
+          if (!issue && plan.primaryOpen.length === 0 && plan.backlog.every((candidate) => candidate.state === "CLOSED")) {
+            state = writeState(paths, state, {
+              phase: "complete",
+              message: `All ${plan.children.length} priority-map tickets and all older ready backlog tickets are closed`,
+              completedAt: isoNow(),
+              lastError: null,
+            });
+            completed = true;
+            return undefined;
+          }
+          if (issue && !state.currentIssue) {
+            state = writeState(paths, state, {
+              phase: "reserved",
+              message: `Reserved #${issue.number} before leaving the between-ticket boundary`,
+              currentIssue: issue.number,
+              currentIssueTitle: issue.title,
+            });
+          }
+          return issue;
+        });
+        issue = boundary.value ?? issue;
+        if (boundary.stopped) {
+          state = writeState(paths, state, { phase: "stopped", message: "Stopped before reserving another ticket" });
+          log(state.message);
+          return;
+        }
+        if (boundary.drain) {
           state = writeState(paths, state, {
-            phase: "complete",
-            message: `All ${plan.children.length} priority-map tickets and all older ready backlog tickets are closed`,
-            completedAt: isoNow(),
+            phase: "maintenance-ready",
+            message: "Reached a safe between-ticket boundary; waiting for automatic reload",
             lastError: null,
           });
           log(state.message);
           return;
         }
-        let issue;
-        if (state.currentIssue && state.worktree && existsSync(state.worktree)) {
-          issue = plan.pool.find((candidate) => candidate.number === state.currentIssue && candidate.state === "OPEN");
+        if (completed) {
+          log(state.message);
+          return;
         }
-        issue ??= plan.next;
         if (!issue) {
           state = writeState(paths, state, { phase: "waiting", message: `${plan.open.length} ${plan.scope} tickets remain, but no unassigned item is available` });
           log(`${state.message}; polling again in ${defaultPollSeconds}s`);
@@ -388,8 +431,33 @@ function supervise(parent) {
       env: process.env,
       stdio: "inherit",
     });
-    const state = readState(paths);
+    let state = readState(paths);
     if (stopped(paths) || state?.phase === "complete") return;
+    if (state?.phase === "maintenance-ready") {
+      const maintenance = createMaintenanceController(paths.root);
+      while (!stopped(paths)) {
+        try {
+          ensurePrerequisites();
+          if (!maintenance.reloadPermitted()) return;
+          state = writeState(paths, state, {
+            phase: "supervisor-reloading",
+            message: "Safe boundary reached; supervisor loaded the updated control checkout",
+            lastError: null,
+          });
+          log(state.message);
+          break;
+        } catch (error) {
+          state = writeState(paths, state, {
+            phase: "maintenance-ready",
+            message: "Safe boundary reached; supervisor will retry reload in 30 seconds",
+            lastError: error instanceof Error ? error.message : String(error),
+          });
+          log(`${state.message}: ${state.lastError}`);
+          sleep(30_000);
+        }
+      }
+      continue;
+    }
     restarts += 1;
     writeState(paths, state ?? {}, {
       phase: "supervisor-restarting",
@@ -402,9 +470,39 @@ function supervise(parent) {
   }
 }
 
+function reloadAtBoundary(parent) {
+  const paths = loopPaths(parent);
+  mkdirSync(paths.root, { recursive: true });
+  if (!tmuxAlive(parent)) {
+    process.stdout.write("Frontier loop is not active; starting the current checkout immediately.\n");
+    start(parent);
+    return;
+  }
+  const maintenance = createMaintenanceController(paths.root);
+  if (maintenance.requested()) {
+    process.stdout.write("Safe reload is already pending.\n");
+    return;
+  }
+  const accepted = maintenance.requestReload(() => readState(paths)?.phase !== "complete");
+  if (!accepted) {
+    process.stdout.write("Frontier loop completed before the reload request reached the boundary gate; no reload is needed.\n");
+    return;
+  }
+  process.stdout.write(`Safe reload requested. ${sessionName(parent)} will finish its current ticket, stop between tickets, fast-forward the control checkout, and continue under the same supervisor.\n`);
+}
+
 function tail(path, count) {
   if (!existsSync(path)) return [];
   return readFileSync(path, "utf8").trimEnd().split("\n").slice(-count);
+}
+
+function age(value) {
+  const milliseconds = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) return "unknown";
+  const minutes = Math.floor(milliseconds / 60_000);
+  if (minutes < 1) return "under 1 minute";
+  const hours = Math.floor(minutes / 60);
+  return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
 
 function status(parent) {
@@ -437,7 +535,9 @@ function status(parent) {
     }
     if (state.supervisorRestarts) process.stdout.write(`Restarts:      ${state.supervisorRestarts}\n`);
     if (state.lastError) process.stdout.write(`Last error:    ${state.lastError}\n`);
-    process.stdout.write(`Updated:       ${state.updatedAt}\n`);
+    if (createMaintenanceController(paths.root).requested() && state.phase !== "maintenance-ready") process.stdout.write("Maintenance:   requested; drains after the current ticket\n");
+    process.stdout.write(`Updated:       ${state.updatedAt} (${age(state.updatedAt)} ago)\n`);
+    if (state.issueLog && existsSync(state.issueLog)) process.stdout.write(`Log activity:  ${statSync(state.issueLog).mtime.toISOString()} (${age(statSync(state.issueLog).mtime)} ago)\n`);
   } else {
     process.stdout.write("Phase:         never started\n");
   }
@@ -480,7 +580,7 @@ function attach(parent) {
 function stop(parent) {
   const paths = loopPaths(parent);
   mkdirSync(paths.root, { recursive: true });
-  writeFileSync(paths.stop, `${isoNow()}\n`);
+  createMaintenanceController(paths.root).stop();
   if (!tmuxAlive(parent)) {
     if (tmuxSessionExists(parent)) commandResult("tmux", ["kill-session", "-t", sessionName(parent)]);
     process.stdout.write("Frontier loop is not running. Stop marker recorded.\n");
@@ -506,7 +606,7 @@ function parseArguments(argv) {
 }
 
 function usage() {
-  process.stdout.write("Usage: node scripts/frontier-loop.mjs start|supervise|run|status|watch|health|attach|stop [--parent ISSUE]\n");
+  process.stdout.write("Usage: node scripts/frontier-loop.mjs start|reload|supervise|run|status|watch|health|attach|stop [--parent ISSUE]\n");
 }
 
 const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -514,6 +614,7 @@ if (invokedDirectly) {
   try {
     const { command, parent } = parseArguments(process.argv.slice(2));
     if (command === "start") start(parent);
+    else if (command === "reload") reloadAtBoundary(parent);
     else if (command === "supervise") supervise(parent);
     else if (command === "run") runLoop(parent);
     else if (command === "status") status(parent);

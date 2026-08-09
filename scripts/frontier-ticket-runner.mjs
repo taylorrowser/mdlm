@@ -3,12 +3,16 @@ import { join } from "node:path";
 import { appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
+  actionProgressed,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
   parsePullRequestNumber,
+  resumesAtValidation,
   validatedHeadMatches,
   validationFailureAction,
 } from "./frontier-loop-core.mjs";
+import { referencedParentNumber } from "./frontier-issue-contract.mjs";
+import { editingAgentPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
 
 export function createTicketRunner({
@@ -58,6 +62,36 @@ export function createTicketRunner({
     return commandOutput("gh", ["issue", "view", String(number), "--json", "state", "--jq", ".state"]) === "OPEN";
   }
 
+  function worktreeFingerprint(worktree) {
+    const status = commandOutput("git", ["status", "--porcelain=v2", "-z"], { cwd: worktree });
+    const trackedBytes = commandOutput("git", ["diff", "--binary", "HEAD"], { cwd: worktree });
+    const untracked = commandOutput("git", ["ls-files", "--others", "--exclude-standard", "-z"], { cwd: worktree })
+      .split("\0")
+      .filter(Boolean)
+      .sort()
+      .map((path) => `${path}:${commandOutput("git", ["hash-object", "--", path], { cwd: worktree })}`)
+      .join("\n");
+    return `${status}\n${trackedBytes}\n${untracked}`;
+  }
+
+  function issueActivityFingerprint(issue) {
+    const fields = "number,title,body,comments";
+    const active = commandOutput("gh", ["issue", "view", String(issue.number), "--json", fields]);
+    const parentNumber = referencedParentNumber(JSON.parse(active).body);
+    const parent = parentNumber
+      ? commandOutput("gh", ["issue", "view", String(parentNumber), "--json", fields])
+      : "";
+    return `${active}\n${parent}`;
+  }
+
+  function actionSnapshot(issue, worktree) {
+    return {
+      head: commandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree }),
+      worktree: worktreeFingerprint(worktree),
+      issueActivity: issueActivityFingerprint(issue),
+    };
+  }
+
   function deleteRemoteBranch(cwd, branch) {
     if (!branch) return;
     const remote = commandOutput("git", ["ls-remote", "--heads", "origin", `refs/heads/${branch}`], { cwd });
@@ -84,28 +118,6 @@ export function createTicketRunner({
     return { worktree, branch, resumed: false };
   }
 
-  function remediationPrompt(issue, reasonLog) {
-    return `/skill:implement Continue implementing GitHub issue #${issue.number} on the current branch. An independent validation pass failed; inspect ${reasonLog}, the complete issue and comments, parent spec, existing commits, and any uncommitted work. Reproduce every finding at the narrowest agreed seam, fix its root cause, rerun focused and full validation, invoke code review, and commit the corrections. Prefer deleting accidental complexity over adding flags, callbacks, state, or compatibility layers. Work autonomously. Do not push, create or merge a PR, or close the issue; the tmux orchestrator owns those steps.`;
-  }
-
-  function implementationPrompt(issue, resumed) {
-    const action = resumed ? "Continue and finish" : "Implement";
-    return `/skill:implement ${action} GitHub issue #${issue.number} (${issue.title}) on the current branch. Read the complete issue and comments, any parent spec, repository instructions, glossary, and relevant ADRs. Treat the issue acceptance criteria as the implementation boundary; parent constraints remain authoritative and open siblings remain deferred. Use TDD where possible at the agreed public-process seam. Keep MDLM lifecycle-neutral and modules deep; simplify before allowing implementation complexity to fan out. Claiming has already been handled. Run focused checks regularly and the full suite at the end, invoke code review, and commit all work with issue #${issue.number} in the commit message. Do not push, create or merge a PR, or close the issue; the tmux orchestrator owns those steps.`;
-  }
-
-  function diagnosisPrompt(issue, reasonLog) {
-    return `/skill:implement Diagnose and fix the repeatedly failing implementation of GitHub issue #${issue.number} (${issue.title}) on the current branch. Explicitly use the diagnosing-bugs method. The latest failed command validation, explicit VALIDATION: FAIL, or remote PR check in ${reasonLog} is the red-capable signal; inspect failed Actions logs when applicable and reproduce each finding before changing code. Read the complete issue/comments, any parent spec, instructions, glossary, ADRs, branch commits, and validation history. Generate ranked falsifiable hypotheses, then proceed autonomously through regression tests, root-cause repair, cleanup, focused checks, the full suite, and code review. Revert or redesign earlier work rather than layering patches. Preserve the user-visible contract and sibling boundaries. Commit every completed fix with issue #${issue.number}. Do not push, create or merge a PR, or close issues; the tmux orchestrator owns those steps.`;
-  }
-
-  function simplificationPrompt(issue, reasonLog, reasons) {
-    const trigger = reasons.length > 0 ? reasons.join("; ") : "independent review found disproportionate complexity";
-    return `/skill:implement Simplify and finish GitHub issue #${issue.number} (${issue.title}) on the current branch. Explicitly apply the codebase-design and grilling skills before editing. Complexity escalation was triggered by: ${trigger}. Inspect ${reasonLog}, the complete issue/comments and parent constraints, and the entire diff. Preserve every user-visible invariant and acceptance outcome while deleting accidental machinery, speculative generality, workflow state, recovery knobs, duplicated logic, or shallow interfaces. Prefer a smaller deep module and the existing public test seam. Revert or replace prior work when that is cleaner. Then run focused checks, the full suite, code review, and commit the simplification with issue #${issue.number}. Do not push, open/merge a PR, or close issues.`;
-  }
-
-  function contractReviewPrompt(issue, reasonLog) {
-    return `/skill:implement Resolve a repeated complexity deadlock for GitHub issue #${issue.number} (${issue.title}) and finish it autonomously. Explicitly apply grilling, codebase-design, and diagnosing-bugs. Read ${reasonLog}, the complete issue/comments, parent spec, glossary, ADRs, and full branch history. First try to replace the implementation with a substantially simpler design that preserves the written contract. If and only if a criterion itself forces unbounded analysis, a generic workflow engine, cross-owner atomicity, or similarly disproportionate machinery, choose the smallest user-goal-preserving contract clarification. Never waive atomic publication, one canonical writer, package neutrality, harness neutrality, independent judgment, tests, or review. Record any clarification as an auditable GitHub comment on the active issue naming retained behavior, intentionally given-up behavior, and why the simpler contract still satisfies the parent goal; do not rewrite history or close issues. Implement that clarified contract, add regression evidence, run focused and full checks, invoke code review, and commit all work with issue #${issue.number}. Do not push or create/merge a PR.`;
-  }
-
   function executeAgentAction(issue, prepared, issueLog, paths, state, action, transition = {}) {
     const descriptions = {
       implementation: "implementation",
@@ -124,14 +136,18 @@ export function createTicketRunner({
       validatedHead: null,
     });
     log(state.message);
-    let prompt;
-    if (action.kind === "implementation") prompt = implementationPrompt(issue, prepared.resumed || action.resumed);
-    else if (action.kind === "remediation") prompt = remediationPrompt(issue, issueLog);
-    else if (action.kind === "diagnosis") prompt = diagnosisPrompt(issue, issueLog);
-    else if (action.kind === "simplification") prompt = simplificationPrompt(issue, issueLog, action.reasons ?? []);
-    else prompt = contractReviewPrompt(issue, issueLog);
+    const before = actionSnapshot(issue, prepared.worktree);
+    const prompt = editingAgentPrompt(action.kind, {
+      issue,
+      resumed: action.kind === "implementation" && (prepared.resumed || action.resumed),
+      reasonLog: issueLog,
+      reasons: action.reasons ?? [],
+    });
     agentRunner.runImplementation(prepared.worktree, prompt, issueLog, `${action.resumed ? "resumed " : ""}${description}`);
-    return writeState(paths, state, { pendingAction: null });
+    const after = actionSnapshot(issue, prepared.worktree);
+    const noProgressHead = actionProgressed(before, after) ? null : after.head;
+    if (noProgressHead) appendAgentLog(issueLog, "no-op editing pass", "The agent changed neither repository bytes nor issue comments; any validation and review already cached at this SHA will be reused.\n");
+    return writeState(paths, state, { pendingAction: null, noProgressHead });
   }
 
   function inspectPullRequestChecks(prNumber, worktree, logPath) {
@@ -260,9 +276,14 @@ export function createTicketRunner({
       designEscalations: 0,
       contractReviews: 0,
       complexityReviewedHead: null,
+      commandsInFlightHead: null,
+      commandsAttemptedHead: null,
       commandsValidatedHead: null,
+      reviewedHead: null,
+      reviewedEvidenceFingerprint: null,
       pendingAction: null,
       validatedHead: null,
+      noProgressHead: null,
       lastError: null,
     };
   }
@@ -330,7 +351,11 @@ export function createTicketRunner({
     let designEscalations = continuingIssue ? state.designEscalations ?? 0 : 0;
     let contractReviews = continuingIssue ? state.contractReviews ?? 0 : 0;
     let complexityReviewedHead = continuingIssue ? state.complexityReviewedHead ?? null : null;
+    let commandsInFlightHead = continuingIssue ? state.commandsInFlightHead ?? null : null;
+    let commandsAttemptedHead = continuingIssue ? state.commandsAttemptedHead ?? null : null;
     let commandsValidatedHead = continuingIssue ? state.commandsValidatedHead ?? null : null;
+    let reviewedHead = continuingIssue ? state.reviewedHead ?? null : null;
+    let reviewedEvidenceFingerprint = continuingIssue ? state.reviewedEvidenceFingerprint ?? null : null;
     state = writeState(paths, state, {
       phase: resumeValidated ? "merging" : pendingAction?.kind ?? (prepared.resumed ? "resuming" : "implementing"),
       message: resumeValidated
@@ -348,7 +373,11 @@ export function createTicketRunner({
       designEscalations,
       contractReviews,
       complexityReviewedHead,
+      commandsInFlightHead,
+      commandsAttemptedHead,
       commandsValidatedHead,
+      reviewedHead,
+      reviewedEvidenceFingerprint,
       validatedHead: resumeValidated ? currentHead : null,
       lastError: null,
     });
@@ -358,7 +387,7 @@ export function createTicketRunner({
     }
     log(state.message);
     if (resumeValidated) return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
-    if (pendingAction?.kind === "review" || pendingAction?.kind === "validation") {
+    if (resumesAtValidation(pendingAction)) {
       state = writeState(paths, state, { phase: pendingAction.kind === "review" ? "retrying-review" : "validating" });
     } else {
       state = executeAgentAction(
@@ -390,6 +419,8 @@ export function createTicketRunner({
         designEscalations,
         contractReviews,
         complexityReviewedHead,
+        commandsInFlightHead,
+        commandsAttemptedHead,
         commandsValidatedHead,
         message: `Validating #${issue.number} (remediation ${remediationUsed ? "used" : "available"}, diagnostics ${diagnosticEscalations}/${maximumDiagnosticEscalations}, simplifications ${designEscalations}/${maximumDesignEscalations}, contract reviews ${contractReviews})`,
       });
@@ -397,24 +428,57 @@ export function createTicketRunner({
       const commitCount = Number(commandOutput("git", ["rev-list", "--count", `origin/${defaultBranch()}..HEAD`], { cwd: prepared.worktree }));
       const clean = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
       let commandsPass = commitCount > 0 && clean && commandsValidatedHead === headBeforeValidation;
-      if (!commandsPass && commitCount > 0 && clean) {
-        state = writeState(paths, state, { phase: "validating", pendingAction: { kind: "validation" } });
+      const cachedFailedValidation = commandsAttemptedHead === headBeforeValidation
+        && commandsValidatedHead !== headBeforeValidation;
+      if (!commandsPass && commitCount > 0 && clean && !cachedFailedValidation) {
+        commandsInFlightHead = headBeforeValidation;
+        commandsValidatedHead = null;
+        state = writeState(paths, state, {
+          phase: "validating",
+          pendingAction: { kind: "validation" },
+          commandsInFlightHead,
+          commandsValidatedHead,
+        });
         commandsPass = agentRunner.validate(prepared.worktree, issueLog, defaultBranch());
         const headAfterCommands = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
         const cleanAfterCommands = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
         if (commandsPass && (headAfterCommands !== headBeforeValidation || !cleanAfterCommands)) {
           fail(`Independent command validation mutated #${issue.number}; refusing to review or publish unvalidated bytes`);
         }
+        commandsInFlightHead = null;
+        commandsAttemptedHead = headBeforeValidation;
         commandsValidatedHead = commandsPass ? headBeforeValidation : null;
         state = writeState(paths, state, {
+          commandsInFlightHead,
+          commandsAttemptedHead,
           commandsValidatedHead,
-          pendingAction: commandsPass ? { kind: "review" } : null,
+          pendingAction: commandsPass ? { kind: "review" } : { kind: "failed-validation" },
         });
       }
+      if (cachedFailedValidation) {
+        state = writeState(paths, state, { noProgressHead: null });
+        log(`Reusing failed command validation already recorded at ${headBeforeValidation}; advancing the correction ladder for #${issue.number}`);
+      }
       let review = { retry: false, passed: false, simplify: false };
-      if (commandsPass) {
+      const evidence = commandsPass
+        ? agentRunner.reviewEvidence(issue, prepared.worktree, issueLog, defaultBranch())
+        : null;
+      const unchangedActionAlreadyReviewed = commandsPass
+        && state.noProgressHead === headBeforeValidation
+        && commandsValidatedHead === headBeforeValidation
+        && reviewedHead === headBeforeValidation
+        && reviewedEvidenceFingerprint === evidence.fingerprint;
+      if (unchangedActionAlreadyReviewed) {
+        state = writeState(paths, state, { noProgressHead: null });
+        log(`Skipping unchanged validation and review for #${issue.number}; advancing the correction ladder`);
+      } else if (commandsPass) {
         state = writeState(paths, state, { phase: "reviewing", pendingAction: { kind: "review" } });
-        review = agentRunner.review(issue, prepared.worktree, issueLog, defaultBranch());
+        review = agentRunner.review(prepared.worktree, issueLog, evidence);
+        if (!review.retry) {
+          reviewedHead = headBeforeValidation;
+          reviewedEvidenceFingerprint = review.evidenceFingerprint;
+          state = writeState(paths, state, { reviewedHead, reviewedEvidenceFingerprint });
+        }
       }
       if (commandsPass && review.retry) {
         state = writeState(paths, state, {

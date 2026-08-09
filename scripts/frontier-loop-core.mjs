@@ -31,6 +31,14 @@ export function panesAreRunning(deadStatuses) {
   return deadStatuses.some((status) => status === "0");
 }
 
+export function resumesAtValidation(pendingAction) {
+  return ["review", "validation", "failed-validation"].includes(pendingAction?.kind);
+}
+
+export function actionProgressed(before, after) {
+  return before.head !== after.head || before.worktree !== after.worktree || before.issueActivity !== after.issueActivity;
+}
+
 export function validationFailureAction({
   remediationUsed,
   diagnosticEscalations,
