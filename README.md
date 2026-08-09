@@ -1,7 +1,8 @@
 # MDLM v0.8 evaluator prototype
 
 This repository contains the completed concept-validating v0.8 implementation
-profile: a narrow process-neutral TypeScript kernel, generic `req` executable,
+profile: a narrow process-neutral TypeScript kernel, shared generic command
+application exposed by the `mdlm` executable and temporary `req` bridge,
 durable Markdown repository, and bootstrap subset of MDLM's first bundled
 Example Process Package. The example is a software V-model lifecycle; other
 packages may define different types, States, Obligations, Scenarios, and phases.
@@ -16,7 +17,8 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   bindings, Dispatchability, Resolver Scenario output contracts, exact Waiver
   Policy applicability, generated historical Obligation explanations from explicit
   repository snapshots, and explanations from primitive graph and integrity data.
-- The `req` executable explicitly installs, selects, and atomically migrates
+- The `mdlm` executable (and temporary `req` bridge) explicitly installs,
+  selects, and atomically migrates
   repository contracts between compatible exact Process Packages, provides
   package-neutral inspection and validation, and evaluates addressed
   expression fields, Relations, Selectors, Policies, Computed States, and
@@ -63,8 +65,11 @@ npm test
 npm run typecheck
 npm run prototype
 
+# Run the shared MDLM command application
+node dist/mdlm.js process validate --ref .lifecycle/process
+
 # Scaffold and validate a process-neutral package
-node dist/req.js process init ./case-process
+node dist/mdlm.js process init ./case-process
 node dist/req.js process validate --ref ./case-process
 
 # Initialize a repository against an explicit package
@@ -111,9 +116,10 @@ node ../dist/req.js question resolve --question QST-0123456789-r00001 \
   --adapter ./configured-agent-adapter
 ```
 
-`npm run prototype` loads `.lifecycle/process`, resolves the STK schema, evaluates
-`examples/psp-to-sys-snapshot.yaml`, and prints ordered loose ends with reasons and
-resolver scenarios.
+`npm run prototype` remains a temporary branch-green bridge: it delegates to the
+shared command application and validates `.lifecycle/process`. The `req`
+executable remains available temporarily while existing journeys move to
+`mdlm`.
 
 ## References
 

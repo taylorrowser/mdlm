@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
+    "mdlm": "./dist/mdlm.js",
     "req": "./dist/req.js"
   },
   "scripts": {
