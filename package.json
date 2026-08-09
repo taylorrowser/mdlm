@@ -10,9 +10,15 @@
     "build": "tsc -p tsconfig.build.json",
     "prototype": "npm run build --silent && node dist/prototype.js",
     "pretest": "npm run build --silent",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/frontier-loop-tests.mjs",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "frontier:start": "node scripts/frontier-loop.mjs start",
+    "frontier:status": "node scripts/frontier-loop.mjs status",
+    "frontier:watch": "node scripts/frontier-loop.mjs watch",
+    "frontier:health": "node scripts/frontier-loop.mjs health",
+    "frontier:attach": "node scripts/frontier-loop.mjs attach",
+    "frontier:stop": "node scripts/frontier-loop.mjs stop"
   },
   "dependencies": {
     "ajv": "^8.17.1",
