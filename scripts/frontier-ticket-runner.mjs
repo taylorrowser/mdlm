@@ -356,7 +356,7 @@ export function createTicketRunner({
     log(state.message);
     if (resumeValidated) return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
     if (pendingAction?.kind === "review" || pendingAction?.kind === "validation") {
-      state = writeState(paths, state, { pendingAction: null, phase: pendingAction.kind === "review" ? "retrying-review" : "validating" });
+      state = writeState(paths, state, { phase: pendingAction.kind === "review" ? "retrying-review" : "validating" });
     } else {
       state = executeAgentAction(
         issue,
@@ -381,7 +381,7 @@ export function createTicketRunner({
 
       state = writeState(paths, state, {
         phase: "validating",
-        pendingAction: null,
+        pendingAction: commandsValidatedHead === headBeforeValidation ? { kind: "review" } : { kind: "validation" },
         remediationUsed,
         diagnosticEscalations,
         designEscalations,
@@ -397,14 +397,16 @@ export function createTicketRunner({
       if (!commandsPass && commitCount > 0 && clean) {
         state = writeState(paths, state, { phase: "validating", pendingAction: { kind: "validation" } });
         commandsPass = agentRunner.validate(prepared.worktree, issueLog, defaultBranch());
-        state = writeState(paths, state, { pendingAction: null });
         const headAfterCommands = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
         const cleanAfterCommands = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
         if (commandsPass && (headAfterCommands !== headBeforeValidation || !cleanAfterCommands)) {
           fail(`Independent command validation mutated #${issue.number}; refusing to review or publish unvalidated bytes`);
         }
         commandsValidatedHead = commandsPass ? headBeforeValidation : null;
-        state = writeState(paths, state, { commandsValidatedHead });
+        state = writeState(paths, state, {
+          commandsValidatedHead,
+          pendingAction: commandsPass ? { kind: "review" } : null,
+        });
       }
       let review = { retry: false, passed: false, simplify: false };
       if (commandsPass) {
