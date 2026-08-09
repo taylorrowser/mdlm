@@ -44,6 +44,10 @@ export function validationFailureAction({
   return "contract-review";
 }
 
+export function isPublicationRetryFailure(error) {
+  return error instanceof Error && error.name === "PublicationRetryError";
+}
+
 export function isRemoteValidationFailure(error) {
   const message = error instanceof Error ? error.message : String(error);
   return /^Remote checks failed for PR #\d+/.test(message);

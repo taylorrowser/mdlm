@@ -5,6 +5,7 @@ import { validationCommands } from "./frontier-agent-runner.mjs";
 import {
   complexityReasonsFromStats,
   failureBaseState,
+  isPublicationRetryFailure,
   isRemoteValidationFailure,
   isTransientAgentFailure,
   isTransientInfrastructureFailure,
@@ -175,6 +176,13 @@ test("complexity budget reports every crossed threshold", () => {
     ),
     [],
   );
+});
+
+test("publication retry failures remain separate from product validation", () => {
+  const retry = new Error("retry");
+  retry.name = "PublicationRetryError";
+  assert.equal(isPublicationRetryFailure(retry), true);
+  assert.equal(isRemoteValidationFailure(retry), false);
 });
 
 test("remote check failures are classified as validation failures", () => {

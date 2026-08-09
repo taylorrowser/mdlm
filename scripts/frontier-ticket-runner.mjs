@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
+  isRemoteValidationFailure,
   isTransientInfrastructureFailure,
   parsePullRequestNumber,
   validatedHeadMatches,
@@ -131,7 +132,7 @@ export function createTicketRunner({
     return writeState(paths, state, { pendingAction: null });
   }
 
-  function waitForPullRequestChecks(prNumber, worktree, logPath) {
+  function inspectPullRequestChecks(prNumber, worktree, logPath) {
     const checksExpected = existsSync(join(worktree, ".github", "workflows"));
     const discoveryAttempts = checksExpected ? 12 : 1;
     let checks = [];
@@ -167,6 +168,17 @@ export function createTicketRunner({
       }
       if (latestChecks.some((check) => check.bucket === "fail")) fail(`Remote checks failed for PR #${prNumber}; inspect ${logPath}`);
       throw new Error(`Remote check command failed without a failing check bucket for PR #${prNumber}: ${[latest.stdout, latest.stderr, output].filter(Boolean).join("\n")}`);
+    }
+  }
+
+  function waitForPullRequestChecks(prNumber, worktree, logPath) {
+    try {
+      return inspectPullRequestChecks(prNumber, worktree, logPath);
+    } catch (error) {
+      if (isRemoteValidationFailure(error)) throw error;
+      const retry = new Error(`Remote-check infrastructure requires publication retry for PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+      retry.name = "PublicationRetryError";
+      throw retry;
     }
   }
 
@@ -387,7 +399,6 @@ export function createTicketRunner({
       if (commandsPass) {
         state = writeState(paths, state, { phase: "reviewing", pendingAction: { kind: "review" } });
         review = agentRunner.review(issue, prepared.worktree, issueLog, defaultBranch());
-        if (!review.retry) state = writeState(paths, state, { pendingAction: null });
       }
       if (commandsPass && review.retry) {
         state = writeState(paths, state, {
@@ -400,7 +411,7 @@ export function createTicketRunner({
       }
       if (commandsPass && review.passed && !review.simplify) {
         const validatedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
-        state = writeState(paths, state, { validatedHead });
+        state = writeState(paths, state, { pendingAction: null, validatedHead });
         return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
       }
 

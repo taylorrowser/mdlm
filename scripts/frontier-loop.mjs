@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
   failureBaseState,
+  isPublicationRetryFailure,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
   panesAreRunning,
@@ -347,7 +348,7 @@ function runLoop(parent) {
           log(`${state.message}: ${message}`);
           continue;
         }
-        if (!isTransientInfrastructureFailure(error) || stopped(paths)) throw error;
+        if ((!isTransientInfrastructureFailure(error) && !isPublicationRetryFailure(error)) || stopped(paths)) throw error;
         state = failureBaseState(state, readState(paths));
         state = writeState(paths, state, {
           phase: "retrying-infrastructure",
