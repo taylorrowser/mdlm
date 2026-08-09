@@ -102,8 +102,10 @@ import { initializeBundledRepository } from "./repository-initialization.js";
 import {
   leaseNextAssignment,
   prepareAssignment,
+  submitAssignmentResponse,
   type AssignmentOutcome,
   type AssignmentPacket,
+  type AssignmentSubmission,
 } from "./assignment.js";
 import {
   readSelection,
@@ -150,7 +152,7 @@ interface TypeSchemaInspection {
 interface CommandResultBase {
   ok: boolean;
   command?: string;
-  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"];
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"];
   outcome?: AssignmentOutcome["outcome"];
   assignment?: AssignmentOutcome["assignment"];
   package?: PackageSummary | AssignmentPacket["package"];
@@ -1686,6 +1688,52 @@ async function prepareExactAssignment(
       };
 }
 
+async function submitExactAssignment(
+  repositoryRoot: string,
+  responsePath: string | undefined,
+  standardInput: string | undefined,
+): Promise<CommandResult> {
+  let source: string;
+  if (responsePath && responsePath !== "-") {
+    try {
+      source = await fs.readFile(path.resolve(repositoryRoot, responsePath), "utf8");
+    } catch (error) {
+      return {
+        ...failure(
+          "assignment-response-read-failed",
+          `Could not read Assignment Response '${responsePath}': ${error instanceof Error ? error.message : String(error)}`,
+          responsePath,
+        ),
+        command: "scenario.submit",
+      };
+    }
+  } else if (standardInput !== undefined && standardInput.length > 0) {
+    source = standardInput;
+  } else {
+    return {
+      ...failure(
+        "assignment-response-required",
+        "Expected an Assignment Response file or one JSON value on standard input",
+      ),
+      command: "scenario.submit",
+    };
+  }
+  const submitted = await submitAssignmentResponse(repositoryRoot, source);
+  return submitted.ok
+    ? {
+        ok: true,
+        command: "scenario.submit",
+        contract: submitted.value.contract,
+        execution: submitted.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "scenario.submit",
+        diagnostics: submitted.diagnostics,
+      };
+}
+
 async function dryRunScenario(
   repositoryRoot: string,
   scenarioReference: string,
@@ -2299,7 +2347,11 @@ function renderCommandResult(result: CommandResult): string {
         ? [`Obligation: ${execution.obligation.instance}`]
         : []),
       `Package: ${execution.package.reference}#${execution.package.digest}`,
-      `Adapter: ${execution.adapter.executable}`,
+      ...(execution.adapter
+        ? [`Adapter: ${execution.adapter.executable}`]
+        : execution.response
+          ? [`Assignment Response: ${execution.response.assignment}`]
+          : []),
       `Prompt: ${execution.prompt.reference}`,
       ...execution.skills.map((skill) => `Skill: ${skill.reference}`),
       ...execution.policies.map((policy) =>
@@ -2573,35 +2625,19 @@ function directArguments(arguments_: string[]): Record<string, unknown> {
   return result;
 }
 
-async function dispatchCommand(
-  arguments_: string[],
-  repositoryRoot: string,
-): Promise<CommandResult> {
-  const operands = arguments_.filter((argument, index) =>
+function commandOperands(arguments_: string[]): string[] {
+  return arguments_.filter((argument, index) =>
     argument !== "--json" &&
     argument !== "--ref" &&
     arguments_[index - 1] !== "--ref"
   );
-  if (operands[0] === "init") {
-    if (arguments_.includes("--process")) {
-      return failure(
-        "init-custom-process-unsupported",
-        "mdlm init uses the bundled Example Process Package and does not accept '--process'",
-      );
-    }
-    const initArguments = arguments_.filter((argument) => argument !== "--json");
-    if (initArguments.length !== 2 || initArguments[1]?.startsWith("--")) {
-      return failure(
-        "init-destination-required",
-        "Expected 'mdlm init <destination>'",
-      );
-    }
-    const initialized = await initializeBundledRepository(
-      path.resolve(repositoryRoot, initArguments[1]!),
-    );
-    return { ...initialized, command: "init" };
-  }
-  if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+}
+
+async function dispatchLegacyLifecycleMutation(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandResult | undefined> {
+  const operands = commandOperands(arguments_);
   if (operands[0] === "new" && operands[1]) {
     return newDatum(repositoryRoot, operands[1], arguments_);
   }
@@ -2652,17 +2688,6 @@ async function dispatchCommand(
     return freezeBaseline(repositoryRoot, operands[2]);
   }
   if (
-    operands[0] === "baseline" && operands[1] === "verify" && operands[2]
-  ) {
-    return verifyBaseline(repositoryRoot, operands[2]);
-  }
-  if (
-    operands[0] === "baseline" && operands[1] === "diff" &&
-    operands[2] && operands[3]
-  ) {
-    return diffBaselines(repositoryRoot, operands[2], operands[3]);
-  }
-  if (
     (operands[0] === "link" || operands[0] === "unlink") &&
     operands[1] && operands[2]
   ) {
@@ -2673,6 +2698,46 @@ async function dispatchCommand(
       operands[2],
       arguments_,
     );
+  }
+  return undefined;
+}
+
+async function dispatchCommand(
+  arguments_: string[],
+  repositoryRoot: string,
+  standardInput?: string,
+): Promise<CommandResult> {
+  const operands = commandOperands(arguments_);
+  if (operands[0] === "init") {
+    if (arguments_.includes("--process")) {
+      return failure(
+        "init-custom-process-unsupported",
+        "mdlm init uses the bundled Example Process Package and does not accept '--process'",
+      );
+    }
+    const initArguments = arguments_.filter((argument) => argument !== "--json");
+    if (initArguments.length !== 2 || initArguments[1]?.startsWith("--")) {
+      return failure(
+        "init-destination-required",
+        "Expected 'mdlm init <destination>'",
+      );
+    }
+    const initialized = await initializeBundledRepository(
+      path.resolve(repositoryRoot, initArguments[1]!),
+    );
+    return { ...initialized, command: "init" };
+  }
+  if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+  if (
+    operands[0] === "baseline" && operands[1] === "verify" && operands[2]
+  ) {
+    return verifyBaseline(repositoryRoot, operands[2]);
+  }
+  if (
+    operands[0] === "baseline" && operands[1] === "diff" &&
+    operands[2] && operands[3]
+  ) {
+    return diffBaselines(repositoryRoot, operands[2], operands[3]);
   }
   if (operands[0] === "backlinks" && operands[1]) {
     return showStoredBacklinks(repositoryRoot, operands[1]);
@@ -2742,19 +2807,19 @@ async function dispatchCommand(
           command: "scenario.prepare",
         };
   }
-  if (
-    operands[0] === "scenario" && operands[1] === "execute" && operands[2]
-  ) {
-    return executeScenario(
-      repositoryRoot,
-      operands[2],
-      optionValue(arguments_, "--obligation"),
-      arguments_.includes("--initiate"),
-      optionValue(arguments_, "--adapter"),
-      optionValues(arguments_, "--input"),
-      optionValues(arguments_, "--authorize"),
-      optionValues(arguments_, "--delegation"),
-    );
+  if (operands[0] === "scenario" && operands[1] === "submit") {
+    const submitArguments = arguments_.filter((argument) => argument !== "--json");
+    return submitArguments.length <= 3 &&
+        (submitArguments.length < 3 || submitArguments[2] === "-" ||
+          !submitArguments[2]?.startsWith("--"))
+      ? submitExactAssignment(repositoryRoot, submitArguments[2], standardInput)
+      : {
+          ...failure(
+            "scenario-submit-arguments-invalid",
+            "Expected 'mdlm scenario submit [response-file|-]'",
+          ),
+          command: "scenario.submit",
+        };
   }
   if (
     operands[0] === "scenario" && operands[1] === "execution" &&
@@ -2775,10 +2840,9 @@ async function dispatchCommand(
     );
   }
   if (operands[0] !== "process") {
-    const aliasResult = await executePackageAlias(repositoryRoot, arguments_);
-    return aliasResult ?? failure(
+    return failure(
       "unknown-command",
-      "Expected a process, definition evaluation, or selected Package Command Alias",
+      "Expected an MDLM operator or inspection command",
     );
   }
   if (operands[1] === "init" && operands[2]) {
@@ -2861,7 +2925,8 @@ async function executeCommand(
     exitCode: result.ok ? 0 : 1,
     output: `${arguments_.includes("--json") || result.contract ||
         arguments_[0] === "next" ||
-        (arguments_[0] === "scenario" && arguments_[1] === "prepare")
+        (arguments_[0] === "scenario" &&
+          (arguments_[1] === "prepare" || arguments_[1] === "submit"))
       ? JSON.stringify(result, null, 2)
       : renderCommandResult(result)}\n`,
   };
@@ -2871,26 +2936,61 @@ async function executeCommand(
 export function executeCommandApplication(
   arguments_: string[],
   repositoryRoot: string,
+  standardInput?: string,
 ): Promise<CommandApplicationExecution> {
   return executeCommand(
     arguments_,
-    () => dispatchCommand(arguments_, repositoryRoot),
+    () => dispatchCommand(arguments_, repositoryRoot, standardInput),
   );
 }
 
-/** Keep the temporary req initialization bridge separate from mdlm dispatch. */
+async function dispatchLegacyReqCommand(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandResult> {
+  if (
+    arguments_.find((argument) => argument !== "--json") === "init" &&
+    arguments_.includes("--process")
+  ) {
+    return initializeRepository(
+      repositoryRoot,
+      optionValue(arguments_, "--process"),
+    );
+  }
+  const operands = commandOperands(arguments_);
+  const lifecycleMutation = await dispatchLegacyLifecycleMutation(
+    arguments_,
+    repositoryRoot,
+  );
+  if (lifecycleMutation) return lifecycleMutation;
+  if (
+    operands[0] === "scenario" && operands[1] === "execute" && operands[2]
+  ) {
+    return executeScenario(
+      repositoryRoot,
+      operands[2],
+      optionValue(arguments_, "--obligation"),
+      arguments_.includes("--initiate"),
+      optionValue(arguments_, "--adapter"),
+      optionValues(arguments_, "--input"),
+      optionValues(arguments_, "--authorize"),
+      optionValues(arguments_, "--delegation"),
+    );
+  }
+  if (operands[0] !== "process") {
+    const aliasResult = await executePackageAlias(repositoryRoot, arguments_);
+    if (aliasResult) return aliasResult;
+  }
+  return dispatchCommand(arguments_, repositoryRoot);
+}
+
+/** Keep temporary prototype behavior outside the mdlm product surface. */
 export function executeLegacyReqApplication(
   arguments_: string[],
   repositoryRoot: string,
 ): Promise<CommandApplicationExecution> {
   return executeCommand(
     arguments_,
-    () => arguments_.find((argument) => argument !== "--json") === "init" &&
-      arguments_.includes("--process")
-      ? initializeRepository(
-        repositoryRoot,
-        optionValue(arguments_, "--process"),
-      )
-      : dispatchCommand(arguments_, repositoryRoot),
+    () => dispatchLegacyReqCommand(arguments_, repositoryRoot),
   );
 }

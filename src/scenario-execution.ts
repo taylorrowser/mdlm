@@ -36,7 +36,8 @@ export interface PackageExecutionIdentity {
   language: string;
 }
 
-interface AdapterOutputProposal {
+export interface ScenarioOutputProposal {
+  localId?: string;
   name: string;
   invocation: number;
   lifecycleDatum: {
@@ -48,8 +49,8 @@ interface AdapterOutputProposal {
   };
 }
 
-interface AdapterResponse {
-  outputs: AdapterOutputProposal[];
+export interface ScenarioProposal {
+  outputs: ScenarioOutputProposal[];
   completionEvidence: unknown;
 }
 
@@ -76,19 +77,27 @@ export interface ScenarioExecutionAuthority {
     authority: string;
     delegationAllowed: boolean;
     evidence: { output: string; type: string };
+    authorization?:
+      | { kind: "authority-supply"; authority: string }
+      | { kind: "standing-delegation"; revision: string };
   }[];
 }
 
 export interface ScenarioExecution {
-  contract: "mdlm-scenario-execution@1" | "mdlm-scenario-execution@2" | "mdlm-scenario-execution@3";
+  contract: "mdlm-scenario-execution@1" | "mdlm-scenario-execution@2" | "mdlm-scenario-execution@3" | "mdlm-scenario-execution@4";
   id: string;
   status: "completed";
-  adapter: {
+  adapter?: {
     contract: "mdlm-agent-adapter@1" | "mdlm-agent-adapter@2" | "mdlm-agent-adapter@3";
     executable: string;
     digest: string;
     requestDigest: string;
     responseDigest: string;
+  };
+  response?: {
+    contract: "mdlm-assignment-response@1";
+    assignment: string;
+    digest: string;
   };
   package: PackageExecutionIdentity;
   definition: ScenarioDryRun["definition"];
@@ -221,7 +230,7 @@ async function invokeAdapter(
 }
 
 function parseAdapterResponse(value: unknown):
-  | { ok: true; value: AdapterResponse }
+  | { ok: true; value: ScenarioProposal }
   | { ok: false; diagnostics: ProcessDiagnostic[] } {
   const response = object(value);
   if (!response || !Array.isArray(response.outputs) ||
@@ -235,7 +244,7 @@ function parseAdapterResponse(value: unknown):
       }],
     };
   }
-  const outputs: AdapterOutputProposal[] = [];
+  const outputs: ScenarioOutputProposal[] = [];
   const diagnostics: ProcessDiagnostic[] = [];
   const responseKeys = Object.keys(response).filter((key) =>
     key !== "outputs" && key !== "completionEvidence"
@@ -303,7 +312,7 @@ function parseAdapterResponse(value: unknown):
 function outputContractDiagnostics(
   scenario: VersionedDefinition,
   invocations: ScenarioDryRunInvocation[],
-  outputs: AdapterOutputProposal[],
+  outputs: ScenarioOutputProposal[],
 ): ProcessDiagnostic[] {
   const contracts = array(scenario.outputs)
     .map(object)
@@ -314,15 +323,15 @@ function outputContractDiagnostics(
     if (!declared.has(output.name)) {
       diagnostics.push({
         code: "scenario-output-undeclared",
-        path: `adapter.outputs[${index}].name`,
-        message: `Adapter returned undeclared Scenario output '${output.name}'`,
+        path: `proposal.outputs[${index}].name`,
+        message: `Scenario Proposal contains undeclared output '${output.name}'`,
       });
     }
     if (output.invocation >= invocations.length) {
       diagnostics.push({
         code: "scenario-output-invocation-invalid",
-        path: `adapter.outputs[${index}].invocation`,
-        message: `Adapter output '${output.name}' names unknown invocation ${output.invocation}`,
+        path: `proposal.outputs[${index}].invocation`,
+        message: `Scenario Proposal output '${output.name}' names unknown invocation ${output.invocation}`,
       });
     }
   });
@@ -359,7 +368,7 @@ function requiredLinkDiagnostics(
   processPackage: ProcessPackage,
   scenario: VersionedDefinition,
   dryRun: ScenarioDryRun,
-  outputs: { proposal: AdapterOutputProposal; datum: DatumEnvelope }[],
+  outputs: { proposal: ScenarioOutputProposal; datum: DatumEnvelope }[],
 ): ProcessDiagnostic[] {
   const contracts = new Map(array(scenario.outputs).flatMap((value) => {
     const contract = object(value);
@@ -431,7 +440,7 @@ function expressionBindings(
   dryRun: ScenarioDryRun,
   invocation: ScenarioDryRunInvocation,
   invocationIndex: number,
-  outputs: { proposal: AdapterOutputProposal; datum: DatumEnvelope }[],
+  outputs: { proposal: ScenarioOutputProposal; datum: DatumEnvelope }[],
 ): Record<string, unknown> {
   const bindings: Record<string, unknown> = {};
   for (const input of invocation.inputs) {
@@ -605,9 +614,15 @@ async function executeScenario(
   scenarioReference: string,
   authorizationRequest: ScenarioExecutionAuthorizationRequest,
   requestedInputs: { name: string; value: string }[],
-  adapterExecutable: string,
+  adapterExecutable: string | undefined,
   suppliedAuthorities: string[],
   suppliedDelegations: string[],
+  submittedResponse?: {
+    assignment: string;
+    digest: string;
+    proposal: ScenarioProposal;
+    loadedSkillRefs: string[];
+  },
 ): Promise<ScenarioExecutionResult> {
   const dryRunResult = await prepareRepositoryScenario(
     repositoryRoot,
@@ -652,8 +667,18 @@ async function executeScenario(
   const supplied = [...new Set(suppliedAuthorities)].sort();
   const delegations = [...new Set(suppliedDelegations)].sort();
   const usedDelegations = new Set<string>();
+  const requirementAuthorizations = new Map<
+    number,
+    ScenarioExecutionAuthority["requirements"][number]["authorization"]
+  >();
   const unsatisfiedRequirements = authorityRequirements.filter((requirement) => {
-    if (supplied.includes(requirement.authority)) return false;
+    if (supplied.includes(requirement.authority)) {
+      requirementAuthorizations.set(requirement.invocation, {
+        kind: "authority-supply",
+        authority: requirement.authority,
+      });
+      return false;
+    }
     if (
       !requirement.delegationAllowed ||
       !standingDelegation ||
@@ -667,6 +692,10 @@ async function executeScenario(
     );
     if (!matched) return true;
     usedDelegations.add(matched);
+    requirementAuthorizations.set(requirement.invocation, {
+      kind: "standing-delegation",
+      revision: matched,
+    });
     return false;
   });
   if (unsatisfiedRequirements.length > 0) {
@@ -709,7 +738,16 @@ async function executeScenario(
       ? {
           supplied,
           delegations: [...usedDelegations].sort(),
-          requirements: authorityRequirements,
+          requirements: authorityRequirements.map((requirement) => ({
+            ...requirement,
+            ...(submittedResponse
+              ? {
+                  authorization: requirementAuthorizations.get(
+                    requirement.invocation,
+                  )!,
+                }
+              : {}),
+          })),
         }
       : undefined;
   const participationPolicyReferences = [...new Set(
@@ -721,7 +759,9 @@ async function executeScenario(
       reference,
     }),
   );
-  const participationContract = executionAuthority
+  const executionContracts = submittedResponse
+    ? { execution: "mdlm-scenario-execution@4" as const }
+    : executionAuthority
     ? {
         adapter: "mdlm-agent-adapter@3" as const,
         execution: "mdlm-scenario-execution@3" as const,
@@ -735,8 +775,29 @@ async function executeScenario(
           adapter: "mdlm-agent-adapter@1" as const,
           execution: "mdlm-scenario-execution@1" as const,
         };
+  const declaredSkillRefs = dryRun.prompt.skills.map((skill) => skill.reference);
+  const loadedSkillRefs = submittedResponse
+    ? submittedResponse.loadedSkillRefs
+    : declaredSkillRefs;
+  const exactSkillProvenance = loadedSkillRefs.length === declaredSkillRefs.length &&
+    loadedSkillRefs.every((reference, index) => reference === declaredSkillRefs[index]);
+  if (!exactSkillProvenance) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-skill-provenance-mismatch",
+        path: `${scenarioReference}#skills`,
+        message: "Scenario Proposal must report every exact Assignment skill in packet order",
+      }],
+    };
+  }
+  const loadedSkills = loadedSkillRefs.map((reference) =>
+    dryRun.prompt.skills.find((skill) => skill.reference === reference)!
+  );
   const adapterRequest = {
-    contract: participationContract.adapter,
+    ...("adapter" in executionContracts
+      ? { contract: executionContracts.adapter }
+      : {}),
     scenario: scenarioReference,
     authorization: dryRun.authorization,
     ...(dryRun.obligation
@@ -751,30 +812,47 @@ async function executeScenario(
     expectedOutputs: dryRun.expectedOutputs,
     completion: dryRun.completion,
   };
-  let adapterDigest: string;
-  try {
-    adapterDigest = sha256(
-      await fs.readFile(path.resolve(repositoryRoot, adapterExecutable)),
+  let adapterDigest: string | undefined;
+  let adapterRequestSource: string | undefined;
+  let adapterResponseSource: string | undefined;
+  let parsedResponse: ReturnType<typeof parseAdapterResponse>;
+  if (submittedResponse) {
+    parsedResponse = { ok: true, value: submittedResponse.proposal };
+  } else {
+    if (!adapterExecutable) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-adapter-unavailable",
+          message: "Scenario adapter execution requires an executable",
+        }],
+      };
+    }
+    try {
+      adapterDigest = sha256(
+        await fs.readFile(path.resolve(repositoryRoot, adapterExecutable)),
+      );
+    } catch (error) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "scenario-adapter-unavailable",
+          path: adapterExecutable,
+          message: `Could not read configured agent adapter: ${error instanceof Error ? error.message : String(error)}`,
+        }],
+      };
+    }
+    adapterRequestSource = `${JSON.stringify(adapterRequest)}\n`;
+    const invoked = await invokeAdapter(
+      repositoryRoot,
+      adapterExecutable,
+      adapterRequestSource,
     );
-  } catch (error) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "scenario-adapter-unavailable",
-        path: adapterExecutable,
-        message: `Could not read configured agent adapter: ${error instanceof Error ? error.message : String(error)}`,
-      }],
-    };
+    if (invoked.diagnostic) return { ok: false, diagnostics: [invoked.diagnostic] };
+    adapterResponseSource = invoked.responseSource;
+    parsedResponse = parseAdapterResponse(invoked.response);
+    if (!parsedResponse.ok) return parsedResponse;
   }
-  const adapterRequestSource = `${JSON.stringify(adapterRequest)}\n`;
-  const invoked = await invokeAdapter(
-    repositoryRoot,
-    adapterExecutable,
-    adapterRequestSource,
-  );
-  if (invoked.diagnostic) return { ok: false, diagnostics: [invoked.diagnostic] };
-  const parsedResponse = parseAdapterResponse(invoked.response);
-  if (!parsedResponse.ok) return parsedResponse;
   if (executionAuthority && authorityEvidence) {
     const requiredInvocations = [...new Set(
       executionAuthority.requirements.map((requirement) => requirement.invocation),
@@ -814,11 +892,26 @@ async function executeScenario(
     existingById.set(record.datum.id, lineage);
   }
   const usedIds = new Set(existingById.keys());
+  const kernelIdentityDiagnostics = submittedResponse
+    ? parsedResponse.value.outputs.flatMap(
+        (output, index) => output.lifecycleDatum.id &&
+            !existingById.has(output.lifecycleDatum.id)
+          ? [{
+              code: "scenario-output-identity-kernel-managed",
+              path: `proposal.outputs[${index}].lifecycleDatum.id`,
+              message: `New Scenario output '${output.name}' must leave Stable Datum identity for the kernel to assign`,
+            }]
+          : [],
+      )
+    : [];
+  if (kernelIdentityDiagnostics.length > 0) {
+    return { ok: false, diagnostics: kernelIdentityDiagnostics };
+  }
   const policies = [...new Set([
     ...dryRun.policies.map((policy) => policy.reference),
     ...participationPolicyReferences,
   ])].sort();
-  const outputData = parsedResponse.value.outputs.map((proposal) => {
+  const outputIdentities = parsedResponse.value.outputs.map((proposal) => {
     const requestedId = proposal.lifecycleDatum.id;
     let id = requestedId;
     if (!id) {
@@ -829,24 +922,92 @@ async function executeScenario(
     const revision = lineage.length === 0
       ? 1
       : Math.max(...lineage.map((record) => record.datum.revision)) + 1;
-    const datum: DatumEnvelope = {
+    return {
       id,
       revision,
-      revision_id: `${id}-r${String(revision).padStart(5, "0")}`,
+      revisionId: `${id}-r${String(revision).padStart(5, "0")}`,
+    };
+  });
+  const localIdentities = new Map<string, typeof outputIdentities[number]>();
+  const localIdentityDiagnostics: ProcessDiagnostic[] = [];
+  if (submittedResponse) {
+    parsedResponse.value.outputs.forEach((proposal, index) => {
+      if (!proposal.localId) return;
+      if (localIdentities.has(proposal.localId)) {
+        localIdentityDiagnostics.push({
+          code: "scenario-output-local-id-duplicate",
+          path: `proposal.outputs[${index}].localId`,
+          message: `Scenario Proposal output local identity '${proposal.localId}' is duplicated`,
+        });
+        return;
+      }
+      localIdentities.set(proposal.localId, outputIdentities[index]!);
+    });
+  }
+  if (localIdentityDiagnostics.length > 0) {
+    return { ok: false, diagnostics: localIdentityDiagnostics };
+  }
+  const proposalReferenceDiagnostics: ProcessDiagnostic[] = [];
+  function resolveProposalReferences(value: unknown, pathValue: string): unknown {
+    if (typeof value === "string") {
+      const match = /^\$proposal\.([A-Za-z][A-Za-z0-9_-]*)\.(id|revision_id)$/.exec(value);
+      if (!match) return value;
+      const identity = localIdentities.get(match[1]!);
+      if (!identity) {
+        proposalReferenceDiagnostics.push({
+          code: "scenario-output-local-reference-unknown",
+          path: pathValue,
+          message: `Scenario Proposal references unknown local output '${match[1]}'`,
+        });
+        return value;
+      }
+      return match[2] === "id" ? identity.id : identity.revisionId;
+    }
+    if (Array.isArray(value)) {
+      return value.map((item, index) =>
+        resolveProposalReferences(item, `${pathValue}[${index}]`)
+      );
+    }
+    const record = object(value);
+    return record
+      ? Object.fromEntries(Object.entries(record).map(([key, item]) => [
+          key,
+          resolveProposalReferences(item, `${pathValue}.${key}`),
+        ]))
+      : value;
+  }
+  const outputData = parsedResponse.value.outputs.map((proposal, index) => {
+    const identity = outputIdentities[index]!;
+    const datum: DatumEnvelope = {
+      id: identity.id,
+      revision: identity.revision,
+      revision_id: identity.revisionId,
       type: proposal.lifecycleDatum.type,
-      payload: proposal.lifecycleDatum.payload,
-      links: proposal.lifecycleDatum.links,
+      payload: resolveProposalReferences(
+        proposal.lifecycleDatum.payload,
+        `proposal.outputs[${index}].lifecycleDatum.payload`,
+      ) as Record<string, unknown>,
+      links: proposal.lifecycleDatum.links.map((link, linkIndex) => ({
+        ...link,
+        target: resolveProposalReferences(
+          link.target,
+          `proposal.outputs[${index}].lifecycleDatum.links[${linkIndex}].target`,
+        ) as string,
+      })),
       created_by: {
         scenario: scenarioReference,
         prompt_ref: dryRun.prompt.reference,
         process_ref: `${packageIdentity.reference}#${packageIdentity.digest}`,
-        loaded_skill_refs: dryRun.prompt.skills.map((skill) => skill.reference),
+        loaded_skill_refs: loadedSkillRefs,
         policy_refs: policies,
       },
       body: proposal.lifecycleDatum.body,
     };
     return { proposal, datum };
   });
+  if (proposalReferenceDiagnostics.length > 0) {
+    return { ok: false, diagnostics: proposalReferenceDiagnostics };
+  }
   const linkDiagnostics = requiredLinkDiagnostics(
     processPackage,
     scenario,
@@ -934,25 +1095,35 @@ async function executeScenario(
   const discoveredObligations = resultingObligations
     .filter((id) => !beforeObligations.has(id));
   const executionId = randomUUID();
-  const { skills, ...prompt } = dryRun.prompt;
+  const { skills: _availableSkills, ...prompt } = dryRun.prompt;
   const executionBase = {
-    contract: participationContract.execution,
+    contract: executionContracts.execution,
     id: executionId,
     status: "completed" as const,
-    adapter: {
-      contract: participationContract.adapter,
-      executable: adapterExecutable,
-      digest: adapterDigest,
-      requestDigest: sha256(adapterRequestSource),
-      responseDigest: sha256(invoked.responseSource ?? ""),
-    },
+    ...(submittedResponse
+      ? {
+          response: {
+            contract: "mdlm-assignment-response@1" as const,
+            assignment: submittedResponse.assignment,
+            digest: submittedResponse.digest,
+          },
+        }
+      : {
+          adapter: {
+            contract: executionContracts.adapter!,
+            executable: adapterExecutable!,
+            digest: adapterDigest!,
+            requestDigest: sha256(adapterRequestSource!),
+            responseDigest: sha256(adapterResponseSource ?? ""),
+          },
+        }),
     package: packageIdentity,
     definition: dryRun.definition,
     authorization: dryRun.authorization,
     ...(dryRun.obligation ? { obligation: dryRun.obligation } : {}),
     inputs: dryRun.invocations,
     prompt,
-    skills,
+    skills: loadedSkills,
     policies: [...dryRun.policies, ...participationPolicies],
     ...(dryRun.participation ? { participation: dryRun.participation } : {}),
     ...(executionAuthority ? { authority: executionAuthority } : {}),
@@ -1023,6 +1194,45 @@ export async function executeResolverScenario(
     adapterExecutable,
     suppliedAuthorities,
     suppliedDelegations,
+  );
+}
+
+export interface ResolverScenarioSubmission {
+  scenarioReference: string;
+  obligationInstance: string;
+  proposal: ScenarioProposal;
+  assignment: string;
+  responseDigest: string;
+  suppliedAuthorities: string[];
+  suppliedDelegations: string[];
+  loadedSkillRefs: string[];
+}
+
+export async function submitResolverScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  submission: ResolverScenarioSubmission,
+): Promise<ScenarioExecutionResult> {
+  return executeScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    submission.scenarioReference,
+    {
+      mode: "dispatchable-obligation",
+      obligationInstance: submission.obligationInstance,
+    },
+    [],
+    undefined,
+    submission.suppliedAuthorities,
+    submission.suppliedDelegations,
+    {
+      assignment: submission.assignment,
+      digest: submission.responseDigest,
+      proposal: submission.proposal,
+      loadedSkillRefs: submission.loadedSkillRefs,
+    },
   );
 }
 

@@ -625,18 +625,28 @@ function scenarioExecutionStructureValid(
     ["mdlm-scenario-execution@2", "mdlm-agent-adapter@2"],
     ["mdlm-scenario-execution@3", "mdlm-agent-adapter@3"],
   ];
-  const commonValid = contracts.some(([executionContract, adapterContract]) =>
+  const response = recordValue(execution.response);
+  const adapterSourceValid = contracts.some(([executionContract, adapterContract]) =>
     execution.contract === executionContract && adapter?.contract === adapterContract
-  ) && inputs.length > 0 && completion?.contractValid === true &&
+  ) && response === undefined && typeof adapter?.executable === "string" &&
+    digest.test(String(adapter.digest)) &&
+    digest.test(String(adapter.requestDigest)) &&
+    digest.test(String(adapter.responseDigest));
+  const assignmentSourceValid =
+    execution.contract === "mdlm-scenario-execution@4" &&
+    adapter === undefined &&
+    response?.contract === "mdlm-assignment-response@1" &&
+    typeof response.assignment === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      .test(response.assignment) &&
+    digest.test(String(response.digest));
+  const commonValid = (adapterSourceValid || assignmentSourceValid) &&
+    inputs.length > 0 && completion?.contractValid === true &&
     completion.expressionPassed === true && typeof completion.expression === "string" &&
     evaluations.length === inputs.length && evaluations.every(
       (evaluation, invocation) =>
         evaluation?.invocation === invocation && evaluation.result === true,
-    ) && typeof adapter?.executable === "string" &&
-    digest.test(String(adapter.digest)) &&
-    digest.test(String(adapter.requestDigest)) &&
-    digest.test(String(adapter.responseDigest)) &&
-    packageIdentity?.reference ===
+    ) && packageIdentity?.reference ===
       `${processPackage.manifest.id}@${processPackage.manifest.version}`;
   if (!commonValid || !authorityEvidence) return commonValid;
 
@@ -665,21 +675,50 @@ function scenarioExecutionStructureValid(
   const requirements = Array.isArray(authority?.requirements)
     ? authority.requirements.map(recordValue)
     : [];
+  const supplied = Array.isArray(authority?.supplied)
+    ? authority.supplied.filter((value): value is string => typeof value === "string")
+    : [];
+  const delegations = Array.isArray(authority?.delegations)
+    ? authority.delegations.filter((value): value is string => typeof value === "string")
+    : [];
+  const authoritySourcesValid = authority !== undefined &&
+    Array.isArray(authority.supplied) &&
+    supplied.length === authority.supplied.length &&
+    new Set(supplied).size === supplied.length &&
+    Array.isArray(authority.delegations) &&
+    delegations.length === authority.delegations.length &&
+    new Set(delegations).size === delegations.length &&
+    supplied.every((value) =>
+      nonAutonomous.some(({ requirement }) => requirement?.authority === value)
+    ) && delegations.every((value) =>
+      /^[A-Z]{3,8}-[0-9A-Z]{10,12}-r[0-9]{5}$/.test(value)
+    );
   return nonAutonomous.length === 0
-    ? execution.contract === "mdlm-scenario-execution@2" &&
-      adapter?.contract === "mdlm-agent-adapter@2" && authority === undefined
-    : execution.contract === "mdlm-scenario-execution@3" &&
-      adapter?.contract === "mdlm-agent-adapter@3" &&
-      requirements.length === nonAutonomous.length &&
+    ? (execution.contract === "mdlm-scenario-execution@2" &&
+        adapter?.contract === "mdlm-agent-adapter@2" ||
+        execution.contract === "mdlm-scenario-execution@4") &&
+      authority === undefined
+    : (execution.contract === "mdlm-scenario-execution@3" &&
+        adapter?.contract === "mdlm-agent-adapter@3" ||
+        execution.contract === "mdlm-scenario-execution@4") &&
+      authoritySourcesValid && requirements.length === nonAutonomous.length &&
       nonAutonomous.every(({ invocation, requirement }) =>
         requirements.some((candidate) => {
           const evidence = recordValue(candidate?.evidence);
+          const authorization = recordValue(candidate?.authorization);
+          const sourceValid = execution.contract !== "mdlm-scenario-execution@4" ||
+            (authorization?.kind === "authority-supply"
+              ? authorization.authority === requirement?.authority &&
+                supplied.includes(String(authorization.authority))
+              : authorization?.kind === "standing-delegation" &&
+                requirement?.delegationAllowed === true &&
+                delegations.includes(String(authorization.revision)));
           return candidate?.invocation === invocation &&
             candidate.mode === requirement?.mode &&
             candidate.authority === requirement?.authority &&
             candidate.delegationAllowed === requirement?.delegationAllowed &&
             evidence?.output === authorityEvidence.output &&
-            evidence?.type === authorityEvidence.type;
+            evidence?.type === authorityEvidence.type && sourceValid;
         })
       );
 }

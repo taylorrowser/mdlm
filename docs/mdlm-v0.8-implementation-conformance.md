@@ -45,7 +45,7 @@ the accepted overview and the reviewed pilot Decision.
 | Dependency changes, States, Obligations, phases, blockers, Dispatchability, and explanations | 13–17, 35–42 | #25–#31 | `test/dependency-changes.test.ts`, `test/evaluate-*.test.ts`, `test/req-lifecycle.test.ts` |
 | Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54, #84 | `test/mdlm-command-application.test.ts`, `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
-| Authorized dry-run, atomic adapter execution, provenance, authority-only Scenario publication, and safe aliases | 43–47, 57–60 | #41–#43, #71 | `test/req-scenario-dry-run.test.ts`, `test/req-scenario-execution.test.ts`, `test/req-consequential-authorization.test.ts`, `test/req-command-alias.test.ts` |
+| Authorized preparation, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact bounded ART registration, separately authorized pilot implementation, and exact-target pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76 | `test/req-product-assurance-pilot.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
@@ -68,8 +68,8 @@ contract migration between installed packages, and kernel finalization of
 capability-bound exact-baseline Scenario outputs before completion evaluation. Their executable evidence is
 `test/req-scenario-dry-run.test.ts`, `test/req-schema.test.ts`,
 `test/req-scenario-initiation.test.ts`, and
-`test/req-prototype-question-routing.test.ts`, `test/req-process.test.ts`, plus the exact-baseline execution
-case in `test/req-scenario-execution.test.ts`. Issues #58–#62 additionally preserve
+`test/req-prototype-question-routing.test.ts`, `test/req-process.test.ts`, plus the exact-baseline publication
+coverage now exercised through `test/mdlm-assignment.test.ts`. Issues #58–#62 additionally preserve
 current-Revision selection, permit exact Phase/Process Obligation subjects, project
 package-owned participation, and require explicit authority plus declared exact
 REV/DEC evidence for non-autonomous execution. Their public evidence includes
