@@ -13,20 +13,22 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
-  bodyBlockedByNumbers,
-  bodyReferencesParent,
   failureBaseState,
-  findFrontier,
-  findReadyItem,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
-  normalizeNativeBlockers,
   panesAreRunning,
+  validationFailureAction,
+} from "./frontier-loop-core.mjs";
+import {
+  bodyBlockedByNumbers,
+  bodyReferencesParent,
+  findFrontier,
+  findReadyItem,
+  normalizeNativeBlockers,
   priorityIssueSnapshot,
   selectOlderReadyBacklog,
   selectSnapshottedIssues,
-  validationFailureAction,
-} from "./frontier-loop-core.mjs";
+} from "./frontier-issue-contract.mjs";
 import { createTicketRunner } from "./frontier-ticket-runner.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));

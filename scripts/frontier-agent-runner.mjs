@@ -4,11 +4,11 @@ import { commandOutput as baseCommandOutput, commandResult as baseCommandResult 
 import {
   complexityReasonsFromStats,
   isTransientAgentFailure,
-  referencedParentNumber,
   reviewerVerdict,
   reviewRequestsSimplification,
   validationPassed,
 } from "./frontier-loop-core.mjs";
+import { referencedParentNumber } from "./frontier-issue-contract.mjs";
 
 function isoNow() {
   return new Date().toISOString();

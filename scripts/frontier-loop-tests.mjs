@@ -3,30 +3,32 @@ import test from "node:test";
 import { commandResult } from "./frontier-command.mjs";
 import { validationCommands } from "./frontier-agent-runner.mjs";
 import {
-  bodyBlockedByNumbers,
-  bodyReferencesParent,
   complexityReasonsFromStats,
   failureBaseState,
-  findFrontier,
-  findReadyItem,
   isRemoteValidationFailure,
   isTransientAgentFailure,
   isTransientInfrastructureFailure,
-  normalizeNativeBlockers,
   panesAreRunning,
   parsePullRequestNumber,
-  priorityIssueSnapshot,
-  referencedParentNumber,
   reviewHasComplexityVerdict,
   reviewerVerdict,
   reviewRequestsSimplification,
-  selectOlderReadyBacklog,
-  selectSnapshottedIssues,
   validatedHeadMatches,
   validationFailureAction,
   validationHasVerdict,
   validationPassed,
 } from "./frontier-loop-core.mjs";
+import {
+  bodyBlockedByNumbers,
+  bodyReferencesParent,
+  findFrontier,
+  findReadyItem,
+  normalizeNativeBlockers,
+  priorityIssueSnapshot,
+  referencedParentNumber,
+  selectOlderReadyBacklog,
+  selectSnapshottedIssues,
+} from "./frontier-issue-contract.mjs";
 
 function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
   return { number, title: `Issue ${number}`, state, assignees, blockedBy };

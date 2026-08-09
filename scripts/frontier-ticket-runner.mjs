@@ -55,6 +55,12 @@ export function createTicketRunner({
     return commandOutput("gh", ["issue", "view", String(number), "--json", "state", "--jq", ".state"]) === "OPEN";
   }
 
+  function deleteRemoteBranch(cwd, branch) {
+    if (!branch) return;
+    const remote = commandOutput("git", ["ls-remote", "--heads", "origin", `refs/heads/${branch}`], { cwd });
+    if (remote) commandOutput("git", ["push", "origin", "--delete", branch], { cwd });
+  }
+
   function removeWorktree(worktree, branch) {
     if (worktree && existsSync(worktree)) commandOutput("git", ["worktree", "remove", "--force", worktree]);
     if (branch && commandResult("git", ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]).status === 0) {
@@ -212,7 +218,7 @@ export function createTicketRunner({
       commandOutput("gh", ["pr", "merge", String(prNumber), "--merge", "--match-head-commit", validatedHead], { cwd: worktree });
     }
     waitForMergedPullRequest(prNumber, worktree, logPath);
-    commandResult("git", ["push", "origin", "--delete", branch], { cwd: worktree });
+    deleteRemoteBranch(worktree, branch);
     for (let attempt = 0; attempt < 15 && issueOpen(issue.number); attempt += 1) sleep(2_000);
     if (issueOpen(issue.number)) {
       commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`]);
@@ -280,6 +286,7 @@ export function createTicketRunner({
       const dirty = commandOutput("git", ["status", "--porcelain"], { cwd: state.worktree });
       if (dirty) fail(`Closed issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
     }
+    deleteRemoteBranch(cwd, state.branch);
     removeWorktree(state.worktree, state.branch);
     log(`Reconciled confirmed merged issue #${state.currentIssue} after interrupted cleanup`);
     return writeState(paths, state, betweenTicketsPatch());
