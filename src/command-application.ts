@@ -2998,10 +2998,30 @@ async function executeCommand(
   try {
     result = await dispatch();
   } catch (error) {
-    result = failure(
+    const failed = failure(
       "mdlm-error",
       error instanceof Error ? error.message : String(error),
     );
+    result = arguments_[0] === "next"
+      ? {
+          ...failed,
+          command: "next",
+          contract: "mdlm-next@1",
+          outcome: "invalid",
+          integrity: { status: "invalid" },
+        }
+      : arguments_[0] === "status"
+      ? {
+          ...failed,
+          command: "status",
+          contract: "mdlm-status@1",
+          integrity: { status: "invalid" },
+          currentOutcome: {
+            outcome: "invalid",
+            diagnostics: failed.diagnostics,
+          },
+        }
+      : failed;
   }
   return {
     exitCode: result.ok ? 0 : 1,

@@ -14,6 +14,7 @@ import type {
 import {
   activeLifecycleEvaluation,
   initialPhaseId,
+  nextWorkProjection,
 } from "./lifecycle-inspection.js";
 import { verifyRepositoryBaselines } from "./exact-baseline-repository.js";
 import { repositoryLifecycleSnapshot } from "./lifecycle-repository.js";
@@ -26,11 +27,13 @@ import { parseObligationInstanceIdentity } from "./obligation-instance.js";
 import { authorityEvidenceContract } from "./participation.js";
 import { resolveType } from "./index.js";
 import {
+  dryRunExplicitScenario,
   dryRunResolverScenario,
   type ScenarioDryRun,
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
 import {
+  submitExplicitScenario,
   submitResolverScenario,
   type PackageExecutionIdentity,
   type ScenarioExecution,
@@ -66,7 +69,12 @@ interface AssignmentLease {
     instance: string;
     definition: string;
     subject: string;
-  };
+  } | null;
+  progression: {
+    instance: string;
+    nextPhase: string;
+    subjects: string[];
+  } | null;
   scenario: string;
   bindings: AssignmentBinding[];
   participation: NonNullable<ScenarioDryRun["participation"]>;
@@ -164,6 +172,7 @@ export interface AssignmentPacket {
   repository: RepositoryFingerprint;
   phase: string;
   obligation: AssignmentLease["obligation"];
+  progression?: NonNullable<AssignmentLease["progression"]>;
   scenario: {
     reference: string;
     definition: { id: string; version: number };
@@ -326,10 +335,23 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
   const packageValue = object(lease?.package);
   const repository = object(lease?.repository);
   const obligation = object(lease?.obligation);
+  const progression = object(lease?.progression);
   const retry = object(lease?.retryAvailability);
   const parsedObligation = typeof obligation?.instance === "string"
     ? parseObligationInstanceIdentity(obligation.instance)
     : undefined;
+  const obligationValid = obligation !== undefined && progression === undefined &&
+    typeof obligation.instance === "string" &&
+    typeof obligation.definition === "string" &&
+    obligation.definition === parsedObligation?.obligationReference &&
+    typeof obligation.subject === "string" &&
+    obligation.subject === parsedObligation?.subject.identity;
+  const progressionValid = obligation === undefined && progression !== undefined &&
+    typeof progression.instance === "string" &&
+    progression.instance.startsWith("phase-progression:") &&
+    typeof progression.nextPhase === "string" && progression.nextPhase.length > 0 &&
+    Array.isArray(progression.subjects) && progression.subjects.length > 0 &&
+    progression.subjects.every((subject) => typeof subject === "string");
   return lease?.contract === "mdlm-assignment-lease@1" &&
       typeof lease.id === "string" &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lease.id) &&
@@ -343,11 +365,7 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
       typeof repository.trackedState === "string" &&
       /^sha256:[0-9a-f]{64}$/.test(repository.trackedState) &&
       typeof lease.phase === "string" && lease.phase.length > 0 &&
-      typeof obligation?.instance === "string" &&
-      typeof obligation.definition === "string" &&
-      obligation.definition === parsedObligation?.obligationReference &&
-      typeof obligation.subject === "string" &&
-      obligation.subject === parsedObligation?.subject.identity &&
+      (obligationValid || progressionValid) &&
       typeof lease.scenario === "string" && lease.scenario.length > 0 &&
       Array.isArray(lease.bindings) &&
       Array.isArray(lease.participation) &&
@@ -440,7 +458,8 @@ function phaseReference(evaluation: LifecycleEvaluation): string {
 
 function operatorWork(evaluation: LifecycleEvaluation): OperatorWorkFacts[] {
   const phase = phaseReference(evaluation);
-  return evaluation.looseEnds.map((item) => ({
+  const obligations = evaluation.looseEnds.map((item) => ({
+    kind: "obligation" as const,
     phase,
     instance: item.id,
     definition: obligationDefinition(item),
@@ -458,6 +477,71 @@ function operatorWork(evaluation: LifecycleEvaluation): OperatorWorkFacts[] {
     blockerChains: item.blockerChains,
     unresolvedBindings: item.unresolvedBindings,
   }));
+  const progression = nextWorkProjection(evaluation)?.item;
+  if (!progression || !("kind" in progression)) return obligations;
+  const subjects = progression.subjects.map(
+    (subject) => subject.identity.revision_id,
+  );
+  return [
+    ...obligations,
+    {
+      kind: "phase-progression",
+      phase,
+      instance: progression.id,
+      definition: "phase-progression",
+      subject: subjects[0] ?? phase,
+      scenario: progression.scenario,
+      dispatchable: progression.dispatchable,
+      authorityRequirements: [{
+        policy: progression.authority.policy,
+        authorityRequirement: progression.authority.authorityRequirement,
+        attentionSchedule: progression.authority.attentionSchedule,
+      }],
+      explanation: progression.explanation,
+      status: progression.status,
+      blockedBy: [],
+      blockerChains: [],
+      unresolvedBindings: progression.dispatchable
+        ? []
+        : ["progression.authorization.subjects"],
+      progression: {
+        nextPhase: progression.nextPhase,
+        subjects,
+      },
+    },
+  ];
+}
+
+function progressionRequestedInputs(
+  scenario: VersionedDefinition,
+  work: OperatorWorkFacts,
+): AssignmentResult<{ name: string; value: string }[]> {
+  const subjects = work.progression?.subjects ?? [];
+  const inputs = Array.isArray(scenario.inputs)
+    ? scenario.inputs.flatMap((value) => {
+        const input = object(value);
+        return typeof input?.name === "string" ? [input] : [];
+      })
+    : [];
+  const input = inputs[0];
+  if (inputs.length !== 1 || !input || subjects.length === 0) {
+    return failure(
+      "phase-progression-inputs-invalid",
+      `Phase progression Scenario '${work.scenario}' must bind its declared authorization subjects to one Scenario input`,
+      work.scenario,
+    );
+  }
+  const cardinality = typeof input.cardinality === "string"
+    ? input.cardinality
+    : "";
+  const values = ["one", "zero-or-one"].includes(cardinality)
+    ? subjects.slice(0, 1)
+    : subjects;
+  return {
+    ok: true,
+    value: [{ name: input.name as string, value: values.join(",") }],
+    diagnostics: [],
+  };
 }
 
 async function exactOperatorState(
@@ -507,26 +591,39 @@ async function exactOperatorState(
   }
 
   const work = classification.work;
-  const item = evaluation.looseEnds.find((candidate) =>
-    candidate.id === work.instance
-  );
+  const item = work.kind === "obligation"
+    ? evaluation.looseEnds.find((candidate) => candidate.id === work.instance)
+    : undefined;
   const scenarioReference = work.scenario;
   const scenario = definition(selected.processPackage.scenarios, scenarioReference);
   const phaseId = unversioned(work.phase);
-  if (!item || !scenario || !phaseId) {
+  if (!scenario || !phaseId || (work.kind === "obligation" && !item)) {
     return failure(
       "scenario-definition-unavailable",
       `Could not resolve exact Scenario '${scenarioReference}' in Phase '${work.phase}'`,
       scenarioReference,
     );
   }
-  const prepared = await dryRunResolverScenario(
-    selected.processPackage,
-    { ...loaded.value, phaseId },
-    scenarioReference,
-    item.id,
-    [],
-  );
+  const snapshot = { ...loaded.value, phaseId };
+  let prepared: Awaited<ReturnType<typeof dryRunResolverScenario>>;
+  if (work.kind === "obligation" && item) {
+    prepared = await dryRunResolverScenario(
+      selected.processPackage,
+      snapshot,
+      scenarioReference,
+      item.id,
+      [],
+    );
+  } else {
+    const requestedInputs = progressionRequestedInputs(scenario, work);
+    if (!requestedInputs.ok) return requestedInputs;
+    prepared = await dryRunExplicitScenario(
+      selected.processPackage,
+      snapshot,
+      scenarioReference,
+      requestedInputs.value,
+    );
+  }
   if (!prepared.ok) return prepared;
   state.assignment = {
     summary: selected.summary,
@@ -537,11 +634,20 @@ async function exactOperatorState(
       package: packageIdentity(selected.summary),
       repository: fingerprint.value,
       phase: work.phase,
-      obligation: {
-        instance: item.id,
-        definition: obligationDefinition(item),
-        subject: item.subject,
-      },
+      obligation: item
+        ? {
+            instance: item.id,
+            definition: obligationDefinition(item),
+            subject: item.subject,
+          }
+        : null,
+      progression: work.progression
+        ? {
+            instance: work.instance,
+            nextPhase: work.progression.nextPhase,
+            subjects: work.progression.subjects,
+          }
+        : null,
       scenario: scenarioReference,
       bindings: bindings(prepared.value.invocations),
       participation: prepared.value.participation ?? [],
@@ -746,6 +852,23 @@ function statusOutcome(
     : { outcome: "assignment", assignment };
 }
 
+function selectedProfile(
+  processPackage: ProcessPackage,
+): AssignmentResult<VersionedDefinition> {
+  const profiles = object(processPackage.manifest.profiles);
+  const reference = typeof profiles?.default === "string"
+    ? profiles.default
+    : "";
+  const profile = definition(processPackage.profiles, reference);
+  return profile
+    ? { ok: true, value: profile, diagnostics: [] }
+    : failure(
+        "profile-selection-invalid",
+        `The Process Package default implementation profile '${reference || "(missing)"}' does not resolve exactly`,
+        "manifest.profiles.default",
+      );
+}
+
 /** Inspect current operator truth without allocating or replacing an Assignment. */
 export async function inspectOperatorStatus(
   repositoryRoot: string,
@@ -757,15 +880,9 @@ export async function inspectOperatorStatus(
   ]);
   if (!state.ok) return state;
   if (!persisted.ok) return persisted;
-  const profiles = Object.values(state.value.processPackage.profiles);
-  if (profiles.length !== 1 || !profiles[0]) {
-    return failure(
-      "profile-selection-invalid",
-      `Operator status requires one selected implementation profile; found ${profiles.length}`,
-      "profiles",
-    );
-  }
-  const profile = profiles[0];
+  const resolvedProfile = selectedProfile(state.value.processPackage);
+  if (!resolvedProfile.ok) return resolvedProfile;
+  const profile = resolvedProfile.value;
   const phase = state.value.evaluation.phase;
   const phaseDefinition = phase
     ? state.value.processPackage.phases[phase.id]
@@ -787,8 +904,9 @@ export async function inspectOperatorStatus(
       (value): value is string => typeof value === "string",
     )
     : [];
+  const unresolvedWork = operatorWork(state.value.evaluation);
   const byStatus: Record<string, number> = {};
-  for (const item of state.value.evaluation.looseEnds) {
+  for (const item of unresolvedWork) {
     byStatus[item.status] = (byStatus[item.status] ?? 0) + 1;
   }
   return {
@@ -822,10 +940,8 @@ export async function inspectOperatorStatus(
       },
       recentTransaction: recent,
       unresolvedWork: {
-        total: state.value.evaluation.looseEnds.length,
-        dispatchable: state.value.evaluation.looseEnds.filter((item) =>
-          item.dispatchable
-        ).length,
+        total: unresolvedWork.length,
+        dispatchable: unresolvedWork.filter((item) => item.dispatchable).length,
         byStatus: Object.fromEntries(
           Object.entries(byStatus).sort(([left], [right]) =>
             left.localeCompare(right)
@@ -1071,6 +1187,9 @@ function packet(
     repository: exact.lease.repository,
     phase: exact.lease.phase,
     obligation: exact.lease.obligation,
+    ...(exact.lease.progression
+      ? { progression: exact.lease.progression }
+      : {}),
     scenario: {
       reference: exact.lease.scenario,
       definition: { id: exact.scenario.id, version: exact.scenario.version },
@@ -1143,24 +1262,42 @@ export async function submitAssignmentResponse(
     );
   }
   const proposal = parsed.value.proposal;
-  const submitted = await submitResolverScenario(
-    repositoryRoot,
-    exact.value.processPackage,
-    exact.value.lease.package,
-    {
-      scenarioReference: exact.value.lease.scenario,
-      obligationInstance: exact.value.lease.obligation.instance,
-      proposal: {
-        outputs: proposal.outputs,
-        completionEvidence: proposal.completionEvidence,
-      },
-      assignment: lease.id,
-      responseDigest: sha256(responseSource),
-      suppliedAuthorities: proposal.authoritySupplies,
-      suppliedDelegations: proposal.standingDelegations,
-      loadedSkillRefs: proposal.loadedSkillRefs,
+  const submission = {
+    scenarioReference: exact.value.lease.scenario,
+    proposal: {
+      outputs: proposal.outputs,
+      completionEvidence: proposal.completionEvidence,
     },
-  );
+    assignment: lease.id,
+    responseDigest: sha256(responseSource),
+    suppliedAuthorities: proposal.authoritySupplies,
+    suppliedDelegations: proposal.standingDelegations,
+    loadedSkillRefs: proposal.loadedSkillRefs,
+  };
+  const submitted = exact.value.lease.obligation
+    ? await submitResolverScenario(
+        repositoryRoot,
+        exact.value.processPackage,
+        exact.value.lease.package,
+        {
+          ...submission,
+          obligationInstance: exact.value.lease.obligation.instance,
+        },
+      )
+    : await submitExplicitScenario(
+        repositoryRoot,
+        exact.value.processPackage,
+        exact.value.lease.package,
+        {
+          ...submission,
+          requestedInputs: exact.value.lease.bindings.flatMap((invocation) =>
+            invocation.inputs.map((input) => ({
+              name: input.name,
+              value: input.values.join(","),
+            }))
+          ),
+        },
+      );
   if (!submitted.ok) return submitted;
   await fs.rm(leasePath(repositoryRoot), { force: true });
   return {

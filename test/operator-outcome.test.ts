@@ -34,8 +34,25 @@ function mdlmWithInput(
   });
 }
 
+async function recordInstalledPackageChange(
+  repository: string,
+  packageRoot: string,
+): Promise<void> {
+  const digest = await processPackageDigest(packageRoot);
+  for (const relativePath of [
+    ".lifecycle/process-selection.json",
+    ".lifecycle/repository.json",
+  ]) {
+    const contractPath = path.join(repository, relativePath);
+    const contract = JSON.parse(await fs.readFile(contractPath, "utf8"));
+    contract.package.digest = digest;
+    await fs.writeFile(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+  }
+}
+
 function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {
   return {
+    kind: "obligation",
     phase: "discovery@7",
     instance: "clarify-scope@3:subject-1:package@1#digest",
     definition: "clarify-scope@3",
@@ -417,6 +434,184 @@ describe("public mdlm outcome and status seam", () => {
     }));
   });
 
+  it("resolves the package-declared default from multiple valid profiles", async () => {
+    const packageRoot = path.join(
+      repository,
+      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+    );
+    const bootstrapProfilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
+    const alternateProfilePath = path.join(packageRoot, "profiles/alternate.yaml");
+    const alternateProfile = (await fs.readFile(bootstrapProfilePath, "utf8"))
+      .replace("id: bootstrap", "id: alternate");
+    await fs.writeFile(alternateProfilePath, alternateProfile);
+    const manifestPath = path.join(packageRoot, "manifest.yaml");
+    const manifest = parse(await fs.readFile(manifestPath, "utf8"));
+    manifest.profiles = {
+      default: "alternate@23",
+      available: [
+        "profiles/bootstrap.yaml@23",
+        "profiles/alternate.yaml@23",
+      ],
+    };
+    await fs.writeFile(manifestPath, stringify(manifest));
+    await recordInstalledPackageChange(repository, packageRoot);
+
+    const status = mdlm(repository, "status", "--json");
+
+    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+    expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
+      reference: "alternate@23",
+    }));
+  });
+
+  it("classifies package-declared Phase progression as immediate attended work", async () => {
+    const packageRoot = path.join(
+      repository,
+      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+    );
+    await fs.writeFile(
+      path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
+      `kind: phase-definition
+id: phase-0-wayfinding
+version: 2
+order: 0
+name: Progression-only profile
+purpose: Prove package-declared progression remains reachable operator work.
+coverage: bootstrap-subset
+omitted_capabilities: [all other lifecycle work]
+entry: 'true'
+scenarios: [establish-initial-wayfinding-map@1, record-consequential-decision@1]
+obligations: [initial-wayfinding-map-required@1]
+outputs: [MAP, DEC]
+progression:
+  next_phase: phase-1-product-assurance
+  readiness: 'exists("current-wayfinding-maps@1", {})'
+  authorization:
+    condition: 'false'
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: 'phase'}
+    scenario: record-consequential-decision@1
+    subjects: 'select("current-wayfinding-maps@1", {})'
+    evidence_selector: applicable-disposition-decisions-for@1
+gate:
+  required: false
+  candidate_selector: 'select("current-wayfinding-maps@1", {})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@2
+  completion: 'true'
+`,
+    );
+    const obligationsRoot = path.join(packageRoot, "obligations");
+    for (const file of await fs.readdir(obligationsRoot)) {
+      if (!file.endsWith(".yaml") || file === "initial-wayfinding-map-required.yaml") {
+        continue;
+      }
+      const obligationPath = path.join(obligationsRoot, file);
+      const obligation = parse(await fs.readFile(obligationPath, "utf8"));
+      const phases = (obligation.phases as string[]).filter(
+        (phase) => phase !== "phase-0-wayfinding",
+      );
+      obligation.phases = phases.length > 0
+        ? phases
+        : ["phase-1-product-assurance"];
+      await fs.writeFile(obligationPath, stringify(obligation));
+    }
+    await recordInstalledPackageChange(repository, packageRoot);
+
+    const first = JSON.parse(mdlm(repository, "next").stdout);
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      first.assignment.id,
+    ).stdout);
+    const submitted = mdlmWithInput(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment: first.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "map",
+            name: "map",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "MAP",
+              payload: {
+                title: "Phase progression fixture",
+                purpose: "Supply one exact progression authorization subject.",
+                frontier: ["Authorize the package-declared next Phase"],
+              },
+              links: [],
+              body: "A progression authorization subject.\n",
+            },
+          }],
+          completionEvidence: { summary: "Progression subject proposed." },
+          loadedSkillRefs: packet.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: [],
+          standingDelegations: [],
+        },
+      })}\n`,
+      "scenario",
+      "submit",
+    );
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    const mapRevision = JSON.parse(submitted.stdout).execution.outputs[0]
+      .lifecycleDatum.revisionId as string;
+    const status = JSON.parse(mdlm(repository, "status", "--json").stdout);
+    expect(status.unresolvedWork).toEqual({
+      total: 1,
+      dispatchable: 1,
+      byStatus: { "awaiting-authority": 1 },
+    });
+    expect(status.currentOutcome).toEqual(expect.objectContaining({
+      outcome: "attention-required",
+      assignment: { allocation: "not-allocated" },
+    }));
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    expect(outcome).toEqual(expect.objectContaining({
+      contract: "mdlm-next@1",
+      outcome: "attention-required",
+      assignment: { id: expect.any(String) },
+      authorityRequirement: {
+        mode: "attended",
+        authority: "stakeholder",
+        delegationAllowed: false,
+      },
+    }));
+    const progressionPacket = mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      outcome.assignment.id,
+    );
+    expect(
+      progressionPacket.status,
+      `${progressionPacket.stderr}${progressionPacket.stdout}`,
+    ).toBe(0);
+    expect(JSON.parse(progressionPacket.stdout)).toEqual(expect.objectContaining({
+      phase: "phase-0-wayfinding@2",
+      scenario: expect.objectContaining({
+        reference: "record-consequential-decision@1",
+      }),
+      exactInputs: [expect.objectContaining({
+        inputs: [expect.objectContaining({
+          name: "subject",
+          values: [expect.objectContaining({
+            identity: expect.objectContaining({ revision_id: mapRevision }),
+          })],
+        })],
+      })],
+    }));
+  });
+
   it("returns Process Dead End successfully with blocker diagnostics", async () => {
     const packageRoot = path.join(
       repository,
@@ -458,16 +653,7 @@ gate:
         : ["phase-1-product-assurance"];
       await fs.writeFile(obligationPath, stringify(obligation));
     }
-    const digest = await processPackageDigest(packageRoot);
-    for (const relativePath of [
-      ".lifecycle/process-selection.json",
-      ".lifecycle/repository.json",
-    ]) {
-      const contractPath = path.join(repository, relativePath);
-      const contract = JSON.parse(await fs.readFile(contractPath, "utf8"));
-      contract.package.digest = digest;
-      await fs.writeFile(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
-    }
+    await recordInstalledPackageChange(repository, packageRoot);
 
     const next = mdlm(repository, "next");
 
@@ -480,6 +666,27 @@ gate:
       explanation: expect.stringContaining("unfinished"),
       blockers: [],
       diagnostics: [],
+    }));
+  });
+
+  it("returns versioned Invalid for malformed repository selection JSON", async () => {
+    await fs.writeFile(
+      path.join(repository, ".lifecycle/process-selection.json"),
+      "{not-json\n",
+    );
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status).toBe(1);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      command: "next",
+      contract: "mdlm-next@1",
+      outcome: "invalid",
+      integrity: { status: "invalid" },
+      diagnostics: [expect.objectContaining({
+        code: "process-package-selection-invalid",
+      })],
     }));
   });
 

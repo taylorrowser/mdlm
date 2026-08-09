@@ -7,6 +7,7 @@ export interface OperatorAuthorityRequirement {
 }
 
 export interface OperatorWorkFacts {
+  kind: "obligation" | "phase-progression";
   phase: string;
   instance: string;
   definition: string;
@@ -19,6 +20,10 @@ export interface OperatorWorkFacts {
   blockedBy: string[];
   blockerChains: string[][];
   unresolvedBindings: string[];
+  progression?: {
+    nextPhase: string;
+    subjects: string[];
+  };
 }
 
 export interface OperatorBlockerDiagnostic {

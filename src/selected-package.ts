@@ -25,6 +25,30 @@ export type SelectedPackageResolution =
       diagnostics: ProcessDiagnostic[];
     };
 
+function validSelection(value: unknown): value is ProcessSelection {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const selection = value as Record<string, unknown>;
+  const packageValue = typeof selection.package === "object" &&
+      selection.package !== null && !Array.isArray(selection.package)
+    ? selection.package as Record<string, unknown>
+    : undefined;
+  const language = typeof selection.language === "object" &&
+      selection.language !== null && !Array.isArray(selection.language)
+    ? selection.language as Record<string, unknown>
+    : undefined;
+  return selection.schemaVersion === 1 && packageValue !== undefined &&
+    typeof packageValue.id === "string" && packageValue.id.length > 0 &&
+    typeof packageValue.version === "string" && packageValue.version.length > 0 &&
+    typeof packageValue.reference === "string" && packageValue.reference.length > 0 &&
+    typeof packageValue.digest === "string" &&
+    /^sha256:[0-9a-f]{64}$/.test(packageValue.digest) &&
+    typeof packageValue.path === "string" && packageValue.path.length > 0 &&
+    language !== undefined && typeof language.expressions === "string" &&
+    language.expressions.length > 0;
+}
+
 export async function readSelection(
   repositoryRoot: string,
 ): Promise<ProcessSelection | undefined> {
@@ -41,7 +65,20 @@ export async function readSelection(
 export async function selectedPackage(
   repositoryRoot: string,
 ): Promise<SelectedPackageResolution> {
-  const selection = await readSelection(repositoryRoot);
+  let selection: ProcessSelection | undefined;
+  try {
+    selection = await readSelection(repositoryRoot);
+  } catch (error) {
+    return {
+      ok: false,
+      selected: true,
+      diagnostics: [{
+        code: "process-package-selection-invalid",
+        path: path.join(repositoryRoot, selectionRelativePath),
+        message: `Cannot read the selected Process Package contract: ${error instanceof Error ? error.message : String(error)}`,
+      }],
+    };
+  }
   if (!selection) {
     return {
       ok: false,
@@ -50,6 +87,17 @@ export async function selectedPackage(
         code: "process-package-not-selected",
         message:
           "No Process Package is selected; run 'mdlm process use <package@version>'",
+      }],
+    };
+  }
+  if (!validSelection(selection)) {
+    return {
+      ok: false,
+      selected: true,
+      diagnostics: [{
+        code: "process-package-selection-invalid",
+        path: path.join(repositoryRoot, selectionRelativePath),
+        message: "The selected Process Package contract does not satisfy its versioned repository schema",
       }],
     };
   }

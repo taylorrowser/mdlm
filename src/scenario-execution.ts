@@ -1236,6 +1236,36 @@ export async function submitResolverScenario(
   );
 }
 
+export interface ExplicitScenarioSubmission
+  extends Omit<ResolverScenarioSubmission, "obligationInstance"> {
+  requestedInputs: { name: string; value: string }[];
+}
+
+export async function submitExplicitScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  submission: ExplicitScenarioSubmission,
+): Promise<ScenarioExecutionResult> {
+  return executeScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    submission.scenarioReference,
+    { mode: "explicit-initiation" },
+    submission.requestedInputs,
+    undefined,
+    submission.suppliedAuthorities,
+    submission.suppliedDelegations,
+    {
+      assignment: submission.assignment,
+      digest: submission.responseDigest,
+      proposal: submission.proposal,
+      loadedSkillRefs: submission.loadedSkillRefs,
+    },
+  );
+}
+
 export async function executeExplicitScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
