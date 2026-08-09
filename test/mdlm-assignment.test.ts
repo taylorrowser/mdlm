@@ -244,6 +244,50 @@ describe("MDLM Assignment leasing and preparation", () => {
       .toEqual([".gitkeep"]);
   });
 
+  it("does not expose adapter execution through mdlm", async () => {
+    const marker = path.join(parent, "adapter-invoked");
+    const adapter = path.join(parent, "adapter.mjs");
+    await fs.writeFile(
+      adapter,
+      `#!/usr/bin/env node\nimport fs from "node:fs";\nfs.writeFileSync(${JSON.stringify(marker)}, "invoked");\nprocess.stdout.write(JSON.stringify({ outputs: [], completionEvidence: {} }));\n`,
+      { mode: 0o755 },
+    );
+
+    const result = mdlm(
+      repository,
+      "scenario",
+      "execute",
+      "establish-initial-wayfinding-map@1",
+      "--initiate",
+      "--adapter",
+      adapter,
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "unknown-command" }),
+    ]);
+
+    const alias = mdlm(
+      repository,
+      "question",
+      "resolve",
+      "--question",
+      "QST-0123456789-r00001",
+      "--obligation",
+      "not-dispatchable",
+      "--adapter",
+      adapter,
+      "--json",
+    );
+    expect(alias.status).toBe(1);
+    expect(JSON.parse(alias.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "unknown-command" }),
+    ]);
+    await expect(fs.stat(marker)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     const assignment = next.assignment.id as string;

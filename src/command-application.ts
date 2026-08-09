@@ -2625,16 +2625,20 @@ function directArguments(arguments_: string[]): Record<string, unknown> {
   return result;
 }
 
+function commandOperands(arguments_: string[]): string[] {
+  return arguments_.filter((argument, index) =>
+    argument !== "--json" &&
+    argument !== "--ref" &&
+    arguments_[index - 1] !== "--ref"
+  );
+}
+
 async function dispatchCommand(
   arguments_: string[],
   repositoryRoot: string,
   standardInput?: string,
 ): Promise<CommandResult> {
-  const operands = arguments_.filter((argument, index) =>
-    argument !== "--json" &&
-    argument !== "--ref" &&
-    arguments_[index - 1] !== "--ref"
-  );
+  const operands = commandOperands(arguments_);
   if (operands[0] === "init") {
     if (arguments_.includes("--process")) {
       return failure(
@@ -2810,20 +2814,6 @@ async function dispatchCommand(
         };
   }
   if (
-    operands[0] === "scenario" && operands[1] === "execute" && operands[2]
-  ) {
-    return executeScenario(
-      repositoryRoot,
-      operands[2],
-      optionValue(arguments_, "--obligation"),
-      arguments_.includes("--initiate"),
-      optionValue(arguments_, "--adapter"),
-      optionValues(arguments_, "--input"),
-      optionValues(arguments_, "--authorize"),
-      optionValues(arguments_, "--delegation"),
-    );
-  }
-  if (
     operands[0] === "scenario" && operands[1] === "execution" &&
     operands[2] === "show" && operands[3]
   ) {
@@ -2842,10 +2832,9 @@ async function dispatchCommand(
     );
   }
   if (operands[0] !== "process") {
-    const aliasResult = await executePackageAlias(repositoryRoot, arguments_);
-    return aliasResult ?? failure(
+    return failure(
       "unknown-command",
-      "Expected a process, definition evaluation, or selected Package Command Alias",
+      "Expected an MDLM operator or inspection command",
     );
   }
   if (operands[1] === "init" && operands[2]) {
@@ -2947,19 +2936,48 @@ export function executeCommandApplication(
   );
 }
 
-/** Keep the temporary req initialization bridge separate from mdlm dispatch. */
+async function dispatchLegacyReqCommand(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandResult> {
+  if (
+    arguments_.find((argument) => argument !== "--json") === "init" &&
+    arguments_.includes("--process")
+  ) {
+    return initializeRepository(
+      repositoryRoot,
+      optionValue(arguments_, "--process"),
+    );
+  }
+  const operands = commandOperands(arguments_);
+  if (
+    operands[0] === "scenario" && operands[1] === "execute" && operands[2]
+  ) {
+    return executeScenario(
+      repositoryRoot,
+      operands[2],
+      optionValue(arguments_, "--obligation"),
+      arguments_.includes("--initiate"),
+      optionValue(arguments_, "--adapter"),
+      optionValues(arguments_, "--input"),
+      optionValues(arguments_, "--authorize"),
+      optionValues(arguments_, "--delegation"),
+    );
+  }
+  if (operands[0] !== "process") {
+    const aliasResult = await executePackageAlias(repositoryRoot, arguments_);
+    if (aliasResult) return aliasResult;
+  }
+  return dispatchCommand(arguments_, repositoryRoot);
+}
+
+/** Keep temporary prototype behavior outside the mdlm product surface. */
 export function executeLegacyReqApplication(
   arguments_: string[],
   repositoryRoot: string,
 ): Promise<CommandApplicationExecution> {
   return executeCommand(
     arguments_,
-    () => arguments_.find((argument) => argument !== "--json") === "init" &&
-      arguments_.includes("--process")
-      ? initializeRepository(
-        repositoryRoot,
-        optionValue(arguments_, "--process"),
-      )
-      : dispatchCommand(arguments_, repositoryRoot),
+    () => dispatchLegacyReqCommand(arguments_, repositoryRoot),
   );
 }
