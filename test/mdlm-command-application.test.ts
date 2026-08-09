@@ -35,7 +35,7 @@ describe("shared MDLM command application", () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
   });
 
-  it("exposes mdlm and inspects the same selected Process Package as req", async () => {
+  it("exposes one command application through mdlm and temporary bridges", async () => {
     const packageManifest = JSON.parse(
       await fs.readFile(path.join(projectRoot, "package.json"), "utf8"),
     ) as { bin: Record<string, string> };
@@ -44,15 +44,15 @@ describe("shared MDLM command application", () => {
       req: "./dist/req.js",
     });
 
-    const unselected = execute(
-      executables.mdlm,
-      repositoryRoot,
-      "process",
-      "show",
-      "--json",
+    const unselected = Object.values(executables).map((executable) =>
+      execute(executable, repositoryRoot, "process", "show", "--json")
     );
-    expect(unselected.status).toBe(1);
-    expect(JSON.parse(unselected.stdout)).toEqual(expect.objectContaining({
+    for (const invocation of unselected) {
+      expect(invocation.status, invocation.stderr).toBe(1);
+      expect(invocation.stderr).toBe("");
+      expect(invocation.stdout).toBe(unselected[0]?.stdout);
+    }
+    expect(JSON.parse(unselected[0]!.stdout)).toEqual(expect.objectContaining({
       ok: false,
       diagnostics: [expect.objectContaining({
         code: "process-package-not-selected",
@@ -74,24 +74,15 @@ describe("shared MDLM command application", () => {
       `${initialized.stderr}${initialized.stdout}`,
     ).toBe(0);
 
-    const throughMdlm = execute(
-      executables.mdlm,
-      repositoryRoot,
-      "process",
-      "show",
-      "--json",
+    const inspected = Object.values(executables).map((executable) =>
+      execute(executable, repositoryRoot, "process", "show", "--json")
     );
-    const throughReq = execute(
-      executables.req,
-      repositoryRoot,
-      "process",
-      "show",
-      "--json",
-    );
-
-    expect(throughMdlm.status, throughMdlm.stderr).toBe(0);
-    expect(throughMdlm.stdout).toBe(throughReq.stdout);
-    expect(JSON.parse(throughMdlm.stdout)).toEqual(expect.objectContaining({
+    for (const invocation of inspected) {
+      expect(invocation.status, invocation.stderr).toBe(0);
+      expect(invocation.stderr).toBe("");
+      expect(invocation.stdout).toBe(inspected[0]?.stdout);
+    }
+    expect(JSON.parse(inspected[0]!.stdout)).toEqual(expect.objectContaining({
       ok: true,
       command: "process.show",
       selected: true,
@@ -122,28 +113,44 @@ describe("shared MDLM command application", () => {
     }));
   });
 
-  it("keeps the prototype snapshot journey through the shared application", () => {
-    const snapshot = path.join(projectRoot, "examples/psp-to-sys-snapshot.yaml");
-    const throughPrototype = execute(
-      executables.prototype,
-      projectRoot,
-      snapshot,
+  it("uses the canonical mdlm presentation for top-level failures", () => {
+    const initialized = execute(
+      executables.mdlm,
+      repositoryRoot,
+      "init",
+      "--process",
+      bootstrapPackage,
+      "--json",
+    );
+    expect(initialized.status, initialized.stderr).toBe(0);
+
+    const arguments_ = [
+      "process",
+      "expression",
+      "evaluate",
+      "review-context-required@2#satisfied_when",
+      "--snapshot",
+      path.join(projectRoot, "examples/psp-to-sys-snapshot.yaml"),
+      "--bindings",
+      JSON.stringify({ candidate: "PSP-7K3M9Q2D8F-r00001" }),
+      "--json",
+    ];
+    const invocations = Object.values(executables).map((executable) =>
+      execute(executable, repositoryRoot, ...arguments_)
     );
 
-    expect(throughPrototype.status, throughPrototype.stderr).toBe(0);
-    expect(throughPrototype.stdout).toContain(
-      "Process package: mdlm-bootstrap@0.49.0",
-    );
-    expect(throughPrototype.stdout).toContain(
-      "Snapshot: examples/psp-to-sys-snapshot.yaml",
-    );
-    expect(throughPrototype.stdout).toContain(
-      "Resolved STK templates: titled-datum@1 → rationale-bearing@1 → requirement@1",
-    );
-    expect(throughPrototype.stdout).toContain("Computed artifact states:");
-    expect(throughPrototype.stdout).toContain("Loose ends (6):");
-    expect(throughPrototype.stdout).toContain(
-      "Actionable resolver: create-review-context@1",
-    );
+    for (const invocation of invocations) {
+      expect(invocation.status, invocation.stderr).toBe(1);
+      expect(invocation.stderr).toBe("");
+      expect(invocation.stdout).toBe(invocations[0]?.stdout);
+    }
+    expect(JSON.parse(invocations[0]!.stdout)).toEqual({
+      ok: false,
+      diagnostics: [{
+        code: "mdlm-error",
+        message:
+          "Unknown expression binding 'candidate'; missing required binding 'subject'",
+      }],
+    });
   });
 });

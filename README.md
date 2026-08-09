@@ -63,7 +63,7 @@ packages may define different types, States, Obligations, Scenarios, and phases.
 npm install
 npm test
 npm run typecheck
-npm run prototype
+npm run prototype -- process validate --ref .lifecycle/process
 
 # Run the primary MDLM executable
 node dist/mdlm.js process validate --ref .lifecycle/process
@@ -116,10 +116,10 @@ node ../dist/mdlm.js question resolve --question QST-0123456789-r00001 \
   --adapter ./configured-agent-adapter
 ```
 
-`npm run prototype` remains a temporary branch-green bridge. It delegates package
-validation to the shared application while preserving the snapshot's Example
-Process Package schema, computed-state, and Loose End demonstration. The `req`
-executable remains available temporarily while existing journeys move to `mdlm`.
+`npm run prototype -- <arguments>` and the `req` executable remain temporary
+branch-green bridges. Both delegate transparently to the same package-neutral
+command application and canonical `mdlm` result contract while existing journeys
+move to `mdlm`.
 
 ## References
 
