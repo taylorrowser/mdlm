@@ -5,7 +5,7 @@
   "type": "module",
   "bin": {
     "mdlm": "./dist/mdlm.js",
-    "req": "./dist/req.js"
+    "req": "./dist/req-entry.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

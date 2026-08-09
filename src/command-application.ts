@@ -3032,7 +3032,6 @@ async function dispatchCommand(
   );
 }
 
-
 export interface CommandApplicationExecution {
   exitCode: 0 | 1;
   output: string;

@@ -9,7 +9,7 @@ const bootstrapPackage = path.join(projectRoot, ".lifecycle/process");
 const executables = {
   mdlm: path.join(projectRoot, "dist/mdlm.js"),
   prototype: path.join(projectRoot, "dist/prototype.js"),
-  req: path.join(projectRoot, "dist/req.js"),
+  req: path.join(projectRoot, "dist/req-entry.js"),
 };
 
 function execute(
@@ -24,11 +24,34 @@ function execute(
   });
 }
 
+function executeAll(cwd: string, ...arguments_: string[]) {
+  return Object.values(executables).map((executable) =>
+    execute(executable, cwd, ...arguments_)
+  );
+}
+
+function expectEquivalentApplicationResult(
+  invocations: ReturnType<typeof execute>[],
+  status: number,
+): string {
+  const output = invocations[0]!.stdout;
+  for (const invocation of invocations) {
+    expect(invocation.status, invocation.stderr).toBe(status);
+    expect(invocation.stderr).toBe("");
+    expect(invocation.stdout).toBe(output);
+  }
+  return output;
+}
+
 describe("shared MDLM command application", () => {
   let repositoryRoot: string;
 
   beforeEach(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-command-"));
+    const initialized = spawnSync("git", ["init", "--quiet", repositoryRoot], {
+      encoding: "utf8",
+    });
+    expect(initialized.status, initialized.stderr).toBe(0);
   });
 
   afterEach(async () => {
@@ -41,18 +64,17 @@ describe("shared MDLM command application", () => {
     ) as { bin: Record<string, string> };
     expect(packageManifest.bin).toEqual({
       mdlm: "./dist/mdlm.js",
-      req: "./dist/req.js",
+      req: "./dist/req-entry.js",
     });
 
-    const unselected = Object.values(executables).map((executable) =>
-      execute(executable, repositoryRoot, "process", "show", "--json")
+    const unselected = executeAll(
+      repositoryRoot,
+      "process",
+      "show",
+      "--json",
     );
-    for (const invocation of unselected) {
-      expect(invocation.status, invocation.stderr).toBe(1);
-      expect(invocation.stderr).toBe("");
-      expect(invocation.stdout).toBe(unselected[0]?.stdout);
-    }
-    expect(JSON.parse(unselected[0]!.stdout)).toEqual(expect.objectContaining({
+    const unselectedOutput = expectEquivalentApplicationResult(unselected, 1);
+    expect(JSON.parse(unselectedOutput)).toEqual(expect.objectContaining({
       ok: false,
       diagnostics: [expect.objectContaining({
         code: "process-package-not-selected",
@@ -74,15 +96,14 @@ describe("shared MDLM command application", () => {
       `${initialized.stderr}${initialized.stdout}`,
     ).toBe(0);
 
-    const inspected = Object.values(executables).map((executable) =>
-      execute(executable, repositoryRoot, "process", "show", "--json")
+    const inspected = executeAll(
+      repositoryRoot,
+      "process",
+      "show",
+      "--json",
     );
-    for (const invocation of inspected) {
-      expect(invocation.status, invocation.stderr).toBe(0);
-      expect(invocation.stderr).toBe("");
-      expect(invocation.stdout).toBe(inspected[0]?.stdout);
-    }
-    expect(JSON.parse(inspected[0]!.stdout)).toEqual(expect.objectContaining({
+    const inspectedOutput = expectEquivalentApplicationResult(inspected, 0);
+    expect(JSON.parse(inspectedOutput)).toEqual(expect.objectContaining({
       ok: true,
       command: "process.show",
       selected: true,
@@ -90,6 +111,14 @@ describe("shared MDLM command application", () => {
         reference: "mdlm-bootstrap@0.49.0",
       }),
     }));
+
+    const repositoryStatus = spawnSync(
+      "git",
+      ["-C", repositoryRoot, "status", "--short"],
+      { encoding: "utf8" },
+    );
+    expect(repositoryStatus.status, repositoryStatus.stderr).toBe(0);
+    expect(repositoryStatus.stdout).toBe("?? .lifecycle/\n");
   });
 
   it("does not add an alternate unselected-package Loose End route", () => {
@@ -135,16 +164,9 @@ describe("shared MDLM command application", () => {
       JSON.stringify({ candidate: "PSP-7K3M9Q2D8F-r00001" }),
       "--json",
     ];
-    const invocations = Object.values(executables).map((executable) =>
-      execute(executable, repositoryRoot, ...arguments_)
-    );
-
-    for (const invocation of invocations) {
-      expect(invocation.status, invocation.stderr).toBe(1);
-      expect(invocation.stderr).toBe("");
-      expect(invocation.stdout).toBe(invocations[0]?.stdout);
-    }
-    expect(JSON.parse(invocations[0]!.stdout)).toEqual({
+    const invocations = executeAll(repositoryRoot, ...arguments_);
+    const output = expectEquivalentApplicationResult(invocations, 1);
+    expect(JSON.parse(output)).toEqual({
       ok: false,
       diagnostics: [{
         code: "mdlm-error",
