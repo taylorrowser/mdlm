@@ -34,6 +34,10 @@ function git(repository: string, ...arguments_: string[]) {
   });
 }
 
+type PreparedPromptPacket = {
+  prompt: { skills: { reference: string }[] };
+};
+
 async function directoryBytes(root: string): Promise<string> {
   const files: string[] = [];
   async function visit(directory: string): Promise<void> {
@@ -545,8 +549,12 @@ describe("MDLM Assignment leasing and preparation", () => {
         message,
       ).status).toBe(0);
     };
-    const respond = (assignment: string, proposal: Record<string, unknown>) => {
-      const packet = JSON.parse(mdlm(
+    const respond = (
+      assignment: string,
+      proposal: Record<string, unknown>,
+      preparedPacket?: PreparedPromptPacket,
+    ) => {
+      const packet = preparedPacket ?? JSON.parse(mdlm(
         repository,
         "scenario",
         "prepare",
@@ -567,8 +575,12 @@ describe("MDLM Assignment leasing and preparation", () => {
         "submit",
       );
     };
-    const submit = (assignment: string, proposal: Record<string, unknown>) => {
-      const result = respond(assignment, proposal);
+    const submit = (
+      assignment: string,
+      proposal: Record<string, unknown>,
+      preparedPacket?: PreparedPromptPacket,
+    ) => {
+      const result = respond(assignment, proposal, preparedPacket);
       expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
       return JSON.parse(result.stdout).execution;
     };
@@ -607,7 +619,7 @@ describe("MDLM Assignment leasing and preparation", () => {
           completionEvidence: { summary: "Context proposed." },
           authoritySupplies: [],
           standingDelegations: [],
-        });
+        }, packet);
         commitTransaction(`Publish context for ${subject}`);
         outcome = JSON.parse(mdlm(repository, "next").stdout);
         packet = JSON.parse(mdlm(
@@ -668,7 +680,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       completionEvidence: { summary: "Product specification proposed." },
       authoritySupplies: [],
       standingDelegations: [],
-    });
+    }, progression.packet);
     const pspRevision = pspExecution.outputs[0].lifecycleDatum.revisionId as string;
     const pspStable = pspExecution.outputs[0].lifecycleDatum.id as string;
     commitTransaction("Publish product specification");
@@ -703,6 +715,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     const linkRejected = respond(
       progression.outcome.assignment.id,
       missingRequiredLink,
+      progression.packet,
     );
     expect(linkRejected.status).toBe(1);
     expect(JSON.parse(linkRejected.stdout).diagnostics).toEqual(
@@ -710,7 +723,11 @@ describe("MDLM Assignment leasing and preparation", () => {
         expect.objectContaining({ code: "scenario-output-required-link-missing" }),
       ]),
     );
-    submit(progression.outcome.assignment.id, requirementProposal);
+    submit(
+      progression.outcome.assignment.id,
+      requirementProposal,
+      progression.packet,
+    );
     commitTransaction("Publish stakeholder requirement");
 
     progression = publishPendingContexts();
@@ -761,7 +778,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       completionEvidence: { summary: "Independent review completed." },
       authoritySupplies: ["independent-reviewer"],
       standingDelegations: [],
-    });
+    }, reviewPacket);
 
     expect(reviewExecution.authority.supplied).toEqual(["independent-reviewer"]);
     expect(reviewExecution.authority.requirements).toEqual([

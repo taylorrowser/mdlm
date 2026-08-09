@@ -2,8 +2,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    // Public req tests repeatedly load the complete declarative Process Package.
-    // Parallel full-suite contention can exceed Vitest's 5 second unit-test default.
+    // Public CLI tests repeatedly load the complete declarative Process Package in
+    // child processes. Cap that process-heavy integration concurrency at two so
+    // contention does not make deterministic journeys miss their timeout budgets.
+    maxWorkers: 2,
     testTimeout: 15_000,
   },
 });
