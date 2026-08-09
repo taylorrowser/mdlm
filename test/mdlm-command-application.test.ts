@@ -101,6 +101,56 @@ describe("shared MDLM command application", () => {
     }));
   });
 
+  it("requires an explicit snapshot when evaluating an unselected Process Package", () => {
+    const result = execute(
+      executables.mdlm,
+      repositoryRoot,
+      "loose-ends",
+      "--ref",
+      bootstrapPackage,
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: false,
+      command: "loose-ends",
+      selected: false,
+      diagnostics: [{
+        code: "snapshot-required",
+        message:
+          "Loose End evaluation with '--ref <package-ref>' requires '--snapshot <fixture>'",
+      }],
+    });
+  });
+
+  it("reports evaluation failures as unselected for an explicit Process Package", () => {
+    const result = execute(
+      executables.mdlm,
+      projectRoot,
+      "loose-ends",
+      "--ref",
+      bootstrapPackage,
+      "--snapshot",
+      "examples/psp-to-sys-snapshot.yaml",
+      "--phase",
+      "missing-phase",
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      command: "loose-ends",
+      selected: false,
+      diagnostics: [{
+        code: "unknown-phase",
+        path: "phaseId",
+        message: "Unknown Phase 'missing-phase'",
+      }],
+    }));
+  });
+
   it("keeps the prototype snapshot journey through the shared application", () => {
     const explicitSnapshot = execute(
       executables.mdlm,

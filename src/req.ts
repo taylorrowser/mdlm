@@ -1789,6 +1789,19 @@ async function lifecycleEvaluation(
   deriveActive = false,
   packageReference?: string,
 ): Promise<LifecycleEvaluation> {
+  if (packageReference !== undefined && snapshotPath === undefined) {
+    return {
+      ok: false,
+      result: {
+        ...failure(
+          "snapshot-required",
+          "Loose End evaluation with '--ref <package-ref>' requires '--snapshot <fixture>'",
+        ),
+        command,
+        selected: false,
+      },
+    };
+  }
   const resolved = packageReference === undefined
     ? await selectedPackage(repositoryRoot)
     : await explicitPackage(repositoryRoot, packageReference);
@@ -1803,6 +1816,7 @@ async function lifecycleEvaluation(
       },
     };
   }
+  const selected = packageReference === undefined;
   let snapshot: LifecycleSnapshot;
   if (snapshotPath) {
     snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
@@ -1827,7 +1841,7 @@ async function lifecycleEvaluation(
           ok: false,
           command,
           package: resolved.summary,
-          selected: true,
+          selected,
           diagnostics: repositorySnapshot.diagnostics,
         },
       };
@@ -1846,7 +1860,7 @@ async function lifecycleEvaluation(
         ok: false,
         command,
         package: resolved.summary,
-        selected: true,
+        selected,
         diagnostics: evaluation.diagnostics,
       },
     };
@@ -1855,7 +1869,7 @@ async function lifecycleEvaluation(
     ok: true,
     summary: resolved.summary,
     evaluation,
-    selected: packageReference === undefined,
+    selected,
   };
 }
 
