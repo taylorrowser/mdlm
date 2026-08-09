@@ -184,7 +184,7 @@ describe("req process expression evaluation", () => {
     expect(JSON.parse(result.stdout)).toEqual({
       ok: false,
       diagnostics: [{
-        code: "req-error",
+        code: "mdlm-error",
         message:
           "Unknown expression binding 'candidate'; missing required binding 'subject'",
       }],
@@ -209,7 +209,7 @@ describe("req process expression evaluation", () => {
     expect(JSON.parse(result.stdout)).toEqual({
       ok: false,
       diagnostics: [{
-        code: "req-error",
+        code: "mdlm-error",
         message:
           "Expression binding 'subject' requires an entity from the named snapshot",
       }],

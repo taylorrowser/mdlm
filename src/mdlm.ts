@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-import { executeCommandApplication } from "./req.js";
+import { executeCommandApplication } from "./command-application.js";
 
-const execution = await executeCommandApplication({
-  arguments: process.argv.slice(2),
-  repositoryRoot: process.cwd(),
-  commandName: "mdlm",
-});
+const execution = await executeCommandApplication(
+  process.argv.slice(2),
+  process.cwd(),
+);
 process.stdout.write(execution.output);
-if (execution.errorOutput) process.stderr.write(execution.errorOutput);
 process.exitCode = execution.exitCode;

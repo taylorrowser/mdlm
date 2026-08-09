@@ -102,6 +102,24 @@ describe("shared MDLM command application", () => {
   });
 
   it("keeps the prototype snapshot journey through the shared application", () => {
+    const explicitSnapshot = execute(
+      executables.mdlm,
+      projectRoot,
+      "loose-ends",
+      "--ref",
+      ".lifecycle/process",
+      "--snapshot",
+      "examples/psp-to-sys-snapshot.yaml",
+      "--json",
+    );
+    expect(explicitSnapshot.status, explicitSnapshot.stderr).toBe(0);
+    expect(JSON.parse(explicitSnapshot.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      command: "loose-ends",
+      selected: false,
+      looseEnds: expect.objectContaining({ phase: "phase-2-system-definition@3" }),
+    }));
+
     const throughPrototype = execute(executables.prototype, projectRoot);
 
     expect(throughPrototype.status, throughPrototype.stderr).toBe(0);
@@ -115,9 +133,12 @@ describe("shared MDLM command application", () => {
       "Resolved STK templates: titled-datum@1 → rationale-bearing@1 → requirement@1",
     );
     expect(throughPrototype.stdout).toContain("Computed artifact states:");
-    expect(throughPrototype.stdout).toContain("Loose ends (6):");
     expect(throughPrototype.stdout).toContain(
-      "Actionable resolver: create-review-context@1",
+      "Process Package: mdlm-bootstrap@0.49.0",
+    );
+    expect(throughPrototype.stdout).toContain("Loose Ends: 6");
+    expect(throughPrototype.stdout).toContain(
+      "Actionable Resolver: create-review-context@1",
     );
   });
 });

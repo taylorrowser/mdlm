@@ -75,52 +75,52 @@ node dist/mdlm.js process validate --ref ./case-process
 # Initialize a repository against an explicit package
 mkdir example-repository
 cd example-repository
-node ../dist/req.js init --process ../.lifecycle/process
+node ../dist/mdlm.js init --process ../.lifecycle/process
 # Installation adds an immutable package without activating it; `use` changes
 # only package selection. Migrate an initialized repository contract atomically:
-node ../dist/req.js process install ../next-process
-node ../dist/req.js process migrate next-process@1.2.3
-node ../dist/req.js revise PSP-0123456789
-node ../dist/req.js history PSP-0123456789
-node ../dist/req.js link QST-0123456789-r00001 PSP-0123456789 --type blocks
-node ../dist/req.js backlinks PSP-0123456789
-node ../dist/req.js trace PSP-0123456789 --relation blocks --depth 2
-node ../dist/req.js baseline add BSL-0123456789 STK-0123456789-r00001
-node ../dist/req.js baseline evidence add BSL-0123456789 REV-0123456789-r00001
-node ../dist/req.js baseline freeze BSL-0123456789
-node ../dist/req.js baseline verify BSL-0123456789
-node ../dist/req.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
-node ../dist/req.js doctor
-node ../dist/req.js loose-ends --phase phase-0-wayfinding
-node ../dist/req.js next --phase phase-0-wayfinding
-node ../dist/req.js phase status phase-0-wayfinding
-node ../dist/req.js schema STK
+node ../dist/mdlm.js process install ../next-process
+node ../dist/mdlm.js process migrate next-process@1.2.3
+node ../dist/mdlm.js revise PSP-0123456789
+node ../dist/mdlm.js history PSP-0123456789
+node ../dist/mdlm.js link QST-0123456789-r00001 PSP-0123456789 --type blocks
+node ../dist/mdlm.js backlinks PSP-0123456789
+node ../dist/mdlm.js trace PSP-0123456789 --relation blocks --depth 2
+node ../dist/mdlm.js baseline add BSL-0123456789 STK-0123456789-r00001
+node ../dist/mdlm.js baseline evidence add BSL-0123456789 REV-0123456789-r00001
+node ../dist/mdlm.js baseline freeze BSL-0123456789
+node ../dist/mdlm.js baseline verify BSL-0123456789
+node ../dist/mdlm.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
+node ../dist/mdlm.js doctor
+node ../dist/mdlm.js loose-ends --phase phase-0-wayfinding
+node ../dist/mdlm.js next --phase phase-0-wayfinding
+node ../dist/mdlm.js phase status phase-0-wayfinding
+node ../dist/mdlm.js schema STK
 # Explicitly prepare and execute one package-authored non-Resolver Scenario:
-node ../dist/req.js scenario dry-run chart-wayfinding-map@1 --initiate
-node ../dist/req.js scenario execute chart-wayfinding-map@1 --initiate \
+node ../dist/mdlm.js scenario dry-run chart-wayfinding-map@1 --initiate
+node ../dist/mdlm.js scenario execute chart-wayfinding-map@1 --initiate \
   --adapter ./configured-agent-adapter
 # Resolver Scenarios retain exact Dispatchable Obligation authorization:
-node ../dist/req.js scenario dry-run create-review-context@1 \
+node ../dist/mdlm.js scenario dry-run create-review-context@1 \
   --obligation '<exact-review-context-obligation-instance>'
 # Prototype-bound QSTs route through their package-owned exact-evidence Resolver:
-node ../dist/req.js scenario dry-run resolve-question-with-prototype@1 \
+node ../dist/mdlm.js scenario dry-run resolve-question-with-prototype@1 \
   --obligation '<exact-prototype-question-obligation-instance>' \
   --input question=QST-0123456789-r00001
 # An explicit fixture remains available for package tests and historical evaluation:
-node ../dist/req.js scenario dry-run create-review-context@1 \
+node ../dist/mdlm.js scenario dry-run create-review-context@1 \
   --obligation 'review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype' \
   --snapshot ../examples/psp-to-sys-snapshot.yaml
 # Selected package convenience over the same generic Scenario execution contract:
-node ../dist/req.js question resolve --question QST-0123456789-r00001 \
+node ../dist/mdlm.js question resolve --question QST-0123456789-r00001 \
   --obligation '<exact-open-question-obligation-instance>' \
   --adapter ./configured-agent-adapter
 ```
 
-`npm run prototype` remains a temporary branch-green bridge. Through the shared
-application it loads `.lifecycle/process`, resolves the STK schema, evaluates
-`examples/psp-to-sys-snapshot.yaml`, and prints ordered Loose Ends with reasons
-and Resolver Scenarios. The `req` executable remains available temporarily while
-existing journeys move to `mdlm`.
+`npm run prototype` remains a temporary branch-green bridge. It preserves the
+snapshot's Example Process Package schema and computed-state demonstration while
+delegating generic Loose End evaluation and rendering to the shared application.
+The `req` executable remains available temporarily while existing journeys move
+to `mdlm`.
 
 ## References
 

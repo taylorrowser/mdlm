@@ -153,7 +153,7 @@ interface TypeSchemaInspection {
   }[];
 }
 
-interface CommandResult {
+export interface CommandResult {
   ok: boolean;
   command?: string;
   package?: PackageSummary;
@@ -221,7 +221,7 @@ async function packageSummary(
   };
 }
 
-function failure(
+export function failure(
   code: string,
   message: string,
   pathValue?: string,
@@ -1526,7 +1526,7 @@ async function selectedPackage(
       diagnostics: [{
         code: "process-package-not-selected",
         message:
-          "No Process Package is selected; run 'req process use <package@version>'",
+          "No Process Package is selected; run 'mdlm process use <package@version>'",
       }],
     };
   }
@@ -1555,6 +1555,23 @@ async function selectedPackage(
   return { ok: true, processPackage: loaded.package, summary };
 }
 
+async function explicitPackage(
+  repositoryRoot: string,
+  reference: string,
+): Promise<SelectedPackageResolution> {
+  const installedRoot = await installedPackageRoot(repositoryRoot, reference);
+  const packageRoot = installedRoot ?? path.resolve(repositoryRoot, reference);
+  const loaded = await loadProcessPackage(packageRoot);
+  if (!loaded.ok) {
+    return { ok: false, selected: false, diagnostics: loaded.diagnostics };
+  }
+  return {
+    ok: true,
+    processPackage: loaded.package,
+    summary: await packageSummary(loaded.package, packageRoot),
+  };
+}
+
 async function selectedRepositoryPackage(
   repositoryRoot: string,
 ): Promise<SelectedPackageResolution> {
@@ -1578,7 +1595,7 @@ async function selectedRepositoryPackage(
           : "repository-contract",
         path: descriptorPath,
         message: (error as NodeJS.ErrnoException).code === "ENOENT"
-          ? "No MDLM repository descriptor exists; run 'req init --process <package-ref>'"
+          ? "No MDLM repository descriptor exists; run 'mdlm init --process <package-ref>'"
           : `Cannot read the MDLM repository descriptor: ${error instanceof Error ? error.message : String(error)}`,
       }],
     };
@@ -1660,14 +1677,12 @@ async function validateExplicitPackage(
   repositoryRoot: string,
   reference: string,
 ): Promise<CommandResult> {
-  const installedRoot = await installedPackageRoot(repositoryRoot, reference);
-  const packageRoot = installedRoot ?? path.resolve(repositoryRoot, reference);
-  const loaded = await loadProcessPackage(packageRoot);
-  if (!loaded.ok) return failedValidation(loaded.diagnostics, false);
+  const resolved = await explicitPackage(repositoryRoot, reference);
+  if (!resolved.ok) return failedValidation(resolved.diagnostics, false);
   return {
     ok: true,
     command: "process.validate",
-    package: await packageSummary(loaded.package, packageRoot),
+    package: resolved.summary,
     selected: false,
     validation: {
       compilation: "passed",
@@ -1757,22 +1772,26 @@ function activeLifecycleEvaluation(
   return evaluateLifecycle(processPackage, { ...snapshot, phaseId });
 }
 
-type SelectedLifecycleEvaluation =
+type LifecycleEvaluation =
   | {
       ok: true;
       summary: PackageSummary;
       evaluation: ReturnType<typeof evaluateLifecycle>;
+      selected: boolean;
     }
   | { ok: false; result: CommandResult };
 
-async function selectedLifecycleEvaluation(
+async function lifecycleEvaluation(
   repositoryRoot: string,
   command: string,
   snapshotPath: string | undefined,
   phaseId?: string,
   deriveActive = false,
-): Promise<SelectedLifecycleEvaluation> {
-  const resolved = await selectedPackage(repositoryRoot);
+  packageReference?: string,
+): Promise<LifecycleEvaluation> {
+  const resolved = packageReference === undefined
+    ? await selectedPackage(repositoryRoot)
+    : await explicitPackage(repositoryRoot, packageReference);
   if (!resolved.ok) {
     return {
       ok: false,
@@ -1832,7 +1851,12 @@ async function selectedLifecycleEvaluation(
       },
     };
   }
-  return { ok: true, summary: resolved.summary, evaluation };
+  return {
+    ok: true,
+    summary: resolved.summary,
+    evaluation,
+    selected: packageReference === undefined,
+  };
 }
 
 async function phaseStatus(
@@ -1840,7 +1864,7 @@ async function phaseStatus(
   phaseId: string | undefined,
   snapshotPath: string | undefined,
 ): Promise<CommandResult> {
-  const resolved = await selectedLifecycleEvaluation(
+  const resolved = await lifecycleEvaluation(
     repositoryRoot,
     "phase.status",
     snapshotPath,
@@ -1854,7 +1878,7 @@ async function phaseStatus(
     ok: true,
     command: "phase.status",
     package: resolved.summary,
-    selected: true,
+    selected: resolved.selected,
     phaseStatus: projection,
     diagnostics: [],
   };
@@ -1864,12 +1888,15 @@ async function showLooseEnds(
   repositoryRoot: string,
   snapshotPath: string | undefined,
   phaseId?: string,
+  packageReference?: string,
 ): Promise<CommandResult> {
-  const resolved = await selectedLifecycleEvaluation(
+  const resolved = await lifecycleEvaluation(
     repositoryRoot,
     "loose-ends",
     snapshotPath,
     phaseId,
+    false,
+    packageReference,
   );
   if (!resolved.ok) return resolved.result;
   const projection = looseEndsProjection(resolved.evaluation);
@@ -1878,7 +1905,7 @@ async function showLooseEnds(
     ok: true,
     command: "loose-ends",
     package: resolved.summary,
-    selected: true,
+    selected: resolved.selected,
     looseEnds: projection,
     diagnostics: [],
   };
@@ -1889,7 +1916,7 @@ async function showNextWork(
   snapshotPath: string | undefined,
   phaseId?: string,
 ): Promise<CommandResult> {
-  const resolved = await selectedLifecycleEvaluation(
+  const resolved = await lifecycleEvaluation(
     repositoryRoot,
     "next",
     snapshotPath,
@@ -1902,7 +1929,7 @@ async function showNextWork(
     ok: true,
     command: "next",
     package: resolved.summary,
-    selected: true,
+    selected: resolved.selected,
     next: projection,
     diagnostics: [],
   };
@@ -2379,7 +2406,7 @@ async function showSelectedPackage(
   };
 }
 
-function humanOutput(result: CommandResult): string {
+export function renderCommandResult(result: CommandResult): string {
   if (!result.ok && result.validation) {
     return [
       `Compilation: ${result.validation.compilation}`,
@@ -2798,7 +2825,10 @@ function directArguments(arguments_: string[]): Record<string, unknown> {
   return result;
 }
 
-async function run(arguments_: string[], repositoryRoot: string): Promise<CommandResult> {
+export async function dispatchCommand(
+  arguments_: string[],
+  repositoryRoot: string,
+): Promise<CommandResult> {
   const operands = arguments_.filter((argument, index) =>
     argument !== "--json" &&
     argument !== "--ref" &&
@@ -2924,6 +2954,7 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
       repositoryRoot,
       optionValue(arguments_, "--snapshot"),
       optionValue(arguments_, "--phase"),
+      optionValue(arguments_, "--ref"),
     );
   }
   if (operands[0] === "next") {
@@ -3030,129 +3061,21 @@ async function run(arguments_: string[], repositoryRoot: string): Promise<Comman
   );
 }
 
-export interface CommandApplicationRequest {
-  arguments: string[];
-  repositoryRoot: string;
-  commandName?: "mdlm" | "req";
-  mode?: "command" | "prototype";
-}
 
-export interface CommandApplicationExecution {
-  exitCode: 0 | 1;
-  output: string;
-  errorOutput?: string;
-}
-
-async function executePrototypeApplication(
-  request: CommandApplicationRequest,
-): Promise<CommandApplicationExecution> {
-  const snapshotPath = path.resolve(
-    request.repositoryRoot,
-    request.arguments[0] ?? "examples/psp-to-sys-snapshot.yaml",
-  );
-  const loaded = await loadProcessPackage(
-    path.join(request.repositoryRoot, ".lifecycle/process"),
-  );
-  if (!loaded.ok) {
-    return {
-      exitCode: 1,
-      output: "",
-      errorOutput: `${loaded.diagnostics.map((diagnostic) =>
-        `${diagnostic.code}: ${diagnostic.path ?? ""} ${diagnostic.message}`
-      ).join("\n")}\n`,
-    };
-  }
-
-  const snapshot = await readLifecycleSnapshot(
-    request.repositoryRoot,
-    path.relative(request.repositoryRoot, snapshotPath),
-  );
-  const resolved = resolveType(loaded.package, "STK");
-  const evaluation = evaluateLifecycle(loaded.package, snapshot);
-  const lines = [
-    `Process package: ${loaded.package.manifest.id}@${loaded.package.manifest.version}`,
-    `Snapshot: ${path.relative(request.repositoryRoot, snapshotPath)}`,
-    ...(resolved.ok
-      ? [
-          `Resolved STK templates: ${resolved.type.templateChain.join(" → ")}`,
-          `Resolved STK payload fields: ${resolved.type.payloadSchema.required.join(", ")}`,
-        ]
-      : []),
-    "",
-    "Computed artifact states:",
-    ...Object.entries(evaluation.artifacts).map(([revision, artifact]) =>
-      `- ${revision}: ${JSON.stringify(artifact.states)}`
-    ),
-    "",
-    `Loose ends (${evaluation.looseEnds.length}):`,
-    ...evaluation.looseEnds.flatMap((looseEnd) => [
-      `- [${looseEnd.status}] ${looseEnd.obligation} for ${looseEnd.subject}`,
-      `  Why: ${looseEnd.explanation}`,
-      `  Dispatchable: ${looseEnd.dispatchable}`,
-      `  Eventual resolver: ${looseEnd.eventualResolver}`,
-      `  Actionable resolver: ${looseEnd.actionableResolver ?? "none"}`,
-    ]),
-    ...(evaluation.diagnostics.length > 0
-      ? [
-          "",
-          "Evaluation diagnostics:",
-          ...evaluation.diagnostics.map((diagnostic) =>
-            `- ${diagnostic.code}: ${diagnostic.message}`
-          ),
-        ]
-      : []),
-  ];
-  return {
-    exitCode: evaluation.diagnostics.length > 0 ? 1 : 0,
-    output: `${lines.join("\n")}\n`,
-  };
-}
-
-/**
- * Dispatch and render one MDLM invocation without owning process startup.
- * Executable adapters share this interface while the implementation retains
- * command behavior and the temporary prototype journey in one module.
- */
-export async function executeCommandApplication(
-  request: CommandApplicationRequest,
-): Promise<CommandApplicationExecution> {
-  if (request.mode === "prototype") {
-    return executePrototypeApplication(request);
-  }
-
-  const json = request.arguments.includes("--json");
+if (import.meta.main) {
+  const arguments_ = process.argv.slice(2);
+  const json = arguments_.includes("--json");
   let result: CommandResult;
   try {
-    result = await run(request.arguments, request.repositoryRoot);
+    result = await dispatchCommand(arguments_, process.cwd());
   } catch (error) {
     result = failure(
-      "req-error",
+      "mdlm-error",
       error instanceof Error ? error.message : String(error),
     );
   }
-  if (request.commandName !== "req") {
-    result = {
-      ...result,
-      diagnostics: result.diagnostics.map((diagnostic) => ({
-        ...diagnostic,
-        code: diagnostic.code === "req-error" ? "mdlm-error" : diagnostic.code,
-        message: diagnostic.message.replaceAll("'req ", "'mdlm "),
-      })),
-    };
-  }
-  return {
-    exitCode: result.ok ? 0 : 1,
-    output: `${json ? JSON.stringify(result, null, 2) : humanOutput(result)}\n`,
-  };
-}
-
-if (import.meta.main) {
-  const execution = await executeCommandApplication({
-    arguments: process.argv.slice(2),
-    repositoryRoot: process.cwd(),
-    commandName: "req",
-  });
-  process.stdout.write(execution.output);
-  if (execution.errorOutput) process.stderr.write(execution.errorOutput);
-  process.exitCode = execution.exitCode;
+  process.stdout.write(
+    `${json ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
+  );
+  process.exitCode = result.ok ? 0 : 1;
 }
