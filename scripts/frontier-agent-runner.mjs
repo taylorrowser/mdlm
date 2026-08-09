@@ -19,6 +19,17 @@ export function appendAgentLog(path, heading, output = "") {
   appendFileSync(path, `\n===== ${heading} — ${isoNow()} =====\n${output}${output.endsWith("\n") || !output ? "" : "\n"}`);
 }
 
+export function issueReviewEvidenceArguments(issueNumber) {
+  return ["issue", "view", String(issueNumber), "--json", "number,title,body,comments"];
+}
+
+export function formatIssueReviewEvidence(issue) {
+  const comments = issue.comments?.length
+    ? issue.comments.map((comment) => `### Comment by ${comment.author?.login ?? "unknown"}\n\n${comment.body ?? ""}`).join("\n\n")
+    : "No comments.";
+  return `# #${issue.number}: ${issue.title}\n\n${issue.body || "No issue body."}\n\n## Comments\n\n${comments}`;
+}
+
 export function validationCommands(baseBranch) {
   return [
     ["npm", ["ci", "--ignore-scripts"]],
@@ -89,9 +100,9 @@ export function createAgentRunner({
 
   function writeReviewEvidence(issue, worktree, logPath, baseBranch) {
     const parentNumber = referencedParentNumber(issue.body);
-    const issueEvidence = baseCommandOutput("gh", ["issue", "view", String(issue.number), "--comments"], { cwd: repositoryRoot });
+    const issueEvidence = formatIssueReviewEvidence(JSON.parse(baseCommandOutput("gh", issueReviewEvidenceArguments(issue.number), { cwd: repositoryRoot })));
     const parentEvidence = parentNumber
-      ? baseCommandOutput("gh", ["issue", "view", String(parentNumber), "--comments"], { cwd: repositoryRoot })
+      ? formatIssueReviewEvidence(JSON.parse(baseCommandOutput("gh", issueReviewEvidenceArguments(parentNumber), { cwd: repositoryRoot })))
       : "No explicit parent issue.";
     const commits = baseCommandOutput("git", ["log", `origin/${baseBranch}..HEAD`, "--oneline"], { cwd: worktree });
     const diff = baseCommandOutput("git", ["diff", `origin/${baseBranch}...HEAD`], { cwd: worktree });
