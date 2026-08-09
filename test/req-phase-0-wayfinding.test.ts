@@ -63,16 +63,16 @@ describe("req Phase 0 wayfinding slice", () => {
   });
 
   it("discovers the first required foundation step from an initialized repository", () => {
-    const next = req(
+    const initialLooseEnds = req(
       repositoryRoot,
-      "next",
+      "loose-ends",
       "--phase",
       "phase-0-wayfinding",
       "--json",
     );
 
-    expect(next.status, next.stderr).toBe(0);
-    expect(JSON.parse(next.stdout).next.item).toEqual(expect.objectContaining({
+    expect(initialLooseEnds.status, initialLooseEnds.stderr).toBe(0);
+    expect(JSON.parse(initialLooseEnds.stdout).looseEnds.items[0]).toEqual(expect.objectContaining({
       obligation: "initial-wayfinding-map-required",
       subject: "phase-0-wayfinding@2",
       status: "ready",
@@ -1135,15 +1135,15 @@ describe("req Phase 0 wayfinding slice", () => {
       expect.objectContaining({ code: "obligation-not-dispatchable" }),
     ]);
     await expect(fs.stat(duplicateAdapter.capture)).rejects.toMatchObject({ code: "ENOENT" });
-    const next = req(
+    const gateLooseEnds = req(
       repositoryRoot,
-      "next",
+      "loose-ends",
       "--phase",
       "phase-0-wayfinding",
       "--json",
     );
-    expect(next.status, next.stderr).toBe(0);
-    expect(JSON.parse(next.stdout).next.item).toEqual(expect.objectContaining({
+    expect(gateLooseEnds.status, gateLooseEnds.stderr).toBe(0);
+    expect(JSON.parse(gateLooseEnds.stdout).looseEnds.items[0]).toEqual(expect.objectContaining({
       subject: signoff.revisionId,
       actionableResolver: "create-review-context@1",
       dispatchable: true,
@@ -1200,10 +1200,10 @@ describe("req Phase 0 wayfinding slice", () => {
       },
     }));
 
-    const continued = req(repositoryRoot, "next", "--json");
+    const continued = req(repositoryRoot, "phase", "status", "--json");
     expect(continued.status, continued.stderr).toBe(0);
-    expect(JSON.parse(continued.stdout).next.phase).toBe(
-      "phase-1-product-assurance@1",
+    expect(JSON.parse(continued.stdout).phaseStatus.id).toBe(
+      "phase-1-product-assurance",
     );
 
     const listed = req(repositoryRoot, "list", "--json");

@@ -91,7 +91,9 @@ node ../dist/mdlm.js baseline verify BSL-0123456789
 node ../dist/mdlm.js baseline diff BSL-0123456789-r00001 BSL-ABCDEFGHIJ-r00001
 node ../dist/mdlm.js doctor
 node ../dist/mdlm.js loose-ends --phase phase-0-wayfinding
-node ../dist/mdlm.js next --phase phase-0-wayfinding
+# Lease one exact Assignment, then expand it for a harness or agent:
+node ../dist/mdlm.js next
+node ../dist/mdlm.js scenario prepare <assignment-id>
 node ../dist/mdlm.js phase status phase-0-wayfinding
 node ../dist/mdlm.js schema STK
 # Explicitly prepare and execute one package-authored non-Resolver Scenario:

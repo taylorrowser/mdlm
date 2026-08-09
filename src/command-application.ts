@@ -23,16 +23,15 @@ import {
   type ProcessInspection,
 } from "./process-package-inspection.js";
 import {
+  activeLifecycleEvaluation,
+  initialPhaseId,
   looseEndsProjection,
-  nextWorkProjection,
   phaseStatusProjection,
   type LooseEndsProjection,
-  type NextWorkProjection,
   type PhaseStatusProjection,
 } from "./lifecycle-inspection.js";
 import {
   humanLooseEnds,
-  humanNextWork,
   humanParticipation,
   humanPhaseStatus,
 } from "./lifecycle-output.js";
@@ -101,6 +100,17 @@ import {
 } from "./process-package-scaffolding.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import {
+  leaseNextAssignment,
+  prepareAssignment,
+  type AssignmentOutcome,
+  type AssignmentPacket,
+} from "./assignment.js";
+import {
+  readSelection,
+  selectedPackage,
+  selectedRepositoryPackage,
+} from "./selected-package.js";
+import {
   packageSummary,
   packagesRelativePath,
   processSelection,
@@ -109,7 +119,6 @@ import {
   repositorySummary,
   selectionRelativePath,
   type PackageSummary,
-  type ProcessSelection,
   type RepositorySummary,
 } from "./repository-contract.js";
 
@@ -138,10 +147,13 @@ interface TypeSchemaInspection {
   }[];
 }
 
-interface CommandResult {
+interface CommandResultBase {
   ok: boolean;
   command?: string;
-  package?: PackageSummary;
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"];
+  outcome?: AssignmentOutcome["outcome"];
+  assignment?: AssignmentOutcome["assignment"];
+  package?: PackageSummary | AssignmentPacket["package"];
   installed?: boolean;
   selected?: boolean;
   inspection?: ProcessInspection;
@@ -154,12 +166,11 @@ interface CommandResult {
   evaluation?: ProcessDirectEvaluation | ProcessExpressionEvaluation;
   phaseStatus?: PhaseStatusProjection;
   looseEnds?: LooseEndsProjection;
-  next?: NextWorkProjection;
   scaffold?: PackageScaffold;
   definition?: DefinitionScaffold;
   fixture?: FixtureScaffold;
   tests?: FixtureTestSummary;
-  repository?: RepositorySummary;
+  repository?: RepositorySummary | AssignmentPacket["repository"];
   migration?: ProcessMigration;
   schema?: TypeSchemaInspection;
   created?: CreatedDatum;
@@ -181,6 +192,14 @@ interface CommandResult {
   report?: RepositoryReportSummary;
   diagnostics: ProcessDiagnostic[];
 }
+
+type PreparedAssignmentCommandResult = CommandResultBase & AssignmentPacket & {
+  ok: true;
+  command: "scenario.prepare";
+  diagnostics: [];
+};
+
+type CommandResult = CommandResultBase | PreparedAssignmentCommandResult;
 
 function failure(
   code: string,
@@ -1380,119 +1399,6 @@ async function migrateRepositoryPackage(
   };
 }
 
-async function readSelection(
-  repositoryRoot: string,
-): Promise<ProcessSelection | undefined> {
-  try {
-    return JSON.parse(
-      await fs.readFile(path.join(repositoryRoot, selectionRelativePath), "utf8"),
-    ) as ProcessSelection;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-    throw error;
-  }
-}
-
-type SelectedPackageResolution =
-  | {
-      ok: true;
-      processPackage: ProcessPackage;
-      summary: PackageSummary;
-    }
-  | {
-      ok: false;
-      selected: boolean;
-      diagnostics: ProcessDiagnostic[];
-    };
-
-async function selectedPackage(
-  repositoryRoot: string,
-): Promise<SelectedPackageResolution> {
-  const selection = await readSelection(repositoryRoot);
-  if (!selection) {
-    return {
-      ok: false,
-      selected: false,
-      diagnostics: [{
-        code: "process-package-not-selected",
-        message:
-          "No Process Package is selected; run 'mdlm process use <package@version>'",
-      }],
-    };
-  }
-  const packageRoot = path.resolve(repositoryRoot, selection.package.path);
-  const loaded = await loadProcessPackage(packageRoot);
-  if (!loaded.ok) {
-    return { ok: false, selected: true, diagnostics: loaded.diagnostics };
-  }
-  const summary = await packageSummary(loaded.package, packageRoot);
-  if (
-    summary.reference !== selection.package.reference ||
-    summary.digest !== selection.package.digest ||
-    summary.language !== selection.language.expressions
-  ) {
-    return {
-      ok: false,
-      selected: true,
-      diagnostics: [{
-        code: "process-package-selection-mismatch",
-        path: packageRoot,
-        message:
-          `Selected Process Package '${selection.package.reference}' no longer matches its exact recorded version, language, and digest`,
-      }],
-    };
-  }
-  return { ok: true, processPackage: loaded.package, summary };
-}
-
-async function selectedRepositoryPackage(
-  repositoryRoot: string,
-): Promise<SelectedPackageResolution> {
-  const selected = await selectedPackage(repositoryRoot);
-  if (!selected.ok) return selected;
-  const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
-  let descriptor: Record<string, unknown>;
-  try {
-    const parsed = JSON.parse(await fs.readFile(descriptorPath, "utf8")) as unknown;
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      throw new Error("repository descriptor must be a JSON object");
-    }
-    descriptor = parsed as Record<string, unknown>;
-  } catch (error) {
-    return {
-      ok: false,
-      selected: true,
-      diagnostics: [{
-        code: (error as NodeJS.ErrnoException).code === "ENOENT"
-          ? "repository-not-initialized"
-          : "repository-contract",
-        path: descriptorPath,
-        message: (error as NodeJS.ErrnoException).code === "ENOENT"
-          ? "No MDLM repository descriptor exists; run 'mdlm init <destination>'"
-          : `Cannot read the MDLM repository descriptor: ${error instanceof Error ? error.message : String(error)}`,
-      }],
-    };
-  }
-  if (
-    !repositoryDescriptorMatches(
-      descriptor,
-      selected.processPackage,
-      selected.summary,
-    )
-  ) {
-    return {
-      ok: false,
-      selected: true,
-      diagnostics: [{
-        code: "repository-contract-mismatch",
-        path: descriptorPath,
-        message: "The repository descriptor does not match its exact selected Process Package and supported contracts",
-      }],
-    };
-  }
-  return selected;
-}
-
 function failedValidation(
   diagnostics: ProcessDiagnostic[],
   selected: boolean,
@@ -1610,31 +1516,6 @@ async function readLifecycleSnapshot(
   ) as LifecycleSnapshot;
 }
 
-function initialPhaseId(processPackage: ProcessPackage): string | undefined {
-  return Object.values(processPackage.phases)
-    .sort((left, right) =>
-      Number(left.order) - Number(right.order) || left.id.localeCompare(right.id)
-    )[0]?.id;
-}
-
-function activeLifecycleEvaluation(
-  processPackage: ProcessPackage,
-  snapshot: LifecycleSnapshot,
-): ReturnType<typeof evaluateLifecycle> {
-  let phaseId = initialPhaseId(processPackage) ?? snapshot.phaseId;
-  const visited = new Set<string>();
-  while (!visited.has(phaseId)) {
-    visited.add(phaseId);
-    const evaluation = evaluateLifecycle(processPackage, { ...snapshot, phaseId });
-    const nextPhase = evaluation.phase?.progression?.complete
-      ? evaluation.phase.progression.nextPhase
-      : undefined;
-    if (!nextPhase) return evaluation;
-    phaseId = nextPhase;
-  }
-  return evaluateLifecycle(processPackage, { ...snapshot, phaseId });
-}
-
 type SelectedLifecycleEvaluation =
   | {
       ok: true;
@@ -1650,7 +1531,9 @@ async function selectedLifecycleEvaluation(
   phaseId?: string,
   deriveActive = false,
 ): Promise<SelectedLifecycleEvaluation> {
-  const resolved = await selectedPackage(repositoryRoot);
+  const resolved = snapshotPath
+    ? await selectedPackage(repositoryRoot)
+    : await selectedRepositoryPackage(repositoryRoot);
   if (!resolved.ok) {
     return {
       ok: false,
@@ -1710,7 +1593,11 @@ async function selectedLifecycleEvaluation(
       },
     };
   }
-  return { ok: true, summary: resolved.summary, evaluation };
+  return {
+    ok: true,
+    summary: resolved.summary,
+    evaluation,
+  };
 }
 
 async function phaseStatus(
@@ -1762,28 +1649,41 @@ async function showLooseEnds(
   };
 }
 
-async function showNextWork(
+async function showNextAssignment(
   repositoryRoot: string,
-  snapshotPath: string | undefined,
-  phaseId?: string,
 ): Promise<CommandResult> {
-  const resolved = await selectedLifecycleEvaluation(
-    repositoryRoot,
-    "next",
-    snapshotPath,
-    phaseId,
-  );
-  if (!resolved.ok) return resolved.result;
-  const projection = nextWorkProjection(resolved.evaluation);
-  if (!projection) throw new Error("Lifecycle evaluation did not return a Phase");
-  return {
-    ok: true,
-    command: "next",
-    package: resolved.summary,
-    selected: true,
-    next: projection,
-    diagnostics: [],
-  };
+  const leased = await leaseNextAssignment(repositoryRoot);
+  return leased.ok
+    ? {
+        ok: true,
+        command: "next",
+        ...leased.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "next",
+        diagnostics: leased.diagnostics,
+      };
+}
+
+async function prepareExactAssignment(
+  repositoryRoot: string,
+  assignmentId: string,
+): Promise<CommandResult> {
+  const prepared = await prepareAssignment(repositoryRoot, assignmentId);
+  return prepared.ok
+    ? {
+        ok: true,
+        command: "scenario.prepare",
+        ...prepared.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "scenario.prepare",
+        diagnostics: prepared.diagnostics,
+      };
 }
 
 async function dryRunScenario(
@@ -2300,7 +2200,7 @@ function renderCommandResult(result: CommandResult): string {
       `Current Process Package: ${result.migration.to.reference}#${result.migration.to.digest}`,
     ].join("\n");
   }
-  if (result.repository && result.package) {
+  if (result.repository && "contract" in result.repository && result.package) {
     return [
       `Repository Contract: ${result.repository.contract}`,
       `Process Package: ${result.package.reference}`,
@@ -2552,9 +2452,6 @@ function renderCommandResult(result: CommandResult): string {
   }
   if (result.looseEnds && result.package) {
     return humanLooseEnds(result.package.reference, result.looseEnds);
-  }
-  if (result.next && result.package) {
-    return humanNextWork(result.package.reference, result.next);
   }
   if (result.evaluation && result.package) {
     const evaluation = result.evaluation;
@@ -2821,11 +2718,29 @@ async function dispatchCommand(
     );
   }
   if (operands[0] === "next") {
-    return showNextWork(
-      repositoryRoot,
-      optionValue(arguments_, "--snapshot"),
-      optionValue(arguments_, "--phase"),
-    );
+    const nextArguments = arguments_.filter((argument) => argument !== "--json");
+    return nextArguments.length === 1
+      ? showNextAssignment(repositoryRoot)
+      : {
+          ...failure(
+            "next-arguments-unsupported",
+            "Expected 'mdlm next' without legacy projection options",
+          ),
+          command: "next",
+        };
+  }
+  if (operands[0] === "scenario" && operands[1] === "prepare") {
+    const prepareArguments = arguments_.filter((argument) => argument !== "--json");
+    return prepareArguments.length === 3 &&
+        prepareArguments[2] && !prepareArguments[2].startsWith("--")
+      ? prepareExactAssignment(repositoryRoot, prepareArguments[2])
+      : {
+          ...failure(
+            "scenario-prepare-arguments-invalid",
+            "Expected 'mdlm scenario prepare <assignment-id>'",
+          ),
+          command: "scenario.prepare",
+        };
   }
   if (
     operands[0] === "scenario" && operands[1] === "execute" && operands[2]
@@ -2944,7 +2859,11 @@ async function executeCommand(
   }
   return {
     exitCode: result.ok ? 0 : 1,
-    output: `${arguments_.includes("--json") ? JSON.stringify(result, null, 2) : renderCommandResult(result)}\n`,
+    output: `${arguments_.includes("--json") || result.contract ||
+        arguments_[0] === "next" ||
+        (arguments_[0] === "scenario" && arguments_[1] === "prepare")
+      ? JSON.stringify(result, null, 2)
+      : renderCommandResult(result)}\n`,
   };
 }
 

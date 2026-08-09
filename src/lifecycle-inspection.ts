@@ -1,10 +1,13 @@
-import type {
-  ExactTypedEntity,
-  LifecycleEvaluation,
-  ObligationEvaluation,
-  PhaseEvaluation,
-  PhaseGateEvaluation,
+import {
+  evaluateLifecycle,
+  type ExactTypedEntity,
+  type LifecycleEvaluation,
+  type LifecycleSnapshot,
+  type ObligationEvaluation,
+  type PhaseEvaluation,
+  type PhaseGateEvaluation,
 } from "./evaluator.js";
+import type { ProcessPackage } from "./index.js";
 
 export interface ObligationStatusSummary {
   count: number;
@@ -63,6 +66,31 @@ export interface NextWorkProjection {
 
 function phaseReference(phase: PhaseEvaluation): string {
   return `${phase.id}@${phase.version}`;
+}
+
+export function initialPhaseId(processPackage: ProcessPackage): string | undefined {
+  return Object.values(processPackage.phases)
+    .sort((left, right) =>
+      Number(left.order) - Number(right.order) || left.id.localeCompare(right.id)
+    )[0]?.id;
+}
+
+export function activeLifecycleEvaluation(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+): LifecycleEvaluation {
+  let phaseId = initialPhaseId(processPackage) ?? snapshot.phaseId;
+  const visited = new Set<string>();
+  while (!visited.has(phaseId)) {
+    visited.add(phaseId);
+    const evaluation = evaluateLifecycle(processPackage, { ...snapshot, phaseId });
+    const nextPhase = evaluation.phase?.progression?.complete
+      ? evaluation.phase.progression.nextPhase
+      : undefined;
+    if (!nextPhase) return evaluation;
+    phaseId = nextPhase;
+  }
+  return evaluateLifecycle(processPackage, { ...snapshot, phaseId });
 }
 
 export function phaseStatusProjection(
