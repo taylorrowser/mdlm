@@ -205,15 +205,161 @@ async function writeLease(
   await fs.rename(temporary, target);
 }
 
+function object(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function hasFields(
+  value: Record<string, unknown>,
+  fields: readonly string[],
+): boolean {
+  const actual = Object.keys(value);
+  return actual.length === fields.length &&
+    fields.every((field) => Object.hasOwn(value, field));
+}
+
+function nonemptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function validParticipation(value: unknown): boolean {
+  const participation = object(value);
+  const authority = object(participation?.authorityRequirement);
+  const attention = object(participation?.attentionSchedule);
+  if (
+    !participation ||
+    !hasFields(participation, [
+      "policy",
+      "authorityRequirement",
+      "attentionSchedule",
+      "transactionBatching",
+    ]) ||
+    !nonemptyString(participation.policy) ||
+    !authority ||
+    !hasFields(authority, ["mode", "authority", "delegationAllowed"]) ||
+    !["autonomous", "delegated", "attended"].includes(String(authority.mode)) ||
+    !nonemptyString(authority.authority) ||
+    typeof authority.delegationAllowed !== "boolean" ||
+    !attention ||
+    !hasFields(attention, ["timing", "checkpoint", "consolidationGroup"]) ||
+    !["none", "immediate", "checkpoint"].includes(String(attention.timing)) ||
+    !(attention.checkpoint === null || nonemptyString(attention.checkpoint)) ||
+    !(attention.consolidationGroup === null || nonemptyString(attention.consolidationGroup)) ||
+    !["single", "coherent-batch", "either"].includes(
+      String(participation.transactionBatching),
+    )
+  ) return false;
+  return attention.timing === "checkpoint"
+    ? attention.checkpoint !== null
+    : attention.checkpoint === null && attention.consolidationGroup === null;
+}
+
+function validBinding(value: unknown, index: number): boolean {
+  const binding = object(value);
+  if (
+    !binding ||
+    !hasFields(binding, ["invocation", "inputs"]) ||
+    binding.invocation !== index ||
+    !Array.isArray(binding.inputs)
+  ) return false;
+  return binding.inputs.every((candidate) => {
+    const input = object(candidate);
+    return !!input &&
+      hasFields(input, ["name", "values"]) &&
+      nonemptyString(input.name) &&
+      Array.isArray(input.values) &&
+      input.values.every(nonemptyString);
+  });
+}
+
+function validAssignmentLease(value: unknown): value is AssignmentLease {
+  const lease = object(value);
+  const packageValue = object(lease?.package);
+  const repository = object(lease?.repository);
+  const obligation = object(lease?.obligation);
+  const retry = object(lease?.retryAvailability);
+  const parsedObligation = typeof obligation?.instance === "string"
+    ? parseObligationInstanceIdentity(obligation.instance)
+    : undefined;
+  return !!lease &&
+    hasFields(lease, [
+      "contract",
+      "id",
+      "disposition",
+      "package",
+      "repository",
+      "phase",
+      "obligation",
+      "scenario",
+      "bindings",
+      "participation",
+      "retryAvailability",
+    ]) &&
+    lease.contract === "mdlm-assignment-lease@1" &&
+    typeof lease.id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lease.id) &&
+    lease.disposition === "active" &&
+    !!packageValue &&
+    hasFields(packageValue, ["reference", "digest", "language"]) &&
+    nonemptyString(packageValue.reference) &&
+    /^sha256:[0-9a-f]{64}$/.test(String(packageValue.digest)) &&
+    nonemptyString(packageValue.language) &&
+    !!repository &&
+    hasFields(repository, ["head", "trackedState"]) &&
+    /^[0-9a-f]{40}$/.test(String(repository.head)) &&
+    /^sha256:[0-9a-f]{64}$/.test(String(repository.trackedState)) &&
+    nonemptyString(lease.phase) &&
+    !!obligation &&
+    hasFields(obligation, ["instance", "definition", "subject"]) &&
+    !!parsedObligation &&
+    obligation.definition === parsedObligation.obligationReference &&
+    obligation.subject === parsedObligation.subject.identity &&
+    nonemptyString(lease.scenario) &&
+    Array.isArray(lease.bindings) &&
+    lease.bindings.every(validBinding) &&
+    Array.isArray(lease.participation) &&
+    lease.participation.every(validParticipation) &&
+    !!retry &&
+    hasFields(retry, ["malformedResponseCorrection"]) &&
+    retry.malformedResponseCorrection === 1;
+}
+
 async function readAssignmentLease(
   repositoryRoot: string,
-): Promise<AssignmentLease | undefined> {
+): Promise<AssignmentResult<AssignmentLease | undefined>> {
+  const target = leasePath(repositoryRoot);
+  let source: string;
   try {
-    return JSON.parse(await fs.readFile(leasePath(repositoryRoot), "utf8")) as AssignmentLease;
+    source = await fs.readFile(target, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-    throw error;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { ok: true, value: undefined, diagnostics: [] };
+    }
+    return failure(
+      "assignment-lease-read-failed",
+      `Could not read the Assignment lease: ${error instanceof Error ? error.message : String(error)}`,
+      target,
+    );
   }
+  let value: unknown;
+  try {
+    value = JSON.parse(source);
+  } catch {
+    return failure(
+      "assignment-lease-invalid",
+      "The active Assignment lease is not valid JSON",
+      target,
+    );
+  }
+  return validAssignmentLease(value)
+    ? { ok: true, value, diagnostics: [] }
+    : failure(
+        "assignment-lease-invalid",
+        "The active Assignment lease does not satisfy mdlm-assignment-lease@1",
+        target,
+      );
 }
 
 async function invalidateLease(repositoryRoot: string): Promise<void> {
@@ -294,6 +440,8 @@ function sameExactState(
   exact: ReturnType<typeof exactLeaseState>,
 ): boolean {
   const comparable = {
+    contract: lease.contract,
+    disposition: lease.disposition,
     package: lease.package,
     repository: lease.repository,
     phase: lease.phase,
@@ -301,8 +449,14 @@ function sameExactState(
     scenario: lease.scenario,
     bindings: lease.bindings,
     participation: lease.participation,
+    retryAvailability: lease.retryAvailability,
   };
-  return JSON.stringify(comparable) === JSON.stringify(exact);
+  return JSON.stringify(comparable) === JSON.stringify({
+    contract: "mdlm-assignment-lease@1",
+    disposition: "active",
+    ...exact,
+    retryAvailability: { malformedResponseCorrection: 1 },
+  });
 }
 
 /** Lease the one exact Dispatchable Obligation selected by declarative evaluation. */
@@ -334,7 +488,9 @@ export async function leaseNextAssignment(
     item,
     preparation.value.dryRun,
   );
-  const active = await readAssignmentLease(repositoryRoot);
+  const activeLease = await readAssignmentLease(repositoryRoot);
+  if (!activeLease.ok) return activeLease;
+  const active = activeLease.value;
   if (active && sameExactState(active, exact)) {
     return {
       ok: true,
@@ -365,7 +521,7 @@ export async function leaseNextAssignment(
   };
 }
 
-function responseSchema(assignmentId: string): Record<string, unknown> {
+function responseSchema(): Record<string, unknown> {
   const diagnostic = {
     type: "object",
     additionalProperties: false,
@@ -401,7 +557,7 @@ function responseSchema(assignmentId: string): Record<string, unknown> {
   };
   const common = {
     contract: { const: "mdlm-assignment-response@1" },
-    assignment: { const: assignmentId },
+    assignment: { type: "string", minLength: 1 },
   };
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -566,7 +722,7 @@ function packet(
       requiredLinks: output.requiredLinks,
     })),
     completion: dryRun.completion,
-    responseSchema: responseSchema(lease.id),
+    responseSchema: responseSchema(),
   };
 }
 
@@ -575,7 +731,9 @@ export async function prepareAssignment(
   repositoryRoot: string,
   assignmentId: string,
 ): Promise<AssignmentResult<AssignmentPacket>> {
-  const lease = await readAssignmentLease(repositoryRoot);
+  const activeLease = await readAssignmentLease(repositoryRoot);
+  if (!activeLease.ok) return activeLease;
+  const lease = activeLease.value;
   if (!lease || lease.id !== assignmentId) {
     return failure(
       "assignment-unavailable",
