@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { commandResult } from "./frontier-command.mjs";
-import { formatIssueReviewEvidence, issueReviewEvidenceArguments, validationCommands } from "./frontier-agent-runner.mjs";
 import {
+  formatIssueReviewEvidence,
+  frontierModel,
+  frontierThinkingLevel,
+  issueReviewEvidenceArguments,
+  piAgentArguments,
+  validationCommands,
+  validationCommandWasInterrupted,
+} from "./frontier-agent-runner.mjs";
+import {
+  actionProgressed,
   complexityReasonsFromStats,
   failureBaseState,
   isPublicationRetryFailure,
@@ -14,6 +27,7 @@ import {
   reviewHasComplexityVerdict,
   reviewerVerdict,
   reviewRequestsSimplification,
+  resumesAtValidation,
   validatedHeadMatches,
   validationFailureAction,
   validationHasVerdict,
@@ -30,6 +44,8 @@ import {
   selectOlderReadyBacklog,
   selectSnapshottedIssues,
 } from "./frontier-issue-contract.mjs";
+import { createMaintenanceController, maintenanceBoundaryIsSafe } from "./frontier-maintenance.mjs";
+import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompts.mjs";
 
 function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
   return { number, title: `Issue ${number}`, state, assignees, blockedBy };
@@ -120,6 +136,90 @@ test("review evidence requests and preserves the issue body and comments", () =>
   assert.match(evidence, /Acceptance criteria are authoritative/);
   assert.match(evidence, /Comment by operator/);
   assert.match(evidence, /Contract clarification/);
+});
+
+test("every Pi agent is pinned to GPT-5.6 Sol with high thinking", () => {
+  assert.equal(frontierModel, "openai-codex/gpt-5.6-sol");
+  assert.equal(frontierThinkingLevel, "high");
+  for (const arguments_ of [piAgentArguments("implement"), piAgentArguments("review", { readOnly: true })]) {
+    assert.deepEqual(arguments_.slice(arguments_.indexOf("--model"), arguments_.indexOf("--model") + 2), ["--model", "openai-codex/gpt-5.6-sol"]);
+    assert.deepEqual(arguments_.slice(arguments_.indexOf("--thinking"), arguments_.indexOf("--thinking") + 2), ["--thinking", "high"]);
+  }
+  assert.equal(piAgentArguments("review", { readOnly: true }).includes("--no-extensions"), true);
+});
+
+test("agent prompts reserve full validation for the orchestrator and preserve tracer sequencing", () => {
+  const issue = { number: 86, title: "Prepare Assignment" };
+  const implementation = editingAgentPrompt("implementation", { issue });
+  const simplification = editingAgentPrompt("simplification", { issue, reasonLog: "/tmp/issue.log" });
+  const reviewer = independentReviewerPrompt("/tmp/evidence.md");
+  assert.match(implementation, /^\/skill:implement/);
+  assert.match(implementation, /do not run the full suite/);
+  assert.match(implementation, /deferred sibling work remains deferred/);
+  assert.match(simplification, /without pausing for stakeholder confirmation/);
+  assert.match(reviewer, /active child acceptance criteria as the current delivery boundary/);
+  assert.match(reviewer, /explicitly deferred sibling work/);
+  assert.match(reviewer, /delivery-biased gate/);
+  assert.match(reviewer, /non-blocking follow-ups/);
+});
+
+test("maintenance requires a fully cleared between-ticket boundary", () => {
+  assert.equal(maintenanceBoundaryIsSafe({ currentIssue: 86, worktree: null, branch: null }), false);
+  assert.equal(maintenanceBoundaryIsSafe({ currentIssue: null, worktree: "/tmp/issue", branch: null }), false);
+  assert.equal(maintenanceBoundaryIsSafe({ currentIssue: null, worktree: null, branch: "agent/issue" }), false);
+  assert.equal(maintenanceBoundaryIsSafe({ currentIssue: null, worktree: null, branch: null }), true);
+});
+
+test("maintenance atomically drains safe state, reserves active work, and honors cancellation", () => {
+  const root = mkdtempSync(join(tmpdir(), "mdlm-maintenance-"));
+  try {
+    const stale = spawnSync("shlock", ["-f", join(root, "MAINTENANCE-GATE"), "-p", "999999"], { encoding: "utf8" });
+    assert.equal(stale.status, 0);
+    const maintenance = createMaintenanceController(root, { sleep: () => {} });
+    assert.equal(maintenance.requestReload(() => false), false);
+    let reservations = 0;
+    assert.deepEqual(maintenance.reserveOrDrain({ currentIssue: null, worktree: null, branch: null }, () => ++reservations), { drain: false, stopped: false, value: 1 });
+    maintenance.requestReload();
+    assert.deepEqual(maintenance.reserveOrDrain({ currentIssue: null, worktree: null, branch: null }, () => ++reservations), { drain: true, stopped: false });
+    assert.deepEqual(maintenance.reserveOrDrain({ currentIssue: 86, worktree: "/tmp/issue", branch: "agent/86" }, () => ++reservations), { drain: false, stopped: false, value: 2 });
+    assert.equal(maintenance.reloadPermitted(), true);
+    assert.equal(maintenance.acknowledgeReload(false), false);
+    assert.equal(maintenance.requested(), true);
+    assert.equal(maintenance.acknowledgeReload(true), true);
+    assert.equal(maintenance.requested(), false);
+    assert.equal(maintenance.acknowledgeReload(false), true);
+    maintenance.finishAcknowledgement();
+    assert.equal(maintenance.acknowledgeReload(false), false);
+    maintenance.requestReload();
+    maintenance.stop();
+    assert.equal(maintenance.acknowledgeReload(true), false);
+    assert.deepEqual(maintenance.reserveOrDrain({ currentIssue: null, worktree: null, branch: null }, () => ++reservations), { drain: false, stopped: true });
+    assert.throws(() => maintenance.requestReload(), /explicit stop/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("no-op detection includes commits, worktree bytes, and issue activity", () => {
+  const before = { head: "abc", worktree: "", issueActivity: "[]" };
+  assert.equal(actionProgressed(before, { ...before }), false);
+  assert.equal(actionProgressed(before, { ...before, head: "def" }), true);
+  assert.equal(actionProgressed(before, { ...before, worktree: " M file" }), true);
+  assert.equal(actionProgressed(before, { ...before, issueActivity: "[[1]]" }), true);
+});
+
+test("signaled or status-less validation remains an unconfirmed in-flight attempt", () => {
+  assert.equal(validationCommandWasInterrupted({ status: null, signal: null }), true);
+  assert.equal(validationCommandWasInterrupted({ status: null, signal: "SIGTERM" }), true);
+  assert.equal(validationCommandWasInterrupted({ status: 1, signal: null }), false);
+  assert.equal(validationCommandWasInterrupted({ status: 0, signal: null }), false);
+});
+
+test("completed failed validation resumes without launching another editing agent", () => {
+  assert.equal(resumesAtValidation({ kind: "failed-validation" }), true);
+  assert.equal(resumesAtValidation({ kind: "validation" }), true);
+  assert.equal(resumesAtValidation({ kind: "review" }), true);
+  assert.equal(resumesAtValidation({ kind: "implementation" }), false);
 });
 
 test("child commands have a finite timeout", () => {

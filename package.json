@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "frontier:start": "node scripts/frontier-loop.mjs start",
+    "frontier:reload": "node scripts/frontier-loop.mjs reload",
     "frontier:status": "node scripts/frontier-loop.mjs status",
     "frontier:watch": "node scripts/frontier-loop.mjs watch",
     "frontier:health": "node scripts/frontier-loop.mjs health",

@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { appendFileSync, closeSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
@@ -9,7 +10,24 @@ import {
   validationPassed,
 } from "./frontier-loop-core.mjs";
 import { referencedParentNumber } from "./frontier-issue-contract.mjs";
+import { independentReviewerPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
+
+export const frontierModel = "openai-codex/gpt-5.6-sol";
+export const frontierThinkingLevel = "high";
+
+export function piAgentArguments(prompt, { readOnly = false } = {}) {
+  return [
+    "-p",
+    "--no-session",
+    ...(readOnly ? ["--no-extensions", "--tools", "read,grep,find,ls"] : []),
+    "--model",
+    frontierModel,
+    "--thinking",
+    frontierThinkingLevel,
+    prompt,
+  ];
+}
 
 function isoNow() {
   return new Date().toISOString();
@@ -28,6 +46,10 @@ export function formatIssueReviewEvidence(issue) {
     ? issue.comments.map((comment) => `### Comment by ${comment.author?.login ?? "unknown"}\n\n${comment.body ?? ""}`).join("\n\n")
     : "No comments.";
   return `# #${issue.number}: ${issue.title}\n\n${issue.body || "No issue body."}\n\n## Comments\n\n${comments}`;
+}
+
+export function validationCommandWasInterrupted(result) {
+  return result.status === null || Boolean(result.signal);
 }
 
 export function validationCommands(baseBranch) {
@@ -49,7 +71,7 @@ export function createAgentRunner({
       const descriptor = openSync(logPath, "a");
       appendAgentLog(logPath, `${heading} (provider attempt ${attempt}/${maximumInfrastructureAttempts})`);
       const attemptLogOffset = readFileSync(logPath, "utf8").length;
-      const result = spawnSync("pi", ["-p", "--no-session", prompt], {
+      const result = spawnSync("pi", piAgentArguments(prompt), {
         cwd: worktree,
         env: process.env,
         stdio: ["ignore", descriptor, descriptor],
@@ -77,9 +99,10 @@ export function createAgentRunner({
         stdio: ["ignore", descriptor, descriptor],
         timeout: Number(process.env.MDLM_FRONTIER_VALIDATION_TIMEOUT_MS ?? 30 * 60_000),
       });
-      if (result.error) {
+      if (result.error || validationCommandWasInterrupted(result)) {
         closeSync(descriptor);
-        throw new Error(`Validation command ${command} failed to complete: ${result.error.message}`);
+        const detail = result.error?.message ?? `terminated by ${result.signal ?? "an unknown signal"}`;
+        throw new Error(`Validation command ${command} failed to complete: ${detail}`);
       }
       if (result.status !== 0) {
         closeSync(descriptor);
@@ -99,16 +122,18 @@ export function createAgentRunner({
   }
 
   function writeReviewEvidence(issue, worktree, logPath, baseBranch) {
-    const parentNumber = referencedParentNumber(issue.body);
-    const issueEvidence = formatIssueReviewEvidence(JSON.parse(baseCommandOutput("gh", issueReviewEvidenceArguments(issue.number), { cwd: repositoryRoot })));
+    const liveIssue = JSON.parse(baseCommandOutput("gh", issueReviewEvidenceArguments(issue.number), { cwd: repositoryRoot }));
+    const parentNumber = referencedParentNumber(liveIssue.body);
+    const issueEvidence = formatIssueReviewEvidence(liveIssue);
     const parentEvidence = parentNumber
       ? formatIssueReviewEvidence(JSON.parse(baseCommandOutput("gh", issueReviewEvidenceArguments(parentNumber), { cwd: repositoryRoot })))
       : "No explicit parent issue.";
     const commits = baseCommandOutput("git", ["log", `origin/${baseBranch}..HEAD`, "--oneline"], { cwd: worktree });
     const diff = baseCommandOutput("git", ["diff", `origin/${baseBranch}...HEAD`], { cwd: worktree });
     const evidencePath = `${logPath}.review-evidence.md`;
-    writeFileSync(evidencePath, `# Independent review evidence for #${issue.number}\n\n## Commits\n\n${commits}\n\n## Active issue and comments\n\n${issueEvidence}\n\n## Parent issue and comments\n\n${parentEvidence}\n\n## Exact diff\n\n\u0060\u0060\u0060diff\n${diff}\n\u0060\u0060\u0060\n`, { mode: 0o600 });
-    return evidencePath;
+    const content = `# Independent review evidence for #${issue.number}\n\n## Commits\n\n${commits}\n\n## Active issue and comments\n\n${issueEvidence}\n\n## Parent issue and comments\n\n${parentEvidence}\n\n## Exact diff\n\n\u0060\u0060\u0060diff\n${diff}\n\u0060\u0060\u0060\n`;
+    writeFileSync(evidencePath, content, { mode: 0o600 });
+    return { path: evidencePath, fingerprint: createHash("sha256").update(content).digest("hex") };
   }
 
   function runReadOnlyReviewer(worktree, prompt, logPath) {
@@ -116,7 +141,7 @@ export function createAgentRunner({
     for (let attempt = 1; attempt <= maximumInfrastructureAttempts; attempt += 1) {
       let result;
       try {
-        result = baseCommandResult("pi", ["-p", "--no-session", "--no-extensions", "--tools", "read,grep,find,ls", prompt], { cwd: worktree });
+        result = baseCommandResult("pi", piAgentArguments(prompt, { readOnly: true }), { cwd: worktree });
       } catch (error) {
         const output = error instanceof Error ? error.message : String(error);
         lastOutput = output;
@@ -139,10 +164,13 @@ export function createAgentRunner({
     return { valid: false, output: lastOutput };
   }
 
-  function review(issue, worktree, logPath, baseBranch) {
+  function reviewEvidence(issue, worktree, logPath, baseBranch) {
+    return writeReviewEvidence(issue, worktree, logPath, baseBranch);
+  }
+
+  function review(worktree, logPath, evidence) {
     const before = baseCommandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
-    const evidencePath = writeReviewEvidence(issue, worktree, logPath, baseBranch);
-    const prompt = `Independently validate the implementation using the complete evidence packet at ${evidencePath}. Review it on two separate axes: Standards (repository instructions, glossary, ADRs, documented conventions, deep-module interfaces, and material code smells) and Spec (every acceptance criterion, missing behavior, incorrect behavior, negative scope, and scope creep). Explicitly flag accidental interpreters/workflow engines, cross-owner transactions, scattered lifecycle state, recovery knobs leaking through interfaces, speculative abstractions, and complexity disproportionate to this tracer bullet. If implementation behavior relies on an autonomous contract clarification, fail Spec unless an issue comment records the retained behavior, intentionally given-up behavior, and relationship to the parent goal. You have read-only tools only. Inspect repository files when useful. Report both axes concisely. Do not use either verdict marker anywhere else. End with exactly two lines: COMPLEXITY: OK only when the implementation remains bounded and modules stay deep, otherwise COMPLEXITY: ESCALATE; then VALIDATION: PASS only when both Standards and Spec have zero findings, otherwise VALIDATION: FAIL.`;
+    const prompt = independentReviewerPrompt(evidence.path);
     const result = runReadOnlyReviewer(worktree, prompt, logPath);
     const after = baseCommandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
     const dirty = baseCommandOutput("git", ["status", "--porcelain"], { cwd: worktree });
@@ -151,8 +179,9 @@ export function createAgentRunner({
       retry: !result.valid,
       passed: result.valid && validationPassed(result.output),
       simplify: result.valid && reviewRequestsSimplification(result.output),
+      evidenceFingerprint: evidence.fingerprint,
     };
   }
 
-  return { complexityReasons, review, runImplementation, validate };
+  return { complexityReasons, review, reviewEvidence, runImplementation, validate };
 }
