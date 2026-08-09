@@ -13,6 +13,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
+  bodyBlockedByNumbers,
   bodyReferencesParent,
   failureBaseState,
   findFrontier,
@@ -24,7 +25,6 @@ import {
   priorityIssueSnapshot,
   selectOlderReadyBacklog,
   selectSnapshottedIssues,
-  shouldDiagnoseResume,
   validatedHeadMatches,
   validationFailureAction,
 } from "./frontier-loop-core.mjs";
@@ -57,24 +57,22 @@ function shellQuote(value) {
   return `'${String(value).replaceAll("'", `'"'"'`)}'`;
 }
 
-function commandResult(command, args, options = {}) {
-  return baseCommandResult(command, args, {
+function commandOptions(command, args, options) {
+  return {
     ...options,
     cwd: options.cwd ?? repositoryRoot,
     onRetry: ({ attempt, maximumAttempts }) => {
       process.stdout.write(`[${isoNow()}] Transient infrastructure failure; retrying ${command} ${args.join(" ")} (${attempt}/${maximumAttempts})\n`);
     },
-  });
+  };
+}
+
+function commandResult(command, args, options = {}) {
+  return baseCommandResult(command, args, commandOptions(command, args, options));
 }
 
 function commandOutput(command, args, options = {}) {
-  return baseCommandOutput(command, args, {
-    ...options,
-    cwd: options.cwd ?? repositoryRoot,
-    onRetry: ({ attempt, maximumAttempts }) => {
-      process.stdout.write(`[${isoNow()}] Transient infrastructure failure; retrying ${command} ${args.join(" ")} (${attempt}/${maximumAttempts})\n`);
-    },
-  });
+  return baseCommandOutput(command, args, commandOptions(command, args, options));
 }
 
 function commandJson(command, args, options = {}) {
@@ -127,17 +125,21 @@ function log(message) {
   process.stdout.write(`[${isoNow()}] ${message}\n`);
 }
 
-function issueDetails(summary) {
+function issueDetails(summary, issueStates) {
   const detail = ghJson(["issue", "view", String(summary.number)], {
     fields: "number,title,state,url,assignees,blockedBy,labels,body",
   });
+  const nativeBlockers = detail.blockedBy?.nodes ?? [];
+  const blockedBy = nativeBlockers.length > 0
+    ? nativeBlockers
+    : bodyBlockedByNumbers(detail.body).map((number) => ({ number, state: issueStates.get(number) ?? "UNKNOWN" }));
   return {
     number: detail.number,
     title: detail.title,
     state: detail.state,
     url: detail.url,
     assignees: detail.assignees ?? [],
-    blockedBy: detail.blockedBy?.nodes ?? [],
+    blockedBy,
     labels: detail.labels ?? [],
     body: detail.body ?? "",
   };
@@ -150,21 +152,26 @@ function allIssueSummaries() {
 }
 
 function parentIssues(parent, summaries = allIssueSummaries(), issueNumbers = null) {
+  const issueStates = new Map(summaries.map((issue) => [issue.number, issue.state]));
   const selected = issueNumbers
     ? selectSnapshottedIssues(issueNumbers, summaries)
     : summaries.filter((issue) => bodyReferencesParent(issue.body, parent));
-  return selected.map(issueDetails);
+  return selected.map((issue) => issueDetails(issue, issueStates));
 }
 
-function readyBacklog(parent, summaries, children) {
-  return selectOlderReadyBacklog(parent, summaries, children).map(issueDetails);
+function readyBacklog(parent, summaries, children, issueNumbers = null) {
+  const issueStates = new Map(summaries.map((issue) => [issue.number, issue.state]));
+  const selected = issueNumbers
+    ? selectSnapshottedIssues(issueNumbers, summaries)
+    : selectOlderReadyBacklog(parent, summaries, children);
+  return selected.map((issue) => issueDetails(issue, issueStates));
 }
 
-function deliveryPlan(parent, priorityIssueNumbers = null) {
+function deliveryPlan(parent, priorityIssueNumbers = null, backlogIssueNumbers = null) {
   const summaries = allIssueSummaries();
   const children = parentIssues(parent, summaries, priorityIssueNumbers);
   const primaryOpen = children.filter((issue) => issue.state === "OPEN");
-  const backlog = readyBacklog(parent, summaries, children);
+  const backlog = readyBacklog(parent, summaries, children, backlogIssueNumbers);
   const pool = primaryOpen.length > 0 ? children : backlog;
   return {
     children,
@@ -239,8 +246,8 @@ function issueOpen(number) {
 }
 
 function removeWorktree(worktree, branch) {
-  if (existsSync(worktree)) commandResult("git", ["worktree", "remove", "--force", worktree]);
-  commandResult("git", ["branch", "-D", branch]);
+  if (worktree && existsSync(worktree)) commandOutput("git", ["worktree", "remove", "--force", worktree]);
+  if (branch) commandResult("git", ["branch", "-D", branch]);
 }
 
 function prepareWorktree(issue, paths, resumeState) {
@@ -278,6 +285,33 @@ function contractReviewPrompt(issue, reasonLog) {
   return `/skill:implement Resolve a repeated complexity deadlock for GitHub issue #${issue.number} (${issue.title}) and finish it autonomously. Explicitly apply grilling, codebase-design, and diagnosing-bugs. Read ${reasonLog}, the complete issue/comments, parent spec, glossary, ADRs, and full branch history. First try to replace the implementation with a substantially simpler design that preserves the written contract. If and only if a criterion itself forces unbounded analysis, a generic workflow engine, cross-owner atomicity, or similarly disproportionate machinery, choose the smallest user-goal-preserving contract clarification. Never waive atomic publication, one canonical writer, package neutrality, harness neutrality, independent judgment, tests, or review. Record any clarification as an auditable GitHub comment on the active issue naming retained behavior, intentionally given-up behavior, and why the simpler contract still satisfies the parent goal; do not rewrite history or close issues. Implement that clarified contract, add regression evidence, run focused and full checks, invoke code review, and commit all work with issue #${issue.number}. Do not push or create/merge a PR.`;
 }
 
+function executeAgentAction(issue, prepared, issueLog, paths, state, action) {
+  const descriptions = {
+    implementation: "implementation",
+    remediation: "broad remediation",
+    diagnosis: "independent diagnosis",
+    simplification: "design simplification",
+    "contract-review": "autonomous contract review",
+  };
+  const description = descriptions[action.kind];
+  if (!description) fail(`Unknown pending agent action: ${action.kind}`);
+  state = writeState(paths, state, {
+    phase: action.kind,
+    pendingAction: action,
+    message: `${action.resumed ? "Resuming" : "Running"} ${description} for #${issue.number}`,
+    validatedHead: null,
+  });
+  log(state.message);
+  let prompt;
+  if (action.kind === "implementation") prompt = implementationPrompt(issue, prepared.resumed || action.resumed);
+  else if (action.kind === "remediation") prompt = remediationPrompt(issue, issueLog);
+  else if (action.kind === "diagnosis") prompt = diagnosisPrompt(issue, issueLog);
+  else if (action.kind === "simplification") prompt = simplificationPrompt(issue, issueLog, action.reasons ?? []);
+  else prompt = contractReviewPrompt(issue, issueLog);
+  agentRunner.runImplementation(prepared.worktree, prompt, issueLog, `${action.resumed ? "resumed " : ""}${description}`);
+  return writeState(paths, state, { pendingAction: null });
+}
+
 function waitForPullRequestChecks(prNumber, worktree, logPath) {
   const checksExpected = existsSync(join(worktree, ".github", "workflows"));
   const discoveryAttempts = checksExpected ? 12 : 1;
@@ -288,6 +322,9 @@ function waitForPullRequestChecks(prNumber, worktree, logPath) {
       checks = result.stdout.trim() ? JSON.parse(result.stdout) : [];
     } catch {
       checks = [];
+    }
+    if (result.status !== 0 && checks.length === 0 && !/no checks reported/i.test(result.stderr ?? "")) {
+      throw new Error(`Remote check discovery infrastructure failure for PR #${prNumber}: ${result.stderr || result.stdout}`);
     }
     if (checks.length > 0) break;
     if (attempt < discoveryAttempts) sleep(10_000);
@@ -302,12 +339,32 @@ function waitForPullRequestChecks(prNumber, worktree, logPath) {
   appendAgentLog(logPath, "remote checks", output);
   if (watched.status !== 0) {
     if (isTransientInfrastructureFailure(new Error(output))) throw new Error(output);
-    fail(`Remote checks failed for PR #${prNumber}; inspect ${logPath}`);
+    const latest = commandResult("gh", ["pr", "checks", String(prNumber), "--json", "name,state,bucket"], { cwd: worktree });
+    let latestChecks = [];
+    try {
+      latestChecks = latest.stdout.trim() ? JSON.parse(latest.stdout) : [];
+    } catch {
+      latestChecks = [];
+    }
+    if (latestChecks.some((check) => check.bucket === "fail")) fail(`Remote checks failed for PR #${prNumber}; inspect ${logPath}`);
+    throw new Error(`Remote check command failed without a failing check bucket for PR #${prNumber}: ${[latest.stdout, latest.stderr, output].filter(Boolean).join("\n")}`);
   }
 }
 
 function pullRequestHead(prNumber, worktree) {
   return commandOutput("gh", ["pr", "view", String(prNumber), "--json", "headRefOid", "--jq", ".headRefOid"], { cwd: worktree });
+}
+
+function waitForMergedPullRequest(prNumber, worktree, logPath) {
+  for (let attempt = 1; attempt <= 60; attempt += 1) {
+    const detail = commandJson("gh", ["pr", "view", String(prNumber), "--json", "state,mergeCommit"], { cwd: worktree });
+    if (detail?.state === "MERGED") {
+      appendAgentLog(logPath, "merge confirmation", `PR #${prNumber} merged as ${detail.mergeCommit?.oid ?? "unknown"}.\n`);
+      return;
+    }
+    sleep(10_000);
+  }
+  fail(`PR #${prNumber} did not reach confirmed MERGED state; publication will resume without closing the issue`);
 }
 
 function publishAndMerge(issue, worktree, branch, logPath, validatedHead) {
@@ -330,6 +387,7 @@ function publishAndMerge(issue, worktree, branch, logPath, validatedHead) {
   waitForPullRequestChecks(prNumber, worktree, logPath);
   if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} changed after validation`);
   commandOutput("gh", ["pr", "merge", String(prNumber), "--merge", "--match-head-commit", validatedHead], { cwd: worktree });
+  waitForMergedPullRequest(prNumber, worktree, logPath);
   commandResult("git", ["push", "origin", "--delete", branch], { cwd: worktree });
   for (let attempt = 0; attempt < 15 && issueOpen(issue.number); attempt += 1) sleep(2_000);
   if (issueOpen(issue.number)) {
@@ -338,16 +396,8 @@ function publishAndMerge(issue, worktree, branch, logPath, validatedHead) {
   return prNumber;
 }
 
-function mergeValidatedIssue(issue, paths, state, prepared, issueLog) {
-  const head = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
-  if (!validatedHeadMatches(state, head)) fail(`Validated branch changed before publication for #${issue.number}`);
-  state = writeState(paths, state, { phase: "merging", message: `Publishing and merging #${issue.number}` });
-  log(state.message);
-  const prNumber = publishAndMerge(issue, prepared.worktree, prepared.branch, issueLog, head);
-  state = writeState(paths, state, { pullRequest: prNumber, message: `Merged #${issue.number} in PR #${prNumber}` });
-  log(state.message);
-  removeWorktree(prepared.worktree, prepared.branch);
-  return writeState(paths, state, {
+function betweenTicketsPatch() {
+  return {
     phase: "between-tickets",
     currentIssue: null,
     currentIssueTitle: null,
@@ -360,27 +410,55 @@ function mergeValidatedIssue(issue, paths, state, prepared, issueLog) {
     designEscalations: 0,
     contractReviews: 0,
     complexityReviewedHead: null,
+    commandsValidatedHead: null,
+    pendingAction: null,
     validatedHead: null,
     lastError: null,
-    resumeAction: null,
-  });
+  };
+}
+
+function mergeValidatedIssue(issue, paths, state, prepared, issueLog) {
+  const head = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
+  if (!validatedHeadMatches(state, head)) fail(`Validated branch changed before publication for #${issue.number}`);
+  state = writeState(paths, state, { phase: "merging", message: `Publishing and merging #${issue.number}` });
+  log(state.message);
+  const prNumber = publishAndMerge(issue, prepared.worktree, prepared.branch, issueLog, head);
+  state = writeState(paths, state, { pullRequest: prNumber, message: `Merged #${issue.number} in PR #${prNumber}` });
+  log(state.message);
+  removeWorktree(prepared.worktree, prepared.branch);
+  return writeState(paths, state, betweenTicketsPatch());
+}
+
+function reconcileClosedCurrentIssue(plan, paths, state) {
+  if (!state.currentIssue) return state;
+  const current = [...plan.children, ...plan.backlog].find((issue) => issue.number === state.currentIssue);
+  if (current?.state !== "CLOSED") return state;
+  if (state.worktree && existsSync(state.worktree)) {
+    const merged = commandJson("gh", ["pr", "list", "--head", state.branch, "--state", "merged", "--json", "number"] , { cwd: state.worktree }) ?? [];
+    if (merged.length === 0) fail(`Issue #${state.currentIssue} closed without a confirmed merged PR; preserving ${state.worktree}`);
+    const dirty = commandOutput("git", ["status", "--porcelain"], { cwd: state.worktree });
+    if (dirty) fail(`Closed issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
+    removeWorktree(state.worktree, state.branch);
+  }
+  log(`Reconciled confirmed merged issue #${state.currentIssue} after interrupted cleanup`);
+  return writeState(paths, state, betweenTicketsPatch());
 }
 
 function processIssue(issue, paths, state) {
   const continuingIssue = state?.currentIssue === issue.number;
-  const diagnoseOnResume = shouldDiagnoseResume(state);
-  const contractReviewOnResume = state?.resumeAction === "contract-review";
   const prepared = prepareWorktree(issue, paths, state);
   const issueLog = join(paths.root, `issue-${issue.number}.log`);
   const currentHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
-  const resumeValidated = !diagnoseOnResume && validatedHeadMatches(state, currentHead);
+  const pendingAction = continuingIssue ? state.pendingAction ?? null : null;
+  const resumeValidated = !pendingAction && validatedHeadMatches(state, currentHead);
   let remediationUsed = continuingIssue ? state.remediationUsed ?? false : false;
   let diagnosticEscalations = continuingIssue ? state.diagnosticEscalations ?? 0 : 0;
   let designEscalations = continuingIssue ? state.designEscalations ?? 0 : 0;
   let contractReviews = continuingIssue ? state.contractReviews ?? 0 : 0;
   let complexityReviewedHead = continuingIssue ? state.complexityReviewedHead ?? null : null;
+  let commandsValidatedHead = continuingIssue ? state.commandsValidatedHead ?? null : null;
   state = writeState(paths, state, {
-    phase: resumeValidated ? "merging" : prepared.resumed ? "resuming" : "implementing",
+    phase: resumeValidated ? "merging" : pendingAction?.kind ?? (prepared.resumed ? "resuming" : "implementing"),
     message: resumeValidated
       ? `Retrying publication for validated #${issue.number}`
       : `${prepared.resumed ? "Resuming" : "Implementing"} #${issue.number}: ${issue.title}`,
@@ -390,14 +468,15 @@ function processIssue(issue, paths, state) {
     worktree: prepared.worktree,
     issueLog,
     pullRequest: null,
+    pendingAction,
     remediationUsed,
     diagnosticEscalations,
     designEscalations,
     contractReviews,
     complexityReviewedHead,
+    commandsValidatedHead,
     validatedHead: resumeValidated ? currentHead : null,
     lastError: null,
-    resumeAction: null,
   });
   const login = viewerLogin();
   if (!issue.assignees.some((assignee) => assignee.login === login)) {
@@ -405,37 +484,22 @@ function processIssue(issue, paths, state) {
   }
   log(state.message);
   if (resumeValidated) return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
-  if (contractReviewOnResume) {
-    state = writeState(paths, state, { phase: "contract-review", resumeAction: "contract-review" });
-    agentRunner.runImplementation(prepared.worktree, contractReviewPrompt(issue, issueLog), issueLog, `resumed autonomous contract review ${contractReviews}`);
-    state = writeState(paths, state, { resumeAction: null });
-  } else if (diagnoseOnResume && diagnosticEscalations < maximumDiagnosticEscalations) {
-    diagnosticEscalations += 1;
-    state = writeState(paths, state, {
-      phase: "diagnosing",
-      diagnosticEscalations,
-      message: `Independent diagnostic instance ${diagnosticEscalations}/${maximumDiagnosticEscalations} for #${issue.number}`,
-      validatedHead: null,
-    });
-    log(state.message);
-    agentRunner.runImplementation(prepared.worktree, diagnosisPrompt(issue, issueLog), issueLog, `independent diagnostic instance ${diagnosticEscalations}`);
-  } else {
-    agentRunner.runImplementation(prepared.worktree, implementationPrompt(issue, prepared.resumed), issueLog, prepared.resumed ? "resumed implementation" : "initial implementation");
-  }
+  state = executeAgentAction(
+    issue,
+    prepared,
+    issueLog,
+    paths,
+    state,
+    pendingAction ? { ...pendingAction, resumed: true } : { kind: "implementation" },
+  );
 
   while (true) {
     const headBeforeValidation = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
     const complexityReasons = agentRunner.complexityReasons(prepared.worktree, defaultBranch());
     if (complexityReasons.length > 0 && complexityReviewedHead !== headBeforeValidation && designEscalations < maximumDesignEscalations) {
       designEscalations += 1;
-      state = writeState(paths, state, {
-        phase: "simplifying",
-        designEscalations,
-        message: `Complexity-budget simplification ${designEscalations}/${maximumDesignEscalations} for #${issue.number}`,
-        validatedHead: null,
-      });
-      log(`${state.message}: ${complexityReasons.join("; ")}`);
-      agentRunner.runImplementation(prepared.worktree, simplificationPrompt(issue, issueLog, complexityReasons), issueLog, `complexity-budget simplification ${designEscalations}`);
+      state = writeState(paths, state, { designEscalations });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "simplification", reasons: complexityReasons });
       complexityReviewedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
       state = writeState(paths, state, { complexityReviewedHead });
       continue;
@@ -443,22 +507,29 @@ function processIssue(issue, paths, state) {
 
     state = writeState(paths, state, {
       phase: "validating",
+      pendingAction: null,
       remediationUsed,
       diagnosticEscalations,
       designEscalations,
       contractReviews,
       complexityReviewedHead,
+      commandsValidatedHead,
       message: `Validating #${issue.number} (remediation ${remediationUsed ? "used" : "available"}, diagnostics ${diagnosticEscalations}/${maximumDiagnosticEscalations}, simplifications ${designEscalations}/${maximumDesignEscalations}, contract reviews ${contractReviews})`,
     });
     log(state.message);
     const commitCount = Number(commandOutput("git", ["rev-list", "--count", `origin/${defaultBranch()}..HEAD`], { cwd: prepared.worktree }));
     const clean = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
-    const commandsPass = commitCount > 0 && clean && agentRunner.validate(prepared.worktree, issueLog, defaultBranch());
+    let commandsPass = commitCount > 0 && clean && commandsValidatedHead === headBeforeValidation;
+    if (!commandsPass && commitCount > 0 && clean) {
+      commandsPass = agentRunner.validate(prepared.worktree, issueLog, defaultBranch());
+      commandsValidatedHead = commandsPass ? headBeforeValidation : null;
+      state = writeState(paths, state, { commandsValidatedHead });
+    }
     const review = commandsPass ? agentRunner.review(issue, prepared.worktree, issueLog, defaultBranch()) : { retry: false, passed: false, simplify: false };
     if (commandsPass && review.retry) {
       state = writeState(paths, state, {
         phase: "retrying-review",
-        message: `Reviewer/provider did not return a valid verdict for #${issue.number}; retrying without changing product code`,
+        message: `Reviewer/provider did not return a valid verdict for #${issue.number}; retrying without rerunning validated commands or changing product code`,
       });
       log(state.message);
       sleep(30_000);
@@ -481,40 +552,22 @@ function processIssue(issue, paths, state) {
 
     if (action === "remediate") {
       remediationUsed = true;
-      state = writeState(paths, state, {
-        phase: "remediating",
-        remediationUsed,
-        message: `Using the one broad remediation for #${issue.number}`,
-        validatedHead: null,
-      });
-      log(state.message);
-      agentRunner.runImplementation(prepared.worktree, remediationPrompt(issue, issueLog), issueLog, `broad remediation after diagnostic ${diagnosticEscalations}`);
+      state = writeState(paths, state, { remediationUsed });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "remediation" });
       continue;
     }
 
     if (action === "diagnose") {
       diagnosticEscalations += 1;
-      state = writeState(paths, state, {
-        phase: "diagnosing",
-        diagnosticEscalations,
-        message: `Independent diagnostic instance ${diagnosticEscalations}/${maximumDiagnosticEscalations} for #${issue.number}`,
-        validatedHead: null,
-      });
-      log(state.message);
-      agentRunner.runImplementation(prepared.worktree, diagnosisPrompt(issue, issueLog), issueLog, `independent diagnostic instance ${diagnosticEscalations}`);
+      state = writeState(paths, state, { diagnosticEscalations });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "diagnosis" });
       continue;
     }
 
     if (action === "simplify") {
       designEscalations += 1;
-      state = writeState(paths, state, {
-        phase: "simplifying",
-        designEscalations,
-        message: `Independent design simplification ${designEscalations}/${maximumDesignEscalations} for #${issue.number}`,
-        validatedHead: null,
-      });
-      log(state.message);
-      agentRunner.runImplementation(prepared.worktree, simplificationPrompt(issue, issueLog, complexityReasons), issueLog, `independent design simplification ${designEscalations}`);
+      state = writeState(paths, state, { designEscalations });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "simplification", reasons: complexityReasons });
       complexityReviewedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
       state = writeState(paths, state, { complexityReviewedHead });
       continue;
@@ -526,19 +579,13 @@ function processIssue(issue, paths, state) {
     designEscalations = 0;
     complexityReviewedHead = null;
     state = writeState(paths, state, {
-      phase: "contract-review",
       remediationUsed,
       diagnosticEscalations,
       designEscalations,
       contractReviews,
       complexityReviewedHead,
-      message: `Autonomous contract simplification review ${contractReviews} for #${issue.number}`,
-      validatedHead: null,
-      resumeAction: "contract-review",
     });
-    log(state.message);
-    agentRunner.runImplementation(prepared.worktree, contractReviewPrompt(issue, issueLog), issueLog, `autonomous contract review ${contractReviews}`);
-    state = writeState(paths, state, { resumeAction: null });
+    state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "contract-review" });
   }
 }
 
@@ -559,20 +606,24 @@ function runLoop(parent) {
     currentIssue: null,
   });
   try {
-    if (!Array.isArray(state.priorityIssueNumbers)) {
+    if (!Array.isArray(state.priorityIssueNumbers) || !Array.isArray(state.backlogIssueNumbers)) {
       const summaries = allIssueSummaries();
-      const snapshot = priorityIssueSnapshot(parent, summaries);
-      if (snapshot.length === 0) fail(`Parent #${parent} has no discoverable implementation children; refusing to snapshot an empty priority map`);
+      const priorityIssueNumbers = priorityIssueSnapshot(parent, summaries);
+      if (priorityIssueNumbers.length === 0) fail(`Parent #${parent} has no discoverable implementation children; refusing to snapshot an empty priority map`);
+      const prioritySummaries = selectSnapshottedIssues(priorityIssueNumbers, summaries);
+      const backlogIssueNumbers = selectOlderReadyBacklog(parent, summaries, prioritySummaries).map((issue) => issue.number).sort((left, right) => left - right);
       state = writeState(paths, state, {
-        priorityIssueNumbers: snapshot,
-        message: `Snapshotted ${snapshot.length} priority-map tickets`,
+        priorityIssueNumbers,
+        backlogIssueNumbers,
+        message: `Snapshotted ${priorityIssueNumbers.length} priority-map and ${backlogIssueNumbers.length} older backlog tickets`,
       });
       log(state.message);
     }
     while (!stopped(paths)) {
       try {
-        const plan = deliveryPlan(parent, state.priorityIssueNumbers);
-        if (plan.primaryOpen.length === 0 && plan.backlog.length === 0) {
+        const plan = deliveryPlan(parent, state.priorityIssueNumbers, state.backlogIssueNumbers);
+        state = reconcileClosedCurrentIssue(plan, paths, state);
+        if (plan.primaryOpen.length === 0 && plan.backlog.every((issue) => issue.state === "CLOSED")) {
           state = writeState(paths, state, {
             phase: "complete",
             message: `All ${plan.children.length} priority-map tickets and all older ready backlog tickets are closed`,
@@ -598,13 +649,30 @@ function runLoop(parent) {
         const message = error instanceof Error ? error.message : String(error);
         if (isRemoteValidationFailure(error) && !stopped(paths)) {
           state = failureBaseState(state, readState(paths));
-          state = writeState(paths, state, {
-            phase: "failed",
-            message: "Remote validation failed; launching an independent diagnostic instance",
-            validatedHead: null,
-            lastError: message,
-            resumeAction: "diagnose",
-          });
+          const diagnosticEscalations = state.diagnosticEscalations ?? 0;
+          if (diagnosticEscalations < maximumDiagnosticEscalations) {
+            state = writeState(paths, state, {
+              phase: "failed",
+              diagnosticEscalations: diagnosticEscalations + 1,
+              pendingAction: { kind: "diagnosis" },
+              message: "Remote validation failed; scheduling an independent diagnostic instance",
+              validatedHead: null,
+              lastError: message,
+            });
+          } else {
+            state = writeState(paths, state, {
+              phase: "failed",
+              remediationUsed: false,
+              diagnosticEscalations: 0,
+              designEscalations: 0,
+              contractReviews: (state.contractReviews ?? 0) + 1,
+              complexityReviewedHead: null,
+              pendingAction: { kind: "contract-review" },
+              message: "Remote validation exhausted diagnosis; scheduling autonomous contract review",
+              validatedHead: null,
+              lastError: message,
+            });
+          }
           log(`${state.message}: ${message}`);
           continue;
         }
@@ -671,6 +739,7 @@ function status(parent) {
     process.stdout.write(`Phase:         ${state.phase}\n`);
     process.stdout.write(`Message:       ${state.message ?? "-"}\n`);
     if (state.currentIssue) process.stdout.write(`Current:       #${state.currentIssue} ${state.currentIssueTitle ?? ""}\n`);
+    if (state.pendingAction) process.stdout.write(`Pending:       ${state.pendingAction.kind}\n`);
     let pullRequest = state.pullRequest;
     if (!pullRequest && state.branch) {
       try {
@@ -693,10 +762,11 @@ function status(parent) {
     process.stdout.write("Phase:         never started\n");
   }
   try {
-    const plan = deliveryPlan(parent, state?.priorityIssueNumbers ?? null);
+    const plan = deliveryPlan(parent, state?.priorityIssueNumbers ?? null, state?.backlogIssueNumbers ?? null);
     const closed = plan.children.filter((issue) => issue.state === "CLOSED").length;
     process.stdout.write(`Priority map:  ${closed}/${plan.children.length} tickets closed\n`);
-    process.stdout.write(`Older backlog: ${plan.backlog.length} ready ticket(s) after priority map\n`);
+    const backlogOpen = plan.backlog.filter((issue) => issue.state === "OPEN").length;
+    process.stdout.write(`Older backlog: ${backlogOpen}/${plan.backlog.length} snapshotted ticket(s) open\n`);
     process.stdout.write(`Next item:     ${plan.next ? `#${plan.next.number} ${plan.next.title}` : "none"}\n`);
   } catch (error) {
     process.stdout.write(`GitHub status: unavailable (${error instanceof Error ? error.message : String(error)})\n`);

@@ -1,6 +1,6 @@
 # Autonomous frontier loop
 
-The frontier loop snapshots the tracer-bullet children of specification issue #83 at first start, then works through that fixed set in native dependency order using the repository's child-ticket frontier definition. After the priority map is complete, a separate backlog pass processes open `ready-for-agent` tickets whose issue numbers predate #83. Future issues cannot silently extend the run. Each implementation receives a fresh Pi process and an isolated Git worktree.
+The frontier loop snapshots both the tracer-bullet children of specification issue #83 and the older open `ready-for-agent` backlog at first start. It works through the fixed priority set first using native dependency order (or explicit `## Blocked by` fallback references), then processes the fixed older backlog. Later issues, labels, or reopenings cannot silently change the run's scope. Each implementation receives a fresh Pi process and an isolated Git worktree.
 
 For every available frontier ticket, the loop:
 
@@ -41,11 +41,11 @@ The independent Spec reviewer reads issue comments and must still pass the resul
 
 ## Recovery and supervision
 
-The detached tmux process is a supervisor. If the runner exits before completion, the supervisor preserves state and the current worktree, waits 30 seconds, and starts it again. Validated commit identity is persisted and compared with the local branch, remote PR head, and merge command, so publication retries cannot merge changed bytes or repeat expensive validation unnecessarily.
+The detached tmux process is a supervisor. If the runner exits before completion, the supervisor preserves state and the current worktree, waits 30 seconds, and starts it again. Validated commit identity is persisted and compared with the local branch, remote PR head, and merge command. The loop confirms the PR reaches `MERGED` before closing its issue or deleting local work, and reconciles interrupted post-merge cleanup on restart.
 
-Clearly transient Pi/provider failures such as `fetch failed`, connection reset, rate limiting, and gateway errors receive bounded in-place retries for both implementation and review agents before control returns to the supervisor. A reviewer verdict is accepted only when exactly one complexity line and one validation line are the final two lines; malformed output is retried without changing product code. GitHub transient failures receive shared retries and backoff. Repositories with workflows wait for checks to register before watching them; actual remote check failures route back into diagnosis on the existing PR branch.
+Clearly transient Pi/provider failures such as `fetch failed`, connection reset, rate limiting, and gateway errors receive bounded in-place retries for both implementation and review agents before control returns to the supervisor. Every editing action is persisted as a typed pending action before Pi starts, so a supervisor restart resumes the same implementation, remediation, diagnosis, simplification, or contract-review mode without consuming another budget slot. A reviewer verdict is accepted only when exactly one complexity line and one validation line are the final two lines; malformed output retries review without rerunning commands already validated at the same commit or changing product code. GitHub transient failures receive shared retries and backoff. Repositories with workflows wait for checks to register before watching them; only an observed failing check bucket enters product diagnosis.
 
-Operational state is written atomically beneath ignored `artifacts/frontier-loop-83/`. It records the priority snapshot, current issue, phase, branch, worktree, log, pull request, validated head, one-remediation use, complexity-reviewed head, diagnostic/design/contract counts, supervisor restarts, and last error. Per-ticket logs retain every implementation, validation, review, remediation, and escalation section.
+Operational state is written atomically beneath ignored `artifacts/frontier-loop-83/`. It records both scope snapshots, current issue, phase, typed pending action, branch, worktree, log, pull request, command-validated head, publication-validated head, one-remediation use, complexity-reviewed head, diagnostic/design/contract counts, supervisor restarts, and last error. Per-ticket logs retain every implementation, validation, review, remediation, and escalation section.
 
 The loop stops automatically only when all priority-map children and all older eligible `ready-for-agent` backlog tickets are closed. A `STOP` marker is the explicit operator stop mechanism.
 
@@ -73,7 +73,7 @@ Start or resume the detached supervised loop:
 npm run frontier:start
 ```
 
-Print current health, phase, ticket, branch/worktree, PR, escalation counts, priority-map progress, backlog count, next frontier, and recent log:
+Print current health, phase, ticket, branch/worktree, PR, escalation counts, priority-map progress, backlog count, next item, and recent log:
 
 ```sh
 npm run frontier:status

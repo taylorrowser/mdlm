@@ -75,10 +75,6 @@ export function validationFailureAction({
   return "contract-review";
 }
 
-export function shouldDiagnoseResume(state) {
-  return state?.resumeAction === "diagnose";
-}
-
 export function isRemoteValidationFailure(error) {
   const message = error instanceof Error ? error.message : String(error);
   return /^Remote checks failed for PR #\d+/.test(message);
@@ -121,6 +117,19 @@ export function complexityReasonsFromStats(
   if (changedLines > maximumChangedLines) reasons.push(`${changedLines} changed lines exceeds ${maximumChangedLines}`);
   if (lifecycleModules > maximumLifecycleModules) reasons.push(`${lifecycleModules} lifecycle modules exceeds ${maximumLifecycleModules}`);
   return reasons;
+}
+
+export function blockedBySection(body) {
+  const text = String(body ?? "");
+  const marker = /^## Blocked by\s*$/m.exec(text);
+  if (!marker) return "";
+  const remainder = text.slice(marker.index + marker[0].length);
+  const nextHeading = remainder.search(/^## /m);
+  return nextHeading === -1 ? remainder : remainder.slice(0, nextHeading);
+}
+
+export function bodyBlockedByNumbers(body) {
+  return [...blockedBySection(body).matchAll(/(?:\/issues\/|#)(\d+)(?=\D|$)/g)].map((match) => Number(match[1]));
 }
 
 export function parentSection(body) {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { validationCommands } from "./frontier-agent-runner.mjs";
 import {
+  bodyBlockedByNumbers,
   bodyReferencesParent,
   complexityReasonsFromStats,
   failureBaseState,
@@ -19,7 +20,6 @@ import {
   reviewRequestsSimplification,
   selectOlderReadyBacklog,
   selectSnapshottedIssues,
-  shouldDiagnoseResume,
   validatedHeadMatches,
   validationFailureAction,
   validationHasVerdict,
@@ -56,7 +56,11 @@ test("the priority-map snapshot cannot absorb future children", () => {
     { number: 85, body: "## Parent\n\n#83" },
   ];
   const snapshot = priorityIssueSnapshot(83, initial);
-  const later = [...initial, { number: 105, body: "## Parent\n\n#83" }];
+  const later = [
+    { ...initial[0], labels: [] },
+    initial[1],
+    { number: 105, body: "## Parent\n\n#83" },
+  ];
   assert.deepEqual(snapshot, [84, 85]);
   assert.deepEqual(selectSnapshottedIssues(snapshot, later).map((candidate) => candidate.number), [84, 85]);
 });
@@ -71,6 +75,11 @@ test("older backlog selection is separate and cannot absorb future work", () => 
   const selected = selectOlderReadyBacklog(83, summaries, [{ number: 80 }]);
   assert.deepEqual(selected.map((candidate) => candidate.number), [70]);
   assert.equal(findReadyItem([issue(71), issue(70)])?.number, 70);
+});
+
+test("fallback blocking dependencies are parsed only from their explicit section", () => {
+  assert.deepEqual(bodyBlockedByNumbers("## Blocked by\n\n- #84\n- https://github.com/taylorrowser/mdlm/issues/85\n\n## Notes\n#99"), [84, 85]);
+  assert.deepEqual(bodyBlockedByNumbers("## Blocked by\n\nNone — can start immediately."), []);
 });
 
 test("body parent discovery reads only the explicit Parent section", () => {
@@ -148,12 +157,6 @@ test("complexity budget reports every crossed threshold", () => {
     ),
     [],
   );
-});
-
-test("an explicit recovery action resumes with diagnosis without parsing error prose", () => {
-  assert.equal(shouldDiagnoseResume({ phase: "failed", resumeAction: "diagnose", lastError: "arbitrary detail" }), true);
-  assert.equal(shouldDiagnoseResume({ phase: "failed", lastError: "Remote checks failed for PR #105" }), false);
-  assert.equal(shouldDiagnoseResume({ phase: "validating", resumeAction: null }), false);
 });
 
 test("remote check failures are classified as validation failures", () => {

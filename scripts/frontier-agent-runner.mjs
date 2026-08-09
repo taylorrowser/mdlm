@@ -22,14 +22,6 @@ export function appendAgentLog(path, heading, output = "") {
   appendFileSync(path, `\n===== ${heading} — ${isoNow()} =====\n${output}${output.endsWith("\n") || !output ? "" : "\n"}`);
 }
 
-function commandResult(command, args, cwd) {
-  return baseCommandResult(command, args, { cwd });
-}
-
-function commandOutput(command, args, cwd) {
-  return baseCommandOutput(command, args, { cwd });
-}
-
 export function validationCommands(baseBranch) {
   return [
     ["npm", ["ci", "--ignore-scripts"]],
@@ -81,7 +73,7 @@ export function createAgentRunner({
   }
 
   function complexityReasons(worktree, baseBranch) {
-    const output = commandOutput("git", ["diff", "--numstat", `origin/${baseBranch}...HEAD`], worktree);
+    const output = baseCommandOutput("git", ["diff", "--numstat", `origin/${baseBranch}...HEAD`], { cwd: worktree });
     const rows = output.split("\n").filter(Boolean).map((line) => line.split("\t"));
     const changedLines = rows.reduce((total, [added, deleted]) => total + (Number(added) || 0) + (Number(deleted) || 0), 0);
     const lifecycleModules = rows.filter(([, , path]) => path?.startsWith("src/") || path?.startsWith(".lifecycle/")).length;
@@ -90,12 +82,12 @@ export function createAgentRunner({
 
   function writeReviewEvidence(issue, worktree, logPath, baseBranch) {
     const parentNumber = referencedParentNumber(issue.body);
-    const issueEvidence = commandOutput("gh", ["issue", "view", String(issue.number), "--comments"], repositoryRoot);
+    const issueEvidence = baseCommandOutput("gh", ["issue", "view", String(issue.number), "--comments"], { cwd: repositoryRoot });
     const parentEvidence = parentNumber
-      ? commandOutput("gh", ["issue", "view", String(parentNumber), "--comments"], repositoryRoot)
+      ? baseCommandOutput("gh", ["issue", "view", String(parentNumber), "--comments"], { cwd: repositoryRoot })
       : "No explicit parent issue.";
-    const commits = commandOutput("git", ["log", `origin/${baseBranch}..HEAD`, "--oneline"], worktree);
-    const diff = commandOutput("git", ["diff", `origin/${baseBranch}...HEAD`], worktree);
+    const commits = baseCommandOutput("git", ["log", `origin/${baseBranch}..HEAD`, "--oneline"], { cwd: worktree });
+    const diff = baseCommandOutput("git", ["diff", `origin/${baseBranch}...HEAD`], { cwd: worktree });
     const evidencePath = `${logPath}.review-evidence.md`;
     writeFileSync(evidencePath, `# Independent review evidence for #${issue.number}\n\n## Commits\n\n${commits}\n\n## Active issue and comments\n\n${issueEvidence}\n\n## Parent issue and comments\n\n${parentEvidence}\n\n## Exact diff\n\n\u0060\u0060\u0060diff\n${diff}\n\u0060\u0060\u0060\n`, { mode: 0o600 });
     return evidencePath;
@@ -104,7 +96,7 @@ export function createAgentRunner({
   function runReadOnlyReviewer(worktree, prompt, logPath) {
     let lastOutput = "";
     for (let attempt = 1; attempt <= maximumInfrastructureAttempts; attempt += 1) {
-      const result = commandResult("pi", ["-p", "--no-session", "--no-extensions", "--tools", "read,grep,find,ls", prompt], worktree);
+      const result = baseCommandResult("pi", ["-p", "--no-session", "--no-extensions", "--tools", "read,grep,find,ls", prompt], { cwd: worktree });
       const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
       lastOutput = output;
       appendAgentLog(logPath, `independent read-only code review ${attempt}/${maximumInfrastructureAttempts}`, output);
@@ -119,12 +111,12 @@ export function createAgentRunner({
   }
 
   function review(issue, worktree, logPath, baseBranch) {
-    const before = commandOutput("git", ["rev-parse", "HEAD"], worktree);
+    const before = baseCommandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
     const evidencePath = writeReviewEvidence(issue, worktree, logPath, baseBranch);
     const prompt = `Independently validate the implementation using the complete evidence packet at ${evidencePath}. Review it on two separate axes: Standards (repository instructions, glossary, ADRs, documented conventions, deep-module interfaces, and material code smells) and Spec (every acceptance criterion, missing behavior, incorrect behavior, negative scope, and scope creep). Explicitly flag accidental interpreters/workflow engines, cross-owner transactions, scattered lifecycle state, recovery knobs leaking through interfaces, speculative abstractions, and complexity disproportionate to this tracer bullet. You have read-only tools only. Inspect repository files when useful. Report both axes concisely. Do not use either verdict marker anywhere else. End with exactly two lines: COMPLEXITY: OK only when the implementation remains bounded and modules stay deep, otherwise COMPLEXITY: ESCALATE; then VALIDATION: PASS only when both Standards and Spec have zero findings, otherwise VALIDATION: FAIL.`;
     const result = runReadOnlyReviewer(worktree, prompt, logPath);
-    const after = commandOutput("git", ["rev-parse", "HEAD"], worktree);
-    const dirty = commandOutput("git", ["status", "--porcelain"], worktree);
+    const after = baseCommandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
+    const dirty = baseCommandOutput("git", ["status", "--porcelain"], { cwd: worktree });
     if (before !== after || dirty) throw new Error("Independent reviewer modified the branch; refusing to merge");
     return {
       retry: !result.valid,
