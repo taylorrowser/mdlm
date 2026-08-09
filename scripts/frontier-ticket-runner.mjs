@@ -213,6 +213,10 @@ export function createTicketRunner({
 
     if (pullRequest?.state !== "MERGED") {
       commandOutput("git", ["push", "--set-upstream", "origin", branch], { cwd: worktree });
+      if (pullRequest?.state === "CLOSED") {
+        commandOutput("gh", ["pr", "reopen", String(pullRequest.number)], { cwd: worktree });
+        pullRequest = { ...pullRequest, state: "OPEN" };
+      }
       if (!pullRequest) {
         const body = `Closes #${issue.number}\n\nImplemented and independently validated by the MDLM frontier loop.`;
         const url = commandOutput("gh", ["pr", "create", "--base", base, "--head", branch, "--title", issue.title, "--body", body], { cwd: worktree });
