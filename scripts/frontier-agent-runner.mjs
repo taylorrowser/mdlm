@@ -45,6 +45,7 @@ export function createAgentRunner({
         cwd: worktree,
         env: process.env,
         stdio: ["ignore", descriptor, descriptor],
+        timeout: Number(process.env.MDLM_FRONTIER_AGENT_TIMEOUT_MS ?? 2 * 60 * 60_000),
       });
       closeSync(descriptor);
       if (!result.error && result.status === 0) return;
@@ -62,8 +63,17 @@ export function createAgentRunner({
     const descriptor = openSync(logPath, "a");
     appendAgentLog(logPath, "independent command validation");
     for (const [command, args] of validationCommands(baseBranch)) {
-      const result = spawnSync(command, args, { cwd: worktree, env: process.env, stdio: ["ignore", descriptor, descriptor] });
-      if (result.error || result.status !== 0) {
+      const result = spawnSync(command, args, {
+        cwd: worktree,
+        env: process.env,
+        stdio: ["ignore", descriptor, descriptor],
+        timeout: Number(process.env.MDLM_FRONTIER_VALIDATION_TIMEOUT_MS ?? 30 * 60_000),
+      });
+      if (result.error) {
+        closeSync(descriptor);
+        throw new Error(`Validation command ${command} failed to complete: ${result.error.message}`);
+      }
+      if (result.status !== 0) {
         closeSync(descriptor);
         return false;
       }

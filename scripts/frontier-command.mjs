@@ -13,6 +13,7 @@ export function commandResult(command, args, options = {}) {
       encoding: "utf8",
       env: { ...process.env, ...options.environment },
       maxBuffer: options.maxBuffer ?? 50 * 1024 * 1024,
+      timeout: options.timeout ?? Number(process.env.MDLM_FRONTIER_COMMAND_TIMEOUT_MS ?? 30 * 60_000),
     });
     if (result.error) throw new Error(`${command}: ${result.error.message}`);
     const detail = [result.stdout, result.stderr].filter(Boolean).join("\n");

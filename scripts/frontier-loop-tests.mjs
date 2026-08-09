@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { commandResult } from "./frontier-command.mjs";
 import { validationCommands } from "./frontier-agent-runner.mjs";
 import {
   bodyBlockedByNumbers,
@@ -11,6 +12,7 @@ import {
   isRemoteValidationFailure,
   isTransientAgentFailure,
   isTransientInfrastructureFailure,
+  normalizeNativeBlockers,
   panesAreRunning,
   parsePullRequestNumber,
   priorityIssueSnapshot,
@@ -77,6 +79,13 @@ test("older backlog selection is separate and cannot absorb future work", () => 
   assert.equal(findReadyItem([issue(71), issue(70)])?.number, 70);
 });
 
+test("native blocker collections accept the installed and array JSON shapes", () => {
+  const blocker = { number: 84, state: "OPEN" };
+  assert.deepEqual(normalizeNativeBlockers({ nodes: [blocker] }), [blocker]);
+  assert.deepEqual(normalizeNativeBlockers([blocker]), [blocker]);
+  assert.deepEqual(normalizeNativeBlockers(undefined), []);
+});
+
 test("fallback blocking dependencies are parsed only from their explicit section", () => {
   assert.deepEqual(bodyBlockedByNumbers("## Blocked by\n\n- #84\n- https://github.com/taylorrowser/mdlm/issues/85\n\n## Notes\n#99"), [84, 85]);
   assert.deepEqual(bodyBlockedByNumbers("## Blocked by\n\nNone — can start immediately."), []);
@@ -89,6 +98,13 @@ test("body parent discovery reads only the explicit Parent section", () => {
   const oldParent = "## Parent\n\n- #57\n\n## Notes\nSee #83";
   assert.equal(bodyReferencesParent(oldParent, 83), false);
   assert.equal(referencedParentNumber(oldParent), 57);
+});
+
+test("child commands have a finite timeout", () => {
+  assert.throws(
+    () => commandResult(process.execPath, ["-e", "setTimeout(() => {}, 10000)"], { timeout: 10, maximumAttempts: 1 }),
+    /ETIMEDOUT|timed out/i,
+  );
 });
 
 test("independent validation checks the committed ticket range", () => {

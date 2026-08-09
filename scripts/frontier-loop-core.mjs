@@ -14,6 +14,11 @@ export function findReadyItem(issues) {
 
 export const findFrontier = findReadyItem;
 
+export function normalizeNativeBlockers(value) {
+  if (Array.isArray(value)) return value;
+  return Array.isArray(value?.nodes) ? value.nodes : [];
+}
+
 export function priorityIssueSnapshot(parent, summaries) {
   return summaries
     .filter((issue) => bodyReferencesParent(issue.body, parent))

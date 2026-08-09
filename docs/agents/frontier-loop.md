@@ -43,7 +43,7 @@ The independent Spec reviewer reads issue comments and must still pass the resul
 
 The detached tmux process is a supervisor. If the runner exits before completion, the supervisor preserves state and the current worktree, waits 30 seconds, and starts it again. Validated commit identity is persisted and compared with the local branch, remote PR head, and merge command. The loop confirms the PR reaches `MERGED` before closing its issue or deleting local work, and reconciles interrupted post-merge cleanup on restart.
 
-Clearly transient Pi/provider failures such as `fetch failed`, connection reset, rate limiting, and gateway errors receive bounded in-place retries for both implementation and review agents before control returns to the supervisor. Every editing action is persisted as a typed pending action before Pi starts, so a supervisor restart resumes the same implementation, remediation, diagnosis, simplification, or contract-review mode without consuming another budget slot. A reviewer verdict is accepted only when exactly one complexity line and one validation line are the final two lines; malformed output retries review without rerunning commands already validated at the same commit or changing product code. GitHub transient failures receive shared retries and backoff. Repositories with workflows wait for checks to register before watching them; only an observed failing check bucket enters product diagnosis.
+Every child process has a finite timeout. Clearly transient Pi/provider failures such as `fetch failed`, connection reset, rate limiting, and gateway errors receive bounded in-place retries for both implementation and review agents before control returns to the supervisor. Every editing action is persisted as a typed pending action before Pi starts, so a supervisor restart resumes the same implementation, remediation, diagnosis, simplification, or contract-review mode without consuming another budget slot. A reviewer verdict is accepted only when exactly one complexity line and one validation line are the final two lines; malformed output retries review without rerunning commands already validated at the same commit or changing product code. GitHub transient failures receive shared retries and backoff. Repositories with workflows wait for checks to register before watching them; only an observed failing check bucket enters product diagnosis.
 
 Operational state is written atomically beneath ignored `artifacts/frontier-loop-83/`. It records both scope snapshots, current issue, phase, typed pending action, branch, worktree, log, pull request, command-validated head, publication-validated head, one-remediation use, complexity-reviewed head, diagnostic/design/contract counts, supervisor restarts, and last error. Per-ticket logs retain every implementation, validation, review, remediation, and escalation section.
 
@@ -128,4 +128,7 @@ Environment overrides:
 - `MDLM_FRONTIER_DIR` — operational state/log/worktree root;
 - `MDLM_FRONTIER_MAX_CHANGED_FILES` — proactive complexity trigger;
 - `MDLM_FRONTIER_MAX_CHANGED_LINES` — proactive complexity trigger;
-- `MDLM_FRONTIER_MAX_LIFECYCLE_MODULES` — proactive lifecycle-module trigger.
+- `MDLM_FRONTIER_MAX_LIFECYCLE_MODULES` — proactive lifecycle-module trigger;
+- `MDLM_FRONTIER_COMMAND_TIMEOUT_MS` — ordinary Git/GitHub/tmux command timeout;
+- `MDLM_FRONTIER_AGENT_TIMEOUT_MS` — editing Pi session timeout;
+- `MDLM_FRONTIER_VALIDATION_TIMEOUT_MS` — per-command validation timeout.

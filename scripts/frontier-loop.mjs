@@ -20,6 +20,7 @@ import {
   findReadyItem,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
+  normalizeNativeBlockers,
   panesAreRunning,
   parsePullRequestNumber,
   priorityIssueSnapshot,
@@ -129,7 +130,7 @@ function issueDetails(summary, issueStates) {
   const detail = ghJson(["issue", "view", String(summary.number)], {
     fields: "number,title,state,url,assignees,blockedBy,labels,body",
   });
-  const nativeBlockers = detail.blockedBy?.nodes ?? [];
+  const nativeBlockers = normalizeNativeBlockers(detail.blockedBy);
   const blockedBy = nativeBlockers.length > 0
     ? nativeBlockers
     : bodyBlockedByNumbers(detail.body).map((number) => ({ number, state: issueStates.get(number) ?? "UNKNOWN" }));
@@ -285,7 +286,7 @@ function contractReviewPrompt(issue, reasonLog) {
   return `/skill:implement Resolve a repeated complexity deadlock for GitHub issue #${issue.number} (${issue.title}) and finish it autonomously. Explicitly apply grilling, codebase-design, and diagnosing-bugs. Read ${reasonLog}, the complete issue/comments, parent spec, glossary, ADRs, and full branch history. First try to replace the implementation with a substantially simpler design that preserves the written contract. If and only if a criterion itself forces unbounded analysis, a generic workflow engine, cross-owner atomicity, or similarly disproportionate machinery, choose the smallest user-goal-preserving contract clarification. Never waive atomic publication, one canonical writer, package neutrality, harness neutrality, independent judgment, tests, or review. Record any clarification as an auditable GitHub comment on the active issue naming retained behavior, intentionally given-up behavior, and why the simpler contract still satisfies the parent goal; do not rewrite history or close issues. Implement that clarified contract, add regression evidence, run focused and full checks, invoke code review, and commit all work with issue #${issue.number}. Do not push or create/merge a PR.`;
 }
 
-function executeAgentAction(issue, prepared, issueLog, paths, state, action) {
+function executeAgentAction(issue, prepared, issueLog, paths, state, action, transition = {}) {
   const descriptions = {
     implementation: "implementation",
     remediation: "broad remediation",
@@ -296,6 +297,7 @@ function executeAgentAction(issue, prepared, issueLog, paths, state, action) {
   const description = descriptions[action.kind];
   if (!description) fail(`Unknown pending agent action: ${action.kind}`);
   state = writeState(paths, state, {
+    ...transition,
     phase: action.kind,
     pendingAction: action,
     message: `${action.resumed ? "Resuming" : "Running"} ${description} for #${issue.number}`,
@@ -367,31 +369,42 @@ function waitForMergedPullRequest(prNumber, worktree, logPath) {
   fail(`PR #${prNumber} did not reach confirmed MERGED state; publication will resume without closing the issue`);
 }
 
-function publishAndMerge(issue, worktree, branch, logPath, validatedHead) {
+function publishAndMerge(issue, worktree, branch, logPath, validatedHead, preferredPullRequest, onPullRequest) {
   const base = defaultBranch();
   const localHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
   if (localHead !== validatedHead) fail(`Local head changed after validation for #${issue.number}`);
-  commandOutput("git", ["push", "--set-upstream", "origin", branch], { cwd: worktree });
-  const existing = commandJson("gh", ["pr", "list", "--head", branch, "--state", "open", "--json", "number,url"], { cwd: worktree }) ?? [];
-  let url;
-  let prNumber;
-  if (existing.length > 0) {
-    ({ number: prNumber, url } = existing[0]);
-  } else {
-    const body = `Closes #${issue.number}\n\nImplemented and independently validated by the MDLM frontier loop.`;
-    url = commandOutput("gh", ["pr", "create", "--base", base, "--head", branch, "--title", issue.title, "--body", body], { cwd: worktree });
-    prNumber = parsePullRequestNumber(url);
+
+  let pullRequest = preferredPullRequest
+    ? commandJson("gh", ["pr", "view", String(preferredPullRequest), "--json", "number,url,state"], { cwd: worktree })
+    : null;
+  if (!pullRequest) {
+    const existing = commandJson("gh", ["pr", "list", "--head", branch, "--state", "all", "--limit", "1", "--json", "number,url,state"], { cwd: worktree }) ?? [];
+    pullRequest = existing[0] ?? null;
   }
-  appendAgentLog(logPath, "pull request", `${url}\n`);
-  if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} does not point at validated commit ${validatedHead}`);
-  waitForPullRequestChecks(prNumber, worktree, logPath);
-  if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} changed after validation`);
-  commandOutput("gh", ["pr", "merge", String(prNumber), "--merge", "--match-head-commit", validatedHead], { cwd: worktree });
+
+  if (pullRequest?.state !== "MERGED") {
+    commandOutput("git", ["push", "--set-upstream", "origin", branch], { cwd: worktree });
+    if (!pullRequest) {
+      const body = `Closes #${issue.number}\n\nImplemented and independently validated by the MDLM frontier loop.`;
+      const url = commandOutput("gh", ["pr", "create", "--base", base, "--head", branch, "--title", issue.title, "--body", body], { cwd: worktree });
+      pullRequest = { number: parsePullRequestNumber(url), url, state: "OPEN" };
+    }
+  }
+
+  const prNumber = pullRequest.number;
+  onPullRequest(prNumber);
+  appendAgentLog(logPath, "pull request", `${pullRequest.url}\n`);
+  if (pullRequest.state !== "MERGED") {
+    if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} does not point at validated commit ${validatedHead}`);
+    waitForPullRequestChecks(prNumber, worktree, logPath);
+    if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} changed after validation`);
+    commandOutput("gh", ["pr", "merge", String(prNumber), "--merge", "--match-head-commit", validatedHead], { cwd: worktree });
+  }
   waitForMergedPullRequest(prNumber, worktree, logPath);
   commandResult("git", ["push", "origin", "--delete", branch], { cwd: worktree });
   for (let attempt = 0; attempt < 15 && issueOpen(issue.number); attempt += 1) sleep(2_000);
   if (issueOpen(issue.number)) {
-    commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and merged in PR #${prNumber}.`]);
+    commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`]);
   }
   return prNumber;
 }
@@ -422,7 +435,17 @@ function mergeValidatedIssue(issue, paths, state, prepared, issueLog) {
   if (!validatedHeadMatches(state, head)) fail(`Validated branch changed before publication for #${issue.number}`);
   state = writeState(paths, state, { phase: "merging", message: `Publishing and merging #${issue.number}` });
   log(state.message);
-  const prNumber = publishAndMerge(issue, prepared.worktree, prepared.branch, issueLog, head);
+  const prNumber = publishAndMerge(
+    issue,
+    prepared.worktree,
+    prepared.branch,
+    issueLog,
+    head,
+    state.pullRequest,
+    (pullRequest) => {
+      state = writeState(paths, state, { pullRequest });
+    },
+  );
   state = writeState(paths, state, { pullRequest: prNumber, message: `Merged #${issue.number} in PR #${prNumber}` });
   log(state.message);
   removeWorktree(prepared.worktree, prepared.branch);
@@ -433,13 +456,20 @@ function reconcileClosedCurrentIssue(plan, paths, state) {
   if (!state.currentIssue) return state;
   const current = [...plan.children, ...plan.backlog].find((issue) => issue.number === state.currentIssue);
   if (current?.state !== "CLOSED") return state;
+  const cwd = state.worktree && existsSync(state.worktree) ? state.worktree : repositoryRoot;
+  let merged = [];
+  if (state.pullRequest) {
+    const detail = commandJson("gh", ["pr", "view", String(state.pullRequest), "--json", "number,state"], { cwd });
+    if (detail?.state === "MERGED") merged = [detail];
+  } else if (state.branch) {
+    merged = commandJson("gh", ["pr", "list", "--head", state.branch, "--state", "merged", "--json", "number"], { cwd }) ?? [];
+  }
+  if (merged.length === 0) fail(`Issue #${state.currentIssue} closed without a confirmed merged PR; preserving its branch and worktree`);
   if (state.worktree && existsSync(state.worktree)) {
-    const merged = commandJson("gh", ["pr", "list", "--head", state.branch, "--state", "merged", "--json", "number"] , { cwd: state.worktree }) ?? [];
-    if (merged.length === 0) fail(`Issue #${state.currentIssue} closed without a confirmed merged PR; preserving ${state.worktree}`);
     const dirty = commandOutput("git", ["status", "--porcelain"], { cwd: state.worktree });
     if (dirty) fail(`Closed issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
-    removeWorktree(state.worktree, state.branch);
   }
+  removeWorktree(state.worktree, state.branch);
   log(`Reconciled confirmed merged issue #${state.currentIssue} after interrupted cleanup`);
   return writeState(paths, state, betweenTicketsPatch());
 }
@@ -467,7 +497,7 @@ function processIssue(issue, paths, state) {
     branch: prepared.branch,
     worktree: prepared.worktree,
     issueLog,
-    pullRequest: null,
+    pullRequest: continuingIssue ? state.pullRequest ?? null : null,
     pendingAction,
     remediationUsed,
     diagnosticEscalations,
@@ -484,22 +514,25 @@ function processIssue(issue, paths, state) {
   }
   log(state.message);
   if (resumeValidated) return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
-  state = executeAgentAction(
-    issue,
-    prepared,
-    issueLog,
-    paths,
-    state,
-    pendingAction ? { ...pendingAction, resumed: true } : { kind: "implementation" },
-  );
+  if (pendingAction?.kind === "review" || pendingAction?.kind === "validation") {
+    state = writeState(paths, state, { pendingAction: null, phase: pendingAction.kind === "review" ? "retrying-review" : "validating" });
+  } else {
+    state = executeAgentAction(
+      issue,
+      prepared,
+      issueLog,
+      paths,
+      state,
+      pendingAction ? { ...pendingAction, resumed: true } : { kind: "implementation" },
+    );
+  }
 
   while (true) {
     const headBeforeValidation = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
     const complexityReasons = agentRunner.complexityReasons(prepared.worktree, defaultBranch());
     if (complexityReasons.length > 0 && complexityReviewedHead !== headBeforeValidation && designEscalations < maximumDesignEscalations) {
       designEscalations += 1;
-      state = writeState(paths, state, { designEscalations });
-      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "simplification", reasons: complexityReasons });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "simplification", reasons: complexityReasons }, { designEscalations });
       complexityReviewedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
       state = writeState(paths, state, { complexityReviewedHead });
       continue;
@@ -521,19 +554,31 @@ function processIssue(issue, paths, state) {
     const clean = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
     let commandsPass = commitCount > 0 && clean && commandsValidatedHead === headBeforeValidation;
     if (!commandsPass && commitCount > 0 && clean) {
+      state = writeState(paths, state, { phase: "validating", pendingAction: { kind: "validation" } });
       commandsPass = agentRunner.validate(prepared.worktree, issueLog, defaultBranch());
+      state = writeState(paths, state, { pendingAction: null });
+      const headAfterCommands = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
+      const cleanAfterCommands = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
+      if (commandsPass && (headAfterCommands !== headBeforeValidation || !cleanAfterCommands)) {
+        fail(`Independent command validation mutated #${issue.number}; refusing to review or publish unvalidated bytes`);
+      }
       commandsValidatedHead = commandsPass ? headBeforeValidation : null;
       state = writeState(paths, state, { commandsValidatedHead });
     }
-    const review = commandsPass ? agentRunner.review(issue, prepared.worktree, issueLog, defaultBranch()) : { retry: false, passed: false, simplify: false };
+    let review = { retry: false, passed: false, simplify: false };
+    if (commandsPass) {
+      state = writeState(paths, state, { phase: "reviewing", pendingAction: { kind: "review" } });
+      review = agentRunner.review(issue, prepared.worktree, issueLog, defaultBranch());
+      if (!review.retry) state = writeState(paths, state, { pendingAction: null });
+    }
     if (commandsPass && review.retry) {
       state = writeState(paths, state, {
         phase: "retrying-review",
-        message: `Reviewer/provider did not return a valid verdict for #${issue.number}; retrying without rerunning validated commands or changing product code`,
+        pendingAction: { kind: "review" },
+        message: `Reviewer/provider did not return a valid verdict for #${issue.number}; returning control to the supervisor without changing product code`,
       });
       log(state.message);
-      sleep(30_000);
-      continue;
+      fail(`Independent reviewer exhausted its bounded attempts for #${issue.number}`);
     }
     if (commandsPass && review.passed && !review.simplify) {
       const validatedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
@@ -552,22 +597,19 @@ function processIssue(issue, paths, state) {
 
     if (action === "remediate") {
       remediationUsed = true;
-      state = writeState(paths, state, { remediationUsed });
-      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "remediation" });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "remediation" }, { remediationUsed });
       continue;
     }
 
     if (action === "diagnose") {
       diagnosticEscalations += 1;
-      state = writeState(paths, state, { diagnosticEscalations });
-      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "diagnosis" });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "diagnosis" }, { diagnosticEscalations });
       continue;
     }
 
     if (action === "simplify") {
       designEscalations += 1;
-      state = writeState(paths, state, { designEscalations });
-      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "simplification", reasons: complexityReasons });
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "simplification", reasons: complexityReasons }, { designEscalations });
       complexityReviewedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
       state = writeState(paths, state, { complexityReviewedHead });
       continue;
@@ -578,14 +620,13 @@ function processIssue(issue, paths, state) {
     diagnosticEscalations = 0;
     designEscalations = 0;
     complexityReviewedHead = null;
-    state = writeState(paths, state, {
+    state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "contract-review" }, {
       remediationUsed,
       diagnosticEscalations,
       designEscalations,
       contractReviews,
       complexityReviewedHead,
     });
-    state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "contract-review" });
   }
 }
 
@@ -597,7 +638,7 @@ function runLoop(parent) {
   const paths = loopPaths(parent);
   mkdirSync(paths.worktrees, { recursive: true });
   let state = readState(paths) ?? writeState(paths, {}, {
-    schemaVersion: 2,
+    schemaVersion: 3,
     parentIssue: parent,
     session: sessionName(parent),
     phase: "starting",
@@ -649,30 +690,46 @@ function runLoop(parent) {
         const message = error instanceof Error ? error.message : String(error);
         if (isRemoteValidationFailure(error) && !stopped(paths)) {
           state = failureBaseState(state, readState(paths));
-          const diagnosticEscalations = state.diagnosticEscalations ?? 0;
-          if (diagnosticEscalations < maximumDiagnosticEscalations) {
-            state = writeState(paths, state, {
-              phase: "failed",
-              diagnosticEscalations: diagnosticEscalations + 1,
-              pendingAction: { kind: "diagnosis" },
-              message: "Remote validation failed; scheduling an independent diagnostic instance",
-              validatedHead: null,
-              lastError: message,
-            });
+          let remediationUsed = state.remediationUsed ?? false;
+          let diagnosticEscalations = state.diagnosticEscalations ?? 0;
+          let designEscalations = state.designEscalations ?? 0;
+          let contractReviews = state.contractReviews ?? 0;
+          const action = validationFailureAction({
+            remediationUsed,
+            diagnosticEscalations,
+            maximumDiagnosticEscalations,
+            designEscalations,
+            maximumDesignEscalations,
+          });
+          let pendingAction;
+          if (action === "remediate") {
+            remediationUsed = true;
+            pendingAction = { kind: "remediation" };
+          } else if (action === "diagnose") {
+            diagnosticEscalations += 1;
+            pendingAction = { kind: "diagnosis" };
+          } else if (action === "simplify") {
+            designEscalations += 1;
+            pendingAction = { kind: "simplification", reasons: [message] };
           } else {
-            state = writeState(paths, state, {
-              phase: "failed",
-              remediationUsed: false,
-              diagnosticEscalations: 0,
-              designEscalations: 0,
-              contractReviews: (state.contractReviews ?? 0) + 1,
-              complexityReviewedHead: null,
-              pendingAction: { kind: "contract-review" },
-              message: "Remote validation exhausted diagnosis; scheduling autonomous contract review",
-              validatedHead: null,
-              lastError: message,
-            });
+            remediationUsed = false;
+            diagnosticEscalations = 0;
+            designEscalations = 0;
+            contractReviews += 1;
+            pendingAction = { kind: "contract-review" };
           }
+          state = writeState(paths, state, {
+            phase: "failed",
+            remediationUsed,
+            diagnosticEscalations,
+            designEscalations,
+            contractReviews,
+            complexityReviewedHead: action === "contract-review" ? null : state.complexityReviewedHead,
+            pendingAction,
+            message: `Remote validation failed; scheduling ${pendingAction.kind}`,
+            validatedHead: null,
+            lastError: message,
+          });
           log(`${state.message}: ${message}`);
           continue;
         }
@@ -750,6 +807,7 @@ function status(parent) {
       }
     }
     if (pullRequest) process.stdout.write(`Pull request:  #${pullRequest}\n`);
+    if (state.branch) process.stdout.write(`Branch:        ${state.branch}\n`);
     if (state.worktree) process.stdout.write(`Worktree:      ${state.worktree}\n`);
     if (state.issueLog) process.stdout.write(`Issue log:     ${state.issueLog}\n`);
     if (state.diagnosticEscalations || state.designEscalations || state.contractReviews) {
