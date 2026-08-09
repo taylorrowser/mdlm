@@ -1555,23 +1555,6 @@ async function selectedPackage(
   return { ok: true, processPackage: loaded.package, summary };
 }
 
-async function explicitPackage(
-  repositoryRoot: string,
-  reference: string,
-): Promise<SelectedPackageResolution> {
-  const installedRoot = await installedPackageRoot(repositoryRoot, reference);
-  const packageRoot = installedRoot ?? path.resolve(repositoryRoot, reference);
-  const loaded = await loadProcessPackage(packageRoot);
-  if (!loaded.ok) {
-    return { ok: false, selected: false, diagnostics: loaded.diagnostics };
-  }
-  return {
-    ok: true,
-    processPackage: loaded.package,
-    summary: await packageSummary(loaded.package, packageRoot),
-  };
-}
-
 async function selectedRepositoryPackage(
   repositoryRoot: string,
 ): Promise<SelectedPackageResolution> {
@@ -1677,12 +1660,14 @@ async function validateExplicitPackage(
   repositoryRoot: string,
   reference: string,
 ): Promise<CommandResult> {
-  const resolved = await explicitPackage(repositoryRoot, reference);
-  if (!resolved.ok) return failedValidation(resolved.diagnostics, false);
+  const installedRoot = await installedPackageRoot(repositoryRoot, reference);
+  const packageRoot = installedRoot ?? path.resolve(repositoryRoot, reference);
+  const loaded = await loadProcessPackage(packageRoot);
+  if (!loaded.ok) return failedValidation(loaded.diagnostics, false);
   return {
     ok: true,
     command: "process.validate",
-    package: resolved.summary,
+    package: await packageSummary(loaded.package, packageRoot),
     selected: false,
     validation: {
       compilation: "passed",
@@ -1772,39 +1757,22 @@ function activeLifecycleEvaluation(
   return evaluateLifecycle(processPackage, { ...snapshot, phaseId });
 }
 
-type LifecycleEvaluation =
+type SelectedLifecycleEvaluation =
   | {
       ok: true;
       summary: PackageSummary;
       evaluation: ReturnType<typeof evaluateLifecycle>;
-      selected: boolean;
     }
   | { ok: false; result: CommandResult };
 
-async function lifecycleEvaluation(
+async function selectedLifecycleEvaluation(
   repositoryRoot: string,
   command: string,
   snapshotPath: string | undefined,
   phaseId?: string,
   deriveActive = false,
-  packageReference?: string,
-): Promise<LifecycleEvaluation> {
-  if (packageReference !== undefined && snapshotPath === undefined) {
-    return {
-      ok: false,
-      result: {
-        ...failure(
-          "snapshot-required",
-          "Loose End evaluation with '--ref <package-ref>' requires '--snapshot <fixture>'",
-        ),
-        command,
-        selected: false,
-      },
-    };
-  }
-  const resolved = packageReference === undefined
-    ? await selectedPackage(repositoryRoot)
-    : await explicitPackage(repositoryRoot, packageReference);
+): Promise<SelectedLifecycleEvaluation> {
+  const resolved = await selectedPackage(repositoryRoot);
   if (!resolved.ok) {
     return {
       ok: false,
@@ -1816,7 +1784,6 @@ async function lifecycleEvaluation(
       },
     };
   }
-  const selected = packageReference === undefined;
   let snapshot: LifecycleSnapshot;
   if (snapshotPath) {
     snapshot = await readLifecycleSnapshot(repositoryRoot, snapshotPath);
@@ -1841,7 +1808,7 @@ async function lifecycleEvaluation(
           ok: false,
           command,
           package: resolved.summary,
-          selected,
+          selected: true,
           diagnostics: repositorySnapshot.diagnostics,
         },
       };
@@ -1860,17 +1827,12 @@ async function lifecycleEvaluation(
         ok: false,
         command,
         package: resolved.summary,
-        selected,
+        selected: true,
         diagnostics: evaluation.diagnostics,
       },
     };
   }
-  return {
-    ok: true,
-    summary: resolved.summary,
-    evaluation,
-    selected,
-  };
+  return { ok: true, summary: resolved.summary, evaluation };
 }
 
 async function phaseStatus(
@@ -1878,7 +1840,7 @@ async function phaseStatus(
   phaseId: string | undefined,
   snapshotPath: string | undefined,
 ): Promise<CommandResult> {
-  const resolved = await lifecycleEvaluation(
+  const resolved = await selectedLifecycleEvaluation(
     repositoryRoot,
     "phase.status",
     snapshotPath,
@@ -1892,7 +1854,7 @@ async function phaseStatus(
     ok: true,
     command: "phase.status",
     package: resolved.summary,
-    selected: resolved.selected,
+    selected: true,
     phaseStatus: projection,
     diagnostics: [],
   };
@@ -1902,15 +1864,12 @@ async function showLooseEnds(
   repositoryRoot: string,
   snapshotPath: string | undefined,
   phaseId?: string,
-  packageReference?: string,
 ): Promise<CommandResult> {
-  const resolved = await lifecycleEvaluation(
+  const resolved = await selectedLifecycleEvaluation(
     repositoryRoot,
     "loose-ends",
     snapshotPath,
     phaseId,
-    false,
-    packageReference,
   );
   if (!resolved.ok) return resolved.result;
   const projection = looseEndsProjection(resolved.evaluation);
@@ -1919,7 +1878,7 @@ async function showLooseEnds(
     ok: true,
     command: "loose-ends",
     package: resolved.summary,
-    selected: resolved.selected,
+    selected: true,
     looseEnds: projection,
     diagnostics: [],
   };
@@ -1930,7 +1889,7 @@ async function showNextWork(
   snapshotPath: string | undefined,
   phaseId?: string,
 ): Promise<CommandResult> {
-  const resolved = await lifecycleEvaluation(
+  const resolved = await selectedLifecycleEvaluation(
     repositoryRoot,
     "next",
     snapshotPath,
@@ -1943,7 +1902,7 @@ async function showNextWork(
     ok: true,
     command: "next",
     package: resolved.summary,
-    selected: resolved.selected,
+    selected: true,
     next: projection,
     diagnostics: [],
   };
@@ -2968,7 +2927,6 @@ export async function dispatchCommand(
       repositoryRoot,
       optionValue(arguments_, "--snapshot"),
       optionValue(arguments_, "--phase"),
-      optionValue(arguments_, "--ref"),
     );
   }
   if (operands[0] === "next") {

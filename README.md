@@ -116,11 +116,10 @@ node ../dist/mdlm.js question resolve --question QST-0123456789-r00001 \
   --adapter ./configured-agent-adapter
 ```
 
-`npm run prototype` remains a temporary branch-green bridge. It preserves the
-snapshot's Example Process Package schema and computed-state demonstration while
-delegating generic Loose End evaluation and rendering to the shared application.
-The `req` executable remains available temporarily while existing journeys move
-to `mdlm`.
+`npm run prototype` remains a temporary branch-green bridge. It delegates package
+validation to the shared application while preserving the snapshot's Example
+Process Package schema, computed-state, and Loose End demonstration. The `req`
+executable remains available temporarily while existing journeys move to `mdlm`.
 
 ## References
 

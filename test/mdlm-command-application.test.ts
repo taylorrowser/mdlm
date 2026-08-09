@@ -101,76 +101,34 @@ describe("shared MDLM command application", () => {
     }));
   });
 
-  it("requires an explicit snapshot when evaluating an unselected Process Package", () => {
+  it("does not add an alternate unselected-package Loose End route", () => {
     const result = execute(
       executables.mdlm,
       repositoryRoot,
       "loose-ends",
       "--ref",
       bootstrapPackage,
-      "--json",
-    );
-
-    expect(result.status).toBe(1);
-    expect(JSON.parse(result.stdout)).toEqual({
-      ok: false,
-      command: "loose-ends",
-      selected: false,
-      diagnostics: [{
-        code: "snapshot-required",
-        message:
-          "Loose End evaluation with '--ref <package-ref>' requires '--snapshot <fixture>'",
-      }],
-    });
-  });
-
-  it("reports evaluation failures as unselected for an explicit Process Package", () => {
-    const result = execute(
-      executables.mdlm,
-      projectRoot,
-      "loose-ends",
-      "--ref",
-      bootstrapPackage,
       "--snapshot",
-      "examples/psp-to-sys-snapshot.yaml",
-      "--phase",
-      "missing-phase",
+      path.join(projectRoot, "examples/psp-to-sys-snapshot.yaml"),
       "--json",
     );
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
       ok: false,
-      command: "loose-ends",
-      selected: false,
-      diagnostics: [{
-        code: "unknown-phase",
-        path: "phaseId",
-        message: "Unknown Phase 'missing-phase'",
-      }],
+      diagnostics: [expect.objectContaining({
+        code: "process-package-not-selected",
+      })],
     }));
   });
 
   it("keeps the prototype snapshot journey through the shared application", () => {
-    const explicitSnapshot = execute(
-      executables.mdlm,
+    const snapshot = path.join(projectRoot, "examples/psp-to-sys-snapshot.yaml");
+    const throughPrototype = execute(
+      executables.prototype,
       projectRoot,
-      "loose-ends",
-      "--ref",
-      ".lifecycle/process",
-      "--snapshot",
-      "examples/psp-to-sys-snapshot.yaml",
-      "--json",
+      snapshot,
     );
-    expect(explicitSnapshot.status, explicitSnapshot.stderr).toBe(0);
-    expect(JSON.parse(explicitSnapshot.stdout)).toEqual(expect.objectContaining({
-      ok: true,
-      command: "loose-ends",
-      selected: false,
-      looseEnds: expect.objectContaining({ phase: "phase-2-system-definition@3" }),
-    }));
-
-    const throughPrototype = execute(executables.prototype, projectRoot);
 
     expect(throughPrototype.status, throughPrototype.stderr).toBe(0);
     expect(throughPrototype.stdout).toContain(
@@ -183,12 +141,9 @@ describe("shared MDLM command application", () => {
       "Resolved STK templates: titled-datum@1 → rationale-bearing@1 → requirement@1",
     );
     expect(throughPrototype.stdout).toContain("Computed artifact states:");
+    expect(throughPrototype.stdout).toContain("Loose ends (6):");
     expect(throughPrototype.stdout).toContain(
-      "Process Package: mdlm-bootstrap@0.49.0",
-    );
-    expect(throughPrototype.stdout).toContain("Loose Ends: 6");
-    expect(throughPrototype.stdout).toContain(
-      "Actionable Resolver: create-review-context@1",
+      "Actionable resolver: create-review-context@1",
     );
   });
 });
