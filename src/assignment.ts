@@ -267,6 +267,42 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
     : undefined;
 }
 
+async function assignmentHasPublishedTransaction(
+  repositoryRoot: string,
+  assignmentId: string,
+): Promise<boolean> {
+  const transactionRoot = path.join(
+    repositoryRoot,
+    ".lifecycle/data/.transactions",
+  );
+  let transactions: string[];
+  try {
+    transactions = await fs.readdir(transactionRoot);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
+  for (const transaction of transactions) {
+    try {
+      const execution = object(JSON.parse(await fs.readFile(
+        path.join(transactionRoot, transaction, "execution.json"),
+        "utf8",
+      )));
+      const response = object(execution?.response);
+      if (
+        execution?.contract === "mdlm-scenario-execution@4" &&
+        execution.status === "completed" &&
+        response?.contract === "mdlm-assignment-response@1" &&
+        response.assignment === assignmentId
+      ) return true;
+    } catch {
+      // Repository validation reports malformed transactions; they cannot
+      // prove that this Assignment was consumed.
+    }
+  }
+  return false;
+}
+
 async function readLease(
   repositoryRoot: string,
 ): Promise<AssignmentResult<AssignmentLease | undefined>> {
@@ -295,6 +331,10 @@ async function readLease(
     );
   }
   const lease = assignmentLease(value);
+  if (lease && await assignmentHasPublishedTransaction(repositoryRoot, lease.id)) {
+    await fs.rm(target, { force: true }).catch(() => undefined);
+    return { ok: true, value: undefined, diagnostics: [] };
+  }
   return lease
     ? { ok: true, value: lease, diagnostics: [] }
     : failure(
@@ -811,7 +851,9 @@ export async function submitAssignmentResponse(
     },
   );
   if (!submitted.ok) return submitted;
-  await fs.rm(leasePath(repositoryRoot), { force: true });
+  // The completed authoritative execution consumes the Assignment. Removing
+  // its ignored lease is best-effort cache cleanup, not part of publication.
+  await fs.rm(leasePath(repositoryRoot), { force: true }).catch(() => undefined);
   return {
     ok: true,
     value: submitted.value as AssignmentSubmission,

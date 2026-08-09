@@ -354,6 +354,11 @@ describe("MDLM Assignment leasing and preparation", () => {
   it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     const assignment = next.assignment.id as string;
+    const activeLeasePath = path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    );
+    const activeLeaseSource = await fs.readFile(activeLeasePath, "utf8");
     const packet = JSON.parse(mdlm(
       repository,
       "scenario",
@@ -545,10 +550,14 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(result.execution.outputs[0].data.payload.frontier).toEqual([
       result.execution.outputs[1].lifecycleDatum.revisionId,
     ]);
-    await expect(fs.stat(path.join(
-      repository,
-      ".lifecycle/work/active-assignment.json",
-    ))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.stat(activeLeasePath)).rejects.toMatchObject({ code: "ENOENT" });
+
+    // The authoritative execution is the consumption signal if ignored lease
+    // cleanup is interrupted after the atomic transaction rename.
+    await fs.writeFile(activeLeasePath, activeLeaseSource);
+    const recovered = mdlm(repository, "next");
+    expect(recovered.status, `${recovered.stderr}${recovered.stdout}`).toBe(0);
+    expect(JSON.parse(recovered.stdout).assignment.id).not.toBe(assignment);
 
     const doctor = mdlm(repository, "doctor", "--json");
     expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
@@ -584,6 +593,57 @@ describe("MDLM Assignment leasing and preparation", () => {
     ).status).toBe(0);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
   }, 15_000);
+
+  it("publishes a complete Assignment Response from a file", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      next.assignment.id,
+    ).stdout);
+    const response = {
+      contract: "mdlm-assignment-response@1",
+      assignment: next.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "map",
+          name: "map",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "MAP",
+            payload: {
+              title: "File transport proposal",
+              purpose: "Prove a harness can submit one complete response file.",
+              frontier: ["One exact product decision"],
+            },
+            links: [],
+            body: "One proposal transported without standard input.\n",
+          },
+        }],
+        completionEvidence: { summary: "The initial frontier is explicit." },
+        loadedSkillRefs: packet.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    };
+    const responsePath = path.join(parent, "file-response.json");
+    await fs.writeFile(responsePath, `${JSON.stringify(response)}\n`);
+
+    const submitted = mdlm(repository, "scenario", "submit", responsePath);
+
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    expect(JSON.parse(submitted.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-scenario-execution@4",
+      execution: expect.objectContaining({
+        response: expect.objectContaining({ assignment: next.assignment.id }),
+      }),
+    }));
+  });
 
   it("publishes a contract-valid unfavorable independent judgment unchanged", async () => {
     const commitTransaction = (message: string) => {
