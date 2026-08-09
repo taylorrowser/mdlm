@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { appendFileSync, closeSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
@@ -15,7 +15,7 @@ function isoNow() {
 }
 
 function sleep(milliseconds) {
-  execFileSync(process.execPath, ["-e", `setTimeout(() => {}, ${milliseconds})`]);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 export function appendAgentLog(path, heading, output = "") {

@@ -1,8 +1,8 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { isTransientInfrastructureFailure } from "./frontier-loop-core.mjs";
 
 function sleep(milliseconds) {
-  execFileSync(process.execPath, ["-e", `setTimeout(() => {}, ${milliseconds})`]);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 export function commandResult(command, args, options = {}) {

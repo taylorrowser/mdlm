@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -92,7 +92,7 @@ function ghJson(args, options = {}) {
 }
 
 function sleep(milliseconds) {
-  execFileSync(process.execPath, ["-e", `setTimeout(() => {}, ${milliseconds})`]);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 function isoNow() {
@@ -265,7 +265,6 @@ function runLoop(parent) {
     if (!Array.isArray(state.priorityIssueNumbers) || !Array.isArray(state.backlogIssueNumbers)) {
       const summaries = allIssueSummaries();
       const priorityIssueNumbers = priorityIssueSnapshot(parent, summaries);
-      if (priorityIssueNumbers.length === 0) fail(`Parent #${parent} has no discoverable implementation children; refusing to snapshot an empty priority map`);
       const prioritySummaries = selectSnapshottedIssues(priorityIssueNumbers, summaries);
       const backlogIssueNumbers = selectOlderReadyBacklog(parent, summaries, prioritySummaries).map((issue) => issue.number).sort((left, right) => left - right);
       state = writeState(paths, state, {
@@ -348,7 +347,18 @@ function runLoop(parent) {
           log(`${state.message}: ${message}`);
           continue;
         }
-        if ((!isTransientInfrastructureFailure(error) && !isPublicationRetryFailure(error)) || stopped(paths)) throw error;
+        if (isPublicationRetryFailure(error) && !stopped(paths)) {
+          state = failureBaseState(state, readState(paths));
+          state = writeState(paths, state, {
+            phase: "retrying-publication",
+            message: "Publication state is not yet confirmable; retrying without changing code in 30 seconds",
+            lastError: message,
+          });
+          log(`${state.message}: ${message}`);
+          sleep(30_000);
+          continue;
+        }
+        if (!isTransientInfrastructureFailure(error) || stopped(paths)) throw error;
         state = failureBaseState(state, readState(paths));
         state = writeState(paths, state, {
           phase: "retrying-infrastructure",

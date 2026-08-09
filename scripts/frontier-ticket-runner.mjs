@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
@@ -12,7 +11,7 @@ import {
 } from "./frontier-loop-core.mjs";
 
 function sleep(milliseconds) {
-  execFileSync(process.execPath, ["-e", `setTimeout(() => {}, ${milliseconds})`]);
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 export function createTicketRunner({
