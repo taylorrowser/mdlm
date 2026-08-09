@@ -6,7 +6,7 @@ For every available frontier ticket, the loop:
 
 1. claims the issue;
 2. creates a branch and worktree from the exact current `origin/main`;
-3. invokes `/skill:implement` in a fresh, non-persistent Pi session pinned to `openai-codex/gpt-5.6-sol` with high thinking for focused checks, type checking, and code review without duplicating the full suite;
+3. invokes `/skill:implement` in a fresh, non-persistent Pi session pinned to `openai-codex/gpt-5.6-sol` with high thinking for focused checks and type checking without nested Pi or code-review sessions;
 4. runs dependency installation, `git diff --check`, TypeScript type checking, and the full test suite independently once to a completed result at each changed committed tip before review (an interrupted or unconfirmed in-flight run is retried);
 5. writes an exact issue/parent/diff evidence packet and runs a fresh `openai-codex/gpt-5.6-sol` Pi process with high thinking and only read/search tools for Standards/Spec review, module-depth assessment, and disproportionate-complexity assessment;
 6. remediates review or test findings in a fresh `/skill:implement` session;
@@ -27,7 +27,7 @@ A failed ticket does not immediately stop the delivery run. The correction ladde
 
 Correction budgets are cumulative for the whole ticket. Contract review preserves remediation, diagnosis, simplification, and numeric-complexity review history so the same ticket cannot restart the ladder.
 
-Every session that edits code starts with `/skill:implement`. Diagnostic sessions explicitly apply the diagnosing-bugs method. Simplification sessions explicitly apply codebase-design and grilling before editing, choose their recommended boundary autonomously, and never pause for stakeholder confirmation. The independent reviewer treats the active child as the current delivery boundary: parent invariants remain binding, while explicitly deferred sibling and final-contraction work remains deferred.
+Every session that edits code starts with `/skill:implement`, but the orchestrator overrides that skill's final full-suite and code-review steps: editing sessions run focused checks and typecheck without launching nested Pi reviewers, while the orchestrator runs one authoritative full suite and independent review at the final committed tip. Diagnostic sessions explicitly apply the diagnosing-bugs method. Simplification sessions explicitly apply codebase-design and grilling before editing, choose their recommended boundary autonomously, and never pause for stakeholder confirmation. The independent reviewer treats the active child as the current delivery boundary: parent invariants remain binding, while explicitly deferred sibling and final-contraction work remains deferred.
 
 If an editing pass changes neither repository bytes nor issue comments, the loop records a no-op and advances the correction ladder without repeating command validation or independent review already cached at that SHA.
 

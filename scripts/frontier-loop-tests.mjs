@@ -153,10 +153,22 @@ test("agent prompts reserve full validation for the orchestrator and preserve tr
   const issue = { number: 86, title: "Prepare Assignment" };
   const implementation = editingAgentPrompt("implementation", { issue });
   const simplification = editingAgentPrompt("simplification", { issue, reasonLog: "/tmp/issue.log" });
+  const editingPrompts = [
+    implementation,
+    editingAgentPrompt("remediation", { issue, reasonLog: "/tmp/issue.log" }),
+    editingAgentPrompt("diagnosis", { issue, reasonLog: "/tmp/issue.log" }),
+    simplification,
+    editingAgentPrompt("contract-review", { issue, reasonLog: "/tmp/issue.log" }),
+  ];
   const reviewer = independentReviewerPrompt("/tmp/evidence.md");
-  assert.match(implementation, /^\/skill:implement/);
-  assert.match(implementation, /do not run the full suite/);
-  assert.match(implementation, /deferred sibling work remains deferred/);
+  for (const prompt of editingPrompts) {
+    assert.match(prompt, /^\/skill:implement/);
+    assert.match(prompt, /do not run the full suite/);
+    assert.match(prompt, /do not invoke code review or another Pi agent/);
+    assert.match(prompt, /overrides the implementation skill's default completion procedure/);
+    assert.doesNotMatch(prompt, /Invoke code review/);
+    assert.match(prompt, /deferred sibling work remains deferred/);
+  }
   assert.match(simplification, /without pausing for stakeholder confirmation/);
   assert.match(reviewer, /active child acceptance criteria as the current delivery boundary/);
   assert.match(reviewer, /explicitly deferred sibling work/);
