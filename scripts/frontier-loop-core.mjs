@@ -8,12 +8,22 @@ function readyForSerialWork(issue) {
     && issue.blockedBy.every((blocker) => blocker.state === "CLOSED");
 }
 
-export function findFrontier(issues) {
+export function findReadyItem(issues) {
   return [...issues].sort((left, right) => left.number - right.number).find(readyForSerialWork);
 }
 
-export function findBacklogItem(issues) {
-  return [...issues].sort((left, right) => left.number - right.number).find(readyForSerialWork);
+export const findFrontier = findReadyItem;
+
+export function priorityIssueSnapshot(parent, summaries) {
+  return summaries
+    .filter((issue) => bodyReferencesParent(issue.body, parent))
+    .map((issue) => issue.number)
+    .sort((left, right) => left - right);
+}
+
+export function selectSnapshottedIssues(issueNumbers, summaries) {
+  const selected = new Set(issueNumbers);
+  return summaries.filter((issue) => selected.has(issue.number));
 }
 
 export function selectOlderReadyBacklog(parent, summaries, children) {
@@ -53,14 +63,13 @@ export function panesAreRunning(deadStatuses) {
 }
 
 export function validationFailureAction({
-  attempt,
-  maximumAttempts,
+  remediationUsed,
   diagnosticEscalations,
   maximumDiagnosticEscalations,
   designEscalations,
   maximumDesignEscalations,
 }) {
-  if (attempt < maximumAttempts) return "remediate";
+  if (!remediationUsed) return "remediate";
   if (diagnosticEscalations < maximumDiagnosticEscalations) return "diagnose";
   if (designEscalations < maximumDesignEscalations) return "simplify";
   return "contract-review";
@@ -85,13 +94,22 @@ export function isTransientAgentFailure(error) {
   return /(fetch failed|ECONN(?:RESET|REFUSED)|ENETUNREACH|EAI_AGAIN|socket hang up|connection (?:reset|refused)|network is unreachable|temporary failure|provider.*(?:429|5\d\d)|rate limit|bad gateway|gateway timeout)/i.test(message);
 }
 
+export function reviewerVerdict(output) {
+  const lines = String(output).trimEnd().split(/\r?\n/);
+  const complexityLines = lines.filter((line) => /^COMPLEXITY:\s*(?:OK|ESCALATE)\s*$/i.test(line));
+  const validationLines = lines.filter((line) => /^VALIDATION:\s*(?:PASS|FAIL)\s*$/i.test(line));
+  if (complexityLines.length !== 1 || validationLines.length !== 1 || lines.length < 2) return null;
+  const complexity = lines.at(-2).match(/^COMPLEXITY:\s*(OK|ESCALATE)\s*$/i)?.[1]?.toUpperCase();
+  const validation = lines.at(-1).match(/^VALIDATION:\s*(PASS|FAIL)\s*$/i)?.[1]?.toUpperCase();
+  return complexity && validation ? { complexity, validation } : null;
+}
+
 export function reviewHasComplexityVerdict(output) {
-  return /^COMPLEXITY:\s*(?:OK|ESCALATE)\s*$/im.test(output);
+  return reviewerVerdict(output) !== null;
 }
 
 export function reviewRequestsSimplification(output) {
-  const verdicts = [...output.matchAll(/^COMPLEXITY:\s*(OK|ESCALATE)\s*$/gim)];
-  return verdicts.length > 0 && verdicts.at(-1)[1].toUpperCase() === "ESCALATE";
+  return reviewerVerdict(output)?.complexity === "ESCALATE";
 }
 
 export function complexityReasonsFromStats(

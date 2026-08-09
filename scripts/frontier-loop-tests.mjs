@@ -1,20 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { validationCommands } from "./frontier-agent-runner.mjs";
 import {
   bodyReferencesParent,
   complexityReasonsFromStats,
   failureBaseState,
-  findBacklogItem,
   findFrontier,
+  findReadyItem,
   isRemoteValidationFailure,
   isTransientAgentFailure,
   isTransientInfrastructureFailure,
   panesAreRunning,
   parsePullRequestNumber,
+  priorityIssueSnapshot,
   referencedParentNumber,
   reviewHasComplexityVerdict,
+  reviewerVerdict,
   reviewRequestsSimplification,
   selectOlderReadyBacklog,
+  selectSnapshottedIssues,
   shouldDiagnoseResume,
   validatedHeadMatches,
   validationFailureAction,
@@ -46,6 +50,17 @@ test("frontier is absent when every remaining issue is assigned or blocked", () 
   assert.equal(findFrontier(issues), undefined);
 });
 
+test("the priority-map snapshot cannot absorb future children", () => {
+  const initial = [
+    { number: 84, body: "## Parent\n\n#83" },
+    { number: 85, body: "## Parent\n\n#83" },
+  ];
+  const snapshot = priorityIssueSnapshot(83, initial);
+  const later = [...initial, { number: 105, body: "## Parent\n\n#83" }];
+  assert.deepEqual(snapshot, [84, 85]);
+  assert.deepEqual(selectSnapshottedIssues(snapshot, later).map((candidate) => candidate.number), [84, 85]);
+});
+
 test("older backlog selection is separate and cannot absorb future work", () => {
   const summaries = [
     { number: 70, state: "OPEN", labels: [{ name: "ready-for-agent" }] },
@@ -55,7 +70,7 @@ test("older backlog selection is separate and cannot absorb future work", () => 
   ];
   const selected = selectOlderReadyBacklog(83, summaries, [{ number: 80 }]);
   assert.deepEqual(selected.map((candidate) => candidate.number), [70]);
-  assert.equal(findBacklogItem([issue(71), issue(70)])?.number, 70);
+  assert.equal(findReadyItem([issue(71), issue(70)])?.number, 70);
 });
 
 test("body parent discovery reads only the explicit Parent section", () => {
@@ -67,6 +82,10 @@ test("body parent discovery reads only the explicit Parent section", () => {
   assert.equal(referencedParentNumber(oldParent), 57);
 });
 
+test("independent validation checks the committed ticket range", () => {
+  assert.deepEqual(validationCommands("main")[1], ["git", ["diff", "--check", "origin/main...HEAD"]]);
+});
+
 test("validation and complexity require final explicit reviewer verdicts", () => {
   assert.equal(validationHasVerdict("Everything passes.\nVALIDATION: PASS\n"), true);
   assert.equal(validationPassed("Everything passes.\nVALIDATION: PASS\n"), true);
@@ -75,9 +94,13 @@ test("validation and complexity require final explicit reviewer verdicts", () =>
   assert.equal(validationPassed("The implementation looks good."), false);
   assert.equal(reviewHasComplexityVerdict("COMPLEXITY: OK\nVALIDATION: PASS\n"), true);
   assert.equal(reviewRequestsSimplification("COMPLEXITY: OK\nVALIDATION: PASS\n"), false);
-  assert.equal(reviewRequestsSimplification("COMPLEXITY: OK\nCOMPLEXITY: ESCALATE\nVALIDATION: FAIL\n"), true);
+  assert.equal(reviewRequestsSimplification("COMPLEXITY: OK\nCOMPLEXITY: ESCALATE\nVALIDATION: FAIL\n"), false);
+  assert.equal(reviewerVerdict("COMPLEXITY: OK\nCOMPLEXITY: ESCALATE\nVALIDATION: FAIL\n"), null);
   assert.equal(reviewHasComplexityVerdict("VALIDATION: PASS\n"), false);
   assert.equal(reviewRequestsSimplification("VALIDATION: PASS\n"), false);
+  assert.equal(reviewerVerdict("VALIDATION: PASS\nFindings\nCOMPLEXITY: OK\nVALIDATION: PASS\n"), null);
+  assert.equal(reviewerVerdict("COMPLEXITY: OK\nVALIDATION: PASS\nTrailing prose\n"), null);
+  assert.deepEqual(reviewerVerdict("Review body\nCOMPLEXITY: ESCALATE\nVALIDATION: FAIL\n"), { complexity: "ESCALATE", validation: "FAIL" });
 });
 
 test("pull request URLs yield their numeric GitHub identity", () => {
@@ -101,14 +124,13 @@ test("a tmux session is running only while at least one pane is live", () => {
 
 test("validation rotates through remediation, diagnosis, design, and contract review", () => {
   const base = {
-    maximumAttempts: 2,
     maximumDiagnosticEscalations: 2,
     maximumDesignEscalations: 2,
   };
-  assert.equal(validationFailureAction({ ...base, attempt: 1, diagnosticEscalations: 0, designEscalations: 0 }), "remediate");
-  assert.equal(validationFailureAction({ ...base, attempt: 2, diagnosticEscalations: 0, designEscalations: 0 }), "diagnose");
-  assert.equal(validationFailureAction({ ...base, attempt: 2, diagnosticEscalations: 2, designEscalations: 0 }), "simplify");
-  assert.equal(validationFailureAction({ ...base, attempt: 2, diagnosticEscalations: 2, designEscalations: 2 }), "contract-review");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: false, diagnosticEscalations: 0, designEscalations: 0 }), "remediate");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 0, designEscalations: 0 }), "diagnose");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 2, designEscalations: 0 }), "simplify");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 2, designEscalations: 2 }), "contract-review");
 });
 
 test("complexity budget reports every crossed threshold", () => {

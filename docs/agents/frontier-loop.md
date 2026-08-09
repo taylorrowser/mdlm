@@ -1,6 +1,6 @@
 # Autonomous frontier loop
 
-The frontier loop works through the tracer-bullet children of specification issue #83 in native dependency order, using the repository's child-ticket frontier definition. After that priority map is complete, a separate backlog pass processes open `ready-for-agent` tickets whose issue numbers predate #83. Future issues cannot silently extend the run. Each implementation receives a fresh Pi process and an isolated Git worktree.
+The frontier loop snapshots the tracer-bullet children of specification issue #83 at first start, then works through that fixed set in native dependency order using the repository's child-ticket frontier definition. After the priority map is complete, a separate backlog pass processes open `ready-for-agent` tickets whose issue numbers predate #83. Future issues cannot silently extend the run. Each implementation receives a fresh Pi process and an isolated Git worktree.
 
 For every available frontier ticket, the loop:
 
@@ -27,7 +27,7 @@ A failed ticket does not immediately stop the delivery run. The correction ladde
 
 Every session that edits code starts with `/skill:implement`. Diagnostic sessions explicitly apply the diagnosing-bugs method. Simplification sessions explicitly apply codebase-design and grilling before editing.
 
-Complexity review is triggered by independent reviewer judgment or configurable diff budgets. The default triggers are more than 24 changed files, more than 1,800 changed lines, or more than 12 changed lifecycle modules. A trigger requests design review; it does not itself reject a justified vertical slice.
+Complexity review is triggered by independent reviewer judgment or configurable diff budgets. The default triggers are more than 24 changed files, more than 1,800 changed lines, or more than 12 changed lifecycle modules. The budget is reevaluated for every new commit produced by implementation, remediation, diagnosis, or simplification. A trigger requests design review; it does not itself reject a justified vertical slice.
 
 Contract review first attempts a smaller implementation of the unchanged contract. Only when a criterion itself forces an unbounded analyzer, generic workflow engine, cross-owner atomic transaction, or similar disproportionate mechanism may it record a smaller contract clarification. Any clarification is posted as an auditable issue comment naming retained behavior, deliberately given-up behavior, and its relationship to the parent goal. It may not waive:
 
@@ -41,11 +41,11 @@ The independent Spec reviewer reads issue comments and must still pass the resul
 
 ## Recovery and supervision
 
-The detached tmux process is a supervisor. If the runner exits before completion, the supervisor preserves state and the current worktree, waits 30 seconds, and starts it again. Validated commit identity is persisted, so publication retries cannot merge changed bytes or repeat expensive validation unnecessarily.
+The detached tmux process is a supervisor. If the runner exits before completion, the supervisor preserves state and the current worktree, waits 30 seconds, and starts it again. Validated commit identity is persisted and compared with the local branch, remote PR head, and merge command, so publication retries cannot merge changed bytes or repeat expensive validation unnecessarily.
 
-Clearly transient Pi/provider failures such as `fetch failed`, connection reset, rate limiting, and gateway errors receive bounded in-place retries for both implementation and review agents before control returns to the supervisor. Malformed read-only reviewer verdicts are retried as review failures and cannot trigger product simplification. GitHub transient failures receive their own retries and backoff. Remote check failures route back into diagnosis on the existing PR branch.
+Clearly transient Pi/provider failures such as `fetch failed`, connection reset, rate limiting, and gateway errors receive bounded in-place retries for both implementation and review agents before control returns to the supervisor. A reviewer verdict is accepted only when exactly one complexity line and one validation line are the final two lines; malformed output is retried without changing product code. GitHub transient failures receive shared retries and backoff. Repositories with workflows wait for checks to register before watching them; actual remote check failures route back into diagnosis on the existing PR branch.
 
-Operational state is written atomically beneath ignored `artifacts/frontier-loop-83/`. It records the current issue, phase, branch, worktree, log, pull request, validated head, diagnostic/design/contract counts, supervisor restarts, and last error. Per-ticket logs retain every implementation, validation, review, remediation, and escalation section.
+Operational state is written atomically beneath ignored `artifacts/frontier-loop-83/`. It records the priority snapshot, current issue, phase, branch, worktree, log, pull request, validated head, one-remediation use, complexity-reviewed head, diagnostic/design/contract counts, supervisor restarts, and last error. Per-ticket logs retain every implementation, validation, review, remediation, and escalation section.
 
 The loop stops automatically only when all priority-map children and all older eligible `ready-for-agent` backlog tickets are closed. A `STOP` marker is the explicit operator stop mechanism.
 

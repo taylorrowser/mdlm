@@ -1,13 +1,12 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { appendFileSync, closeSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
   complexityReasonsFromStats,
   isTransientAgentFailure,
-  isTransientInfrastructureFailure,
   referencedParentNumber,
-  reviewHasComplexityVerdict,
+  reviewerVerdict,
   reviewRequestsSimplification,
-  validationHasVerdict,
   validationPassed,
 } from "./frontier-loop-core.mjs";
 
@@ -24,29 +23,20 @@ export function appendAgentLog(path, heading, output = "") {
 }
 
 function commandResult(command, args, cwd) {
-  const attempts = command === "gh" ? 5 : 1;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const result = spawnSync(command, args, {
-      cwd,
-      encoding: "utf8",
-      env: process.env,
-      maxBuffer: 50 * 1024 * 1024,
-    });
-    if (result.error) throw result.error;
-    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n");
-    if (result.status === 0 || !isTransientInfrastructureFailure(new Error(detail)) || attempt === attempts) return result;
-    sleep(attempt * 2_000);
-  }
-  throw new Error(`${command} retry loop ended unexpectedly`);
+  return baseCommandResult(command, args, { cwd });
 }
 
 function commandOutput(command, args, cwd) {
-  const result = commandResult(command, args, cwd);
-  if (result.status !== 0) {
-    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
-    throw new Error(`${command} ${args.join(" ")} failed${detail ? `:\n${detail}` : ""}`);
-  }
-  return result.stdout.trim();
+  return baseCommandOutput(command, args, { cwd });
+}
+
+export function validationCommands(baseBranch) {
+  return [
+    ["npm", ["ci", "--ignore-scripts"]],
+    ["git", ["diff", "--check", `origin/${baseBranch}...HEAD`]],
+    ["npm", ["run", "typecheck"]],
+    ["npm", ["test"]],
+  ];
 }
 
 export function createAgentRunner({
@@ -76,15 +66,10 @@ export function createAgentRunner({
     }
   }
 
-  function validate(worktree, logPath) {
+  function validate(worktree, logPath, baseBranch) {
     const descriptor = openSync(logPath, "a");
     appendAgentLog(logPath, "independent command validation");
-    for (const [command, args] of [
-      ["npm", ["ci", "--ignore-scripts"]],
-      ["git", ["diff", "--check"]],
-      ["npm", ["run", "typecheck"]],
-      ["npm", ["test"]],
-    ]) {
+    for (const [command, args] of validationCommands(baseBranch)) {
       const result = spawnSync(command, args, { cwd: worktree, env: process.env, stdio: ["ignore", descriptor, descriptor] });
       if (result.error || result.status !== 0) {
         closeSync(descriptor);
@@ -123,7 +108,7 @@ export function createAgentRunner({
       const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
       lastOutput = output;
       appendAgentLog(logPath, `independent read-only code review ${attempt}/${maximumInfrastructureAttempts}`, output);
-      if (result.status === 0 && validationHasVerdict(output) && reviewHasComplexityVerdict(output)) return { valid: true, output };
+      if (result.status === 0 && reviewerVerdict(output)) return { valid: true, output };
       const transient = isTransientAgentFailure(new Error(output));
       const malformed = result.status === 0;
       if ((!transient && !malformed) || attempt === maximumInfrastructureAttempts) return { valid: false, output };
@@ -136,7 +121,7 @@ export function createAgentRunner({
   function review(issue, worktree, logPath, baseBranch) {
     const before = commandOutput("git", ["rev-parse", "HEAD"], worktree);
     const evidencePath = writeReviewEvidence(issue, worktree, logPath, baseBranch);
-    const prompt = `Independently validate the implementation using the complete evidence packet at ${evidencePath}. Review it on two separate axes: Standards (repository instructions, glossary, ADRs, documented conventions, deep-module interfaces, and material code smells) and Spec (every acceptance criterion, missing behavior, incorrect behavior, negative scope, and scope creep). Explicitly flag accidental interpreters/workflow engines, cross-owner transactions, scattered lifecycle state, recovery knobs leaking through interfaces, speculative abstractions, and complexity disproportionate to this tracer bullet. You have read-only tools only. Inspect repository files when useful. Report both axes concisely. End with exactly two lines: COMPLEXITY: OK only when the implementation remains bounded and modules stay deep, otherwise COMPLEXITY: ESCALATE; then VALIDATION: PASS only when both Standards and Spec have zero findings, otherwise VALIDATION: FAIL.`;
+    const prompt = `Independently validate the implementation using the complete evidence packet at ${evidencePath}. Review it on two separate axes: Standards (repository instructions, glossary, ADRs, documented conventions, deep-module interfaces, and material code smells) and Spec (every acceptance criterion, missing behavior, incorrect behavior, negative scope, and scope creep). Explicitly flag accidental interpreters/workflow engines, cross-owner transactions, scattered lifecycle state, recovery knobs leaking through interfaces, speculative abstractions, and complexity disproportionate to this tracer bullet. You have read-only tools only. Inspect repository files when useful. Report both axes concisely. Do not use either verdict marker anywhere else. End with exactly two lines: COMPLEXITY: OK only when the implementation remains bounded and modules stay deep, otherwise COMPLEXITY: ESCALATE; then VALIDATION: PASS only when both Standards and Spec have zero findings, otherwise VALIDATION: FAIL.`;
     const result = runReadOnlyReviewer(worktree, prompt, logPath);
     const after = commandOutput("git", ["rev-parse", "HEAD"], worktree);
     const dirty = commandOutput("git", ["status", "--porcelain"], worktree);
