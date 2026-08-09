@@ -403,9 +403,55 @@ describe("MDLM Assignment leasing and preparation", () => {
       expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
       return JSON.parse(result.stdout).execution;
     };
+    const publishPendingContexts = () => {
+      let outcome = JSON.parse(mdlm(repository, "next").stdout);
+      let packet = JSON.parse(mdlm(
+        repository,
+        "scenario",
+        "prepare",
+        outcome.assignment.id,
+      ).stdout);
+      while (packet.scenario.reference === "create-review-context@1") {
+        const subject = packet.exactInputs[0].inputs
+          .find((input: any) => input.name === "subject")
+          .values[0].identity.revision_id as string;
+        submit(outcome.assignment.id, {
+          outputs: [{
+            name: "context",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "BSL",
+              payload: {
+                title: `Review context for ${subject}`,
+                kind: "review-context",
+                role: "review-context",
+                scope: subject,
+                group: "phase-0-wayfinding",
+                definition_members: [subject],
+                evidence: [],
+              },
+              links: [],
+              body: "Exact frozen review context.\n",
+            },
+          }],
+          completionEvidence: { summary: "Context proposed." },
+          authoritySupplies: [],
+          standingDelegations: [],
+        });
+        commitTransaction(`Publish context for ${subject}`);
+        outcome = JSON.parse(mdlm(repository, "next").stdout);
+        packet = JSON.parse(mdlm(
+          repository,
+          "scenario",
+          "prepare",
+          outcome.assignment.id,
+        ).stdout);
+      }
+      return { outcome, packet };
+    };
 
     const mapAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
-    const mapExecution = submit(mapAssignment, {
+    submit(mapAssignment, {
       outputs: [{
         name: "map",
         invocation: 0,
@@ -424,38 +470,11 @@ describe("MDLM Assignment leasing and preparation", () => {
       authoritySupplies: [],
       standingDelegations: [],
     });
-    const mapRevision = mapExecution.outputs[0].lifecycleDatum.revisionId as string;
     commitTransaction("Publish map");
 
-    const contextAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
-    const contextExecution = submit(contextAssignment, {
-      outputs: [{
-        name: "context",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Map review context",
-            kind: "review-context",
-            role: "review-context",
-            scope: mapRevision,
-            group: "phase-0-wayfinding",
-            definition_members: [mapRevision],
-            evidence: [],
-          },
-          links: [],
-          body: "Exact frozen review context.\n",
-        },
-      }],
-      completionEvidence: { summary: "Context proposed." },
-      authoritySupplies: [],
-      standingDelegations: [],
-    });
-    const contextRevision = contextExecution.outputs[0].lifecycleDatum.revisionId as string;
-    commitTransaction("Publish review context");
-
-    const pspAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
-    const pspExecution = submit(pspAssignment, {
+    let progression = publishPendingContexts();
+    expect(progression.packet.scenario.reference).toBe("compile-psp@2");
+    const pspExecution = submit(progression.outcome.assignment.id, {
       outputs: [{
         name: "product_specification",
         invocation: 0,
@@ -482,50 +501,9 @@ describe("MDLM Assignment leasing and preparation", () => {
     const pspStable = pspExecution.outputs[0].lifecycleDatum.id as string;
     commitTransaction("Publish product specification");
 
-    let requirementOutcome = JSON.parse(mdlm(repository, "next").stdout);
-    let requirementPacket = JSON.parse(mdlm(
-      repository,
-      "scenario",
-      "prepare",
-      requirementOutcome.assignment.id,
-    ).stdout);
-    while (requirementPacket.scenario.reference === "create-review-context@1") {
-      const subject = requirementPacket.exactInputs[0].inputs
-        .find((input: any) => input.name === "subject").values[0].identity.revision_id as string;
-      submit(requirementOutcome.assignment.id, {
-        outputs: [{
-          name: "context",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "BSL",
-            payload: {
-              title: `Review context for ${subject}`,
-              kind: "review-context",
-              role: "review-context",
-              scope: subject,
-              group: "phase-0-wayfinding",
-              definition_members: [subject],
-              evidence: [],
-            },
-            links: [],
-            body: "Exact frozen review context.\n",
-          },
-        }],
-        completionEvidence: { summary: "Context proposed." },
-        authoritySupplies: [],
-        standingDelegations: [],
-      });
-      commitTransaction(`Publish context for ${subject}`);
-      requirementOutcome = JSON.parse(mdlm(repository, "next").stdout);
-      requirementPacket = JSON.parse(mdlm(
-        repository,
-        "scenario",
-        "prepare",
-        requirementOutcome.assignment.id,
-      ).stdout);
-    }
-    expect(requirementPacket.scenario.reference).toBe("draft-stakeholder-requirements@2");
-    submit(requirementOutcome.assignment.id, {
+    progression = publishPendingContexts();
+    expect(progression.packet.scenario.reference).toBe("draft-stakeholder-requirements@2");
+    submit(progression.outcome.assignment.id, {
       outputs: [{
         name: "requirements",
         invocation: 0,
@@ -549,48 +527,9 @@ describe("MDLM Assignment leasing and preparation", () => {
     });
     commitTransaction("Publish stakeholder requirement");
 
-    let reviewOutcome = JSON.parse(mdlm(repository, "next").stdout);
-    let reviewPacket = JSON.parse(mdlm(
-      repository,
-      "scenario",
-      "prepare",
-      reviewOutcome.assignment.id,
-    ).stdout);
-    while (reviewPacket.scenario.reference === "create-review-context@1") {
-      const subject = reviewPacket.exactInputs[0].inputs
-        .find((input: any) => input.name === "subject").values[0].identity.revision_id as string;
-      submit(reviewOutcome.assignment.id, {
-        outputs: [{
-          name: "context",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "BSL",
-            payload: {
-              title: `Review context for ${subject}`,
-              kind: "review-context",
-              role: "review-context",
-              scope: subject,
-              group: "phase-0-wayfinding",
-              definition_members: [subject],
-              evidence: [],
-            },
-            links: [],
-            body: "Exact frozen review context.\n",
-          },
-        }],
-        completionEvidence: { summary: "Context proposed." },
-        authoritySupplies: [],
-        standingDelegations: [],
-      });
-      commitTransaction(`Publish context for ${subject}`);
-      reviewOutcome = JSON.parse(mdlm(repository, "next").stdout);
-      reviewPacket = JSON.parse(mdlm(
-        repository,
-        "scenario",
-        "prepare",
-        reviewOutcome.assignment.id,
-      ).stdout);
-    }
+    progression = publishPendingContexts();
+    const reviewOutcome = progression.outcome;
+    const reviewPacket = progression.packet;
     expect(pspRevision).toMatch(/^PSP-.*-r00001$/);
     expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
     expect(reviewPacket.authority.requirements).toEqual([

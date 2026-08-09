@@ -628,7 +628,7 @@ function scenarioExecutionStructureValid(
   const response = recordValue(execution.response);
   const adapterSourceValid = contracts.some(([executionContract, adapterContract]) =>
     execution.contract === executionContract && adapter?.contract === adapterContract
-  ) && typeof adapter?.executable === "string" &&
+  ) && response === undefined && typeof adapter?.executable === "string" &&
     digest.test(String(adapter.digest)) &&
     digest.test(String(adapter.requestDigest)) &&
     digest.test(String(adapter.responseDigest));
@@ -637,7 +637,8 @@ function scenarioExecutionStructureValid(
     adapter === undefined &&
     response?.contract === "mdlm-assignment-response@1" &&
     typeof response.assignment === "string" &&
-    /^[0-9a-f-]{36}$/i.test(response.assignment) &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      .test(response.assignment) &&
     digest.test(String(response.digest));
   const commonValid = (adapterSourceValid || assignmentSourceValid) &&
     inputs.length > 0 && completion?.contractValid === true &&
