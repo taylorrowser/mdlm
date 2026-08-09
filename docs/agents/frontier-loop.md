@@ -1,6 +1,6 @@
 # Autonomous frontier loop
 
-The frontier loop snapshots both the tracer-bullet children of specification issue #83 and the older open `ready-for-agent` backlog at first start. It works through the fixed priority set first using native dependency order (or explicit `## Blocked by` fallback references), then processes the fixed older backlog. Later issues, labels, or reopenings cannot silently change the run's scope. Each implementation receives a fresh Pi process and an isolated Git worktree.
+The frontier loop snapshots the issue identities of both the tracer-bullet children of specification issue #83 and the older open `ready-for-agent` backlog at first start. It works through the fixed priority identity set first using native dependency order (or explicit `## Blocked by` fallback references), then processes the fixed older identity set. Later issues, labels, or unrelated reopenings cannot silently change those sets. Blocker state, issue contracts, and comments remain live deliberately: blockers must close, and autonomous contract clarification must be auditable to later implementation and review sessions. Each implementation receives a fresh Pi process and an isolated Git worktree.
 
 For every available frontier ticket, the loop:
 

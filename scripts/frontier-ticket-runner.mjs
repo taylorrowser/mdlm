@@ -57,7 +57,9 @@ export function createTicketRunner({
 
   function removeWorktree(worktree, branch) {
     if (worktree && existsSync(worktree)) commandOutput("git", ["worktree", "remove", "--force", worktree]);
-    if (branch) commandResult("git", ["branch", "-D", branch]);
+    if (branch && commandResult("git", ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]).status === 0) {
+      commandOutput("git", ["branch", "-D", branch]);
+    }
   }
 
   function prepareWorktree(issue, paths, resumeState) {
