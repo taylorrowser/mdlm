@@ -65,12 +65,12 @@ npm test
 npm run typecheck
 npm run prototype
 
-# Run the shared MDLM command application
+# Run the primary MDLM executable
 node dist/mdlm.js process validate --ref .lifecycle/process
 
 # Scaffold and validate a process-neutral package
 node dist/mdlm.js process init ./case-process
-node dist/req.js process validate --ref ./case-process
+node dist/mdlm.js process validate --ref ./case-process
 
 # Initialize a repository against an explicit package
 mkdir example-repository
@@ -116,10 +116,11 @@ node ../dist/req.js question resolve --question QST-0123456789-r00001 \
   --adapter ./configured-agent-adapter
 ```
 
-`npm run prototype` remains a temporary branch-green bridge: it delegates to the
-shared command application and validates `.lifecycle/process`. The `req`
-executable remains available temporarily while existing journeys move to
-`mdlm`.
+`npm run prototype` remains a temporary branch-green bridge. Through the shared
+application it loads `.lifecycle/process`, resolves the STK schema, evaluates
+`examples/psp-to-sys-snapshot.yaml`, and prints ordered Loose Ends with reasons
+and Resolver Scenarios. The `req` executable remains available temporarily while
+existing journeys move to `mdlm`.
 
 ## References
 

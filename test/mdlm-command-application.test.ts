@@ -44,6 +44,23 @@ describe("shared MDLM command application", () => {
       req: "./dist/req.js",
     });
 
+    const unselected = execute(
+      executables.mdlm,
+      repositoryRoot,
+      "process",
+      "show",
+      "--json",
+    );
+    expect(unselected.status).toBe(1);
+    expect(JSON.parse(unselected.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "process-package-not-selected",
+        message:
+          "No Process Package is selected; run 'mdlm process use <package@version>'",
+      })],
+    }));
+
     const initialized = execute(
       executables.mdlm,
       repositoryRoot,
@@ -84,18 +101,23 @@ describe("shared MDLM command application", () => {
     }));
   });
 
-  it("keeps the prototype executable as a shared-application bridge", () => {
+  it("keeps the prototype snapshot journey through the shared application", () => {
     const throughPrototype = execute(executables.prototype, projectRoot);
-    const throughMdlm = execute(
-      executables.mdlm,
-      projectRoot,
-      "process",
-      "validate",
-      "--ref",
-      bootstrapPackage,
-    );
 
     expect(throughPrototype.status, throughPrototype.stderr).toBe(0);
-    expect(throughPrototype.stdout).toBe(throughMdlm.stdout);
+    expect(throughPrototype.stdout).toContain(
+      "Process package: mdlm-bootstrap@0.49.0",
+    );
+    expect(throughPrototype.stdout).toContain(
+      "Snapshot: examples/psp-to-sys-snapshot.yaml",
+    );
+    expect(throughPrototype.stdout).toContain(
+      "Resolved STK templates: titled-datum@1 → rationale-bearing@1 → requirement@1",
+    );
+    expect(throughPrototype.stdout).toContain("Computed artifact states:");
+    expect(throughPrototype.stdout).toContain("Loose ends (6):");
+    expect(throughPrototype.stdout).toContain(
+      "Actionable resolver: create-review-context@1",
+    );
   });
 });

@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-import { executeCommandApplication } from "./command-application.js";
+import { executeCommandApplication } from "./req.js";
 
-const suppliedArguments = process.argv.slice(2);
 const execution = await executeCommandApplication({
-  arguments: suppliedArguments.length > 0
-    ? suppliedArguments
-    : ["process", "validate", "--ref", ".lifecycle/process"],
+  arguments: process.argv.slice(2),
   repositoryRoot: process.cwd(),
+  mode: "prototype",
 });
 process.stdout.write(execution.output);
+if (execution.errorOutput) process.stderr.write(execution.errorOutput);
 process.exitCode = execution.exitCode;
