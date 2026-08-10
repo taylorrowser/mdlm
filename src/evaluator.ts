@@ -218,9 +218,17 @@ export interface PhaseProgressionEvaluation {
   };
 }
 
+export interface PhaseAttentionCheckpointEvaluation {
+  id: string;
+  active: boolean;
+  explanation: string;
+  evidence: PhaseExpressionEvidence & { result: boolean };
+}
+
 export interface PhaseEvaluation {
   id: string;
   version: number;
+  attentionCheckpoints: PhaseAttentionCheckpointEvaluation[];
   entry: {
     satisfied: boolean;
     explanation: string;
@@ -946,6 +954,34 @@ class LifecycleEvaluator {
     const obligations = pendingObligations.map((pending) => pending.evaluation);
     const phase = this.evaluatePhase(obligations);
     const terminal = this.evaluateTerminalOutcome();
+    const declaredCheckpoints = new Set(
+      phase.attentionCheckpoints.map((checkpoint) => checkpoint.id),
+    );
+    const scheduledParticipation = [
+      ...obligations.flatMap((obligation) =>
+        (obligation.participation ?? []).map((participation) => ({
+          policy: participation.policy,
+          attentionSchedule: participation.attentionSchedule,
+        }))
+      ),
+      ...(phase.progression ? [{
+        policy: phase.progression.authority.policy,
+        attentionSchedule: phase.progression.authority.attentionSchedule,
+      }] : []),
+    ];
+    const checkpointDiagnostics = [...new Map(
+      scheduledParticipation.flatMap((participation) => {
+        const checkpoint = participation.attentionSchedule.checkpoint;
+        return participation.attentionSchedule.timing === "checkpoint" &&
+            checkpoint && !declaredCheckpoints.has(checkpoint)
+          ? [[`${participation.policy}\0${checkpoint}`, {
+              code: "participation-checkpoint-undeclared",
+              path: `phases.${phase.id}.attention_checkpoints`,
+              message: `Participation Policy '${participation.policy}' selected checkpoint '${checkpoint}', which is not declared by the selected Phase '${phase.id}@${phase.version}'`,
+            }] as const]
+          : [];
+      }),
+    ).values()];
 
     const statusOrder: Record<string, number> = {
       ready: 0,
@@ -974,7 +1010,11 @@ class LifecycleEvaluator {
       obligations,
       obligationHistory: this.evaluateObligationHistory(),
       looseEnds,
-      diagnostics: [...this.comparisonDiagnostics, ...terminal.diagnostics],
+      diagnostics: [
+        ...this.comparisonDiagnostics,
+        ...checkpointDiagnostics,
+        ...terminal.diagnostics,
+      ],
     };
   }
 
@@ -1071,6 +1111,24 @@ class LifecycleEvaluator {
       definition.entry,
       () => this.expression(definition.entry, this.baseContext),
     );
+    const attentionCheckpoints = array(definition.attention_checkpoints)
+      .flatMap((value) => {
+        const checkpoint = object(value);
+        const id = string(checkpoint?.id);
+        if (!id) return [];
+        const readiness = this.evaluateWithSelectorEvidence(
+          checkpoint?.readiness,
+          () => this.expression(checkpoint?.readiness, this.baseContext),
+        );
+        return [{
+          id,
+          active: readiness.result,
+          explanation: readiness.result
+            ? "The package-authored checkpoint readiness expression is true."
+            : "The package-authored checkpoint readiness expression is false.",
+          evidence: readiness,
+        }];
+      });
     const gate = object(definition.gate)!;
     const selection = this.evaluateWithSelectorEvidence(
       gate.candidate_selector,
@@ -1205,6 +1263,7 @@ class LifecycleEvaluator {
     return {
       id: definition.id,
       version: number(definition.version),
+      attentionCheckpoints,
       entry: {
         satisfied: entry.result,
         explanation: entry.result

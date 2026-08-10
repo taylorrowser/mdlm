@@ -6,6 +6,7 @@ import { isDeepStrictEqual, promisify } from "node:util";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import type {
   LifecycleEvaluation,
+  LifecycleRecord,
   ObligationEvaluation,
   ProcessDiagnostic,
   ProcessPackage,
@@ -21,6 +22,7 @@ import { selectedImplementationProfile } from "./implementation-profile.js";
 import { repositoryLifecycleSnapshot } from "./lifecycle-repository.js";
 import {
   classifyOperatorOutcome,
+  type CheckpointConversation,
   type OperatorOutcomeClassification,
   type OperatorWorkFacts,
 } from "./operator-outcome.js";
@@ -121,6 +123,7 @@ export type OperatorOutcome =
       authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
       attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
       explanation: string;
+      checkpointConversation?: CheckpointConversation;
     }
   | OperatorOutcomeBase & {
       outcome: "profile-boundary-reached";
@@ -191,6 +194,7 @@ export interface OperatorStatus {
         authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
         attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
         explanation: string;
+        checkpointConversation?: CheckpointConversation;
       }
     | {
         outcome: "profile-boundary-reached";
@@ -306,6 +310,7 @@ export interface AssignmentPacket {
   }[];
   completion: ScenarioDryRun["completion"];
   responseSchema: Record<string, unknown>;
+  checkpointConversation?: CheckpointConversation;
 }
 
 type AssignmentResult<T> =
@@ -340,6 +345,7 @@ interface ExactOperatorState {
   processPackage: ProcessPackage;
   evaluation: LifecycleEvaluation;
   fingerprint: RepositoryFingerprint;
+  work: OperatorWorkFacts[];
   classification: OperatorOutcomeClassification;
   assignment?: ExactAssignment;
 }
@@ -610,27 +616,51 @@ function phaseReference(evaluation: LifecycleEvaluation): string {
   return phase ? `${phase.id}@${phase.version}` : "";
 }
 
-function operatorWork(evaluation: LifecycleEvaluation): OperatorWorkFacts[] {
+function operatorWork(
+  evaluation: LifecycleEvaluation,
+  records: LifecycleRecord[] = [],
+): OperatorWorkFacts[] {
   const phase = phaseReference(evaluation);
-  const obligations = evaluation.looseEnds.map((item) => ({
-    kind: "obligation" as const,
-    phase,
-    instance: item.id,
-    definition: obligationDefinition(item),
-    subject: item.subject,
-    scenario: item.actionableResolver ?? item.eventualResolver,
-    dispatchable: item.dispatchable,
-    authorityRequirements: (item.participation ?? []).map((participation) => ({
-      policy: participation.policy,
-      authorityRequirement: participation.authorityRequirement,
-      attentionSchedule: participation.attentionSchedule,
-    })),
-    explanation: item.explanation,
-    status: item.status,
-    blockedBy: item.blockedBy,
-    blockerChains: item.blockerChains,
-    unresolvedBindings: item.unresolvedBindings,
-  }));
+  const recordsByRevision = new Map(
+    records.map((record) => [record.datum.revision_id, record]),
+  );
+  const obligations = evaluation.looseEnds.map((item) => {
+    const record = recordsByRevision.get(item.subject);
+    return {
+      kind: "obligation" as const,
+      phase,
+      instance: item.id,
+      definition: obligationDefinition(item),
+      subject: item.subject,
+      scenario: item.actionableResolver ?? item.eventualResolver,
+      dispatchable: item.dispatchable,
+      authorityRequirements: (item.participation ?? []).map((participation) => ({
+        policy: participation.policy,
+        authorityRequirement: participation.authorityRequirement,
+        attentionSchedule: participation.attentionSchedule,
+      })),
+      explanation: item.explanation,
+      status: item.status,
+      blockedBy: item.blockedBy,
+      blockerChains: item.blockerChains,
+      unresolvedBindings: item.unresolvedBindings,
+      ...(record
+        ? {
+            exactSubject: {
+              identity: {
+                id: record.datum.id,
+                revisionId: record.datum.revision_id,
+                type: record.datum.type,
+                revision: record.datum.revision,
+              },
+              payload: record.datum.payload,
+              links: record.datum.links,
+              body: record.datum.body,
+            },
+          }
+        : {}),
+    };
+  });
   const progression = nextWorkProjection(evaluation)?.item;
   if (!progression || !("kind" in progression)) return obligations;
   const subjects = progression.subjects.map(
@@ -732,15 +762,19 @@ async function exactOperatorState(
   if (evaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: evaluation.diagnostics };
   }
+  const workItems = operatorWork(evaluation, loaded.value.records);
   const classification = classifyOperatorOutcome(
-    operatorWork(evaluation),
+    workItems,
     evaluation.terminalOutcome,
+    evaluation.phase?.attentionCheckpoints.filter((checkpoint) => checkpoint.active)
+      .map((checkpoint) => checkpoint.id) ?? [],
   );
   const state: ExactOperatorState = {
     summary: selected.summary,
     processPackage: selected.processPackage,
     evaluation,
     fingerprint: fingerprint.value,
+    work: workItems,
     classification,
   };
   if (
@@ -889,6 +923,12 @@ function leasedOutcome(
         authorityRequirement: exact.classification.authorityRequirement,
         attentionSchedule: exact.classification.attentionSchedule,
         explanation: exact.classification.explanation,
+        ...(exact.classification.checkpointConversation
+          ? {
+              checkpointConversation:
+                exact.classification.checkpointConversation,
+            }
+          : {}),
       }
     : { ...base, outcome: "assignment" };
 }
@@ -1060,6 +1100,9 @@ function statusOutcome(
         authorityRequirement: classification.authorityRequirement,
         attentionSchedule: classification.attentionSchedule,
         explanation: classification.explanation,
+        ...(classification.checkpointConversation
+          ? { checkpointConversation: classification.checkpointConversation }
+          : {}),
       }
     : { outcome: "assignment", assignment };
 }
@@ -1112,7 +1155,7 @@ export async function inspectOperatorStatus(
       (value): value is string => typeof value === "string",
     )
     : [];
-  const unresolvedWork = operatorWork(state.value.evaluation);
+  const unresolvedWork = state.value.work;
   const byStatus: Record<string, number> = {};
   for (const item of unresolvedWork) {
     byStatus[item.status] = (byStatus[item.status] ?? 0) + 1;
@@ -1437,6 +1480,13 @@ function packet(
     })),
     completion: exact.dryRun.completion,
     responseSchema: responseSchema(),
+    ...(exact.classification.kind === "attention-required" &&
+        exact.classification.checkpointConversation
+      ? {
+          checkpointConversation:
+            exact.classification.checkpointConversation,
+        }
+      : {}),
   };
 }
 

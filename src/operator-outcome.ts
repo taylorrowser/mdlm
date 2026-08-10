@@ -7,6 +7,18 @@ export interface OperatorAuthorityRequirement {
   attentionSchedule: ScenarioParticipation["attentionSchedule"];
 }
 
+export interface OperatorExactSubject {
+  identity: {
+    id: string;
+    revisionId: string;
+    type: string;
+    revision: number;
+  };
+  payload: Record<string, unknown>;
+  links: { type: string; target: string }[];
+  body: string;
+}
+
 export interface OperatorWorkFacts {
   kind: "obligation" | "phase-progression";
   phase: string;
@@ -21,6 +33,7 @@ export interface OperatorWorkFacts {
   blockedBy: string[];
   blockerChains: string[][];
   unresolvedBindings: string[];
+  exactSubject?: OperatorExactSubject;
   progression?: {
     nextPhase: string;
     subjects: string[];
@@ -38,6 +51,26 @@ export interface OperatorBlockerDiagnostic {
   explanation: string;
 }
 
+export interface CheckpointConversationItem {
+  instance: string;
+  scenario: string;
+  exactSubject?: OperatorExactSubject;
+  explanation: string;
+}
+
+export interface CheckpointConversation {
+  checkpoint: string;
+  consolidationGroup: string | null;
+  items: CheckpointConversationItem[];
+  conversation: {
+    format: "freeform";
+    semanticMapping: "harness";
+    transcriptStorage: "none-by-default";
+    publication: "serial-with-reevaluation";
+    checkpointScheduling: "not-deferral";
+  };
+}
+
 export type OperatorOutcomeClassification =
   | {
       kind: "assignment";
@@ -49,6 +82,7 @@ export type OperatorOutcomeClassification =
       authorityRequirement: ScenarioParticipation["authorityRequirement"];
       attentionSchedule: ScenarioParticipation["attentionSchedule"];
       explanation: string;
+      checkpointConversation?: CheckpointConversation;
     }
   | ({ kind: "profile-boundary-reached" } & Omit<
       Extract<TerminalOutcomeEvaluation, { outcome: "profile-boundary-reached" }>,
@@ -64,13 +98,27 @@ export type OperatorOutcomeClassification =
       blockers: OperatorBlockerDiagnostic[];
     };
 
-function immediateAttendedRequirement(
+function attendedRequirement(
   work: OperatorWorkFacts,
+  timing: "immediate" | "checkpoint",
 ): OperatorAuthorityRequirement | undefined {
   return work.authorityRequirements.find((requirement) =>
     requirement.authorityRequirement.mode === "attended" &&
-    requirement.attentionSchedule.timing === "immediate"
+    requirement.attentionSchedule.timing === timing
   );
+}
+
+function activeCheckpointRequirement(
+  work: OperatorWorkFacts,
+  activeCheckpoints: Set<string>,
+): OperatorAuthorityRequirement | undefined {
+  return work.authorityRequirements.find((requirement) => {
+    const schedule = requirement.attentionSchedule;
+    return requirement.authorityRequirement.mode === "attended" &&
+      schedule.timing === "checkpoint" &&
+      schedule.checkpoint !== null &&
+      activeCheckpoints.has(schedule.checkpoint);
+  });
 }
 
 function runnableWithoutAttention(work: OperatorWorkFacts): boolean {
@@ -81,24 +129,88 @@ function runnableWithoutAttention(work: OperatorWorkFacts): boolean {
     );
 }
 
+function compatibleCheckpointRequirement(
+  candidate: OperatorAuthorityRequirement,
+  selected: OperatorAuthorityRequirement,
+): boolean {
+  return candidate.attentionSchedule.timing === "checkpoint" &&
+    candidate.attentionSchedule.checkpoint ===
+      selected.attentionSchedule.checkpoint &&
+    candidate.attentionSchedule.consolidationGroup ===
+      selected.attentionSchedule.consolidationGroup &&
+    candidate.authorityRequirement.mode ===
+      selected.authorityRequirement.mode &&
+    candidate.authorityRequirement.authority ===
+      selected.authorityRequirement.authority &&
+    candidate.authorityRequirement.delegationAllowed ===
+      selected.authorityRequirement.delegationAllowed;
+}
+
+function checkpointConversation(
+  work: OperatorWorkFacts[],
+  selected: OperatorAuthorityRequirement,
+): CheckpointConversation {
+  return {
+    checkpoint: selected.attentionSchedule.checkpoint!,
+    consolidationGroup: selected.attentionSchedule.consolidationGroup,
+    items: work.flatMap((candidate) =>
+      candidate.authorityRequirements.some((requirement) =>
+          compatibleCheckpointRequirement(requirement, selected)
+        )
+        ? [{
+            instance: candidate.instance,
+            scenario: candidate.scenario,
+            ...(candidate.exactSubject
+              ? { exactSubject: candidate.exactSubject }
+              : {}),
+            explanation: candidate.explanation,
+          }]
+        : []
+    ),
+    conversation: {
+      format: "freeform",
+      semanticMapping: "harness",
+      transcriptStorage: "none-by-default",
+      publication: "serial-with-reevaluation",
+      checkpointScheduling: "not-deferral",
+    },
+  };
+}
+
 /** Classify package-derived work without recognizing any package-owned IDs. */
 export function classifyOperatorOutcome(
   work: OperatorWorkFacts[],
   terminal: TerminalOutcomeEvaluation | null = null,
+  activeCheckpointIds: string[] = [],
 ): OperatorOutcomeClassification {
+  const activeCheckpoints = new Set(activeCheckpointIds);
   for (const candidate of work) {
     if (!candidate.dispatchable) continue;
-    const attended = immediateAttendedRequirement(candidate);
-    if (attended) {
-      return {
-        kind: "attention-required",
-        work: candidate,
-        authorityRequirement: attended.authorityRequirement,
-        attentionSchedule: attended.attentionSchedule,
-        explanation: candidate.explanation,
-      };
-    }
-    if (runnableWithoutAttention(candidate)) {
+    const attended = activeCheckpointRequirement(candidate, activeCheckpoints);
+    if (!attended) continue;
+    return {
+      kind: "attention-required",
+      work: candidate,
+      authorityRequirement: attended.authorityRequirement,
+      attentionSchedule: attended.attentionSchedule,
+      explanation: candidate.explanation,
+      checkpointConversation: checkpointConversation(work, attended),
+    };
+  }
+  for (const candidate of work) {
+    if (!candidate.dispatchable) continue;
+    const attended = attendedRequirement(candidate, "immediate");
+    if (!attended) continue;
+    return {
+      kind: "attention-required",
+      work: candidate,
+      authorityRequirement: attended.authorityRequirement,
+      attentionSchedule: attended.attentionSchedule,
+      explanation: candidate.explanation,
+    };
+  }
+  for (const candidate of work) {
+    if (candidate.dispatchable && runnableWithoutAttention(candidate)) {
       return { kind: "assignment", work: candidate };
     }
   }

@@ -1979,6 +1979,20 @@ function compilePhaseDefinition(
     catalogs,
     diagnostics,
   );
+  const attentionCheckpoints = Array.isArray(definition.attention_checkpoints)
+    ? definition.attention_checkpoints
+    : [];
+  attentionCheckpoints.forEach((value, index) => {
+    if (typeof value !== "object" || value === null) return;
+    compileField(
+      value as Record<string, unknown>,
+      "readiness",
+      `${filePath}#attention_checkpoints[${index}].readiness`,
+      { ...baseBindings },
+      catalogs,
+      diagnostics,
+    );
+  });
   if (typeof definition.gate !== "object" || definition.gate === null) return;
   const gate = definition.gate as Record<string, unknown>;
   compileField(

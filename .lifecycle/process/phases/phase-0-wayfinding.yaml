@@ -9,6 +9,16 @@ omitted_capabilities:
   - VSP and environment profiles
   - dedicated simplification REV over the complete candidate
 entry: 'process.integrity.package_valid == true'
+attention_checkpoints:
+  - id: phase-0-gate
+    readiness: >-
+      exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})
+      && every("candidate-baselines-of-kind@1",
+        {baseline_kind: "intent-level-candidate"}, candidate =>
+          none("candidate-members-missing-review@1", {candidate: candidate})
+          && exists("passing-reviews-for@1", {subject: candidate})
+          && none("failing-reviews-for@1", {subject: candidate}))
+      && none("open-blocking-questions@1", {})
 scenarios:
   - chart-wayfinding-map@1
   - establish-initial-wayfinding-map@1

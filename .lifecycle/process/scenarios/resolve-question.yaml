@@ -67,6 +67,7 @@ completion: >-
       decision != null
       && decision.payload.kind == "deferral"
       && decision.payload.effective_scope == updated_question.identity.revision_id
+      && present(updated_question.payload.reactivation_condition)
     )
   )
   && (

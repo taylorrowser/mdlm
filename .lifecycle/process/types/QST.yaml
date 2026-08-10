@@ -47,6 +47,12 @@ payload_schema:
     resolution_evidence: [prototype_evidence]
     prototype_evidence: [resolution_evidence]
   allOf:
+    - if:
+        properties:
+          state: {const: deferred}
+        required: [state]
+      then:
+        required: [reactivation_condition]
     - if: {required: [evidence_available]}
       then:
         properties:
