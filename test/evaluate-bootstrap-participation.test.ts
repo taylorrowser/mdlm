@@ -919,6 +919,138 @@ describe("bootstrap Scenario participation Policies", () => {
     }));
   });
 
+  it("attends stakeholder-owned candidate simplification without consuming its autonomous budget", () => {
+    const fixture = reviewedGateFixture(processRef);
+    const map = lifecycleDatum("MAP", "MAP-8K3M9Q2D8K", {
+      title: "Reviewed exact frontier",
+      purpose: "Keep candidate correction fully bound.",
+      frontier: ["One bounded candidate"],
+    });
+    const mapReview = lifecycleDatum("REV", "REV-8K3M9Q2D8K", {
+      title: "Passing frontier Review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: map.datum.revision_id }],
+    });
+    fixture.candidate.datum.payload.definition_members = [map.datum.revision_id];
+    fixture.candidateContext.datum.payload.definition_members = [
+      fixture.candidate.datum.revision_id,
+      map.datum.revision_id,
+    ];
+    fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.correction_authority = "stakeholder";
+    fixture.candidateReview.datum.payload.simplification = {
+      target: fixture.candidate.datum.revision_id,
+      findings: [{
+        id: "F-001",
+        severity: "blocking",
+        summary: "The candidate changes stakeholder-owned intent.",
+      }],
+    };
+    fixture.candidateReview.datum.links.push({
+      type: "blocks",
+      target: fixture.candidate.datum.revision_id,
+    });
+    const snapshot = {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [
+        map,
+        mapReview,
+        fixture.candidate,
+        fixture.candidateContext,
+        fixture.candidateReview,
+      ],
+      dependencyComparisons: [],
+    };
+    const correction = (subject: LifecycleRecord) =>
+      evaluateLifecycle(processPackage, snapshot).obligations.find((item) =>
+        item.obligation === "intent-candidate-review-correction-required" &&
+        item.subject === subject.datum.revision_id
+      );
+
+    expect(correction(fixture.candidate)).toEqual(expect.objectContaining({
+      status: "ready",
+      explanation: expect.stringMatching(/stakeholder-owned/i),
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+        attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+      })],
+    }));
+
+    const attendedReplacement = structuredClone(fixture.candidate);
+    attendedReplacement.datum.revision = 2;
+    attendedReplacement.datum.revision_id = `${fixture.candidate.datum.id}-r00002`;
+    attendedReplacement.datum.links = [
+      { type: "supersedes", target: fixture.candidate.datum.revision_id },
+      { type: "corrects-review", target: fixture.candidateReview.datum.revision_id },
+    ];
+    const authorityDecision = lifecycleDatum("DEC", "DEC-8K3M9Q2D8K", {
+      title: "Stakeholder candidate correction authority",
+      rationale: "The attended correction preserves stakeholder-owned intent.",
+      kind: "scope",
+      decision: "Authorize this exact attended candidate correction.",
+      alternatives: ["Retain the failed candidate"],
+      effective_scope: attendedReplacement.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [{ type: "justifies", target: attendedReplacement.datum.revision_id }],
+    });
+    const replacementContext = structuredClone(fixture.candidateContext);
+    replacementContext.datum.id = "BSL-8K3M9Q2D8K";
+    replacementContext.datum.revision_id = "BSL-8K3M9Q2D8K-r00001";
+    replacementContext.datum.payload.scope = attendedReplacement.datum.revision_id;
+    replacementContext.datum.payload.definition_members = [
+      attendedReplacement.datum.revision_id,
+      map.datum.revision_id,
+    ];
+    const nextFailure = lifecycleDatum("REV", "REV-8K3M9Q2D8M", {
+      title: "Failed simplification after attended correction",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      simplification: {
+        target: attendedReplacement.datum.revision_id,
+        findings: [{
+          id: "F-002",
+          severity: "blocking",
+          summary: "The corrected candidate still retains package-bounded excess.",
+        }],
+      },
+      outcome: "fail",
+    }, {
+      frozen: true,
+      links: [
+        { type: "reviews", target: attendedReplacement.datum.revision_id },
+        { type: "contextualizes", target: replacementContext.datum.revision_id },
+        { type: "blocks", target: attendedReplacement.datum.revision_id },
+      ],
+      scenario: "review-datum-in-context@2",
+    });
+    snapshot.records.push(
+      attendedReplacement,
+      authorityDecision,
+      replacementContext,
+      nextFailure,
+    );
+
+    expect(correction(attendedReplacement)).toEqual(expect.objectContaining({
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "autonomous",
+          authority: "package-evidence",
+        }),
+        attentionSchedule: expect.objectContaining({ timing: "none" }),
+      })],
+    }));
+  });
+
   it("escalates an exhausted candidate lineage through the same correction interface", async () => {
     const first = reviewedGateFixture(processRef).candidate;
     const map = lifecycleDatum("MAP", "MAP-8K3M9Q2D8F", {

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: review-correction-history-for
 version: 1
-description: Exact evidence-backed correction Revisions through one correctable subject Revision.
+description: Exact lineage, all evidence-backed corrections, or autonomous evidence-backed corrections through one correctable subject Revision.
 parameters:
   - {name: subject, kind: revision}
   - {name: view, kind: scalar, scalar_type: string}
@@ -13,8 +13,10 @@ query:
     revision.identity.revision <= subject.identity.revision
     && (
       view == "lineage"
-      || (view == "corrections"
-        && exists("cited-failing-reviews-by-correction@1", {replacement: revision}))
+      || ((view == "corrections" || view == "autonomous-corrections")
+        && exists("cited-failing-reviews-by-correction@1", {replacement: revision})
+        && (view != "autonomous-corrections"
+          || none("candidate-correction-decisions-for@1", {replacement: revision})))
     )
   distinct: true
   order_by: [identity.revision]

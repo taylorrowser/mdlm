@@ -63,7 +63,8 @@ describe("failed STK Review correction through the public operator process", () 
     { route: "passes after the second replacement", replacementReviews: ["fail", "pass"] as const },
     { route: "exhausted lineage requests attention", replacementReviews: ["fail", "fail"] as const },
     { route: "stakeholder intent requests attention immediately", replacementReviews: [] as const, stakeholderOwned: true },
-  ])("$route", async ({ replacementReviews, stakeholderOwned = false, gateRejection = false }) => {
+    { route: "stakeholder-owned candidate simplification preserves its autonomous budget", replacementReviews: ["pass"] as const, candidateStakeholderOwned: true },
+  ])("$route", async ({ replacementReviews, stakeholderOwned = false, gateRejection = false, candidateStakeholderOwned = false }) => {
     const commit = (message: string) => {
       expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
       const committed = git(
@@ -522,7 +523,7 @@ describe("failed STK Review correction through the public operator process", () 
       if (reviewOutcome === "pass") {
         packet = nextPacket();
         expect(packet.scenario.reference).toBe("create-phase-0-intent-candidate@1");
-        if (!gateRejection) return;
+        if (!gateRejection && !candidateStakeholderOwned) return;
 
         const candidateMembers = exactInput(packet, "definition_members").values
           .map((value: any) => value.identity.revision_id) as string[];
@@ -566,7 +567,39 @@ describe("failed STK Review correction through the public operator process", () 
         expect(exactInput(packet, "context_members").values.map(
           (member: any) => member.identity.revision_id,
         )).toEqual(candidateMembers);
-        publishReview(packet, "pass");
+        const candidateReview = publishReview(
+          packet,
+          candidateStakeholderOwned ? "fail" : "pass",
+          candidateStakeholderOwned ? "stakeholder" : undefined,
+        ).outputs[0].lifecycleDatum as { revisionId: string };
+
+        if (candidateStakeholderOwned) {
+          const candidateAttention = nextOutcome();
+          expect(candidateAttention).toEqual(expect.objectContaining({
+            outcome: "attention-required",
+            authorityRequirement: {
+              mode: "attended",
+              authority: "stakeholder",
+              delegationAllowed: false,
+            },
+            attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+            explanation: expect.stringMatching(/stakeholder-owned/i),
+          }));
+          packet = prepare(candidateAttention);
+          expect(packet.scenario.reference)
+            .toBe("revise-intent-candidate-after-review@3");
+          expect(exactInput(packet, "candidate").values.map(
+            (value: any) => value.identity.revision_id,
+          )).toEqual([candidate.revisionId]);
+          expect(exactInput(packet, "lineage").values.map(
+            (value: any) => value.identity.revision_id,
+          )).toEqual([candidate.revisionId]);
+          expect(exactInput(packet, "prior_failed_reviews").values).toEqual([]);
+          expect(exactInput(packet, "failed_reviews").values.map(
+            (value: any) => value.identity.revision_id,
+          )).toEqual([candidateReview.revisionId]);
+          return;
+        }
 
         const rejectionOutcome = nextOutcome();
         expect(rejectionOutcome).toEqual(expect.objectContaining({

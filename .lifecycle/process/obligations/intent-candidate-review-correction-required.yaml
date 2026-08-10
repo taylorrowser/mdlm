@@ -33,10 +33,18 @@ status_rules:
       - obligation: passing-review-required@2
         subjects: 'select("phase-0-foundation-members-missing-review@1", {})'
   - status: ready
+    priority: 250
+    when: >-
+      !every("product-simplification-reviews-for@1",
+        {candidate: candidate, outcome: "fail"}, review =>
+          review.payload.simplification.target != candidate.identity.revision_id
+          || review.payload.correction_authority != "stakeholder")
+    reason: Current blocking simplification evidence requires immediate stakeholder-owned candidate correction without consuming an autonomous cycle.
+  - status: ready
     priority: 200
     when: >-
       count("review-correction-history-for@1",
-        {subject: candidate, view: "corrections"}) >= 2
+        {subject: candidate, view: "autonomous-corrections"}) >= 2
     reason: Two autonomous candidate correction cycles failed; the same exact correction interface now requires immediate stakeholder escalation.
   - status: ready
     priority: 100
