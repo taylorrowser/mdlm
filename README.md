@@ -92,7 +92,9 @@ harness-mapped conversation with no transcript storage by default. The harness
 normalizes conclusions explicitly; MDLM does no natural-language matching.
 Publication remains one exact Scenario Proposal at a time, and the next
 `mdlm next` reevaluates which group items still apply. Checkpoint scheduling is
-not formal deferral. Unfinished supported work with no reachable Assignment or
+not formal deferral; deferral requires a deferred QST Revision with a concrete
+`reactivation_condition`, an exact scoped DEC, and its policy-required passing
+Review. Unfinished supported work with no reachable Assignment or
 attention is `process-dead-end`; repository or package integrity failure is
 `invalid` and exits nonzero. `mdlm status` reports the same classification
 without allocating an Assignment.

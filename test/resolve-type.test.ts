@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Ajv2020 } from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 import { loadProcessPackage, resolveType } from "../src/index.js";
 
@@ -61,6 +62,39 @@ describe("resolveType", () => {
     expect(result.type.envelopeSchema.$id).toBe(
       "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
     );
+  });
+
+  it("preserves package-authored conditional payload constraints", async () => {
+    const loaded = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+
+    const result = resolveType(loaded.package, "QST");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
+      result.type.payloadSchema,
+    );
+    const payload = {
+      title: "Deferred choice",
+      kind: "preferential",
+      question: "Which boundary should be selected?",
+      state: "deferred",
+      blocking_impact: "The boundary remains unresolved.",
+    };
+
+    expect(validate(payload)).toBe(false);
+    expect(validate.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        keyword: "required",
+        params: { missingProperty: "reactivation_condition" },
+      }),
+    ]));
+    expect(validate({
+      ...payload,
+      reactivation_condition: "Reopen when the boundary evidence changes.",
+    })).toBe(true);
   });
 
   it("preserves additive fields while applying a supported constraint narrowing", async () => {

@@ -661,14 +661,17 @@ are authored as typed expressions; the generic evaluator does not know the
 package's authority vocabulary. A Phase with no declared progression uses
 `progression: null`; that absence alone never claims successful termination.
 
-Inactive checkpoint-scheduled work does not interrupt otherwise eligible work;
-immediate attended work retains priority. At activation, the Operator Outcome
-contains the complete compatible Consolidation Group, exact subject payloads and
-blocking context, and the first exact Assignment. The Assignment packet declares
-freeform harness-owned semantic mapping, no transcript persistence by default,
-and serial publication with reevaluation. MDLM does not infer mappings from
-conversation text, and checkpoint scheduling does not change a Question's
-formal disposition.
+Inactive checkpoint-scheduled work does not interrupt otherwise eligible work,
+and immediate attended work retains priority while the checkpoint is inactive.
+At activation, the Operator Outcome selects the complete compatible Consolidation
+Group before other attended work at that same boundary and contains exact subject
+payloads, blocking context, and the first exact Assignment. The Assignment packet
+declares freeform harness-owned semantic mapping, no transcript persistence by
+default, and serial publication with reevaluation. MDLM does not infer mappings
+from conversation text, and checkpoint scheduling does not change a Question's
+formal disposition. A formal deferral requires an exact deferred QST Revision
+with `reactivation_condition` plus its exact scoped DEC and policy-required
+passing Review.
 
 The selected implementation Profile declares successful terminal semantics under
 `terminal_outcomes`. Each optional `profile_boundary` or `lifecycle_complete`

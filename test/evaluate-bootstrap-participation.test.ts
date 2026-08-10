@@ -432,6 +432,8 @@ describe("bootstrap Scenario participation Policies", () => {
     deferred.datum.revision = 2;
     deferred.datum.revision_id = `${source.datum.id}-r00002`;
     deferred.datum.payload.state = "deferred";
+    deferred.datum.payload.reactivation_condition =
+      "Reactivate when the named evidence becomes available.";
     const decision = lifecycleDatum("DEC", "DEC-8ZT5KQ3P9W", {
       title: "Defer one exact question",
       rationale: "The stakeholder authorized a bounded reactivation condition.",
@@ -474,13 +476,29 @@ describe("bootstrap Scenario participation Policies", () => {
       links: [{ type: "reviews", target: decision.datum.revision_id }],
       scenario: "review-datum-in-context@2",
     });
+    const unboundedDeferral = structuredClone(deferred);
+    delete unboundedDeferral.datum.payload.reactivation_condition;
     const afterReview = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [source, unboundedDeferral, decision, review],
+      dependencyComparisons: [],
+    });
+    expect(afterReview.obligations.find((item) =>
+      item.obligation === "open-question-resolution" &&
+      item.subject === deferred.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "blocked",
+    }));
+
+    const withReactivation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
       records: [source, deferred, decision, review],
       dependencyComparisons: [],
     });
-    expect(afterReview.obligations.some((item) =>
+    expect(withReactivation.obligations.some((item) =>
       item.obligation === "open-question-resolution" &&
       item.subject === deferred.datum.revision_id
     )).toBe(false);

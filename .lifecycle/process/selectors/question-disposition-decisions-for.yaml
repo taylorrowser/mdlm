@@ -12,6 +12,7 @@ query:
     (
       (
         question.payload.state == "deferred"
+        && present(question.payload.reactivation_condition)
         && decision.payload.kind == "deferral"
       )
       || (

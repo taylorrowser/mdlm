@@ -38,6 +38,12 @@ status_rules:
       && none("question-answer-decisions-for@1", {question: question})
     reason: An answered preferential question is not applicable without an exact valid scoped Decision.
   - status: blocked
+    priority: 425
+    when: >-
+      question.payload.state == "deferred"
+      && !present(question.payload.reactivation_condition)
+    reason: A deferred question requires one concrete reactivation condition before exact reviewed deferral evidence can satisfy it.
+  - status: blocked
     priority: 400
     when: >-
       question.payload.state in ["deferred", "cancelled"]

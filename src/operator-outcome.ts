@@ -178,18 +178,6 @@ export function classifyOperatorOutcome(
   terminal: TerminalOutcomeEvaluation | null = null,
   checkpoints: PhaseAttentionCheckpointEvaluation[] = [],
 ): OperatorOutcomeClassification {
-  for (const candidate of work) {
-    if (!candidate.dispatchable) continue;
-    const attended = immediateAttendedRequirement(candidate);
-    if (!attended) continue;
-    return {
-      kind: "attention-required",
-      work: candidate,
-      authorityRequirement: attended.authorityRequirement,
-      attentionSchedule: attended.attentionSchedule,
-      explanation: candidate.explanation,
-    };
-  }
   const activeCheckpoints = new Set(
     checkpoints.filter((checkpoint) => checkpoint.active).map(
       (checkpoint) => checkpoint.id,
@@ -207,6 +195,18 @@ export function classifyOperatorOutcome(
       attentionSchedule: attended.attentionSchedule,
       explanation: candidate.explanation,
       checkpointConversation: checkpointConversation(work, attended),
+    };
+  }
+  for (const candidate of work) {
+    if (!candidate.dispatchable) continue;
+    const attended = immediateAttendedRequirement(candidate);
+    if (!attended) continue;
+    return {
+      kind: "attention-required",
+      work: candidate,
+      authorityRequirement: attended.authorityRequirement,
+      attentionSchedule: attended.attentionSchedule,
+      explanation: candidate.explanation,
     };
   }
   for (const candidate of work) {

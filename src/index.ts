@@ -108,6 +108,7 @@ export interface ResolvedType {
     additionalProperties: false;
     required: string[];
     properties: Record<string, unknown>;
+    allOf?: Record<string, unknown>[];
   };
   outgoingLinks: Record<string, unknown>[];
   lifecycle: Record<string, unknown>;
@@ -689,8 +690,15 @@ function referenceParts(reference: unknown): [string, number] | undefined {
 function payloadFragment(definition: VersionedDefinition): {
   required: string[];
   properties: Record<string, unknown>;
+  constraints: Record<string, unknown>;
 } {
   const schema = definition.payload_schema as Record<string, unknown> | undefined;
+  const constraints = Object.fromEntries(
+    Object.entries(schema ?? {}).filter(([key]) =>
+      !["$schema", "type", "additionalProperties", "required", "properties"]
+        .includes(key)
+    ),
+  );
   return {
     required: Array.isArray(schema?.required)
       ? schema.required.filter((item): item is string => typeof item === "string")
@@ -699,6 +707,7 @@ function payloadFragment(definition: VersionedDefinition): {
       typeof schema?.properties === "object" && schema.properties !== null
         ? (schema.properties as Record<string, unknown>)
         : {},
+    constraints,
   };
 }
 
@@ -771,11 +780,15 @@ export function resolveType(
   const properties: Record<string, unknown> = {};
   const outgoingLinks: Record<string, unknown>[] = [];
   const linkIds = new Set<string>();
+  const payloadConstraints: Record<string, unknown>[] = [];
 
   for (const definition of [...templates, typeDefinition]) {
     const fragment = payloadFragment(definition);
     fragment.required.forEach((field) => required.add(field));
     Object.assign(properties, fragment.properties);
+    if (Object.keys(fragment.constraints).length > 0) {
+      payloadConstraints.push(fragment.constraints);
+    }
     const links = Array.isArray(definition.outgoing_links)
       ? definition.outgoing_links
       : [];
@@ -815,6 +828,7 @@ export function resolveType(
         additionalProperties: false,
         required: [...required].sort(),
         properties,
+        ...(payloadConstraints.length > 0 ? { allOf: payloadConstraints } : {}),
       },
       outgoingLinks,
       lifecycle: (typeDefinition.lifecycle ?? {}) as Record<string, unknown>,

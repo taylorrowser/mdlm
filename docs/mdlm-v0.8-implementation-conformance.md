@@ -96,6 +96,9 @@ active compatible Questions appear as one complete Consolidation Group with the
 first exact Assignment, and normalized responses remain serial atomic Scenario
 Proposals followed by reevaluation. The harness owns freeform semantic mapping;
 raw transcripts remain ephemeral by default, and scheduling is not deferral.
+Formal deferral requires a deferred QST Revision with a concrete
+`reactivation_condition`, an exact scoped DEC, and its policy-required passing
+Review.
 
 ## Demonstrated invariants
 

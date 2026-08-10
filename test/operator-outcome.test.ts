@@ -199,7 +199,22 @@ describe("package-neutral Operator Outcome classification", () => {
 
     const classified = classifyOperatorOutcome(
       [
-        work({ instance: "autonomous@1:ITM-r00001:process" }),
+        work({
+          instance: "authorize-gate@1:SNP-r00001:package@1#digest",
+          authorityRequirements: [{
+            policy: "gate-participation@1",
+            authorityRequirement: {
+              mode: "attended",
+              authority: "stakeholder",
+              delegationAllowed: false,
+            },
+            attentionSchedule: {
+              timing: "immediate",
+              checkpoint: null,
+              consolidationGroup: null,
+            },
+          }],
+        }),
         question("QUE-TWO", "The second choice changes the interface."),
         question("QUE-ONE", "The first choice changes product scope."),
         {

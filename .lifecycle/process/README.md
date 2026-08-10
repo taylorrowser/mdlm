@@ -140,7 +140,9 @@ readiness holds, eligible autonomous or delegated work continues. Once it holds,
 exact Assignment for one freeform conversation; each normalized answer publishes
 serially and ordinary reevaluation removes Questions made obsolete by earlier
 evidence. MDLM neither matches natural-language answers nor stores the raw
-transcript by default. Delegated and attended
+transcript by default. Checkpoint scheduling is not deferral: a formal deferral
+requires a deferred QST Revision with a concrete `reactivation_condition`, an
+exact scoped DEC, and its policy-required passing Review. Delegated and attended
 execution requires an exact matching `--authorize` supply or applicable reviewed
 `--delegation` DEC before the adapter and
 publishes the package-declared REV or DEC authority-evidence output atomically.
