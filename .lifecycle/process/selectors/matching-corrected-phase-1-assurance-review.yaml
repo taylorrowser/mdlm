@@ -3,8 +3,8 @@ id: matching-corrected-phase-1-assurance-review
 version: 1
 description: One exact failed Review of a prior Phase 1 assurance Revision addressed by its replacement.
 parameters:
-  - {name: subject, kind: revision, types: [VSP, ENV, VER, VAI]}
-  - {name: replacement, kind: revision, types: [VSP, ENV, VER, VAI]}
+  - {name: subject, kind: revision, types: [VSP, ENV, VER]}
+  - {name: replacement, kind: revision, types: [VSP, ENV, VER]}
   - {name: review, kind: revision, types: [REV]}
 result_kind: revision
 query:

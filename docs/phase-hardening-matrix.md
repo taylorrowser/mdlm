@@ -82,7 +82,7 @@ hardening remain deferred to issues #98–#100.
 | Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
 | --- | --- | --- | --- | --- |
 | Exact public command boundary | ART contains ordered exact normal, raw-malformed, omitted-argument, and extra-argument token vectors; omitted parameters are named separately from raw empty UTF-8 tokens; every case has exact exit status and base64 stdout/stderr bytes | ART schema plus `register-pilot-target@1` completion and `current-pilot-targets-for-requirement@1` | Source-independent implementation **Assignment** | No correction consumed; duplicate tokens and byte observations remain exact Lifecycle Data |
-| Incomplete or ambiguous command evidence | A case class, parameter encoding, malformed-token position, omitted parameter, extra-token position, or exact observation is absent | ART schema and canonical Scenario submission | Invalid proposal; same Assignment receives contract diagnostics | Nothing publishes; malformed transport does not consume lifecycle correction budget |
+| Incomplete or ambiguous command evidence | A case class, normal parameter encoding, malformed/extra raw-token role, omitted parameter, or exact observation is absent | ART schema and canonical Scenario submission | Invalid proposal; same Assignment receives contract diagnostics | Nothing publishes; malformed transport does not consume lifecycle correction budget |
 | Initial VAI Review fails | Immutable source-blind VAI, every exact failed REV/Finding, exact VER/ENV/ART links, activity bindings, and pilot claim class | `failed-current-pilot-verification-implementations@1`; `pilot-vai-review-correction-required@1`; autonomous `revise-pilot-vai-after-review@1` | Exact same-lineage VAI correction **Assignment** | 0 of 2 consumed; failed VAI, authorization, RUN/RES, context, and Reviews retained |
 | Corrected VAI procedure | Replacement cites every and only failed Review, preserves exact bindings, and declares bounded checkout/environment/product-case deadlines, process-group termination, forced kill/reaping, partial raw observation, guaranteed cleanup, and continue-through-all-cases aggregation | `corrected-pilot-verification-implementation-revisions-for@1`; ordinary Review and run Obligations | Fresh Review Context, independent Review, then run **Assignments** | Prior RUN/RES cannot satisfy replacement; exact VER/ENV/ART evidence reused |
 | Incomplete correction or changed binding | Replacement omits any failed Review/procedure field or changes lineage, activity bindings, VER, ENV, ART, target behavior, or pilot claim class | Source-owned VAI links, Scenario required links, schema, and correction completion Selector | Invalid proposal; no partial publication | Failed history and prior evidence remain byte-preserved; no lifecycle cycle consumed |
@@ -94,10 +94,10 @@ hardening remain deferred to issues #98–#100.
 | Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
 | --- | --- | --- | --- | --- |
 | No pilot target yet | Current pilot VER and exact requirement have no boundary-complete ART | `pilot-target-required@1`; autonomous `register-pilot-target@1` | Target-registration **Assignment** | Existing requirement/VSP/VER/ENV evidence reused; typed inability publishes nothing |
-| Intentionally unsupported target behavior | ART records bounded supported and intentionally unsupported behavior plus exact public invocation/rejection protocol | Target and implementation Selectors; normal VAI/run Obligations | Source-independent implementation/run **Assignments** | Unsupported behavior is positive discrimination evidence, not a terminal disposition |
+| Intentionally unsupported target behavior | ART records bounded supported and intentionally unsupported behavior plus exact public invocation/rejection cases | Target and implementation Selectors; normal VAI/run Obligations | Source-independent implementation/run **Assignments** | Unsupported behavior is positive discrimination evidence, not a terminal disposition |
 | Empirical evidence unavailable | Open empirical QST has no available evidence | Source-boundary and `open-question-resolution@3`; attended/delegable evidence-provider participation | Source-freeze **Assignment**, then immediate **Attention Required** or typed inability | No unsupported conclusion publishes; explicit defer/cancel requires reviewed DEC |
 | Multiple applicable VSPs, ENVs, or pilot targets | More than one exact current candidate | Bootstrap Profile `terminal_outcomes.profile_boundary` condition | **Profile Boundary Reached** after any other runnable work drains | Explicitly unsupported in this narrow profile; no arbitrary evidence selection and no Process Dead End |
-| Missing or incomplete target boundary | ART lacks immutable commit observation, supported/unsupported bounds, typed command encoding, isolation, or exact observation protocol | ART schema and `register-pilot-target@1` completion | Invalid proposal or fresh registration **Assignment** | Incomplete ART is not eligible and cannot leak into VAI work |
+| Missing or incomplete target boundary | ART lacks immutable commit observation, supported/unsupported bounds, typed command encoding, isolation, or exact case observations | ART schema and `register-pilot-target@1` completion | Invalid proposal or fresh registration **Assignment** | Incomplete ART is not eligible and cannot leak into VAI work |
 
 ## Transport and liveness invariants
 
@@ -120,11 +120,12 @@ unaffected evidence reuse, exhausted-budget attention, self-contained attended
 packets, and each VSP/ENV/target ambiguity through `mdlm next`, `scenario prepare`,
 and `scenario submit`, including proof that an attended Phase 1 replacement does
 not consume either autonomous correction cycle.
-`test/mdlm-vai-correction.test.ts` drives malformed command registration,
-omitted-versus-empty-token evidence, deterministic exact-byte rejection,
+`test/req-product-assurance-pilot.test.ts` covers malformed command registration,
+omitted-versus-empty-token evidence, ordered duplicate tokens, and deterministic
+exact-byte rejection. `test/mdlm-phase-1-assurance-correction.test.ts` drives
 multi-Review VAI correction, changed-binding atomic rejection, immutable prior
 RUN/RES evidence, fresh Review Context and independent Review, and exact fresh-run
-selection through the same public operator seam. `test/evaluate-bootstrap-participation.test.ts` covers exact simplification
+selection through the public operator seam. `test/evaluate-bootstrap-participation.test.ts` covers exact simplification
 blockers, immediate stakeholder-owned candidate attention with preserved budget,
 candidate exhaustion through the same interface, Question Decision correction,
 accepted-intent progression, and package-owned participation.

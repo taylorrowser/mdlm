@@ -25,7 +25,7 @@ completion: >-
   && target.payload.supported_behavior != []
   && target.payload.unsupported_behavior != []
   && target.payload.evidence_refs != []
-  && target.payload.public_interface.interface_version == 2
+  && present(target.payload.public_interface)
   && target.payload.public_interface.working_directory == "fresh-temporary-directory"
   && count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1
   && one("current-pilot-targets-for-requirement@1", {requirement: requirement}) == target

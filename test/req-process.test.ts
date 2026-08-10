@@ -112,8 +112,9 @@ describe("req process package commands", () => {
     await fs.writeFile(
       previousTargetSelectorPath,
       (await fs.readFile(previousTargetSelectorPath, "utf8")).replace(
-        "target.payload.public_interface.interface_version == 2",
-        "target.payload.public_interface.interface_version == 1",
+        `present(target.payload.public_interface)
+    && target.payload.public_interface.working_directory == "fresh-temporary-directory"`,
+        'target.payload.kind == "prototype"',
       ),
     );
 
@@ -184,26 +185,6 @@ describe("req process package commands", () => {
     const historicalRequirement = JSON.parse(
       historicalRequirementCreated.stdout,
     ).created as { revisionId: string };
-    const legacyInterface = {
-      interface_version: 1,
-      repository_locator: "file:///historical/repository",
-      command: ["node", "{checkout}/bin/historical.mjs", "{input}"],
-      parameters: ["input"],
-      parameter_encodings: { input: "exact UTF-8 visible input" },
-      working_directory: "fresh-temporary-directory",
-      observation_protocol: {
-        success: {
-          exit_status: 0,
-          stdout_contract: "one visible line",
-          stderr_contract: "empty",
-        },
-        rejection: {
-          exit_status: 2,
-          stdout_contract: "empty",
-          stderr_contract: "one diagnostic line",
-        },
-      },
-    };
     const historicalTargetCreated = req(
       repositoryRoot,
       "new",
@@ -222,8 +203,6 @@ describe("req process package commands", () => {
       'unsupported_behavior=["historical excluded behavior"]',
       "--set",
       'evidence_refs=["historical observation"]',
-      "--set",
-      `public_interface=${JSON.stringify(legacyInterface)}`,
       "--link",
       `derived-from=${historicalRequirement.revisionId}`,
       "--json",

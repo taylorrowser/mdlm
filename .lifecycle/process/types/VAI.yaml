@@ -13,9 +13,7 @@ payload_schema:
   required: [kind, implementation_ref, independence_mode, authoring_input_refs, prohibited_inputs_observed, activity_bindings, target_behavior]
   allOf:
     - if:
-        properties:
-          kind: {const: pilot}
-          independence_mode: {const: source-blind}
+        properties: {kind: {const: pilot}, independence_mode: {const: source-blind}}
         required: [kind, independence_mode]
       then: {required: [execution_procedure]}
   properties:
@@ -40,7 +38,7 @@ payload_schema:
     execution_procedure:
       type: object
       additionalProperties: false
-      required: [deadlines_ms, deadline_claim, timeout_recovery, cleanup, aggregation]
+      required: [deadlines_ms, deadline_scope, timeout, cleanup, aggregation]
       properties:
         deadlines_ms:
           type: object
@@ -50,17 +48,15 @@ payload_schema:
             checkout: {type: integer, minimum: 1, maximum: 3600000}
             environment_check: {type: integer, minimum: 1, maximum: 3600000}
             product_case: {type: integer, minimum: 1, maximum: 3600000}
-        deadline_claim: {const: infrastructure-safety-only}
-        timeout_recovery:
+        deadline_scope: {const: infrastructure-safety-only}
+        timeout:
           type: object
           additionalProperties: false
-          required: [terminate, graceful_signal, force_after_ms, force_signal, reap, capture_partial_raw_observation]
+          required: [termination, force_after_ms, reaping, capture_partial_raw_observation]
           properties:
-            terminate: {const: process-group}
-            graceful_signal: {const: SIGTERM}
+            termination: {const: process-group-sigterm-then-sigkill}
             force_after_ms: {type: integer, minimum: 1, maximum: 60000}
-            force_signal: {const: SIGKILL}
-            reap: {const: all-descendants}
+            reaping: {const: all-descendants}
             capture_partial_raw_observation: {const: true}
         cleanup: {const: guaranteed}
         aggregation: {const: continue-through-all-cases}

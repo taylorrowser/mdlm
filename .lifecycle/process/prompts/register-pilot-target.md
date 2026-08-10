@@ -28,8 +28,7 @@ UTF-8 token is still one supplied argument; represent an omitted argument by its
 absent token vector plus the named omitted parameter, never by an empty token.
 For each case record the exact exit status and base64 stdout/stderr bytes, and
 classify malformed cases as automatic rejection. Record a fresh-temporary-
-directory working-directory contract and the summary observable success and
-rejection protocols.
+directory working-directory contract.
 The command may expose public entrypoint paths but must not expose product source,
 unit tests, private functions, implementation notes, or uncontrolled shortcuts.
 

@@ -1,14 +1,18 @@
 kind: selector-definition
 id: failed-current-pilot-verification-implementations
 version: 1
-description: Current exact source-blind pilot implementation Revisions with one or more valid failed Reviews.
+description: Current valid source-blind pilot VAI Revisions with failed Reviews.
 parameters: []
 result_kind: revision
 query:
-  from:
-    selector: current-pilot-verification-implementations@1
-    arguments: {}
+  from: {collection: revisions, types: [VAI]}
   as: implementation
-  where: 'exists("failing-reviews-for@1", {subject: implementation})'
+  where: >-
+    implementation.payload.kind == "pilot"
+    && implementation.payload.independence_mode == "source-blind"
+    && state(implementation, "disposition") == "active"
+    && state(implementation, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: implementation})
+    && exists("failing-reviews-for@1", {subject: implementation})
   distinct: true
   order_by: [identity.id, identity.revision]

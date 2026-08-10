@@ -977,8 +977,8 @@ Exact requirement and VSP Revision evidence then derives pilot VER work. The
 presence of current pilot activity work also derives exact ART registration when
 its requirement has no target. That Resolver records one immutable Git commit,
 bounded supported/unsupported behavior, and a controlled public execution interface
-containing the repository locator, versioned typed command vector with every
-parameter co-located with its exact encoding, isolated working-directory
+containing the repository locator, typed command template with every parameter
+co-located with its exact encoding, isolated working-directory
 contract, ordered exact normal/raw-malformed/omitted/extra argument cases, and
 case-specific exit status plus base64 stdout/stderr bytes. Omitted parameters are
 explicitly distinct from raw empty tokens, and ordered duplicate tokens are

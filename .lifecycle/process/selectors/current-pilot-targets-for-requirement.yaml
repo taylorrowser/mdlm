@@ -10,7 +10,7 @@ query:
   as: target
   where: >-
     target.payload.kind in ["implementation", "prototype"]
-    && target.payload.public_interface.interface_version == 2
+    && present(target.payload.public_interface)
     && target.payload.public_interface.working_directory == "fresh-temporary-directory"
     && state(target, "disposition") == "active"
     && state(target, "validity") == "valid"

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: corrected-pilot-verification-implementation-revisions-for
 version: 1
-description: Valid newer pilot VAI Revisions preserving exact claim-class, activity, ENV, ART, and case bindings while citing every and only failed Review.
+description: Valid newer pilot VAI Revisions preserving every exact verification binding and citing every and only failed Review.
 parameters:
   - {name: implementation, kind: revision, types: [VAI]}
 result_kind: revision
@@ -11,36 +11,26 @@ query:
   where: >-
     replacement.identity.revision > implementation.identity.revision
     && state(replacement, "validity") == "valid"
-    && implementation.payload.kind == "pilot"
     && replacement.payload.kind == implementation.payload.kind
     && replacement.payload.independence_mode == implementation.payload.independence_mode
     && replacement.payload.activity_bindings == implementation.payload.activity_bindings
     && replacement.payload.target_behavior == implementation.payload.target_behavior
-    && every("failing-reviews-for@1", {subject: implementation}, review =>
-      exists("matching-corrected-phase-1-assurance-review@1",
-        {subject: implementation, replacement: replacement, review: review}))
-    && none("unexpected-corrected-phase-1-assurance-reviews@1",
-      {subject: implementation, replacement: replacement})
-    && count("verification-activities-for-implementation@1",
-      {implementation: implementation}) == 1
-    && count("verification-activities-for-implementation@1",
-      {implementation: replacement}) == 1
+    && count("cited-failing-reviews-by-correction@1",
+      {replacement: replacement})
+      == count("failing-reviews-for@1", {subject: implementation})
+    && every("cited-failing-reviews-by-correction@1",
+      {replacement: replacement}, review =>
+        exists("matching-failing-review-for@1",
+          {subject: implementation, review: review}))
     && one("verification-activities-for-implementation@1",
       {implementation: replacement})
       == one("verification-activities-for-implementation@1",
         {implementation: implementation})
-    && count("environments-for-implementation@1",
-      {implementation: implementation}) == 1
-    && count("environments-for-implementation@1",
-      {implementation: replacement}) == 1
     && one("environments-for-implementation@1", {implementation: replacement})
       == one("environments-for-implementation@1", {implementation: implementation})
-    && count("artifact-targets-for-implementation@1",
-      {implementation: implementation}) == 1
-    && count("artifact-targets-for-implementation@1",
-      {implementation: replacement}) == 1
-    && one("artifact-targets-for-implementation@1", {implementation: replacement})
-      == one("artifact-targets-for-implementation@1", {implementation: implementation})
+    && one("execution-targets-for-implementation@1", {implementation: replacement})
+      == one("execution-targets-for-implementation@1",
+        {implementation: implementation})
     && exists("pilot-implementation-authorizations-for@1",
       {implementation: replacement})
   distinct: true

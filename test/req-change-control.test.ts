@@ -7,13 +7,11 @@ import { req } from "./helpers/req.js";
 const examplePackage = path.join(process.cwd(), ".lifecycle/process");
 const executionProcedure = {
   deadlines_ms: {checkout: 30000, environment_check: 20000, product_case: 5000},
-  deadline_claim: "infrastructure-safety-only",
-  timeout_recovery: {
-    terminate: "process-group",
-    graceful_signal: "SIGTERM",
+  deadline_scope: "infrastructure-safety-only",
+  timeout: {
+    termination: "process-group-sigterm-then-sigkill",
     force_after_ms: 1000,
-    force_signal: "SIGKILL",
-    reap: "all-descendants",
+    reaping: "all-descendants",
     capture_partial_raw_observation: true,
   },
   cleanup: "guaranteed",

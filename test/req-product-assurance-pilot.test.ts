@@ -1059,7 +1059,6 @@ describe("req product-assurance qualification and pilot slice", () => {
             unsupported_behavior: ["export an intentionally unsupported binary format"],
             evidence_refs: [`git-object-observed:${existingRepositoryCommit}`],
             public_interface: {
-              interface_version: 2,
               repository_locator: `file://${process.cwd()}`,
               command: [
                 { literal: "node" },
@@ -1076,6 +1075,8 @@ describe("req product-assurance qualification and pilot slice", () => {
                     encoding: "visible report -> text; excluded binary report -> binary",
                   },
                 },
+                { literal: "--trace" },
+                { literal: "--trace" },
               ],
               argument_cases: [
                 {
@@ -1086,6 +1087,8 @@ describe("req product-assurance qualification and pilot slice", () => {
                     { checkout_path: "bin/report.mjs" },
                     { parameter: { name: "input", encoding: "utf-8 path", value: "report.txt" } },
                     { parameter: { name: "format", encoding: "utf-8 enum", value: "text" } },
+                    { literal: "--trace" },
+                    { literal: "--trace" },
                   ],
                   expected_observation: {
                     classification: "success",
@@ -1097,12 +1100,11 @@ describe("req product-assurance qualification and pilot slice", () => {
                 {
                   id: "raw-malformed-format",
                   kind: "raw-malformed",
-                  raw_token_positions: [3],
                   tokens: [
                     { literal: "node" },
                     { checkout_path: "bin/report.mjs" },
                     { parameter: { name: "input", encoding: "utf-8 path", value: "report.txt" } },
-                    { raw: { encoding: "utf-8", value: "" } },
+                    { raw: { encoding: "utf-8", value: "", role: "malformed" } },
                   ],
                   expected_observation: {
                     classification: "automatic-rejection",
@@ -1130,13 +1132,12 @@ describe("req product-assurance qualification and pilot slice", () => {
                 {
                   id: "extra-format",
                   kind: "extra-argument",
-                  extra_token_positions: [4],
                   tokens: [
                     { literal: "node" },
                     { checkout_path: "bin/report.mjs" },
                     { parameter: { name: "input", encoding: "utf-8 path", value: "report.txt" } },
                     { parameter: { name: "format", encoding: "utf-8 enum", value: "text" } },
-                    { raw: { encoding: "utf-8", value: "extra" } },
+                    { raw: { encoding: "utf-8", value: "extra", role: "extra" } },
                   ],
                   expected_observation: {
                     classification: "automatic-rejection",
@@ -1147,18 +1148,6 @@ describe("req product-assurance qualification and pilot slice", () => {
                 },
               ],
               working_directory: "fresh-temporary-directory",
-              observation_protocol: {
-                success: {
-                  exit_status: 0,
-                  stdout_contract: "one exact visible report followed by a newline",
-                  stderr_contract: "empty",
-                },
-                rejection: {
-                  exit_status: 2,
-                  stdout_contract: "empty",
-                  stderr_contract: "one diagnostic line followed by a newline",
-                },
-              },
             },
           },
           links: [{ type: "derived-from", target: requirement.revisionId }],
@@ -1216,6 +1205,34 @@ describe("req product-assurance qualification and pilot slice", () => {
     );
     expect(unencodedParameter.status).toBe(1);
     expect(JSON.parse(unencodedParameter.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+      ]),
+    );
+
+    const missingOmittedCaseResponse = structuredClone(targetResponse);
+    missingOmittedCaseResponse.outputs[0]!.lifecycleDatum.payload.public_interface
+      .argument_cases = missingOmittedCaseResponse.outputs[0]!.lifecycleDatum.payload
+        .public_interface.argument_cases.filter(
+          (item: { kind: string }) => item.kind !== "omitted-argument",
+        );
+    const missingOmittedCaseAdapter = await adapter(
+      missingOmittedCaseResponse,
+      "missing-omitted-case-pilot-target",
+    );
+    const missingOmittedCase = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      missingOmittedCaseAdapter.executable,
+      "--json",
+    );
+    expect(missingOmittedCase.status).toBe(1);
+    expect(JSON.parse(missingOmittedCase.stdout).diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "scenario-output-schema-invalid" }),
       ]),
@@ -1337,6 +1354,23 @@ describe("req product-assurance qualification and pilot slice", () => {
       .toBe(0);
     const pilotTarget = JSON.parse(targetExecution.stdout).execution.outputs[0]
       .lifecycleDatum as { id: string; revisionId: string };
+    const storedTarget = JSON.parse(req(
+      repositoryRoot,
+      "show",
+      pilotTarget.revisionId,
+      "--json",
+    ).stdout).lifecycleDatum.datum.payload.public_interface;
+    expect(storedTarget.argument_cases[0].tokens.slice(-2)).toEqual([
+      { literal: "--trace" },
+      { literal: "--trace" },
+    ]);
+    expect(storedTarget.argument_cases[1].tokens.at(-1)).toEqual({
+      raw: { encoding: "utf-8", value: "", role: "malformed" },
+    });
+    expect(storedTarget.argument_cases[2]).toEqual(expect.objectContaining({
+      kind: "omitted-argument",
+      omitted_parameters: ["format"],
+    }));
     expect(looseEnds().find((item) =>
       item.obligation === "pilot-target-required" &&
       item.subject === requirement.revisionId
@@ -1551,13 +1585,11 @@ describe("req product-assurance qualification and pilot slice", () => {
               },
               execution_procedure: {
                 deadlines_ms: {checkout: 30000, environment_check: 20000, product_case: 5000},
-                deadline_claim: "infrastructure-safety-only",
-                timeout_recovery: {
-                  terminate: "process-group",
-                  graceful_signal: "SIGTERM",
+                deadline_scope: "infrastructure-safety-only",
+                timeout: {
+                  termination: "process-group-sigterm-then-sigkill",
                   force_after_ms: 1000,
-                  force_signal: "SIGKILL",
-                  reap: "all-descendants",
+                  reaping: "all-descendants",
                   capture_partial_raw_observation: true,
                 },
                 cleanup: "guaranteed",

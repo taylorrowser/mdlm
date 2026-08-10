@@ -66,7 +66,6 @@ catalog:
     - pilot-target-matches-implementation
     - pilot-implementation-authorizations-for
     - complete-pilot-implementations-for-activity
-    - current-pilot-verification-implementations
     - failed-current-pilot-verification-implementations
     - corrected-pilot-verification-implementation-revisions-for
     - environments-for-strategy
@@ -168,7 +167,6 @@ catalog:
     - verification-activities-for-implementation
     - environments-for-implementation
     - execution-targets-for-implementation
-    - artifact-targets-for-implementation
     - completed-runs-for-implementation
     - passing-qualification-results-for
     - qualified-environment-match-for-result

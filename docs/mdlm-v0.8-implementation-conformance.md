@@ -47,7 +47,7 @@ the accepted overview and the reviewed pilot Decision.
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
 | Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
-| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-vai-correction.test.ts` |
+| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
 | Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
@@ -159,7 +159,7 @@ hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-
   its replacement, and unsupported ambiguity reaches an explicit Profile Boundary.
 - Current pilot activity requirements project exact bounded ART registration when
   no boundary-complete target exists. The target carries the public repository,
-  versioned typed command with co-located exact parameter encodings, isolation,
+  typed command template with co-located exact parameter encodings, isolation,
   ordered normal/raw-malformed/omitted/extra cases, omitted-versus-empty-token
   identity, and deterministic exact-byte observations needed by a fresh
   source-blind implementer; existing singular evidence satisfies work and duplicates

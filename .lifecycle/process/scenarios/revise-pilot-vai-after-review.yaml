@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-pilot-vai-after-review
 version: 1
-description: Correct one failed source-blind pilot procedure in the same VAI lineage while retaining every exact activity, ENV, ART, claim-class, and case binding.
+description: Correct one failed source-blind pilot procedure in the same VAI lineage while preserving its exact verification bindings.
 phases: [phase-1-product-assurance]
 inputs:
   - name: implementation
@@ -25,27 +25,23 @@ inputs:
     cardinality: one
     identity: revision
     conditions: >-
-      count("verification-activities-for-implementation@1",
-        {implementation: implementation}) == 1
-      && activity == one("verification-activities-for-implementation@1",
+      activity == one("verification-activities-for-implementation@1",
         {implementation: implementation})
   - name: environment
     types: [ENV]
     cardinality: one
     identity: revision
     conditions: >-
-      count("environments-for-implementation@1",
-        {implementation: implementation}) == 1
-      && environment == one("environments-for-implementation@1",
+      environment == one("environments-for-implementation@1",
         {implementation: implementation})
   - name: execution_target
     types: [ART]
     cardinality: one
     identity: revision
     conditions: >-
-      count("artifact-targets-for-implementation@1",
-        {implementation: implementation}) == 1
-      && execution_target == one("artifact-targets-for-implementation@1",
+      execution_target == one("eligible-pilot-targets-for-activity@1",
+        {activity: activity})
+      && execution_target == one("execution-targets-for-implementation@1",
         {implementation: implementation})
 outputs:
   - name: replacement
@@ -71,24 +67,17 @@ completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == implementation.identity.id
   && replacement.identity.type == implementation.identity.type
-  && replacement.payload.execution_procedure.deadline_claim == "infrastructure-safety-only"
-  && replacement.payload.execution_procedure.cleanup == "guaranteed"
-  && replacement.payload.execution_procedure.aggregation == "continue-through-all-cases"
   && exists("corrected-pilot-verification-implementation-revisions-for@1",
     {implementation: implementation})
   && authorization.payload.effective_scope == replacement.identity.revision_id
   && (
     (policy("phase-1-assurance-correction-participation@1",
       {subject: implementation}).authority_mode == "autonomous"
-      && authorization.payload.kind == "decision"
-      && none("phase-1-assurance-correction-decisions-for@1",
-        {replacement: replacement}))
+      && authorization.payload.kind == "decision")
     || (policy("phase-1-assurance-correction-participation@1",
       {subject: implementation}).authority_mode == "attended"
-      && authorization.payload.kind == "scope"
-      && count("phase-1-assurance-correction-decisions-for@1",
-        {replacement: replacement}) == 1)
+      && authorization.payload.kind == "scope")
   )
 resolves: [pilot-vai-review-correction-required]
-prohibited_inputs: [mutation of failed VAI, RUN, RES, or Review history, changed activity binding, changed environment binding, changed execution target binding, changed pilot claim class, product source, product unit tests, private implementation details]
+prohibited_inputs: [mutation of failed VAI, RUN, RES, or Review history, changed verification binding, changed pilot claim class, product source, product unit tests, private implementation details]
 batching: single

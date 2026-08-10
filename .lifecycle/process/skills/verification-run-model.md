@@ -11,5 +11,3 @@ version: 1
 - Produce one scoped RES per activity outcome.
 - Qualification scopes to environment capability; pilot scopes to verification design; formal scopes to requirement.
 - Never promote a pilot RES into formal evidence.
-- Enforce procedure deadlines as infrastructure safety, then terminate and reap timed-out process groups while retaining partial raw observations.
-- Guarantee cleanup and continue through all declared cases before aggregate classification.

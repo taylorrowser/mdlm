@@ -3,8 +3,8 @@ id: unexpected-corrected-phase-1-assurance-reviews
 version: 1
 description: Reviews claimed by a corrected Phase 1 assurance Revision that are not exact failing Reviews of its prior Revision.
 parameters:
-  - {name: subject, kind: revision, types: [VSP, ENV, VER, VAI]}
-  - {name: replacement, kind: revision, types: [VSP, ENV, VER, VAI]}
+  - {name: subject, kind: revision, types: [VSP, ENV, VER]}
+  - {name: replacement, kind: revision, types: [VSP, ENV, VER]}
 result_kind: revision
 query:
   from:

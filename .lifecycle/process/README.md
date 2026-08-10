@@ -284,7 +284,7 @@ exact requirement coverage. Once pilot activity work exists,
 `pilot-target-required@1` records one existing immutable repository commit as a
 bounded ART derived from the exact requirement. Registration records supported and
 intentionally unsupported behavior plus the complete controlled public execution
-interface: repository locator, versioned typed command vector with each parameter
+interface: repository locator, typed command template with each parameter
 co-located with its exact encoding, isolated working directory, and exact normal,
 raw-malformed, omitted-argument, and extra-argument cases. Full ordered token
 vectors preserve duplicates; omitted parameters remain distinct from raw empty
