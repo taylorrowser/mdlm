@@ -104,6 +104,7 @@ import {
   leaseNextAssignment,
   prepareAssignment,
   submitAssignmentResponse,
+  type AssignmentDisposition,
   type AssignmentOutcome,
   type AssignmentPacket,
   type AssignmentSubmission,
@@ -154,9 +155,15 @@ interface TypeSchemaInspection {
 interface CommandResultBase {
   ok: boolean;
   command?: string;
-  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | OperatorStatus["contract"];
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | OperatorStatus["contract"];
   outcome?: AssignmentOutcome["outcome"] | "invalid";
   assignment?: { id: string };
+  disposition?: AssignmentDisposition["disposition"];
+  orchestration?: AssignmentDisposition["orchestration"];
+  unable?: Extract<AssignmentDisposition, { disposition: "abandoned" }>["unable"];
+  malformedResponse?: Extract<AssignmentDisposition, {
+    disposition: "correction-required" | "exhausted";
+  }>["malformedResponse"];
   integrity?: OperatorStatus["integrity"] | { status: "invalid" };
   package?: PackageSummary | AssignmentPacket["package"];
   profile?: OperatorStatus["profile"];
@@ -1759,18 +1766,27 @@ async function submitExactAssignment(
     };
   }
   const submitted = await submitAssignmentResponse(repositoryRoot, source);
-  return submitted.ok
+  if (!submitted.ok) {
+    return {
+      ok: false,
+      command: "scenario.submit",
+      ...(submitted.disposition ?? {}),
+      diagnostics: submitted.diagnostics,
+    };
+  }
+  return submitted.value.contract === "mdlm-assignment-disposition@1"
     ? {
+        ok: true,
+        command: "scenario.submit",
+        ...submitted.value,
+        diagnostics: [],
+      }
+    : {
         ok: true,
         command: "scenario.submit",
         contract: submitted.value.contract,
         execution: submitted.value,
         diagnostics: [],
-      }
-    : {
-        ok: false,
-        command: "scenario.submit",
-        diagnostics: submitted.diagnostics,
       };
 }
 

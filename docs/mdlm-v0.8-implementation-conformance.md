@@ -45,7 +45,7 @@ the accepted overview and the reviewed pilot Decision.
 | Dependency changes, States, Obligations, phases, blockers, Dispatchability, and explanations | 13–17, 35–42 | #25–#31 | `test/dependency-changes.test.ts`, `test/evaluate-*.test.ts`, `test/req-lifecycle.test.ts` |
 | Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54, #84 | `test/mdlm-command-application.test.ts`, `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
-| Authorized preparation, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
+| Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact bounded ART registration, separately authorized pilot implementation, and exact-target pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76 | `test/req-product-assurance-pilot.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
@@ -86,7 +86,10 @@ the reviewed `change` expansion Decision. Issue #89 adds exact Profile-authored
 Profile Boundary and Lifecycle Complete conditions to the package-neutral Operator
 Outcome seam. The bootstrap declares only its reviewed Phase 0–2 pilot boundary;
 `progression: null` by itself remains a Process Dead End and does not claim that
-Phases 3–6 are complete.
+Phases 3–6 are complete. Issue #90 completes the Assignment return protocol:
+typed inability abandons the exact ignored lease without Lifecycle Data, one
+malformed contract response preserves that Assignment for correction, a second
+exhausts it, and only a later deliberate `mdlm next` allocates fresh work.
 
 ## Demonstrated invariants
 
