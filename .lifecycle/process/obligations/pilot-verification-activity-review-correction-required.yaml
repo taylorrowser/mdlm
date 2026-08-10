@@ -1,19 +1,31 @@
 kind: obligation-definition
 id: pilot-verification-activity-review-correction-required
-version: 1
-description: A current Phase 1 pilot verification activity with a failed Review must be corrected in the same lineage.
+version: 2
+description: A current Phase 1 pilot verification activity with a failed Review receives causal same-lineage correction while its autonomous budget remains, then attended escalation.
 phases: [phase-1-product-assurance]
 for_each: 'select("failed-current-pilot-verification-activities@1", {})'
 subject_as: activity
 satisfied_when: 'exists("corrected-pilot-verification-activity-revisions-for@1", {activity: activity})'
 status_rules:
   - status: ready
+    priority: 300
+    when: >-
+      !every("failing-reviews-for@1", {subject: activity}, review =>
+        review.payload.correction_authority != "stakeholder")
+    reason: Current pilot activity findings require immediate stakeholder-owned correction without consuming autonomous correction budget.
+  - status: ready
+    priority: 200
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: activity, view: "corrections"}) >= 2
+    reason: Both autonomous pilot activity replacement-and-Review cycles failed; the same exact correction interface now requires stakeholder attention.
+  - status: ready
     priority: 100
-    when: 'none("corrected-pilot-verification-activity-revisions-for@1", {activity: activity})'
+    when: 'true'
     reason: Exact failed pilot activity Review findings require a corrected same-lineage VER Revision.
 default_status: ready
 resolve_with:
-  scenario: revise-pilot-verification-activity-after-review@1
+  scenario: revise-pilot-verification-activity-after-review@2
   inputs:
     activity: activity
     failed_reviews: 'select("failing-reviews-for@1", {subject: activity})'

@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-environment-assurance-after-review
-version: 1
-description: Correct one failed Phase 1 environment and author a fresh exact qualification activity and implementation atomically.
+version: 2
+description: Correct one failed Phase 1 environment through bounded autonomous cycles or attended escalation and author a fresh exact qualification activity and implementation atomically.
 phases: [phase-1-product-assurance]
 inputs:
   - name: environment
@@ -15,14 +15,17 @@ inputs:
     types: [REV]
     cardinality: one-or-more
     identity: revision
-    conditions: 'exists("matching-failing-review-for@1", {subject: environment, review: failed_reviews})'
+    conditions: >-
+      exists("matching-failing-review-for@1",
+        {subject: environment, review: failed_reviews})
   - name: strategy
     types: [VSP]
     cardinality: one
     identity: revision
     conditions: >-
       count("strategies-for-environment@1", {environment: environment}) == 1
-      && strategy == one("strategies-for-environment@1", {environment: environment})
+      && strategy == one("strategies-for-environment@1",
+        {environment: environment})
 outputs:
   - name: replacement
     types: [ENV]
@@ -43,8 +46,17 @@ outputs:
       - {link: realizes, target: {output: qualification_activity}}
       - {link: uses, target: {output: replacement}}
       - {link: targets, target: {output: replacement}}
+  - name: decision
+    types: [DEC]
+    cardinality: zero-or-one
+    required_links:
+      - {link: justifies, target: {output: replacement}}
 prompt_ref: prompts/revise-environment-assurance-after-review.md@1
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: phase-1-assurance-correction-participation@1
+  arguments: {subject: environment}
+authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == environment.identity.id
@@ -57,6 +69,16 @@ completion: >-
   && qualification_implementation.payload.kind == "qualification"
   && qualification_implementation.payload.independence_mode == "environment-capability"
   && exists("corrected-environment-revisions-for@1", {environment: environment})
+  && (
+    (policy("phase-1-assurance-correction-participation@1",
+      {subject: environment}).authority_mode == "autonomous"
+      && none("phase-1-assurance-correction-decisions-for@1",
+        {replacement: replacement}))
+    || (policy("phase-1-assurance-correction-participation@1",
+      {subject: environment}).authority_mode == "attended"
+      && count("phase-1-assurance-correction-decisions-for@1",
+        {replacement: replacement}) == 1)
+  )
 resolves: [environment-review-correction-required]
 prohibited_inputs: [mutation of failed environment or Review history, borrowed qualification evidence, undeclared environment capability, product requirement acceptance claim]
 batching: single

@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.52.0");
+    expect(result.package.manifest.version).toBe("0.53.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(213);
+    expect(Object.keys(result.package.selectors)).toHaveLength(214);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
@@ -55,8 +55,9 @@ describe("loadProcessPackage", () => {
       "reviewed-gate-rejections-for-candidate": expect.any(Object),
       "matching-cited-gate-rejection-by-correction": expect.any(Object),
       "gate-rejection-corrections-for-subject": expect.any(Object),
+      "phase-1-assurance-correction-decisions-for": expect.any(Object),
     }));
-    expect(Object.keys(result.package.policies)).toHaveLength(10);
+    expect(Object.keys(result.package.policies)).toHaveLength(11);
     expect(Object.keys(result.package.obligations)).toHaveLength(47);
     expect(Object.keys(result.package.scenarios)).toHaveLength(49);
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
@@ -76,19 +77,19 @@ describe("loadProcessPackage", () => {
     expect(result.package.obligations["verification-strategy-review-correction-required"])
       .toEqual(expect.objectContaining({
         resolve_with: expect.objectContaining({
-          scenario: "revise-verification-strategy-after-review@1",
+          scenario: "revise-verification-strategy-after-review@2",
         }),
       }));
     expect(result.package.obligations["environment-review-correction-required"])
       .toEqual(expect.objectContaining({
         resolve_with: expect.objectContaining({
-          scenario: "revise-environment-assurance-after-review@1",
+          scenario: "revise-environment-assurance-after-review@2",
         }),
       }));
     expect(result.package.obligations["pilot-verification-activity-review-correction-required"])
       .toEqual(expect.objectContaining({
         resolve_with: expect.objectContaining({
-          scenario: "revise-pilot-verification-activity-after-review@1",
+          scenario: "revise-pilot-verification-activity-after-review@2",
         }),
       }));
     expect(result.package.obligations["pilot-target-required"])
@@ -100,12 +101,18 @@ describe("loadProcessPackage", () => {
     expect(result.package.scenarios["register-pilot-target"]?.participation)
       .toBeUndefined();
     for (const scenario of [
-      "revise-verification-strategy-after-review@1",
-      "revise-environment-assurance-after-review@1",
-      "revise-pilot-verification-activity-after-review@1",
+      "revise-verification-strategy-after-review",
+      "revise-environment-assurance-after-review",
+      "revise-pilot-verification-activity-after-review",
     ]) {
-      expect(result.package.scenarios[scenario.replace(/@1$/, "")]?.participation)
-        .toBeUndefined();
+      expect(result.package.scenarios[scenario]?.participation).toEqual({
+        policy_ref: "phase-1-assurance-correction-participation@1",
+        arguments: { subject: expect.any(Object) },
+      });
+      expect(result.package.scenarios[scenario]?.authority_evidence).toEqual({
+        output: "decision",
+        type: "DEC",
+      });
     }
     expect(result.diagnostics).toEqual([]);
   });
@@ -134,7 +141,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       malformedPath,
       malformed.replace(
-        /    explanation: The reviewed pilot[^\n]+/,
+        /    explanation: The selected profile[^\n]+/,
         "    explanation: ''",
       ),
     );
@@ -157,8 +164,8 @@ describe("loadProcessPackage", () => {
         "terminal_outcomes:\n  profile_boundary:",
         "terminal_outcomes:\n  lifecycle_complete:\n    condition: 'true'\n    explanation: Everything is complete.\n  profile_boundary:\n",
       ).replace(
-        /    condition: >-[\s\S]*?    explanation: The reviewed pilot/,
-        "    condition: 'true'\n    explanation: The reviewed pilot",
+        /    condition: >-[\s\S]*?    explanation: The selected profile/,
+        "    condition: 'true'\n    explanation: The selected profile",
       ),
     );
 
@@ -321,8 +328,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       manifestPath,
       manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation]",
-        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation]",
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation]",
+        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation]",
       ),
     );
 

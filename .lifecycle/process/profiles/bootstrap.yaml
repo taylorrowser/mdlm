@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 26
+version: 27
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -14,11 +14,26 @@ disabled_capabilities:
 terminal_outcomes:
   profile_boundary:
     condition: >-
-      phase.id == "phase-2-pilot-assessment"
-      && exists("all-pilot-assessments@1", {})
-      && every("all-pilot-assessments@1", {}, assessment =>
-        exists("pilot-expansion-decisions-for@1", {assessment: assessment}))
-    explanation: The reviewed pilot expansion Decision completes the selected Phase 0–2 implementation profile; Phases 3–6 and the capabilities listed as omitted remain outside this supported profile.
+      (
+        phase.id == "phase-1-product-assurance"
+        && (
+          !every("current-phase-1-stakeholder-requirements@1", {}, requirement =>
+            count("verification-strategies-for-requirement@1",
+              {requirement: requirement}) <= 1)
+          || !every("current-phase-1-verification-strategies@1", {}, strategy =>
+            count("environments-for-strategy@1", {strategy: strategy}) <= 1)
+          || !every("requirements-requiring-pilot-target@1", {}, requirement =>
+            count("current-pilot-targets-for-requirement@1",
+              {requirement: requirement}) <= 1)
+        )
+      )
+      || (
+        phase.id == "phase-2-pilot-assessment"
+        && exists("all-pilot-assessments@1", {})
+        && every("all-pilot-assessments@1", {}, assessment =>
+          exists("pilot-expansion-decisions-for@1", {assessment: assessment}))
+      )
+    explanation: The selected profile stops successfully either when Phase 1 contains multiple applicable strategies, environments, or pilot targets that this narrow profile intentionally does not choose between, or when the reviewed pilot expansion Decision completes the Phase 0–2 profile; Phases 3–6 and other omitted broader lifecycle capabilities remain outside the supported boundary.
 success_criteria:
   - every definition conforms to its versioned meta-schema
   - the kernel envelope cannot be weakened by templates or types
@@ -36,7 +51,7 @@ success_criteria:
   - blocking simplification findings derive exact causal member or candidate correction, fresh independent Review, bounded autonomous retries, and attended escalation through one correction interface
   - a reviewed gate rejection derives exact implicated-member or candidate correction, fresh Reviews, a superseding candidate with unaffected evidence preserved, and re-entry to the same gate without implying terminal disposition
   - reviewed approving gate evidence mechanically publishes one exact accepted-intent baseline before declarative entry to Phase 1 without redundant authority
-  - failed Reviews of current VSP, ENV, and pilot VER artifacts derive same-lineage correction without stakeholder attention; corrected ENV assurance includes a fresh exact qualification chain
+  - failed Reviews of current VSP, ENV, and pilot VER artifacts derive exact same-lineage correction with every applicable Review and Finding, fresh context and Review, two autonomous cycles before attended escalation, and a fresh exact qualification chain for corrected ENV assurance
   - every current pilot activity requirement discovers one exact immutable bounded ART registration with a complete controlled public execution interface before implementation
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
   - accepted exact intent derives ASP, ICSP, and one unambiguous DWP planning Obligation before reviewed-plan execution

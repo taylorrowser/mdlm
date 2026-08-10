@@ -62,7 +62,7 @@ async function repositoryWithQuestion(): Promise<{
   return {
     root,
     question,
-    obligation: `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.52.0#${packageDigest}`,
+    obligation: `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.53.0#${packageDigest}`,
   };
 }
 

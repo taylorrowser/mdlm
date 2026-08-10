@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.52 — experimental implementation reference**
+**Bootstrap package 0.53 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -900,7 +900,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.52 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.53 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -953,8 +953,8 @@ stakeholder authority; after two causal replacements, the same interface carries
 explicit exhausted-lineage escalation. A reviewed approving gate mechanically
 derives one frozen `intent-approved` BSL containing exact candidate, candidate
 Review, DEC, and DEC Review evidence before progression. Rejection itself is not a
-stop, deferral, or cancellation Decision. Remaining Phase 1, Phase 2, VAI, and
-pilot-assessment hardening is deferred to issues #96–#100.
+stop, deferral, or cancellation Decision. Failed VAI procedure correction, remaining Phase 2, and pilot-assessment hardening
+are deferred to issues #97–#100.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable
@@ -962,10 +962,17 @@ exact strategy. Generated RUN/RES work follows from the exact qualification VAI.
 Environment Review Context work waits for passing qualification and freezes the
 exact VSP, ENV, qualification VER, RUN, and RES Revisions before independent
 judgment. A failed current VSP, ENV, or pilot VER Review derives a package-owned
-same-lineage correction Scenario rather than a null work queue. Corrections link
-every and only exact failed REV and require fresh exact context and Review. ENV
+same-lineage correction Scenario rather than a null work queue. Corrections carry
+every exact failed REV and Finding applicable to the current Revision and require
+fresh exact context and Review. Two replacement-and-Review cycles are autonomous; continued failure changes
+the same Scenario participation to immediate attended stakeholder authority. ENV
 correction also publishes a new qualification VER/VAI pair atomically; qualification
 RUN/RES evidence from the failed ENV Revision cannot be borrowed by its replacement.
+VSP Review precedes dependent ENV and pilot VER fan-out, and assurance tied to the
+prior exact strategy cannot satisfy a replacement. Multiple applicable
+strategies, environments, or pilot targets reach the narrow profile's declared
+boundary rather than arbitrary selection or Process Dead End; missing or incomplete
+evidence remains ordinary Obligation, Question, or validation work.
 Exact requirement and VSP Revision evidence then derives pilot VER work. The
 presence of current pilot activity work also derives exact ART registration when
 its requirement has no target. That Resolver records one immutable Git commit,

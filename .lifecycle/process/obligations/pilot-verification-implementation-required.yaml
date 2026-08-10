@@ -19,7 +19,7 @@ status_rules:
     when: 'count("pilot-environments-for-activity@1", {activity: activity}) != 1'
     reason: Pilot implementation waits for one unambiguous environment realization from the activity's exact strategy.
     blocked_by:
-      - obligation: environment-assurance-required@1
+      - obligation: environment-assurance-required@2
         subjects: 'select("strategies-for-verification-activity@1", {activity: activity})'
   - status: awaiting-review
     priority: 300

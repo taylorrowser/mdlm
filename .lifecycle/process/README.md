@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.52
+# MDLM bootstrap process package v0.53
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -257,23 +257,29 @@ rejection routes are intentionally deferred to issue #99.
 
 Phase 1 entry Revisions derive `verification-strategy-required@1` work without an
 operator-selected Scenario. VSP retains both the Stable commitment relation and a
-separate exact entry-Revision coverage link, so a newer STK Revision reopens work. Each applicable exact VSP then derives
-`environment-assurance-required@1`, whose Resolver atomically publishes the
-reproducible ENV and its qualification VER/VAI pair. `verification-run-required@1`
+separate exact entry-Revision coverage link, so a newer STK Revision reopens work.
+A fresh VSP must pass independent Review before dependent assurance fans out. Each
+applicable exact passing VSP then derives `environment-assurance-required@2`, whose
+Resolver atomically publishes the reproducible ENV and its qualification VER/VAI
+pair. `verification-run-required@1`
 derives generated RUN/RES execution from exact VAI links; the RES atomically
 records its exact execution ENV, so no post-run link mutation is needed. ENV Review
 Context work remains blocked until a passing environment-capability qualification exists; its
 completion contract freezes the exact ENV and VSP as definitions and the exact
-VER, VAI, RUN, and RES as evidence before independent Review. A current failed
-VSP, ENV, or pilot VER Review derives package-owned same-lineage correction work
-without stakeholder attention. Every replacement links every and only exact failed
-REV through `corrects-review`; ENV correction atomically authors a fresh
-qualification VER/VAI pair, and prior RUN/RES evidence cannot qualify the new ENV
-Revision. Fresh qualification execution, exact context, and independent Review are
-still required.
+VER, VAI, RUN, and RES as evidence before independent Review. A current failed VSP, ENV, or pilot VER Review derives package-owned same-lineage
+correction work carrying every exact failed REV and Finding applicable to the current Revision.
+The first two replacement-and-fresh-Review cycles are autonomous; continued failure
+changes the same Scenario to immediate attended stakeholder authority with exact
+scope DEC evidence. ENV correction atomically authors a fresh qualification VER/VAI
+pair, and prior RUN/RES evidence cannot qualify the new ENV Revision. Fresh
+qualification execution, exact context, and independent Review are still required.
+Multiple applicable strategies, environments, or pilot targets reach this narrow
+profile's declared Profile Boundary rather than arbitrary selection or an
+accidental Process Dead End. Missing or incomplete evidence remains ordinary
+Obligation, Question, or validation work.
 
 Each current entry requirement Revision and applicable VSP Revision then derives
-`pilot-verification-activity-required@1`. The pilot VER preserves both Stable and
+`pilot-verification-activity-required@2`. The pilot VER preserves both Stable and
 exact requirement coverage. Once pilot activity work exists,
 `pilot-target-required@1` records one existing immutable repository commit as a
 bounded ART derived from the exact requirement. Registration records supported and
