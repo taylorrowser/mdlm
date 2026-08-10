@@ -110,7 +110,6 @@ describe("resolveType", () => {
       gate_rejection: {
         findings: [{
           id: "G-001",
-          target: "STK-7K3M9Q2D8F-r00001",
           summary: "The exact draft member remains ambiguous.",
         }],
       },

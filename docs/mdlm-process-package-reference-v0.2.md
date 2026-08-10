@@ -259,14 +259,8 @@ every("selector-id@1", {candidate: candidate},
   member => state(member, "validity") == "valid")
 ```
 
-The universal binding receives either the Selector's declared result kind or the
-item type of a schema-declared or expression-produced finite array; its predicate
-must return Boolean. Array quantification uses the same bounded form:
-
-```text
-every(decision.payload.gate_rejection.findings,
-  finding => finding.target == subject.identity.revision_id)
-```
+The universal binding receives the Selector's declared result kind, and its
+predicate must return Boolean.
 
 Expressions cannot execute arbitrary code, access the filesystem, make network
 requests, mutate data, or invoke undeclared functions.
@@ -936,11 +930,12 @@ history remains inspectable. The tracer
 reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
 the one primary subject Revision; each context may still include supporting parent
 or sibling Revisions. It then freezes and reviews an intent candidate and completes
-one reviewed exact Gate Sign-off. A reviewed rejection records structured exact
-blockers, derives causal same-lineage member correction or candidate-level
-replacement, requires fresh Reviews, preserves unaffected candidate evidence,
-and returns the superseding candidate to the same gate. Rejection itself is not
-a stop, deferral, or cancellation Decision.
+one reviewed exact Gate Sign-off. A reviewed rejection records one canonical exact blocker set in `blocks` links
+plus structured rationale applying to that set. It derives causal same-lineage
+Phase 0 member correction, requires fresh Reviews, preserves unaffected candidate
+evidence, and returns the superseding candidate to the same gate. Rejection itself
+is not a stop, deferral, or cancellation Decision. Remaining Phase 2 rejection
+routes are deferred to issue #99.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable

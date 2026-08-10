@@ -532,8 +532,10 @@ describe("failed STK Review correction through the public operator process", () 
               gate_rejection: {
                 findings: [{
                   id: "G-001",
-                  target: current.revisionId,
                   summary: "The requirement must name supported and malformed command outcomes.",
+                }, {
+                  id: "G-002",
+                  summary: "The verification intent must prove rejection publishes no Lifecycle Data.",
                 }],
               },
               decision: "Reject this exact candidate and correct the implicated requirement.",
@@ -550,7 +552,7 @@ describe("failed STK Review correction through the public operator process", () 
         const mismatchedRejection = structuredClone(rejectionOutput);
         mismatchedRejection.lifecycleDatum.links = [
           { type: "justifies", target: candidate.revisionId },
-          { type: "blocks", target: map.revisionId },
+          { type: "blocks", target: requirement.revisionId },
         ];
         const mismatchRejected = respond(
           packet,
@@ -593,10 +595,16 @@ describe("failed STK Review correction through the public operator process", () 
               payload: expect.objectContaining({
                 rationale: expect.stringMatching(/ambiguous/),
                 gate_rejection: {
-                  findings: [expect.objectContaining({
-                    id: "G-001",
-                    target: current.revisionId,
-                  })],
+                  findings: [
+                    expect.objectContaining({
+                      id: "G-001",
+                      summary: expect.stringMatching(/supported and malformed/),
+                    }),
+                    expect.objectContaining({
+                      id: "G-002",
+                      summary: expect.stringMatching(/publishes no Lifecycle Data/),
+                    }),
+                  ],
                 },
               }),
             }),

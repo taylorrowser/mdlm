@@ -139,10 +139,9 @@ payload_schema:
           items:
             type: object
             additionalProperties: false
-            required: [id, target, summary]
+            required: [id, summary]
             properties:
               id: {type: string, pattern: '^G-[0-9]{3,}$'}
-              target: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
               summary: {type: string, minLength: 1}
     delegation:
       type: object

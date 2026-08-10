@@ -23,10 +23,12 @@ stakeholder to run a command.
 
 Create one `gate-signoff` DEC recording approval or rejection, rationale, and
 scope, with a `justifies` link to the exact frozen candidate BSL revision. For a
-rejection, record every exact blocker as a structured `gate_rejection.findings`
-entry and matching `blocks` link. A blocker may be the candidate itself or, for
-an intent candidate, one of its exact MAP, PSP, or STK members. Capture new
-unresolved questions as QSTs rather than weakening the decision text.
+rejection, record the complete rationale as structured
+`gate_rejection.findings` and record every exact blocker once through a `blocks`
+link. The links are the canonical blocker set; every finding applies to that set.
+A blocker may be the candidate itself or, for an intent candidate, one of its
+exact MAP, PSP, or STK members. Capture new unresolved questions as QSTs rather
+than weakening the decision text.
 
 Never modify the candidate during the gate. Rejection remains immutable
 non-approval history and derives correction; it does not mean stop, defer, or

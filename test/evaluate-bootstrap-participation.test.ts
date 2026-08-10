@@ -584,7 +584,6 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.signoff.datum.payload.gate_rejection = {
       findings: [{
         id: "G-001",
-        target: member.datum.revision_id,
         summary: "The rejected requirement does not define the exported content.",
       }],
     };
@@ -623,55 +622,80 @@ describe("bootstrap Scenario participation Policies", () => {
     );
   });
 
-  it("does not route correction when rejection findings and blocker links disagree", () => {
+  it("routes a candidate-level Phase 0 rejection to causal candidate replacement", () => {
     const fixture = reviewedGateFixture(processRef);
-    const findingTarget = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
-      title: "Finding target",
-      rationale: "The gate finding names this exact draft.",
-      statement: "The product shall export a report.",
-      verification_intent: "Observe an export.",
-      stakeholder: "report author",
-      priority: "must",
+    const map = lifecycleDatum("MAP", "MAP-4K3M9Q2D8F", {
+      title: "Current map",
+      purpose: "Bound the exact intent frontier.",
+      frontier: ["One product commitment"],
     });
-    const linkedBlocker = lifecycleDatum("STK", "STK-4K3M9Q2D8G", {
-      title: "Incorrect linked blocker",
-      rationale: "This draft was not named by the gate finding.",
-      statement: "The product shall retain a report.",
-      verification_intent: "Observe report retention.",
-      stakeholder: "report author",
-      priority: "must",
+    const product = lifecycleDatum("PSP", "PSP-4K3M9Q2D8F", {
+      title: "Current product",
+      rationale: "Define the exact product intent.",
+      problem: "The operator route is ambiguous.",
+      users: ["operator"],
+      goals: ["Deterministic outcomes"],
+      non_goals: ["Implementation detail"],
+      success_measures: ["Exact command results"],
     });
-    fixture.candidate.datum.payload.definition_members = [
-      findingTarget.datum.revision_id,
-      linkedBlocker.datum.revision_id,
+    const requirement = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
+      title: "Current requirement",
+      rationale: "The operator needs an exact outcome.",
+      statement: "MDLM shall report one exact outcome.",
+      verification_intent: "Observe the public command result.",
+      stakeholder: "operator",
+      priority: "must",
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const foundation = [map, product, requirement];
+    fixture.candidate.datum.payload.definition_members = foundation.map(
+      (member) => member.datum.revision_id,
+    );
+    const reviewIds = [
+      "REV-4K3M9Q2D8H",
+      "REV-4K3M9Q2D8J",
+      "REV-4K3M9Q2D8K",
     ];
+    const passingReviews = foundation.map((subject, index) =>
+      lifecycleDatum("REV", reviewIds[index]!, {
+        title: `Passing Review of ${subject.datum.revision_id}`,
+        review_kind: "independent",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      }, {
+        frozen: true,
+        links: [{ type: "reviews", target: subject.datum.revision_id }],
+        scenario: "review-datum-in-context@2",
+      })
+    );
     fixture.signoff.datum.payload.gate_outcome = "reject";
-    fixture.signoff.datum.payload.decision = "Reject the finding target.";
+    fixture.signoff.datum.payload.decision = "Reject and replace the exact candidate.";
     fixture.signoff.datum.payload.gate_rejection = {
       findings: [{
         id: "G-001",
-        target: findingTarget.datum.revision_id,
-        summary: "The finding applies only to the first exact draft.",
+        summary: "The candidate evidence boundary needs correction.",
       }],
     };
     fixture.signoff.datum.links.push({
       type: "blocks",
-      target: linkedBlocker.datum.revision_id,
+      target: fixture.candidate.datum.revision_id,
     });
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [...fixture.records, findingTarget, linkedBlocker],
+      records: [...fixture.records, ...foundation, ...passingReviews],
       dependencyComparisons: [],
     });
 
     expect(evaluation.obligations.find((item) =>
-      item.obligation === "foundation-review-correction-required" &&
-      item.subject === linkedBlocker.datum.revision_id
-    )).not.toEqual(expect.objectContaining({
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
       status: "ready",
       dispatchable: true,
+      actionableResolver: "revise-intent-candidate-after-review@2",
     }));
   });
 
@@ -702,7 +726,6 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.signoff.datum.payload.gate_rejection = {
       findings: [{
         id: "G-001",
-        target: firstMember.datum.revision_id,
         summary: "The first member needs an exact correction.",
       }],
     };
@@ -717,7 +740,6 @@ describe("bootstrap Scenario participation Policies", () => {
     secondRejection.datum.payload.gate_rejection = {
       findings: [{
         id: "G-002",
-        target: secondMember.datum.revision_id,
         summary: "The second member needs an exact correction.",
       }],
     };
@@ -783,41 +805,6 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       status: "blocked",
       dispatchable: false,
-    }));
-  });
-
-  it("routes a reviewed Phase 2 candidate-level rejection without changing its evidence boundary", () => {
-    const fixture = reviewedGateFixture(processRef);
-    fixture.candidate.datum.payload.kind = "level-candidate";
-    fixture.signoff.datum.payload.gate_outcome = "reject";
-    fixture.signoff.datum.payload.decision = "Reject the exact candidate boundary.";
-    fixture.signoff.datum.payload.gate_rejection = {
-      findings: [{
-        id: "G-001",
-        target: fixture.candidate.datum.revision_id,
-        summary: "The candidate-level rationale must state the controlled boundary.",
-      }],
-    };
-    fixture.signoff.datum.links.push({
-      type: "blocks",
-      target: fixture.candidate.datum.revision_id,
-    });
-
-    const evaluation = evaluateLifecycle(processPackage, {
-      processRef,
-      phaseId: "phase-2-system-definition",
-      records: fixture.records,
-      dependencyComparisons: [],
-    });
-
-    expect(evaluation.obligations.find((item) =>
-      item.obligation === "gate-rejection-candidate-revision-required" &&
-      item.subject === fixture.candidate.datum.revision_id
-    )).toEqual(expect.objectContaining({
-      satisfied: false,
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "replace-rejected-candidate@1",
     }));
   });
 

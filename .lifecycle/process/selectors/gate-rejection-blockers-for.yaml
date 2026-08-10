@@ -21,8 +21,6 @@ query:
             {baseline: candidate, subject: blocker})
         )
       )
-      && !every(rejection.payload.gate_rejection.findings, finding =>
-        finding.target != blocker.identity.revision_id)
     )
     || (
       scope == "unexpected"
@@ -35,8 +33,6 @@ query:
               {baseline: candidate, subject: blocker})
           )
         )
-        || every(rejection.payload.gate_rejection.findings, finding =>
-          finding.target != blocker.identity.revision_id)
       )
     )
   distinct: true

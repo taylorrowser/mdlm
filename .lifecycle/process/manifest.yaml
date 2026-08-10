@@ -92,15 +92,12 @@ catalog:
     - failed-intent-candidates
     - failed-gate-signoff-decisions
     - gate-rejection-blockers-for
-    - gate-rejection-blockers-matching-target
     - reviewed-gate-rejections-for-candidate
     - reviewed-gate-rejections-for-subject
     - gate-rejection-blocked-members-for-candidate
     - cited-gate-rejections-by-correction
     - matching-cited-gate-rejection-by-correction
     - gate-rejection-corrections-for-subject
-    - baseline-members
-    - complete-exact-gate-rejection-replacements-for
     - gate-candidates-for-decision
     - other-gate-candidates-for-decision
     - valid-gate-signoff-replacements-for
@@ -257,7 +254,6 @@ catalog:
     - prototype-question-resolution
     - candidate-members-reviewed
     - candidate-gate-signoff
-    - gate-rejection-candidate-revision-required
     - verification-strategy-required
     - environment-assurance-required
     - pilot-verification-activity-required
@@ -308,7 +304,6 @@ catalog:
     - escalate-foundation-review-correction
     - revise-intent-candidate-after-review
     - revise-gate-signoff-after-review
-    - replace-rejected-candidate
     - define-verification-strategy
     - realize-verification-environment
     - write-verification-activity
@@ -359,7 +354,6 @@ assets:
     - prompts/revise-foundation-after-review.md@3
     - prompts/escalate-foundation-review-correction.md@1
     - prompts/revise-intent-candidate-after-review.md@2
-    - prompts/replace-rejected-candidate.md@1
     - prompts/revise-gate-signoff-after-review.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1

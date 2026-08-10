@@ -97,13 +97,13 @@ independent Review, and resumed blocked work through normal reevaluation. Issue
 #93 bounds that package-owned lifecycle loop to two autonomous replacement cycles,
 projects exact attended escalation after continued failure, and routes
 stakeholder-owned intent changes to immediate attention. Issue #94 makes a reviewed
-gate rejection self-correcting: exact rejection blockers select implicated draft
-members, each replacement cites the rejection and receives fresh Review, a
-superseding candidate preserves unaffected evidence, and normal reevaluation
-returns attention to the same gate. Candidate-level Phase 2 rejection follows the
-same superseding-candidate rule without changing its exact evidence boundary.
-Rejection remains immutable non-approval history and never implies stop, defer, or
-cancel. The lifecycle-neutral operator contract exposes package-bound attended
+Phase 0 gate rejection self-correcting: canonical exact `blocks` links select
+implicated draft members, structured findings preserve rationale applying to that
+set, each replacement cites the rejection and receives fresh Review, a superseding
+candidate preserves unaffected evidence, and normal reevaluation returns attention
+to the same gate. Rejection remains immutable non-approval history and never
+implies stop, defer, or cancel. Remaining Phase 2 rejection routes stay deferred
+to issue #99. The lifecycle-neutral operator contract exposes package-bound attended
 inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
 hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).
 
