@@ -112,6 +112,10 @@ interface OperatorOutcomeBase {
   phase: string;
 }
 
+export interface AttentionContext {
+  exactInputs: ScenarioDryRunInvocation[];
+}
+
 export type OperatorOutcome =
   | OperatorOutcomeBase & {
       outcome: "assignment";
@@ -123,6 +127,7 @@ export type OperatorOutcome =
       authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
       attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
       explanation: string;
+      attentionContext: AttentionContext;
       checkpointConversation?: CheckpointConversation;
     }
   | OperatorOutcomeBase & {
@@ -194,6 +199,7 @@ export interface OperatorStatus {
         authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
         attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
         explanation: string;
+        attentionContext: AttentionContext;
         checkpointConversation?: CheckpointConversation;
       }
     | {
@@ -923,6 +929,7 @@ function leasedOutcome(
         authorityRequirement: exact.classification.authorityRequirement,
         attentionSchedule: exact.classification.attentionSchedule,
         explanation: exact.classification.explanation,
+        attentionContext: { exactInputs: exact.dryRun.invocations },
         ...(exact.classification.checkpointConversation
           ? {
               checkpointConversation:
@@ -1090,7 +1097,12 @@ function statusOutcome(
     classification.kind === "lifecycle-complete"
   ) return terminalOutcomeProjection(classification);
   const exact = state.assignment;
-  const assignment = exact && activeLease && sameAssignment(activeLease, exact)
+  if (!exact) {
+    throw new Error(
+      `Runnable Operator Outcome '${classification.kind}' is missing its exact prepared Assignment`,
+    );
+  }
+  const assignment = activeLease && sameAssignment(activeLease, exact)
     ? { allocation: "active" as const, id: activeLease.id }
     : { allocation: "not-allocated" as const };
   return classification.kind === "attention-required"
@@ -1100,6 +1112,7 @@ function statusOutcome(
         authorityRequirement: classification.authorityRequirement,
         attentionSchedule: classification.attentionSchedule,
         explanation: classification.explanation,
+        attentionContext: { exactInputs: exact.dryRun.invocations },
         ...(classification.checkpointConversation
           ? { checkpointConversation: classification.checkpointConversation }
           : {}),

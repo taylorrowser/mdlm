@@ -1,0 +1,15 @@
+kind: selector-definition
+id: correction-revisions-through
+version: 1
+description: Same-lineage replacement Revisions through the supplied Revision that cite immutable failed Review evidence.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {relation: revisions, of: subject, emit: entity}
+  as: correction
+  where: >-
+    correction.identity.revision <= subject.identity.revision
+    && exists("cited-failing-reviews-by-correction@1", {replacement: correction})
+  distinct: true
+  order_by: [identity.revision]

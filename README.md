@@ -84,7 +84,10 @@ node ../dist/mdlm.js baseline diff <old-baseline> <new-baseline>
 
 `mdlm next` emits `mdlm-next@1` JSON. Runnable autonomous or delegated work is
 an `assignment`. Immediate attended work and attended work at an active
-package-declared checkpoint are `attention-required`. Checkpoint attention
+package-declared checkpoint are `attention-required`. Every attended outcome
+includes lifecycle-neutral `attentionContext.exactInputs`, projecting the exact
+package-bound Scenario inputs needed for the conversation; packages retain all
+semantic ownership of those inputs. Checkpoint attention
 contains the complete compatible Consolidation Group, every exact subject and
 its package payload (including the bundled QST `blocking_impact`), and the first
 exact Assignment. The matching Assignment packet declares a freeform,

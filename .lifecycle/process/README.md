@@ -219,14 +219,20 @@ repository. MAP, PSP, and STK are substantive review subjects: their ready Revie
 Context work sorts ahead of blocked Review work. Every context scopes one exact
 primary subject Revision while its definition may include the coherent parent and
 sibling slice; supporting membership does not make another member the primary
-Review subject. Each exact subject receives its own REV. A failed Review creates
-one autonomous correction Assignment for one exact Stable Datum lineage, binding
-every current failed REV and all of its structured Review Findings. The replacement
-advances that lineage and cites every failure through `corrects-review`, followed by
-fresh exact context and independent Review work. The versioned requirement template
-shares `corrects-review` and the distinct `changed-under` contract across STK and SYS
-without kernel type-family semantics. Correction of a DEC still requires stakeholder
-authority. Candidate and Gate Sign-off review remain separate.
+Review subject. Each exact subject receives its own REV. Package Selectors count only immutable,
+`corrects-review`-backed replacement evidence: the initial autonomous failure and
+the first failed replacement each derive one fresh serial correction Assignment,
+followed by fresh exact context and independent Review. A passing Review at either
+cycle resumes blocked work through reevaluation. Failure of the second replacement
+derives immediate attended escalation with the complete exact lineage, Reviews,
+structured Review Findings, and exhaustion reason. A failed REV whose
+`correction_authority` is `stakeholder` escalates immediately without consuming the
+two-cycle autonomous budget. The versioned requirement template shares
+`corrects-review` and the distinct `changed-under` contract across STK and SYS
+without kernel type-family semantics. Assignment malformed-response attempts remain
+ignored operational transport state and never enter lifecycle budget Selectors.
+Correction of a DEC still requires stakeholder authority. Candidate and Gate
+Sign-off review remain separate.
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and
 REV resolve; only an explicit `gate_outcome: approve` can make the package-authored
 gate expression true, while a reviewed rejection remains blocking history.

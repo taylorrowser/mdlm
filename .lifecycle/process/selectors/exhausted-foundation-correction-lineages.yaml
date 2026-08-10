@@ -1,0 +1,16 @@
+kind: selector-definition
+id: exhausted-foundation-correction-lineages
+version: 1
+description: Current failed Phase 0 foundation lineages whose two autonomous replacement cycles are exhausted.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: failed-phase-0-foundation-revisions@1
+    arguments: {}
+  as: subject
+  where: >-
+    none("stakeholder-owned-failing-reviews-for@1", {subject: subject})
+    && count("correction-revisions-through@1", {subject: subject}) >= 2
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

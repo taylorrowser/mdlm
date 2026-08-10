@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-foundation-after-review
-version: 2
-description: Replace one exact failed Phase 0 foundation Revision while citing every current failed Review and preserving immutable history.
+version: 3
+description: Replace one exact failed Phase 0 foundation Revision while autonomous correction budget remains, citing every current failed Review and preserving immutable history.
 phases: [phase-0-wayfinding]
 inputs:
   - name: subject
@@ -10,6 +10,8 @@ inputs:
     identity: revision
     conditions: >-
       exists("failing-reviews-for@1", {subject: subject})
+      && none("stakeholder-owned-failing-reviews-for@1", {subject: subject})
+      && count("correction-revisions-through@1", {subject: subject}) < 2
       && none("newer-revisions-for@1", {subject: subject})
   - name: failed_reviews
     types: [REV]
@@ -22,7 +24,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: corrects-review, target: {input: failed_reviews}}
-prompt_ref: prompts/revise-foundation-after-review.md@2
+prompt_ref: prompts/revise-foundation-after-review.md@3
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

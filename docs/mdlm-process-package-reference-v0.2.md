@@ -915,9 +915,16 @@ Lifecycle Data. A failed current STK foundation Review exposes one subject-bound
 Assignment with every current failed REV and its structured Review Findings. The
 same-lineage replacement must cite those exact Reviews through `corrects-review`;
 normal reevaluation then derives a fresh Review Context and independent Review.
-The versioned requirement template supplies both `corrects-review` and the distinct
-`changed-under` contract to STK and SYS without type-family or multiple-inheritance
-mechanics. Immutable failed Revision and Review history remains inspectable. The tracer
+Package Selectors distinguish the initial failure, first failed replacement, second
+failed replacement, and exhausted lineage from immutable Revisions, Reviews, and
+causal links. Two autonomous replacement-and-Review cycles are permitted. A second
+replacement failure projects immediate attended escalation with exact history;
+`correction_authority: stakeholder` does so immediately without consuming that
+budget. Assignment malformed-response attempts are ignored operational state and
+never enter these Selectors. The versioned requirement template supplies both
+`corrects-review` and the distinct `changed-under` contract to STK and SYS without
+type-family or multiple-inheritance mechanics. Immutable failed Revision and Review
+history remains inspectable. The tracer
 reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
 the one primary subject Revision; each context may still include supporting parent
 or sibling Revisions. It then freezes and reviews an intent candidate and completes

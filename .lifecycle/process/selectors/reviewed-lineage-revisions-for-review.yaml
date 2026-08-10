@@ -1,0 +1,16 @@
+kind: selector-definition
+id: reviewed-lineage-revisions-for-review
+version: 1
+description: Revisions in the supplied current lineage that are exactly judged by one supplied Review.
+parameters:
+  - {name: subject, kind: revision}
+  - {name: review, kind: revision, types: [REV]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: subject, emit: entity}
+  as: reviewed
+  where: >-
+    reviewed.identity.revision <= subject.identity.revision
+    && exists("matching-review-for-subject@1", {subject: reviewed, review: review})
+  distinct: true
+  order_by: [identity.revision]

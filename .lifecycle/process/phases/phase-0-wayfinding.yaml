@@ -32,7 +32,8 @@ scenarios:
   - create-phase-0-intent-candidate@1
   - record-gate-signoff@2
   - record-consequential-decision@1
-  - revise-foundation-after-review@2
+  - revise-foundation-after-review@3
+  - escalate-foundation-review-correction@1
   - revise-intent-candidate-after-review@1
   - revise-gate-signoff-after-review@1
 obligations:
@@ -40,7 +41,8 @@ obligations:
   - product-specification-required@1
   - stakeholder-requirements-required@1
   - intent-candidate-required@1
-  - foundation-review-correction-required@2
+  - foundation-review-correction-required@3
+  - foundation-review-escalation-required@1
   - intent-candidate-review-correction-required@1
   - gate-signoff-review-correction-required@1
   - review-context-required@2

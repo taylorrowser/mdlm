@@ -1,0 +1,15 @@
+kind: selector-definition
+id: failed-reviews-in-lineage-for
+version: 1
+description: Complete exact failed Review history for the supplied Stable Datum lineage through its current Revision.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    review.payload.outcome == "fail"
+    && exists("reviewed-lineage-revisions-for-review@1", {subject: subject, review: review})
+  distinct: true
+  order_by: [identity.revision_id]

@@ -27,10 +27,17 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.50.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(183);
+    expect(Object.keys(result.package.selectors)).toHaveLength(197);
+    expect(result.package.selectors).toEqual(expect.objectContaining({
+      "initial-foundation-review-failures": expect.any(Object),
+      "first-replacement-review-failures": expect.any(Object),
+      "second-replacement-review-failures": expect.any(Object),
+      "exhausted-foundation-correction-lineages": expect.any(Object),
+      "stakeholder-intent-review-failures": expect.any(Object),
+    }));
     expect(Object.keys(result.package.policies)).toHaveLength(9);
-    expect(Object.keys(result.package.obligations)).toHaveLength(44);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(46);
+    expect(Object.keys(result.package.obligations)).toHaveLength(45);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(47);
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
       .toEqual([expect.objectContaining({
         id: "phase-0-gate",
@@ -816,7 +823,7 @@ describe("loadProcessPackage", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "unknown-reference",
-          path: "phases.phase-0-wayfinding.obligations[7]",
+          path: "phases.phase-0-wayfinding.obligations[8]",
           message: "Unknown Obligation reference 'missing-obligation@2'",
         }),
       ]),

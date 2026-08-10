@@ -1,0 +1,15 @@
+kind: selector-definition
+id: stakeholder-owned-failing-reviews-for
+version: 1
+description: Current failed Reviews that state correction would change stakeholder-owned intent.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from:
+    selector: failing-reviews-for@1
+    arguments: {subject: subject}
+  as: review
+  where: 'review.payload.correction_authority == "stakeholder"'
+  distinct: true
+  order_by: [identity.revision_id]

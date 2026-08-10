@@ -1,0 +1,56 @@
+kind: scenario-definition
+id: escalate-foundation-review-correction
+version: 1
+description: Present one exact failed correction lineage for stakeholder judgment and publish an attended same-lineage replacement with durable scope authority.
+phases: [phase-0-wayfinding]
+inputs:
+  - name: subject
+    types: [MAP, PSP, STK]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      (exists("stakeholder-owned-failing-reviews-for@1", {subject: subject})
+      || count("correction-revisions-through@1", {subject: subject}) >= 2)
+      && exists("failing-reviews-for@1", {subject: subject})
+      && none("newer-revisions-for@1", {subject: subject})
+  - name: lineage
+    types: [MAP, PSP, STK]
+    cardinality: one-or-more
+    identity: revision
+    conditions: >-
+      lineage.identity.id == subject.identity.id
+      && lineage.identity.revision <= subject.identity.revision
+  - name: failed_reviews
+    types: [REV]
+    cardinality: one-or-more
+    identity: revision
+    conditions: >-
+      failed_reviews.payload.outcome == "fail"
+      && exists("reviewed-lineage-revisions-for-review@1",
+        {subject: subject, review: failed_reviews})
+outputs:
+  - name: replacement
+    types: [MAP, PSP, STK]
+    cardinality: one
+    required_links:
+      - {link: corrects-review, target: {input: failed_reviews}}
+  - name: decision
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {output: replacement}}
+prompt_ref: prompts/escalate-foundation-review-correction.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: consequential-decision-participation@1
+  arguments: {subject: subject}
+authority_evidence: {output: decision, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == subject.identity.id
+  && replacement.identity.type == subject.identity.type
+  && decision.payload.kind == "scope"
+  && decision.payload.effective_scope == replacement.identity.revision_id
+resolves: [foundation-review-escalation-required]
+prohibited_inputs: [mutation of immutable lineage history, suppression of failed Reviews, autonomous changes to stakeholder-owned intent, unrelated scope expansion]
+batching: single
