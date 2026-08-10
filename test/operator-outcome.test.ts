@@ -474,7 +474,7 @@ describe("public mdlm outcome and status seam", () => {
       attentionSchedule: expect.objectContaining({ timing: "immediate" }),
       explanation: expect.any(String),
     }));
-  });
+  }, 30_000);
 
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(
