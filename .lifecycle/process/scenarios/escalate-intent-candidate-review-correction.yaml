@@ -1,0 +1,40 @@
+kind: scenario-definition
+id: escalate-intent-candidate-review-correction
+version: 1
+description: Publish an attended causal candidate replacement and exact scope Decision after autonomous Review correction exhausts.
+phases: [phase-0-wayfinding]
+inputs:
+  - {name: candidate, types: [BSL], cardinality: one, identity: revision}
+  - {name: definition_members, types: [MAP, PSP, STK], cardinality: one-or-more, identity: revision}
+  - {name: prior_failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+  - {name: gate_rejections, types: [DEC], cardinality: zero-or-more, identity: revision}
+outputs:
+  - name: replacement
+    types: [BSL]
+    cardinality: one
+    required_links:
+      - {link: supersedes, target: {input: candidate}}
+      - {link: corrects-review, target: {input: prior_failed_reviews}}
+      - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: corrects-gate-rejection, target: {input: gate_rejections}}
+  - name: decision
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {output: replacement}}
+prompt_ref: prompts/escalate-intent-candidate-review-correction.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: consequential-decision-participation@1
+  arguments: {subject: candidate}
+authority_evidence: {output: decision, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == candidate.identity.id
+  && exists("complete-superseding-intent-candidates-for@1", {candidate: candidate})
+  && decision.payload.kind == "scope"
+  && decision.payload.effective_scope == replacement.identity.revision_id
+resolves: [intent-candidate-review-escalation-required]
+prohibited_inputs: [mutation of failed candidate or Reviews, omission of unaffected evidence, inferred approval or terminal disposition]
+batching: single

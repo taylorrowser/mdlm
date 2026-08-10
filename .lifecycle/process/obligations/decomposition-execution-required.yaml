@@ -12,7 +12,7 @@ status_rules:
     when: 'exists("blocking-questions-for-decomposition@1", {plan: plan})'
     reason: An exact open question blocks decomposition execution.
     blocked_by:
-      - obligation: open-question-resolution@2
+      - obligation: open-question-resolution@3
         subjects: 'select("blocking-questions-for-decomposition@1", {plan: plan})'
       - obligation: prototype-question-resolution@1
         subjects: 'select("blocking-questions-for-decomposition@1", {plan: plan})'

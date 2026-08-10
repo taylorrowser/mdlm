@@ -1,0 +1,21 @@
+kind: selector-definition
+id: phase-0-product-simplification-contexts
+version: 1
+description: Current frozen Review Contexts containing every and only the exact reviewed Phase 0 foundation Revisions.
+parameters: []
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: context
+  where: >-
+    context.payload.kind == "review-context"
+    && context.payload.role == "review-context"
+    && context.payload.scope == "phase-0-wayfinding@4"
+    && context.storage.frozen == true
+    && state(context, "validity") == "valid"
+    && every("phase-0-foundation-members@1", {}, member =>
+      exists("candidate-members-matching@1",
+        {candidate: context, required_member: member}))
+    && none("non-phase-0-foundation-members-for@1", {candidate: context})
+  distinct: true
+  order_by: [identity.revision_id]

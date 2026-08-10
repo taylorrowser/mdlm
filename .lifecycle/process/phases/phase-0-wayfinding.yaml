@@ -1,13 +1,12 @@
 kind: phase-definition
 id: phase-0-wayfinding
-version: 3
+version: 4
 order: 0
 name: Wayfinding bootstrap
 purpose: Establish reviewed, scope-challenged product intent and stakeholder commitments for explicit user approval.
 coverage: bootstrap-subset
 omitted_capabilities:
   - VSP and environment profiles
-  - dedicated simplification REV over the complete candidate
 entry: 'process.integrity.package_valid == true'
 attention_checkpoints:
   - id: phase-0-gate
@@ -28,29 +27,43 @@ scenarios:
   - create-review-context@1
   - review-datum-in-context@2
   - resolve-question@2
+  - revise-question-decision-after-review@1
+  - escalate-question-decision-review-correction@1
   - resolve-question-with-prototype@2
-  - create-phase-0-intent-candidate@1
+  - prepare-product-simplification-context@1
+  - simplify-product-definition@1
+  - create-phase-0-intent-candidate@2
   - record-gate-signoff@3
   - record-consequential-decision@1
-  - revise-foundation-after-review@4
-  - escalate-foundation-review-correction@1
-  - revise-intent-candidate-after-review@2
-  - revise-gate-signoff-after-review@1
+  - revise-foundation-after-review@5
+  - escalate-foundation-review-correction@2
+  - revise-intent-candidate-after-review@3
+  - revise-gate-signoff-after-review@2
+  - escalate-intent-candidate-review-correction@1
+  - escalate-gate-signoff-review-correction@1
+  - accept-phase-0-intent@1
 obligations:
   - initial-wayfinding-map-required@1
   - product-specification-required@1
   - stakeholder-requirements-required@1
-  - intent-candidate-required@2
-  - foundation-review-correction-required@4
-  - foundation-review-escalation-required@1
-  - intent-candidate-review-correction-required@2
-  - gate-signoff-review-correction-required@1
+  - product-simplification-context-required@1
+  - product-simplification-required@1
+  - intent-candidate-required@3
+  - foundation-review-correction-required@5
+  - foundation-review-escalation-required@2
+  - intent-candidate-review-correction-required@3
+  - intent-candidate-review-escalation-required@1
+  - gate-signoff-review-correction-required@2
+  - gate-signoff-review-escalation-required@1
   - review-context-required@2
   - passing-review-required@2
-  - open-question-resolution@2
+  - open-question-resolution@3
+  - question-decision-review-correction-required@1
+  - question-decision-review-escalation-required@1
   - prototype-question-resolution@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@3
+  - intent-approval-required@1
 outputs: [MAP, QST, DEC, ART, PSP, STK, REV, BSL]
 progression:
   next_phase: phase-1-product-assurance
@@ -62,12 +75,16 @@ progression:
         && exists("passing-reviews-for@1", {subject: candidate})
         && none("failing-reviews-for@1", {subject: candidate}))
     && none("open-blocking-questions@1", {})
+    && every("signed-off-candidates-of-kind@1",
+      {baseline_kind: "intent-level-candidate"}, candidate =>
+        exists("phase-0-intent-approvals-for@1", {candidate: candidate}))
   authorization:
     condition: >-
       exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})
       && every("candidate-baselines-of-kind@1",
         {baseline_kind: "intent-level-candidate"}, candidate =>
-          exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+          exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+          && exists("phase-0-intent-approvals-for@1", {candidate: candidate}))
     policy_ref: phase-progression-participation@1
     arguments: {phase: phase}
     scenario: record-gate-signoff@3

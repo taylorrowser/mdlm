@@ -12,9 +12,9 @@ status_rules:
     when: 'exists("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})'
     reason: The reviewed rejection remains immutable blocking history while exact correction and a superseding candidate return to this same gate.
     blocked_by:
-      - obligation: foundation-review-correction-required@4
+      - obligation: foundation-review-correction-required@5
         subjects: 'select("gate-rejection-blocked-members-for-candidate@1", {candidate: candidate})'
-      - obligation: intent-candidate-review-correction-required@2
+      - obligation: intent-candidate-review-correction-required@3
         subjects: '[candidate]'
   - status: blocked
     priority: 300
@@ -38,7 +38,7 @@ status_rules:
         subjects: '[candidate]'
       - obligation: passing-review-required@2
         subjects: '[candidate]'
-      - obligation: open-question-resolution@2
+      - obligation: open-question-resolution@3
         subjects: 'select("open-blocking-questions@1", {})'
       - obligation: prototype-question-resolution@1
         subjects: 'select("open-blocking-questions@1", {})'

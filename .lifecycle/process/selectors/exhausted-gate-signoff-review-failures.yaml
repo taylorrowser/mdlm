@@ -1,0 +1,16 @@
+kind: selector-definition
+id: exhausted-gate-signoff-review-failures
+version: 1
+description: Current failed Phase 0 gate Decisions whose two attended causal replacement cycles are exhausted.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: failed-gate-signoff-decisions@1
+    arguments: {}
+  as: decision
+  where: >-
+    count("review-correction-history-for@1",
+      {subject: decision, view: "corrections"}) >= 2
+  distinct: true
+  order_by: [identity.id, identity.revision]

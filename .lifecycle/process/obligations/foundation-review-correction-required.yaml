@@ -1,6 +1,6 @@
 kind: obligation-definition
 id: foundation-review-correction-required
-version: 4
+version: 5
 description: A current Phase 0 foundation Revision blocked by Review or gate rejection evidence receives a causal same-lineage replacement while its Review-correction budget remains.
 phases: [phase-0-wayfinding]
 for_each: 'select("foundation-review-failures-at-stage@1", {stage: "autonomous"})'
@@ -13,10 +13,11 @@ status_rules:
     reason: The exact blocking Review or gate rejection evidence requires a corrected replacement Revision.
 default_status: ready
 resolve_with:
-  scenario: revise-foundation-after-review@4
+  scenario: revise-foundation-after-review@5
   inputs:
     subject: subject
     prior_failed_reviews: 'select("cited-failing-reviews-by-correction@1", {replacement: subject})'
     failed_reviews: 'select("failing-reviews-for@1", {subject: subject})'
+    simplification_reviews: 'select("blocking-product-simplification-reviews-for@1", {subject: subject})'
     gate_rejections: 'select("reviewed-gate-rejections-for-subject@1", {subject: subject})'
 waiver_policy_ref: waiver-applicability@1

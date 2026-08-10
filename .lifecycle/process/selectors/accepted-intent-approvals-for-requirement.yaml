@@ -1,0 +1,17 @@
+kind: selector-definition
+id: accepted-intent-approvals-for-requirement
+version: 1
+description: Current exact accepted Phase 0 intent baselines containing one stakeholder requirement Revision.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: baseline
+query:
+  from: {relation: baseline-memberships, of: requirement, emit: entity, types: [BSL]}
+  as: accepted
+  where: >-
+    accepted.payload.kind == "intent-approved"
+    && accepted.payload.role == "accepted"
+    && accepted.storage.frozen == true
+    && state(accepted, "validity") == "valid"
+  distinct: true
+  order_by: [identity.revision_id]

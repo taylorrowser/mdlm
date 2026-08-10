@@ -1,0 +1,17 @@
+kind: selector-definition
+id: product-simplification-reviews-for
+version: 1
+description: Exact product-definition simplification Reviews of one current Phase 0 context, selected by outcome.
+parameters:
+  - {name: subject_context, kind: baseline, types: [BSL]}
+  - {name: outcome, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: subject_context, link: reviews, emit: source, types: [REV]}
+  as: review
+  where: >-
+    review.payload.review_kind == "simplification-product-definition"
+    && review.payload.outcome == outcome
+    && state(review, "validity") == "valid"
+  distinct: true
+  order_by: [identity.revision_id]

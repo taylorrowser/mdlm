@@ -34,7 +34,7 @@ obligations:
   - pilot-verification-implementation-required@1
   - review-context-required@2
   - passing-review-required@2
-  - open-question-resolution@2
+  - open-question-resolution@3
   - prototype-question-resolution@1
   - verification-run-required@1
   - verification-strategy-review-correction-required@1

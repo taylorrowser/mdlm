@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: revise-intent-candidate-after-review
-version: 2
+version: 3
 description: Rebuild one failed or reviewed-rejected Phase 0 intent candidate from exact reviewed members while preserving immutable evidence.
 phases: [phase-0-wayfinding]
 inputs:
@@ -8,19 +8,18 @@ inputs:
     types: [BSL]
     cardinality: one
     identity: revision
-    conditions: >-
-      candidate.payload.kind == "intent-level-candidate"
-      && (
-        exists("failing-reviews-for@1", {subject: candidate})
-        || exists("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
-      )
   - name: definition_members
     types: [MAP, PSP, STK]
     cardinality: one-or-more
     identity: revision
-    conditions: >-
-      exists("passing-reviews-for@1", {subject: definition_members})
-      && none("failing-reviews-for@1", {subject: definition_members})
+  - name: prior_failed_reviews
+    types: [REV]
+    cardinality: zero-or-more
+    identity: revision
+  - name: failed_reviews
+    types: [REV]
+    cardinality: zero-or-more
+    identity: revision
   - name: gate_rejections
     types: [DEC]
     cardinality: zero-or-more
@@ -31,8 +30,10 @@ outputs:
     cardinality: one
     required_links:
       - {link: supersedes, target: {input: candidate}}
+      - {link: corrects-review, target: {input: prior_failed_reviews}}
+      - {link: corrects-review, target: {input: failed_reviews}}
       - {link: corrects-gate-rejection, target: {input: gate_rejections}}
-prompt_ref: prompts/revise-intent-candidate-after-review.md@2
+prompt_ref: prompts/revise-intent-candidate-after-review.md@3
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

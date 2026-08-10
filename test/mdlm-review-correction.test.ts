@@ -200,6 +200,65 @@ describe("failed STK Review correction through the public operator process", () 
         },
       }], ["independent-reviewer"]);
     };
+    const publishProductSimplification = () => {
+      let simplificationPacket = nextPacket();
+      expect(simplificationPacket.scenario.reference)
+        .toBe("prepare-product-simplification-context@1");
+      const members = exactInput(simplificationPacket, "definition_members").values
+        .map((value: any) => value.identity.revision_id) as string[];
+      const contextExecution = publish(simplificationPacket, [{
+        localId: "product-simplification-context",
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Phase 0 product simplification context",
+            kind: "review-context",
+            role: "review-context",
+            scope: "phase-0-wayfinding@4",
+            group: "DEFAULT",
+            definition_members: members,
+            evidence: [],
+          },
+          links: [],
+          body: "The earliest complete product-purpose, stakeholder-intent, and scope set.\n",
+        },
+      }]);
+      const context = contextExecution.outputs[0].lifecycleDatum as {
+        revisionId: string;
+      };
+
+      simplificationPacket = nextPacket();
+      expect(simplificationPacket.scenario.reference)
+        .toBe("simplify-product-definition@1");
+      expect(exactInput(simplificationPacket, "subject_context").values[0]
+        .identity.revision_id).toBe(context.revisionId);
+      const reviewExecution = publish(simplificationPacket, [{
+        localId: "product-simplification-review",
+        name: "review",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "REV",
+          payload: {
+            title: "Passing Phase 0 product simplification Review",
+            review_kind: "simplification-product-definition",
+            rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+            findings: [],
+            outcome: "pass",
+          },
+          links: [
+            { type: "reviews", target: context.revisionId },
+            { type: "contextualizes", target: context.revisionId },
+          ],
+          body: "The smallest sufficient product intent remains after challenge.\n",
+        },
+      }], ["independent-reviewer"]);
+      const review = reviewExecution.outputs[0].lifecycleDatum as {
+        revisionId: string;
+      };
+      return { members, review };
+    };
 
     let packet = nextPacket();
     expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@1");
@@ -337,7 +396,7 @@ describe("failed STK Review correction through the public operator process", () 
       ]));
       const escalationPacket = prepare(outcome);
       expect(escalationPacket.scenario.reference)
-        .toBe("escalate-foundation-review-correction@1");
+        .toBe("escalate-foundation-review-correction@2");
       return escalationPacket;
     };
 
@@ -367,9 +426,9 @@ describe("failed STK Review correction through the public operator process", () 
       expect(correctionOutcome.outcome).toBe("assignment");
       packet = prepare(correctionOutcome);
       correctionAssignments.add(packet.assignment.id);
-      expect(packet.scenario.reference).toBe("revise-foundation-after-review@4");
+      expect(packet.scenario.reference).toBe("revise-foundation-after-review@5");
       expect(packet.obligation).toEqual(expect.objectContaining({
-        definition: "foundation-review-correction-required@4",
+        definition: "foundation-review-correction-required@5",
         subject: current.revisionId,
       }));
       const correctionSubject = exactInput(packet, "subject");
@@ -472,8 +531,12 @@ describe("failed STK Review correction through the public operator process", () 
       ]);
       const reviewExecution = publishReview(packet, reviewOutcome);
       if (reviewOutcome === "pass") {
+        const simplification = publishProductSimplification();
         packet = nextPacket();
-        expect(packet.scenario.reference).toBe("create-phase-0-intent-candidate@1");
+        expect(packet.scenario.reference).toBe("create-phase-0-intent-candidate@2");
+        expect(exactInput(packet, "simplification_reviews").values.map(
+          (value: any) => value.identity.revision_id,
+        )).toEqual([simplification.review.revisionId]);
         if (!gateRejection) return;
 
         const candidateMembers = exactInput(packet, "definition_members").values
@@ -492,10 +555,10 @@ describe("failed STK Review correction through the public operator process", () 
               scope: "Phase 0 typed command intent",
               group: "DEFAULT",
               definition_members: candidateMembers,
-              evidence: preservedCandidateEvidence,
+              evidence: [...preservedCandidateEvidence, simplification.review.revisionId],
             },
             links: [],
-            body: "The exact reviewed Phase 0 foundation and unaffected evidence.\n",
+            body: "The exact reviewed and simplified Phase 0 foundation with unaffected evidence.\n",
           },
         }]);
         const candidate = candidateExecution.outputs[0].lifecycleDatum as {
@@ -581,9 +644,9 @@ describe("failed STK Review correction through the public operator process", () 
 
         packet = nextPacket();
         expect(packet.scenario.reference)
-          .toBe("revise-foundation-after-review@4");
+          .toBe("revise-foundation-after-review@5");
         expect(packet.obligation).toEqual(expect.objectContaining({
-          definition: "foundation-review-correction-required@4",
+          definition: "foundation-review-correction-required@5",
           subject: current.revisionId,
         }));
         const priorCorrectionReviews = exactInput(packet, "prior_failed_reviews")
@@ -648,7 +711,7 @@ describe("failed STK Review correction through the public operator process", () 
           .outputs[0].lifecycleDatum as { revisionId: string };
 
         packet = nextPacket();
-        expect(packet.scenario.reference).toBe("revise-foundation-after-review@4");
+        expect(packet.scenario.reference).toBe("revise-foundation-after-review@5");
         expect(exactInput(packet, "failed_reviews").values.map(
           (value: any) => value.identity.revision_id,
         )).toEqual([gateCorrectionFailure.revisionId]);
@@ -690,8 +753,9 @@ describe("failed STK Review correction through the public operator process", () 
         packet = nextPacket();
         publishReview(packet, "pass");
 
+        const renewedSimplification = publishProductSimplification();
         packet = nextPacket();
-        expect(packet.scenario.reference).toBe("revise-intent-candidate-after-review@2");
+        expect(packet.scenario.reference).toBe("revise-intent-candidate-after-review@3");
         expect(exactInput(packet, "candidate").values[0].identity.revision_id)
           .toBe(candidate.revisionId);
         expect(exactInput(packet, "gate_rejections").values[0].identity.revision_id)
@@ -713,7 +777,11 @@ describe("failed STK Review correction through the public operator process", () 
               scope: "Phase 0 typed command intent",
               group: "DEFAULT",
               definition_members: replacementMembers,
-              evidence: preservedCandidateEvidence,
+              evidence: [
+                ...preservedCandidateEvidence,
+                simplification.review.revisionId,
+                renewedSimplification.review.revisionId,
+              ],
             },
             links: [
               { type: "supersedes", target: candidate.revisionId },
@@ -743,7 +811,7 @@ describe("failed STK Review correction through the public operator process", () 
         const returnedGate = nextOutcome();
         expect(returnedGate).toEqual(expect.objectContaining({
           outcome: "attention-required",
-          phase: "phase-0-wayfinding@3",
+          phase: "phase-0-wayfinding@4",
         }));
         packet = prepare(returnedGate);
         expect(packet.scenario.reference).toBe("record-gate-signoff@3");
@@ -774,6 +842,41 @@ describe("failed STK Review correction through the public operator process", () 
         publishContext(packet);
         packet = nextPacket();
         publishReview(packet, "pass");
+
+        const promotionPacket = nextPacket();
+        expect(promotionPacket.scenario.reference).toBe("accept-phase-0-intent@1");
+        expect(exactInput(promotionPacket, "candidate").values[0].identity.revision_id)
+          .toBe(replacementCandidate.revisionId);
+        const acceptedExecution = publish(promotionPacket, [{
+          localId: "accepted-intent",
+          name: "accepted_intent",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Accepted corrected command intent",
+              kind: "intent-approved",
+              role: "accepted",
+              scope: "Phase 0 typed command intent",
+              group: "DEFAULT",
+              definition_members: exactInput(promotionPacket, "definition_members").values
+                .map((value: any) => value.identity.revision_id),
+              evidence: [
+                ...exactInput(promotionPacket, "candidate_reviews").values,
+                ...exactInput(promotionPacket, "gate_signoffs").values,
+                ...exactInput(promotionPacket, "signoff_reviews").values,
+              ].map((value: any) => value.identity.revision_id),
+            },
+            links: [{ type: "promotes", target: replacementCandidate.revisionId }],
+            body: "The reviewed approving gate evidence accepts this exact intent.\n",
+          },
+        }]);
+        const accepted = acceptedExecution.outputs[0].lifecycleDatum as {
+          revisionId: string;
+        };
+        expect(JSON.parse(
+          invokeMdlm(repository, ["show", accepted.revisionId, "--json"]).stdout,
+        ).lifecycleDatum.datum.payload.role).toBe("accepted");
 
         const resumed = nextOutcome();
         expect(resumed.outcome).toBe("assignment");

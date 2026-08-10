@@ -13,7 +13,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.51.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.52.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -142,17 +142,31 @@ describe("bootstrap Scenario participation Policies", () => {
         output: "decision",
         type: "DEC",
       },
+      "escalate-gate-signoff-review-correction": {
+        output: "replacement",
+        type: "DEC",
+      },
+      "escalate-intent-candidate-review-correction": {
+        output: "decision",
+        type: "DEC",
+      },
+      "escalate-question-decision-review-correction": {
+        output: "replacement",
+        type: "DEC",
+      },
       "implement-verification-activity": { output: "authorization", type: "DEC" },
       "record-consequential-decision": { output: "decision", type: "DEC" },
       "record-gate-signoff": { output: "decision", type: "DEC" },
       "resolve-question": { output: "decision", type: "DEC" },
       "resolve-question-with-prototype": { output: "finding", type: "DEC" },
       "review-datum-in-context": { output: "review", type: "REV" },
+      "revise-question-decision-after-review": { output: "replacement", type: "DEC" },
       "revise-gate-signoff-after-review": {
         output: "replacement",
         type: "DEC",
       },
       "simplify-architecture-and-interfaces": { output: "review", type: "REV" },
+      "simplify-product-definition": { output: "review", type: "REV" },
       "simplify-requirement-set": { output: "review", type: "REV" },
     });
   });
@@ -606,7 +620,7 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@4",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
     expect(evaluation.obligations.find((item) =>
       item.obligation === "candidate-gate-signoff" &&
@@ -615,11 +629,113 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "revise-foundation-after-review@4",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
     expect(evaluation.phase?.gate.evaluations[0]).toEqual(
       expect.objectContaining({ complete: false }),
     );
+  });
+
+  it("routes blocking product simplification findings to exact foundation correction", () => {
+    const map = lifecycleDatum("MAP", "MAP-7K3M9Q2D8F", {
+      title: "Small product frontier",
+      purpose: "Retain only necessary product intent.",
+      frontier: ["Challenge one stakeholder commitment"],
+    });
+    const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Small product",
+      rationale: "One user outcome is sufficient.",
+      problem: "The current outcome is not portable.",
+      users: ["operator"],
+      goals: ["Export one outcome"],
+      non_goals: ["General integration platform"],
+      success_measures: ["One outcome exports"],
+    });
+    const requirement = lifecycleDatum("STK", "STK-7K3M9Q2D8F", {
+      title: "Overbroad export",
+      rationale: "The initial commitment retains unnecessary scope.",
+      statement: "The product shall export every internal representation.",
+      verification_intent: "Observe all internal representations.",
+      stakeholder: "operator",
+      priority: "must",
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const foundation = [map, product, requirement];
+    const reviews = foundation.map((subject, index) => lifecycleDatum(
+      "REV",
+      `REV-7K3M9Q2D8${["F", "G", "H"][index]}`,
+      {
+        title: `Passing Review of ${subject.datum.revision_id}`,
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        frozen: true,
+        links: [{ type: "reviews", target: subject.datum.revision_id }],
+        scenario: "review-datum-in-context@2",
+      },
+    ));
+    const context = lifecycleDatum("BSL", "BSL-7K3M9Q2D8F", {
+      title: "Exact product simplification context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "phase-0-wayfinding@4",
+      group: "DEFAULT",
+      definition_members: foundation.map((subject) => subject.datum.revision_id),
+      evidence: [],
+    }, { frozen: true, scenario: "prepare-product-simplification-context@1" });
+    const failedSimplification = lifecycleDatum("REV", "REV-7K3M9Q2D8J", {
+      title: "Failed product simplification Review",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{
+        id: "F-001",
+        target: requirement.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "The commitment retains unnecessary internal scope.",
+      }],
+      outcome: "fail",
+    }, {
+      frozen: true,
+      links: [
+        { type: "reviews", target: context.datum.revision_id },
+        { type: "contextualizes", target: context.datum.revision_id },
+        { type: "blocks", target: requirement.datum.revision_id },
+      ],
+      scenario: "simplify-product-definition@1",
+    });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [...foundation, ...reviews, context, failedSimplification],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "product-simplification-required"
+    )).toEqual(expect.objectContaining({
+      status: "failed",
+      dispatchable: false,
+      actionableResolver: "revise-foundation-after-review@5",
+    }));
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === requirement.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-foundation-after-review@5",
+    }));
+    expect(evaluation.obligations.some((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      [map.datum.revision_id, product.datum.revision_id].includes(item.subject)
+    )).toBe(false);
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "intent-candidate-required"
+    )).toEqual(expect.objectContaining({ status: "blocked", dispatchable: false }));
   });
 
   it("routes a candidate-level Phase 0 rejection to causal candidate replacement", () => {
@@ -668,6 +784,30 @@ describe("bootstrap Scenario participation Policies", () => {
         scenario: "review-datum-in-context@2",
       })
     );
+    const simplificationContext = lifecycleDatum("BSL", "BSL-4K3M9Q2D8M", {
+      title: "Exact Phase 0 product simplification context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "phase-0-wayfinding@4",
+      group: "DEFAULT",
+      definition_members: foundation.map((member) => member.datum.revision_id),
+      evidence: [],
+    }, { frozen: true });
+    const simplificationReview = lifecycleDatum("REV", "REV-4K3M9Q2D8M", {
+      title: "Passing product simplification Review",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      links: [
+        { type: "reviews", target: simplificationContext.datum.revision_id },
+        { type: "contextualizes", target: simplificationContext.datum.revision_id },
+      ],
+      scenario: "simplify-product-definition@1",
+    });
+    fixture.candidate.datum.payload.evidence = [simplificationReview.datum.revision_id];
     fixture.signoff.datum.payload.gate_outcome = "reject";
     fixture.signoff.datum.payload.decision = "Reject and replace the exact candidate.";
     fixture.signoff.datum.payload.gate_rejection = {
@@ -684,7 +824,13 @@ describe("bootstrap Scenario participation Policies", () => {
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [...fixture.records, ...foundation, ...passingReviews],
+      records: [
+        ...fixture.records,
+        ...foundation,
+        ...passingReviews,
+        simplificationContext,
+        simplificationReview,
+      ],
       dependencyComparisons: [],
     });
 
@@ -695,7 +841,51 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-intent-candidate-after-review@2",
+      actionableResolver: "revise-intent-candidate-after-review@3",
+    }));
+  });
+
+  it("routes a failed gate Decision Review to causal attended correction", () => {
+    const fixture = reviewedGateFixture(processRef);
+    fixture.signoffReview.datum.payload.outcome = "fail";
+    fixture.signoffReview.datum.payload.findings = [{
+      id: "F-001",
+      target: fixture.signoff.datum.revision_id,
+      relationship: "primary",
+      severity: "blocking",
+      summary: "The gate rationale does not distinguish approval from rejection.",
+    }];
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: fixture.records,
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "gate-signoff-review-correction-required" &&
+      item.subject === fixture.signoff.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-gate-signoff-after-review@2",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        }),
+        attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+      })],
+    }));
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "candidate-gate-signoff" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: null,
     }));
   });
 

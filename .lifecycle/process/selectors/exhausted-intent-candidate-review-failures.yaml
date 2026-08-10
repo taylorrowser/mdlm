@@ -1,0 +1,17 @@
+kind: selector-definition
+id: exhausted-intent-candidate-review-failures
+version: 1
+description: Current failed Phase 0 intent candidates whose two autonomous causal replacement cycles are exhausted.
+parameters: []
+result_kind: baseline
+query:
+  from:
+    selector: failed-intent-candidates@1
+    arguments: {}
+  as: candidate
+  where: >-
+    exists("failing-reviews-for@1", {subject: candidate})
+    && count("review-correction-history-for@1",
+      {subject: candidate, view: "corrections"}) >= 2
+  distinct: true
+  order_by: [identity.id, identity.revision]

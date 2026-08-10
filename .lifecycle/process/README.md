@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.51
+# MDLM bootstrap process package v0.52
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -213,9 +213,10 @@ no piecemeal baseline commands or borrowed Review Context provenance are needed.
 A prototype declaration then routes its exact frozen Revision to
 `resolve-question-with-prototype@2`, which atomically publishes ART, DEC, and the
 satisfying QST Revision; other empirical questions retain the generic resolver.
-Package-owned Obligations now discover the required MAP, PSP, STK set,
-Review Contexts, Reviews, and exact intent candidate from an empty initialized
-repository. MAP, PSP, and STK are substantive review subjects: their ready Review
+Package-owned Obligations now discover the required MAP, PSP, and smallest
+sufficient STK set, ordinary Review Contexts and Reviews, the earliest complete
+frozen product-definition context, its independent simplification Review, and the
+exact intent candidate from an empty initialized repository. MAP, PSP, and STK are substantive review subjects: their ready Review
 Context work sorts ahead of blocked Review work. Every context scopes one exact
 primary subject Revision while its definition may include the coherent parent and
 sibling slice; supporting membership does not make another member the primary
@@ -226,10 +227,15 @@ evidence. Two fresh serial correction-and-Review cycles are autonomous; continue
 failure or `correction_authority: stakeholder` derives immediate attended
 escalation with the exact lineage, Reviews, findings, and reason. Assignment
 malformed-response attempts are not lifecycle evidence and never enter this budget.
-The versioned requirement template shares `corrects-review` and the distinct
-`changed-under` contract across STK and SYS without kernel type-family semantics.
-Correction of a DEC still requires stakeholder authority. Candidate and Gate
-Sign-off review remain separate.
+Blocking product simplification findings carry canonical exact `blocks` links and
+derive the same subject-bounded causal correction budget as ordinary foundation
+Review failures; a fresh exact set and simplification Review are required before
+candidate work resumes. The versioned requirement template shares
+`corrects-review` and the distinct `changed-under` contract across STK and SYS
+without kernel type-family semantics. Candidate, Question Decision, and Gate
+Sign-off corrections carry exact `corrects-review` causes, fresh Reviews, bounded
+retry, and attended escalation. Correction of a DEC still requires stakeholder
+authority. Candidate and Gate Sign-off Review remain separate.
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and
 REV resolve; only an explicit `gate_outcome: approve` can make the package-authored
 gate expression true. A reviewed rejection remains immutable blocking history.
@@ -240,9 +246,15 @@ set. For Phase 0, each implicated draft member receives a same-lineage
 candidate preserves unaffected evidence and links `supersedes` to the rejected
 candidate. Fresh passing candidate Review returns normal attention to the same
 package gate. Failed member re-Review enters the existing two-cycle correction
-budget and attended escalation. Rejection never implies stop, defer, or cancel;
-those dispositions require separate exact reviewed Decisions. Remaining Phase 2
-rejection routes are intentionally deferred to issue #99.
+budget and attended escalation. Rejection never implies stop, defer, or cancel; those dispositions require
+separate exact reviewed Decisions. A reviewed approving gate DEC mechanically
+derives one frozen `intent-approved` BSL with exact member, candidate-Review,
+Decision, and Decision-Review evidence before Phase progression; it does not ask
+for redundant authority. Preferential and empirical Questions route to immediate
+or checkpoint attention, evidence work, formal reviewed deferral/cancellation,
+or an explicitly declared unsupported cancellation. Failed Question Decisions
+receive causal bounded correction rather than stranding the checkpoint. Remaining
+Phase 2 rejection routes are intentionally deferred to issue #99.
 
 ## Phase 1 qualification and pilot tracer slice
 

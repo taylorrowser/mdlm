@@ -1,0 +1,22 @@
+kind: obligation-definition
+id: question-decision-review-escalation-required
+version: 1
+description: A Phase 0 Question Decision still failing after two attended replacements requires exhausted-lineage stakeholder escalation.
+phases: [phase-0-wayfinding]
+for_each: 'select("exhausted-question-decision-review-failures@1", {})'
+subject_as: decision
+satisfied_when: 'exists("valid-question-decision-replacements-for@1", {decision: decision})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'none("valid-question-decision-replacements-for@1", {decision: decision})'
+    reason: The Question Decision correction budget is exhausted; all exact Reviews and findings require renewed stakeholder judgment.
+default_status: ready
+resolve_with:
+  scenario: escalate-question-decision-review-correction@1
+  inputs:
+    decision: decision
+    question: 'one("question-targets-for-decision@1", {decision: decision})'
+    prior_failed_reviews: 'select("cited-failing-reviews-by-correction@1", {replacement: decision})'
+    failed_reviews: 'select("failing-reviews-for@1", {subject: decision})'
+waiver_policy_ref: waiver-applicability@1

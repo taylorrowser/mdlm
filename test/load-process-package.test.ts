@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.51.0");
+    expect(result.package.manifest.version).toBe("0.52.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(193);
+    expect(Object.keys(result.package.selectors)).toHaveLength(210);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "cited-failing-reviews-by-correction": expect.any(Object),
       "foundation-correction-history": expect.any(Object),
@@ -35,10 +35,13 @@ describe("loadProcessPackage", () => {
       "reviewed-gate-rejections-for-candidate": expect.any(Object),
       "matching-cited-gate-rejection-by-correction": expect.any(Object),
       "gate-rejection-corrections-for-subject": expect.any(Object),
+      "phase-0-product-simplification-contexts": expect.any(Object),
+      "blocking-product-simplification-reviews-for": expect.any(Object),
+      "phase-0-intent-approvals-for": expect.any(Object),
     }));
     expect(Object.keys(result.package.policies)).toHaveLength(9);
-    expect(Object.keys(result.package.obligations)).toHaveLength(45);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(47);
+    expect(Object.keys(result.package.obligations)).toHaveLength(52);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(54);
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
       .toEqual([expect.objectContaining({
         id: "phase-0-gate",
@@ -824,7 +827,7 @@ describe("loadProcessPackage", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "unknown-reference",
-          path: "phases.phase-0-wayfinding.obligations[8]",
+          path: "phases.phase-0-wayfinding.obligations[12]",
           message: "Unknown Obligation reference 'missing-obligation@2'",
         }),
       ]),
