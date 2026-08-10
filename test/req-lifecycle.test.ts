@@ -5,6 +5,7 @@ import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LifecycleRecord, LifecycleSnapshot } from "../src/index.js";
 import {
+  acceptedIntentForReviewedGate,
   exactContextWaiverFor,
   frozenLifecycleRecord,
   reviewedGateFixture,
@@ -77,7 +78,7 @@ describe("req lifecycle status and next work", () => {
       command: "phase.status",
       phaseStatus: expect.objectContaining({
         id: "phase-2-system-definition",
-        version: 4,
+        version: 5,
         entry: expect.objectContaining({ satisfied: false }),
         candidateSelection: expect.objectContaining({ entities: [] }),
         obligations: {
@@ -109,7 +110,7 @@ describe("req lifecycle status and next work", () => {
       prototypeSnapshot,
     );
     expect(human.status, human.stderr).toBe(0);
-    expect(human.stdout).toContain("Phase: phase-2-system-definition@4");
+    expect(human.stdout).toContain("Phase: phase-2-system-definition@5");
     expect(human.stdout).toContain("Entry Satisfied: false");
     expect(human.stdout).toContain("Candidates: none");
     expect(human.stdout).toContain("Obligations: total=6");
@@ -210,10 +211,14 @@ describe("req lifecycle status and next work", () => {
       }),
     ]);
 
+    const acceptedIntent = acceptedIntentForReviewedGate(
+      "git:req-lifecycle",
+      gateFixture,
+    );
     const gateSnapshot = await writeSnapshot(repositoryRoot, "reviewed-gate", {
       processRef: "git:req-lifecycle",
       phaseId: "phase-0-wayfinding",
-      records: gateFixture.records,
+      records: [...gateFixture.records, acceptedIntent],
       dependencyComparisons: [],
     });
     const gate = req(

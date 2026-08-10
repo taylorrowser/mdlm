@@ -708,7 +708,7 @@ describe("evaluateLifecycle review flow", () => {
       subject: candidate.datum.revision_id,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-intent-candidate-after-review@2",
+      actionableResolver: "revise-intent-candidate-after-review@3",
     }));
     expect(evaluation.looseEnds.find((item) =>
       item.obligation === "passing-review-required" &&

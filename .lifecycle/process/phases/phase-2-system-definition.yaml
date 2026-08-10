@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-2-system-definition
-version: 4
+version: 5
 order: 2
 name: System definition tracer
 purpose: Plan, review, execute, simplify, and complete one bounded decomposition into an exact reviewed SYS candidate with architecture and interface context.
@@ -45,7 +45,7 @@ scenarios:
 obligations:
   - review-context-required@2
   - passing-review-required@2
-  - open-question-resolution@2
+  - open-question-resolution@3
   - prototype-question-resolution@1
   - system-architecture-required@1
   - interface-control-specification-required@1

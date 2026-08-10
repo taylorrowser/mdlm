@@ -1,28 +1,23 @@
 kind: scenario-definition
 id: revise-gate-signoff-after-review
-version: 1
+version: 2
 description: Replace one failed gate sign-off Decision under fresh stakeholder authority without changing its exact candidate scope.
 phases: [phase-0-wayfinding]
 inputs:
-  - name: decision
-    types: [DEC]
-    cardinality: one
-    identity: revision
-    conditions: >-
-      decision.payload.kind == "gate-signoff"
-      && exists("failing-reviews-for@1", {subject: decision})
-  - name: candidate
-    types: [BSL]
-    cardinality: one
-    identity: revision
-    conditions: 'candidate.identity.revision_id == decision.payload.effective_scope'
+  - {name: decision, types: [DEC], cardinality: one, identity: revision}
+  - {name: candidate, types: [BSL], cardinality: one, identity: revision}
+  - {name: lineage, types: [DEC], cardinality: one-or-more, identity: revision}
+  - {name: prior_failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
+  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
 outputs:
   - name: replacement
     types: [DEC]
     cardinality: one
     required_links:
       - {link: justifies, target: {input: candidate}}
-prompt_ref: prompts/revise-gate-signoff-after-review.md@1
+      - {link: corrects-review, target: {input: prior_failed_reviews}}
+      - {link: corrects-review, target: {input: failed_reviews}}
+prompt_ref: prompts/revise-gate-signoff-after-review.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: gate-signoff-participation@1
@@ -35,6 +30,7 @@ completion: >-
   && replacement.payload.kind == "gate-signoff"
   && replacement.payload.effective_scope == candidate.identity.revision_id
   && replacement.payload.gate_outcome in ["approve", "reject"]
+  && exists("valid-gate-signoff-replacements-for@1", {decision: decision})
 resolves: [gate-signoff-review-correction-required]
 prohibited_inputs: [changed candidate scope, implied approval, mutation of failed Decision or Review history]
 batching: single

@@ -1,0 +1,17 @@
+kind: selector-definition
+id: failed-question-decisions
+version: 1
+description: Current failed preferential-answer, deferral, or cancellation Decisions without a causal replacement.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DEC]}
+  as: decision
+  where: >-
+    decision.payload.kind in ["scope", "deferral", "cancellation"]
+    && state(decision, "disposition") == "active"
+    && exists("question-targets-for-decision@1", {decision: decision})
+    && exists("failing-reviews-for@1", {subject: decision})
+    && none("valid-question-decision-replacements-for@1", {decision: decision})
+  distinct: true
+  order_by: [identity.id, identity.revision]

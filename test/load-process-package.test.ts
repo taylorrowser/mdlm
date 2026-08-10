@@ -24,11 +24,28 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.51.0");
+    expect(result.package.manifest.version).toBe("0.52.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(193);
+    expect(Object.keys(result.package.selectors)).toHaveLength(210);
     expect(result.package.selectors).toEqual(expect.objectContaining({
+      "accepted-baseline-promotes-candidate": expect.any(Object),
+      "blocking-product-simplification-reviews-for": expect.any(Object),
+      "candidate-correction-decisions-for": expect.any(Object),
+      "candidate-definition-members": expect.any(Object),
+      "intent-candidates-matching-subject": expect.any(Object),
+      "invalid-product-simplification-blockers-for-review": expect.any(Object),
+      "matching-product-simplification-review": expect.any(Object),
+      "product-simplification-blockers-for-candidate": expect.any(Object),
+      "product-simplification-blockers-for-review": expect.any(Object),
+      "product-simplification-reviews-blocking-subject": expect.any(Object),
+      "valid-product-simplification-reviews": expect.any(Object),
+      "product-simplification-reviews-for": expect.any(Object),
+      "review-correction-history-for": expect.any(Object),
+      "phase-0-intent-approvals-for": expect.any(Object),
+      "failed-question-decisions": expect.any(Object),
+      "valid-question-decision-replacements-for": expect.any(Object),
+      "question-targets-for-decision": expect.any(Object),
       "cited-failing-reviews-by-correction": expect.any(Object),
       "foundation-correction-history": expect.any(Object),
       "foundation-review-failures-at-stage": expect.any(Object),
@@ -36,9 +53,9 @@ describe("loadProcessPackage", () => {
       "matching-cited-gate-rejection-by-correction": expect.any(Object),
       "gate-rejection-corrections-for-subject": expect.any(Object),
     }));
-    expect(Object.keys(result.package.policies)).toHaveLength(9);
-    expect(Object.keys(result.package.obligations)).toHaveLength(45);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(47);
+    expect(Object.keys(result.package.policies)).toHaveLength(10);
+    expect(Object.keys(result.package.obligations)).toHaveLength(47);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(49);
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
       .toEqual([expect.objectContaining({
         id: "phase-0-gate",
@@ -301,8 +318,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       manifestPath,
       manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
-        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]",
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation]",
+        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation]",
       ),
     );
 

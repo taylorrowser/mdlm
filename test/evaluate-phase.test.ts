@@ -9,6 +9,7 @@ import {
 } from "../src/index.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import {
+  acceptedIntentForReviewedGate,
   frozenLifecycleRecord,
   reviewedGateFixture,
 } from "./helpers/lifecycle-scenarios.js";
@@ -95,7 +96,7 @@ describe("phase evaluation", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.phase).toEqual({
       id: "phase-2-system-definition",
-      version: 4,
+      version: 5,
       attentionCheckpoints: [expect.objectContaining({
         id: "phase-2-system-gate",
         active: false,
@@ -227,7 +228,7 @@ describe("phase evaluation", () => {
           unresolvedBindings: [],
           evidence: {
             source:
-              'none("candidate-members-missing-review@1", {candidate: candidate}) && exists("passing-reviews-for@1", {subject: candidate}) && none("failing-reviews-for@1", {subject: candidate}) && none("open-blocking-questions@1", {}) && exists("applicable-gate-signoffs-for@1", {candidate: candidate})',
+              'none("candidate-members-missing-review@1", {candidate: candidate}) && exists("product-simplification-reviews-for@1",\n  {candidate: candidate, outcome: "pass"})\n&& none("failing-reviews-for@1", {subject: candidate}) && none("open-blocking-questions@1", {}) && exists("applicable-gate-signoffs-for@1", {candidate: candidate})',
             result: false,
             selectors: expect.arrayContaining([
               {
@@ -365,12 +366,13 @@ describe("phase evaluation", () => {
     expect(completedGate).toEqual(preservedCompletedGate);
   });
 
-  it("projects exact declarative progression authority without requiring a second approval", () => {
+  it("projects accepted intent without requiring a second approval", () => {
+    const fixture = reviewedGateFixture("git:phase-progression");
     const {
       signoff,
       signoffReview,
       beforeSignoffReview,
-    } = reviewedGateFixture("git:phase-progression");
+    } = fixture;
 
     const awaitingAuthorizationReview = evaluateLifecycle(processPackage, {
       processRef: "git:phase-progression",
@@ -382,7 +384,7 @@ describe("phase evaluation", () => {
       expect.objectContaining({
         nextPhase: "phase-1-product-assurance",
         gateComplete: false,
-        ready: true,
+        ready: false,
         authorized: false,
         complete: false,
         authority: expect.objectContaining({
@@ -400,15 +402,19 @@ describe("phase evaluation", () => {
             authority: "stakeholder",
             delegationAllowed: false,
           },
-          attentionRequired: true,
+          attentionRequired: false,
         }),
       }),
     );
 
+    const acceptedIntent = acceptedIntentForReviewedGate(
+      "git:phase-progression",
+      fixture,
+    );
     const authorized = evaluateLifecycle(processPackage, {
       processRef: "git:phase-progression",
       phaseId: "phase-0-wayfinding",
-      records: [...beforeSignoffReview, signoffReview],
+      records: [...beforeSignoffReview, signoffReview, acceptedIntent],
       dependencyComparisons: [],
     });
     expect(authorized.phase?.progression).toEqual(expect.objectContaining({
@@ -527,10 +533,19 @@ describe("phase evaluation", () => {
       },
     );
 
+    const acceptedIntent = acceptedIntentForReviewedGate(
+      "git:distinct-progression",
+      fixture,
+    );
     const unreviewed = evaluateLifecycle(loaded.package, {
       processRef: "git:distinct-progression",
       phaseId: "phase-0-wayfinding",
-      records: [...fixture.records, progressionDecision, progressionContext],
+      records: [
+        ...fixture.records,
+        acceptedIntent,
+        progressionDecision,
+        progressionContext,
+      ],
       dependencyComparisons: [],
     });
     expect(unreviewed.phase?.progression).toEqual(expect.objectContaining({
@@ -545,6 +560,7 @@ describe("phase evaluation", () => {
       phaseId: "phase-0-wayfinding",
       records: [
         ...fixture.records,
+        acceptedIntent,
         progressionDecision,
         progressionContext,
         progressionReview,

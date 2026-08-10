@@ -161,6 +161,9 @@ describe("failed STK Review correction through the public operator process", () 
       expect(packet.scenario.reference).toBe("review-datum-in-context@2");
       const subject = exactInput(packet, "subject").values[0];
       const context = exactInput(packet, "review_context").values[0];
+      const productSimplification =
+        subject.identity.type === "BSL" &&
+        subject.data.payload.kind === "intent-level-candidate";
       const findings = outcome === "fail"
         ? [{
             id: "F-001",
@@ -184,7 +187,9 @@ describe("failed STK Review correction through the public operator process", () 
           type: "REV",
           payload: {
             title: `${outcome === "pass" ? "Passing" : "Failed"} Review of ${subject.identity.revision_id}`,
-            review_kind: "contextual",
+            review_kind: productSimplification
+              ? "simplification-product-definition"
+              : "contextual",
             rubric_ref: "policies/rubrics/bootstrap-review.md@1",
             findings,
             ...(outcome === "fail" && correctionAuthority
@@ -195,6 +200,9 @@ describe("failed STK Review correction through the public operator process", () 
           links: [
             { type: "reviews", target: subject.identity.revision_id },
             { type: "contextualizes", target: context.identity.revision_id },
+            ...(productSimplification && outcome === "fail"
+              ? [{ type: "blocks", target: subject.identity.revision_id }]
+              : []),
           ],
           body: `The independent Review ${outcome === "pass" ? "passes" : "fails"}.\n`,
         },
@@ -367,9 +375,9 @@ describe("failed STK Review correction through the public operator process", () 
       expect(correctionOutcome.outcome).toBe("assignment");
       packet = prepare(correctionOutcome);
       correctionAssignments.add(packet.assignment.id);
-      expect(packet.scenario.reference).toBe("revise-foundation-after-review@4");
+      expect(packet.scenario.reference).toBe("revise-foundation-after-review@5");
       expect(packet.obligation).toEqual(expect.objectContaining({
-        definition: "foundation-review-correction-required@4",
+        definition: "foundation-review-correction-required@5",
         subject: current.revisionId,
       }));
       const correctionSubject = exactInput(packet, "subject");
@@ -581,9 +589,9 @@ describe("failed STK Review correction through the public operator process", () 
 
         packet = nextPacket();
         expect(packet.scenario.reference)
-          .toBe("revise-foundation-after-review@4");
+          .toBe("revise-foundation-after-review@5");
         expect(packet.obligation).toEqual(expect.objectContaining({
-          definition: "foundation-review-correction-required@4",
+          definition: "foundation-review-correction-required@5",
           subject: current.revisionId,
         }));
         const priorCorrectionReviews = exactInput(packet, "prior_failed_reviews")
@@ -648,7 +656,7 @@ describe("failed STK Review correction through the public operator process", () 
           .outputs[0].lifecycleDatum as { revisionId: string };
 
         packet = nextPacket();
-        expect(packet.scenario.reference).toBe("revise-foundation-after-review@4");
+        expect(packet.scenario.reference).toBe("revise-foundation-after-review@5");
         expect(exactInput(packet, "failed_reviews").values.map(
           (value: any) => value.identity.revision_id,
         )).toEqual([gateCorrectionFailure.revisionId]);
@@ -691,7 +699,7 @@ describe("failed STK Review correction through the public operator process", () 
         publishReview(packet, "pass");
 
         packet = nextPacket();
-        expect(packet.scenario.reference).toBe("revise-intent-candidate-after-review@2");
+        expect(packet.scenario.reference).toBe("revise-intent-candidate-after-review@3");
         expect(exactInput(packet, "candidate").values[0].identity.revision_id)
           .toBe(candidate.revisionId);
         expect(exactInput(packet, "gate_rejections").values[0].identity.revision_id)
@@ -738,12 +746,13 @@ describe("failed STK Review correction through the public operator process", () 
         packet = nextPacket();
         publishContext(packet);
         packet = nextPacket();
-        publishReview(packet, "pass");
+        const replacementCandidateReview = publishReview(packet, "pass")
+          .outputs[0].lifecycleDatum as { revisionId: string };
 
         const returnedGate = nextOutcome();
         expect(returnedGate).toEqual(expect.objectContaining({
           outcome: "attention-required",
-          phase: "phase-0-wayfinding@3",
+          phase: "phase-0-wayfinding@4",
         }));
         packet = prepare(returnedGate);
         expect(packet.scenario.reference).toBe("record-gate-signoff@3");
@@ -773,10 +782,50 @@ describe("failed STK Review correction through the public operator process", () 
         packet = nextPacket();
         publishContext(packet);
         packet = nextPacket();
-        publishReview(packet, "pass");
+        const approvalReview = publishReview(packet, "pass")
+          .outputs[0].lifecycleDatum as { revisionId: string };
+
+        packet = nextPacket();
+        expect(packet.scenario.reference).toBe("accept-phase-0-intent@1");
+        expect(exactInput(packet, "candidate").values[0].identity.revision_id)
+          .toBe(replacementCandidate.revisionId);
+        expect(exactInput(packet, "candidate_reviews").values[0].identity.revision_id)
+          .toBe(replacementCandidateReview.revisionId);
+        expect(exactInput(packet, "gate_signoff").values[0].identity.revision_id)
+          .toBe(approval.revisionId);
+        expect(exactInput(packet, "signoff_reviews").values[0].identity.revision_id)
+          .toBe(approvalReview.revisionId);
+        const acceptedMembers = exactInput(packet, "definition_members").values
+          .map((value: any) => value.identity.revision_id) as string[];
+        publish(packet, [{
+          localId: "accepted-intent",
+          name: "accepted_intent",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Accepted corrected command intent",
+              kind: "intent-approved",
+              role: "accepted",
+              scope: "Phase 0 typed command intent",
+              group: "DEFAULT",
+              definition_members: acceptedMembers,
+              evidence: [
+                replacementCandidateReview.revisionId,
+                approval.revisionId,
+                approvalReview.revisionId,
+              ],
+            },
+            links: [{ type: "promotes", target: replacementCandidate.revisionId }],
+            body: "Reviewed approving gate evidence accepts this exact intent.\n",
+          },
+        }]);
 
         const resumed = nextOutcome();
-        expect(resumed.outcome).toBe("assignment");
+        expect(resumed).toEqual(expect.objectContaining({
+          outcome: "assignment",
+          phase: "phase-1-product-assurance@3",
+        }));
         expect(prepare(resumed).scenario.reference).not.toBe("record-gate-signoff@3");
         expect(JSON.parse(
           invokeMdlm(repository, ["show", rejection.revisionId, "--json"]).stdout,
@@ -797,5 +846,5 @@ describe("failed STK Review correction through the public operator process", () 
       lineage,
       reviewHistory,
     );
-  }, 300_000);
+  }, 600_000);
 });

@@ -9,11 +9,12 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.51.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.52.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -149,6 +150,14 @@ describe("bootstrap Scenario participation Policies", () => {
       "resolve-question-with-prototype": { output: "finding", type: "DEC" },
       "review-datum-in-context": { output: "review", type: "REV" },
       "revise-gate-signoff-after-review": {
+        output: "replacement",
+        type: "DEC",
+      },
+      "revise-intent-candidate-after-review": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-question-decision-after-review": {
         output: "replacement",
         type: "DEC",
       },
@@ -606,7 +615,7 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@4",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
     expect(evaluation.obligations.find((item) =>
       item.obligation === "candidate-gate-signoff" &&
@@ -615,11 +624,371 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "revise-foundation-after-review@4",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
     expect(evaluation.phase?.gate.evaluations[0]).toEqual(
       expect.objectContaining({ complete: false }),
     );
+  });
+
+  it("routes blocking candidate simplification findings to the exact member correction", () => {
+    const fixture = reviewedGateFixture(processRef);
+    const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {
+      title: "Small product",
+      rationale: "One user outcome is sufficient.",
+      problem: "The current outcome is not portable.",
+      users: ["operator"],
+      goals: ["Export one outcome"],
+      non_goals: ["General integration platform"],
+      success_measures: ["One outcome exports"],
+    });
+    const requirement = lifecycleDatum("STK", "STK-7K3M9Q2D8F", {
+      title: "Overbroad export",
+      rationale: "The initial commitment retains unnecessary scope.",
+      statement: "The product shall export every internal representation.",
+      verification_intent: "Observe all internal representations.",
+      stakeholder: "operator",
+      priority: "must",
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const foundation = [product, requirement];
+    fixture.candidate.datum.payload.definition_members = foundation.map(
+      (subject) => subject.datum.revision_id,
+    );
+    fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.findings = [{
+      id: "F-001",
+      target: requirement.datum.revision_id,
+      relationship: "primary",
+      severity: "blocking",
+      summary: "The commitment retains unnecessary internal scope.",
+    }];
+    fixture.candidateReview.datum.links.push({
+      type: "blocks",
+      target: requirement.datum.revision_id,
+    });
+    const memberReviews = foundation.map((subject, index) => lifecycleDatum(
+      "REV",
+      `REV-7K3M9Q2D8${index === 0 ? "F" : "G"}`,
+      {
+        title: `Passing Review of ${subject.datum.revision_id}`,
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        frozen: true,
+        links: [{ type: "reviews", target: subject.datum.revision_id }],
+        scenario: "review-datum-in-context@2",
+      },
+    ));
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [
+        fixture.candidate,
+        fixture.candidateContext,
+        fixture.candidateReview,
+        ...foundation,
+        ...memberReviews,
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === requirement.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-foundation-after-review@5",
+    }));
+    expect(evaluation.obligations.some((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === product.datum.revision_id
+    )).toBe(false);
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: "revise-foundation-after-review@5",
+    }));
+  });
+
+  it("escalates an exhausted candidate lineage through the same correction interface", async () => {
+    const first = reviewedGateFixture(processRef).candidate;
+    const map = lifecycleDatum("MAP", "MAP-8K3M9Q2D8F", {
+      title: "Reviewed exact frontier",
+      purpose: "Keep the candidate correction Assignment fully bound.",
+      frontier: ["One bounded candidate"],
+    });
+    const mapReview = lifecycleDatum("REV", "REV-8K3M9Q2D8J", {
+      title: "Passing frontier Review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: map.datum.revision_id }],
+    });
+    first.datum.payload.definition_members = [map.datum.revision_id];
+    const replacement = structuredClone(first);
+    replacement.datum.revision = 2;
+    replacement.datum.revision_id = `${first.datum.id}-r00002`;
+    replacement.datum.links = [
+      { type: "supersedes", target: first.datum.revision_id },
+      { type: "corrects-review", target: "REV-8K3M9Q2D8F-r00001" },
+    ];
+    const current = structuredClone(first);
+    current.datum.revision = 3;
+    current.datum.revision_id = `${first.datum.id}-r00003`;
+    current.datum.links = [
+      { type: "supersedes", target: replacement.datum.revision_id },
+      { type: "corrects-review", target: "REV-8K3M9Q2D8F-r00001" },
+      { type: "corrects-review", target: "REV-8K3M9Q2D8G-r00001" },
+    ];
+    const failedReview = (subject: LifecycleRecord, id: string) =>
+      lifecycleDatum("REV", id, {
+        title: `Failed simplification of ${subject.datum.revision_id}`,
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [{
+          id: "F-001",
+          target: subject.datum.revision_id,
+          relationship: "primary",
+          severity: "blocking",
+          summary: "The exact candidate remains unnecessarily broad.",
+        }],
+        outcome: "fail",
+      }, {
+        frozen: true,
+        links: [
+          { type: "reviews", target: subject.datum.revision_id },
+          { type: "blocks", target: subject.datum.revision_id },
+        ],
+        scenario: "review-datum-in-context@2",
+      });
+    const reviews = [
+      failedReview(first, "REV-8K3M9Q2D8F"),
+      failedReview(replacement, "REV-8K3M9Q2D8G"),
+      failedReview(current, "REV-8K3M9Q2D8H"),
+    ];
+
+    const snapshot = {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [map, mapReview, first, replacement, current, ...reviews],
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const correction = evaluation.obligations.find((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === current.datum.revision_id
+    );
+    expect(correction).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-intent-candidate-after-review@3",
+      explanation: expect.stringMatching(/stakeholder escalation/i),
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+        attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+      })],
+    }));
+    expect(correction).toBeDefined();
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "revise-intent-candidate-after-review@3",
+      correction!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    const inputs = prepared.value.invocations[0]!.inputs;
+    expect(inputs.find((input) => input.name === "lineage")?.values).toHaveLength(3);
+    expect(inputs.find((input) => input.name === "prior_failed_reviews")?.values)
+      .toHaveLength(2);
+    expect(inputs.find((input) => input.name === "failed_reviews")?.values)
+      .toEqual([expect.objectContaining({
+        identity: expect.objectContaining({ revision_id: reviews[2]!.datum.revision_id }),
+      })]);
+  });
+
+  it("routes a failed Question Decision through exact attended correction", async () => {
+    const answered = lifecycleDatum("QST", "QST-7K3M9Q2D8F", {
+      title: "Export preference",
+      kind: "preferential",
+      question: "Which export should remain?",
+      state: "answered",
+      blocking_impact: "The answer controls exact product scope.",
+    }, { frozen: true });
+    const decision = lifecycleDatum("DEC", "DEC-7K3M9Q2D8F", {
+      title: "Retain one export",
+      rationale: "The stakeholder chose the smallest sufficient export.",
+      kind: "scope",
+      decision: "Retain CSV only.",
+      alternatives: ["Retain every format"],
+      effective_scope: answered.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [{ type: "resolves", target: answered.datum.revision_id }],
+    });
+    const failedReview = lifecycleDatum("REV", "REV-7K3M9Q2D8H", {
+      title: "Failed scope Decision Review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{
+        id: "F-001",
+        target: decision.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "The rationale does not preserve the stakeholder constraint.",
+      }],
+      outcome: "fail",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: decision.datum.revision_id }],
+    });
+
+    const snapshot = {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [answered, decision, failedReview],
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const correction = evaluation.obligations.find((item) =>
+      item.obligation === "question-decision-review-correction-required" &&
+      item.subject === decision.datum.revision_id
+    );
+    expect(correction).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-question-decision-after-review@1",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+      })],
+    }));
+    expect(correction).toBeDefined();
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "revise-question-decision-after-review@1",
+      correction!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "lineage", values: [expect.any(Object)] }),
+      expect.objectContaining({ name: "prior_failed_reviews", values: [] }),
+      expect.objectContaining({ name: "failed_reviews", values: [expect.any(Object)] }),
+    ]));
+  });
+
+  it("routes a failed gate Decision Review through exact attended correction", async () => {
+    const fixture = reviewedGateFixture(processRef);
+    fixture.signoffReview.datum.payload.outcome = "fail";
+    fixture.signoffReview.datum.payload.findings = [{
+      id: "F-001",
+      target: fixture.signoff.datum.revision_id,
+      relationship: "primary",
+      severity: "blocking",
+      summary: "The gate rationale is incomplete.",
+    }];
+    const snapshot = {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: fixture.records,
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const correction = evaluation.obligations.find((item) =>
+      item.obligation === "gate-signoff-review-correction-required" &&
+      item.subject === fixture.signoff.datum.revision_id
+    );
+    expect(correction).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-gate-signoff-after-review@2",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+      })],
+    }));
+    expect(correction).toBeDefined();
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "revise-gate-signoff-after-review@2",
+      correction!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "lineage", values: [expect.any(Object)] }),
+      expect.objectContaining({ name: "prior_failed_reviews", values: [] }),
+      expect.objectContaining({ name: "failed_reviews", values: [expect.any(Object)] }),
+    ]));
+  });
+
+  it("requires accepted intent before reviewed gate evidence progresses Phase 0", () => {
+    const fixture = reviewedGateFixture(processRef);
+    const beforeAcceptance = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: fixture.records,
+      dependencyComparisons: [],
+    });
+    expect(beforeAcceptance.phase?.progression).toEqual(expect.objectContaining({
+      gateComplete: true,
+      ready: false,
+      authorized: false,
+      complete: false,
+    }));
+    const accepted = lifecycleDatum("BSL", "BSL-7K3M9Q2D8F", {
+      title: "Accepted exact intent",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: fixture.candidate.datum.payload.scope,
+      group: fixture.candidate.datum.payload.group,
+      definition_members: [],
+      evidence: [
+        fixture.candidateReview.datum.revision_id,
+        fixture.signoff.datum.revision_id,
+        fixture.signoffReview.datum.revision_id,
+      ],
+    }, {
+      frozen: true,
+      links: [{ type: "promotes", target: fixture.candidate.datum.revision_id }],
+      scenario: "accept-phase-0-intent@1",
+    });
+    const afterAcceptance = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [...fixture.records, accepted],
+      dependencyComparisons: [],
+    });
+    expect(afterAcceptance.phase?.progression).toEqual(expect.objectContaining({
+      gateComplete: true,
+      ready: true,
+      authorized: true,
+      complete: true,
+    }));
   });
 
   it("routes a candidate-level Phase 0 rejection to causal candidate replacement", () => {
@@ -695,7 +1064,7 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-intent-candidate-after-review@2",
+      actionableResolver: "revise-intent-candidate-after-review@3",
     }));
   });
 

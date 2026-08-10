@@ -22,6 +22,7 @@ query:
     && none("phase-0-foundation-members-missing-review@1", {})
     && replacement.payload.kind == "intent-level-candidate"
     && replacement.payload.role == "candidate"
+    && replacement.storage.frozen == true
     && every("phase-0-foundation-members@1", {}, member =>
       exists("candidate-members-matching@1",
         {candidate: replacement, required_member: member}))

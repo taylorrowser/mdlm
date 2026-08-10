@@ -35,6 +35,10 @@ standing_delegation:
 completion: >-
   execution.integrity.contract_valid == true
   && review.payload.outcome in ["pass", "fail", "cancelled"]
+  && (
+    none("intent-candidates-matching-subject@1", {subject: subject})
+    || exists("valid-product-simplification-reviews@1", {review: review})
+  )
 resolves: [passing-review-required, candidate-members-reviewed]
 prohibited_inputs: [unfrozen context, mutable latest aliases, prior review outcome as authority]
 batching: coherent-batch

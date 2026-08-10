@@ -1,14 +1,15 @@
 ---
 id: escalate-foundation-review-correction
-version: 1
+version: 2
 scenario: escalate-foundation-review-correction
 skills: [skills/lifecycle-data.md@1, skills/clarification-protocol.md@1, skills/requirement-writing.md@1]
 ---
 
 # Escalate a failed correction lineage
 
-Present the complete exact Stable Datum lineage, every failed Review, every
-structured Review Finding, and the package-authored escalation reason to the
+Present the complete exact Stable Datum lineage, every failed ordinary or
+product-simplification Review, every structured Review Finding, and the package-
+authored escalation reason to the
 stakeholder. Do not consume another autonomous correction cycle and do not infer
 an intent change from prior agent proposals.
 

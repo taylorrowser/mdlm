@@ -29,7 +29,9 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   The temporary `req` bridge retains prototype-era package-authoring and mutation
   behavior until the final clean-interface contract removes that bridge. The first repository-
   backed Example Process Package tracers move an exact MAP/PSP/STK intent slice
-  through a reviewed Gate Sign-off, qualify one environment and run one
+  through a candidate-centered independent product-simplification Review,
+  reviewed Gate Sign-off, exact accepted-intent publication, and derived Phase
+  progression; qualify one environment and run one
   source-independent verification pilot, and move one reviewed Decomposition Work
   Package through exact SYS output, architecture/interface simplification,
   completion Review, composed group/level candidates, and a reviewed SYS gate.

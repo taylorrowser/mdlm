@@ -1,51 +1,74 @@
 # Phase-hardening matrix
 
-This matrix records public `mdlm` operator routes as the bundled Example Process
-Package is hardened. It describes package behavior, not kernel lifecycle
-semantics. These Phase 0 rows cover the issue #93 bounded Review-correction
-boundary and the issue #94 gate-rejection return route.
+This matrix records every distinct reachable public `mdlm` route in the Phase 0
+boundary. It describes Example Process Package behavior, not kernel semantics.
+Phase 1, Phase 2, VAI, and pilot-assessment hardening remain deferred to issues
+#96–#100.
 
-| Phase | Route | Exact evidence and links | Selector / Obligation | Participation | Resolver | Expected next Operator Outcome | Correction budget | Evidence replaced or reused |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Phase 0 | Happy initial Review | Frozen Review Context containing the exact STK Revision; passing REV with `reviews` and `contextualizes` | `passing-review-required@2` becomes satisfied | Delegated `independent-reviewer`; no stakeholder attention | `review-datum-in-context@2` | Assignment for normally reevaluated downstream work | 0 of 2 autonomous cycles consumed | Passing REV and Review Context remain reusable while exact dependencies do not change |
-| Phase 0 | Initial autonomous failure | Current failed REV with blocking Review Findings and no stakeholder correction marker; no correction Revision yet | `foundation-review-failures-at-stage@1(stage: "initial")`; `foundation-review-correction-required@4` | Autonomous | `revise-foundation-after-review@4` | Fresh serial correction Assignment | 0 consumed; first replacement permitted | Failed Revision, Review Context, REV, and findings remain immutable |
-| Phase 0 | First replacement | Same-lineage replacement cites every failed REV through `corrects-review` | `foundation-correction-history@1(view: "corrections")` derives one evidence-backed replacement; ordinary context and Review Obligations apply | Autonomous context; delegated independent Review | `create-review-context@1`, then `review-datum-in-context@2` | Fresh context Assignment, then fresh Review Assignment | First cycle in progress | Only exact replacement-dependent context and Review are replaced; unrelated evidence is reused |
-| Phase 0 | First replacement passes | Fresh exact passing REV for replacement | `passing-review-required@2` becomes satisfied | Delegated independent Review, then autonomous downstream work | Normal reevaluation | Assignment for blocked downstream work | 1 cycle consumed; no escalation | Corrected evidence becomes current; immutable failure history remains inspectable |
-| Phase 0 | First replacement fails | Current failed first replacement with its own exact Review and findings | `foundation-review-failures-at-stage@1(stage: "first-replacement")`; `foundation-review-correction-required@4` remains Dispatchable | Autonomous | `revise-foundation-after-review@4` | Fresh second serial correction Assignment | 1 consumed; second replacement permitted | Initial and first-cycle histories remain immutable and reusable for explanation |
-| Phase 0 | Second replacement passes | Second same-lineage replacement, fresh context, and passing independent REV | `passing-review-required@2` becomes satisfied | Delegated independent Review, then autonomous downstream work | Normal reevaluation | Assignment for blocked downstream work | 2 cycles consumed successfully; no escalation | Passing current evidence resumes work; all failed evidence remains historical |
-| Phase 0 | Second replacement fails | Current failed second replacement plus three exact failed Revisions/Reviews and all findings across the lineage | `foundation-review-failures-at-stage@1` distinguishes `second-replacement` and `exhausted`; `foundation-review-escalation-required@1` | Attended nondelegable `stakeholder`; immediate | `escalate-foundation-review-correction@1` | **Attention Required** with exact lineage, failed Reviews/findings, and exhaustion reason | 2 consumed; autonomous budget exhausted | No historical evidence is deleted or rewritten; attended work receives the complete history |
-| Phase 0 | Stakeholder-owned intent failure | Current failed REV declares `correction_authority: stakeholder` with exact findings | `foundation-review-failures-at-stage@1(stage: "stakeholder-intent")`; `foundation-review-escalation-required@1` | Attended nondelegable `stakeholder`; immediate | `escalate-foundation-review-correction@1` | **Attention Required** with exact lineage, Reviews/findings, and intent reason | Autonomous budget is not consumed | Existing intent and Review evidence remain immutable until attended judgment publishes exact replacement and DEC evidence |
-| Phase 0 | Malformed correction response | Assignment transport contains malformed Scenario Proposal; no Lifecycle Data publishes | Assignment lease validation only; package Selectors remain unchanged | Same participation as the active Assignment | Same exact Assignment for its one malformed correction | Correction-required disposition, then same lifecycle route after valid submission | Lifecycle count unchanged | No Revision or Review evidence changes |
-| Phase 0 | Lifecycle Review failure | Contract-valid failed REV publishes unchanged | Package Selectors count only `corrects-review`-backed replacement cycles, not Assignment lease attempts | Fresh delegated Review Assignment per replacement | Package correction or escalation Resolver | Assignment or Attention Required according to evidence-derived budget | Assignment malformed-attempt count unchanged | Exact failed judgment is retained |
+## Foundation and product simplification
 
-Every expected row projects Assignment or Attention Required; none projects
-Process Dead End. Continued failure after exhaustion remains attended rather than
-replenishing autonomous budget.
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| Greenfield foundation | Setup commit, then current MAP, PSP, and smallest sufficient STK set | Initial foundation Obligations; autonomous authoring Scenarios | Serial **Assignment** | No correction consumed; ordinary Git commits fix each next Assignment fingerprint |
+| Foundation Review passes | Exact Review Context; passing REV with `reviews` and `contextualizes` | `passing-review-required@2`; delegated `independent-reviewer` | Next foundation/context/candidate **Assignment** | Passing evidence is reused while exact dependencies do not change |
+| Initial foundation Review fails | Immutable failed REV and complete findings | `foundation-review-correction-required@5`; autonomous `revise-foundation-after-review@5` | Exact subject correction **Assignment** | 0 of 2 consumed; failed Revision/context/REV retained |
+| First correction fails or passes | Same-lineage replacement cites all supplied failures through `corrects-review`; fresh context and REV | `foundation-review-failures-at-stage@1`; ordinary Review Obligations | Second correction **Assignment** on fail; resumed work on pass | 1 consumed; unrelated evidence reused |
+| Second correction fails or passes | Second causal replacement and fresh REV | Foundation correction/escalation Obligations | **Attention Required** on fail; resumed work on pass | 2 consumed; complete history retained |
+| Stakeholder-owned foundation failure | Failed REV has `correction_authority: stakeholder` | `foundation-review-escalation-required@2`; attended `escalate-foundation-review-correction@2` | Immediate **Attention Required** | Autonomous budget untouched; attended replacement and scope DEC are new |
+| Candidate creation | Frozen candidate contains every and only current reviewed MAP/PSP/STK Revision | `intent-candidate-required@2`; autonomous `create-phase-0-intent-candidate@1` | Review Context **Assignment** | Foundation Reviews reused; candidate is the earliest complete evidence-bearing set |
+| Product simplification passes | Candidate REV is `simplification-product-definition`, `pass`, and has no `blocks` | `valid-product-simplification-reviews@1`; delegated `review-datum-in-context@2` | Gate **Attention Required** when Questions are closed | Candidate Review is also the dedicated simplification judgment; no duplicate ceremony |
+| Product simplification fails on members | Failed candidate REV; canonical exact `blocks` names only implicated MAP/PSP/STK members; findings explain the whole blocker set | `product-simplification-blockers-for-candidate@1` and `foundation-review-correction-required@5` | One serial member correction **Assignment** | Existing foundation budget applies; unchanged members and Reviews reused |
+| Product simplification fails on candidate | Failed REV canonically `blocks` the exact candidate | `intent-candidate-review-correction-required@3`; autonomous `revise-intent-candidate-after-review@3` | Superseding candidate **Assignment**, then fresh independent Review | First of two candidate cycles; all failures remain immutable |
+| Corrected member set | Every blocked member has a causal replacement and fresh passing Review | Candidate correction remains blocked until exact member correction and Review complete | Superseding candidate **Assignment** | Changed members/contexts/Reviews replaced; unaffected set evidence reused |
+| Candidate first or second correction passes | Superseding BSL cites complete failed-Review history through `corrects-review`; fresh simplification REV passes | `review-correction-history-for@1`; normal gate reevaluation | Same Phase 0 gate **Attention Required** | 1 or 2 cycles consumed successfully; history retained |
+| Candidate first correction fails | Fresh failed simplification REV on first replacement | Candidate correction Policy remains autonomous | Second candidate correction **Assignment** | 1 consumed; exact lineage and findings supplied |
+| Candidate second correction fails | Current candidate has two `corrects-review`-backed correction Revisions and another failed REV | `intent-candidate-correction-participation@1` on the same correction Obligation/Scenario | Immediate stakeholder **Attention Required** | 2 autonomous cycles exhausted; no parallel escalation module; attended scope DEC is required authority evidence |
 
-## Gate rejection and return
+## Questions and Decision Review
 
-| Phase | Route | Exact evidence and links | Selector / Obligation | Participation | Resolver | Expected next Operator Outcome | Correction budget | Evidence replaced or reused |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Phase 0 | Reviewed rejection | Passing Review of a `gate-signoff` DEC with `gate_outcome: reject`, exact candidate `justifies`, canonical exact `blocks` links, and structured `gate_rejection.findings` applying to that blocker set | `reviewed-gate-rejections-for-candidate@1`; `candidate-gate-signoff@3` remains unsatisfied | Gate judgment was attended stakeholder authority; correction is autonomous | Package reevaluation selects exact blocker work | **Assignment** for one implicated draft member, never progression or a terminal outcome | Gate rejection does not consume the Review-correction budget | Rejected candidate, DEC, Review, rationale, and findings remain immutable |
-| Phase 0 | Member correction | Same-lineage MAP/PSP/STK replacement cites every applicable rejection through `corrects-gate-rejection` | `foundation-review-correction-required@4` | Autonomous | `revise-foundation-after-review@4` | **Assignment** for fresh Review Context, then delegated independent Review | 0 of 2 Review-failure cycles consumed until fresh Review fails | Only the implicated member and exact dependent context/Review are replaced; unaffected candidate evidence remains reusable |
-| Phase 0 | Corrected member Review fails | Fresh failed REV with exact blocking Review Findings over the gate-corrected member | Existing `foundation-review-failures-at-stage@1` and `foundation-review-correction-required@4` | Autonomous for two cycles, then attended stakeholder escalation | `revise-foundation-after-review@4`, then `escalate-foundation-review-correction@1` if exhausted | Fresh serial **Assignment**, or **Attention Required** after the existing budget exhausts | Existing two-cycle budget applies; Assignment malformed attempts remain unrelated | Gate rejection history remains immutable while ordinary failed-Review evidence accumulates |
-| Phase 0 | Replacement candidate | Current corrected members have fresh passing Reviews; candidate has `supersedes` to rejected candidate and `corrects-gate-rejection` to every reviewed rejection | `intent-candidate-review-correction-required@2`; `complete-superseding-intent-candidates-for@1` | Autonomous | `revise-intent-candidate-after-review@2` | **Assignment** for fresh candidate Review Context and independent Review | No additional gate-specific retry count | Every unaffected exact evidence Revision from the rejected candidate is required on the replacement |
-| Phase 0 | Same-gate approval | Fresh passing candidate REV followed by explicit approving gate DEC and its passing REV | Normal `candidate-gate-signoff@3` and `applicable-gate-signoffs-for@1` | **Attention Required** for the same Phase 0 gate, then delegated independent Review | `record-gate-signoff@3` | Phase progression only after exact replacement approval passes Review | Review failures continue through their package-owned correction routes | Rejection remains non-approval history; replacement approval is separate exact evidence |
-| Phase 0 | Stop, defer, or cancel | Separate exact reviewed terminal DEC with explicit scope and stakeholder authority | Package disposition/terminal Selectors, never `reviewed-gate-rejections-for-candidate@1` alone | Attended stakeholder | Explicit consequential Decision Scenario | Declared terminal outcome only when its own exact evidence matches | Not inferred from correction count or rejection | Rejection and terminal Decision remain separate immutable claims |
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| Blocking preferential Question | Open QST has exact `blocks` target | `open-question-resolution@3`; attended stakeholder `resolve-question@2` | Immediate **Attention Required** | Source first freezes; raw conversation remains ephemeral |
+| Nonblocking preferential Question | QST declares `phase-0-gate` and `phase-0-stakeholder-questions` | Package checkpoint and Consolidation Group | Other **Assignments**, then one checkpoint **Attention Required** conversation | Serial QST publication reevaluates later Questions |
+| Empirical evidence available | QST declares available evidence | Question Policy; autonomous `resolve-question@2` | Evidence resolution **Assignment** | Frozen source and resulting QST Revision retained |
+| Prototype-bound empirical Question | Frozen QST declares exact Git prototype contract | `prototype-question-resolution@1`; autonomous prototype Resolver | Evidence **Assignment** | ART, finding DEC, and QST publish atomically |
+| Empirical evidence unavailable | Open empirical QST lacks evidence | Ready low-priority `open-question-resolution@3`; attended/delegable evidence provider | Immediate **Attention Required** or typed inability | No unsupported conclusion publishes |
+| Formal deferral | QST declares `defer`; replacement has reactivation condition and exact deferral DEC | Question Policy; attended stakeholder then delegated Decision Review | Attention, then Review **Assignment** | Scheduling is not deferral; exact source and disposition retained |
+| Cancellation / unsupported disposition | QST declares `cancel`; exact cancellation DEC | Question Policy; attended stakeholder then delegated Decision Review | Attention, then explicit closed route after Review | Unsupported work closes explicitly, never by null/dead end |
+| Preferential answer | Answered QST and exact scope DEC linked through `resolves` | Applicable-answer Selector; delegated Decision Review | Serial Review **Assignment** | Conversation omitted; normalized evidence exact |
+| Question Decision Review fails | Failed REV over scope/deferral/cancellation DEC | `question-decision-review-correction-required@1`; attended `revise-question-decision-after-review@1` | Immediate **Attention Required**, then fresh Review | Replacement preserves kind/scope and cites complete failure history |
+| Question Decision failure continues | Two causal DEC replacements and another failed REV | Same correction Obligation/Scenario reports exhausted lineage | Immediate **Attention Required** | No disposition applies until a fresh passing Review; no alternate recovery path |
+
+## Gate, acceptance, and progression
+
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| Gate approval recorded | Gate DEC is `approve` and `justifies` the exact candidate | `candidate-gate-signoff@3`; attended `record-gate-signoff@3` | Gate Decision Review Context **Assignment** | Candidate/simplification evidence reused |
+| Gate Decision Review fails | Failed REV over current gate DEC | `gate-signoff-review-correction-required@2`; attended `revise-gate-signoff-after-review@2` | Immediate **Attention Required**, then fresh Review | Same-lineage DEC preserves scope and cites complete failed-Review history |
+| Gate Decision failures continue | Two causal replacements and another failed REV | Same attended correction interface reports exhausted lineage | Immediate **Attention Required** | No parallel recovery route; exact candidate scope retained |
+| Reviewed gate rejection | Passing Review of `reject` DEC; canonical exact `blocks`; complete findings | Reviewed-rejection Selectors; normal correction reevaluation | Exact member or candidate correction **Assignment** | Rejection is immutable non-approval and consumes no Review-correction cycle |
+| Rejected member correction | MAP/PSP/STK replacement cites rejection through `corrects-gate-rejection`; fresh ordinary Review | Foundation correction and Review Obligations | Serial correction/context/Review **Assignments** | Unaffected candidate evidence reusable |
+| Replacement after rejection | Superseding candidate cites every rejection, preserves all old evidence, and uses current reviewed members | `complete-superseding-intent-candidates-for@1`; candidate correction Scenario | Fresh candidate simplification Review **Assignment** | Rejection and unaffected evidence retained |
+| Same-gate return | Replacement simplification REV passes | `candidate-gate-signoff@3` | **Attention Required** at the same gate | No hidden return cursor or Phase restart |
+| Stop, defer, or cancel gate work | Separate exact reviewed terminal DEC | Explicit package disposition route, never rejection alone | Only its declared terminal outcome | Rejection and terminal Decision remain separate claims |
+| Accepted intent | Frozen `intent-approved` BSL exactly `promotes` approved candidate and contains candidate simplification REV, approving DEC, and DEC Review | `intent-approval-required@1`; autonomous `accept-phase-0-intent@1` | Acceptance **Assignment**, then Phase 1 work | Mechanical publication reuses reviewed authority; no redundant judgment |
+| Phase progression | Accepted intent and applicable approving gate evidence both exist | Phase 0 readiness/authorization expressions | Phase 1 **Assignment** | Active Phase is derived; no mutable pointer or second approval |
+
+## Transport and liveness invariants
+
+| Route | Expected result | Evidence behavior |
+| --- | --- | --- |
+| Malformed Assignment Response | One correction-required response retaining the same Assignment; second malformed response exhausts it | No Lifecycle Data publishes and lifecycle correction counts do not change |
+| Typed inability | Assignment is consumed and orchestration stops truthfully; a deliberate later `next` may allocate fresh work | No Lifecycle Data publishes |
+| Ordinary publication | `scenario submit`, doctor/diff, and ordinary Git commit precede the next Assignment | Transaction is atomic; ignored leases never become Lifecycle Data |
+| Every expected unfinished Phase 0 state | **Assignment** or **Attention Required** | No expected Phase 0 route projects null or Process Dead End |
 
 ## Executable evidence
 
-`test/mdlm-review-correction.test.ts` drives initial success, first-cycle success,
-second-cycle success, exhausted escalation, immediate stakeholder-intent
-escalation, one malformed Assignment Response on each lifecycle-failed correction
-Assignment, fresh serial correction and Review Assignments, and downstream resumption through the compiled `mdlm` executable in
-fresh Git repositories. `mdlm next` exposes attended work's package-bound exact
-input values through lifecycle-neutral `attentionContext.invocations`; the package
-names those inputs `subject`, `lineage`, `prior_failed_reviews`, and
-`failed_reviews`, so immutable Review Findings and history remain explicit without
-kernel knowledge of Review or correction semantics. The same public-process test
-drives a reviewed Phase 0 gate rejection through exact blocker discovery, causal
-member correction, a failed fresh Review and ordinary bounded correction,
-evidence-preserving candidate replacement, fresh candidate Review, return to the
-same gate, and separate exact approval while confirming the rejected DEC remains
-immutable history. Remaining Phase 2 rejection routes are deferred to issue #99.
+`test/mdlm-review-correction.test.ts` drives the compiled `mdlm` executable from
+`mdlm init` through ordinary Git commits, failed Review correction, candidate-
+centered simplification, reviewed gate rejection, exact member correction, fresh
+simplification, same-gate approval, accepted intent, and derived Phase 1 entry.
+`test/evaluate-bootstrap-participation.test.ts` covers exact simplification
+blockers, candidate exhaustion through the same interface, Question Decision
+correction, accepted-intent progression, and package-owned participation.

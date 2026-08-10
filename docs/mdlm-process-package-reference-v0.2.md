@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.51 — experimental implementation reference**
+**Bootstrap package 0.52 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -900,7 +900,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.51 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.52 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -926,16 +926,30 @@ budget. Assignment malformed-response attempts are ignored operational state and
 never enter these Selectors. The versioned requirement template supplies both
 `corrects-review` and the distinct `changed-under` contract to STK and SYS without
 type-family or multiple-inheritance mechanics. Immutable failed Revision and Review
-history remains inspectable. The tracer
-reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
-the one primary subject Revision; each context may still include supporting parent
-or sibling Revisions. It then freezes and reviews an intent candidate and completes
-one reviewed exact Gate Sign-off. A reviewed rejection records one canonical exact blocker set in `blocks` links
-plus structured rationale applying to that set. It derives causal same-lineage
-Phase 0 member correction, requires fresh Reviews, preserves unaffected candidate
-evidence, and returns the superseding candidate to the same gate. Rejection itself
-is not a stop, deferral, or cancellation Decision. Remaining Phase 2 rejection
-routes are deferred to issue #99.
+history remains inspectable. The tracer reviews MAP, PSP, and STK separately in
+exact frozen contexts whose `scope` names the one primary subject Revision; each
+context may still include supporting parent or sibling Revisions. It then freezes
+the earliest complete evidence-bearing intent candidate. That candidate's required
+independent Review is the dedicated `simplification-product-definition` judgment,
+so no second context or duplicate candidate-review ceremony is introduced. A
+failed simplification REV uses canonical exact `blocks` links to route implicated
+members through foundation correction or the candidate through one causal
+superseding-candidate interface. The interface permits two autonomous cycles and
+then changes participation to immediate attended escalation while retaining the
+same Assignment shape and complete immutable history.
+
+A reviewed gate rejection records one canonical exact blocker set in `blocks`
+links plus structured rationale applying to that set. It derives causal same-
+lineage Phase 0 member correction, requires fresh Reviews, preserves unaffected
+candidate evidence, and returns the superseding candidate's fresh simplification
+Review to the same gate. Failed Question and gate Decisions receive same-lineage
+`corrects-review` replacements and fresh independent Reviews under attended
+stakeholder authority; after two causal replacements, the same interface carries
+explicit exhausted-lineage escalation. A reviewed approving gate mechanically
+derives one frozen `intent-approved` BSL containing exact candidate, candidate
+Review, DEC, and DEC Review evidence before progression. Rejection itself is not a
+stop, deferral, or cancellation Decision. Remaining Phase 1, Phase 2, VAI, and
+pilot-assessment hardening is deferred to issues #96–#100.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable

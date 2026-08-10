@@ -1,0 +1,17 @@
+kind: selector-definition
+id: product-simplification-reviews-for
+version: 1
+description: Current exact product-simplification Reviews for one Phase 0 intent candidate and requested outcome.
+parameters:
+  - {name: candidate, kind: revision, types: [BSL]}
+  - {name: outcome, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: candidate, link: reviews, emit: source, types: [REV]}
+  as: review
+  where: >-
+    review.payload.review_kind == "simplification-product-definition"
+    && review.payload.outcome == outcome
+    && state(review, "validity") == "valid"
+  distinct: true
+  order_by: [identity.revision_id]

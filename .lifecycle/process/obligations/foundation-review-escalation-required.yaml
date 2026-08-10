@@ -1,6 +1,6 @@
 kind: obligation-definition
 id: foundation-review-escalation-required
-version: 1
+version: 2
 description: A Phase 0 foundation failure requires attended correction when stakeholder-owned intent is implicated or two autonomous replacement cycles have failed.
 phases: [phase-0-wayfinding]
 for_each: 'select("foundation-review-failures-at-stage@1", {stage: "escalation"})'
@@ -12,6 +12,9 @@ status_rules:
     when: >-
       !every("failing-reviews-for@1", {subject: subject}, review =>
         review.payload.correction_authority != "stakeholder")
+      || !every("product-simplification-reviews-blocking-subject@1",
+        {subject: subject}, review =>
+          review.payload.correction_authority != "stakeholder")
     reason: Stakeholder attention is required immediately because correction would change stakeholder-owned intent; autonomous correction budget is not consumed.
   - status: ready
     priority: 50
@@ -19,10 +22,13 @@ status_rules:
     reason: Stakeholder attention is required because both autonomous replacement-and-Review cycles failed and the correction lineage is exhausted.
 default_status: ready
 resolve_with:
-  scenario: escalate-foundation-review-correction@1
+  scenario: escalate-foundation-review-correction@2
   inputs:
     subject: subject
     lineage: 'select("foundation-correction-history@1", {subject: subject, view: "lineage"})'
     prior_failed_reviews: 'select("cited-failing-reviews-by-correction@1", {replacement: subject})'
     failed_reviews: 'select("failing-reviews-for@1", {subject: subject})'
+    simplification_reviews: >-
+      select("product-simplification-reviews-blocking-subject@1",
+        {subject: subject})
 waiver_policy_ref: waiver-applicability@1

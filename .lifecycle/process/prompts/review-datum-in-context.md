@@ -24,6 +24,13 @@ for execution; the resulting REV, not reviewer prose or a completion summary,
 is the durable judgment evidence.
 
 Create one REV with exactly one `reviews` link and one `contextualizes` link.
+For an `intent-level-candidate`, this candidate is the earliest complete
+evidence-bearing MAP/PSP/STK set: use `review_kind:
+simplification-product-definition` and challenge product purpose, stakeholder
+intent, and scope. A passing Review has no `blocks` links. A failed Review uses
+`blocks` as the one canonical exact candidate/member correction set; its
+structured findings explain the rationale applying to that complete set.
+
 Record primary and collateral findings separately. Primary blocking findings
 force `fail`; collateral findings use `needs-triage` and do not automatically fail
 the subject. Do not silently edit the subject during review and do not inherit a

@@ -203,6 +203,7 @@ describe("req system decomposition slice", () => {
       subject: string,
       context: string,
       title = `Review ${subject}`,
+      reviewKind = "contextual",
     ) => {
       const exactContext = reviewContextsBySubject.get(subject);
       expect(exactContext).toBe(context);
@@ -219,7 +220,7 @@ describe("req system decomposition slice", () => {
               type: "REV",
               payload: {
                 title,
-                review_kind: "contextual",
+                review_kind: reviewKind,
                 rubric_ref: "policies/rubrics/bootstrap-review.md@1",
                 findings: [],
                 outcome: "pass",
@@ -240,6 +241,25 @@ describe("req system decomposition slice", () => {
       return execution.outputs[0].lifecycleDatum as { revisionId: string };
     };
 
+    const productSpecification = create(
+      "PSP",
+      "--scenario",
+      "compile-psp@2",
+      "--set",
+      "title=Portable report",
+      "--set",
+      "rationale=One bounded export validates the decomposition tracer",
+      "--set",
+      "problem=Completed reports cannot leave the product",
+      "--set",
+      'users=["report author"]',
+      "--set",
+      'goals=["export one completed report"]',
+      "--set",
+      'non_goals=["general integration platform"]',
+      "--set",
+      'success_measures=["one report crosses the public boundary"]',
+    );
     const stakeholder = create(
       "STK",
       "--scenario",
@@ -257,25 +277,7 @@ describe("req system decomposition slice", () => {
       "--set",
       "priority=must",
       "--link",
-      `derived-from=${create(
-        "PSP",
-        "--scenario",
-        "compile-psp@2",
-        "--set",
-        "title=Portable report",
-        "--set",
-        "rationale=One bounded export validates the decomposition tracer",
-        "--set",
-        "problem=Completed reports cannot leave the product",
-        "--set",
-        'users=["report author"]',
-        "--set",
-        'goals=["export one completed report"]',
-        "--set",
-        'non_goals=["general integration platform"]',
-        "--set",
-        'success_measures=["one report crosses the public boundary"]',
-      ).id}`,
+      `derived-from=${productSpecification.id}`,
     );
     const strategy = create(
       "VSP",
@@ -320,6 +322,15 @@ describe("req system decomposition slice", () => {
       `governs-revision=${stakeholder.revisionId}`,
     );
 
+    const productContext = await createDiscoveredReviewContext(
+      "Product specification Review Context",
+      productSpecification.revisionId,
+      [productSpecification.revisionId],
+    );
+    await publishDiscoveredReview(
+      productSpecification.revisionId,
+      productContext.revisionId,
+    );
     const stakeholderContext = await createDiscoveredReviewContext(
       "Accepted stakeholder requirement Review Context",
       stakeholder.revisionId,
@@ -331,16 +342,18 @@ describe("req system decomposition slice", () => {
     );
     const intentCandidate = freeze(
       baseline("Approved intent", "intent-level-candidate", "candidate"),
-      [stakeholder.revisionId],
+      [productSpecification.revisionId, stakeholder.revisionId],
     );
     const intentCandidateContext = await createDiscoveredReviewContext(
       "Intent candidate Review Context",
       intentCandidate.revisionId,
       [intentCandidate.revisionId],
     );
-    await publishDiscoveredReview(
+    const intentCandidateReview = await publishDiscoveredReview(
       intentCandidate.revisionId,
       intentCandidateContext.revisionId,
+      "Simplify exact intent candidate",
+      "simplification-product-definition",
     );
     const intentGateWork = obligation("candidate-gate-signoff", intentCandidate.revisionId);
     const intentGateExecution = await execute(
@@ -378,9 +391,33 @@ describe("req system decomposition slice", () => {
       intentDecision.revisionId,
       [intentDecision.revisionId],
     );
-    await publishDiscoveredReview(
+    const intentDecisionReview = await publishDiscoveredReview(
       intentDecision.revisionId,
       intentDecisionContext.revisionId,
+    );
+    const acceptedIntent = baseline(
+      "Accepted intent",
+      "intent-approved",
+      "accepted",
+    );
+    const promotion = req(
+      repositoryRoot,
+      "link",
+      acceptedIntent.revisionId,
+      intentCandidate.revisionId,
+      "--type",
+      "promotes",
+      "--json",
+    );
+    expect(promotion.status, `${promotion.stderr}${promotion.stdout}`).toBe(0);
+    freeze(
+      acceptedIntent,
+      [productSpecification.revisionId, stakeholder.revisionId],
+      [
+        intentCandidateReview.revisionId,
+        intentDecision.revisionId,
+        intentDecisionReview.revisionId,
+      ],
     );
 
     expect(obligation("decomposition-planning-required", stakeholder.revisionId)).toEqual(

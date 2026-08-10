@@ -1,0 +1,13 @@
+kind: selector-definition
+id: question-targets-for-decision
+version: 1
+description: Exact resulting Question Revision whose disposition or preferential answer is governed by one Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: decision, link: resolves, emit: target, types: [QST]}
+  as: question
+  where: 'question.identity.revision_id == decision.payload.effective_scope'
+  distinct: true
+  order_by: [identity.revision_id]

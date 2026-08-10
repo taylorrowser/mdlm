@@ -1,0 +1,27 @@
+kind: selector-definition
+id: valid-product-simplification-reviews
+version: 1
+description: Product-simplification Reviews whose canonical blockers are exactly their Phase 0 intent candidate or its members.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+result_kind: revision
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    && exists("matching-product-simplification-review@1",
+      {candidate: candidate, review: review})
+    && review.payload.review_kind == "simplification-product-definition"
+    && none("invalid-product-simplification-blockers-for-review@1",
+      {review: review, candidate: candidate})
+    && (
+      (review.payload.outcome == "pass"
+        && none("product-simplification-blockers-for-review@1",
+          {review: review}))
+      || (review.payload.outcome == "fail"
+        && exists("product-simplification-blockers-for-review@1",
+          {review: review}))
+    )
+  distinct: true
+  order_by: [identity.revision_id]

@@ -1,0 +1,22 @@
+kind: selector-definition
+id: invalid-product-simplification-blockers-for-review
+version: 1
+description: Product-simplification Review blockers outside its exact candidate or candidate-member set.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from:
+    selector: product-simplification-blockers-for-review@1
+    arguments: {review: review}
+  as: blocker
+  where: >-
+    blocker.identity.revision_id != candidate.identity.revision_id
+    && (
+      blocker.identity.type == "BSL"
+      || none("candidate-members-matching@1",
+        {candidate: candidate, required_member: blocker})
+    )
+  distinct: true
+  order_by: [identity.revision_id]

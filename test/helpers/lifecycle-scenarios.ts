@@ -47,9 +47,9 @@ export function reviewedGateFixture(processRef: string) {
   );
   const candidateReview = frozenLifecycleRecord(processRef, "REV", "REV-4K3M9Q2D8F", {
     title: "Candidate review",
-    review_kind: "independent",
+    review_kind: "simplification-product-definition",
     rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    summary: "The exact candidate passes review.",
+    summary: "The exact candidate is the smallest sufficient product definition.",
     findings: [],
     outcome: "pass",
   }, {
@@ -114,6 +114,37 @@ export function reviewedGateFixture(processRef: string) {
       signoffReview,
     ],
   };
+}
+
+export function acceptedIntentForReviewedGate(
+  processRef: string,
+  fixture: ReturnType<typeof reviewedGateFixture>,
+): LifecycleRecord {
+  return frozenLifecycleRecord(
+    processRef,
+    "BSL",
+    "BSL-4K3M9Q2D8J",
+    {
+      title: "Accepted intent",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: fixture.candidate.datum.payload.scope,
+      group: fixture.candidate.datum.payload.group,
+      definition_members: [],
+      evidence: [
+        fixture.candidateReview.datum.revision_id,
+        fixture.signoff.datum.revision_id,
+        fixture.signoffReview.datum.revision_id,
+      ],
+    },
+    {
+      links: [{
+        type: "promotes",
+        target: fixture.candidate.datum.revision_id,
+      }],
+      scenario: "accept-phase-0-intent@1",
+    },
+  );
 }
 
 export function exactContextWaiverFor(

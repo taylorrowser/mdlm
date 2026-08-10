@@ -1,6 +1,6 @@
 kind: type-definition
 id: REV
-version: 2
+version: 3
 name: Review
 description: Immutable judgment about one exact primary subject in one exact frozen context.
 extends: titled-datum@1
@@ -14,7 +14,7 @@ payload_schema:
   type: object
   required: [rubric_ref, findings, outcome]
   properties:
-    review_kind: {enum: [contextual, simplification-requirements, simplification-architecture-interfaces, cross-group, gate]}
+    review_kind: {enum: [contextual, simplification-product-definition, simplification-requirements, simplification-architecture-interfaces, cross-group, gate]}
     decomposition_plan_revision: {type: string, pattern: '^DWP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     rubric_ref: {type: string, pattern: '^policies/rubrics/.+\.md@[1-9][0-9]*$'}
     findings:
@@ -58,6 +58,13 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: exact-revision
     inverse_label: review-dependency
+  - id: blocks
+    description: Canonical exact candidate or candidate-member set selected by blocking product-simplification findings.
+    targets:
+      - {kind: datum, types: [MAP, PSP, STK, BSL], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: blocked-by-review
   - id: changed-under
     description: Exact approved Change Request requiring this replacement review evidence.
     targets:

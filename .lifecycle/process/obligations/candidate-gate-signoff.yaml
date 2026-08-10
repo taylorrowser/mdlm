@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: candidate-gate-signoff
 version: 3
-description: A current candidate requires exact reviewed gate approval after member and candidate reviews pass and blocking questions close.
+description: A current candidate requires exact reviewed gate approval after member Reviews, its package-required candidate judgment, and blocking questions resolve.
 phases: [phase-0-wayfinding, phase-2-system-definition]
 for_each: 'select("gate-authorization-candidates@1", {})'
 subject_as: candidate
@@ -12,9 +12,9 @@ status_rules:
     when: 'exists("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})'
     reason: The reviewed rejection remains immutable blocking history while exact correction and a superseding candidate return to this same gate.
     blocked_by:
-      - obligation: foundation-review-correction-required@4
+      - obligation: foundation-review-correction-required@5
         subjects: 'select("gate-rejection-blocked-members-for-candidate@1", {candidate: candidate})'
-      - obligation: intent-candidate-review-correction-required@2
+      - obligation: intent-candidate-review-correction-required@3
         subjects: '[candidate]'
   - status: blocked
     priority: 300
@@ -29,7 +29,15 @@ status_rules:
     priority: 200
     when: >-
       exists("candidate-members-missing-review@1", {candidate: candidate})
-      || none("passing-reviews-for@1", {subject: candidate})
+      || (
+        candidate.payload.kind == "intent-level-candidate"
+        && none("product-simplification-reviews-for@1",
+          {candidate: candidate, outcome: "pass"})
+      )
+      || (
+        candidate.payload.kind != "intent-level-candidate"
+        && none("passing-reviews-for@1", {subject: candidate})
+      )
       || exists("failing-reviews-for@1", {subject: candidate})
       || exists("open-blocking-questions@1", {})
     reason: Candidate reviews, member reviews, or blocking questions remain unresolved.
@@ -38,7 +46,7 @@ status_rules:
         subjects: '[candidate]'
       - obligation: passing-review-required@2
         subjects: '[candidate]'
-      - obligation: open-question-resolution@2
+      - obligation: open-question-resolution@3
         subjects: 'select("open-blocking-questions@1", {})'
       - obligation: prototype-question-resolution@1
         subjects: 'select("open-blocking-questions@1", {})'
@@ -46,7 +54,13 @@ status_rules:
     priority: 100
     when: >-
       none("candidate-members-missing-review@1", {candidate: candidate})
-      && exists("passing-reviews-for@1", {subject: candidate})
+      && (
+        (candidate.payload.kind == "intent-level-candidate"
+          && exists("product-simplification-reviews-for@1",
+            {candidate: candidate, outcome: "pass"}))
+        || (candidate.payload.kind != "intent-level-candidate"
+          && exists("passing-reviews-for@1", {subject: candidate}))
+      )
       && none("failing-reviews-for@1", {subject: candidate})
       && none("open-blocking-questions@1", {})
     reason: The exact frozen candidate is ready for an explicit gate decision.

@@ -1,0 +1,15 @@
+kind: selector-definition
+id: intent-candidates-matching-subject
+version: 1
+description: The exact intent-level candidate when the supplied generic Review subject is that candidate.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    && candidate.identity.revision_id == subject.identity.revision_id
+  distinct: true
+  order_by: [identity.revision_id]

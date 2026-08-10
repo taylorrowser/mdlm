@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.51
+# MDLM bootstrap process package v0.52
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -213,9 +213,9 @@ no piecemeal baseline commands or borrowed Review Context provenance are needed.
 A prototype declaration then routes its exact frozen Revision to
 `resolve-question-with-prototype@2`, which atomically publishes ART, DEC, and the
 satisfying QST Revision; other empirical questions retain the generic resolver.
-Package-owned Obligations now discover the required MAP, PSP, STK set,
-Review Contexts, Reviews, and exact intent candidate from an empty initialized
-repository. MAP, PSP, and STK are substantive review subjects: their ready Review
+Package-owned Obligations now discover the required MAP, PSP, smallest sufficient
+STK set, Review Contexts, Reviews, and exact intent candidate from an empty
+initialized repository. MAP, PSP, and STK are substantive review subjects: their ready Review
 Context work sorts ahead of blocked Review work. Every context scopes one exact
 primary subject Revision while its definition may include the coherent parent and
 sibling slice; supporting membership does not make another member the primary
@@ -226,10 +226,17 @@ evidence. Two fresh serial correction-and-Review cycles are autonomous; continue
 failure or `correction_authority: stakeholder` derives immediate attended
 escalation with the exact lineage, Reviews, findings, and reason. Assignment
 malformed-response attempts are not lifecycle evidence and never enter this budget.
-The versioned requirement template shares `corrects-review` and the distinct
-`changed-under` contract across STK and SYS without kernel type-family semantics.
-Correction of a DEC still requires stakeholder authority. Candidate and Gate
-Sign-off review remain separate.
+The intent candidate is the earliest complete evidence-bearing MAP/PSP/STK set;
+its required independent Review is the dedicated
+`simplification-product-definition` judgment. A failed Review's canonical exact
+`blocks` set derives member or candidate correction, fresh independent Review,
+two autonomous candidate correction cycles, and then attended escalation through
+the same correction interface. The versioned requirement template shares
+`corrects-review` and the distinct `changed-under` contract across STK and SYS
+without kernel type-family semantics. Failed Question and gate Decisions use the
+same causal-history shape under immediate stakeholder authority. A reviewed
+approving gate mechanically derives one exact `intent-approved` BSL before Phase
+progression; no redundant authority is requested.
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and
 REV resolve; only an explicit `gate_outcome: approve` can make the package-authored
 gate expression true. A reviewed rejection remains immutable blocking history.
@@ -238,8 +245,8 @@ Its `blocks` links are the one canonical exact blocker set, while structured
 set. For Phase 0, each implicated draft member receives a same-lineage
 `corrects-gate-rejection` replacement and fresh Review before a replacement
 candidate preserves unaffected evidence and links `supersedes` to the rejected
-candidate. Fresh passing candidate Review returns normal attention to the same
-package gate. Failed member re-Review enters the existing two-cycle correction
+candidate. Its fresh passing product-simplification Review returns normal
+attention to the same package gate. Failed member re-Review enters the existing two-cycle correction
 budget and attended escalation. Rejection never implies stop, defer, or cancel;
 those dispositions require separate exact reviewed Decisions. Remaining Phase 2
 rejection routes are intentionally deferred to issue #99.

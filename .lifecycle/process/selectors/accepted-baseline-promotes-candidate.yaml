@@ -1,0 +1,14 @@
+kind: selector-definition
+id: accepted-baseline-promotes-candidate
+version: 1
+description: Exact promoted candidate target matching one supplied accepted baseline and candidate.
+parameters:
+  - {name: accepted, kind: baseline, types: [BSL]}
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from: {relation: outgoing-links, of: accepted, link: promotes, emit: target, types: [BSL]}
+  as: promoted
+  where: 'promoted.identity.revision_id == candidate.identity.revision_id'
+  distinct: true
+  order_by: [identity.revision_id]
