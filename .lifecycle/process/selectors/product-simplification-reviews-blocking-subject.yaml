@@ -1,0 +1,18 @@
+kind: selector-definition
+id: product-simplification-reviews-blocking-subject
+version: 1
+description: Failed product-simplification Reviews that name one exact Phase 0 subject as a canonical blocker.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK, BSL]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: subject, link: blocks, emit: source, types: [REV]}
+  as: review
+  where: >-
+    review.payload.review_kind == "simplification-product-definition"
+    && review.payload.outcome == "fail"
+    && review.payload.simplification.target == subject.identity.revision_id
+    && state(review, "validity") == "valid"
+    && exists("valid-product-simplification-reviews@1", {review: review})
+  distinct: true
+  order_by: [identity.revision_id]

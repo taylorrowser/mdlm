@@ -1,0 +1,41 @@
+kind: policy-definition
+id: intent-candidate-correction-participation
+version: 1
+description: Keep two candidate Review-correction cycles autonomous unless current blocking simplification evidence requires immediate stakeholder correction, then escalate through the same exact Scenario.
+parameters:
+  - {name: candidate, kind: revision, types: [BSL]}
+result_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  additionalProperties: false
+  required: [authority_mode, authority, delegation_allowed, attention_timing, attention_checkpoint, consolidation_group]
+  properties:
+    authority_mode: {type: string, enum: [autonomous, delegated, attended]}
+    authority: {type: string, minLength: 1}
+    delegation_allowed: {type: boolean}
+    attention_timing: {type: string, enum: [none, immediate, checkpoint]}
+    attention_checkpoint: {type: [string, 'null']}
+    consolidation_group: {type: [string, 'null']}
+default:
+  authority_mode: attended
+  authority: stakeholder
+  delegation_allowed: false
+  attention_timing: immediate
+  attention_checkpoint: null
+  consolidation_group: null
+rules:
+  - priority: 100
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: candidate, view: "autonomous-corrections"}) < 2
+      && every("product-simplification-reviews-for@1",
+        {candidate: candidate, outcome: "fail"}, review =>
+          review.payload.simplification.target != candidate.identity.revision_id
+          || review.payload.correction_authority != "stakeholder")
+    result:
+      authority_mode: autonomous
+      authority: package-evidence
+      delegation_allowed: false
+      attention_timing: none
+      attention_checkpoint: null
+      consolidation_group: null

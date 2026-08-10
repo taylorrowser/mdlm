@@ -1,0 +1,13 @@
+kind: selector-definition
+id: candidate-correction-decisions-for
+version: 1
+description: Exact Decisions published as authority evidence for one candidate correction.
+parameters:
+  - {name: replacement, kind: revision, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: replacement, link: justifies, emit: source, types: [DEC]}
+  as: decision
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]

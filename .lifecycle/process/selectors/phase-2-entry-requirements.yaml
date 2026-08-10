@@ -11,7 +11,7 @@ query:
     state(requirement, "disposition") == "active"
     && state(requirement, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: requirement})
-    && exists("accepted-intent-candidates-for-requirement@1",
+    && exists("accepted-intent-candidates-for-requirement@2",
       {requirement: requirement})
   distinct: true
   order_by: [identity.id, identity.revision]

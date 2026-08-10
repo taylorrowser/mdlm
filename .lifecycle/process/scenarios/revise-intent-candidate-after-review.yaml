@@ -1,26 +1,14 @@
 kind: scenario-definition
 id: revise-intent-candidate-after-review
-version: 2
+version: 3
 description: Rebuild one failed or reviewed-rejected Phase 0 intent candidate from exact reviewed members while preserving immutable evidence.
 phases: [phase-0-wayfinding]
 inputs:
-  - name: candidate
-    types: [BSL]
-    cardinality: one
-    identity: revision
-    conditions: >-
-      candidate.payload.kind == "intent-level-candidate"
-      && (
-        exists("failing-reviews-for@1", {subject: candidate})
-        || exists("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
-      )
-  - name: definition_members
-    types: [MAP, PSP, STK]
-    cardinality: one-or-more
-    identity: revision
-    conditions: >-
-      exists("passing-reviews-for@1", {subject: definition_members})
-      && none("failing-reviews-for@1", {subject: definition_members})
+  - {name: candidate, types: [BSL], cardinality: one, identity: revision}
+  - {name: definition_members, types: [MAP, PSP, STK], cardinality: one-or-more, identity: revision}
+  - {name: lineage, types: [BSL], cardinality: one-or-more, identity: revision}
+  - {name: prior_failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
+  - {name: failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - name: gate_rejections
     types: [DEC]
     cardinality: zero-or-more
@@ -31,13 +19,40 @@ outputs:
     cardinality: one
     required_links:
       - {link: supersedes, target: {input: candidate}}
+      - {link: corrects-review, target: {input: prior_failed_reviews}}
+      - {link: corrects-review, target: {input: failed_reviews}}
       - {link: corrects-gate-rejection, target: {input: gate_rejections}}
-prompt_ref: prompts/revise-intent-candidate-after-review.md@2
+  - name: decision
+    types: [DEC]
+    cardinality: zero-or-one
+    required_links:
+      - {link: justifies, target: {output: replacement}}
+prompt_ref: prompts/revise-intent-candidate-after-review.md@3
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: intent-candidate-correction-participation@1
+  arguments: {candidate: candidate}
+authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && exists("complete-superseding-intent-candidates-for@1",
     {candidate: candidate})
+  && (
+    (policy("intent-candidate-correction-participation@1",
+      {candidate: candidate}).authority_mode == "autonomous"
+      && none("candidate-correction-decisions-for@1",
+        {replacement: replacement}))
+    || (policy("intent-candidate-correction-participation@1",
+      {candidate: candidate}).authority_mode == "attended"
+      && count("candidate-correction-decisions-for@1",
+        {replacement: replacement}) == 1
+      && every("candidate-correction-decisions-for@1",
+        {replacement: replacement}, authority =>
+          authority.payload.kind == "scope"
+          && authority.payload.effective_scope == replacement.identity.revision_id
+          && state(authority, "disposition") == "active"
+          && state(authority, "validity") == "valid"))
+  )
 resolves: [intent-candidate-review-correction-required]
 prohibited_inputs: [mutation of the prior candidate, unreviewed definition Revisions, omission of unaffected evidence, inferred terminal disposition]
 batching: single

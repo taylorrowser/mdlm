@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-1-product-assurance
-version: 2
+version: 3
 order: 1
 name: Product assurance qualification and pilot
 purpose: Qualify one declared environment and demonstrate that a source-independent pilot design distinguishes supported from intentionally unsupported behavior.
@@ -34,7 +34,7 @@ obligations:
   - pilot-verification-implementation-required@1
   - review-context-required@2
   - passing-review-required@2
-  - open-question-resolution@2
+  - open-question-resolution@3
   - prototype-question-resolution@1
   - verification-run-required@1
   - verification-strategy-review-correction-required@1

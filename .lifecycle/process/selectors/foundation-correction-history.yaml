@@ -1,7 +1,7 @@
 kind: selector-definition
 id: foundation-correction-history
 version: 1
-description: Exact lineage or evidence-backed correction Revisions through one Phase 0 foundation Revision.
+description: Exact lineage, Review corrections, or autonomous Review corrections through one Phase 0 foundation Revision.
 parameters:
   - {name: subject, kind: revision, types: [MAP, PSP, STK]}
   - {name: view, kind: scalar, scalar_type: string}
@@ -14,9 +14,12 @@ query:
     && (
       view == "lineage"
       || (
-        view == "corrections"
+        (view == "corrections" || view == "autonomous-corrections")
         && exists("cited-failing-reviews-by-correction@1", {replacement: revision})
         && none("cited-gate-rejections-by-correction@1", {replacement: revision})
+        && (view != "autonomous-corrections"
+          || none("foundation-correction-decisions-for@1",
+            {replacement: revision}))
       )
     )
   distinct: true

@@ -51,9 +51,26 @@ async function packageWithRejectedInput(): Promise<string> {
   const scenario = await fs.readFile(scenarioPath, "utf8");
   await fs.writeFile(
     scenarioPath,
-    scenario.replace(
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}",
-      "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
+    scenario
+      .replace(
+        "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}",
+        "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
+      )
+      .replace(
+        "  - {name: context_members, types: [MAP, PSP, STK], cardinality: zero-or-more, identity: revision}\n",
+        "",
+      ),
+  );
+  const obligationPath = path.join(
+    processRoot,
+    "obligations/review-context-required.yaml",
+  );
+  const obligation = await fs.readFile(obligationPath, "utf8");
+  await fs.writeFile(
+    obligationPath,
+    obligation.replace(
+      "    context_members: 'select(\"phase-0-candidate-review-context-members@1\", {subject: subject})'\n",
+      "",
     ),
   );
   return processRoot;
@@ -109,7 +126,7 @@ describe("req scenario dry-run", () => {
     const question = JSON.parse(createdQuestion.stdout).created;
     await freezeQuestionSource(repositoryRoot, question.revisionId);
     const obligation =
-      `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.51.0#${packageDigest}`;
+      `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.52.0#${packageDigest}`;
     const before = await treeDigest(repositoryRoot);
 
     const result = req(
@@ -207,7 +224,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.51.0",
+          reference: "mdlm-bootstrap@0.52.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -277,6 +294,15 @@ describe("req scenario dry-run", () => {
                     expect.objectContaining({ check: "type", passed: true }),
                   ]),
                 },
+                expect.objectContaining({
+                  name: "context_members",
+                  contract: expect.objectContaining({
+                    types: ["MAP", "PSP", "STK"],
+                    cardinality: "zero-or-more",
+                    identity: "revision",
+                  }),
+                  values: [],
+                }),
               ],
             },
           ],
@@ -439,7 +465,7 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.51.0",
+        "mdlm-bootstrap@0.52.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(

@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: escalate-foundation-review-correction
-version: 1
+version: 2
 description: Present one exact failed correction lineage for stakeholder judgment and publish an attended same-lineage replacement with durable scope authority.
 phases: [phase-0-wayfinding]
 inputs:
@@ -18,7 +18,15 @@ inputs:
     identity: revision
   - name: failed_reviews
     types: [REV]
-    cardinality: one-or-more
+    cardinality: zero-or-more
+    identity: revision
+  - name: simplification_reviews
+    types: [REV]
+    cardinality: zero-or-more
+    identity: revision
+  - name: gate_rejections
+    types: [DEC]
+    cardinality: zero-or-more
     identity: revision
 outputs:
   - name: replacement
@@ -27,12 +35,14 @@ outputs:
     required_links:
       - {link: corrects-review, target: {input: prior_failed_reviews}}
       - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: corrects-review, target: {input: simplification_reviews}}
+      - {link: corrects-gate-rejection, target: {input: gate_rejections}}
   - name: decision
     types: [DEC]
     cardinality: one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/escalate-foundation-review-correction.md@1
+prompt_ref: prompts/escalate-foundation-review-correction.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: consequential-decision-participation@1

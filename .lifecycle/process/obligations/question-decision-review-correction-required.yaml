@@ -1,0 +1,32 @@
+kind: obligation-definition
+id: question-decision-review-correction-required
+version: 1
+description: A failed Phase 0 Question Decision Review requires renewed exact stakeholder judgment through the same causal correction interface.
+phases: [phase-0-wayfinding]
+for_each: 'select("failed-question-decisions@1", {})'
+subject_as: decision
+satisfied_when: 'exists("valid-question-decision-replacements-for@1", {decision: decision})'
+status_rules:
+  - status: ready
+    priority: 200
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: decision, view: "corrections"}) >= 2
+    reason: Two causal Question Decision replacements failed; renewed stakeholder judgment receives the complete exhausted lineage.
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: The exact failed Decision findings are ready for renewed stakeholder judgment.
+default_status: ready
+resolve_with:
+  scenario: revise-question-decision-after-review@1
+  inputs:
+    decision: decision
+    question: 'one("question-targets-for-decision@1", {decision: decision})'
+    lineage: >-
+      select("review-correction-history-for@1",
+        {subject: decision, view: "lineage"})
+    prior_failed_reviews: >-
+      select("cited-failing-reviews-by-correction@1", {replacement: decision})
+    failed_reviews: 'select("failing-reviews-for@1", {subject: decision})'
+waiver_policy_ref: waiver-applicability@1

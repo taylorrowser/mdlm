@@ -1,6 +1,6 @@
 kind: obligation-definition
 id: open-question-resolution
-version: 2
+version: 3
 description: Every latest general question needs an answer, or exact reviewed DEC evidence when explicitly deferred or cancelled.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("general-open-questions@1", {})'
@@ -72,12 +72,12 @@ status_rules:
       && question.payload.kind == "empirical"
       && question.payload.evidence_available == true
     reason: The exact question declares that sufficient empirical evidence is available for autonomous resolution.
-  - status: blocked
+  - status: ready
     priority: 50
     when: >-
       question.payload.state == "open"
       && question.payload.kind == "empirical"
-    reason: Empirical resolution is blocked until the exact question declares sufficient evidence available.
+    reason: The evidence provider must supply exact empirical work now or return inability so the source can receive explicit deferral, cancellation, or unsupported disposition.
 default_status: blocked
 resolve_with:
   scenario: resolve-question@2

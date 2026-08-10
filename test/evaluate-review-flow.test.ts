@@ -657,13 +657,16 @@ describe("evaluateLifecycle review flow", () => {
       role: "review-context",
       scope: candidate.datum.revision_id,
       group: "DEFAULT",
-      definition_members: [candidate.datum.revision_id],
+      definition_members: [
+        candidate.datum.revision_id,
+        psp.datum.revision_id,
+      ],
       evidence: [],
     }, { frozen: true, scenario: "create-review-context@1" });
     const passingCandidateReview = record("REV", "REV-1BC3DF5GHK", {
       title: "Earlier passing candidate Review",
+      review_kind: "simplification-product-definition",
       rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [],
       outcome: "pass",
     }, {
       frozen: true,
@@ -675,8 +678,16 @@ describe("evaluateLifecycle review flow", () => {
     });
     const failedReview = record("REV", "REV-2BC4DF6GHJ", {
       title: "Failed candidate Review",
+      review_kind: "simplification-product-definition",
       rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [],
+      simplification: {
+        target: candidate.datum.revision_id,
+        findings: [{
+          id: "F-001",
+          severity: "blocking",
+          summary: "The candidate retains unnecessary product scope.",
+        }],
+      },
       outcome: "fail",
     }, {
       frozen: true,
@@ -684,6 +695,7 @@ describe("evaluateLifecycle review flow", () => {
       links: [
         { type: "reviews", target: candidate.datum.revision_id },
         { type: "contextualizes", target: candidateContext.datum.revision_id },
+        { type: "blocks", target: candidate.datum.revision_id },
       ],
     });
 
@@ -708,7 +720,7 @@ describe("evaluateLifecycle review flow", () => {
       subject: candidate.datum.revision_id,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-intent-candidate-after-review@2",
+      actionableResolver: "revise-intent-candidate-after-review@3",
     }));
     expect(evaluation.looseEnds.find((item) =>
       item.obligation === "passing-review-required" &&

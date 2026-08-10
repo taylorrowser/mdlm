@@ -12,7 +12,7 @@ status_rules:
     when: 'exists("failed-intent-candidates@1", {})'
     reason: A failed or rejected intent candidate must be superseded before ordinary candidate creation can resume.
     blocked_by:
-      - obligation: intent-candidate-review-correction-required@2
+      - obligation: intent-candidate-review-correction-required@3
         subjects: 'select("failed-intent-candidates@1", {})'
   - status: blocked
     priority: 200
@@ -33,7 +33,7 @@ status_rules:
         subjects: 'select("current-product-specifications@1", {})'
       - obligation: passing-review-required@2
         subjects: 'select("phase-0-foundation-members-missing-review@1", {})'
-      - obligation: open-question-resolution@2
+      - obligation: open-question-resolution@3
         subjects: 'select("open-blocking-questions@1", {})'
       - obligation: prototype-question-resolution@1
         subjects: 'select("open-blocking-questions@1", {})'

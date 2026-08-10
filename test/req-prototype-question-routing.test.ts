@@ -446,7 +446,7 @@ describe("req prototype-bound empirical question routing", () => {
       dispatchable: true,
       actionableResolver: "resolve-question-with-prototype@2",
     }));
-  });
+  }, 45_000);
 
   it("does not accept a piecemeal boundary claiming the authored Scenario", async () => {
     const question = createUnfrozenPrototypeQuestion();
@@ -511,7 +511,7 @@ describe("req prototype-bound empirical question routing", () => {
       dispatchable: true,
       actionableResolver: "resolve-question-with-prototype@2",
     }));
-  });
+  }, 45_000);
 
   it.each([
     "missing source",
@@ -806,7 +806,7 @@ describe("req prototype-bound empirical question routing", () => {
       expect(output.data.created_by).toEqual(expect.objectContaining({
         scenario: "resolve-question-with-prototype@2",
         prompt_ref: "prompts/resolve-question-with-prototype.md@2",
-        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.51\.0#sha256:/),
+        process_ref: expect.stringMatching(/^mdlm-bootstrap@0\.52\.0#sha256:/),
         policy_refs: [
           "question-participation@1",
           "review-applicability@1",

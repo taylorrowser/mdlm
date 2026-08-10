@@ -28,7 +28,7 @@ rules:
       obligation in [
         "review-context-required@2",
         "passing-review-required@2",
-        "open-question-resolution@2",
+        "open-question-resolution@3",
         "candidate-members-reviewed@2",
         "candidate-gate-signoff@3"
       ]

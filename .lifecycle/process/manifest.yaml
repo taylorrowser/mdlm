@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.51.0
+version: 0.52.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -42,7 +42,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
@@ -81,14 +81,29 @@ catalog:
     - corrected-pilot-verification-activity-revisions-for
     - phase-0-foundation-members
     - phase-0-foundation-members-missing-review
+    - product-simplification-reviews-for
+    - matching-product-simplification-review
+    - product-simplification-blockers-for-review
+    - product-simplification-reviews-blocking-subject
+    - blocking-product-simplification-reviews-for
+    - product-simplification-blockers-for-candidate
+    - invalid-product-simplification-blockers-for-review
+    - valid-product-simplification-reviews
+    - intent-candidates-matching-subject
     - non-phase-0-foundation-members-for
     - candidate-members-matching
+    - candidate-definition-members
+    - phase-0-candidate-review-context-members
+    - review-context-contains-member
     - complete-phase-0-intent-candidates
     - complete-superseding-intent-candidates-for
     - failed-phase-0-foundation-revisions
     - cited-failing-reviews-by-correction
     - foundation-correction-history
+    - foundation-correction-decisions-for
     - foundation-review-failures-at-stage
+    - review-correction-history-for
+    - candidate-correction-decisions-for
     - failed-intent-candidates
     - failed-gate-signoff-decisions
     - gate-rejection-blockers-for
@@ -108,6 +123,9 @@ catalog:
     - question-disposition-decisions-for
     - applicable-question-dispositions-for
     - question-answer-decisions-for
+    - question-targets-for-decision
+    - failed-question-decisions
+    - valid-question-decision-replacements-for
     - applicable-question-answers-for
     - prototype-bound-open-questions
     - current-open-question-sources
@@ -153,6 +171,8 @@ catalog:
     - qualification-activities-for-environment
     - qualification-implementations-for-environment
     - complete-environment-qualification-for-environment
+    - accepted-baseline-promotes-candidate
+    - phase-0-intent-approvals-for
     - accepted-intent-candidates-for-requirement
     - phase-2-entry-requirements
     - matching-phase-2-entry-requirement
@@ -247,6 +267,8 @@ catalog:
     - foundation-review-escalation-required
     - intent-candidate-review-correction-required
     - gate-signoff-review-correction-required
+    - question-decision-review-correction-required
+    - intent-approval-required
     - review-context-required
     - passing-review-required
     - open-question-resolution
@@ -304,6 +326,8 @@ catalog:
     - escalate-foundation-review-correction
     - revise-intent-candidate-after-review
     - revise-gate-signoff-after-review
+    - revise-question-decision-after-review
+    - accept-phase-0-intent
     - define-verification-strategy
     - realize-verification-environment
     - write-verification-activity
@@ -351,10 +375,12 @@ assets:
     - prompts/create-phase-0-intent-candidate.md@1
     - prompts/record-gate-signoff.md@3
     - prompts/record-consequential-decision.md@1
-    - prompts/revise-foundation-after-review.md@3
-    - prompts/escalate-foundation-review-correction.md@1
-    - prompts/revise-intent-candidate-after-review.md@2
-    - prompts/revise-gate-signoff-after-review.md@1
+    - prompts/revise-foundation-after-review.md@4
+    - prompts/escalate-foundation-review-correction.md@2
+    - prompts/revise-intent-candidate-after-review.md@3
+    - prompts/revise-gate-signoff-after-review.md@2
+    - prompts/revise-question-decision-after-review.md@1
+    - prompts/accept-phase-0-intent.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
     - prompts/write-verification-activity.md@1
@@ -416,9 +442,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@25
+  default: bootstrap@26
   available:
-    - profiles/bootstrap.yaml@25
+    - profiles/bootstrap.yaml@26
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

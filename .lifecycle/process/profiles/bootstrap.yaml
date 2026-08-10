@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 25
+version: 26
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -32,8 +32,10 @@ success_criteria:
   - every current open QST receives one package-authored exact source boundary before a same-lineage Resolver output, while prototype-bound empirical QST routes to exact bounded ART, DEC, and satisfying QST evidence and generic empirical questions retain their non-prototype resolver
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
   - the complete required Phase 0 foundation emerges from package Obligations, including exact correction and re-Review after failure
+  - the exact intent candidate is the earliest complete evidence-bearing product set and receives independent product-simplification judgment before downstream verification or decomposition
+  - blocking simplification findings derive exact causal member or candidate correction, fresh independent Review, bounded autonomous retries, and attended escalation through one correction interface
   - a reviewed gate rejection derives exact implicated-member or candidate correction, fresh Reviews, a superseding candidate with unaffected evidence preserved, and re-entry to the same gate without implying terminal disposition
-  - the reviewed Phase 0 gate Decision authorizes declarative entry to Phase 1 without a redundant approval
+  - reviewed approving gate evidence mechanically publishes one exact accepted-intent baseline before declarative entry to Phase 1 without redundant authority
   - failed Reviews of current VSP, ENV, and pilot VER artifacts derive same-lineage correction without stakeholder attention; corrected ENV assurance includes a fresh exact qualification chain
   - every current pilot activity requirement discovers one exact immutable bounded ART registration with a complete controlled public execution interface before implementation
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence

@@ -1,17 +1,19 @@
 kind: selector-definition
 id: accepted-intent-candidates-for-requirement
-version: 1
-description: Current exact intent candidates containing one requirement Revision and carrying applicable reviewed gate approval.
+version: 2
+description: Current exact accepted intent baselines containing one stakeholder requirement Revision.
 parameters:
   - {name: requirement, kind: revision, types: [STK]}
 result_kind: baseline
 query:
-  from:
-    selector: signed-off-candidates-of-kind@1
-    arguments: {baseline_kind: '"intent-level-candidate"'}
+  from: {collection: baselines, types: [BSL]}
   as: candidate
   where: >-
-    exists("candidate-members-matching@1",
+    candidate.payload.kind == "intent-approved"
+    && candidate.payload.role == "accepted"
+    && candidate.storage.frozen == true
+    && state(candidate, "validity") == "valid"
+    && exists("candidate-members-matching@1",
       {candidate: candidate, required_member: requirement})
   distinct: true
   order_by: [identity.revision_id]
