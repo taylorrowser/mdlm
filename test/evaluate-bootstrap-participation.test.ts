@@ -9,6 +9,7 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
@@ -730,7 +731,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({ status: "blocked", dispatchable: false }));
   });
 
-  it("routes a candidate-level Phase 0 rejection to causal candidate replacement", () => {
+  it("routes a candidate-level Phase 0 rejection to causal candidate replacement", async () => {
     const fixture = reviewedGateFixture(processRef);
     const map = lifecycleDatum("MAP", "MAP-4K3M9Q2D8F", {
       title: "Current map",
@@ -813,7 +814,7 @@ describe("bootstrap Scenario participation Policies", () => {
       target: fixture.candidate.datum.revision_id,
     });
 
-    const evaluation = evaluateLifecycle(processPackage, {
+    const snapshot = {
       processRef,
       phaseId: "phase-0-wayfinding",
       records: [
@@ -824,17 +825,39 @@ describe("bootstrap Scenario participation Policies", () => {
         simplificationReview,
       ],
       dependencyComparisons: [],
-    });
-
-    expect(evaluation.obligations.find((item) =>
+    };
+    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const correction = evaluation.obligations.find((item) =>
       item.obligation === "intent-candidate-review-correction-required" &&
       item.subject === fixture.candidate.datum.revision_id
-    )).toEqual(expect.objectContaining({
+    );
+
+    expect(correction).toEqual(expect.objectContaining({
       satisfied: false,
       status: "ready",
       dispatchable: true,
       actionableResolver: "revise-intent-candidate-after-review@3",
     }));
+    expect(correction).toBeDefined();
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "revise-intent-candidate-after-review@3",
+      correction!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]?.inputs).toContainEqual(
+      expect.objectContaining({
+        name: "simplification_reviews",
+        values: [expect.objectContaining({
+          identity: expect.objectContaining({
+            revision_id: simplificationReview.datum.revision_id,
+          }),
+        })],
+      }),
+    );
   });
 
   it("routes a failed gate Decision Review to causal attended correction", () => {

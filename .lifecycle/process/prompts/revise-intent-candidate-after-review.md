@@ -8,9 +8,11 @@ scenario: revise-intent-candidate-after-review
 
 Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`, the exact prior
 candidate, every supplied failed Review and structured finding, every supplied
-gate rejection, and the current reviewed and simplified foundation members.
-Publish one frozen replacement Revision in the same BSL lineage. Correct only
-implicated membership, preserve every unaffected exact evidence item, link
+gate rejection, the current reviewed foundation members, and every supplied
+current passing product-simplification Review. Publish one frozen replacement
+Revision in the same BSL lineage. Correct only implicated membership, preserve
+every unaffected exact evidence item, include every supplied simplification
+Review as exact evidence, link
 `supersedes` to the prior candidate, link `corrects-review` to every supplied
 failed Review, and link `corrects-gate-rejection` to every supplied rejection.
 

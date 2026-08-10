@@ -52,6 +52,9 @@ resolve_with:
   inputs:
     candidate: candidate
     definition_members: 'select("phase-0-foundation-members@1", {})'
+    simplification_reviews: >-
+      select("product-simplification-reviews-for@1", {subject_context:
+        one("phase-0-product-simplification-contexts@1", {}), outcome: "pass"})
     prior_failed_reviews: 'select("cited-failing-reviews-by-correction@1", {replacement: candidate})'
     failed_reviews: 'select("failing-reviews-for@1", {subject: candidate})'
     gate_rejections: 'select("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})'

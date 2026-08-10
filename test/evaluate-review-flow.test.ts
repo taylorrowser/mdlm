@@ -642,14 +642,74 @@ describe("evaluateLifecycle review flow", () => {
         { type: "contextualizes", target: pspContext.datum.revision_id },
       ],
     });
+    const map = record("MAP", "MAP-7K3M9Q2D8F", {
+      title: "Reviewed wayfinding map",
+      purpose: "Bound the exact intent frontier.",
+      frontier: ["One product commitment"],
+    });
+    const requirement = record("STK", "STK-7K3M9Q2D8F", {
+      title: "Reviewed stakeholder intent",
+      rationale: "The owner needs exact traceability.",
+      statement: "MDLM shall preserve exact product intent.",
+      verification_intent: "Observe exact candidate membership.",
+      stakeholder: "owner",
+      priority: "must",
+    }, { links: [{ type: "derived-from", target: psp.datum.id }] });
+    const passingReview = (subject: LifecycleRecord, id: string) => record(
+      "REV",
+      id,
+      {
+        title: `Passing Review of ${subject.datum.revision_id}`,
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        frozen: true,
+        scenario: "review-datum-in-context@2",
+        links: [{ type: "reviews", target: subject.datum.revision_id }],
+      },
+    );
+    const mapReview = passingReview(map, "REV-8ZT5KQ3P9N");
+    const requirementReview = passingReview(requirement, "REV-8ZT5KQ3P9P");
+    const foundation = [map, psp, requirement];
+    const simplificationContext = record("BSL", "BSL-X4N7AB2W6K", {
+      title: "Current product simplification context",
+      kind: "review-context",
+      role: "review-context",
+      scope: "phase-0-wayfinding@4",
+      group: "DEFAULT",
+      definition_members: foundation.map((subject) => subject.datum.revision_id),
+      evidence: [],
+    }, { frozen: true, scenario: "prepare-product-simplification-context@1" });
+    const simplificationReview = record("REV", "REV-8ZT5KQ3P9Q", {
+      title: "Passing product simplification Review",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      scenario: "simplify-product-definition@1",
+      links: [
+        { type: "reviews", target: simplificationContext.datum.revision_id },
+        { type: "contextualizes", target: simplificationContext.datum.revision_id },
+      ],
+    });
     const candidate = record("BSL", "BSL-4F6H8JK2MN", {
       title: "Failed intent candidate",
       kind: "intent-level-candidate",
       role: "candidate",
       scope: "product",
       group: "DEFAULT",
-      definition_members: [psp.datum.revision_id],
-      evidence: [pspReview.datum.revision_id],
+      definition_members: foundation.map((subject) => subject.datum.revision_id),
+      evidence: [
+        mapReview.datum.revision_id,
+        pspReview.datum.revision_id,
+        requirementReview.datum.revision_id,
+        simplificationReview.datum.revision_id,
+      ],
     }, { frozen: true, scenario: "create-candidate-baseline@1" });
     const candidateContext = record("BSL", "BSL-6F8H2JK4MN", {
       title: "Candidate context",
@@ -691,9 +751,13 @@ describe("evaluateLifecycle review flow", () => {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
       records: [
-        psp,
+        ...foundation,
         pspContext,
+        mapReview,
         pspReview,
+        requirementReview,
+        simplificationContext,
+        simplificationReview,
         candidate,
         candidateContext,
         passingCandidateReview,

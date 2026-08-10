@@ -753,7 +753,7 @@ describe("failed STK Review correction through the public operator process", () 
         packet = nextPacket();
         publishReview(packet, "pass");
 
-        const renewedSimplification = publishProductSimplification();
+        publishProductSimplification();
         packet = nextPacket();
         expect(packet.scenario.reference).toBe("revise-intent-candidate-after-review@3");
         expect(exactInput(packet, "candidate").values[0].identity.revision_id)
@@ -763,6 +763,14 @@ describe("failed STK Review correction through the public operator process", () 
         const replacementMembers = exactInput(packet, "definition_members").values
           .map((value: any) => value.identity.revision_id) as string[];
         expect(replacementMembers).toContain(gateCorrected.revisionId);
+        const currentSimplificationReviews = exactInput(
+          packet,
+          "simplification_reviews",
+        ).values.map((value: any) => value.identity.revision_id) as string[];
+        expect(currentSimplificationReviews).toHaveLength(1);
+        expect(packet.allowedProjections.exactLifecycleData).toEqual(
+          expect.arrayContaining(currentSimplificationReviews),
+        );
         const replacementCandidateOutput: ProposalOutput = {
           localId: "replacement-candidate",
           name: "replacement",
@@ -780,7 +788,7 @@ describe("failed STK Review correction through the public operator process", () 
               evidence: [
                 ...preservedCandidateEvidence,
                 simplification.review.revisionId,
-                renewedSimplification.review.revisionId,
+                ...currentSimplificationReviews,
               ],
             },
             links: [
