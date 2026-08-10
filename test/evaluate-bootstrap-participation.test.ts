@@ -631,6 +631,139 @@ describe("bootstrap Scenario participation Policies", () => {
     );
   });
 
+  it("carries a later gate rejection through exhausted foundation escalation", async () => {
+    const fixture = reviewedGateFixture(processRef);
+    const original = lifecycleDatum("STK", "STK-6K3M9Q2D8F", {
+      title: "Initially ambiguous requirement",
+      rationale: "The correction history is deliberately exhausted.",
+      statement: "The product shall expose an outcome.",
+      verification_intent: "Observe an outcome.",
+      stakeholder: "operator",
+      priority: "must",
+    });
+    const failedReview = (
+      subject: LifecycleRecord,
+      id: string,
+    ) => lifecycleDatum("REV", id, {
+      title: `Failed Review of ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{
+        id: "F-001",
+        target: subject.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "The exact outcome remains ambiguous.",
+      }],
+      outcome: "fail",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: subject.datum.revision_id }],
+      scenario: "review-datum-in-context@2",
+    });
+    const firstFailure = failedReview(original, "REV-6K3M9Q2D8F");
+    const firstReplacement = structuredClone(original);
+    firstReplacement.datum.revision = 2;
+    firstReplacement.datum.revision_id = `${original.datum.id}-r00002`;
+    firstReplacement.datum.links = [{
+      type: "corrects-review",
+      target: firstFailure.datum.revision_id,
+    }];
+    const secondFailure = failedReview(firstReplacement, "REV-6K3M9Q2D8G");
+    const current = structuredClone(original);
+    current.datum.revision = 3;
+    current.datum.revision_id = `${original.datum.id}-r00003`;
+    current.datum.links = [firstFailure, secondFailure].map((review) => ({
+      type: "corrects-review",
+      target: review.datum.revision_id,
+    }));
+    const currentReview = lifecycleDatum("REV", "REV-6K3M9Q2D8H", {
+      title: `Passing Review of ${current.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: current.datum.revision_id }],
+      scenario: "review-datum-in-context@2",
+    });
+    fixture.candidate.datum.payload.definition_members = [
+      current.datum.revision_id,
+    ];
+    fixture.signoff.datum.payload.gate_outcome = "reject";
+    fixture.signoff.datum.payload.decision =
+      "Reject the corrected requirement after its autonomous budget is exhausted.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        summary: "The final outcome still needs stakeholder correction.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: current.datum.revision_id,
+    });
+
+    const snapshot = {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [
+        ...fixture.records,
+        original,
+        firstFailure,
+        firstReplacement,
+        secondFailure,
+        current,
+        currentReview,
+      ],
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const escalation = evaluation.obligations.find((item) =>
+      item.obligation === "foundation-review-escalation-required" &&
+      item.subject === current.datum.revision_id
+    );
+    expect(escalation).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "escalate-foundation-review-correction@2",
+    }));
+    expect(escalation).toBeDefined();
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "escalate-foundation-review-correction@2",
+      escalation!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs.find(
+      (input) => input.name === "gate_rejections",
+    )?.values).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: fixture.signoff.datum.revision_id,
+        }),
+      }),
+    ]);
+    expect(
+      processPackage.scenarios["escalate-foundation-review-correction"]!
+        .outputs,
+    ).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "replacement",
+        required_links: expect.arrayContaining([
+          {
+            link: "corrects-gate-rejection",
+            target: { input: "gate_rejections" },
+          },
+        ]),
+      }),
+    ]));
+  });
+
   it("routes blocking candidate simplification findings to the exact member correction", () => {
     const fixture = reviewedGateFixture(processRef);
     const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {

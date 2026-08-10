@@ -31,4 +31,5 @@ resolve_with:
     simplification_reviews: >-
       select("product-simplification-reviews-blocking-subject@1",
         {subject: subject})
+    gate_rejections: 'select("reviewed-gate-rejections-for-subject@1", {subject: subject})'
 waiver_policy_ref: waiver-applicability@1

@@ -24,6 +24,10 @@ inputs:
     types: [REV]
     cardinality: zero-or-more
     identity: revision
+  - name: gate_rejections
+    types: [DEC]
+    cardinality: zero-or-more
+    identity: revision
 outputs:
   - name: replacement
     types: [MAP, PSP, STK]
@@ -32,6 +36,7 @@ outputs:
       - {link: corrects-review, target: {input: prior_failed_reviews}}
       - {link: corrects-review, target: {input: failed_reviews}}
       - {link: corrects-review, target: {input: simplification_reviews}}
+      - {link: corrects-gate-rejection, target: {input: gate_rejections}}
   - name: decision
     types: [DEC]
     cardinality: one
