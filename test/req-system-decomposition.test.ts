@@ -35,7 +35,7 @@ describe("req system decomposition slice", () => {
       "ASP@1",
       "DWP@1",
       "ICSP@1",
-      "SYS@2",
+      "SYS@3",
     ]));
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
       "complete-decomposition-work-package@2",

@@ -911,9 +911,13 @@ generic evidence path. Mutable targets, out-of-bound findings, incomplete batche
 and RUN/RES substitutions fail before publication. The narrow repository-backed
 Phase 0 tracer begins with a Phase-scoped map Obligation, then derives PSP and STK
 work, exact Review Context and Review work, and candidate construction from
-Lifecycle Data. A failed current foundation Review exposes replacement-Revision
-work and removes the failed Revision from current work only after the replacement
-is published; immutable failed Review history remains inspectable. The tracer
+Lifecycle Data. A failed current STK foundation Review exposes one subject-bounded replacement
+Assignment with every current failed REV and its structured Review Findings. The
+same-lineage replacement must cite those exact Reviews through `corrects-review`;
+normal reevaluation then derives a fresh Review Context and independent Review.
+The versioned requirement template supplies both `corrects-review` and the distinct
+`changed-under` contract to STK and SYS without type-family or multiple-inheritance
+mechanics. Immutable failed Revision and Review history remains inspectable. The tracer
 reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
 the one primary subject Revision; each context may still include supporting parent
 or sibling Revisions. It then freezes and reviews an intent candidate and completes

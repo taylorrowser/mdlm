@@ -1,20 +1,28 @@
 kind: scenario-definition
 id: revise-foundation-after-review
-version: 1
-description: Replace one exact failed Phase 0 foundation Revision without altering its immutable Review history.
+version: 2
+description: Replace one exact failed Phase 0 foundation Revision while citing every current failed Review and preserving immutable history.
 phases: [phase-0-wayfinding]
 inputs:
   - name: subject
     types: [MAP, PSP, STK]
     cardinality: one
     identity: revision
-    conditions: 'exists("failing-reviews-for@1", {subject: subject})'
+    conditions: >-
+      exists("failing-reviews-for@1", {subject: subject})
+      && none("newer-revisions-for@1", {subject: subject})
+  - name: failed_reviews
+    types: [REV]
+    cardinality: one-or-more
+    identity: revision
+    conditions: 'exists("matching-failing-review-for@1", {subject: subject, review: failed_reviews})'
 outputs:
   - name: replacement
     types: [MAP, PSP, STK]
     cardinality: one
-    required_links: []
-prompt_ref: prompts/revise-foundation-after-review.md@1
+    required_links:
+      - {link: corrects-review, target: {input: failed_reviews}}
+prompt_ref: prompts/revise-foundation-after-review.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

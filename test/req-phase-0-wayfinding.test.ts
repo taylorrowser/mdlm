@@ -40,16 +40,16 @@ describe("req Phase 0 wayfinding slice", () => {
       "DWP@1",
       "ENV@1",
       "ICSP@1",
-      "MAP@1",
+      "MAP@2",
       "PAS@1",
       "PRB@1",
-      "PSP@2",
+      "PSP@3",
       "QST@4",
       "RES@1",
       "REV@2",
       "RUN@1",
-      "STK@2",
-      "SYS@2",
+      "STK@3",
+      "SYS@3",
       "VAI@1",
       "VER@1",
       "VSP@1",
@@ -239,6 +239,8 @@ describe("req Phase 0 wayfinding slice", () => {
       "--json",
     );
     expect(failedReview.status, `${failedReview.stderr}${failedReview.stdout}`).toBe(0);
+    const failedReviewRevision = JSON.parse(failedReview.stdout).execution.outputs[0]
+      .lifecycleDatum.revisionId as string;
 
     const looseEnds = req(
       repositoryRoot,
@@ -255,7 +257,7 @@ describe("req Phase 0 wayfinding slice", () => {
       subject: product.revisionId,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@1",
+      actionableResolver: "revise-foundation-after-review@2",
     }));
     expect(JSON.parse(looseEnds.stdout).looseEnds.items.some((item: any) =>
       item.subject === product.revisionId &&
@@ -283,7 +285,7 @@ describe("req Phase 0 wayfinding slice", () => {
               non_goals: ["general integration platform"],
               success_measures: ["one report exports with visible content"],
             },
-            links: [],
+            links: [{ type: "corrects-review", target: failedReviewRevision }],
             body: "Corrected after exact failed Review.\\n",
           },
         }],
@@ -295,13 +297,15 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "revise-foundation-after-review@1",
+      "revise-foundation-after-review@2",
       "--obligation",
       correction.id,
       "--adapter",
       adapterPath,
       "--input",
       `subject=${product.revisionId}`,
+      "--input",
+      `failed_reviews=${failedReviewRevision}`,
       "--json",
     );
     expect(revised.status, `${revised.stderr}${revised.stdout}`).toBe(0);

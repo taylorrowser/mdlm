@@ -44,13 +44,13 @@ describe("req schema", () => {
       },
       selected: true,
       schema: {
-        definition: "STK@2",
+        definition: "STK@3",
         name: "Stakeholder Requirement",
         description: expect.stringContaining("stakeholder-visible"),
         templateChain: [
           "titled-datum@1",
           "rationale-bearing@1",
-          "requirement@1",
+          "requirement@2",
         ],
         effectiveEnvelope: expect.objectContaining({
           $id: "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
@@ -87,6 +87,20 @@ describe("req schema", () => {
           },
         },
         sourceOwnedLinkContracts: [{
+          id: "corrects-review",
+          description: expect.stringContaining("failed Reviews"),
+          targets: [{ kind: "datum", types: ["REV"], identity: "revision" }],
+          cardinality: { minimum: 0, maximum: "many" },
+          freeze_resolution: "already-exact",
+          inverse_label: "corrected-by",
+        }, {
+          id: "changed-under",
+          description: expect.stringContaining("Change Request"),
+          targets: [{ kind: "datum", types: ["CHG"], identity: "revision" }],
+          cardinality: { minimum: 0, maximum: 1 },
+          freeze_resolution: "already-exact",
+          inverse_label: "changed-requirement",
+        }, {
           id: "derived-from",
           description: expect.stringContaining("Product specification intent"),
           targets: [{ kind: "datum", types: ["PSP"], identity: "stable" }],

@@ -33,7 +33,7 @@ describe("resolveType", () => {
     expect(result.type.templateChain).toEqual([
       "titled-datum@1",
       "rationale-bearing@1",
-      "requirement@1",
+      "requirement@2",
     ]);
     expect(result.type.payloadSchema.required).toEqual([
       "priority",
@@ -52,6 +52,18 @@ describe("resolveType", () => {
       "verification_intent",
     ]);
     expect(result.type.outgoingLinks).toEqual([
+      expect.objectContaining({
+        id: "corrects-review",
+        targets: [
+          expect.objectContaining({ types: ["REV"], identity: "revision" }),
+        ],
+      }),
+      expect.objectContaining({
+        id: "changed-under",
+        targets: [
+          expect.objectContaining({ types: ["CHG"], identity: "revision" }),
+        ],
+      }),
       expect.objectContaining({
         id: "derived-from",
         targets: [

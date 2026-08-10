@@ -1,6 +1,6 @@
 kind: type-definition
 id: PSP
-version: 2
+version: 3
 name: Product Specification
 description: Concise product intent covering problem, users, goals, exclusions, workflows, success, scope, and constraints.
 extends: rationale-bearing@1
@@ -44,5 +44,12 @@ payload_schema:
       type: array
       uniqueItems: true
       items: {type: string, minLength: 1}
-outgoing_links: []
+outgoing_links:
+  - id: corrects-review
+    description: Exact failed Reviews whose blocking findings this replacement product specification Revision addresses.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by
 kernel_managed_payload_paths: []

@@ -1,7 +1,7 @@
 kind: type-template-definition
 id: requirement
-version: 1
-description: Singular rationale-backed requirement with an explicit verification intent.
+version: 2
+description: Singular rationale-backed requirement with explicit verification intent and shared correction and change causality.
 extends: rationale-bearing@1
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
@@ -10,4 +10,18 @@ payload_schema:
   properties:
     statement: {type: string, minLength: 1}
     verification_intent: {type: string, minLength: 1}
-outgoing_links: []
+outgoing_links:
+  - id: corrects-review
+    description: Exact failed Reviews whose blocking findings this replacement requirement Revision addresses.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by
+  - id: changed-under
+    description: Exact approved Change Request authorizing this replacement requirement Revision.
+    targets:
+      - {kind: datum, types: [CHG], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: changed-requirement

@@ -1,9 +1,9 @@
 kind: type-definition
 id: STK
-version: 2
+version: 3
 name: Stakeholder Requirement
 description: Singular stakeholder-visible product commitment derived from an exact product specification context.
-extends: requirement@1
+extends: requirement@2
 lifecycle:
   authorship: authored
   freeze_when: baseline-frozen
