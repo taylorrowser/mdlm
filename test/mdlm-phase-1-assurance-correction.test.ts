@@ -105,6 +105,24 @@ const pilotPayload = (title: string) => ({
   expected_success_activity: "Exercise the supported public command.",
   expected_discrimination_activity: "Exercise the malformed public command.",
 });
+const pilotTargetPayload = (title: string, commit: string) => ({
+  title,
+  kind: "prototype",
+  repository_ref: `git:${commit}`,
+  supported_behavior: ["supported public command"],
+  unsupported_behavior: ["malformed public command"],
+  evidence_refs: [`git-object-observed:${commit}`],
+  public_interface: {
+    interface_version: 2,
+    repository_locator: "file:///fixture",
+    command: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
+    working_directory: "fresh-temporary-directory",
+    observation_protocol: {
+      success: { exit_status: 0, stdout_contract: "success", stderr_contract: "empty" },
+      rejection: { exit_status: 2, stdout_contract: "empty", stderr_contract: "error" },
+    },
+  },
+});
 
 async function assuranceFixturePackage(root: string): Promise<string> {
   const packageRoot = path.join(root, "process");
@@ -152,6 +170,7 @@ batching: single
   await fs.writeFile(manifestPath, stringify(manifest));
 
   const retainedPhase1Obligations = new Set([
+    "verification-strategy-review-correction-required",
     "environment-review-correction-required",
     "pilot-verification-activity-review-correction-required",
     "verification-run-required",
@@ -175,7 +194,7 @@ batching: single
   const reviewPolicy = parse(await fs.readFile(reviewPolicyPath, "utf8"));
   reviewPolicy.rules = [{
     priority: 400,
-    when: `subject.identity.type in ["ENV", "VER"]
+    when: `subject.identity.type in ["VSP", "ENV", "VER"]
       && exists("cited-failing-reviews-by-correction@1", {replacement: subject})`,
     result: {
       required: true,
@@ -197,10 +216,12 @@ batching: single
     "execute-verification-run@1",
     "create-review-context@1",
     "review-datum-in-context@2",
+    "revise-verification-strategy-after-review@2",
     "revise-environment-assurance-after-review@2",
     "revise-pilot-verification-activity-after-review@2",
   ];
   phase1.obligations = [
+    "verification-strategy-review-correction-required@2",
     "environment-review-correction-required@2",
     "pilot-verification-activity-review-correction-required@2",
     "verification-run-required@1",
@@ -247,6 +268,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       VSP: "define-verification-strategy@1",
       ENV: "realize-verification-environment@1",
       VER: "write-verification-activity@1",
+      ART: "register-pilot-target@1",
     };
     const arguments_ = [
       "new",
@@ -355,6 +377,12 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
               relationship: "primary",
               severity: "blocking",
               summary: "The exact discrimination evidence needs correction.",
+            }, {
+              id: "F-002",
+              target: subject.revisionId,
+              relationship: "primary",
+              severity: "blocking",
+              summary: "The exact rejection observation also needs correction.",
             }],
             ...(stakeholderOwned ? { correction_authority: "stakeholder" } : {}),
             outcome: "fail",
@@ -434,33 +462,50 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     return JSON.parse(prepared.stdout);
   };
 
+  const respond = (
+    packet: Packet,
+    outputs: ProposalOutput[],
+    authoritySupplies: string[] = [],
+  ) => mdlm(
+    repository,
+    ["scenario", "submit"],
+    `${JSON.stringify({
+      contract: "mdlm-assignment-response@1",
+      assignment: packet.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs,
+        completionEvidence: { summary: "The exact correction is complete." },
+        loadedSkillRefs: packet.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies,
+        standingDelegations: [],
+      },
+    })}\n`,
+  );
+
   const submit = (
     packet: Packet,
     outputs: ProposalOutput[],
     authoritySupplies: string[] = [],
   ) => {
-    const submitted = mdlm(
-      repository,
-      ["scenario", "submit"],
-      `${JSON.stringify({
-        contract: "mdlm-assignment-response@1",
-        assignment: packet.assignment.id,
-        kind: "proposal",
-        proposal: {
-          outputs,
-          completionEvidence: { summary: "The exact correction is complete." },
-          loadedSkillRefs: packet.prompt.skills.map(
-            (skill: { reference: string }) => skill.reference,
-          ),
-          authoritySupplies,
-          standingDelegations: [],
-        },
-      })}\n`,
-    );
+    const submitted = respond(packet, outputs, authoritySupplies);
     expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
     const execution = JSON.parse(submitted.stdout).execution;
     commit(`Publish ${packet.scenario.reference}`);
     return execution;
+  };
+
+  const expectSelfContainedAttendedPacket = (packet: Packet) => {
+    expect(packet.authority.evidence).toEqual({ output: "decision", type: "DEC" });
+    expect(packet.prompt.content).toContain("`decision`");
+    expect(packet.prompt.content).toContain("`kind: scope`");
+    expect(packet.prompt.content).toContain("`effective_scope`");
+    expect(packet.prompt.content).toContain(
+      "$proposal.<replacement-local-id>.revision_id",
+    );
+    expect(packet.prompt.content).toContain("`justifies`");
   };
 
   const publishFailedReview = (
@@ -571,6 +616,24 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     ]);
   };
 
+  const strategyCorrectionOutput = (
+    strategy: Created,
+    requirement: Created,
+    failedReview: Created,
+    cycle: number,
+  ): ProposalOutput => proposedDatum(
+    `strategy-${cycle}`,
+    "replacement",
+    "VSP",
+    strategyPayload(`Corrected public strategy ${cycle}`),
+    [
+      { type: "governs", target: requirement.id },
+      { type: "governs-revision", target: requirement.revisionId },
+      { type: "corrects-review", target: failedReview.revisionId },
+    ],
+    strategy.id,
+  );
+
   const environmentCorrectionOutputs = (
     environment: Created,
     strategy: Created,
@@ -658,6 +721,66 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     activity.id,
   );
 
+  it("bounds VSP correction before projecting attended escalation", async () => {
+    const { requirement, strategy: initialStrategy } = createProductBoundary();
+    let strategy = initialStrategy;
+    let failedReview = await seedFailedReview(strategy);
+    initializeGit();
+
+    for (let cycle = 1; cycle <= 2; cycle += 1) {
+      const outcome = next();
+      expect(outcome.outcome).toBe("assignment");
+      const packet = prepare(outcome);
+      expect(packet.scenario.reference).toBe(
+        "revise-verification-strategy-after-review@2",
+      );
+      expect(packet.authority.requirements).toEqual([]);
+      const reviewInput = packet.exactInputs[0].inputs.find(
+        (input: { name: string }) => input.name === "failed_reviews",
+      ).values[0];
+      expect(reviewInput.identity.revision_id).toBe(failedReview.revisionId);
+      expect(reviewInput.data.payload.findings).toHaveLength(cycle === 1 ? 2 : 1);
+      const correctionOutput = strategyCorrectionOutput(
+        strategy,
+        requirement,
+        failedReview,
+        cycle,
+      );
+      if (cycle === 1) {
+        const missingCause = structuredClone(correctionOutput);
+        missingCause.lifecycleDatum.links = missingCause.lifecycleDatum.links
+          .filter((link) => link.type !== "corrects-review");
+        const rejected = respond(packet, [missingCause]);
+        expect(rejected.status).toBe(1);
+        expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
+          expect.arrayContaining([expect.objectContaining({
+            code: "scenario-output-required-link-missing",
+            path: "outputs.replacement.links.corrects-review",
+          })]),
+        );
+        expect(mdlm(repository, ["show", `${strategy.id}-r00002`, "--json"])
+          .status).toBe(1);
+      }
+      strategy = submit(packet, [correctionOutput]).outputs[0].lifecycleDatum;
+      failedReview = publishFailedReview(strategy);
+    }
+
+    const escalation = next();
+    expect(escalation).toEqual(expect.objectContaining({
+      outcome: "attention-required",
+      authorityRequirement: expect.objectContaining({
+        mode: "attended",
+        authority: "stakeholder",
+      }),
+      attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+    }));
+    const packet = prepare(escalation);
+    expect(packet.scenario.reference).toBe(
+      "revise-verification-strategy-after-review@2",
+    );
+    expectSelfContainedAttendedPacket(packet);
+  }, 120_000);
+
   it("preserves the ENV correction budget while rebuilding qualification before attention", async () => {
     const { strategy } = createProductBoundary();
     let environment = create("ENV", environmentPayload(
@@ -695,6 +818,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     let outcome = next();
     expect(outcome.outcome).toBe("attention-required");
     let packet = prepare(outcome);
+    expectSelfContainedAttendedPacket(packet);
     const attendedOutputs = environmentCorrectionOutputs(
       environment,
       strategy,
@@ -719,10 +843,28 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
         "revise-environment-assurance-after-review@2",
       );
       expect(packet.authority.requirements).toEqual([]);
-      completeCycle(submit(
-        packet,
-        environmentCorrectionOutputs(environment, strategy, failedReview, cycle),
-      ), cycle);
+      const correctionOutputs = environmentCorrectionOutputs(
+        environment,
+        strategy,
+        failedReview,
+        cycle,
+      );
+      if (cycle === 1) {
+        const missingCause = structuredClone(correctionOutputs);
+        missingCause[0]!.lifecycleDatum.links = missingCause[0]!.lifecycleDatum.links
+          .filter((link) => link.type !== "corrects-review");
+        const rejected = respond(packet, missingCause);
+        expect(rejected.status).toBe(1);
+        expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
+          expect.arrayContaining([expect.objectContaining({
+            code: "scenario-output-required-link-missing",
+            path: "outputs.replacement.links.corrects-review",
+          })]),
+        );
+        expect(mdlm(repository, ["show", `${environment.id}-r00003`, "--json"])
+          .status).toBe(1);
+      }
+      completeCycle(submit(packet, correctionOutputs), cycle);
     }
 
     expect(new Set(qualificationRevisions).size).toBe(6);
@@ -736,11 +878,12 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
         authority: "stakeholder",
       }),
       attentionSchedule: expect.objectContaining({ timing: "immediate" }),
-      explanation: expect.stringMatching(/both autonomous environment/i),
     }));
-    expect(prepare(escalation).scenario.reference).toBe(
+    const escalationPacket = prepare(escalation);
+    expect(escalationPacket.scenario.reference).toBe(
       "revise-environment-assurance-after-review@2",
     );
+    expectSelfContainedAttendedPacket(escalationPacket);
   }, 120_000);
 
   it("projects pilot VER correction and exhausted-budget attention without replacing ENV evidence", async () => {
@@ -771,13 +914,29 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
         "revise-pilot-verification-activity-after-review@2",
       );
       expect(packet.authority.requirements).toEqual([]);
-      const execution = submit(packet, [pilotCorrectionOutput(
+      const correctionOutput = pilotCorrectionOutput(
         activity,
         requirement,
         strategy,
         failedReview,
         cycle,
-      )]);
+      );
+      if (cycle === 1) {
+        const missingCause = structuredClone(correctionOutput);
+        missingCause.lifecycleDatum.links = missingCause.lifecycleDatum.links
+          .filter((link) => link.type !== "corrects-review");
+        const rejected = respond(packet, [missingCause]);
+        expect(rejected.status).toBe(1);
+        expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
+          expect.arrayContaining([expect.objectContaining({
+            code: "scenario-output-required-link-missing",
+            path: "outputs.replacement.links.corrects-review",
+          })]),
+        );
+        expect(mdlm(repository, ["show", `${activity.id}-r00002`, "--json"])
+          .status).toBe(1);
+      }
+      const execution = submit(packet, [correctionOutput]);
       activity = execution.outputs[0].lifecycleDatum;
       failedReview = publishFailedReview(activity);
     }
@@ -792,24 +951,16 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
         authority: "stakeholder",
       }),
       attentionSchedule: expect.objectContaining({ timing: "immediate" }),
-      explanation: expect.stringMatching(/both autonomous pilot/i),
     }));
-    expect(prepare(escalation).scenario.reference).toBe(
+    const escalationPacket = prepare(escalation);
+    expect(escalationPacket.scenario.reference).toBe(
       "revise-pilot-verification-activity-after-review@2",
     );
+    expectSelfContainedAttendedPacket(escalationPacket);
   }, 120_000);
 
-  it("reports unsupported Phase 1 ambiguity as a public Profile Boundary", () => {
-    const { requirement } = createProductBoundary();
-    create("VSP", strategyPayload(
-      "Competing public command strategy",
-      "competing-public-command",
-    ), [
-      { type: "governs", target: requirement.id },
-      { type: "governs-revision", target: requirement.revisionId },
-    ]);
+  const expectProfileBoundary = () => {
     initializeGit();
-
     const outcome = next();
     if (outcome.outcome === "assignment") {
       throw new Error(`Unexpected Assignment: ${JSON.stringify(prepare(outcome))}`);
@@ -818,12 +969,55 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       contract: "mdlm-next@1",
       outcome: "profile-boundary-reached",
       phase: "phase-1-product-assurance@4",
-      explanation: expect.stringMatching(/multiple applicable strategies/i),
+      explanation: expect.stringMatching(/multiple applicable/i),
       evidence: expect.objectContaining({
         profile: "bootstrap@27",
         condition: expect.objectContaining({ result: true }),
       }),
     }));
     expect(outcome).not.toHaveProperty("assignment");
+  };
+
+  it("reports multiple applicable VSPs as a public Profile Boundary", () => {
+    const { requirement } = createProductBoundary();
+    create("VSP", strategyPayload(
+      "Competing public command strategy",
+      "competing-public-command",
+    ), [
+      { type: "governs", target: requirement.id },
+      { type: "governs-revision", target: requirement.revisionId },
+    ]);
+    expectProfileBoundary();
+  }, 60_000);
+
+  it("reports multiple applicable ENVs as a public Profile Boundary", () => {
+    const { strategy } = createProductBoundary();
+    for (const [suffix, digest] of [["one", "c"], ["two", "d"]] as const) {
+      create("ENV", environmentPayload(
+        `Competing environment ${suffix}`,
+        strategy,
+        `container:competing-${suffix}`,
+        digest,
+      ), [{ type: "realizes", target: strategy.revisionId }]);
+    }
+    expectProfileBoundary();
+  }, 60_000);
+
+  it("reports multiple applicable pilot targets as a public Profile Boundary", () => {
+    const { requirement, strategy } = createProductBoundary();
+    create("VER", pilotPayload("Pilot activity with competing targets"), [
+      { type: "governed-by", target: strategy.revisionId },
+      { type: "verifies", target: requirement.id },
+      { type: "verifies-revision", target: requirement.revisionId },
+    ]);
+    for (const [title, commit] of [
+      ["First pilot target", "a".repeat(40)],
+      ["Second pilot target", "b".repeat(40)],
+    ] as const) {
+      create("ART", pilotTargetPayload(title, commit), [
+        { type: "derived-from", target: requirement.revisionId },
+      ]);
+    }
+    expectProfileBoundary();
   }, 60_000);
 });

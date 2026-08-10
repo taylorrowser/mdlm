@@ -8,21 +8,9 @@ subject_as: environment
 satisfied_when: 'exists("corrected-environment-revisions-for@1", {environment: environment})'
 status_rules:
   - status: ready
-    priority: 300
-    when: >-
-      !every("failing-reviews-for@1", {subject: environment}, review =>
-        review.payload.correction_authority != "stakeholder")
-    reason: Current environment findings require immediate stakeholder-owned correction without consuming autonomous correction budget.
-  - status: ready
-    priority: 200
-    when: >-
-      count("review-correction-history-for@1",
-        {subject: environment, view: "autonomous-corrections"}) >= 2
-    reason: Both autonomous environment replacement-and-Review cycles failed; the same exact correction interface now requires stakeholder attention.
-  - status: ready
     priority: 100
     when: 'true'
-    reason: Exact failed environment Review findings require a corrected same-lineage ENV and fresh qualification chain.
+    reason: Exact failed environment Review findings require correction and fresh qualification; the Scenario participation Policy determines autonomous or attended execution.
 default_status: ready
 resolve_with:
   scenario: revise-environment-assurance-after-review@2

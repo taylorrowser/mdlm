@@ -1,7 +1,7 @@
 kind: selector-definition
 id: phase-1-assurance-correction-decisions-for
 version: 1
-description: Exact attended scope Decisions published with one Phase 1 assurance correction.
+description: Exact valid scope authority Decision published atomically with one attended Phase 1 assurance correction.
 parameters:
   - {name: replacement, kind: revision, types: [VSP, ENV, VER]}
 result_kind: revision
@@ -9,7 +9,8 @@ query:
   from: {relation: incoming-links, of: replacement, link: justifies, emit: source, types: [DEC]}
   as: decision
   where: >-
-    decision.payload.kind == "scope"
+    decision.provenance.scenario == replacement.provenance.scenario
+    && decision.payload.kind == "scope"
     && decision.payload.effective_scope == replacement.identity.revision_id
     && state(decision, "disposition") == "active"
     && state(decision, "validity") == "valid"

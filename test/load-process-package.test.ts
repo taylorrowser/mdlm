@@ -113,6 +113,18 @@ describe("loadProcessPackage", () => {
         output: "decision",
         type: "DEC",
       });
+      const prompt = await fs.readFile(
+        path.join(
+          result.package.root,
+          `prompts/${scenario}.md`,
+        ),
+        "utf8",
+      );
+      expect(prompt).toContain("`decision`");
+      expect(prompt).toContain("`kind: scope`");
+      expect(prompt).toContain("`effective_scope`");
+      expect(prompt).toContain("$proposal.<replacement-local-id>.revision_id");
+      expect(prompt).toContain("`justifies`");
     }
     expect(result.diagnostics).toEqual([]);
   });

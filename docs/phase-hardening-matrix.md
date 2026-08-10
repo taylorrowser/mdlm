@@ -102,11 +102,12 @@ Phase 2, and pilot-assessment hardening remain deferred to issues #97–#100.
 `mdlm init` through ordinary Git commits, failed Review correction, candidate-
 centered simplification, reviewed gate rejection, exact member correction, fresh
 simplification, same-gate approval, accepted intent, and derived Phase 1 entry.
-`test/mdlm-phase-1-assurance-correction.test.ts` drives ENV and pilot VER
-replacement, fresh ENV qualification output, unaffected evidence reuse, exhausted-
-budget attention, and unsupported ambiguity through `mdlm next`, `scenario
-prepare`, and `scenario submit`, including proof that an attended Phase 1
-replacement does not consume either autonomous correction cycle.
+`test/mdlm-phase-1-assurance-correction.test.ts` drives VSP, ENV, and pilot VER
+replacement, exact causal-link rejection, fresh ENV qualification output,
+unaffected evidence reuse, exhausted-budget attention, self-contained attended
+packets, and each VSP/ENV/target ambiguity through `mdlm next`, `scenario prepare`,
+and `scenario submit`, including proof that an attended Phase 1 replacement does
+not consume either autonomous correction cycle.
 `test/evaluate-bootstrap-participation.test.ts` covers exact simplification
 blockers, immediate stakeholder-owned candidate attention with preserved budget,
 candidate exhaustion through the same interface, Question Decision correction,
