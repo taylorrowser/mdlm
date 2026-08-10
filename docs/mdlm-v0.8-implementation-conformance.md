@@ -89,7 +89,13 @@ Outcome seam. The bootstrap declares only its reviewed Phase 0–2 pilot boundar
 Phases 3–6 are complete. Issue #90 completes the Assignment return protocol:
 typed inability abandons the exact ignored lease without Lifecycle Data, one
 malformed contract response preserves that Assignment for correction, a second
-exhausts it, and only a later deliberate `mdlm next` allocates fresh work.
+exhausts it, and only a later deliberate `mdlm next` allocates fresh work. Issue
+#92 hardens the first failed-Review route through that public loop: one failed STK
+Review derives a subject-bounded correction Assignment with complete exact Review
+and Finding input, a causal same-lineage replacement, fresh exact context and
+independent Review, and resumed blocked work through normal reevaluation. The
+initial routes and deferred hardening breadth are recorded in
+[`phase-hardening-matrix.md`](phase-hardening-matrix.md).
 
 ## Demonstrated invariants
 

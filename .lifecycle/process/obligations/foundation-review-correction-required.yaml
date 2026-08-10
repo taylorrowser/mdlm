@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: foundation-review-correction-required
-version: 1
-description: A current Phase 0 foundation Revision with a failed Review must be replaced in the same lineage.
+version: 2
+description: A current Phase 0 foundation Revision with failed Reviews must receive one same-lineage replacement citing every exact failure.
 phases: [phase-0-wayfinding]
 for_each: 'select("failed-phase-0-foundation-revisions@1", {})'
 subject_as: subject
@@ -13,7 +13,8 @@ status_rules:
     reason: The exact failed Review requires a corrected replacement Revision.
 default_status: ready
 resolve_with:
-  scenario: revise-foundation-after-review@1
+  scenario: revise-foundation-after-review@2
   inputs:
     subject: subject
+    failed_reviews: 'select("failing-reviews-for@1", {subject: subject})'
 waiver_policy_ref: waiver-applicability@1

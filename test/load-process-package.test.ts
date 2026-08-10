@@ -1034,7 +1034,7 @@ describe("loadProcessPackage", () => {
 `;
     await fs.writeFile(
       templatePath,
-      template.replace("outgoing_links: []\n", duplicateLink),
+      template.replace("outgoing_links:\n", duplicateLink),
     );
 
     const result = await loadProcessPackage(processRoot);
@@ -1176,7 +1176,7 @@ describe("loadProcessPackage", () => {
     const typeDefinition = await fs.readFile(typePath, "utf8");
     await fs.writeFile(
       typePath,
-      typeDefinition.replace("requirement@1", "missing-template@1"),
+      typeDefinition.replace("requirement@2", "missing-template@1"),
     );
 
     const result = await loadProcessPackage(processRoot);
@@ -1246,7 +1246,7 @@ describe("loadProcessPackage", () => {
       templatePath,
       templateDefinition.replace(
         "description: Payload fields",
-        "extends: requirement@1\ndescription: Payload fields",
+        "extends: requirement@2\ndescription: Payload fields",
       ),
     );
 
