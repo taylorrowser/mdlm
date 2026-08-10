@@ -12,7 +12,7 @@ status_rules:
     when: >-
       exists("failing-reviews-for@1", {subject: candidate})
       && count("review-correction-history-for@1",
-        {subject: candidate, view: "corrections"}) >= 2
+        {subject: candidate}) >= 2
     reason: Two autonomous causal candidate replacement cycles failed; attended escalation is required.
     blocked_by:
       - obligation: intent-candidate-review-escalation-required@1

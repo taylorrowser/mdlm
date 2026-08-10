@@ -142,16 +142,8 @@ describe("bootstrap Scenario participation Policies", () => {
         output: "decision",
         type: "DEC",
       },
-      "escalate-gate-signoff-review-correction": {
-        output: "replacement",
-        type: "DEC",
-      },
       "escalate-intent-candidate-review-correction": {
         output: "decision",
-        type: "DEC",
-      },
-      "escalate-question-decision-review-correction": {
-        output: "replacement",
         type: "DEC",
       },
       "implement-verification-activity": { output: "authorization", type: "DEC" },

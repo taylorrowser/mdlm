@@ -35,8 +35,10 @@ completion: >-
       && none("product-simplification-blockers-for-review@1", {review: review}))
     || (review.payload.outcome == "fail"
       && exists("product-simplification-blockers-for-review@1", {review: review})
-      && none("unexpected-product-simplification-blockers-for-review@1",
-        {review: review, subject_context: subject_context}))
+      && every("product-simplification-blockers-for-review@1",
+        {review: review}, blocker =>
+          exists("baseline-contains-definition@1",
+            {baseline: subject_context, subject: blocker})))
   )
 resolves: [product-simplification-required]
 prohibited_inputs: [scope expansion without exact stakeholder authority, downstream verification or decomposition data, prior Review outcome as authority]

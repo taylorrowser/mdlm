@@ -17,7 +17,7 @@ status_rules:
     reason: Blocking simplification findings require exact subject correction; completion of the Review ceremony is not success.
     blocked_by:
       - obligation: foundation-review-correction-required@5
-        subjects: 'select("product-simplification-blocked-foundation-members@1", {})'
+        subjects: 'select("failed-phase-0-foundation-revisions@1", {})'
   - status: awaiting-review
     priority: 100
     when: 'none("product-simplification-reviews-for@1", {subject_context: subject_context, outcome: "pass"})'

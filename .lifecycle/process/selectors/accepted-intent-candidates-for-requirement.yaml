@@ -6,9 +6,14 @@ parameters:
   - {name: requirement, kind: revision, types: [STK]}
 result_kind: baseline
 query:
-  from:
-    selector: accepted-intent-approvals-for-requirement@1
-    arguments: {requirement: requirement}
+  from: {collection: baselines, types: [BSL]}
   as: candidate
+  where: >-
+    candidate.payload.kind == "intent-approved"
+    && candidate.payload.role == "accepted"
+    && candidate.storage.frozen == true
+    && state(candidate, "validity") == "valid"
+    && exists("candidate-members-matching@1",
+      {candidate: candidate, required_member: requirement})
   distinct: true
   order_by: [identity.revision_id]

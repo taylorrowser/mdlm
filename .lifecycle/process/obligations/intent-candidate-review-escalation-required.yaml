@@ -3,15 +3,17 @@ id: intent-candidate-review-escalation-required
 version: 1
 description: A Phase 0 candidate still failing after two autonomous causal replacements requires attended stakeholder correction.
 phases: [phase-0-wayfinding]
-for_each: 'select("exhausted-intent-candidate-review-failures@1", {})'
+for_each: 'select("failed-intent-candidates@1", {})'
 subject_as: candidate
 satisfied_when: 'exists("complete-superseding-intent-candidates-for@1", {candidate: candidate})'
 status_rules:
   - status: ready
     priority: 100
-    when: 'none("complete-superseding-intent-candidates-for@1", {candidate: candidate})'
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: candidate}) >= 2
     reason: The candidate Review-correction budget is exhausted; exact immutable Reviews and findings require stakeholder attention.
-default_status: ready
+default_status: blocked
 resolve_with:
   scenario: escalate-intent-candidate-review-correction@1
   inputs:

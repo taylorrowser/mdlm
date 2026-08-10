@@ -28,7 +28,6 @@ scenarios:
   - review-datum-in-context@2
   - resolve-question@2
   - revise-question-decision-after-review@1
-  - escalate-question-decision-review-correction@1
   - resolve-question-with-prototype@2
   - prepare-product-simplification-context@1
   - simplify-product-definition@1
@@ -40,7 +39,6 @@ scenarios:
   - revise-intent-candidate-after-review@3
   - revise-gate-signoff-after-review@2
   - escalate-intent-candidate-review-correction@1
-  - escalate-gate-signoff-review-correction@1
   - accept-phase-0-intent@1
 obligations:
   - initial-wayfinding-map-required@1
@@ -54,12 +52,10 @@ obligations:
   - intent-candidate-review-correction-required@3
   - intent-candidate-review-escalation-required@1
   - gate-signoff-review-correction-required@2
-  - gate-signoff-review-escalation-required@1
   - review-context-required@2
   - passing-review-required@2
   - open-question-resolution@3
   - question-decision-review-correction-required@1
-  - question-decision-review-escalation-required@1
   - prototype-question-resolution@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@3
