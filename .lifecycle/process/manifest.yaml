@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.50.0
+version: 0.51.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -91,6 +91,13 @@ catalog:
     - foundation-review-failures-at-stage
     - failed-intent-candidates
     - failed-gate-signoff-decisions
+    - gate-rejection-blockers-for
+    - reviewed-gate-rejections-for-candidate
+    - reviewed-gate-rejections-for-subject
+    - gate-rejection-blocked-members-for-candidate
+    - cited-gate-rejections-by-correction
+    - matching-cited-gate-rejection-by-correction
+    - gate-rejection-corrections-for-subject
     - gate-candidates-for-decision
     - other-gate-candidates-for-decision
     - valid-gate-signoff-replacements-for
@@ -342,11 +349,11 @@ assets:
     - prompts/resolve-question-with-prototype.md@2
     - prompts/create-candidate-baseline.md@1
     - prompts/create-phase-0-intent-candidate.md@1
-    - prompts/record-gate-signoff.md@2
+    - prompts/record-gate-signoff.md@3
     - prompts/record-consequential-decision.md@1
-    - prompts/revise-foundation-after-review.md@2
+    - prompts/revise-foundation-after-review.md@3
     - prompts/escalate-foundation-review-correction.md@1
-    - prompts/revise-intent-candidate-after-review.md@1
+    - prompts/revise-intent-candidate-after-review.md@2
     - prompts/revise-gate-signoff-after-review.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
@@ -409,9 +416,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@24
+  default: bootstrap@25
   available:
-    - profiles/bootstrap.yaml@24
+    - profiles/bootstrap.yaml@25
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

@@ -11,7 +11,7 @@ import {
 } from "./helpers/process-package.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.50.0#sha256:authorization-test";
+const processRef = "mdlm-bootstrap@0.51.0#sha256:authorization-test";
 const mdlmExecutable = path.join(process.cwd(), "dist/mdlm.js");
 
 function mdlm(repository: string, input: string | undefined, ...arguments_: string[]) {
@@ -63,7 +63,7 @@ describe("exact consequential authorization", () => {
   it("rejects direct Review, gate, waiver, delegation, and question authority evidence", () => {
     const attempts = [
       { type: "REV", scenario: "review-datum-in-context@2" },
-      { type: "DEC", scenario: "record-gate-signoff@2" },
+      { type: "DEC", scenario: "record-gate-signoff@3" },
       { type: "DEC", scenario: "record-consequential-decision@1" },
       { type: "DEC", scenario: "resolve-question@2" },
       { type: "DEC", scenario: "record-pilot-observation@2" },
@@ -823,7 +823,7 @@ describe("exact consequential authorization", () => {
       .toEqual([]);
     expect(JSON.parse(evaluate(
       target.datum.revision_id,
-      "record-gate-signoff@2",
+      "record-gate-signoff@3",
     ).stdout).evaluation.result).toEqual([]);
 
     delegation.datum.payload.effective_scope = otherTarget.datum.revision_id;

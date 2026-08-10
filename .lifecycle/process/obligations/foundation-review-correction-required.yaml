@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: foundation-review-correction-required
-version: 3
-description: A current Phase 0 foundation Revision with failed Reviews receives a same-lineage replacement only while its two-cycle autonomous correction budget remains.
+version: 4
+description: A current Phase 0 foundation Revision blocked by Review or gate rejection evidence receives a causal same-lineage replacement while its Review-correction budget remains.
 phases: [phase-0-wayfinding]
 for_each: 'select("foundation-review-failures-at-stage@1", {stage: "autonomous"})'
 subject_as: subject
@@ -10,12 +10,13 @@ status_rules:
   - status: ready
     priority: 100
     when: 'none("newer-revisions-for@1", {subject: subject})'
-    reason: The exact failed Review requires a corrected replacement Revision.
+    reason: The exact blocking Review or gate rejection evidence requires a corrected replacement Revision.
 default_status: ready
 resolve_with:
-  scenario: revise-foundation-after-review@3
+  scenario: revise-foundation-after-review@4
   inputs:
     subject: subject
     prior_failed_reviews: 'select("cited-failing-reviews-by-correction@1", {replacement: subject})'
     failed_reviews: 'select("failing-reviews-for@1", {subject: subject})'
+    gate_rejections: 'select("reviewed-gate-rejections-for-subject@1", {subject: subject})'
 waiver_policy_ref: waiver-applicability@1

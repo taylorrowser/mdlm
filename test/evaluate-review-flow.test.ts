@@ -708,7 +708,7 @@ describe("evaluateLifecycle review flow", () => {
       subject: candidate.datum.revision_id,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-intent-candidate-after-review@1",
+      actionableResolver: "revise-intent-candidate-after-review@2",
     }));
     expect(evaluation.looseEnds.find((item) =>
       item.obligation === "passing-review-required" &&
@@ -871,7 +871,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: false,
-        scenario: "record-gate-signoff@2",
+        scenario: "record-gate-signoff@3",
         links: [
           { type: "justifies", target: candidate.datum.revision_id },
         ],
@@ -917,7 +917,7 @@ describe("evaluateLifecycle review flow", () => {
     expect(gate).toEqual(
       expect.objectContaining({
         status: "blocked",
-        eventualResolver: "record-gate-signoff@2",
+        eventualResolver: "record-gate-signoff@3",
         actionableResolver: "review-datum-in-context@2",
         dispatchable: false,
         blockedBy: [

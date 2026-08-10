@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.50 — experimental implementation reference**
+**Bootstrap package 0.51 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -259,10 +259,11 @@ every("selector-id@1", {candidate: candidate},
   member => state(member, "validity") == "valid")
 ```
 
-The universal binding receives the Selector's declared result kind and its
-predicate must return Boolean. Expressions cannot execute arbitrary code, access
-the filesystem, make network requests, mutate data, or invoke undeclared
-functions.
+The universal binding receives the Selector's declared result kind, and its
+predicate must return Boolean.
+
+Expressions cannot execute arbitrary code, access the filesystem, make network
+requests, mutate data, or invoke undeclared functions.
 
 ### 6.3 Fact-to-fact comparison
 
@@ -899,7 +900,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.50 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.51 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -929,7 +930,12 @@ history remains inspectable. The tracer
 reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
 the one primary subject Revision; each context may still include supporting parent
 or sibling Revisions. It then freezes and reviews an intent candidate and completes
-one reviewed exact Gate Sign-off.
+one reviewed exact Gate Sign-off. A reviewed rejection records one canonical exact blocker set in `blocks` links
+plus structured rationale applying to that set. It derives causal same-lineage
+Phase 0 member correction, requires fresh Reviews, preserves unaffected candidate
+evidence, and returns the superseding candidate to the same gate. Rejection itself
+is not a stop, deferral, or cancellation Decision. Remaining Phase 2 rejection
+routes are deferred to issue #99.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable

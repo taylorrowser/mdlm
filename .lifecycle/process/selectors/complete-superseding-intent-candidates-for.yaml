@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-superseding-intent-candidates-for
 version: 1
-description: Same-lineage superseding intent candidates containing every and only current Phase 0 foundation Revision.
+description: Same-lineage superseding intent candidates containing the reviewed current foundation and preserving rejection evidence when applicable.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: baseline
@@ -12,6 +12,8 @@ query:
   as: replacement
   where: >-
     replacement.identity.id == candidate.identity.id
+    && replacement.payload.scope == candidate.payload.scope
+    && replacement.payload.group == candidate.payload.group
     && exists("current-wayfinding-maps@1", {})
     && exists("current-product-specifications@1", {})
     && every("current-product-specifications@1", {}, product_specification =>
@@ -24,5 +26,21 @@ query:
       exists("candidate-members-matching@1",
         {candidate: replacement, required_member: member}))
     && none("non-phase-0-foundation-members-for@1", {candidate: replacement})
+    && (
+      none("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
+      || (
+        every("baseline-evidence@1", {baseline: candidate}, evidence =>
+          exists("baseline-contains-evidence@1",
+            {baseline: replacement, subject: evidence}))
+        && count("cited-gate-rejections-by-correction@1",
+          {replacement: replacement})
+          == count("reviewed-gate-rejections-for-candidate@1",
+            {candidate: candidate})
+        && every("reviewed-gate-rejections-for-candidate@1",
+          {candidate: candidate}, rejection =>
+            exists("matching-cited-gate-rejection-by-correction@1",
+              {replacement: replacement, rejection: rejection}))
+      )
+    )
   distinct: true
   order_by: [identity.revision]

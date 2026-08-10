@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.50
+# MDLM bootstrap process package v0.51
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -232,7 +232,17 @@ Correction of a DEC still requires stakeholder authority. Candidate and Gate
 Sign-off review remain separate.
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and
 REV resolve; only an explicit `gate_outcome: approve` can make the package-authored
-gate expression true, while a reviewed rejection remains blocking history.
+gate expression true. A reviewed rejection remains immutable blocking history.
+Its `blocks` links are the one canonical exact blocker set, while structured
+`gate_rejection.findings` preserve the complete rationale that applies to that
+set. For Phase 0, each implicated draft member receives a same-lineage
+`corrects-gate-rejection` replacement and fresh Review before a replacement
+candidate preserves unaffected evidence and links `supersedes` to the rejected
+candidate. Fresh passing candidate Review returns normal attention to the same
+package gate. Failed member re-Review enters the existing two-cycle correction
+budget and attended escalation. Rejection never implies stop, defer, or cancel;
+those dispositions require separate exact reviewed Decisions. Remaining Phase 2
+rejection routes are intentionally deferred to issue #99.
 
 ## Phase 1 qualification and pilot tracer slice
 

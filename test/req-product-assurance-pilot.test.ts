@@ -2018,6 +2018,6 @@ describe("req product-assurance qualification and pilot slice", () => {
       "write-verification-activity@1",
     ]));
     expect(catalogs.obligations).toContain("verification-run-required@1");
-    expect(catalogs.phases).toContain("phase-1-product-assurance@1");
+    expect(catalogs.phases).toContain("phase-1-product-assurance@2");
   });
 });

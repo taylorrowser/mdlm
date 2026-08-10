@@ -1,6 +1,6 @@
 ---
 id: record-gate-signoff
-version: 2
+version: 3
 scenario: record-gate-signoff
 ---
 
@@ -22,10 +22,18 @@ agent executes this Scenario with `--authorize stakeholder` rather than asking t
 stakeholder to run a command.
 
 Create one `gate-signoff` DEC recording approval or rejection, rationale, and
-scope, with a `justifies` link to the exact frozen candidate BSL revision. Capture
-new unresolved questions as QSTs rather than weakening the decision text. Never
-modify the candidate during the gate; revisions require a new candidate and a
-new gate.
+scope, with a `justifies` link to the exact frozen candidate BSL revision. For a
+rejection, record the complete rationale as structured
+`gate_rejection.findings` and record every exact blocker once through a `blocks`
+link. The links are the canonical blocker set; every finding applies to that set.
+A blocker may be the candidate itself or, for an intent candidate, one of its
+exact MAP, PSP, or STK members. Capture new unresolved questions as QSTs rather
+than weakening the decision text.
+
+Never modify the candidate during the gate. Rejection remains immutable
+non-approval history and derives correction; it does not mean stop, defer, or
+cancel. Correction creates fresh Revisions and Reviews, then a candidate linked
+by `supersedes` returns to this exact gate.
 
 Record exact provenance. Because gate sign-off is consequential, the DEC remains
 subject to the bootstrap DEC review policy before its evidence is applicable.

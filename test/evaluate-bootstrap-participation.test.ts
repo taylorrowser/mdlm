@@ -13,7 +13,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.50.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.51.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -566,18 +566,48 @@ describe("bootstrap Scenario participation Policies", () => {
     ).toContain("implied approval");
   });
 
-  it("keeps a reviewed gate rejection from satisfying approval", () => {
+  it("routes a reviewed gate rejection to its exact implicated member", () => {
     const fixture = reviewedGateFixture(processRef);
+    const member = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
+      title: "Rejected requirement",
+      rationale: "The gate found this exact draft ambiguous.",
+      statement: "The product shall export a report.",
+      verification_intent: "Observe an export.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    fixture.candidate.datum.payload.definition_members = [
+      member.datum.revision_id,
+    ];
     fixture.signoff.datum.payload.gate_outcome = "reject";
-    fixture.signoff.datum.payload.decision = "Reject and revise the candidate.";
+    fixture.signoff.datum.payload.decision = "Reject and revise the implicated requirement.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        summary: "The rejected requirement does not define the exported content.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: member.datum.revision_id,
+    });
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: fixture.records,
+      records: [...fixture.records, member],
       dependencyComparisons: [],
     });
 
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === member.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-foundation-after-review@4",
+    }));
     expect(evaluation.obligations.find((item) =>
       item.obligation === "candidate-gate-signoff" &&
       item.subject === fixture.candidate.datum.revision_id
@@ -585,10 +615,197 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "blocked",
       dispatchable: false,
+      actionableResolver: "revise-foundation-after-review@4",
     }));
     expect(evaluation.phase?.gate.evaluations[0]).toEqual(
       expect.objectContaining({ complete: false }),
     );
+  });
+
+  it("routes a candidate-level Phase 0 rejection to causal candidate replacement", () => {
+    const fixture = reviewedGateFixture(processRef);
+    const map = lifecycleDatum("MAP", "MAP-4K3M9Q2D8F", {
+      title: "Current map",
+      purpose: "Bound the exact intent frontier.",
+      frontier: ["One product commitment"],
+    });
+    const product = lifecycleDatum("PSP", "PSP-4K3M9Q2D8F", {
+      title: "Current product",
+      rationale: "Define the exact product intent.",
+      problem: "The operator route is ambiguous.",
+      users: ["operator"],
+      goals: ["Deterministic outcomes"],
+      non_goals: ["Implementation detail"],
+      success_measures: ["Exact command results"],
+    });
+    const requirement = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
+      title: "Current requirement",
+      rationale: "The operator needs an exact outcome.",
+      statement: "MDLM shall report one exact outcome.",
+      verification_intent: "Observe the public command result.",
+      stakeholder: "operator",
+      priority: "must",
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const foundation = [map, product, requirement];
+    fixture.candidate.datum.payload.definition_members = foundation.map(
+      (member) => member.datum.revision_id,
+    );
+    const reviewIds = [
+      "REV-4K3M9Q2D8H",
+      "REV-4K3M9Q2D8J",
+      "REV-4K3M9Q2D8K",
+    ];
+    const passingReviews = foundation.map((subject, index) =>
+      lifecycleDatum("REV", reviewIds[index]!, {
+        title: `Passing Review of ${subject.datum.revision_id}`,
+        review_kind: "independent",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      }, {
+        frozen: true,
+        links: [{ type: "reviews", target: subject.datum.revision_id }],
+        scenario: "review-datum-in-context@2",
+      })
+    );
+    fixture.signoff.datum.payload.gate_outcome = "reject";
+    fixture.signoff.datum.payload.decision = "Reject and replace the exact candidate.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        summary: "The candidate evidence boundary needs correction.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: fixture.candidate.datum.revision_id,
+    });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [...fixture.records, ...foundation, ...passingReviews],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-intent-candidate-after-review@2",
+    }));
+  });
+
+  it("does not accept an equal-sized but different rejection citation set", () => {
+    const fixture = reviewedGateFixture(processRef);
+    const firstMember = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
+      title: "First rejected requirement",
+      rationale: "The first finding applies to this exact draft.",
+      statement: "The product shall export a report.",
+      verification_intent: "Observe an export.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    const secondMember = lifecycleDatum("STK", "STK-4K3M9Q2D8G", {
+      title: "Second rejected requirement",
+      rationale: "The second finding applies to this exact draft.",
+      statement: "The product shall retain a report.",
+      verification_intent: "Observe retention.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    fixture.candidate.datum.payload.definition_members = [
+      firstMember.datum.revision_id,
+      secondMember.datum.revision_id,
+    ];
+    fixture.signoff.datum.payload.gate_outcome = "reject";
+    fixture.signoff.datum.payload.decision = "Reject the first exact member.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        summary: "The first member needs an exact correction.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: firstMember.datum.revision_id,
+    });
+    const secondRejection = structuredClone(fixture.signoff);
+    secondRejection.datum.id = "DEC-4K3M9Q2D8G";
+    secondRejection.datum.revision_id = "DEC-4K3M9Q2D8G-r00001";
+    secondRejection.datum.payload.decision = "Reject the second exact member.";
+    secondRejection.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-002",
+        summary: "The second member needs an exact correction.",
+      }],
+    };
+    secondRejection.datum.links = [
+      { type: "justifies", target: fixture.candidate.datum.revision_id },
+      { type: "blocks", target: secondMember.datum.revision_id },
+    ];
+    const secondRejectionReview = structuredClone(fixture.signoffReview);
+    secondRejectionReview.datum.id = "REV-4K3M9Q2D8H";
+    secondRejectionReview.datum.revision_id = "REV-4K3M9Q2D8H-r00001";
+    secondRejectionReview.datum.links = [{
+      type: "reviews",
+      target: secondRejection.datum.revision_id,
+    }];
+    const replacementFor = (
+      member: LifecycleRecord,
+      citedRejection: LifecycleRecord,
+    ) => {
+      const replacement = structuredClone(member);
+      replacement.datum.revision = 2;
+      replacement.datum.revision_id = `${member.datum.id}-r00002`;
+      replacement.datum.links.push({
+        type: "corrects-gate-rejection",
+        target: citedRejection.datum.revision_id,
+      });
+      return replacement;
+    };
+    const firstReplacement = replacementFor(firstMember, secondRejection);
+    const secondReplacement = replacementFor(secondMember, secondRejection);
+    const passingReviewFor = (subject: LifecycleRecord, id: string) =>
+      lifecycleDatum("REV", id, {
+        title: `Passing Review of ${subject.datum.revision_id}`,
+        review_kind: "independent",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      }, {
+        frozen: true,
+        links: [{ type: "reviews", target: subject.datum.revision_id }],
+        scenario: "review-datum-in-context@2",
+      });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [
+        ...fixture.records,
+        firstMember,
+        secondMember,
+        secondRejection,
+        secondRejectionReview,
+        firstReplacement,
+        secondReplacement,
+        passingReviewFor(firstReplacement, "REV-4K3M9Q2D8J"),
+        passingReviewFor(secondReplacement, "REV-4K3M9Q2D8K"),
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+    }));
   });
 
   it("rejects implied approval before gate sign-off reaches the adapter", async () => {
@@ -618,13 +835,13 @@ describe("bootstrap Scenario participation Policies", () => {
         dependencyComparisons: [],
       }));
       const obligation =
-        `candidate-gate-signoff@2:${fixture.candidate.datum.revision_id}:${snapshotProcessRef}`;
+        `candidate-gate-signoff@3:${fixture.candidate.datum.revision_id}:${snapshotProcessRef}`;
 
       const attempted = req(
         temporaryRoot,
         "scenario",
         "dry-run",
-        "record-gate-signoff@2",
+        "record-gate-signoff@3",
         "--obligation",
         obligation,
         "--snapshot",

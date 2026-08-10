@@ -1,6 +1,6 @@
 kind: type-definition
 id: MAP
-version: 2
+version: 3
 name: Wayfinding Map
 description: Linked index of decision areas, exact questions, prototype evidence, and product-intent data without restating their claims.
 extends: titled-datum@1
@@ -33,4 +33,11 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: corrected-by
+  - id: corrects-gate-rejection
+    description: Exact reviewed gate rejection Decisions whose findings this replacement map Revision addresses.
+    targets:
+      - {kind: datum, types: [DEC], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-after-gate-rejection
 kernel_managed_payload_paths: []

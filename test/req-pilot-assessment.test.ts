@@ -39,7 +39,7 @@ describe("req Phase 0–2 pilot assessment", () => {
       "pilot-assessment-review-correction-required@1",
       "pilot-expansion-decision-required@1",
     ]));
-    expect(catalogs.phases).toContain("phase-2-pilot-assessment@1");
+    expect(catalogs.phases).toContain("phase-2-pilot-assessment@2");
     expect(catalogs.phases).not.toEqual(expect.arrayContaining([
       "phase-3-component-definition@1",
       "phase-4-design-definition@1",

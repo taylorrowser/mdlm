@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-intent-candidate-after-review
-version: 1
-description: Rebuild one failed Phase 0 intent candidate from exact reviewed members while preserving immutable Review history.
+version: 2
+description: Rebuild one failed or reviewed-rejected Phase 0 intent candidate from exact reviewed members while preserving immutable evidence.
 phases: [phase-0-wayfinding]
 inputs:
   - name: candidate
@@ -10,7 +10,10 @@ inputs:
     identity: revision
     conditions: >-
       candidate.payload.kind == "intent-level-candidate"
-      && exists("failing-reviews-for@1", {subject: candidate})
+      && (
+        exists("failing-reviews-for@1", {subject: candidate})
+        || exists("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
+      )
   - name: definition_members
     types: [MAP, PSP, STK]
     cardinality: one-or-more
@@ -18,24 +21,23 @@ inputs:
     conditions: >-
       exists("passing-reviews-for@1", {subject: definition_members})
       && none("failing-reviews-for@1", {subject: definition_members})
+  - name: gate_rejections
+    types: [DEC]
+    cardinality: zero-or-more
+    identity: revision
 outputs:
   - name: replacement
     types: [BSL]
     cardinality: one
     required_links:
       - {link: supersedes, target: {input: candidate}}
-prompt_ref: prompts/revise-intent-candidate-after-review.md@1
+      - {link: corrects-gate-rejection, target: {input: gate_rejections}}
+prompt_ref: prompts/revise-intent-candidate-after-review.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
-  && replacement.identity.id == candidate.identity.id
-  && every("phase-0-foundation-members@1", {}, member =>
-    exists("candidate-members-matching@1",
-      {candidate: replacement, required_member: member}))
-  && none("non-phase-0-foundation-members-for@1", {candidate: replacement})
-  && replacement.payload.kind == "intent-level-candidate"
-  && replacement.payload.role == "candidate"
-  && replacement.storage.frozen == true
+  && exists("complete-superseding-intent-candidates-for@1",
+    {candidate: candidate})
 resolves: [intent-candidate-review-correction-required]
-prohibited_inputs: [mutation of the failed candidate, unreviewed definition Revisions, deletion of failed Review history]
+prohibited_inputs: [mutation of the prior candidate, unreviewed definition Revisions, omission of unaffected evidence, inferred terminal disposition]
 batching: single

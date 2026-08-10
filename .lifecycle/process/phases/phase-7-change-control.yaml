@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-7-change-control
-version: 1
+version: 2
 order: 7
 name: Exact problem and change control
 purpose: Report pilot-discovered conditions, approve bounded impact, revise in original-V order, and close with exact replacement evidence.
@@ -32,5 +32,5 @@ gate:
   required: false
   candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "group-candidate"})'
   candidate_as: candidate
-  obligation: candidate-gate-signoff@2
+  obligation: candidate-gate-signoff@3
   completion: 'false'

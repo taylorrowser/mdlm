@@ -54,7 +54,7 @@ async function recordInstalledPackageChange(
 async function publishCheckpointQuestions(repository: string): Promise<void> {
   const packageRoot = path.join(
     repository,
-    ".lifecycle/packages/mdlm-bootstrap@0.50.0",
+    ".lifecycle/packages/mdlm-bootstrap@0.51.0",
   );
   const phasePath = path.join(packageRoot, "phases/phase-0-wayfinding.yaml");
   const phase = parse(await fs.readFile(phasePath, "utf8"));
@@ -443,11 +443,11 @@ describe("public mdlm outcome and status seam", () => {
       ok: true,
       command: "status",
       contract: "mdlm-status@1",
-      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.50.0" }),
-      profile: expect.objectContaining({ reference: "bootstrap@24" }),
+      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.51.0" }),
+      profile: expect.objectContaining({ reference: "bootstrap@25" }),
       integrity: { status: "valid", diagnostics: [] },
       activePhase: expect.objectContaining({
-        reference: "phase-0-wayfinding@2",
+        reference: "phase-0-wayfinding@3",
         purpose: expect.any(String),
       }),
       omittedCoverage: expect.objectContaining({
@@ -468,7 +468,7 @@ describe("public mdlm outcome and status seam", () => {
     }));
     const readable = mdlm(repository, "status");
     expect(readable.status, `${readable.stderr}${readable.stdout}`).toBe(0);
-    expect(readable.stdout).toContain("Active Phase: phase-0-wayfinding@2");
+    expect(readable.stdout).toContain("Active Phase: phase-0-wayfinding@3");
     expect(readable.stdout).toContain("Current Operator Outcome: assignment");
     await expect(fs.stat(path.join(
       repository,
@@ -792,7 +792,7 @@ describe("public mdlm outcome and status seam", () => {
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.50.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.51.0",
     );
     const bootstrapProfilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
     const alternateProfilePath = path.join(packageRoot, "profiles/alternate.yaml");
@@ -802,10 +802,10 @@ describe("public mdlm outcome and status seam", () => {
     const manifestPath = path.join(packageRoot, "manifest.yaml");
     const manifest = parse(await fs.readFile(manifestPath, "utf8"));
     manifest.profiles = {
-      default: "alternate@24",
+      default: "alternate@25",
       available: [
-        "profiles/bootstrap.yaml@24",
-        "profiles/alternate.yaml@24",
+        "profiles/bootstrap.yaml@25",
+        "profiles/alternate.yaml@25",
       ],
     };
     await fs.writeFile(manifestPath, stringify(manifest));
@@ -815,14 +815,14 @@ describe("public mdlm outcome and status seam", () => {
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
-      reference: "alternate@24",
+      reference: "alternate@25",
     }));
   });
 
   it("classifies package-declared Phase progression as immediate attended work", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.50.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.51.0",
     );
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
@@ -852,7 +852,7 @@ gate:
   required: false
   candidate_selector: 'select("current-wayfinding-maps@1", {})'
   candidate_as: candidate
-  obligation: candidate-gate-signoff@2
+  obligation: candidate-gate-signoff@3
   completion: 'true'
 `,
     );
@@ -1128,7 +1128,7 @@ gate:
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.50.0/manifest.yaml",
+        ".lifecycle/packages/mdlm-bootstrap@0.51.0/manifest.yaml",
       ),
       "\n# integrity failure\n",
     );

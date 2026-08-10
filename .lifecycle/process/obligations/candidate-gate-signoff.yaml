@@ -1,12 +1,21 @@
 kind: obligation-definition
 id: candidate-gate-signoff
-version: 2
+version: 3
 description: A current candidate requires exact reviewed gate approval after member and candidate reviews pass and blocking questions close.
 phases: [phase-0-wayfinding, phase-2-system-definition]
 for_each: 'select("gate-authorization-candidates@1", {})'
 subject_as: candidate
 satisfied_when: 'exists("applicable-gate-signoffs-for@1", {candidate: candidate})'
 status_rules:
+  - status: blocked
+    priority: 400
+    when: 'exists("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})'
+    reason: The reviewed rejection remains immutable blocking history while exact correction and a superseding candidate return to this same gate.
+    blocked_by:
+      - obligation: foundation-review-correction-required@4
+        subjects: 'select("gate-rejection-blocked-members-for-candidate@1", {candidate: candidate})'
+      - obligation: intent-candidate-review-correction-required@2
+        subjects: '[candidate]'
   - status: blocked
     priority: 300
     when: >-
@@ -43,7 +52,7 @@ status_rules:
     reason: The exact frozen candidate is ready for an explicit gate decision.
 default_status: blocked
 resolve_with:
-  scenario: record-gate-signoff@2
+  scenario: record-gate-signoff@3
   inputs:
     candidate: candidate
 waiver_policy_ref: waiver-applicability@1
