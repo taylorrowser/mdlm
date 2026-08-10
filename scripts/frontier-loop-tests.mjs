@@ -47,6 +47,7 @@ import {
 } from "./frontier-issue-contract.mjs";
 import { createMaintenanceController, maintenanceBoundaryIsSafe } from "./frontier-maintenance.mjs";
 import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompts.mjs";
+import { sleep } from "./frontier-time.mjs";
 
 function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
   return { number, title: `Issue ${number}`, state, assignees, blockedBy };
@@ -186,8 +187,14 @@ test("maintenance requires a fully cleared between-ticket boundary", () => {
 test("maintenance atomically drains safe state, reserves active work, and honors cancellation", () => {
   const root = mkdtempSync(join(tmpdir(), "mdlm-maintenance-"));
   try {
-    const stale = spawnSync("shlock", ["-f", join(root, "MAINTENANCE-GATE"), "-p", "999999"], { encoding: "utf8" });
+    const exitedOwner = spawnSync(process.execPath, ["-e", ""], { encoding: "utf8" });
+    assert.equal(exitedOwner.status, 0);
+    assert.equal(Number.isInteger(exitedOwner.pid), true);
+    assert.throws(() => process.kill(exitedOwner.pid, 0), { code: "ESRCH" });
+    const stale = spawnSync("shlock", ["-f", join(root, "MAINTENANCE-GATE"), "-p", String(exitedOwner.pid)], { encoding: "utf8" });
     assert.equal(stale.status, 0);
+    // shlock compares whole-second ctimes when replacing a stale lock.
+    sleep(1_100);
     const maintenance = createMaintenanceController(root, { sleep: () => {} });
     assert.equal(maintenance.requestReload(() => false), false);
     let reservations = 0;
