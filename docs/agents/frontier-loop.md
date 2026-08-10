@@ -1,5 +1,7 @@
 # Autonomous frontier loop
 
+For the system architecture, delivery rationale, observed failure modes, and operating lessons, see [Frontier implementation loop: architecture and operating lessons](frontier-loop-architecture-and-learnings.md).
+
 The frontier loop snapshots the issue identities of both the tracer-bullet children of specification issue #83 and the older open `ready-for-agent` backlog at first start. It works through the fixed priority identity set first by selecting only dependency-safe frontier tickets (native dependencies first, with explicit `## Blocked by` fallback references) and choosing the lowest issue number when several are ready, then processes the fixed older identity set. Later issues, labels, or unrelated reopenings cannot silently change those sets. Blocker state, issue contracts, and comments remain live deliberately: blockers must close, and autonomous contract clarification must be auditable to later implementation and review sessions. Each implementation receives a fresh Pi process and an isolated Git worktree.
 
 For every available frontier ticket, the loop:
