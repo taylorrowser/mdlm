@@ -33,8 +33,10 @@ completion: >-
   && review_context.storage.frozen == true
   && review.payload.outcome in ["pass", "fail", "cancelled"]
   && (
-    none("intent-candidates-matching-subject@1", {subject: subject})
-    || exists("valid-product-simplification-reviews@1", {review: review})
+    (exists("intent-candidates-matching-subject@1", {subject: subject})
+      && exists("valid-product-simplification-reviews@1", {review: review}))
+    || (none("intent-candidates-matching-subject@1", {subject: subject})
+      && review.payload.review_kind != "simplification-product-definition")
   )
 resolves: [passing-review-required, candidate-members-reviewed]
 prohibited_inputs: [unfrozen context, mutable latest aliases, prior review outcome as authority]

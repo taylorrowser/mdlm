@@ -1056,7 +1056,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     };
 
     const mapAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
-    submit(mapAssignment, {
+    const mapExecution = submit(mapAssignment, {
       outputs: [{
         localId: "map",
         name: "map",
@@ -1076,6 +1076,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       authoritySupplies: [],
       standingDelegations: [],
     });
+    const mapRevision = mapExecution.outputs[0].lifecycleDatum.revisionId as string;
     commitTransaction("Publish map");
 
     let progression = publishPendingContexts();
@@ -1177,6 +1178,49 @@ describe("MDLM Assignment leasing and preparation", () => {
       severity: "blocking",
       summary: "The proposed frontier does not yet identify the intended product outcome.",
     };
+    const redirectedSubject = [mapRevision, pspRevision].find(
+      (revision) => revision !== reviewedSubject,
+    )!;
+    const redirectedReview = respond(reviewOutcome.assignment.id, {
+      outputs: [{
+        localId: "review",
+        name: "review",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "REV",
+          payload: {
+            title: "Mis-scoped product simplification Review",
+            review_kind: "simplification-product-definition",
+            rubric_ref: "policies/rubrics/contextual-review.md@1",
+            simplification: {
+              target: redirectedSubject,
+              findings: [{
+                id: "F-001",
+                severity: "blocking",
+                summary: "Redirect correction to a different foundation subject.",
+              }],
+            },
+            outcome: "fail",
+          },
+          links: [
+            { type: "reviews", target: reviewedSubject },
+            { type: "contextualizes", target: reviewedContext },
+            { type: "blocks", target: redirectedSubject },
+          ],
+          body: "This candidate-only judgment exceeds the ordinary Review Assignment.\n",
+        },
+      }],
+      completionEvidence: { summary: "Mis-scoped Review completed." },
+      authoritySupplies: ["independent-reviewer"],
+      standingDelegations: [],
+    }, reviewPacket);
+    expect(redirectedReview.status).toBe(1);
+    expect(JSON.parse(redirectedReview.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-completion-failed" }),
+      ]),
+    );
+
     const reviewExecution = submit(reviewOutcome.assignment.id, {
       outputs: [{
         localId: "review",

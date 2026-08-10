@@ -954,6 +954,66 @@ describe("bootstrap Scenario participation Policies", () => {
     ].map((review) => review.datum.revision_id).sort());
   });
 
+  it("ignores candidate-only simplification Reviews of ordinary foundation subjects", () => {
+    const map = lifecycleDatum("MAP", "MAP-7K3M9Q2D8J", {
+      title: "Reviewed frontier",
+      purpose: "Keep ordinary foundation Review authority exact.",
+      frontier: ["One exact product question"],
+    });
+    const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8J", {
+      title: "Different product definition",
+      rationale: "The redirected blocker must remain unrelated to the MAP Review.",
+      problem: "Review authority could otherwise cross exact subjects.",
+      users: ["operator"],
+      goals: ["Keep correction causality exact"],
+      non_goals: [],
+      success_measures: ["No redirected correction is derived"],
+    });
+    const context = lifecycleDatum("BSL", "BSL-7K3M9Q2D8J", {
+      title: "MAP review context",
+      kind: "review-context",
+      role: "review-context",
+      scope: map.datum.revision_id,
+      group: "phase-0-wayfinding",
+      definition_members: [map.datum.revision_id],
+      evidence: [],
+    }, { frozen: true, scenario: "create-review-context@1" });
+    const redirectedReview = lifecycleDatum("REV", "REV-7K3M9Q2D8J", {
+      title: "Mis-scoped product simplification Review",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      simplification: {
+        target: product.datum.revision_id,
+        findings: [{
+          id: "F-001",
+          severity: "blocking",
+          summary: "This finding exceeds the exact MAP Review Assignment.",
+        }],
+      },
+      outcome: "fail",
+    }, {
+      frozen: true,
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: map.datum.revision_id },
+        { type: "contextualizes", target: context.datum.revision_id },
+        { type: "blocks", target: product.datum.revision_id },
+      ],
+    });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [map, product, context, redirectedReview],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.some((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      [map.datum.revision_id, product.datum.revision_id].includes(item.subject)
+    )).toBe(false);
+  });
+
   it("routes blocking candidate simplification findings to the exact member correction", () => {
     const fixture = reviewedGateFixture(processRef);
     const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {
