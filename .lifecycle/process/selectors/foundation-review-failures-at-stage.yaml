@@ -29,7 +29,8 @@ query:
         || !every("product-simplification-reviews-blocking-subject@1",
           {subject: subject}, review =>
             review.payload.correction_authority != "stakeholder")
-        || count("foundation-correction-history@1", {subject: subject, view: "corrections"}) >= 2
+        || count("foundation-correction-history@1",
+          {subject: subject, view: "autonomous-corrections"}) >= 2
       )
     )
     || (
@@ -39,11 +40,16 @@ query:
         {subject: subject}, review =>
           review.payload.correction_authority != "stakeholder")
       && (
-        (stage == "initial" && count("foundation-correction-history@1", {subject: subject, view: "corrections"}) == 0)
-        || (stage == "first-replacement" && count("foundation-correction-history@1", {subject: subject, view: "corrections"}) == 1)
-        || (stage == "second-replacement" && count("foundation-correction-history@1", {subject: subject, view: "corrections"}) == 2)
-        || (stage == "exhausted" && count("foundation-correction-history@1", {subject: subject, view: "corrections"}) >= 2)
-        || (stage == "autonomous" && count("foundation-correction-history@1", {subject: subject, view: "corrections"}) < 2)
+        (stage == "initial" && count("foundation-correction-history@1",
+          {subject: subject, view: "autonomous-corrections"}) == 0)
+        || (stage == "first-replacement" && count("foundation-correction-history@1",
+          {subject: subject, view: "autonomous-corrections"}) == 1)
+        || (stage == "second-replacement" && count("foundation-correction-history@1",
+          {subject: subject, view: "autonomous-corrections"}) == 2)
+        || (stage == "exhausted" && count("foundation-correction-history@1",
+          {subject: subject, view: "autonomous-corrections"}) >= 2)
+        || (stage == "autonomous" && count("foundation-correction-history@1",
+          {subject: subject, view: "autonomous-corrections"}) < 2)
       )
     )
   distinct: true

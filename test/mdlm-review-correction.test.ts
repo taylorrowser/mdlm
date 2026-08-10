@@ -62,7 +62,7 @@ describe("failed STK Review correction through the public operator process", () 
     { route: "returns a rejected replacement candidate to the same gate", replacementReviews: ["pass"] as const, gateRejection: true },
     { route: "passes after the second replacement", replacementReviews: ["fail", "pass"] as const },
     { route: "exhausted lineage requests attention", replacementReviews: ["fail", "fail"] as const },
-    { route: "stakeholder intent requests attention immediately", replacementReviews: [] as const, stakeholderOwned: true },
+    { route: "stakeholder intent preserves both autonomous correction cycles", replacementReviews: ["fail", "fail"] as const, stakeholderOwned: true },
     { route: "stakeholder-owned candidate simplification preserves its autonomous budget", replacementReviews: ["pass"] as const, candidateStakeholderOwned: true },
   ])("$route", async ({ replacementReviews, stakeholderOwned = false, gateRejection = false, candidateStakeholderOwned = false }) => {
     const commit = (message: string) => {
@@ -390,16 +390,6 @@ describe("failed STK Review correction through the public operator process", () 
       return escalationPacket;
     };
 
-    if (stakeholderOwned) {
-      assertAttentionContext(
-        nextOutcome(),
-        requirement.revisionId,
-        [requirement.revisionId],
-        [currentFailedReview.revisionId],
-      );
-      return;
-    }
-
     const preservedRequirement = JSON.parse(
       invokeMdlm(repository, ["show", requirement.revisionId, "--json"]).stdout,
     ).lifecycleDatum;
@@ -410,6 +400,104 @@ describe("failed STK Review correction through the public operator process", () 
     const reviewHistory = [currentFailedReview.revisionId as string];
     const correctionAssignments = new Set<string>();
     let current = requirement;
+    let attendedCorrectionCount = 0;
+    if (stakeholderOwned) {
+      packet = assertAttentionContext(
+        nextOutcome(),
+        requirement.revisionId,
+        [requirement.revisionId],
+        [currentFailedReview.revisionId],
+      );
+      const attendedReplacementLocalId = "attended-foundation-replacement";
+      const attendedReplacementExecution = publish(packet, [{
+        localId: attendedReplacementLocalId,
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: requirement.id,
+          type: "STK",
+          payload: {
+            title: "Stakeholder-corrected malformed command intent",
+            rationale: "The attended correction preserves the exact stakeholder intent.",
+            statement: "MDLM shall return an explicit outcome for malformed public commands.",
+            verification_intent: "Observe the stakeholder-approved malformed command outcome.",
+            stakeholder: "MDLM operator",
+            priority: "must",
+          },
+          links: [
+            { type: "derived-from", target: productStable },
+            { type: "corrects-review", target: currentFailedReview.revisionId },
+          ],
+          body: "The stakeholder attended this exact foundation correction.\n",
+        },
+      }, {
+        localId: "attended-foundation-decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Authorize attended foundation correction",
+            rationale: "The correction changes stakeholder-owned intent only as attended.",
+            kind: "scope",
+            decision: "Authorize this exact replacement.",
+            alternatives: ["Retain the failed requirement"],
+            effective_scope: `$proposal.${attendedReplacementLocalId}.revision_id`,
+          },
+          links: [{
+            type: "justifies",
+            target: `$proposal.${attendedReplacementLocalId}.revision_id`,
+          }],
+          body: "Durable stakeholder authority for one exact replacement.\n",
+        },
+      }], ["stakeholder"]);
+      const attendedReplacement = attendedReplacementExecution.outputs.find(
+        (output: Record<string, any>) => output.name === "replacement",
+      ).lifecycleDatum as { id: string; revision: number; revisionId: string };
+      const attendedDecision = attendedReplacementExecution.outputs.find(
+        (output: Record<string, any>) => output.name === "decision",
+      ).lifecycleDatum as { revisionId: string };
+      expect(attendedReplacement.revision).toBe(2);
+      const persistedDecision = JSON.parse(invokeMdlm(
+        repository,
+        ["show", attendedDecision.revisionId, "--json"],
+      ).stdout).lifecycleDatum;
+      expect(persistedDecision.datum).toEqual(expect.objectContaining({
+        payload: expect.objectContaining({
+          kind: "scope",
+          effective_scope: attendedReplacement.revisionId,
+        }),
+        links: expect.arrayContaining([{
+          type: "justifies",
+          target: attendedReplacement.revisionId,
+        }]),
+      }));
+
+      current = attendedReplacement;
+      attendedCorrectionCount = 1;
+      let attendedFailure: { revisionId: string } | undefined;
+      while (!attendedFailure) {
+        packet = nextPacket();
+        if (packet.scenario.reference === "create-review-context@1") {
+          publishContext(packet);
+          continue;
+        }
+        expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+        const reviewSubject = exactInput(packet, "subject").values[0];
+        const reviewExecution = publishReview(
+          packet,
+          reviewSubject.identity.revision_id === attendedReplacement.revisionId
+            ? "fail"
+            : "pass",
+        );
+        if (reviewSubject.identity.revision_id === attendedReplacement.revisionId) {
+          attendedFailure = reviewExecution.outputs[0].lifecycleDatum;
+        }
+      }
+      currentFailedReview = attendedFailure;
+      reviewHistory.push(attendedFailure.revisionId);
+      lineage.push(attendedReplacement.revisionId);
+    }
 
     for (const [cycleIndex, reviewOutcome] of replacementReviews.entries()) {
       const correctionOutcome = nextOutcome();
@@ -428,7 +516,7 @@ describe("failed STK Review correction through the public operator process", () 
         .toEqual([current.revisionId]);
       expect(priorFailedReviews.values.map(
         (value: any) => value.identity.revision_id,
-      )).toEqual(reviewHistory.slice(0, -1));
+      ).sort()).toEqual(reviewHistory.slice(0, -1).sort());
       expect(failedReviews.values.map((value: any) => value.identity.revision_id))
         .toEqual([currentFailedReview.revisionId]);
       expect(failedReviews.values[0].data.payload.findings).toEqual([
@@ -487,7 +575,7 @@ describe("failed STK Review correction through the public operator process", () 
       };
       expect(replacement).toEqual(expect.objectContaining({
         id: requirement.id,
-        revision: cycleIndex + 2,
+        revision: cycleIndex + 2 + attendedCorrectionCount,
       }));
       lineage.push(replacement.revisionId);
       current = replacement;

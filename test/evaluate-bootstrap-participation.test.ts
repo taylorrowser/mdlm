@@ -772,6 +772,188 @@ describe("bootstrap Scenario participation Policies", () => {
     ]));
   });
 
+  it("preserves both autonomous foundation cycles after an attended correction", async () => {
+    const original = lifecycleDatum("STK", "STK-9K3M9Q2D8F", {
+      title: "Stakeholder-owned requirement",
+      rationale: "The first correction requires stakeholder judgment.",
+      statement: "The product shall expose one stakeholder outcome.",
+      verification_intent: "Observe the stakeholder outcome.",
+      stakeholder: "operator",
+      priority: "must",
+    });
+    const failedReview = (
+      subject: LifecycleRecord,
+      id: string,
+      correctionAuthority?: "stakeholder",
+    ) => lifecycleDatum("REV", id, {
+      title: `Failed Review of ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{
+        id: "F-001",
+        target: subject.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "The exact observable outcome remains ambiguous.",
+      }],
+      ...(correctionAuthority
+        ? { correction_authority: correctionAuthority }
+        : {}),
+      outcome: "fail",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: subject.datum.revision_id }],
+      scenario: "review-datum-in-context@2",
+    });
+    const stakeholderFailure = failedReview(
+      original,
+      "REV-9K3M9Q2D8F",
+      "stakeholder",
+    );
+    const attended = structuredClone(original);
+    attended.datum.revision = 2;
+    attended.datum.revision_id = `${original.datum.id}-r00002`;
+    attended.datum.links = [{
+      type: "corrects-review",
+      target: stakeholderFailure.datum.revision_id,
+    }];
+    const authorityDecision = lifecycleDatum("DEC", "DEC-9K3M9Q2D8F", {
+      title: "Attended foundation correction authority",
+      rationale: "The stakeholder authorized this exact intent correction.",
+      kind: "scope",
+      decision: "Authorize the exact attended replacement.",
+      alternatives: ["Retain the failed requirement"],
+      effective_scope: attended.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [{ type: "justifies", target: attended.datum.revision_id }],
+      scenario: "escalate-foundation-review-correction@2",
+    });
+    const attendedFailure = failedReview(attended, "REV-9K3M9Q2D8G");
+    const firstAutonomous = structuredClone(original);
+    firstAutonomous.datum.revision = 3;
+    firstAutonomous.datum.revision_id = `${original.datum.id}-r00003`;
+    firstAutonomous.datum.links = [stakeholderFailure, attendedFailure].map(
+      (review) => ({
+        type: "corrects-review",
+        target: review.datum.revision_id,
+      }),
+    );
+    const firstAutonomousFailure = failedReview(
+      firstAutonomous,
+      "REV-9K3M9Q2D8H",
+    );
+    const secondAutonomous = structuredClone(original);
+    secondAutonomous.datum.revision = 4;
+    secondAutonomous.datum.revision_id = `${original.datum.id}-r00004`;
+    secondAutonomous.datum.links = [
+      stakeholderFailure,
+      attendedFailure,
+      firstAutonomousFailure,
+    ].map((review) => ({
+      type: "corrects-review",
+      target: review.datum.revision_id,
+    }));
+    const secondAutonomousFailure = failedReview(
+      secondAutonomous,
+      "REV-9K3M9Q2D8J",
+    );
+    const baseRecords = [
+      original,
+      stakeholderFailure,
+      attended,
+      authorityDecision,
+      attendedFailure,
+    ];
+    const evaluate = (records: LifecycleRecord[]) => evaluateLifecycle(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-0-wayfinding",
+        records,
+        dependencyComparisons: [],
+      },
+    );
+    const correctionFor = (
+      evaluation: ReturnType<typeof evaluateLifecycle>,
+      subject: LifecycleRecord,
+    ) => evaluation.obligations.find((item) =>
+      item.subject === subject.datum.revision_id &&
+      (item.obligation === "foundation-review-correction-required" ||
+        item.obligation === "foundation-review-escalation-required")
+    );
+
+    expect(correctionFor(evaluate(baseRecords), attended)).toEqual(
+      expect.objectContaining({
+        obligation: "foundation-review-correction-required",
+        actionableResolver: "revise-foundation-after-review@5",
+      }),
+    );
+    const afterFirstAutonomous = [
+      ...baseRecords,
+      firstAutonomous,
+      firstAutonomousFailure,
+    ];
+    expect(correctionFor(
+      evaluate(afterFirstAutonomous),
+      firstAutonomous,
+    )).toEqual(expect.objectContaining({
+      obligation: "foundation-review-correction-required",
+      actionableResolver: "revise-foundation-after-review@5",
+    }));
+
+    const exhaustedRecords = [
+      ...afterFirstAutonomous,
+      secondAutonomous,
+      secondAutonomousFailure,
+    ];
+    const exhausted = evaluate(exhaustedRecords);
+    const escalation = correctionFor(exhausted, secondAutonomous);
+    expect(escalation).toEqual(expect.objectContaining({
+      obligation: "foundation-review-escalation-required",
+      actionableResolver: "escalate-foundation-review-correction@2",
+    }));
+    expect(exhausted.obligations.some((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === secondAutonomous.datum.revision_id
+    )).toBe(false);
+    expect(escalation).toBeDefined();
+
+    const snapshot = {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: exhaustedRecords,
+      dependencyComparisons: [],
+    };
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "escalate-foundation-review-correction@2",
+      escalation!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    const input = (name: string) => prepared.value.invocations[0]!.inputs.find(
+      (candidate) => candidate.name === name,
+    )?.values.map((value) => value.identity.revision_id);
+    expect(input("lineage")).toEqual([
+      original.datum.revision_id,
+      attended.datum.revision_id,
+      firstAutonomous.datum.revision_id,
+      secondAutonomous.datum.revision_id,
+    ]);
+    expect([
+      ...input("prior_failed_reviews") ?? [],
+      ...input("failed_reviews") ?? [],
+    ].sort()).toEqual([
+      stakeholderFailure,
+      attendedFailure,
+      firstAutonomousFailure,
+      secondAutonomousFailure,
+    ].map((review) => review.datum.revision_id).sort());
+  });
+
   it("routes blocking candidate simplification findings to the exact member correction", () => {
     const fixture = reviewedGateFixture(processRef);
     const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {

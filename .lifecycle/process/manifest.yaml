@@ -100,6 +100,7 @@ catalog:
     - failed-phase-0-foundation-revisions
     - cited-failing-reviews-by-correction
     - foundation-correction-history
+    - foundation-correction-decisions-for
     - foundation-review-failures-at-stage
     - review-correction-history-for
     - candidate-correction-decisions-for
