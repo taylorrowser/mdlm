@@ -5,6 +5,20 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req } from "./helpers/req.js";
 
 const examplePackage = path.join(process.cwd(), ".lifecycle/process");
+const executionProcedure = {
+  deadlines_ms: {checkout: 30000, environment_check: 20000, product_case: 5000},
+  deadline_claim: "infrastructure-safety-only",
+  timeout_recovery: {
+    terminate: "process-group",
+    graceful_signal: "SIGTERM",
+    force_after_ms: 1000,
+    force_signal: "SIGKILL",
+    reap: "all-descendants",
+    capture_partial_raw_observation: true,
+  },
+  cleanup: "guaranteed",
+  aggregation: "continue-through-all-cases",
+};
 
 describe("req Problem Report and Change Request flow", () => {
   let repositoryRoot: string;
@@ -579,6 +593,8 @@ describe("req Problem Report and Change Request flow", () => {
       'activity_bindings=["supported-success","unsupported-discrimination"]',
       "--set",
       'target_behavior={"supported":["valid export request"],"intentionally_unsupported":["malformed export request"]}',
+      "--set",
+      `execution_procedure=${JSON.stringify(executionProcedure)}`,
       "--link",
       `realizes=${pilotActivity.revisionId}`,
       "--link",
@@ -912,6 +928,8 @@ describe("req Problem Report and Change Request flow", () => {
       'activity_bindings=["supported-success","unsupported-discrimination"]',
       "--set",
       'target_behavior={"supported":["valid export request"],"intentionally_unsupported":["malformed export request"]}',
+      "--set",
+      `execution_procedure=${JSON.stringify(executionProcedure)}`,
       "--link",
       `realizes=${pilotActivity.revisionId}`,
       "--link",

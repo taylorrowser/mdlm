@@ -14,7 +14,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.53.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.54.0#sha256:test";
 
 function lifecycleDatum(
   type: string,

@@ -116,6 +116,57 @@ const pilotTargetPayload = (title: string, commit: string) => ({
     interface_version: 2,
     repository_locator: "file:///fixture",
     command: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
+    argument_cases: [
+      {
+        id: "normal",
+        kind: "normal",
+        tokens: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
+        expected_observation: {
+          classification: "success", exit_status: 0,
+          stdout: { encoding: "base64", bytes: "b2sK" },
+          stderr: { encoding: "base64", bytes: "" },
+        },
+      },
+      {
+        id: "raw-malformed",
+        kind: "raw-malformed",
+        raw_token_positions: [2],
+        tokens: [
+          { literal: "node" }, { checkout_path: "bin/fixture.mjs" },
+          { raw: { encoding: "utf-8", value: "" } },
+        ],
+        expected_observation: {
+          classification: "automatic-rejection", exit_status: 2,
+          stdout: { encoding: "base64", bytes: "" },
+          stderr: { encoding: "base64", bytes: "ZXJyb3IK" },
+        },
+      },
+      {
+        id: "omitted",
+        kind: "omitted-argument",
+        omitted_parameters: ["input"],
+        tokens: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
+        expected_observation: {
+          classification: "automatic-rejection", exit_status: 2,
+          stdout: { encoding: "base64", bytes: "" },
+          stderr: { encoding: "base64", bytes: "cmVxdWlyZWQK" },
+        },
+      },
+      {
+        id: "extra",
+        kind: "extra-argument",
+        extra_token_positions: [2],
+        tokens: [
+          { literal: "node" }, { checkout_path: "bin/fixture.mjs" },
+          { raw: { encoding: "utf-8", value: "extra" } },
+        ],
+        expected_observation: {
+          classification: "automatic-rejection", exit_status: 2,
+          stdout: { encoding: "base64", bytes: "" },
+          stderr: { encoding: "base64", bytes: "ZXh0cmEK" },
+        },
+      },
+    ],
     working_directory: "fresh-temporary-directory",
     observation_protocol: {
       success: { exit_status: 0, stdout_contract: "success", stderr_contract: "empty" },
@@ -968,10 +1019,10 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     expect(outcome).toEqual(expect.objectContaining({
       contract: "mdlm-next@1",
       outcome: "profile-boundary-reached",
-      phase: "phase-1-product-assurance@4",
+      phase: "phase-1-product-assurance@5",
       explanation: expect.stringMatching(/multiple applicable/i),
       evidence: expect.objectContaining({
-        profile: "bootstrap@27",
+        profile: "bootstrap@28",
         condition: expect.objectContaining({ result: true }),
       }),
     }));

@@ -1,9 +1,9 @@
 # Phase-hardening matrix
 
 This matrix records every distinct reachable public `mdlm` route in the hardened
-Phase 0 and Phase 1 strategy/environment/pilot-VER boundary. It describes Example
-Process Package behavior, not kernel semantics. Failed VAI procedure correction,
-Phase 2, and pilot-assessment hardening remain deferred to issues #97–#100.
+Phase 0 and Phase 1 assurance/implementation boundary. It describes Example
+Process Package behavior, not kernel semantics. Phase 2 and pilot-assessment
+hardening remain deferred to issues #98–#100.
 
 ## Foundation and product simplification
 
@@ -73,9 +73,21 @@ Phase 2, and pilot-assessment hardening remain deferred to issues #97–#100.
 | ENV first or second replacement fails | Fresh exact context and failed ENV REV over replacement | Shared Phase 1 correction Policy and ENV correction Scenario | Next autonomous correction, then **Attention Required** after cycle two | Same 0/1/2 budget; each replacement rebuilds qualification claims rather than borrowing evidence |
 | Initial pilot VER Review fails | Exact requirement/VSP boundary and every current failed pilot VER REV/Finding | `pilot-verification-activity-review-correction-required@2`; autonomous `revise-pilot-verification-activity-after-review@2` | Exact pilot VER correction **Assignment** | 0 of 2 consumed; target and qualified ENV evidence remain reusable because their exact dependencies did not change |
 | Corrected pilot VER fails or passes | Same-lineage pilot VER retains exact claim class, requirement, and strategy links and cites every failed Review of the exact Revision being corrected | Shared correction history and Phase 1 participation Policy plus ordinary Review Obligations | Second correction **Assignment** on fail; implementation work on pass | Fresh context/REV replace only changed VER judgment; ENV/ART evidence reused |
-| Pilot VER second correction fails | Two causal autonomous replacements and another exact failed REV | Same correction Scenario under attended participation | Immediate stakeholder **Attention Required** | 2 consumed; no VAI correction is fabricated because issue #97 owns that deferred route |
+| Pilot VER second correction fails | Two causal autonomous replacements and another exact failed REV | Same correction Scenario under attended participation | Immediate stakeholder **Attention Required** | 2 consumed; no VAI correction is fabricated against the superseded activity; a passing replacement derives ordinary exact VAI implementation work |
 | Stakeholder-owned assurance finding | Current failed REV declares `correction_authority: stakeholder` | Shared correction participation default and exact type-specific Scenario | Immediate stakeholder **Attention Required** | Autonomous budget untouched; attended correction requires scope DEC |
 | Missing causal Review link or changed boundary | Proposed replacement omits a prior/current REV, cites an unrelated REV, changes lineage, or changes required exact bindings | Source-owned type links, Scenario required links, and correction completion Selectors | Invalid proposal; same Assignment gets contract diagnostics | Nothing publishes; malformed transport attempts do not consume lifecycle budget |
+
+## Phase 1 VAI procedure correction and command evidence
+
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| Exact public command boundary | ART contains ordered exact normal, raw-malformed, omitted-argument, and extra-argument token vectors; omitted parameters are named separately from raw empty UTF-8 tokens; every case has exact exit status and base64 stdout/stderr bytes | ART schema plus `register-pilot-target@1` completion and `current-pilot-targets-for-requirement@1` | Source-independent implementation **Assignment** | No correction consumed; duplicate tokens and byte observations remain exact Lifecycle Data |
+| Incomplete or ambiguous command evidence | A case class, parameter encoding, malformed-token position, omitted parameter, extra-token position, or exact observation is absent | ART schema and canonical Scenario submission | Invalid proposal; same Assignment receives contract diagnostics | Nothing publishes; malformed transport does not consume lifecycle correction budget |
+| Initial VAI Review fails | Immutable source-blind VAI, every exact failed REV/Finding, exact VER/ENV/ART links, activity bindings, and pilot claim class | `failed-current-pilot-verification-implementations@1`; `pilot-vai-review-correction-required@1`; autonomous `revise-pilot-vai-after-review@1` | Exact same-lineage VAI correction **Assignment** | 0 of 2 consumed; failed VAI, authorization, RUN/RES, context, and Reviews retained |
+| Corrected VAI procedure | Replacement cites every and only failed Review, preserves exact bindings, and declares bounded checkout/environment/product-case deadlines, process-group termination, forced kill/reaping, partial raw observation, guaranteed cleanup, and continue-through-all-cases aggregation | `corrected-pilot-verification-implementation-revisions-for@1`; ordinary Review and run Obligations | Fresh Review Context, independent Review, then run **Assignments** | Prior RUN/RES cannot satisfy replacement; exact VER/ENV/ART evidence reused |
+| Incomplete correction or changed binding | Replacement omits any failed Review/procedure field or changes lineage, activity bindings, VER, ENV, ART, target behavior, or pilot claim class | Source-owned VAI links, Scenario required links, schema, and correction completion Selector | Invalid proposal; no partial publication | Failed history and prior evidence remain byte-preserved; no lifecycle cycle consumed |
+| Corrected VAI first or second Review fails | Fresh exact context and failed REV over the replacement | Shared Phase 1 correction history and participation Policy | Next autonomous correction, then **Attention Required** after cycle two | Same 0/1/2 budget; each corrected Revision requires fresh run evidence after passing Review |
+| Timeout during corrected execution | Partial raw stdout/stderr and execution observation retained; process group terminated, forcibly killed after grace, descendants reaped, cleanup guaranteed; later cases still invoked | VAI `execution_procedure`, `execute-verification-run@1`, RUN/RES exact bindings | Completed aggregate run evidence or explicit infrastructure outcome according to the exact procedure | Timeout does not hide later cases or make a product timing claim; all observations remain exact |
 
 ## Phase 1 evidence availability and supported boundary
 
@@ -108,7 +120,11 @@ unaffected evidence reuse, exhausted-budget attention, self-contained attended
 packets, and each VSP/ENV/target ambiguity through `mdlm next`, `scenario prepare`,
 and `scenario submit`, including proof that an attended Phase 1 replacement does
 not consume either autonomous correction cycle.
-`test/evaluate-bootstrap-participation.test.ts` covers exact simplification
+`test/mdlm-vai-correction.test.ts` drives malformed command registration,
+omitted-versus-empty-token evidence, deterministic exact-byte rejection,
+multi-Review VAI correction, changed-binding atomic rejection, immutable prior
+RUN/RES evidence, fresh Review Context and independent Review, and exact fresh-run
+selection through the same public operator seam. `test/evaluate-bootstrap-participation.test.ts` covers exact simplification
 blockers, immediate stakeholder-owned candidate attention with preserved budget,
 candidate exhaustion through the same interface, Question Decision correction,
 accepted-intent progression, and package-owned participation.

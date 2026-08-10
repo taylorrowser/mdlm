@@ -953,8 +953,8 @@ stakeholder authority; after two causal replacements, the same interface carries
 explicit exhausted-lineage escalation. A reviewed approving gate mechanically
 derives one frozen `intent-approved` BSL containing exact candidate, candidate
 Review, DEC, and DEC Review evidence before progression. Rejection itself is not a
-stop, deferral, or cancellation Decision. Failed VAI procedure correction, remaining Phase 2, and pilot-assessment hardening
-are deferred to issues #97–#100.
+stop, deferral, or cancellation Decision. Remaining Phase 2 and pilot-assessment
+hardening are deferred to issues #98–#100.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable
@@ -979,14 +979,24 @@ its requirement has no target. That Resolver records one immutable Git commit,
 bounded supported/unsupported behavior, and a controlled public execution interface
 containing the repository locator, versioned typed command vector with every
 parameter co-located with its exact encoding, isolated working-directory
-contract, and exact observable success/rejection protocol. It makes no verification,
+contract, ordered exact normal/raw-malformed/omitted/extra argument cases, and
+case-specific exit status plus base64 stdout/stderr bytes. Omitted parameters are
+explicitly distinct from raw empty tokens, and ordered duplicate tokens are
+preserved. It makes no verification,
 acceptance, or scope-authorization claim; an existing singular boundary-complete
 target satisfies the work while multiple current targets remain ambiguous. A passing
 VER Review plus one qualified
 reviewed ENV Revision and one ART Revision derive separately authorized VAI work; that transaction records both the VAI
-Revision and its exact authorization DEC. The VAI Review then unlocks execution
-bound to the package-resolved exact target Revision without an operator selecting
-core Scenario names.
+Revision and its exact authorization DEC. A source-blind pilot VAI records
+bounded checkout, environment-check, and product-case deadlines solely for
+infrastructure safety, plus process-group termination, forced kill and reaping,
+partial raw observation, guaranteed cleanup, and continue-through-all-cases
+aggregation. Failed VAI Review derives same-lineage correction carrying every
+applicable Review and Finding while preserving exact activity, ENV, ART, case, and
+pilot claim-class bindings. Prior VAI/RUN/RES/Review evidence remains immutable;
+the replacement requires fresh context, independent Review, and exact run work.
+The VAI Review then unlocks execution bound to the package-resolved exact target
+Revision without an operator selecting core Scenario names.
 Package schemas distinguish qualification `environment-capability`, pilot
 `verification-design`, and formal `requirement` claims. RUN and RES are
 package-declared generated terminal types: generic direct creation and revision

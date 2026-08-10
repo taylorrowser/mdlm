@@ -1077,6 +1077,75 @@ describe("req product-assurance qualification and pilot slice", () => {
                   },
                 },
               ],
+              argument_cases: [
+                {
+                  id: "normal-export",
+                  kind: "normal",
+                  tokens: [
+                    { literal: "node" },
+                    { checkout_path: "bin/report.mjs" },
+                    { parameter: { name: "input", encoding: "utf-8 path", value: "report.txt" } },
+                    { parameter: { name: "format", encoding: "utf-8 enum", value: "text" } },
+                  ],
+                  expected_observation: {
+                    classification: "success",
+                    exit_status: 0,
+                    stdout: { encoding: "base64", bytes: "cmVwb3J0Cg==" },
+                    stderr: { encoding: "base64", bytes: "" },
+                  },
+                },
+                {
+                  id: "raw-malformed-format",
+                  kind: "raw-malformed",
+                  raw_token_positions: [3],
+                  tokens: [
+                    { literal: "node" },
+                    { checkout_path: "bin/report.mjs" },
+                    { parameter: { name: "input", encoding: "utf-8 path", value: "report.txt" } },
+                    { raw: { encoding: "utf-8", value: "" } },
+                  ],
+                  expected_observation: {
+                    classification: "automatic-rejection",
+                    exit_status: 2,
+                    stdout: { encoding: "base64", bytes: "" },
+                    stderr: { encoding: "base64", bytes: "aW52YWxpZAo=" },
+                  },
+                },
+                {
+                  id: "omitted-format",
+                  kind: "omitted-argument",
+                  omitted_parameters: ["format"],
+                  tokens: [
+                    { literal: "node" },
+                    { checkout_path: "bin/report.mjs" },
+                    { parameter: { name: "input", encoding: "utf-8 path", value: "report.txt" } },
+                  ],
+                  expected_observation: {
+                    classification: "automatic-rejection",
+                    exit_status: 2,
+                    stdout: { encoding: "base64", bytes: "" },
+                    stderr: { encoding: "base64", bytes: "cmVxdWlyZWQK" },
+                  },
+                },
+                {
+                  id: "extra-format",
+                  kind: "extra-argument",
+                  extra_token_positions: [4],
+                  tokens: [
+                    { literal: "node" },
+                    { checkout_path: "bin/report.mjs" },
+                    { parameter: { name: "input", encoding: "utf-8 path", value: "report.txt" } },
+                    { parameter: { name: "format", encoding: "utf-8 enum", value: "text" } },
+                    { raw: { encoding: "utf-8", value: "extra" } },
+                  ],
+                  expected_observation: {
+                    classification: "automatic-rejection",
+                    exit_status: 2,
+                    stdout: { encoding: "base64", bytes: "" },
+                    stderr: { encoding: "base64", bytes: "ZXh0cmEK" },
+                  },
+                },
+              ],
               working_directory: "fresh-temporary-directory",
               observation_protocol: {
                 success: {
@@ -1479,6 +1548,20 @@ describe("req product-assurance qualification and pilot slice", () => {
               target_behavior: {
                 supported: ["export the representative visible report"],
                 intentionally_unsupported: ["export an intentionally unsupported binary format"],
+              },
+              execution_procedure: {
+                deadlines_ms: {checkout: 30000, environment_check: 20000, product_case: 5000},
+                deadline_claim: "infrastructure-safety-only",
+                timeout_recovery: {
+                  terminate: "process-group",
+                  graceful_signal: "SIGTERM",
+                  force_after_ms: 1000,
+                  force_signal: "SIGKILL",
+                  reap: "all-descendants",
+                  capture_partial_raw_observation: true,
+                },
+                cleanup: "guaranteed",
+                aggregation: "continue-through-all-cases",
               },
             },
             links: [
@@ -2105,9 +2188,17 @@ describe("req product-assurance qualification and pilot slice", () => {
       "execute-verification-run@1",
       "implement-verification-activity@1",
       "realize-verification-environment@1",
+      "revise-pilot-vai-after-review@1",
       "write-verification-activity@1",
     ]));
-    expect(catalogs.obligations).toContain("verification-run-required@1");
-    expect(catalogs.phases).toContain("phase-1-product-assurance@4");
+    expect(catalogs.selectors).toEqual(expect.arrayContaining([
+      "corrected-pilot-verification-implementation-revisions-for@1",
+      "failed-current-pilot-verification-implementations@1",
+    ]));
+    expect(catalogs.obligations).toEqual(expect.arrayContaining([
+      "pilot-vai-review-correction-required@1",
+      "verification-run-required@1",
+    ]));
+    expect(catalogs.phases).toContain("phase-1-product-assurance@5");
   });
 });

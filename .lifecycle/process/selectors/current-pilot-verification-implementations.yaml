@@ -1,0 +1,25 @@
+kind: selector-definition
+id: current-pilot-verification-implementations
+version: 1
+description: Current exact source-blind pilot implementations whose activity, environment, target, and authorization bindings are complete and unambiguous.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VAI]}
+  as: implementation
+  where: >-
+    implementation.payload.kind == "pilot"
+    && implementation.payload.independence_mode == "source-blind"
+    && state(implementation, "disposition") == "active"
+    && state(implementation, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: implementation})
+    && count("verification-activities-for-implementation@1",
+      {implementation: implementation}) == 1
+    && count("complete-pilot-implementations-for-activity@1",
+      {activity: one("verification-activities-for-implementation@1",
+        {implementation: implementation})}) == 1
+    && one("complete-pilot-implementations-for-activity@1",
+      {activity: one("verification-activities-for-implementation@1",
+        {implementation: implementation})}) == implementation
+  distinct: true
+  order_by: [identity.id, identity.revision]

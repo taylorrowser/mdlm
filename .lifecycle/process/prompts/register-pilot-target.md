@@ -17,13 +17,19 @@ and relevant to the exact requirement. Record at least one intentionally
 unsupported behavior capable of discriminating the pilot design.
 
 Record the complete controlled public execution interface needed by a fresh
-source-blind implementer: an exact repository locator, the parameterized public
+source-blind implementer: an exact repository locator and the parameterized public
 command vector using ordered literal, checkout-path, and parameter tokens. Keep
-each parameter name and its exact public encoding or token mapping together in its
-command token so no declared parameter can be disconnected from execution. Record a
-fresh-temporary-directory
-working-directory contract, and exact
-observable success and rejection protocols for exit status, stdout, and stderr.
+each parameter name and its exact public encoding together in its command token so
+no declared parameter can be disconnected from execution.
+
+Record full ordered token vectors for exact normal, raw-malformed, omitted-
+argument, and extra-argument cases. Preserve repeated tokens in order. A raw empty
+UTF-8 token is still one supplied argument; represent an omitted argument by its
+absent token vector plus the named omitted parameter, never by an empty token.
+For each case record the exact exit status and base64 stdout/stderr bytes, and
+classify malformed cases as automatic rejection. Record a fresh-temporary-
+directory working-directory contract and the summary observable success and
+rejection protocols.
 The command may expose public entrypoint paths but must not expose product source,
 unit tests, private functions, implementation notes, or uncontrolled shortcuts.
 
