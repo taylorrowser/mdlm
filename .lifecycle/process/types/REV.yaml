@@ -31,6 +31,9 @@ payload_schema:
           severity: {enum: [blocking, needs-triage, advisory]}
           summary: {type: string, minLength: 1}
           evidence: {type: string, minLength: 1}
+    correction_authority:
+      description: Marks a failed Review whose correction would change stakeholder-owned intent; omission leaves package-bounded autonomous correction applicable.
+      const: stakeholder
     outcome: {enum: [open, pass, fail, cancelled]}
     cancellation_reason: {type: string, minLength: 1}
 outgoing_links:

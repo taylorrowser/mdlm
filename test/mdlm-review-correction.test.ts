@@ -57,7 +57,12 @@ describe("failed STK Review correction through the public operator process", () 
     await fs.rm(parent, { recursive: true, force: true });
   });
 
-  it("derives one exact correction, fresh independent Review, and resumed work", async () => {
+  it.each([
+    { route: "passes after the first replacement", replacementReviews: ["pass"] as const },
+    { route: "passes after the second replacement", replacementReviews: ["fail", "pass"] as const },
+    { route: "exhausted lineage requests attention", replacementReviews: ["fail", "fail"] as const },
+    { route: "stakeholder intent requests attention immediately", replacementReviews: [] as const, stakeholderOwned: true },
+  ])("$route", async ({ replacementReviews, stakeholderOwned = false }) => {
     const commit = (message: string) => {
       expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
       const committed = git(
@@ -72,11 +77,12 @@ describe("failed STK Review correction through the public operator process", () 
       );
       expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
     };
-    const nextPacket = () => {
+    const nextOutcome = () => {
       const next = invokeMdlm(repository, ["next"]);
       expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-      const outcome = JSON.parse(next.stdout);
-      expect(outcome.outcome).toBe("assignment");
+      return JSON.parse(next.stdout);
+    };
+    const prepare = (outcome: Record<string, any>) => {
       const prepared = invokeMdlm(repository, [
         "scenario",
         "prepare",
@@ -84,6 +90,11 @@ describe("failed STK Review correction through the public operator process", () 
       ]);
       expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
       return JSON.parse(prepared.stdout) as Packet;
+    };
+    const nextPacket = () => {
+      const outcome = nextOutcome();
+      expect(outcome.outcome).toBe("assignment");
+      return prepare(outcome);
     };
     const respond = (
       packet: Packet,
@@ -141,7 +152,11 @@ describe("failed STK Review correction through the public operator process", () 
         },
       }]);
     };
-    const publishReview = (packet: Packet, outcome: "pass" | "fail") => {
+    const publishReview = (
+      packet: Packet,
+      outcome: "pass" | "fail",
+      correctionAuthority?: "stakeholder",
+    ) => {
       expect(packet.scenario.reference).toBe("review-datum-in-context@2");
       const subject = exactInput(packet, "subject").values[0];
       const context = exactInput(packet, "review_context").values[0];
@@ -171,6 +186,9 @@ describe("failed STK Review correction through the public operator process", () 
             review_kind: "contextual",
             rubric_ref: "policies/rubrics/bootstrap-review.md@1",
             findings,
+            ...(outcome === "fail" && correctionAuthority
+              ? { correction_authority: correctionAuthority }
+              : {}),
             outcome,
           },
           links: [
@@ -262,110 +280,207 @@ describe("failed STK Review correction through the public operator process", () 
       packet = nextPacket();
       expect(packet.scenario.reference).toBe("review-datum-in-context@2");
       const subject = exactInput(packet, "subject").values[0];
-      const review = publishReview(packet, subject.identity.type === "STK" ? "fail" : "pass");
+      const review = publishReview(
+        packet,
+        subject.identity.type === "STK" ? "fail" : "pass",
+        stakeholderOwned ? "stakeholder" : undefined,
+      );
       if (subject.identity.type === "STK") {
         failedReview = review.outputs[0].lifecycleDatum;
       }
     }
 
-    const oldRequirement = JSON.parse(
-      invokeMdlm(repository, ["show", requirement.revisionId, "--json"]).stdout,
-    ).lifecycleDatum;
-    const oldReview = JSON.parse(
-      invokeMdlm(repository, ["show", failedReview.revisionId, "--json"]).stdout,
-    ).lifecycleDatum;
+    if (!failedReview) throw new Error("Expected the STK Review to fail");
+    let currentFailedReview = failedReview;
 
-    packet = nextPacket();
-    expect(packet.scenario.reference).toBe("revise-foundation-after-review@2");
-    expect(packet.obligation).toEqual(expect.objectContaining({
-      definition: "foundation-review-correction-required@2",
-      subject: requirement.revisionId,
-    }));
-    const correctionSubject = exactInput(packet, "subject");
-    const failedReviews = exactInput(packet, "failed_reviews");
-    expect(correctionSubject.values.map((value: any) => value.identity.revision_id))
-      .toEqual([requirement.revisionId]);
-    expect(failedReviews.values.map((value: any) => value.identity.revision_id))
-      .toEqual([failedReview.revisionId]);
-    expect(failedReviews.values[0].data.payload.findings).toEqual([
-      expect.objectContaining({ id: "F-001", severity: "blocking" }),
-      expect.objectContaining({ id: "F-002", severity: "blocking" }),
-    ]);
-    const replacementOutput: ProposalOutput = {
-      localId: "replacement",
-      name: "replacement",
-      invocation: 0,
-      lifecycleDatum: {
-        id: requirement.id,
-        type: "STK",
-        payload: {
-          title: "Reject malformed commands deterministically",
-          rationale: "The corrected claim names the actor and both observable routes.",
-          statement: "MDLM shall return a typed rejection to an operator for every malformed public command without publishing Lifecycle Data.",
-          verification_intent: "Observe one supported command succeed and one malformed command return a typed rejection with no Lifecycle Data write.",
-          stakeholder: "MDLM operator",
-          priority: "must",
+    const assertAttentionContext = (
+      outcome: Record<string, any>,
+      currentRevision: string,
+      expectedLineage: string[],
+      expectedReviews: string[],
+    ) => {
+      expect(outcome).toEqual(expect.objectContaining({
+        outcome: "attention-required",
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
         },
-        links: [
-          { type: "derived-from", target: productStable },
-          { type: "corrects-review", target: failedReview.revisionId },
-        ],
-        body: "The same Stable Datum now addresses every blocking Review Finding.\n",
-      },
+        attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+        explanation: expect.stringMatching(/stakeholder/i),
+        attentionContext: { invocations: expect.any(Array) },
+      }));
+      const inputs = outcome.attentionContext.invocations[0].inputs;
+      const values = (name: string) => inputs.find(
+        (input: { name: string }) => input.name === name,
+      ).values;
+      expect(values("subject").map((value: any) => value.identity.revision_id))
+        .toEqual([currentRevision]);
+      expect(values("lineage").map((value: any) => value.identity.revision_id))
+        .toEqual(expectedLineage);
+      const reviews = [
+        ...values("prior_failed_reviews"),
+        ...values("failed_reviews"),
+      ];
+      expect(reviews.map(
+        (value: any) => value.identity.revision_id,
+      ).sort()).toEqual([...expectedReviews].sort());
+      expect(reviews.flatMap(
+        (value: any) => value.data.payload.findings,
+      )).toEqual(expect.arrayContaining([
+        expect.objectContaining({ severity: "blocking" }),
+      ]));
+      const escalationPacket = prepare(outcome);
+      expect(escalationPacket.scenario.reference)
+        .toBe("escalate-foundation-review-correction@1");
+      return escalationPacket;
     };
-    const missingCausalLink = structuredClone(replacementOutput);
-    missingCausalLink.lifecycleDatum.links = missingCausalLink.lifecycleDatum.links
-      .filter((link) => link.type !== "corrects-review");
-    const rejected = respond(packet, [missingCausalLink]);
-    expect(rejected.status).toBe(1);
-    expect(JSON.parse(rejected.stdout).diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        code: "scenario-output-required-link-missing",
-        path: "outputs.replacement.links.corrects-review",
-      }),
-    ]));
 
-    const replacementExecution = publish(packet, [replacementOutput]);
-    const replacement = replacementExecution.outputs[0].lifecycleDatum as {
-      id: string;
-      revision: number;
-      revisionId: string;
-    };
-    expect(replacement).toEqual(expect.objectContaining({
-      id: requirement.id,
-      revision: 2,
-    }));
+    if (stakeholderOwned) {
+      assertAttentionContext(
+        nextOutcome(),
+        requirement.revisionId,
+        [requirement.revisionId],
+        [currentFailedReview.revisionId],
+      );
+      return;
+    }
 
-    expect(JSON.parse(
+    const preservedRequirement = JSON.parse(
       invokeMdlm(repository, ["show", requirement.revisionId, "--json"]).stdout,
-    ).lifecycleDatum).toEqual(oldRequirement);
-    expect(JSON.parse(
-      invokeMdlm(repository, ["show", failedReview.revisionId, "--json"]).stdout,
-    ).lifecycleDatum).toEqual(oldReview);
+    ).lifecycleDatum;
+    const preservedInitialReview = JSON.parse(
+      invokeMdlm(repository, ["show", currentFailedReview.revisionId, "--json"]).stdout,
+    ).lifecycleDatum;
+    const lineage = [requirement.revisionId];
+    const reviewHistory = [currentFailedReview.revisionId as string];
+    const correctionAssignments = new Set<string>();
+    let current = requirement;
 
-    packet = nextPacket();
-    expect(packet.scenario.reference).toBe("create-review-context@1");
-    expect(exactInput(packet, "subject").values[0].identity.revision_id)
-      .toBe(replacement.revisionId);
-    const replacementContext = publishContext(packet).outputs[0].lifecycleDatum;
+    for (const [cycleIndex, reviewOutcome] of replacementReviews.entries()) {
+      const correctionOutcome = nextOutcome();
+      expect(correctionOutcome.outcome).toBe("assignment");
+      packet = prepare(correctionOutcome);
+      correctionAssignments.add(packet.assignment.id);
+      expect(packet.scenario.reference).toBe("revise-foundation-after-review@3");
+      expect(packet.obligation).toEqual(expect.objectContaining({
+        definition: "foundation-review-correction-required@3",
+        subject: current.revisionId,
+      }));
+      const correctionSubject = exactInput(packet, "subject");
+      const priorFailedReviews = exactInput(packet, "prior_failed_reviews");
+      const failedReviews = exactInput(packet, "failed_reviews");
+      expect(correctionSubject.values.map((value: any) => value.identity.revision_id))
+        .toEqual([current.revisionId]);
+      expect(priorFailedReviews.values.map(
+        (value: any) => value.identity.revision_id,
+      )).toEqual(reviewHistory.slice(0, -1));
+      expect(failedReviews.values.map((value: any) => value.identity.revision_id))
+        .toEqual([currentFailedReview.revisionId]);
+      expect(failedReviews.values[0].data.payload.findings).toEqual([
+        expect.objectContaining({ id: "F-001", severity: "blocking" }),
+        expect.objectContaining({ id: "F-002", severity: "blocking" }),
+      ]);
+      const replacementOutput: ProposalOutput = {
+        localId: `replacement-${cycleIndex + 1}`,
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: requirement.id,
+          type: "STK",
+          payload: {
+            title: `Reject malformed commands deterministically, correction ${cycleIndex + 1}`,
+            rationale: "The corrected claim names the actor and both observable routes.",
+            statement: `MDLM shall return a typed rejection for malformed public commands after correction ${cycleIndex + 1}.`,
+            verification_intent: "Observe supported and malformed command results without a Lifecycle Data write on rejection.",
+            stakeholder: "MDLM operator",
+            priority: "must",
+          },
+          links: [
+            { type: "derived-from", target: productStable },
+            ...reviewHistory.map((review) => ({
+              type: "corrects-review",
+              target: review,
+            })),
+          ],
+          body: "The same Stable Datum addresses every blocking Review Finding.\n",
+        },
+      };
+      if (replacementReviews.every((value) => value === "fail")) {
+        const missingCausalLink = structuredClone(replacementOutput);
+        missingCausalLink.lifecycleDatum.links = missingCausalLink.lifecycleDatum.links
+          .filter((link) => link.type !== "corrects-review");
+        const rejected = respond(packet, [missingCausalLink]);
+        expect(rejected.status).toBe(1);
+        expect(JSON.parse(rejected.stdout)).toEqual(expect.objectContaining({
+          disposition: "correction-required",
+          assignment: { id: packet.assignment.id },
+          malformedResponse: expect.objectContaining({ attempt: 1 }),
+        }));
+        expect(JSON.parse(rejected.stdout).diagnostics).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            code: "scenario-output-required-link-missing",
+            path: "outputs.replacement.links.corrects-review",
+          }),
+        ]));
+      }
 
-    packet = nextPacket();
-    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
-    expect(exactInput(packet, "subject").values[0].identity.revision_id)
-      .toBe(replacement.revisionId);
-    expect(exactInput(packet, "review_context").values[0].identity.revision_id)
-      .toBe(replacementContext.revisionId);
-    expect(packet.authority.requirements).toEqual([
-      expect.objectContaining({
-        authorityRequirement: expect.objectContaining({
-          mode: "delegated",
-          authority: "independent-reviewer",
+      const replacementExecution = publish(packet, [replacementOutput]);
+      const replacement = replacementExecution.outputs[0].lifecycleDatum as {
+        id: string;
+        revision: number;
+        revisionId: string;
+      };
+      expect(replacement).toEqual(expect.objectContaining({
+        id: requirement.id,
+        revision: cycleIndex + 2,
+      }));
+      lineage.push(replacement.revisionId);
+      current = replacement;
+
+      expect(JSON.parse(
+        invokeMdlm(repository, ["show", requirement.revisionId, "--json"]).stdout,
+      ).lifecycleDatum).toEqual(preservedRequirement);
+      expect(JSON.parse(
+        invokeMdlm(repository, ["show", reviewHistory[0]!, "--json"]).stdout,
+      ).lifecycleDatum).toEqual(preservedInitialReview);
+
+      packet = nextPacket();
+      expect(packet.scenario.reference).toBe("create-review-context@1");
+      expect(exactInput(packet, "subject").values[0].identity.revision_id)
+        .toBe(replacement.revisionId);
+      const replacementContext = publishContext(packet).outputs[0].lifecycleDatum;
+
+      packet = nextPacket();
+      expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+      expect(exactInput(packet, "subject").values[0].identity.revision_id)
+        .toBe(replacement.revisionId);
+      expect(exactInput(packet, "review_context").values[0].identity.revision_id)
+        .toBe(replacementContext.revisionId);
+      expect(packet.authority.requirements).toEqual([
+        expect.objectContaining({
+          authorityRequirement: expect.objectContaining({
+            mode: "delegated",
+            authority: "independent-reviewer",
+          }),
         }),
-      }),
-    ]);
-    publishReview(packet, "pass");
+      ]);
+      const reviewExecution = publishReview(packet, reviewOutcome);
+      if (reviewOutcome === "pass") {
+        packet = nextPacket();
+        expect(packet.scenario.reference).toBe("create-phase-0-intent-candidate@1");
+        return;
+      }
+      currentFailedReview = reviewExecution.outputs[0].lifecycleDatum;
+      reviewHistory.push(currentFailedReview.revisionId);
+    }
 
-    packet = nextPacket();
-    expect(packet.scenario.reference).toBe("create-phase-0-intent-candidate@1");
-  }, 60_000);
+    expect(correctionAssignments.size).toBe(2);
+    assertAttentionContext(
+      nextOutcome(),
+      current.revisionId,
+      lineage,
+      reviewHistory,
+    );
+  }, 120_000);
 });

@@ -1,0 +1,13 @@
+kind: selector-definition
+id: cited-failing-reviews-by-correction
+version: 1
+description: Exact failed Reviews cited as correction causes by one replacement Revision.
+parameters:
+  - {name: replacement, kind: revision}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: replacement, link: corrects-review, emit: target, types: [REV]}
+  as: review
+  where: 'review.payload.outcome == "fail"'
+  distinct: true
+  order_by: [identity.revision_id]

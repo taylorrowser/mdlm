@@ -2,22 +2,35 @@
 
 This matrix records public `mdlm` operator routes as the bundled Example Process
 Package is hardened. It describes package behavior, not kernel lifecycle
-semantics. The initial rows cover the issue #92 Phase 0 STK Review correction
-boundary; later negative routes remain deferred to their own implementation
-issues.
+semantics. These Phase 0 rows cover the issue #93 bounded correction boundary;
+gate rejection and correction breadth for other reachable types remain assigned
+to their sibling implementation issues.
 
 | Phase | Route | Exact evidence and links | Selector / Obligation | Participation | Resolver | Expected next Operator Outcome | Correction budget | Evidence replaced or reused |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Phase 0 | Happy Review | Frozen Review Context containing the exact STK Revision; passing REV with `reviews` to that Revision and `contextualizes` to that context | `passing-review-required@2` becomes satisfied | Delegated `independent-reviewer`; no stakeholder attention | `review-datum-in-context@2` | Assignment for the next normally reevaluated Phase 0 Obligation | Not consumed | Exact passing REV and Review Context remain reusable while their declared dependencies do not change |
-| Phase 0 | Failed Review | Current failed REV with one or more blocking Review Findings, `reviews` to one exact STK Revision, and `contextualizes` to its frozen context | `failed-phase-0-foundation-revisions@1` selects the subject; `foundation-review-correction-required@2` is Dispatchable | Autonomous correction | `revise-foundation-after-review@2` | One correction Assignment for one exact Stable Datum lineage, with every current failed REV bound as input | Initial correction route only; multi-cycle budget and escalation are deferred | Failed Revision, Review Context, and REV remain immutable historical evidence |
-| Phase 0 | Corrected Revision | Next STK Revision in the same Stable Datum lineage; inherited `corrects-review` links cite every bound failed REV; inherited `changed-under` remains distinct and unused | The failed Revision is no longer current; ordinary `review-context-required@2` selects the replacement | Autonomous context creation | `create-review-context@1` | Assignment for a fresh exact Review Context | No imperative retry or return cursor | Only evidence selected from exact replacement dependencies requires fresh publication; unrelated passing Reviews are reused |
-| Phase 0 | Resumed after Review | Fresh Review Context for the replacement and fresh passing REV from an independent reviewer | `passing-review-required@2` becomes satisfied for the replacement; blocked `intent-candidate-required@1` becomes ready through reevaluation | Delegated `independent-reviewer` for Review, then autonomous downstream work | `review-datum-in-context@2`, followed by `create-phase-0-intent-candidate@1` | Assignment for candidate construction | Further failed replacement cycles and attended escalation are deferred | Replacement Review evidence is current; unaffected MAP and PSP evidence remains reusable |
+| Phase 0 | Happy initial Review | Frozen Review Context containing the exact STK Revision; passing REV with `reviews` and `contextualizes` | `passing-review-required@2` becomes satisfied | Delegated `independent-reviewer`; no stakeholder attention | `review-datum-in-context@2` | Assignment for normally reevaluated downstream work | 0 of 2 autonomous cycles consumed | Passing REV and Review Context remain reusable while exact dependencies do not change |
+| Phase 0 | Initial autonomous failure | Current failed REV with blocking Review Findings and no stakeholder correction marker; no correction Revision yet | `foundation-review-failures-at-stage@1(stage: "initial")`; `foundation-review-correction-required@3` | Autonomous | `revise-foundation-after-review@3` | Fresh serial correction Assignment | 0 consumed; first replacement permitted | Failed Revision, Review Context, REV, and findings remain immutable |
+| Phase 0 | First replacement | Same-lineage replacement cites every failed REV through `corrects-review` | `foundation-correction-history@1(view: "corrections")` derives one evidence-backed replacement; ordinary context and Review Obligations apply | Autonomous context; delegated independent Review | `create-review-context@1`, then `review-datum-in-context@2` | Fresh context Assignment, then fresh Review Assignment | First cycle in progress | Only exact replacement-dependent context and Review are replaced; unrelated evidence is reused |
+| Phase 0 | First replacement passes | Fresh exact passing REV for replacement | `passing-review-required@2` becomes satisfied | Delegated independent Review, then autonomous downstream work | Normal reevaluation | Assignment for blocked downstream work | 1 cycle consumed; no escalation | Corrected evidence becomes current; immutable failure history remains inspectable |
+| Phase 0 | First replacement fails | Current failed first replacement with its own exact Review and findings | `foundation-review-failures-at-stage@1(stage: "first-replacement")`; `foundation-review-correction-required@3` remains Dispatchable | Autonomous | `revise-foundation-after-review@3` | Fresh second serial correction Assignment | 1 consumed; second replacement permitted | Initial and first-cycle histories remain immutable and reusable for explanation |
+| Phase 0 | Second replacement passes | Second same-lineage replacement, fresh context, and passing independent REV | `passing-review-required@2` becomes satisfied | Delegated independent Review, then autonomous downstream work | Normal reevaluation | Assignment for blocked downstream work | 2 cycles consumed successfully; no escalation | Passing current evidence resumes work; all failed evidence remains historical |
+| Phase 0 | Second replacement fails | Current failed second replacement plus three exact failed Revisions/Reviews and all findings across the lineage | `foundation-review-failures-at-stage@1` distinguishes `second-replacement` and `exhausted`; `foundation-review-escalation-required@1` | Attended nondelegable `stakeholder`; immediate | `escalate-foundation-review-correction@1` | **Attention Required** with exact lineage, failed Reviews/findings, and exhaustion reason | 2 consumed; autonomous budget exhausted | No historical evidence is deleted or rewritten; attended work receives the complete history |
+| Phase 0 | Stakeholder-owned intent failure | Current failed REV declares `correction_authority: stakeholder` with exact findings | `foundation-review-failures-at-stage@1(stage: "stakeholder-intent")`; `foundation-review-escalation-required@1` | Attended nondelegable `stakeholder`; immediate | `escalate-foundation-review-correction@1` | **Attention Required** with exact lineage, Reviews/findings, and intent reason | Autonomous budget is not consumed | Existing intent and Review evidence remain immutable until attended judgment publishes exact replacement and DEC evidence |
+| Phase 0 | Malformed correction response | Assignment transport contains malformed Scenario Proposal; no Lifecycle Data publishes | Assignment lease validation only; package Selectors remain unchanged | Same participation as the active Assignment | Same exact Assignment for its one malformed correction | Correction-required disposition, then same lifecycle route after valid submission | Lifecycle count unchanged | No Revision or Review evidence changes |
+| Phase 0 | Lifecycle Review failure | Contract-valid failed REV publishes unchanged | Package Selectors count only `corrects-review`-backed replacement cycles, not Assignment lease attempts | Fresh delegated Review Assignment per replacement | Package correction or escalation Resolver | Assignment or Attention Required according to evidence-derived budget | Assignment malformed-attempt count unchanged | Exact failed judgment is retained |
+
+Every expected row projects Assignment or Attention Required; none projects
+Process Dead End. Continued failure after exhaustion remains attended rather than
+replenishing autonomous budget.
 
 ## Executable evidence
 
-`test/mdlm-review-correction.test.ts` drives the happy, failed, corrected, and
-resumed observations through the compiled `mdlm` executable, fresh temporary Git
-repository, `next → scenario prepare → scenario submit`, ordinary commits, and
-normal reevaluation. It also verifies the shared requirement link contracts,
-complete blocking finding input, same-lineage Revision advance, immutable failed
-evidence, fresh independent Review, and downstream resumption.
+`test/mdlm-review-correction.test.ts` drives initial success, first-cycle success,
+second-cycle success, exhausted escalation, immediate stakeholder-intent
+escalation, one malformed Assignment Response on each lifecycle-failed correction
+Assignment, fresh serial correction and Review Assignments, and downstream resumption through the compiled `mdlm` executable in
+fresh Git repositories. `mdlm next` exposes attended work's package-bound exact
+input values through lifecycle-neutral `attentionContext.invocations`; the package
+names those inputs `subject`, `lineage`, `prior_failed_reviews`, and
+`failed_reviews`, so immutable Review Findings and history remain explicit without
+kernel knowledge of Review or correction semantics.

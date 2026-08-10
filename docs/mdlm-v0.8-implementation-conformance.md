@@ -93,9 +93,13 @@ exhausts it, and only a later deliberate `mdlm next` allocates fresh work. Issue
 #92 hardens the first failed-Review route through that public loop: one failed STK
 Review derives a subject-bounded correction Assignment with complete exact Review
 and Finding input, a causal same-lineage replacement, fresh exact context and
-independent Review, and resumed blocked work through normal reevaluation. The
-initial routes and deferred hardening breadth are recorded in
-[`phase-hardening-matrix.md`](phase-hardening-matrix.md).
+independent Review, and resumed blocked work through normal reevaluation. Issue
+#93 bounds that package-owned lifecycle loop to two autonomous replacement cycles,
+projects exact attended escalation after continued failure, and routes
+stakeholder-owned intent changes to immediate attention. The lifecycle-neutral
+operator contract exposes package-bound attended inputs without counting Assignment
+transport attempts as lifecycle failures. The implemented routes and deferred
+hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).
 
 ## Demonstrated invariants
 

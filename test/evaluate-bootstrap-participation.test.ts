@@ -138,6 +138,10 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual({
       "approve-change-request": { output: "approval", type: "DEC" },
       "decide-pilot-expansion": { output: "decision", type: "DEC" },
+      "escalate-foundation-review-correction": {
+        output: "decision",
+        type: "DEC",
+      },
       "implement-verification-activity": { output: "authorization", type: "DEC" },
       "record-consequential-decision": { output: "decision", type: "DEC" },
       "record-gate-signoff": { output: "decision", type: "DEC" },
