@@ -623,6 +623,169 @@ describe("bootstrap Scenario participation Policies", () => {
     );
   });
 
+  it("does not route correction when rejection findings and blocker links disagree", () => {
+    const fixture = reviewedGateFixture(processRef);
+    const findingTarget = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
+      title: "Finding target",
+      rationale: "The gate finding names this exact draft.",
+      statement: "The product shall export a report.",
+      verification_intent: "Observe an export.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    const linkedBlocker = lifecycleDatum("STK", "STK-4K3M9Q2D8G", {
+      title: "Incorrect linked blocker",
+      rationale: "This draft was not named by the gate finding.",
+      statement: "The product shall retain a report.",
+      verification_intent: "Observe report retention.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    fixture.candidate.datum.payload.definition_members = [
+      findingTarget.datum.revision_id,
+      linkedBlocker.datum.revision_id,
+    ];
+    fixture.signoff.datum.payload.gate_outcome = "reject";
+    fixture.signoff.datum.payload.decision = "Reject the finding target.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        target: findingTarget.datum.revision_id,
+        summary: "The finding applies only to the first exact draft.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: linkedBlocker.datum.revision_id,
+    });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [...fixture.records, findingTarget, linkedBlocker],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === linkedBlocker.datum.revision_id
+    )).not.toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+    }));
+  });
+
+  it("does not accept an equal-sized but different rejection citation set", () => {
+    const fixture = reviewedGateFixture(processRef);
+    const firstMember = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
+      title: "First rejected requirement",
+      rationale: "The first finding applies to this exact draft.",
+      statement: "The product shall export a report.",
+      verification_intent: "Observe an export.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    const secondMember = lifecycleDatum("STK", "STK-4K3M9Q2D8G", {
+      title: "Second rejected requirement",
+      rationale: "The second finding applies to this exact draft.",
+      statement: "The product shall retain a report.",
+      verification_intent: "Observe retention.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    fixture.candidate.datum.payload.definition_members = [
+      firstMember.datum.revision_id,
+      secondMember.datum.revision_id,
+    ];
+    fixture.signoff.datum.payload.gate_outcome = "reject";
+    fixture.signoff.datum.payload.decision = "Reject the first exact member.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        target: firstMember.datum.revision_id,
+        summary: "The first member needs an exact correction.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: firstMember.datum.revision_id,
+    });
+    const secondRejection = structuredClone(fixture.signoff);
+    secondRejection.datum.id = "DEC-4K3M9Q2D8G";
+    secondRejection.datum.revision_id = "DEC-4K3M9Q2D8G-r00001";
+    secondRejection.datum.payload.decision = "Reject the second exact member.";
+    secondRejection.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-002",
+        target: secondMember.datum.revision_id,
+        summary: "The second member needs an exact correction.",
+      }],
+    };
+    secondRejection.datum.links = [
+      { type: "justifies", target: fixture.candidate.datum.revision_id },
+      { type: "blocks", target: secondMember.datum.revision_id },
+    ];
+    const secondRejectionReview = structuredClone(fixture.signoffReview);
+    secondRejectionReview.datum.id = "REV-4K3M9Q2D8H";
+    secondRejectionReview.datum.revision_id = "REV-4K3M9Q2D8H-r00001";
+    secondRejectionReview.datum.links = [{
+      type: "reviews",
+      target: secondRejection.datum.revision_id,
+    }];
+    const replacementFor = (
+      member: LifecycleRecord,
+      citedRejection: LifecycleRecord,
+    ) => {
+      const replacement = structuredClone(member);
+      replacement.datum.revision = 2;
+      replacement.datum.revision_id = `${member.datum.id}-r00002`;
+      replacement.datum.links.push({
+        type: "corrects-gate-rejection",
+        target: citedRejection.datum.revision_id,
+      });
+      return replacement;
+    };
+    const firstReplacement = replacementFor(firstMember, secondRejection);
+    const secondReplacement = replacementFor(secondMember, secondRejection);
+    const passingReviewFor = (subject: LifecycleRecord, id: string) =>
+      lifecycleDatum("REV", id, {
+        title: `Passing Review of ${subject.datum.revision_id}`,
+        review_kind: "independent",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      }, {
+        frozen: true,
+        links: [{ type: "reviews", target: subject.datum.revision_id }],
+        scenario: "review-datum-in-context@2",
+      });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [
+        ...fixture.records,
+        firstMember,
+        secondMember,
+        secondRejection,
+        secondRejectionReview,
+        firstReplacement,
+        secondReplacement,
+        passingReviewFor(firstReplacement, "REV-4K3M9Q2D8J"),
+        passingReviewFor(secondReplacement, "REV-4K3M9Q2D8K"),
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+    }));
+  });
+
   it("routes a reviewed Phase 2 candidate-level rejection without changing its evidence boundary", () => {
     const fixture = reviewedGateFixture(processRef);
     fixture.candidate.datum.payload.kind = "level-candidate";

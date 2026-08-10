@@ -237,6 +237,33 @@ describe("textual MDLM expressions", () => {
     ).toEqual(["process-drift"]);
   });
 
+  it("evaluates a typed predicate for every item in an expression array", async () => {
+    const processRoot = await processPackageWithTextualProcessDrift(
+      'every(select("review-required-revisions@1", {}), member => state(member, "validity") == "valid")',
+    );
+
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(
+      loaded.ok,
+      loaded.diagnostics.map((diagnostic) => diagnostic.message).join("\n"),
+    ).toBe(true);
+    if (!loaded.ok) return;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+  });
+
   it("evaluates a typed predicate for every finite Selector result", async () => {
     const processRoot = await processPackageWithTextualProcessDrift(
       'every("review-required-revisions@1", {}, member => state(member, "validity") == "valid")',

@@ -1,0 +1,14 @@
+kind: selector-definition
+id: gate-rejection-blockers-matching-target
+version: 1
+description: Exact blocker links from one rejection that match one structured finding target.
+parameters:
+  - {name: rejection, kind: revision, types: [DEC]}
+  - {name: target, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: rejection, link: blocks, emit: target, types: [MAP, PSP, STK, BSL]}
+  as: blocker
+  where: 'blocker.identity.revision_id == target'
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

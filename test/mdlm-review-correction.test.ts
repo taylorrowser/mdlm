@@ -518,7 +518,7 @@ describe("failed STK Review correction through the public operator process", () 
         }));
         packet = prepare(rejectionOutcome);
         expect(packet.scenario.reference).toBe("record-gate-signoff@3");
-        const rejectionExecution = publish(packet, [{
+        const rejectionOutput: ProposalOutput = {
           localId: "gate-rejection",
           name: "decision",
           invocation: 0,
@@ -546,7 +546,28 @@ describe("failed STK Review correction through the public operator process", () 
             ],
             body: "The rejection is correction evidence, not a terminal disposition.\n",
           },
-        }], ["stakeholder"]);
+        };
+        const mismatchedRejection = structuredClone(rejectionOutput);
+        mismatchedRejection.lifecycleDatum.links = [
+          { type: "justifies", target: candidate.revisionId },
+          { type: "blocks", target: map.revisionId },
+        ];
+        const mismatchRejected = respond(
+          packet,
+          [mismatchedRejection],
+          ["stakeholder"],
+        );
+        expect(mismatchRejected.status).toBe(1);
+        expect(JSON.parse(mismatchRejected.stdout).diagnostics).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ code: "scenario-completion-failed" }),
+          ]),
+        );
+        const rejectionExecution = publish(
+          packet,
+          [rejectionOutput],
+          ["stakeholder"],
+        );
         const rejection = rejectionExecution.outputs[0].lifecycleDatum as {
           revisionId: string;
         };

@@ -71,6 +71,7 @@ interface NodeBase {
   valueType: ValueType;
   domainKind?: string;
   lifecycleTypes?: string[];
+  elementBinding?: Binding;
   span: SourceSpan;
 }
 
@@ -146,8 +147,9 @@ interface PolicyNode extends NodeBase {
 
 interface EveryNode extends NodeBase {
   kind: "every";
-  reference: string;
-  arguments: ObjectNode;
+  reference?: string;
+  arguments?: ObjectNode;
+  collection?: ExpressionNode;
   binding: string;
   predicate: ExpressionNode;
 }
@@ -190,6 +192,8 @@ interface Binding {
   domainKind?: string;
   lifecycleTypes?: string[];
   paths?: Record<string, ValueType>;
+  arrayElements?: Record<string, Binding>;
+  elementBinding?: Binding;
   strictPayloadPaths?: boolean;
 }
 
@@ -514,13 +518,50 @@ class ExpressionParser {
   private parseEveryCall(): EveryNode {
     const functionToken = this.take("identifier", "Expected 'every'");
     this.take("left-parenthesis", "Expected '(' after 'every'");
-    const referenceToken = this.take(
-      "string",
-      "Expected a versioned Selector reference string",
-    );
-    this.take("comma", "Expected ',' after Selector reference");
-    const argumentsNode = this.parseObject();
-    this.take("comma", "Expected ',' before universal predicate binding");
+
+    let reference: string | undefined;
+    let argumentsNode: ObjectNode | undefined;
+    let collection: ExpressionNode | undefined;
+    let binding: Binding;
+    if (this.current().kind === "string") {
+      const referenceToken = this.take(
+        "string",
+        "Expected a versioned Selector reference string",
+      );
+      this.take("comma", "Expected ',' after Selector reference");
+      argumentsNode = this.parseObject();
+      this.take("comma", "Expected ',' before universal predicate binding");
+      reference = String(referenceToken.value);
+      const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(reference);
+      const definition = match?.[1] ? this.selectors[match[1]] : undefined;
+      if (!definition || definition.version !== Number(match?.[2])) {
+        throw new ExpressionFailure(
+          "expression-unknown-selector",
+          `Unknown Selector '${reference}'`,
+          referenceToken.span,
+        );
+      }
+      this.checkDefinitionArguments(
+        "Selector",
+        "expression-selector-arguments",
+        definition,
+        argumentsNode,
+        referenceToken.span,
+      );
+      binding = this.selectorResultBinding(definition);
+    } else {
+      collection = this.parseOr();
+      if (collection.valueType !== "array" && !collection.elementBinding) {
+        throw new ExpressionFailure(
+          "expression-collection-type",
+          `Universal collection must be an array, received ${collection.valueType}`,
+          collection.span,
+        );
+      }
+      this.take("comma", "Expected ',' before universal predicate binding");
+      binding = collection.elementBinding ?? { valueType: "unknown" };
+    }
+
     const bindingToken = this.take(
       "identifier",
       "Expected a universal predicate binding",
@@ -533,24 +574,6 @@ class ExpressionParser {
         arrow.span,
       );
     }
-    const reference = String(referenceToken.value);
-    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(reference);
-    const definition = match?.[1] ? this.selectors[match[1]] : undefined;
-    if (!definition || definition.version !== Number(match?.[2])) {
-      throw new ExpressionFailure(
-        "expression-unknown-selector",
-        `Unknown Selector '${reference}'`,
-        referenceToken.span,
-      );
-    }
-    this.checkDefinitionArguments(
-      "Selector",
-      "expression-selector-arguments",
-      definition,
-      argumentsNode,
-      referenceToken.span,
-    );
-    const binding = this.selectorResultBinding(definition);
     const priorBinding = this.bindings[bindingToken.text];
     this.bindings[bindingToken.text] = binding;
     let predicate: ExpressionNode;
@@ -571,15 +594,16 @@ class ExpressionParser {
       "right-parenthesis",
       "Expected ')' after universal predicate",
     );
-    return {
-      kind: "every",
-      reference,
-      arguments: argumentsNode,
+    const common = {
+      kind: "every" as const,
       binding: bindingToken.text,
       predicate,
-      valueType: "boolean",
+      valueType: "boolean" as const,
       span: { start: functionToken.span.start, end: closing.span.end },
     };
+    return reference
+      ? { ...common, reference, arguments: argumentsNode! }
+      : { ...common, collection: collection! };
   }
 
   private selectorResultBinding(definition: VersionedDefinition): Binding {
@@ -750,6 +774,9 @@ class ExpressionParser {
         ? { domainKind: definition.result_kind }
         : {}),
       ...(lifecycleTypes === undefined ? {} : { lifecycleTypes }),
+      ...(operation === "select"
+        ? { elementBinding: this.selectorResultBinding(definition) }
+        : {}),
       span: { start: functionToken.span.start, end: closing.span.end },
     };
   }
@@ -961,6 +988,9 @@ class ExpressionParser {
         ...(binding.lifecycleTypes === undefined
           ? {}
           : { lifecycleTypes: binding.lifecycleTypes }),
+        ...(binding.elementBinding === undefined
+          ? {}
+          : { elementBinding: binding.elementBinding }),
         span: { start: variableToken.span.start, end },
       };
     }
@@ -982,6 +1012,9 @@ class ExpressionParser {
       variable: variableToken.text,
       segments,
       valueType,
+      ...(binding.arrayElements?.[path] === undefined
+        ? {}
+        : { elementBinding: binding.arrayElements[path] }),
       span: { start: variableToken.span.start, end },
     };
   }
@@ -1211,6 +1244,7 @@ function policyParameterBinding(
       ...entityPaths,
       ...lifecyclePayloadPaths(lifecycleTypes, catalogs),
     },
+    arrayElements: lifecyclePayloadArrayElements(lifecycleTypes, catalogs),
     strictPayloadPaths: lifecycleTypes !== undefined,
   };
 }
@@ -1239,6 +1273,7 @@ function definitionBindings(
 function entityBinding(
   domainKind: string,
   lifecycleTypes?: string[],
+  catalogs?: ExpressionDefinitionCatalogs,
 ): Binding {
   if (domainKind === "phase" || domainKind === "process") {
     return structuredClone(baseBindings[domainKind]!);
@@ -1254,7 +1289,14 @@ function entityBinding(
     valueType: "entity",
     domainKind,
     ...(lifecycleTypes === undefined ? {} : { lifecycleTypes }),
-    paths: entityPaths,
+    paths: {
+      ...entityPaths,
+      ...(catalogs ? lifecyclePayloadPaths(lifecycleTypes, catalogs) : {}),
+    },
+    ...(catalogs
+      ? { arrayElements: lifecyclePayloadArrayElements(lifecycleTypes, catalogs) }
+      : {}),
+    strictPayloadPaths: catalogs !== undefined && lifecycleTypes !== undefined,
   };
 }
 
@@ -1293,6 +1335,28 @@ function selectorResultKind(
   const selector = referencedSelector(reference, selectors);
   return typeof selector?.result_kind === "string"
     ? selector.result_kind
+    : undefined;
+}
+
+function queryLifecycleTypes(
+  query: Record<string, unknown>,
+  selectors: DefinitionCatalog,
+  seen = new Set<string>(),
+): string[] | undefined {
+  const from = typeof query.from === "object" && query.from !== null
+    ? query.from as Record<string, unknown>
+    : {};
+  const types = Array.isArray(from.types)
+    ? from.types.filter((type): type is string => typeof type === "string")
+    : [];
+  if (types.length > 0) return types;
+  const selected = referencedSelector(from.selector, selectors);
+  if (!selected || seen.has(selected.id)) return undefined;
+  const selectedQuery = typeof selected.query === "object" && selected.query !== null
+    ? selected.query as Record<string, unknown>
+    : undefined;
+  return selectedQuery
+    ? queryLifecycleTypes(selectedQuery, selectors, new Set(seen).add(selected.id))
     : undefined;
 }
 
@@ -1422,6 +1486,8 @@ function compileSelectorDefinition(
   if (typeof query.as === "string") {
     bindings[query.as] = entityBinding(
       queryResultKind(query, catalogs.selectors),
+      queryLifecycleTypes(query, catalogs.selectors),
+      catalogs,
     );
   }
   compileField(
@@ -1605,7 +1671,7 @@ function schemaPropertyExpressionPaths(
   );
   return Object.fromEntries(
     Object.entries(properties).flatMap(([name, propertySchema]) => {
-      const path = `${prefix}.${name}`;
+      const path = prefix ? `${prefix}.${name}` : name;
       const property = typeof propertySchema === "object" &&
           propertySchema !== null
         ? propertySchema as Record<string, unknown>
@@ -1623,6 +1689,78 @@ function schemaPropertyExpressionPaths(
                 propertyRequired,
               ),
             )
+          : []),
+      ];
+    }),
+  );
+}
+
+function schemaArrayElementBinding(
+  schema: unknown,
+): Binding | undefined {
+  if (typeof schema !== "object" || schema === null) return undefined;
+  const definition = schema as Record<string, unknown>;
+  const items = typeof definition.items === "object" && definition.items !== null
+    ? definition.items as Record<string, unknown>
+    : undefined;
+  if (!items) return undefined;
+  const valueType = schemaExpressionType(items);
+  const nestedElement = valueType === "array"
+    ? schemaArrayElementBinding(items)
+    : undefined;
+  return {
+    valueType,
+    ...(valueType === "object"
+      ? {
+          paths: schemaPropertyExpressionPaths(items, "", true),
+          arrayElements: schemaPropertyArrayElements(items, ""),
+          strictPayloadPaths: true,
+        }
+      : {}),
+    ...(nestedElement ? { elementBinding: nestedElement } : {}),
+  };
+}
+
+function schemaPropertyArrayElements(
+  schema: Record<string, unknown>,
+  prefix = "payload",
+): Record<string, Binding> {
+  const alternatives = Array.isArray(schema.oneOf)
+    ? schema.oneOf.flatMap((alternative) =>
+        typeof alternative === "object" && alternative !== null
+          ? [schemaPropertyArrayElements(
+              alternative as Record<string, unknown>,
+              prefix,
+            )]
+          : []
+      )
+    : [];
+  if (alternatives.length > 0) {
+    return Object.fromEntries(
+      Object.entries(alternatives[0]!).filter(([path, binding]) =>
+        alternatives.every((candidate) =>
+          JSON.stringify(candidate[path]) === JSON.stringify(binding)
+        )
+      ),
+    );
+  }
+  const properties = typeof schema.properties === "object" && schema.properties !== null
+    ? schema.properties as Record<string, unknown>
+    : {};
+  return Object.fromEntries(
+    Object.entries(properties).flatMap(([name, propertySchema]) => {
+      const path = prefix ? `${prefix}.${name}` : name;
+      const property = typeof propertySchema === "object" && propertySchema !== null
+        ? propertySchema as Record<string, unknown>
+        : {};
+      const valueType = schemaExpressionType(property);
+      const elementBinding = valueType === "array"
+        ? schemaArrayElementBinding(property)
+        : undefined;
+      return [
+        ...(elementBinding ? [[path, elementBinding] as const] : []),
+        ...(valueType === "object"
+          ? Object.entries(schemaPropertyArrayElements(property, path))
           : []),
       ];
     }),
@@ -1664,6 +1802,31 @@ function definitionPayloadPaths(
   };
 }
 
+function definitionPayloadArrayElements(
+  definition: VersionedDefinition,
+  catalogs: ExpressionDefinitionCatalogs,
+  visited = new Set<string>(),
+): Record<string, Binding> {
+  const key = `${definition.kind}:${definition.id}`;
+  if (visited.has(key)) return {};
+  const nextVisited = new Set(visited).add(key);
+  const parentReference = typeof definition.extends === "string"
+    ? /^([a-z][a-z0-9-]*)@/.exec(definition.extends)?.[1]
+    : undefined;
+  const parent = parentReference ? catalogs.templates[parentReference] : undefined;
+  const inherited = parent
+    ? definitionPayloadArrayElements(parent, catalogs, nextVisited)
+    : {};
+  const payloadSchema = typeof definition.payload_schema === "object" &&
+      definition.payload_schema !== null
+    ? definition.payload_schema as Record<string, unknown>
+    : undefined;
+  return {
+    ...inherited,
+    ...(payloadSchema ? schemaPropertyArrayElements(payloadSchema) : {}),
+  };
+}
+
 function lifecyclePayloadPaths(
   lifecycleTypes: string[] | undefined,
   catalogs: ExpressionDefinitionCatalogs,
@@ -1676,6 +1839,26 @@ function lifecyclePayloadPaths(
   return Object.fromEntries(
     Object.entries(paths[0]!).filter(([path, valueType]) =>
       paths.every((candidate) => candidate[path] === valueType)
+    ),
+  );
+}
+
+function lifecyclePayloadArrayElements(
+  lifecycleTypes: string[] | undefined,
+  catalogs: ExpressionDefinitionCatalogs,
+): Record<string, Binding> {
+  const paths = (lifecycleTypes ?? []).flatMap((type) => {
+    const definition = catalogs.types[type];
+    return definition
+      ? [definitionPayloadArrayElements(definition, catalogs)]
+      : [];
+  });
+  if (paths.length === 0) return {};
+  return Object.fromEntries(
+    Object.entries(paths[0]!).filter(([path, binding]) =>
+      paths.every((candidate) =>
+        JSON.stringify(candidate[path]) === JSON.stringify(binding)
+      )
     ),
   );
 }
@@ -1718,6 +1901,7 @@ function definitionEntityBindings(
             ...entityPaths,
             ...lifecyclePayloadPaths(lifecycleTypes, catalogs),
           },
+          arrayElements: lifecyclePayloadArrayElements(lifecycleTypes, catalogs),
           strictPayloadPaths: lifecycleTypes !== undefined,
         };
   }
@@ -2170,7 +2354,10 @@ function expressionReferencesBinding(
     case "state":
       return expressionReferencesBinding(node.subject, binding);
     case "every":
-      return expressionReferencesBinding(node.arguments, binding) ||
+      return (node.arguments !== undefined &&
+          expressionReferencesBinding(node.arguments, binding)) ||
+        (node.collection !== undefined &&
+          expressionReferencesBinding(node.collection, binding)) ||
         (node.binding !== binding &&
           expressionReferencesBinding(node.predicate, binding));
   }
@@ -2186,8 +2373,11 @@ function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
       return node.elements.flatMap(expressionDependencies);
     case "every":
       return [
-        `selector:${node.reference.split("@")[0] ?? node.reference}`,
-        ...expressionDependencies(node.arguments),
+        ...(node.reference
+          ? [`selector:${node.reference.split("@")[0] ?? node.reference}` as const]
+          : []),
+        ...(node.arguments ? expressionDependencies(node.arguments) : []),
+        ...(node.collection ? expressionDependencies(node.collection) : []),
         ...expressionDependencies(node.predicate),
       ];
     case "object":
@@ -2469,14 +2659,18 @@ function evaluateNode(
     case "variable": return context[node.variable];
     case "path": return readPath(context[node.variable], node.segments);
     case "every": {
-      const argumentsValue = evaluateNode(node.arguments, context, host);
-      const results = host.select(
-        node.reference,
-        typeof argumentsValue === "object" && argumentsValue !== null
-          ? argumentsValue as Record<string, unknown>
-          : {},
-      );
-      return results.every((result) =>
+      const argumentsValue = node.arguments
+        ? evaluateNode(node.arguments, context, host)
+        : undefined;
+      const results = node.collection
+        ? evaluateNode(node.collection, context, host)
+        : host.select(
+            node.reference!,
+            typeof argumentsValue === "object" && argumentsValue !== null
+              ? argumentsValue as Record<string, unknown>
+              : {},
+          );
+      return Array.isArray(results) && results.every((result) =>
         evaluateNode(
           node.predicate,
           { ...context, [node.binding]: result },

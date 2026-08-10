@@ -92,10 +92,12 @@ catalog:
     - failed-intent-candidates
     - failed-gate-signoff-decisions
     - gate-rejection-blockers-for
+    - gate-rejection-blockers-matching-target
     - reviewed-gate-rejections-for-candidate
     - reviewed-gate-rejections-for-subject
     - gate-rejection-blocked-members-for-candidate
     - cited-gate-rejections-by-correction
+    - matching-cited-gate-rejection-by-correction
     - gate-rejection-corrections-for-subject
     - baseline-members
     - complete-exact-gate-rejection-replacements-for

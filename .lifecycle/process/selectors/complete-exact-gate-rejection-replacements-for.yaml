@@ -31,5 +31,9 @@ query:
     && count("cited-gate-rejections-by-correction@1",
       {replacement: replacement})
       == count("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
+    && every("reviewed-gate-rejections-for-candidate@1",
+      {candidate: candidate}, rejection =>
+        exists("matching-cited-gate-rejection-by-correction@1",
+          {replacement: replacement, rejection: rejection}))
   distinct: true
   order_by: [identity.revision]

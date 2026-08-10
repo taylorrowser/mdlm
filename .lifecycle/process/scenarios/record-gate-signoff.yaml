@@ -41,6 +41,13 @@ completion: >-
         {candidate: candidate, rejection: decision, scope: "valid"})
       && none("gate-rejection-blockers-for@1",
         {candidate: candidate, rejection: decision, scope: "unexpected"})
+      && every(decision.payload.gate_rejection.findings, finding =>
+        exists("gate-rejection-blockers-matching-target@1",
+          {rejection: decision, target: finding.target}))
+      && every("gate-rejection-blockers-for@1",
+        {candidate: candidate, rejection: decision, scope: "valid"}, blocker =>
+          !every(decision.payload.gate_rejection.findings, finding =>
+            finding.target != blocker.identity.revision_id))
     )
   )
 resolves: [candidate-gate-signoff]

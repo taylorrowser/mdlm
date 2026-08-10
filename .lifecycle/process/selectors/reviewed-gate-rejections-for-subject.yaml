@@ -14,5 +14,7 @@ query:
     && state(rejection, "validity") == "valid"
     && exists("passing-reviews-for@1", {subject: rejection})
     && exists("gate-candidates-for-decision@1", {decision: rejection})
+    && !every(rejection.payload.gate_rejection.findings, finding =>
+      finding.target != subject.identity.revision_id)
   distinct: true
   order_by: [identity.revision_id]

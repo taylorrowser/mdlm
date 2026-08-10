@@ -21,14 +21,22 @@ query:
             {baseline: candidate, subject: blocker})
         )
       )
+      && !every(rejection.payload.gate_rejection.findings, finding =>
+        finding.target != blocker.identity.revision_id)
     )
     || (
       scope == "unexpected"
-      && blocker.identity.revision_id != candidate.identity.revision_id
-      && !(
-        candidate.payload.kind == "intent-level-candidate"
-        && exists("baseline-contains-definition@1",
-          {baseline: candidate, subject: blocker})
+      && (
+        (
+          blocker.identity.revision_id != candidate.identity.revision_id
+          && !(
+            candidate.payload.kind == "intent-level-candidate"
+            && exists("baseline-contains-definition@1",
+              {baseline: candidate, subject: blocker})
+          )
+        )
+        || every(rejection.payload.gate_rejection.findings, finding =>
+          finding.target != blocker.identity.revision_id)
       )
     )
   distinct: true

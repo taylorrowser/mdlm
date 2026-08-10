@@ -259,10 +259,17 @@ every("selector-id@1", {candidate: candidate},
   member => state(member, "validity") == "valid")
 ```
 
-The universal binding receives the Selector's declared result kind and its
-predicate must return Boolean. Expressions cannot execute arbitrary code, access
-the filesystem, make network requests, mutate data, or invoke undeclared
-functions.
+The universal binding receives either the Selector's declared result kind or the
+item type of a schema-declared or expression-produced finite array; its predicate
+must return Boolean. Array quantification uses the same bounded form:
+
+```text
+every(decision.payload.gate_rejection.findings,
+  finding => finding.target == subject.identity.revision_id)
+```
+
+Expressions cannot execute arbitrary code, access the filesystem, make network
+requests, mutate data, or invoke undeclared functions.
 
 ### 6.3 Fact-to-fact comparison
 
