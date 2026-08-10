@@ -20,10 +20,12 @@ packages may define different types, States, Obligations, Scenarios, and phases.
 - The `mdlm` executable initializes the bundled repository, exposes package-neutral
   inspection and validation, classifies the current Operator Outcome, leases its
   next exact Assignment when work can advance, prepares a harness-neutral packet,
-  and accepts a complete Scenario Proposal response. Submission
+  and accepts a complete Scenario Proposal or typed inability response. Submission
   validates every Scenario Proposal output and publishes the whole canonical
-  transaction atomically with exact response provenance; rejection publishes
-  nothing. MDLM does not invoke an adapter or execute Package Command Aliases.
+  transaction atomically with exact response provenance; rejection and inability
+  publish nothing. One malformed Assignment Response may be corrected through the
+  same Assignment; a second malformed response exhausts it. MDLM does not invoke
+  an adapter or execute Package Command Aliases.
   The temporary `req` bridge retains prototype-era package-authoring and mutation
   behavior until the final clean-interface contract removes that bridge. The first repository-
   backed Example Process Package tracers move an exact MAP/PSP/STK intent slice
@@ -61,6 +63,10 @@ node ../dist/mdlm.js scenario prepare <assignment-id>
 # output a localId for $proposal.<localId>.id/revision_id references.
 node ../dist/mdlm.js scenario submit ./assignment-response.json
 cat ./assignment-response.json | node ../dist/mdlm.js scenario submit
+# A typed unable response abandons this Assignment without Lifecycle Data. Its
+# reason is stale-scope, insufficient-declared-inputs, prohibited-input-conflict,
+# ambiguity, or execution-failure, with structured diagnostics. A later explicit
+# `mdlm next` may allocate a fresh Assignment.
 node ../dist/mdlm.js doctor
 # Inspect untracked transaction files and commit them with ordinary Git.
 git status --short
@@ -86,7 +92,9 @@ an Assignment.
 `npm run prototype -- <arguments>` and the `req` executable remain temporary
 branch-green bridges for prototype tests pending the clean-interface contract.
 The `mdlm` product surface does not execute adapters or executable Package Command
-Aliases; harnesses return structured proposals through `scenario submit`.
+Aliases; harnesses return structured proposals or typed inability through
+`scenario submit`. Contract-form failure reports either `correction-required` or
+`exhausted`; MDLM never starts a replacement child.
 
 ## References
 

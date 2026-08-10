@@ -45,6 +45,14 @@ import type { PackageSummary } from "./repository-contract.js";
 
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
+const unableReasonCategories = [
+  "stale-scope",
+  "insufficient-declared-inputs",
+  "prohibited-input-conflict",
+  "ambiguity",
+  "execution-failure",
+] as const;
+type UnableReason = typeof unableReasonCategories[number];
 
 interface RepositoryFingerprint {
   head: string;
@@ -59,10 +67,15 @@ interface AssignmentBinding {
   }[];
 }
 
+interface MalformedAssignmentResponse {
+  digest: string;
+  diagnostics: ProcessDiagnostic[];
+}
+
 interface AssignmentLease {
   contract: "mdlm-assignment-lease@1";
   id: string;
-  disposition: "active";
+  disposition: "active" | "abandoned" | "exhausted" | "stale";
   package: PackageExecutionIdentity;
   repository: RepositoryFingerprint;
   phase: string;
@@ -80,8 +93,15 @@ interface AssignmentLease {
   bindings: AssignmentBinding[];
   participation: NonNullable<ScenarioDryRun["participation"]>;
   retryAvailability: {
-    malformedResponseCorrection: 1;
+    malformedResponseCorrection: 0 | 1;
   };
+  malformedResponses: MalformedAssignmentResponse[];
+  response?: {
+    kind: "unable";
+    digest: string;
+    unable: UnableAssignmentResponse["unable"];
+  };
+  terminalDiagnostics?: ProcessDiagnostic[];
 }
 
 interface OperatorOutcomeBase {
@@ -202,6 +222,46 @@ export interface AssignmentSubmission extends ScenarioExecution {
   contract: "mdlm-scenario-execution@4";
 }
 
+export type AssignmentDisposition =
+  | {
+      contract: "mdlm-assignment-disposition@1";
+      assignment: { id: string };
+      disposition: "abandoned";
+      orchestration: { action: "stop"; automaticReplacement: false };
+      unable: UnableAssignmentResponse["unable"];
+    }
+  | {
+      contract: "mdlm-assignment-disposition@1";
+      assignment: { id: string };
+      disposition: "correction-required";
+      orchestration: {
+        action: "correct-response";
+        automaticReplacement: false;
+      };
+      malformedResponse: {
+        attempt: number;
+        correctionsRemaining: 0;
+        diagnostics: ProcessDiagnostic[];
+      };
+    }
+  | {
+      contract: "mdlm-assignment-disposition@1";
+      assignment: { id: string };
+      disposition: "exhausted";
+      orchestration: { action: "stop"; automaticReplacement: false };
+      malformedResponse: {
+        attempt: number;
+        correctionsRemaining: 0;
+        diagnostics: ProcessDiagnostic[];
+      };
+    }
+  | {
+      contract: "mdlm-assignment-disposition@1";
+      assignment: { id: string };
+      disposition: "stale";
+      orchestration: { action: "stop"; automaticReplacement: false };
+    };
+
 export interface AssignmentPacket {
   contract: "mdlm-assignment-packet@1";
   assignment: { id: string };
@@ -251,6 +311,18 @@ export interface AssignmentPacket {
 type AssignmentResult<T> =
   | { ok: true; value: T; diagnostics: [] }
   | { ok: false; diagnostics: ProcessDiagnostic[] };
+
+type AssignmentSubmissionResult =
+  | {
+      ok: true;
+      value: AssignmentSubmission | AssignmentDisposition;
+      diagnostics: [];
+    }
+  | {
+      ok: false;
+      disposition?: AssignmentDisposition;
+      diagnostics: ProcessDiagnostic[];
+    };
 
 interface ExactAssignment {
   summary: PackageSummary;
@@ -374,6 +446,49 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
   const obligation = object(lease?.obligation);
   const progression = object(lease?.progression);
   const retry = object(lease?.retryAvailability);
+  const malformedResponses = Array.isArray(lease?.malformedResponses)
+    ? lease.malformedResponses
+    : undefined;
+  const validDiagnostic = (value: unknown): boolean => {
+    const diagnostic = object(value);
+    return typeof diagnostic?.code === "string" &&
+      typeof diagnostic.message === "string" &&
+      (diagnostic.path === undefined || typeof diagnostic.path === "string");
+  };
+  const malformedResponsesValid = malformedResponses?.every((value) => {
+    const malformed = object(value);
+    return typeof malformed?.digest === "string" &&
+      /^sha256:[0-9a-f]{64}$/.test(malformed.digest) &&
+      Array.isArray(malformed.diagnostics) &&
+      malformed.diagnostics.every(validDiagnostic);
+  }) ?? false;
+  const response = object(lease?.response);
+  const unable = object(response?.unable);
+  const unableReasons = new Set<string>(unableReasonCategories);
+  const unableResponseValid = response?.kind === "unable" &&
+    typeof response.digest === "string" &&
+    /^sha256:[0-9a-f]{64}$/.test(response.digest) &&
+    unableReasons.has(String(unable?.reason)) &&
+    Array.isArray(unable?.diagnostics) &&
+    unable.diagnostics.every(validDiagnostic);
+  const terminalDiagnosticsValid = Array.isArray(lease?.terminalDiagnostics) &&
+    lease.terminalDiagnostics.every(validDiagnostic);
+  const dispositionValid = lease?.disposition === "active"
+    ? response === undefined && lease.terminalDiagnostics === undefined &&
+      ((retry?.malformedResponseCorrection === 1 &&
+        malformedResponses?.length === 0) ||
+        (retry?.malformedResponseCorrection === 0 &&
+          malformedResponses?.length === 1))
+    : lease?.disposition === "abandoned"
+    ? unableResponseValid && retry?.malformedResponseCorrection === 0
+    : lease?.disposition === "exhausted"
+    ? response === undefined && terminalDiagnosticsValid &&
+      retry?.malformedResponseCorrection === 0 &&
+      (malformedResponses?.length ?? 0) >= 2
+    : lease?.disposition === "stale"
+    ? response === undefined && terminalDiagnosticsValid &&
+      retry?.malformedResponseCorrection === 0
+    : false;
   const parsedObligation = typeof obligation?.instance === "string"
     ? parseObligationInstanceIdentity(obligation.instance)
     : undefined;
@@ -392,7 +507,7 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
   return lease?.contract === "mdlm-assignment-lease@1" &&
       typeof lease.id === "string" &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lease.id) &&
-      lease.disposition === "active" &&
+      dispositionValid &&
       typeof packageValue?.reference === "string" && packageValue.reference.length > 0 &&
       typeof packageValue.digest === "string" &&
       /^sha256:[0-9a-f]{64}$/.test(packageValue.digest) &&
@@ -406,7 +521,9 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
       typeof lease.scenario === "string" && lease.scenario.length > 0 &&
       Array.isArray(lease.bindings) &&
       Array.isArray(lease.participation) &&
-      retry?.malformedResponseCorrection === 1
+      (retry?.malformedResponseCorrection === 0 ||
+        retry?.malformedResponseCorrection === 1) &&
+      malformedResponsesValid
     ? lease as unknown as AssignmentLease
     : undefined;
 }
@@ -695,6 +812,7 @@ async function exactOperatorState(
       bindings: bindings(prepared.value.invocations),
       participation: prepared.value.participation ?? [],
       retryAvailability: { malformedResponseCorrection: 1 },
+      malformedResponses: [],
     },
     dryRun: prepared.value,
     scenario,
@@ -716,9 +834,26 @@ async function exactAssignment(
       );
 }
 
+function assignmentCoordinates(
+  lease: AssignmentLease | Omit<AssignmentLease, "id">,
+): unknown {
+  const {
+    id: _id,
+    disposition: _disposition,
+    retryAvailability: _retryAvailability,
+    malformedResponses: _malformedResponses,
+    response: _response,
+    terminalDiagnostics: _terminalDiagnostics,
+    ...coordinates
+  } = lease as AssignmentLease;
+  return coordinates;
+}
+
 function sameAssignment(lease: AssignmentLease, exact: ExactAssignment): boolean {
-  const { id: _id, ...persisted } = lease;
-  return isDeepStrictEqual(persisted, exact.lease);
+  return lease.disposition === "active" && isDeepStrictEqual(
+    assignmentCoordinates(lease),
+    assignmentCoordinates(exact.lease),
+  );
 }
 
 function sameAssignmentSource(
@@ -809,7 +944,10 @@ export async function leaseNextAssignment(
       diagnostics: [],
     };
   }
-  if (persisted.value && sameAssignmentSource(persisted.value, exact)) {
+  if (
+    persisted.value?.disposition === "active" &&
+    sameAssignmentSource(persisted.value, exact)
+  ) {
     return invalidLease(repositoryRoot);
   }
   const lease: AssignmentLease = {
@@ -1145,15 +1283,7 @@ function responseSchema(): Record<string, unknown> {
             additionalProperties: false,
             required: ["reason", "diagnostics"],
             properties: {
-              reason: {
-                enum: [
-                  "stale-scope",
-                  "insufficient-declared-inputs",
-                  "prohibited-input-conflict",
-                  "ambiguity",
-                  "execution-failure",
-                ],
-              },
+              reason: { enum: unableReasonCategories },
               diagnostics: { type: "array", items: diagnostic },
             },
           },
@@ -1174,6 +1304,18 @@ interface ProposalAssignmentResponse {
   };
 }
 
+interface UnableAssignmentResponse {
+  contract: "mdlm-assignment-response@1";
+  assignment: string;
+  kind: "unable";
+  unable: {
+    reason: UnableReason;
+    diagnostics: ProcessDiagnostic[];
+  };
+}
+
+type AssignmentResponse = ProposalAssignmentResponse | UnableAssignmentResponse;
+
 const validateAssignmentResponse = new Ajv2020({ allErrors: true, strict: false })
   .compile(responseSchema());
 
@@ -1187,7 +1329,7 @@ function responseDiagnostics(errors: ErrorObject[] | null | undefined): ProcessD
 
 function parseAssignmentResponse(
   source: string,
-): AssignmentResult<ProposalAssignmentResponse> {
+): AssignmentResult<AssignmentResponse> {
   let value: unknown;
   try {
     value = JSON.parse(source);
@@ -1204,17 +1346,9 @@ function parseAssignmentResponse(
       diagnostics: responseDiagnostics(validateAssignmentResponse.errors),
     };
   }
-  const response = value as Record<string, unknown>;
-  if (response.kind !== "proposal") {
-    return failure(
-      "assignment-response-kind-unsupported",
-      "This implementation boundary accepts Scenario Proposals; typed inability is handled separately",
-      "response.kind",
-    );
-  }
   return {
     ok: true,
-    value: value as ProposalAssignmentResponse,
+    value: value as AssignmentResponse,
     diagnostics: [],
   };
 }
@@ -1306,17 +1440,113 @@ function packet(
   };
 }
 
-/** Revalidate and atomically publish one complete Scenario Proposal. */
+function dispositionBase(assignmentId: string): {
+  contract: "mdlm-assignment-disposition@1";
+  assignment: { id: string };
+} {
+  return {
+    contract: "mdlm-assignment-disposition@1",
+    assignment: { id: assignmentId },
+  };
+}
+
+async function recordMalformedResponse(
+  repositoryRoot: string,
+  lease: AssignmentLease,
+  responseSource: string,
+  diagnostics: ProcessDiagnostic[],
+): Promise<AssignmentSubmissionResult> {
+  const malformedResponses = [
+    ...lease.malformedResponses,
+    { digest: sha256(responseSource), diagnostics },
+  ];
+  const correctionRequired =
+    lease.retryAvailability.malformedResponseCorrection === 1;
+  const disposition: AssignmentDisposition = correctionRequired
+    ? {
+        ...dispositionBase(lease.id),
+        disposition: "correction-required",
+        orchestration: {
+          action: "correct-response",
+          automaticReplacement: false,
+        },
+        malformedResponse: {
+          attempt: malformedResponses.length,
+          correctionsRemaining: 0,
+          diagnostics,
+        },
+      }
+    : {
+        ...dispositionBase(lease.id),
+        disposition: "exhausted",
+        orchestration: { action: "stop", automaticReplacement: false },
+        malformedResponse: {
+          attempt: malformedResponses.length,
+          correctionsRemaining: 0,
+          diagnostics,
+        },
+      };
+  await writeLease(repositoryRoot, {
+    ...lease,
+    disposition: correctionRequired ? "active" : "exhausted",
+    retryAvailability: { malformedResponseCorrection: 0 },
+    malformedResponses,
+    ...(correctionRequired ? {} : { terminalDiagnostics: diagnostics }),
+  });
+  return { ok: false, disposition, diagnostics };
+}
+
+async function recordStaleDisposition(
+  repositoryRoot: string,
+  lease: AssignmentLease,
+): Promise<AssignmentSubmissionResult> {
+  const diagnostics = failure(
+    "assignment-stale",
+    `Assignment '${lease.id}' no longer matches the current exact repository state; submit will not rebase it`,
+    lease.id,
+  ).diagnostics;
+  await writeLease(repositoryRoot, {
+    ...lease,
+    disposition: "stale",
+    retryAvailability: { malformedResponseCorrection: 0 },
+    terminalDiagnostics: diagnostics,
+  });
+  return {
+    ok: false,
+    disposition: {
+      ...dispositionBase(lease.id),
+      disposition: "stale",
+      orchestration: { action: "stop", automaticReplacement: false },
+    },
+    diagnostics,
+  };
+}
+
+/** Apply one harness response to the active exact Assignment. */
 export async function submitAssignmentResponse(
   repositoryRoot: string,
   responseSource: string,
-): Promise<AssignmentResult<AssignmentSubmission>> {
-  const parsed = parseAssignmentResponse(responseSource);
-  if (!parsed.ok) return parsed;
+): Promise<AssignmentSubmissionResult> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   const lease = persisted.value;
-  if (!lease || lease.id !== parsed.value.assignment) {
+  const parsed = parseAssignmentResponse(responseSource);
+  if (!parsed.ok) {
+    if (lease?.disposition !== "active") return parsed;
+    const exact = await exactAssignment(repositoryRoot);
+    return !exact.ok || !sameAssignment(lease, exact.value)
+      ? recordStaleDisposition(repositoryRoot, lease)
+      : recordMalformedResponse(
+          repositoryRoot,
+          lease,
+          responseSource,
+          parsed.diagnostics,
+        );
+  }
+  if (
+    !lease || lease.disposition !== "active" ||
+    lease.id !== parsed.value.assignment
+  ) {
     return failure(
       "assignment-unavailable",
       `Assignment '${parsed.value.assignment}' is not the active Assignment`,
@@ -1325,11 +1555,30 @@ export async function submitAssignmentResponse(
   }
   const exact = await exactAssignment(repositoryRoot);
   if (!exact.ok || !sameAssignment(lease, exact.value)) {
-    return failure(
-      "assignment-stale",
-      `Assignment '${lease.id}' no longer matches the current exact repository state; submit will not rebase it`,
-      lease.id,
-    );
+    return recordStaleDisposition(repositoryRoot, lease);
+  }
+  if (parsed.value.kind === "unable") {
+    const digest = sha256(responseSource);
+    await writeLease(repositoryRoot, {
+      ...lease,
+      disposition: "abandoned",
+      retryAvailability: { malformedResponseCorrection: 0 },
+      response: {
+        kind: "unable",
+        digest,
+        unable: parsed.value.unable,
+      },
+    });
+    return {
+      ok: true,
+      value: {
+        ...dispositionBase(lease.id),
+        disposition: "abandoned",
+        orchestration: { action: "stop", automaticReplacement: false },
+        unable: parsed.value.unable,
+      },
+      diagnostics: [],
+    };
   }
   const proposal = parsed.value.proposal;
   const submission = {
@@ -1368,7 +1617,14 @@ export async function submitAssignmentResponse(
           ),
         },
       );
-  if (!submitted.ok) return submitted;
+  if (!submitted.ok) {
+    return recordMalformedResponse(
+      repositoryRoot,
+      lease,
+      responseSource,
+      submitted.diagnostics,
+    );
+  }
   await fs.rm(leasePath(repositoryRoot), { force: true });
   return {
     ok: true,
@@ -1385,7 +1641,9 @@ export async function prepareAssignment(
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   const lease = persisted.value;
-  if (!lease || lease.id !== assignmentId) {
+  if (
+    !lease || lease.disposition !== "active" || lease.id !== assignmentId
+  ) {
     return failure(
       "assignment-unavailable",
       `Assignment '${assignmentId}' is not the active Assignment`,

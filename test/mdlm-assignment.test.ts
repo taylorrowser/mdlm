@@ -257,6 +257,286 @@ describe("MDLM Assignment leasing and preparation", () => {
       .toEqual([".gitkeep"]);
   });
 
+  it("accepts every typed inability, abandons the Assignment without publication, and requires a deliberate fresh next", async () => {
+    const reasons = [
+      "stale-scope",
+      "insufficient-declared-inputs",
+      "prohibited-input-conflict",
+      "ambiguity",
+      "execution-failure",
+    ];
+    const dataRoot = path.join(repository, ".lifecycle/data");
+    const before = await directoryBytes(dataRoot);
+    let assignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id as string;
+
+    for (const reason of reasons) {
+      const diagnostic = {
+        code: `unable-${reason}`,
+        message: `The child cannot complete because of ${reason}.`,
+        path: "assignment",
+      };
+      const unable = mdlmWithInput(
+        repository,
+        `${JSON.stringify({
+          contract: "mdlm-assignment-response@1",
+          assignment,
+          kind: "unable",
+          unable: { reason, diagnostics: [diagnostic] },
+        })}\n`,
+        "scenario",
+        "submit",
+      );
+
+      expect(unable.status, `${unable.stderr}${unable.stdout}`).toBe(0);
+      expect(JSON.parse(unable.stdout)).toEqual(expect.objectContaining({
+        ok: true,
+        command: "scenario.submit",
+        contract: "mdlm-assignment-disposition@1",
+        assignment: { id: assignment },
+        disposition: "abandoned",
+        orchestration: {
+          action: "stop",
+          automaticReplacement: false,
+        },
+        unable: { reason, diagnostics: [diagnostic] },
+        diagnostics: [],
+      }));
+      expect(await directoryBytes(dataRoot)).toBe(before);
+
+      const lease = JSON.parse(await fs.readFile(path.join(
+        repository,
+        ".lifecycle/work/active-assignment.json",
+      ), "utf8"));
+      expect(lease).toEqual(expect.objectContaining({
+        id: assignment,
+        disposition: "abandoned",
+        response: expect.objectContaining({
+          kind: "unable",
+          digest: expect.stringMatching(/^sha256:/),
+          unable: { reason, diagnostics: [diagnostic] },
+        }),
+      }));
+
+      const fresh = JSON.parse(mdlm(repository, "next").stdout);
+      expect(fresh.outcome).toBe("assignment");
+      expect(fresh.assignment.id).not.toBe(assignment);
+      assignment = fresh.assignment.id;
+    }
+  });
+
+  it("preserves the same Assignment for one malformed-response correction that can publish", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout);
+    const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
+
+    const malformed = mdlmWithInput(
+      repository,
+      "{not-json\n",
+      "scenario",
+      "submit",
+    );
+
+    expect(malformed.status).toBe(1);
+    const malformedResult = JSON.parse(malformed.stdout);
+    expect(malformedResult).toEqual(expect.objectContaining({
+      ok: false,
+      command: "scenario.submit",
+      contract: "mdlm-assignment-disposition@1",
+      assignment: { id: assignment },
+      disposition: "correction-required",
+      orchestration: {
+        action: "correct-response",
+        automaticReplacement: false,
+      },
+      malformedResponse: expect.objectContaining({
+        attempt: 1,
+        correctionsRemaining: 0,
+        diagnostics: [expect.objectContaining({
+          code: "assignment-response-invalid",
+          path: "response",
+        })],
+      }),
+    }));
+    expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
+
+    const retained = JSON.parse(mdlm(repository, "next").stdout);
+    expect(retained.assignment).toEqual({ id: assignment });
+    const lease = JSON.parse(await fs.readFile(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ), "utf8"));
+    expect(lease).toEqual(expect.objectContaining({
+      id: assignment,
+      disposition: "active",
+      retryAvailability: { malformedResponseCorrection: 0 },
+      malformedResponses: [{
+        digest: expect.stringMatching(/^sha256:/),
+        diagnostics: malformedResult.malformedResponse.diagnostics,
+      }],
+    }));
+
+    const corrected = mdlmWithInput(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "map",
+            name: "map",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "MAP",
+              payload: {
+                title: "Corrected Assignment Response",
+                purpose: "Prove one contract-form correction can publish.",
+                frontier: ["Continue from the exact corrected response"],
+              },
+              links: [],
+              body: "The same Assignment publishes after one correction.\n",
+            },
+          }],
+          completionEvidence: { summary: "The corrected response is complete." },
+          loadedSkillRefs: packet.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: [],
+          standingDelegations: [],
+        },
+      })}\n`,
+      "scenario",
+      "submit",
+    );
+
+    expect(corrected.status, `${corrected.stderr}${corrected.stdout}`).toBe(0);
+    expect(JSON.parse(corrected.stdout)).toEqual(expect.objectContaining({
+      contract: "mdlm-scenario-execution@4",
+      execution: expect.objectContaining({
+        response: expect.objectContaining({ assignment }),
+      }),
+    }));
+  });
+
+  it("exhausts the Assignment on a second malformed response and reports the terminal disposition", async () => {
+    const assignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id as string;
+    const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
+
+    const first = mdlmWithInput(repository, "{}\n", "scenario", "submit");
+    expect(first.status).toBe(1);
+    expect(JSON.parse(first.stdout).disposition).toBe("correction-required");
+
+    const second = mdlmWithInput(repository, "{]\n", "scenario", "submit");
+
+    expect(second.status).toBe(1);
+    const exhausted = JSON.parse(second.stdout);
+    expect(exhausted).toEqual(expect.objectContaining({
+      ok: false,
+      contract: "mdlm-assignment-disposition@1",
+      assignment: { id: assignment },
+      disposition: "exhausted",
+      orchestration: {
+        action: "stop",
+        automaticReplacement: false,
+      },
+      malformedResponse: expect.objectContaining({
+        attempt: 2,
+        correctionsRemaining: 0,
+      }),
+    }));
+    expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
+    const lease = JSON.parse(await fs.readFile(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ), "utf8"));
+    expect(lease.disposition).toBe("exhausted");
+    expect(lease.malformedResponses).toHaveLength(2);
+
+    const prepared = mdlm(repository, "scenario", "prepare", assignment);
+    expect(prepared.status).toBe(1);
+    expect(JSON.parse(prepared.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "assignment-unavailable" }),
+    ]);
+    const fresh = JSON.parse(mdlm(repository, "next").stdout);
+    expect(fresh.assignment.id).not.toBe(assignment);
+  });
+
+  it("stops a corrected response when tracked state became stale and publishes nothing", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout);
+    const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
+    expect(mdlmWithInput(repository, "{}\n", "scenario", "submit").status).toBe(1);
+    await fs.appendFile(path.join(repository, ".gitignore"), "# stale correction\n");
+
+    const corrected = mdlmWithInput(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "map",
+            name: "map",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "MAP",
+              payload: {
+                title: "Stale correction",
+                purpose: "This proposal must not be rebased.",
+                frontier: ["Stop on changed tracked state"],
+              },
+              links: [],
+              body: "No publication is permitted.\n",
+            },
+          }],
+          completionEvidence: {},
+          loadedSkillRefs: packet.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: [],
+          standingDelegations: [],
+        },
+      })}\n`,
+      "scenario",
+      "submit",
+    );
+
+    expect(corrected.status).toBe(1);
+    expect(JSON.parse(corrected.stdout)).toEqual(expect.objectContaining({
+      contract: "mdlm-assignment-disposition@1",
+      assignment: { id: assignment },
+      disposition: "stale",
+      orchestration: {
+        action: "stop",
+        automaticReplacement: false,
+      },
+      diagnostics: [expect.objectContaining({ code: "assignment-stale" })],
+    }));
+    expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
+    const lease = JSON.parse(await fs.readFile(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ), "utf8"));
+    expect(lease.disposition).toBe("stale");
+
+    expect(git(repository, "checkout", "--", ".gitignore").status).toBe(0);
+    const fresh = JSON.parse(mdlm(repository, "next").stdout);
+    expect(fresh.assignment.id).not.toBe(assignment);
+  });
+
   it("keeps Scenario submission as the only normal mdlm Lifecycle Data writer", async () => {
     const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
     const directCreation = mdlm(
@@ -353,7 +633,7 @@ describe("MDLM Assignment leasing and preparation", () => {
 
   it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
-    const assignment = next.assignment.id as string;
+    let assignment = next.assignment.id as string;
     const packet = JSON.parse(mdlm(
       repository,
       "scenario",
@@ -469,6 +749,30 @@ describe("MDLM Assignment leasing and preparation", () => {
         },
       },
     ];
+    const abandonMalformedAssignment = () => {
+      const abandoned = mdlmWithInput(
+        repository,
+        `${JSON.stringify({
+          contract: "mdlm-assignment-response@1",
+          assignment,
+          kind: "unable",
+          unable: {
+            reason: "execution-failure",
+            diagnostics: [{
+              code: "canonical-correction-abandoned",
+              message: "The validation tracer will continue with a fresh Assignment.",
+            }],
+          },
+        })}\n`,
+        "scenario",
+        "submit",
+      );
+      expect(abandoned.status, `${abandoned.stderr}${abandoned.stdout}`).toBe(0);
+      const fresh = JSON.parse(mdlm(repository, "next").stdout);
+      expect(fresh.assignment.id).not.toBe(assignment);
+      assignment = fresh.assignment.id;
+      response.assignment = assignment;
+    };
     for (const rejectionCase of rejectionCases) {
       const invalid = structuredClone(response);
       rejectionCase.mutate(invalid);
@@ -481,11 +785,13 @@ describe("MDLM Assignment leasing and preparation", () => {
         responsePath,
       );
       expect(rejected.status).toBe(1);
-      expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
-        expect.arrayContaining([
+      expect(JSON.parse(rejected.stdout)).toEqual(expect.objectContaining({
+        disposition: "correction-required",
+        diagnostics: expect.arrayContaining([
           expect.objectContaining({ code: rejectionCase.code }),
         ]),
-      );
+      }));
+      abandonMalformedAssignment();
     }
     expect(git(repository, "diff", "--binary", "HEAD").stdout).toBe(before);
     expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
@@ -498,11 +804,24 @@ describe("MDLM Assignment leasing and preparation", () => {
     await fs.writeFile(responsePath, `${JSON.stringify(forgedIdentity)}\n`);
     const identityRejected = mdlm(repository, "scenario", "submit", responsePath);
     expect(identityRejected.status).toBe(1);
-    expect(JSON.parse(identityRejected.stdout).diagnostics).toEqual([
-      expect.objectContaining({ code: "scenario-output-identity-kernel-managed" }),
-    ]);
+    expect(JSON.parse(identityRejected.stdout)).toEqual(expect.objectContaining({
+      disposition: "correction-required",
+      diagnostics: [
+        expect.objectContaining({ code: "scenario-output-identity-kernel-managed" }),
+      ],
+    }));
     expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
       .toEqual([".gitkeep"]);
+    abandonMalformedAssignment();
+    const freshLease = JSON.parse(await fs.readFile(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ), "utf8"));
+    expect(freshLease).toEqual(expect.objectContaining({
+      id: assignment,
+      retryAvailability: { malformedResponseCorrection: 1 },
+      malformedResponses: [],
+    }));
 
     const submitted = mdlmWithInput(
       repository,
@@ -583,7 +902,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       "Publish initial Scenario transaction",
     ).status).toBe(0);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
-  }, 15_000);
+  }, 40_000);
 
   it("publishes a complete Assignment Response from a file", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
