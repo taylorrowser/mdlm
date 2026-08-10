@@ -244,6 +244,16 @@ describe("bootstrap Scenario participation Policies", () => {
     });
 
     expect(evaluation.diagnostics).toEqual([]);
+    expect(evaluation.phase?.attentionCheckpoints).toEqual([
+      expect.objectContaining({
+        id: "phase-0-gate",
+        active: false,
+        evidence: expect.objectContaining({
+          source: expect.stringContaining("candidate-baselines-of-kind@1"),
+          result: false,
+        }),
+      }),
+    ]);
     const obligationFor = (obligation: string, subject: LifecycleRecord) =>
       evaluation.obligations.find((item) =>
         item.obligation === obligation &&
@@ -394,6 +404,21 @@ describe("bootstrap Scenario participation Policies", () => {
       null,
       "single",
     ));
+
+    const undeclaredPackage = structuredClone(processPackage);
+    undeclaredPackage.phases["phase-0-wayfinding"]!.attention_checkpoints = [];
+    const undeclared = evaluateLifecycle(undeclaredPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [checkpointPreference],
+      dependencyComparisons: [],
+    });
+    expect(undeclared.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "participation-checkpoint-undeclared",
+        path: "phases.phase-0-wayfinding.attention_checkpoints",
+      }),
+    ]));
   });
 
   it("keeps deferred question work unsatisfied until its exact scoped DEC passes Review", () => {

@@ -13,6 +13,18 @@ entry: >-
   process.integrity.package_valid == true
   && exists("signed-off-candidates-of-kind@1",
     {baseline_kind: "intent-level-candidate"})
+attention_checkpoints:
+  - id: phase-2-system-gate
+    readiness: >-
+      exists("phase-2-entry-requirements@1", {})
+      && every("phase-2-entry-requirements@1", {}, requirement =>
+        exists("matching-complete-phase-2-requirement@1", {requirement: requirement}))
+      && exists("complete-phase-2-level-candidates@1", {})
+      && every("complete-phase-2-level-candidates@1", {}, candidate =>
+          none("candidate-members-missing-review@1", {candidate: candidate})
+          && exists("passing-reviews-for@1", {subject: candidate})
+          && none("failing-reviews-for@1", {subject: candidate}))
+      && none("open-blocking-questions@1", {})
 scenarios:
   - define-system-architecture@2
   - define-interface-control-specification@2

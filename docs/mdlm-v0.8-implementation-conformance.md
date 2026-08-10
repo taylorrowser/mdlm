@@ -89,7 +89,13 @@ Outcome seam. The bootstrap declares only its reviewed Phase 0–2 pilot boundar
 Phases 3–6 are complete. Issue #90 completes the Assignment return protocol:
 typed inability abandons the exact ignored lease without Lifecycle Data, one
 malformed contract response preserves that Assignment for correction, a second
-exhausts it, and only a later deliberate `mdlm next` allocates fresh work.
+exhausts it, and only a later deliberate `mdlm next` allocates fresh work. Issue
+#91 adds Phase-declared checkpoint readiness and one public checkpoint
+conversation packet: inactive nonblocking Questions yield to eligible work,
+active compatible Questions appear as one complete Consolidation Group with the
+first exact Assignment, and normalized responses remain serial atomic Scenario
+Proposals followed by reevaluation. The harness owns freeform semantic mapping;
+raw transcripts remain ephemeral by default, and scheduling is not deferral.
 
 ## Demonstrated invariants
 

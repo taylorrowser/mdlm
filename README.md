@@ -83,11 +83,19 @@ node ../dist/mdlm.js baseline diff <old-baseline> <new-baseline>
 ```
 
 `mdlm next` emits `mdlm-next@1` JSON. Runnable autonomous or delegated work is
-an `assignment`; immediate attended work is `attention-required`; unfinished
-supported work with no reachable Assignment or attention is
-`process-dead-end`; repository or package integrity failure is `invalid` and
-exits nonzero. `mdlm status` reports the same classification without allocating
-an Assignment.
+an `assignment`. Immediate attended work and attended work at an active
+package-declared checkpoint are `attention-required`. Checkpoint attention
+contains the complete compatible Consolidation Group, every exact subject and
+its package payload (including the bundled QST `blocking_impact`), and the first
+exact Assignment. The matching Assignment packet declares a freeform,
+harness-mapped conversation with no transcript storage by default. The harness
+normalizes conclusions explicitly; MDLM does no natural-language matching.
+Publication remains one exact Scenario Proposal at a time, and the next
+`mdlm next` reevaluates which group items still apply. Checkpoint scheduling is
+not formal deferral. Unfinished supported work with no reachable Assignment or
+attention is `process-dead-end`; repository or package integrity failure is
+`invalid` and exits nonzero. `mdlm status` reports the same classification
+without allocating an Assignment.
 
 `npm run prototype -- <arguments>` and the `req` executable remain temporary
 branch-green bridges for prototype tests pending the clean-interface contract.

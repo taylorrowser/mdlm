@@ -130,9 +130,17 @@ types, and cardinality. Contextual Review, empirical and preferential question
 resolution, and gate sign-off bind exact Scenario inputs to package-owned
 participation Policies. Their projections distinguish delegated independent
 Review, autonomous authority with sufficient exact evidence, immediate
-nondelegable stakeholder
-attention, and explicitly compatible checkpoint-consolidated stakeholder
-attention without satisfying or deferring open questions. Delegated and attended
+nondelegable stakeholder attention, and explicitly compatible checkpoint-
+consolidated stakeholder attention without satisfying or deferring open
+questions. Phase 0 and Phase 2 declare their named stakeholder checkpoints with
+package-authored readiness expressions. A checkpoint-scheduled Policy result is
+valid only when the selected Phase declares that exact checkpoint. Until
+readiness holds, eligible autonomous or delegated work continues. Once it holds,
+`mdlm next` projects the complete compatible Consolidation Group and its first
+exact Assignment for one freeform conversation; each normalized answer publishes
+serially and ordinary reevaluation removes Questions made obsolete by earlier
+evidence. MDLM neither matches natural-language answers nor stores the raw
+transcript by default. Delegated and attended
 execution requires an exact matching `--authorize` supply or applicable reviewed
 `--delegation` DEC before the adapter and
 publishes the package-declared REV or DEC authority-evidence output atomically.

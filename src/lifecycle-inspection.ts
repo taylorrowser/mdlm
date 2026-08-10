@@ -152,6 +152,7 @@ export function phaseStatusProjection(
   return {
     id: phase.id,
     version: phase.version,
+    attentionCheckpoints: phase.attentionCheckpoints,
     entry: phase.entry,
     candidateSelection: phase.candidateSelection,
     progression: phase.progression,

@@ -31,6 +31,20 @@ describe("loadProcessPackage", () => {
     expect(Object.keys(result.package.policies)).toHaveLength(9);
     expect(Object.keys(result.package.obligations)).toHaveLength(44);
     expect(Object.keys(result.package.scenarios)).toHaveLength(46);
+    expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
+      .toEqual([expect.objectContaining({
+        id: "phase-0-gate",
+        readiness: expect.objectContaining({
+          source: expect.stringContaining("candidate-baselines-of-kind@1"),
+        }),
+      })]);
+    expect(result.package.phases["phase-2-system-definition"]
+      ?.attention_checkpoints).toEqual([expect.objectContaining({
+        id: "phase-2-system-gate",
+        readiness: expect.objectContaining({
+          source: expect.stringContaining("complete-phase-2-level-candidates@1"),
+        }),
+      })]);
     expect(result.package.obligations["verification-strategy-review-correction-required"])
       .toEqual(expect.objectContaining({
         resolve_with: expect.objectContaining({
@@ -837,6 +851,50 @@ describe("loadProcessPackage", () => {
         }),
       ]),
     );
+  });
+
+  it("rejects duplicate and malformed Phase attention checkpoint declarations", async () => {
+    const duplicateRoot = await copiedProcessPackage();
+    const duplicatePath = path.join(
+      duplicateRoot,
+      "phases/phase-0-wayfinding.yaml",
+    );
+    const duplicate = await fs.readFile(duplicatePath, "utf8");
+    await fs.writeFile(
+      duplicatePath,
+      duplicate.replace(
+        "scenarios:",
+        "  - id: phase-0-gate\n    readiness: 'true'\nscenarios:",
+      ),
+    );
+    const malformedRoot = await copiedProcessPackage();
+    const malformedPath = path.join(
+      malformedRoot,
+      "phases/phase-0-wayfinding.yaml",
+    );
+    const malformed = await fs.readFile(malformedPath, "utf8");
+    await fs.writeFile(
+      malformedPath,
+      malformed.replace(
+        "      exists(\"candidate-baselines-of-kind@1\", {baseline_kind: \"intent-level-candidate\"})",
+        "      exists(\"missing-checkpoint-selector@1\", {})",
+      ),
+    );
+
+    const duplicateResult = await loadProcessPackage(duplicateRoot);
+    const malformedResult = await loadProcessPackage(malformedRoot);
+
+    expect(duplicateResult.ok).toBe(false);
+    expect(duplicateResult.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "duplicate-attention-checkpoint" }),
+    ]));
+    expect(malformedResult.ok).toBe(false);
+    expect(malformedResult.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "expression-unknown-selector",
+        path: expect.stringContaining("#attention_checkpoints[0].readiness"),
+      }),
+    ]));
   });
 
   it("rejects an unknown gate Obligation reference in a Phase", async () => {

@@ -503,6 +503,23 @@ function validateReferences(
   }
 
   for (const [id, definition] of Object.entries(definitions.phases)) {
+    const checkpointIds = Array.isArray(definition.attention_checkpoints)
+      ? definition.attention_checkpoints.flatMap((value) => {
+          if (typeof value !== "object" || value === null) return [];
+          const checkpoint = (value as Record<string, unknown>).id;
+          return typeof checkpoint === "string" ? [checkpoint] : [];
+        })
+      : [];
+    const duplicateCheckpoints = checkpointIds.filter(
+      (checkpoint, index) => checkpointIds.indexOf(checkpoint) !== index,
+    );
+    for (const checkpoint of [...new Set(duplicateCheckpoints)]) {
+      diagnostics.push({
+        code: "duplicate-attention-checkpoint",
+        path: `phases.${id}.attention_checkpoints`,
+        message: `Phase '${id}' declares attention checkpoint '${checkpoint}' more than once`,
+      });
+    }
     const progression = typeof definition.progression === "object" &&
         definition.progression !== null
       ? definition.progression as Record<string, unknown>

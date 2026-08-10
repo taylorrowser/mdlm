@@ -9,7 +9,10 @@ import {
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
-import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
+import {
+  checkpointProcessRepository,
+  terminalProcessRepository,
+} from "./helpers/terminal-process-package.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -91,7 +94,9 @@ describe("package-neutral Operator Outcome classification", () => {
   });
 
   it("classifies immediate attended work with its exact authority requirement", () => {
-    const classified = classifyOperatorOutcome([work({
+    const classified = classifyOperatorOutcome([
+      work({ instance: "autonomous@1:ITM-r00001:process" }),
+      work({
       authorityRequirements: [{
         policy: "scope-authority@9",
         authorityRequirement: {
@@ -105,7 +110,8 @@ describe("package-neutral Operator Outcome classification", () => {
           consolidationGroup: null,
         },
       }],
-    })]);
+    }),
+    ]);
 
     expect(classified).toEqual(expect.objectContaining({
       kind: "attention-required",
@@ -115,6 +121,144 @@ describe("package-neutral Operator Outcome classification", () => {
         delegationAllowed: false,
       },
       explanation: "The exact scope decision is unresolved.",
+    }));
+  });
+
+  it("continues eligible work before an inactive checkpoint", () => {
+    const checkpointQuestion = work({
+      instance: "question@1:QUE-ONE-r00001:package@1#digest",
+      subject: "QUE-ONE-r00001",
+      authorityRequirements: [{
+        policy: "question-participation@1",
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        },
+        attentionSchedule: {
+          timing: "checkpoint",
+          checkpoint: "definition-gate",
+          consolidationGroup: "stakeholder-questions",
+        },
+      }],
+    });
+
+    expect(classifyOperatorOutcome(
+      [checkpointQuestion, work({ instance: "autonomous@1:ITM-r00001:process" })],
+      null,
+      [{
+        id: "definition-gate",
+        active: false,
+        explanation: "The package-authored checkpoint readiness expression is false.",
+        evidence: { source: "false", result: false, selectors: [] },
+      }],
+    )).toEqual(expect.objectContaining({
+      kind: "assignment",
+      work: expect.objectContaining({
+        instance: "autonomous@1:ITM-r00001:process",
+      }),
+    }));
+  });
+
+  it("consolidates every compatible Question at an active checkpoint before other work", () => {
+    const checkpointRequirement = {
+      policy: "question-participation@1",
+      authorityRequirement: {
+        mode: "attended" as const,
+        authority: "stakeholder",
+        delegationAllowed: false,
+      },
+      attentionSchedule: {
+        timing: "checkpoint" as const,
+        checkpoint: "definition-gate",
+        consolidationGroup: "stakeholder-questions",
+      },
+    };
+    const question = (
+      stableId: string,
+      impact: string,
+    ): OperatorWorkFacts => work({
+      instance: `question@1:${stableId}-r00001:package@1#digest`,
+      subject: `${stableId}-r00001`,
+      authorityRequirements: [checkpointRequirement],
+      exactSubject: {
+        identity: {
+          id: stableId,
+          revisionId: `${stableId}-r00001`,
+          type: "QUE",
+          revision: 1,
+        },
+        payload: {
+          question: `Question for ${stableId}`,
+          blocking_impact: impact,
+        },
+        links: [],
+        body: "",
+      },
+    });
+
+    const classified = classifyOperatorOutcome(
+      [
+        work({ instance: "autonomous@1:ITM-r00001:process" }),
+        question("QUE-TWO", "The second choice changes the interface."),
+        question("QUE-ONE", "The first choice changes product scope."),
+        {
+          ...question("QUE-THREE", "The third choice awaits exact source freezing."),
+          dispatchable: false,
+        },
+      ],
+      null,
+      [{
+        id: "definition-gate",
+        active: true,
+        explanation: "The package-authored checkpoint readiness expression is true.",
+        evidence: { source: "true", result: true, selectors: [] },
+      }],
+    );
+
+    expect(classified).toEqual(expect.objectContaining({
+      kind: "attention-required",
+      work: expect.objectContaining({
+        subject: "QUE-TWO-r00001",
+      }),
+      attentionSchedule: checkpointRequirement.attentionSchedule,
+      checkpointConversation: {
+        checkpoint: "definition-gate",
+        consolidationGroup: "stakeholder-questions",
+        items: [
+          expect.objectContaining({
+            exactSubject: expect.objectContaining({
+              identity: expect.objectContaining({ revisionId: "QUE-TWO-r00001" }),
+              payload: expect.objectContaining({
+                blocking_impact: "The second choice changes the interface.",
+              }),
+            }),
+          }),
+          expect.objectContaining({
+            exactSubject: expect.objectContaining({
+              identity: expect.objectContaining({ revisionId: "QUE-ONE-r00001" }),
+              payload: expect.objectContaining({
+                blocking_impact: "The first choice changes product scope.",
+              }),
+            }),
+          }),
+          expect.objectContaining({
+            exactSubject: expect.objectContaining({
+              identity: expect.objectContaining({ revisionId: "QUE-THREE-r00001" }),
+              payload: expect.objectContaining({
+                blocking_impact: "The third choice awaits exact source freezing.",
+              }),
+            }),
+          }),
+        ],
+        conversation: {
+          format: "freeform",
+          semanticMapping: "harness",
+          transcriptStorage: "none-by-default",
+          publication: "serial-with-reevaluation",
+          checkpointScheduling: "not-deferral",
+        },
+      },
     }));
   });
 
@@ -475,6 +619,81 @@ describe("public mdlm outcome and status seam", () => {
       explanation: expect.any(String),
     }));
   }, 30_000);
+
+  it("projects one complete checkpoint conversation and the first exact Assignment", async () => {
+    repository = await checkpointProcessRepository(parent);
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    expect(outcome).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-next@1",
+      outcome: "attention-required",
+      assignment: { id: expect.any(String) },
+      authorityRequirement: {
+        mode: "attended",
+        authority: "fixture-stakeholder",
+        delegationAllowed: false,
+      },
+      attentionSchedule: {
+        timing: "checkpoint",
+        checkpoint: "definition-gate",
+        consolidationGroup: "fixture-questions",
+      },
+      checkpointConversation: {
+        checkpoint: "definition-gate",
+        consolidationGroup: "fixture-questions",
+        items: [
+          expect.objectContaining({
+            exactSubject: expect.objectContaining({
+              identity: expect.objectContaining({ type: "QUE" }),
+              payload: expect.objectContaining({
+                question: expect.any(String),
+                blocking_impact: expect.any(String),
+              }),
+            }),
+          }),
+          expect.objectContaining({
+            exactSubject: expect.objectContaining({
+              identity: expect.objectContaining({ type: "QUE" }),
+              payload: expect.objectContaining({
+                question: expect.any(String),
+                blocking_impact: expect.any(String),
+              }),
+            }),
+          }),
+        ],
+        conversation: {
+          format: "freeform",
+          semanticMapping: "harness",
+          transcriptStorage: "none-by-default",
+          publication: "serial-with-reevaluation",
+          checkpointScheduling: "not-deferral",
+        },
+      },
+    }));
+    const revisions = outcome.checkpointConversation.items.map(
+      (item: { exactSubject: { identity: { revisionId: string } } }) =>
+        item.exactSubject.identity.revisionId,
+    );
+    expect(new Set(revisions).size).toBe(2);
+
+    const prepared = mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      outcome.assignment.id,
+    );
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    const packet = JSON.parse(prepared.stdout);
+    expect(packet.checkpointConversation).toEqual(outcome.checkpointConversation);
+    expect(packet.exactInputs).toHaveLength(1);
+    expect(packet.exactInputs[0].inputs[0].values[0].identity.revision_id)
+      .toBe(revisions[0]);
+    expect(JSON.stringify(packet)).not.toContain("rawTranscript");
+  });
 
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(

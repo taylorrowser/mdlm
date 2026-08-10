@@ -15,6 +15,18 @@
     "coverage": {"enum": ["complete", "bootstrap-subset"]},
     "omitted_capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "entry": {"$ref": "expression.schema.json"},
+    "attention_checkpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "readiness"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "readiness": {"$ref": "expression.schema.json"}
+        }
+      }
+    },
     "scenarios": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "minItems": 1, "uniqueItems": true},
     "obligations": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "uniqueItems": true},
     "outputs": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},

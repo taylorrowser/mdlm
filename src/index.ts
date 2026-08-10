@@ -23,6 +23,7 @@ export {
   type LifecycleSnapshot,
   type ObligationEvaluation,
   type ObligationHistoryEvaluation,
+  type PhaseAttentionCheckpointEvaluation,
   type PhaseEvaluation,
   type PhaseExpressionEvidence,
   type PhaseProgressionEvaluation,
@@ -31,6 +32,8 @@ export {
 } from "./evaluator.js";
 export {
   classifyOperatorOutcome,
+  type CheckpointConversation,
+  type OperatorExactSubject,
   type OperatorOutcomeClassification,
   type OperatorWorkFacts,
 } from "./operator-outcome.js";
@@ -434,6 +437,16 @@ function legacyExpressionAuthoringDiagnostics(
     }
     case "phase-definition": {
       check(definition.entry, "entry");
+      const checkpoints = Array.isArray(definition.attention_checkpoints)
+        ? definition.attention_checkpoints
+        : [];
+      checkpoints.forEach((checkpoint, index) => {
+        if (typeof checkpoint !== "object" || checkpoint === null) return;
+        check(
+          (checkpoint as Record<string, unknown>).readiness,
+          `attention_checkpoints[${index}].readiness`,
+        );
+      });
       const gate = typeof definition.gate === "object" && definition.gate !== null
         ? definition.gate as Record<string, unknown>
         : undefined;

@@ -96,6 +96,11 @@ describe("phase evaluation", () => {
     expect(result.phase).toEqual({
       id: "phase-2-system-definition",
       version: 3,
+      attentionCheckpoints: [expect.objectContaining({
+        id: "phase-2-system-gate",
+        active: false,
+        evidence: expect.objectContaining({ result: false }),
+      })],
       entry: {
         satisfied: false,
         explanation: "The package-defined phase entry expression is not satisfied.",

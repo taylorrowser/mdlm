@@ -649,7 +649,10 @@ recognizes neither PAS nor the assessment Phase, metrics, or recommendation.
 ## 12. Phases and gates
 
 Phases list applicable scenarios and obligations and declare entry, gate, and
-progression expressions. They do not prescribe an imperative sequence. The
+progression expressions. They may also declare named `attention_checkpoints`,
+each with one package-authored readiness expression. A checkpoint-valued
+Participation Policy result is valid only when that exact checkpoint is declared
+by the selected Phase. They do not prescribe an imperative sequence. The
 loose-end engine repeatedly evaluates obligations and dispatches ready resolvers.
 A nonterminal `progression` names its next Phase, readiness expression, exact
 authorization condition, standardized participation Policy, sign-off Scenario,
@@ -657,6 +660,15 @@ and evidence Selector. Policy arguments and exact authorization-subject selectio
 are authored as typed expressions; the generic evaluator does not know the
 package's authority vocabulary. A Phase with no declared progression uses
 `progression: null`; that absence alone never claims successful termination.
+
+Inactive checkpoint-scheduled work does not interrupt otherwise eligible work;
+immediate attended work retains priority. At activation, the Operator Outcome
+contains the complete compatible Consolidation Group, exact subject payloads and
+blocking context, and the first exact Assignment. The Assignment packet declares
+freeform harness-owned semantic mapping, no transcript persistence by default,
+and serial publication with reevaluation. MDLM does not infer mappings from
+conversation text, and checkpoint scheduling does not change a Question's
+formal disposition.
 
 The selected implementation Profile declares successful terminal semantics under
 `terminal_outcomes`. Each optional `profile_boundary` or `lifecycle_complete`
