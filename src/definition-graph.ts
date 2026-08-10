@@ -142,8 +142,43 @@ function validateManifestCatalog(
 
 function validateReferences(
   definitions: DefinitionCatalogs,
+  manifest?: unknown,
 ): ProcessDiagnostic[] {
   const diagnostics: ProcessDiagnostic[] = [];
+  const manifestRecord = typeof manifest === "object" && manifest !== null
+    ? manifest as Record<string, unknown>
+    : {};
+  const profiles = typeof manifestRecord.profiles === "object" &&
+      manifestRecord.profiles !== null
+    ? manifestRecord.profiles as Record<string, unknown>
+    : {};
+  if (typeof profiles.default === "string") {
+    diagnostics.push(...validateVersionedReference(
+      profiles.default,
+      definitions.profiles,
+      "manifest.profiles.default",
+      "implementation profile",
+    ));
+  }
+  for (const [id, profile] of Object.entries(definitions.profiles)) {
+    const outcomes = typeof profile.terminal_outcomes === "object" &&
+        profile.terminal_outcomes !== null
+      ? profile.terminal_outcomes as Record<string, Record<string, unknown>>
+      : {};
+    const boundary = outcomes.profile_boundary?.condition as
+      | { source?: unknown }
+      | undefined;
+    const complete = outcomes.lifecycle_complete?.condition as
+      | { source?: unknown }
+      | undefined;
+    if (typeof boundary?.source === "string" && boundary.source === complete?.source) {
+      diagnostics.push({
+        code: "ambiguous-terminal-outcomes",
+        path: `profiles.${id}.terminal_outcomes`,
+        message: `Implementation Profile '${id}@${profile.version}' gives Profile Boundary and Lifecycle Complete the same condition`,
+      });
+    }
+  }
   for (const [group, byId] of [
     ["templates", definitions.templates],
     ["types", definitions.types],
@@ -675,7 +710,7 @@ export function validateDefinitionGraph(
 ): ProcessDiagnostic[] {
   return [
     ...validateManifestCatalog(manifest, definitions),
-    ...validateReferences(definitions),
+    ...validateReferences(definitions, manifest),
     ...validateTemplateCycles(definitions),
     ...validateExpressionDependencyCycles({
       templates: definitions.templates,

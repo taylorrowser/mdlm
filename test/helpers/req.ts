@@ -46,6 +46,6 @@ export function selectBootstrapProcessPackage(repositoryRoot: string): void {
   selectProcessPackage(
     repositoryRoot,
     path.join(process.cwd(), ".lifecycle/process"),
-    "mdlm-bootstrap@0.49.0",
+    "mdlm-bootstrap@0.50.0",
   );
 }

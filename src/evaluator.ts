@@ -14,6 +14,7 @@ import type {
   ProcessPackage,
   VersionedDefinition,
 } from "./index.js";
+import { selectedImplementationProfile } from "./implementation-profile.js";
 import {
   formatObligationInstanceIdentity,
   phaseObligationSubjectIdentity,
@@ -245,8 +246,29 @@ export interface ObligationHistoryEvaluation {
   diagnostics: ProcessDiagnostic[];
 }
 
+interface TerminalOutcomeBase {
+  explanation: string;
+  evidence: {
+    profile: string;
+    condition: PhaseExpressionEvidence & { result: true };
+  };
+}
+
+export type TerminalOutcomeEvaluation =
+  | TerminalOutcomeBase & {
+      outcome: "profile-boundary-reached";
+      omittedCoverage: {
+        profile: string[];
+        phase: string[];
+      };
+    }
+  | TerminalOutcomeBase & {
+      outcome: "lifecycle-complete";
+    };
+
 export interface LifecycleEvaluation {
   phase: PhaseEvaluation | null;
+  terminalOutcome: TerminalOutcomeEvaluation | null;
   artifacts: Record<string, ArtifactEvaluation>;
   dependencyChanges: DependencyChangeRecord[];
   obligations: ObligationEvaluation[];
@@ -454,6 +476,7 @@ class LifecycleEvaluator {
       ...Object.values(this.processPackage.obligations),
       ...Object.values(this.processPackage.scenarios),
       ...Object.values(this.processPackage.phases),
+      ...Object.values(this.processPackage.profiles),
     ];
   }
 
@@ -765,6 +788,7 @@ class LifecycleEvaluator {
     if (this.comparisonDiagnostics.length > 0) {
       return {
         phase: null,
+        terminalOutcome: null,
         artifacts: {},
         dependencyChanges: [],
         obligations: [],
@@ -776,6 +800,7 @@ class LifecycleEvaluator {
     if (!this.processPackage.phases[this.snapshot.phaseId]) {
       return {
         phase: null,
+        terminalOutcome: null,
         artifacts: {},
         dependencyChanges: this.dependencyChanges,
         obligations: [],
@@ -920,6 +945,7 @@ class LifecycleEvaluator {
     }
     const obligations = pendingObligations.map((pending) => pending.evaluation);
     const phase = this.evaluatePhase(obligations);
+    const terminal = this.evaluateTerminalOutcome();
 
     const statusOrder: Record<string, number> = {
       ready: 0,
@@ -942,12 +968,80 @@ class LifecycleEvaluator {
 
     return {
       phase,
+      terminalOutcome: terminal.outcome,
       artifacts,
       dependencyChanges: this.dependencyChanges,
       obligations,
       obligationHistory: this.evaluateObligationHistory(),
       looseEnds,
-      diagnostics: this.comparisonDiagnostics,
+      diagnostics: [...this.comparisonDiagnostics, ...terminal.diagnostics],
+    };
+  }
+
+  private evaluateTerminalOutcome(): {
+    outcome: TerminalOutcomeEvaluation | null;
+    diagnostics: ProcessDiagnostic[];
+  } {
+    const selectedProfile = selectedImplementationProfile(this.processPackage);
+    const profileReference = selectedProfile?.reference ?? "";
+    const profile = selectedProfile?.definition;
+    const declarations = object(profile?.terminal_outcomes);
+    const matches = (
+      ["profile_boundary", "lifecycle_complete"] as const
+    ).flatMap((key) => {
+      const declaration = object(declarations?.[key]);
+      if (!declaration || !isCompiledTextExpression(declaration.condition)) {
+        return [];
+      }
+      const condition = this.evaluateWithSelectorEvidence(
+        declaration.condition,
+        () => this.expression(declaration.condition, this.baseContext),
+      );
+      return condition.result
+        ? [{ key, explanation: string(declaration.explanation) ?? "", condition }]
+        : [];
+    });
+    if (matches.length > 1) {
+      return {
+        outcome: null,
+        diagnostics: [{
+          code: "ambiguous-terminal-outcomes",
+          path: profileReference,
+          message: "Profile Boundary and Lifecycle Complete conditions both hold for the exact current lifecycle state",
+        }],
+      };
+    }
+    const match = matches[0];
+    if (!match) return { outcome: null, diagnostics: [] };
+    const evidence = {
+      profile: profileReference,
+      condition: { ...match.condition, result: true as const },
+    };
+    if (match.key === "lifecycle_complete") {
+      return {
+        outcome: {
+          outcome: "lifecycle-complete",
+          explanation: match.explanation,
+          evidence,
+        },
+        diagnostics: [],
+      };
+    }
+    const strings = (value: unknown): string[] =>
+      array(value).filter((item): item is string => typeof item === "string");
+    return {
+      outcome: {
+        outcome: "profile-boundary-reached",
+        explanation: match.explanation,
+        omittedCoverage: {
+          profile: strings(profile?.disabled_capabilities),
+          phase: strings(
+            this.processPackage.phases[this.snapshot.phaseId]?.omitted_capabilities,
+          ),
+        },
+        evidence,
+      },
+      diagnostics: [],
     };
   }
 
@@ -2119,6 +2213,7 @@ export function evaluateLifecycle(
   } catch (error) {
     return {
       phase: null,
+      terminalOutcome: null,
       artifacts: {},
       dependencyChanges: [],
       obligations: [],

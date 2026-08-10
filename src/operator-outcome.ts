@@ -1,3 +1,4 @@
+import type { TerminalOutcomeEvaluation } from "./evaluator.js";
 import type { ScenarioParticipation } from "./participation.js";
 
 export interface OperatorAuthorityRequirement {
@@ -49,6 +50,14 @@ export type OperatorOutcomeClassification =
       attentionSchedule: ScenarioParticipation["attentionSchedule"];
       explanation: string;
     }
+  | ({ kind: "profile-boundary-reached" } & Omit<
+      Extract<TerminalOutcomeEvaluation, { outcome: "profile-boundary-reached" }>,
+      "outcome"
+    >)
+  | ({ kind: "lifecycle-complete" } & Omit<
+      Extract<TerminalOutcomeEvaluation, { outcome: "lifecycle-complete" }>,
+      "outcome"
+    >)
   | {
       kind: "process-dead-end";
       explanation: string;
@@ -75,6 +84,7 @@ function runnableWithoutAttention(work: OperatorWorkFacts): boolean {
 /** Classify package-derived work without recognizing any package-owned IDs. */
 export function classifyOperatorOutcome(
   work: OperatorWorkFacts[],
+  terminal: TerminalOutcomeEvaluation | null = null,
 ): OperatorOutcomeClassification {
   for (const candidate of work) {
     if (!candidate.dispatchable) continue;
@@ -91,6 +101,10 @@ export function classifyOperatorOutcome(
     if (runnableWithoutAttention(candidate)) {
       return { kind: "assignment", work: candidate };
     }
+  }
+  if (terminal) {
+    const { outcome: kind, ...result } = terminal;
+    return { kind, ...result } as OperatorOutcomeClassification;
   }
   return {
     kind: "process-dead-end",

@@ -9,6 +9,7 @@ import {
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
+import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -117,6 +118,47 @@ describe("package-neutral Operator Outcome classification", () => {
     }));
   });
 
+  it("classifies package-declared successful terminal outcomes when no work can advance", () => {
+    const profileBoundary = classifyOperatorOutcome([], {
+      outcome: "profile-boundary-reached",
+      explanation: "The selected profile intentionally stops before deployment.",
+      omittedCoverage: {
+        profile: ["deployment"],
+        phase: ["deployment evidence"],
+      },
+      evidence: {
+        profile: "bounded@1",
+        condition: { source: "true", result: true, selectors: [] },
+      },
+    });
+    const lifecycleComplete = classifyOperatorOutcome([], {
+      outcome: "lifecycle-complete",
+      explanation: "Every package-declared lifecycle objective is satisfied.",
+      evidence: {
+        profile: "complete@1",
+        condition: { source: "true", result: true, selectors: [] },
+      },
+    });
+
+    expect(profileBoundary).toEqual(expect.objectContaining({
+      kind: "profile-boundary-reached",
+      explanation: expect.stringContaining("intentionally stops"),
+    }));
+    expect(lifecycleComplete).toEqual(expect.objectContaining({
+      kind: "lifecycle-complete",
+      explanation: expect.stringContaining("lifecycle objective"),
+    }));
+    expect(classifyOperatorOutcome([work()], {
+      outcome: "profile-boundary-reached",
+      explanation: "Work takes precedence over a matched terminal condition.",
+      omittedCoverage: { profile: [], phase: [] },
+      evidence: {
+        profile: "bounded@1",
+        condition: { source: "true", result: true, selectors: [] },
+      },
+    }).kind).toBe("assignment");
+  });
+
   it("reports a Process Dead End with exact blocker diagnostics", () => {
     const classified = classifyOperatorOutcome([work({
       dispatchable: false,
@@ -163,8 +205,8 @@ describe("public mdlm outcome and status seam", () => {
       ok: true,
       command: "status",
       contract: "mdlm-status@1",
-      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.49.0" }),
-      profile: expect.objectContaining({ reference: "bootstrap@23" }),
+      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.50.0" }),
+      profile: expect.objectContaining({ reference: "bootstrap@24" }),
       integrity: { status: "valid", diagnostics: [] },
       activePhase: expect.objectContaining({
         reference: "phase-0-wayfinding@2",
@@ -437,7 +479,7 @@ describe("public mdlm outcome and status seam", () => {
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.50.0",
     );
     const bootstrapProfilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
     const alternateProfilePath = path.join(packageRoot, "profiles/alternate.yaml");
@@ -447,10 +489,10 @@ describe("public mdlm outcome and status seam", () => {
     const manifestPath = path.join(packageRoot, "manifest.yaml");
     const manifest = parse(await fs.readFile(manifestPath, "utf8"));
     manifest.profiles = {
-      default: "alternate@23",
+      default: "alternate@24",
       available: [
-        "profiles/bootstrap.yaml@23",
-        "profiles/alternate.yaml@23",
+        "profiles/bootstrap.yaml@24",
+        "profiles/alternate.yaml@24",
       ],
     };
     await fs.writeFile(manifestPath, stringify(manifest));
@@ -460,14 +502,14 @@ describe("public mdlm outcome and status seam", () => {
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
-      reference: "alternate@23",
+      reference: "alternate@24",
     }));
   });
 
   it("classifies package-declared Phase progression as immediate attended work", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.50.0",
     );
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
@@ -612,48 +654,127 @@ gate:
     }));
   });
 
+  it("returns a declared Profile Boundary with omitted coverage and exact condition evidence", async () => {
+    repository = await terminalProcessRepository(parent, {
+      profile_boundary: {
+        condition: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
+        explanation: "This exact profile intentionally omits external breadth.",
+      },
+    });
+
+    const next = mdlm(repository, "next");
+    const status = mdlm(repository, "status", "--json");
+    const readableStatus = mdlm(repository, "status");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-next@1",
+      outcome: "profile-boundary-reached",
+      phase: "phase-0-terminal@1",
+      explanation: "This exact profile intentionally omits external breadth.",
+      omittedCoverage: {
+        profile: ["broader fixture coverage"],
+        phase: ["external fixture work"],
+      },
+      evidence: {
+        profile: "terminal@1",
+        condition: {
+          source: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
+          result: true,
+          selectors: [{
+            selector: "terminal-evidence@1",
+            arguments: {},
+            result: [],
+          }],
+        },
+      },
+      diagnostics: [],
+    }));
+    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+    expect(JSON.parse(status.stdout).currentOutcome).toEqual(
+      expect.objectContaining({
+        outcome: "profile-boundary-reached",
+        omittedCoverage: expect.objectContaining({
+          phase: ["external fixture work"],
+        }),
+        evidence: expect.objectContaining({ profile: "terminal@1" }),
+      }),
+    );
+    expect(readableStatus.stdout).toContain(
+      "Current Operator Outcome: profile-boundary-reached",
+    );
+    expect(readableStatus.stdout).toContain(
+      "Terminal Evidence: terminal@1",
+    );
+  });
+
+  it("returns Lifecycle Complete only from its explicit package condition", async () => {
+    repository = await terminalProcessRepository(parent, {
+      lifecycle_complete: {
+        condition: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
+        explanation: "Every lifecycle objective selected by this package is complete.",
+      },
+    });
+
+    const next = mdlm(repository, "next");
+    const status = mdlm(repository, "status", "--json");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      contract: "mdlm-next@1",
+      outcome: "lifecycle-complete",
+      explanation: "Every lifecycle objective selected by this package is complete.",
+      evidence: {
+        profile: "terminal@1",
+        condition: {
+          source: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
+          result: true,
+          selectors: [{
+            selector: "terminal-evidence@1",
+            arguments: {},
+            result: [],
+          }],
+        },
+      },
+      diagnostics: [],
+    }));
+    expect(JSON.parse(status.stdout).currentOutcome).toEqual(
+      expect.objectContaining({
+        outcome: "lifecycle-complete",
+        evidence: expect.objectContaining({ profile: "terminal@1" }),
+      }),
+    );
+  });
+
+  it("returns Invalid when exact terminal conditions are ambiguous", async () => {
+    repository = await terminalProcessRepository(parent, {
+      profile_boundary: {
+        condition: 'none("terminal-evidence@1", {})',
+        explanation: "The profile boundary holds.",
+      },
+      lifecycle_complete: {
+        condition: 'phase.id == "phase-0-terminal"',
+        explanation: "Lifecycle completion also holds.",
+      },
+    });
+
+    const next = mdlm(repository, "next");
+
+    expect(next.status).toBe(1);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      contract: "mdlm-next@1",
+      outcome: "invalid",
+      diagnostics: [expect.objectContaining({
+        code: "ambiguous-terminal-outcomes",
+      })],
+    }));
+  });
+
   it("returns Process Dead End successfully with blocker diagnostics", async () => {
-    const packageRoot = path.join(
-      repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.49.0",
-    );
-    await fs.writeFile(
-      path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
-      `kind: phase-definition
-id: phase-0-wayfinding
-version: 2
-order: 0
-name: Deliberately unfinished profile
-purpose: Prove that absence of reachable work is not reported as completion.
-coverage: bootstrap-subset
-omitted_capabilities: [all intended lifecycle work]
-entry: 'true'
-scenarios: [establish-initial-wayfinding-map@1]
-obligations: []
-outputs: [MAP]
-progression: null
-gate:
-  required: false
-  candidate_selector: 'select("current-wayfinding-maps@1", {})'
-  candidate_as: candidate
-  obligation: candidate-gate-signoff@2
-  completion: 'true'
-`,
-    );
-    const obligationsRoot = path.join(packageRoot, "obligations");
-    for (const file of await fs.readdir(obligationsRoot)) {
-      if (!file.endsWith(".yaml")) continue;
-      const obligationPath = path.join(obligationsRoot, file);
-      const obligation = parse(await fs.readFile(obligationPath, "utf8"));
-      const phases = (obligation.phases as string[]).filter(
-        (phase) => phase !== "phase-0-wayfinding",
-      );
-      obligation.phases = phases.length > 0
-        ? phases
-        : ["phase-1-product-assurance"];
-      await fs.writeFile(obligationPath, stringify(obligation));
-    }
-    await recordInstalledPackageChange(repository, packageRoot);
+    repository = await terminalProcessRepository(parent);
 
     const next = mdlm(repository, "next");
 
@@ -662,7 +783,7 @@ gate:
       ok: true,
       contract: "mdlm-next@1",
       outcome: "process-dead-end",
-      phase: "phase-0-wayfinding@2",
+      phase: "phase-0-terminal@1",
       explanation: expect.stringContaining("unfinished"),
       blockers: [],
       diagnostics: [],
@@ -694,7 +815,7 @@ gate:
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.49.0/manifest.yaml",
+        ".lifecycle/packages/mdlm-bootstrap@0.50.0/manifest.yaml",
       ),
       "\n# integrity failure\n",
     );

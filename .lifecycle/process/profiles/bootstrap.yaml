@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 23
+version: 24
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -11,6 +11,14 @@ disabled_capabilities:
   - component and design decomposition lifecycle types
   - formal verification execution
   - component and design implementation lifecycle types
+terminal_outcomes:
+  profile_boundary:
+    condition: >-
+      phase.id == "phase-2-pilot-assessment"
+      && exists("all-pilot-assessments@1", {})
+      && every("all-pilot-assessments@1", {}, assessment =>
+        exists("pilot-expansion-decisions-for@1", {assessment: assessment}))
+    explanation: The reviewed pilot expansion Decision completes the selected Phase 0–2 implementation profile; Phases 3–6 and the capabilities listed as omitted remain outside this supported profile.
 success_criteria:
   - every definition conforms to its versioned meta-schema
   - the kernel envelope cannot be weakened by templates or types

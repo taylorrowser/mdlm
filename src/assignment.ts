@@ -17,6 +17,7 @@ import {
   nextWorkProjection,
 } from "./lifecycle-inspection.js";
 import { verifyRepositoryBaselines } from "./exact-baseline-repository.js";
+import { selectedImplementationProfile } from "./implementation-profile.js";
 import { repositoryLifecycleSnapshot } from "./lifecycle-repository.js";
 import {
   classifyOperatorOutcome,
@@ -102,6 +103,24 @@ export type OperatorOutcome =
       explanation: string;
     }
   | OperatorOutcomeBase & {
+      outcome: "profile-boundary-reached";
+      explanation: string;
+      omittedCoverage: {
+        profile: string[];
+        phase: string[];
+      };
+      evidence: Extract<OperatorOutcomeClassification, {
+        kind: "profile-boundary-reached";
+      }>["evidence"];
+    }
+  | OperatorOutcomeBase & {
+      outcome: "lifecycle-complete";
+      explanation: string;
+      evidence: Extract<OperatorOutcomeClassification, {
+        kind: "lifecycle-complete";
+      }>["evidence"];
+    }
+  | OperatorOutcomeBase & {
       outcome: "process-dead-end";
       explanation: string;
       blockers: Extract<OperatorOutcomeClassification, { kind: "process-dead-end" }>["blockers"];
@@ -152,6 +171,24 @@ export interface OperatorStatus {
         authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
         attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
         explanation: string;
+      }
+    | {
+        outcome: "profile-boundary-reached";
+        explanation: string;
+        omittedCoverage: {
+          profile: string[];
+          phase: string[];
+        };
+        evidence: Extract<OperatorOutcomeClassification, {
+          kind: "profile-boundary-reached";
+        }>["evidence"];
+      }
+    | {
+        outcome: "lifecycle-complete";
+        explanation: string;
+        evidence: Extract<OperatorOutcomeClassification, {
+          kind: "lifecycle-complete";
+        }>["evidence"];
       }
     | {
         outcome: "process-dead-end";
@@ -578,7 +615,10 @@ async function exactOperatorState(
   if (evaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: evaluation.diagnostics };
   }
-  const classification = classifyOperatorOutcome(operatorWork(evaluation));
+  const classification = classifyOperatorOutcome(
+    operatorWork(evaluation),
+    evaluation.terminalOutcome,
+  );
   const state: ExactOperatorState = {
     summary: selected.summary,
     processPackage: selected.processPackage,
@@ -586,7 +626,10 @@ async function exactOperatorState(
     fingerprint: fingerprint.value,
     classification,
   };
-  if (classification.kind === "process-dead-end") {
+  if (
+    classification.kind !== "assignment" &&
+    classification.kind !== "attention-required"
+  ) {
     return { ok: true, value: state, diagnostics: [] };
   }
 
@@ -731,20 +774,26 @@ export async function leaseNextAssignment(
     ) await fs.rm(leasePath(repositoryRoot), { force: true });
     return state;
   }
-  if (state.value.classification.kind === "process-dead-end") {
+  if (
+    state.value.classification.kind !== "assignment" &&
+    state.value.classification.kind !== "attention-required"
+  ) {
     if (persisted.value) await fs.rm(leasePath(repositoryRoot), { force: true });
-    return {
-      ok: true,
-      value: {
-        package: state.value.summary,
-        contract: "mdlm-next@1",
-        outcome: "process-dead-end",
-        phase: phaseReference(state.value.evaluation),
-        explanation: state.value.classification.explanation,
-        blockers: state.value.classification.blockers,
-      },
-      diagnostics: [],
+    const classification = state.value.classification;
+    const base = {
+      package: state.value.summary,
+      contract: "mdlm-next@1" as const,
+      phase: phaseReference(state.value.evaluation),
     };
+    const value: AssignmentOutcome = classification.kind === "process-dead-end"
+      ? {
+          ...base,
+          outcome: "process-dead-end",
+          explanation: classification.explanation,
+          blockers: classification.blockers,
+        }
+      : { ...base, ...terminalOutcomeProjection(classification) };
+    return { ok: true, value, diagnostics: [] };
   }
   const exact = state.value.assignment;
   if (!exact) {
@@ -825,6 +874,27 @@ async function recentTransaction(
     : { available: false };
 }
 
+function terminalOutcomeProjection(
+  classification: Extract<OperatorOutcomeClassification, {
+    kind: "profile-boundary-reached" | "lifecycle-complete";
+  }>,
+): Extract<OperatorStatus["currentOutcome"], {
+  outcome: "profile-boundary-reached" | "lifecycle-complete";
+}> {
+  return classification.kind === "profile-boundary-reached"
+    ? {
+        outcome: "profile-boundary-reached",
+        explanation: classification.explanation,
+        omittedCoverage: classification.omittedCoverage,
+        evidence: classification.evidence,
+      }
+    : {
+        outcome: "lifecycle-complete",
+        explanation: classification.explanation,
+        evidence: classification.evidence,
+      };
+}
+
 function statusOutcome(
   state: ExactOperatorState,
   activeLease: AssignmentLease | undefined,
@@ -837,6 +907,10 @@ function statusOutcome(
       blockers: classification.blockers,
     };
   }
+  if (
+    classification.kind === "profile-boundary-reached" ||
+    classification.kind === "lifecycle-complete"
+  ) return terminalOutcomeProjection(classification);
   const exact = state.assignment;
   const assignment = exact && activeLease && sameAssignment(activeLease, exact)
     ? { allocation: "active" as const, id: activeLease.id }
@@ -855,16 +929,12 @@ function statusOutcome(
 function selectedProfile(
   processPackage: ProcessPackage,
 ): AssignmentResult<VersionedDefinition> {
-  const profiles = object(processPackage.manifest.profiles);
-  const reference = typeof profiles?.default === "string"
-    ? profiles.default
-    : "";
-  const profile = definition(processPackage.profiles, reference);
-  return profile
-    ? { ok: true, value: profile, diagnostics: [] }
+  const selected = selectedImplementationProfile(processPackage);
+  return selected
+    ? { ok: true, value: selected.definition, diagnostics: [] }
     : failure(
         "profile-selection-invalid",
-        `The Process Package default implementation profile '${reference || "(missing)"}' does not resolve exactly`,
+        `The Process Package default implementation profile '${String(object(processPackage.manifest.profiles)?.default ?? "(missing)")}' does not resolve exactly`,
         "manifest.profiles.default",
       );
 }

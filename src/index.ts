@@ -27,6 +27,7 @@ export {
   type PhaseExpressionEvidence,
   type PhaseProgressionEvaluation,
   type SelectorEvaluationEvidence,
+  type TerminalOutcomeEvaluation,
 } from "./evaluator.js";
 export {
   classifyOperatorOutcome,
@@ -414,6 +415,23 @@ function legacyExpressionAuthoringDiagnostics(
     case "command-alias-definition":
       checkArguments(definition.inputs, "inputs");
       break;
+    case "implementation-profile-definition": {
+      const terminalOutcomes = typeof definition.terminal_outcomes === "object" &&
+          definition.terminal_outcomes !== null
+        ? definition.terminal_outcomes as Record<string, unknown>
+        : {};
+      for (const outcome of ["profile_boundary", "lifecycle_complete"]) {
+        const declaration = typeof terminalOutcomes[outcome] === "object" &&
+            terminalOutcomes[outcome] !== null
+          ? terminalOutcomes[outcome] as Record<string, unknown>
+          : undefined;
+        check(
+          declaration?.condition,
+          `terminal_outcomes.${outcome}.condition`,
+        );
+      }
+      break;
+    }
     case "phase-definition": {
       check(definition.entry, "entry");
       const gate = typeof definition.gate === "object" && definition.gate !== null
@@ -544,6 +562,7 @@ export async function loadProcessPackage(
           group === "obligations" ||
           group === "scenarios" ||
           group === "phases" ||
+          group === "profiles" ||
           group === "aliases"
         ) {
           expressionDefinitions.push({ definition, filePath });
