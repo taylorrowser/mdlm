@@ -116,6 +116,37 @@ export function reviewedGateFixture(processRef: string) {
   };
 }
 
+export function acceptedIntentForReviewedGate(
+  processRef: string,
+  fixture: ReturnType<typeof reviewedGateFixture>,
+): LifecycleRecord {
+  return frozenLifecycleRecord(
+    processRef,
+    "BSL",
+    "BSL-4K3M9Q2D8J",
+    {
+      title: "Accepted intent",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: fixture.candidate.datum.payload.scope,
+      group: fixture.candidate.datum.payload.group,
+      definition_members: [],
+      evidence: [
+        fixture.candidateReview.datum.revision_id,
+        fixture.signoff.datum.revision_id,
+        fixture.signoffReview.datum.revision_id,
+      ],
+    },
+    {
+      links: [{
+        type: "promotes",
+        target: fixture.candidate.datum.revision_id,
+      }],
+      scenario: "accept-phase-0-intent@1",
+    },
+  );
+}
+
 export function exactContextWaiverFor(
   subject: LifecycleRecord,
   processRef: string,

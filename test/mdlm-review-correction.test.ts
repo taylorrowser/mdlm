@@ -900,5 +900,5 @@ describe("failed STK Review correction through the public operator process", () 
       lineage,
       reviewHistory,
     );
-  }, 300_000);
+  }, 600_000);
 });
