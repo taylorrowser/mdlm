@@ -569,7 +569,9 @@ describe("req Phase 0 wayfinding slice", () => {
               title: `Independent review of ${subject}`,
               review_kind: reviewKind,
               rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-              findings: [],
+              ...(reviewKind === "simplification-product-definition"
+                ? {}
+                : { findings: [] }),
               outcome: "pass",
             },
             links: [
@@ -1007,7 +1009,7 @@ describe("req Phase 0 wayfinding slice", () => {
       .lifecycleDatum as { id: string; revisionId: string };
     const candidateContext = await reviewContext(
       "Intent candidate review context",
-      [candidate.revisionId],
+      [candidate.revisionId, map.revisionId, product.revisionId, stakeholder.revisionId],
     );
     const candidateReview = await review(
       candidate.revisionId,

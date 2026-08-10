@@ -103,9 +103,12 @@ set, each replacement cites the rejection and receives fresh Review, a supersedi
 candidate preserves unaffected evidence, and normal reevaluation returns attention
 to the same gate. Rejection remains immutable non-approval history and never
 implies stop, defer, or cancel. Issue #95 makes the exact intent candidate the
-earliest complete evidence-bearing product set and its independent Review the
-dedicated product-simplification judgment. Exact simplification blockers reuse
-foundation or candidate correction, while candidate correction deepens into one
+earliest complete evidence-bearing product set. Its exact MAP/PSP/STK contents
+are direct independent-Assignment inputs, and its Review is the dedicated
+product-simplification judgment. One structured target groups all current
+blocking findings and must match the sole canonical blocker link before exact
+foundation or candidate correction; distinct targets remain serial. Candidate
+correction deepens into one
 interface whose participation changes from two autonomous cycles to attended
 escalation. Failed Question and gate Decisions retain the same causal-history
 contract under attended authority. Reviewed gate approval mechanically publishes

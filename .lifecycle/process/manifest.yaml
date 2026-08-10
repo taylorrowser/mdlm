@@ -93,6 +93,8 @@ catalog:
     - non-phase-0-foundation-members-for
     - candidate-members-matching
     - candidate-definition-members
+    - phase-0-candidate-review-context-members
+    - review-context-contains-member
     - complete-phase-0-intent-candidates
     - complete-superseding-intent-candidates-for
     - failed-phase-0-foundation-revisions

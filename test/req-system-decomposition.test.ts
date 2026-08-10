@@ -222,7 +222,9 @@ describe("req system decomposition slice", () => {
                 title,
                 review_kind: reviewKind,
                 rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-                findings: [],
+                ...(reviewKind === "simplification-product-definition"
+                  ? {}
+                  : { findings: [] }),
                 outcome: "pass",
               },
               links: [
@@ -347,7 +349,7 @@ describe("req system decomposition slice", () => {
     const intentCandidateContext = await createDiscoveredReviewContext(
       "Intent candidate Review Context",
       intentCandidate.revisionId,
-      [intentCandidate.revisionId],
+      [intentCandidate.revisionId, productSpecification.revisionId, stakeholder.revisionId],
     );
     const intentCandidateReview = await publishDiscoveredReview(
       intentCandidate.revisionId,

@@ -50,7 +50,6 @@ export function reviewedGateFixture(processRef: string) {
     review_kind: "simplification-product-definition",
     rubric_ref: "policies/rubrics/bootstrap-review.md@1",
     summary: "The exact candidate is the smallest sufficient product definition.",
-    findings: [],
     outcome: "pass",
   }, {
     links: [

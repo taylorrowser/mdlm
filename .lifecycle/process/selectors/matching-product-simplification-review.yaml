@@ -7,10 +7,12 @@ parameters:
   - {name: review, kind: revision, types: [REV]}
 result_kind: revision
 query:
-  from:
-    selector: product-simplification-reviews-for@1
-    arguments: {candidate: candidate, outcome: 'review.payload.outcome'}
+  from: {relation: incoming-links, of: candidate, link: reviews, emit: source, types: [REV]}
   as: matching_review
-  where: 'matching_review == review'
+  where: >-
+    matching_review == review
+    && matching_review.payload.review_kind == "simplification-product-definition"
+    && matching_review.payload.outcome == review.payload.outcome
+    && state(matching_review, "validity") == "valid"
   distinct: true
   order_by: [identity.revision_id]

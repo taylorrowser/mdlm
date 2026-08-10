@@ -929,14 +929,19 @@ type-family or multiple-inheritance mechanics. Immutable failed Revision and Rev
 history remains inspectable. The tracer reviews MAP, PSP, and STK separately in
 exact frozen contexts whose `scope` names the one primary subject Revision; each
 context may still include supporting parent or sibling Revisions. It then freezes
-the earliest complete evidence-bearing intent candidate. That candidate's required
-independent Review is the dedicated `simplification-product-definition` judgment,
-so no second context or duplicate candidate-review ceremony is introduced. A
-failed simplification REV uses canonical exact `blocks` links to route implicated
-members through foundation correction or the candidate through one causal
-superseding-candidate interface. The interface permits two autonomous cycles and
-then changes participation to immediate attended escalation while retaining the
-same Assignment shape and complete immutable history.
+the earliest complete evidence-bearing intent candidate. Its Review Context must
+contain the candidate and every exact MAP, PSP, and STK member, and the independent
+Assignment receives those member Revisions directly so their complete contents—not
+only IDs and hashes—are available for judgment. That candidate's required Review
+is the dedicated `simplification-product-definition` judgment, so no second
+context or duplicate candidate-review ceremony is introduced. A failed
+simplification REV groups every current blocking finding for one exact target and
+must carry exactly one matching canonical `blocks` link. That target routes through
+foundation correction or the candidate through one causal superseding-candidate
+interface; distinct targets are surfaced serially by fresh complete-set Reviews.
+The interface permits two autonomous cycles and then changes participation to
+immediate attended escalation while retaining the same Assignment shape and
+complete immutable history.
 
 A reviewed gate rejection records one canonical exact blocker set in `blocks`
 links plus structured rationale applying to that set. It derives causal same-

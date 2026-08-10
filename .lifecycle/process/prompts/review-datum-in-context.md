@@ -25,11 +25,15 @@ is the durable judgment evidence.
 
 Create one REV with exactly one `reviews` link and one `contextualizes` link.
 For an `intent-level-candidate`, this candidate is the earliest complete
-evidence-bearing MAP/PSP/STK set: use `review_kind:
+evidence-bearing MAP/PSP/STK set. Read every exact `context_members` input; the
+candidate and its hash manifest alone are not a substitute for their contents.
+Use `review_kind:
 simplification-product-definition` and challenge product purpose, stakeholder
-intent, and scope. A passing Review has no `blocks` links. A failed Review uses
-`blocks` as the one canonical exact candidate/member correction set; its
-structured findings explain the rationale applying to that complete set.
+intent, and scope. A passing Review has neither `simplification` nor `blocks`. A failed Review
+records one exact `simplification.target`, every current blocking finding for
+that target, and exactly one matching `blocks` link. Distinct targets are judged
+and corrected serially through fresh candidate Reviews rather than encoded as a
+cross-subject batch.
 
 Record primary and collateral findings separately. Primary blocking findings
 force `fail`; collateral findings use `needs-triage` and do not automatically fail

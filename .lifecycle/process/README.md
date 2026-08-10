@@ -226,12 +226,14 @@ evidence. Two fresh serial correction-and-Review cycles are autonomous; continue
 failure or `correction_authority: stakeholder` derives immediate attended
 escalation with the exact lineage, Reviews, findings, and reason. Assignment
 malformed-response attempts are not lifecycle evidence and never enter this budget.
-The intent candidate is the earliest complete evidence-bearing MAP/PSP/STK set;
-its required independent Review is the dedicated
-`simplification-product-definition` judgment. A failed Review's canonical exact
-`blocks` set derives member or candidate correction, fresh independent Review,
-two autonomous candidate correction cycles, and then attended escalation through
-the same correction interface. The versioned requirement template shares
+The intent candidate is the earliest complete evidence-bearing MAP/PSP/STK set.
+Its Review Context contains that candidate and every exact member, and its
+independent Assignment receives every member's complete content. The dedicated
+`simplification-product-definition` judgment groups all current blocking findings
+for one exact target and requires one matching canonical `blocks` link. That
+derives member or candidate correction, fresh complete-set Review, two autonomous
+candidate correction cycles, and then attended escalation through the same
+correction interface; distinct targets remain serial. The versioned requirement template shares
 `corrects-review` and the distinct `changed-under` contract across STK and SYS
 without kernel type-family semantics. Failed Question and gate Decisions use the
 same causal-history shape under immediate stakeholder authority. A reviewed

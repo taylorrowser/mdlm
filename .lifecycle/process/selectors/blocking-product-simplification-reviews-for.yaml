@@ -12,7 +12,9 @@ query:
   where: >-
     review.payload.review_kind == "simplification-product-definition"
     && review.payload.outcome == "fail"
+    && review.payload.simplification.target == subject.identity.revision_id
     && state(review, "validity") == "valid"
+    && exists("valid-product-simplification-reviews@1", {review: review})
     && exists("matching-failing-review-for@1",
       {subject: candidate, review: review})
   distinct: true

@@ -17,11 +17,16 @@ query:
       {review: review, candidate: candidate})
     && (
       (review.payload.outcome == "pass"
+        && !present(review.payload.simplification)
         && none("product-simplification-blockers-for-review@1",
           {review: review}))
       || (review.payload.outcome == "fail"
-        && exists("product-simplification-blockers-for-review@1",
-          {review: review}))
+        && present(review.payload.simplification)
+        && count("product-simplification-blockers-for-review@1",
+          {review: review}) == 1
+        && every("product-simplification-blockers-for-review@1",
+          {review: review}, blocker =>
+            blocker.identity.revision_id == review.payload.simplification.target))
     )
   distinct: true
   order_by: [identity.revision_id]

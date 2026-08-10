@@ -11,6 +11,8 @@ query:
   where: >-
     review.payload.review_kind == "simplification-product-definition"
     && review.payload.outcome == "fail"
+    && review.payload.simplification.target == subject.identity.revision_id
     && state(review, "validity") == "valid"
+    && exists("valid-product-simplification-reviews@1", {review: review})
   distinct: true
   order_by: [identity.revision_id]

@@ -588,6 +588,10 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.candidate.datum.payload.definition_members = [
       member.datum.revision_id,
     ];
+    fixture.candidateContext.datum.payload.definition_members = [
+      fixture.candidate.datum.revision_id,
+      member.datum.revision_id,
+    ];
     fixture.signoff.datum.payload.gate_outcome = "reject";
     fixture.signoff.datum.payload.decision = "Reject and revise the implicated requirement.";
     fixture.signoff.datum.payload.gate_rejection = {
@@ -691,6 +695,10 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.candidate.datum.payload.definition_members = [
       current.datum.revision_id,
     ];
+    fixture.candidateContext.datum.payload.definition_members = [
+      fixture.candidate.datum.revision_id,
+      current.datum.revision_id,
+    ];
     fixture.signoff.datum.payload.gate_outcome = "reject";
     fixture.signoff.datum.payload.decision =
       "Reject the corrected requirement after its autonomous budget is exhausted.";
@@ -787,14 +795,20 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.candidate.datum.payload.definition_members = foundation.map(
       (subject) => subject.datum.revision_id,
     );
+    fixture.candidateContext.datum.payload.definition_members = [
+      fixture.candidate.datum.revision_id,
+      ...foundation.map((subject) => subject.datum.revision_id),
+    ];
     fixture.candidateReview.datum.payload.outcome = "fail";
-    fixture.candidateReview.datum.payload.findings = [{
-      id: "F-001",
-      target: requirement.datum.revision_id,
-      relationship: "primary",
-      severity: "blocking",
-      summary: "The commitment retains unnecessary internal scope.",
-    }];
+    delete fixture.candidateReview.datum.payload.findings;
+    fixture.candidateReview.datum.payload.simplification = {
+      target: fixture.candidate.datum.revision_id,
+      findings: [{
+        id: "F-001",
+        severity: "blocking",
+        summary: "The commitment retains unnecessary internal scope.",
+      }],
+    };
     fixture.candidateReview.datum.links.push({
       type: "blocks",
       target: requirement.datum.revision_id,
@@ -816,18 +830,72 @@ describe("bootstrap Scenario participation Policies", () => {
       },
     ));
 
-    const evaluation = evaluateLifecycle(processPackage, {
+    const records = [
+      fixture.candidate,
+      fixture.candidateContext,
+      fixture.candidateReview,
+      ...foundation,
+      ...memberReviews,
+    ];
+    const hasRequirementCorrection = (evaluation: ReturnType<typeof evaluateLifecycle>) =>
+      evaluation.obligations.some((item) =>
+        item.obligation === "foundation-review-correction-required" &&
+        item.subject === requirement.datum.revision_id
+      );
+    const evaluate = () => evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [
-        fixture.candidate,
-        fixture.candidateContext,
-        fixture.candidateReview,
-        ...foundation,
-        ...memberReviews,
-      ],
+      records,
       dependencyComparisons: [],
     });
+
+    expect(hasRequirementCorrection(evaluate())).toBe(false);
+
+    (fixture.candidateReview.datum.payload.simplification as Record<string, unknown>)
+      .target = requirement.datum.revision_id;
+    fixture.candidateReview.datum.links = fixture.candidateReview.datum.links.filter(
+      (link) => link.type !== "blocks",
+    );
+    expect(hasRequirementCorrection(evaluate())).toBe(false);
+
+    const outside = lifecycleDatum("MAP", "MAP-7K3M9Q2D8F", {
+      title: "Unrelated frontier",
+      purpose: "Remain outside the exact intent candidate.",
+      frontier: ["Unrelated work"],
+    });
+    records.push(outside);
+    (fixture.candidateReview.datum.payload.simplification as Record<string, unknown>)
+      .target = outside.datum.revision_id;
+    fixture.candidateReview.datum.links.push({
+      type: "blocks",
+      target: outside.datum.revision_id,
+    });
+    expect(evaluate().obligations.some((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === outside.datum.revision_id
+    )).toBe(false);
+
+    fixture.candidateReview.datum.payload.outcome = "pass";
+    delete fixture.candidateReview.datum.payload.simplification;
+    expect(evaluate().phase?.gate.evaluations[0]?.complete).toBe(false);
+
+    fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.simplification = {
+      target: requirement.datum.revision_id,
+      findings: [{
+        id: "F-001",
+        severity: "blocking",
+        summary: "The commitment retains unnecessary internal scope.",
+      }],
+    };
+    fixture.candidateReview.datum.links = fixture.candidateReview.datum.links.filter(
+      (link) => link.type !== "blocks",
+    );
+    fixture.candidateReview.datum.links.push({
+      type: "blocks",
+      target: requirement.datum.revision_id,
+    });
+    const evaluation = evaluate();
 
     expect(evaluation.obligations.find((item) =>
       item.obligation === "foundation-review-correction-required" &&
@@ -889,13 +957,14 @@ describe("bootstrap Scenario participation Policies", () => {
         title: `Failed simplification of ${subject.datum.revision_id}`,
         review_kind: "simplification-product-definition",
         rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [{
-          id: "F-001",
+        simplification: {
           target: subject.datum.revision_id,
-          relationship: "primary",
-          severity: "blocking",
-          summary: "The exact candidate remains unnecessarily broad.",
-        }],
+          findings: [{
+            id: "F-001",
+            severity: "blocking",
+            summary: "The exact candidate remains unnecessarily broad.",
+          }],
+        },
         outcome: "fail",
       }, {
         frozen: true,
@@ -1152,6 +1221,10 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.candidate.datum.payload.definition_members = foundation.map(
       (member) => member.datum.revision_id,
     );
+    fixture.candidateContext.datum.payload.definition_members = [
+      fixture.candidate.datum.revision_id,
+      ...foundation.map((member) => member.datum.revision_id),
+    ];
     const reviewIds = [
       "REV-4K3M9Q2D8H",
       "REV-4K3M9Q2D8J",
@@ -1220,6 +1293,11 @@ describe("bootstrap Scenario participation Policies", () => {
       priority: "must",
     });
     fixture.candidate.datum.payload.definition_members = [
+      firstMember.datum.revision_id,
+      secondMember.datum.revision_id,
+    ];
+    fixture.candidateContext.datum.payload.definition_members = [
+      fixture.candidate.datum.revision_id,
       firstMember.datum.revision_id,
       secondMember.datum.revision_id,
     ];

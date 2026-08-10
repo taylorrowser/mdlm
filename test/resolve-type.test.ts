@@ -121,6 +121,52 @@ describe("resolveType", () => {
     })).toBe(true);
   });
 
+  it("binds Phase 0 simplification failure to one exact structured target", async () => {
+    const loaded = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+
+    const result = resolveType(loaded.package, "REV");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
+      result.type.payloadSchema,
+    );
+    const review = {
+      title: "Product simplification",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      outcome: "pass",
+    };
+
+    expect(validate(review)).toBe(true);
+    expect(validate({
+      ...review,
+      simplification: {
+        target: "STK-7K3M9Q2D8F-r00001",
+        findings: [{
+          id: "F-001",
+          severity: "blocking",
+          summary: "Unnecessary scope remains.",
+        }],
+      },
+    })).toBe(false);
+    expect(validate({ ...review, outcome: "fail" })).toBe(false);
+    expect(validate({
+      ...review,
+      outcome: "fail",
+      simplification: {
+        target: "STK-7K3M9Q2D8F-r00001",
+        findings: [{
+          id: "F-001",
+          severity: "blocking",
+          summary: "Unnecessary scope remains.",
+        }],
+      },
+    })).toBe(true);
+  });
+
   it("preserves package-authored conditional payload constraints", async () => {
     const loaded = await loadProcessPackage(
       path.join(process.cwd(), ".lifecycle/process"),

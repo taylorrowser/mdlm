@@ -27,12 +27,14 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.52.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(210);
+    expect(Object.keys(result.package.selectors)).toHaveLength(212);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
       "candidate-correction-decisions-for": expect.any(Object),
       "candidate-definition-members": expect.any(Object),
+      "phase-0-candidate-review-context-members": expect.any(Object),
+      "review-context-contains-member": expect.any(Object),
       "intent-candidates-matching-subject": expect.any(Object),
       "invalid-product-simplification-blockers-for-review": expect.any(Object),
       "matching-product-simplification-review": expect.any(Object),
@@ -417,7 +419,10 @@ describe("loadProcessPackage", () => {
     const obligation = await fs.readFile(obligationPath, "utf8");
     await fs.writeFile(
       obligationPath,
-      obligation.replace("  inputs:\n    subject: subject", "  inputs: {}"),
+      obligation.replace(
+        "  inputs:\n    subject: subject\n    context_members: 'select(\"phase-0-candidate-review-context-members@1\", {subject: subject})'",
+        "  inputs: {}",
+      ),
     );
 
     const result = await loadProcessPackage(processRoot);
@@ -556,8 +561,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "    cardinality: one\n    identity: revision",
-        "    cardinality: zero-or-one\n    identity: revision",
+        "  - {name: review_context, types: [BSL], cardinality: one, identity: revision}",
+        "  - {name: review_context, types: [BSL], cardinality: zero-or-one, identity: revision}",
       ),
     );
 

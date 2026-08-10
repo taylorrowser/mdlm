@@ -133,6 +133,7 @@ describe("failed STK Review correction through the public operator process", () 
     const publishContext = (packet: Packet) => {
       expect(packet.scenario.reference).toBe("create-review-context@1");
       const subject = exactInput(packet, "subject").values[0];
+      const contextMembers = exactInput(packet, "context_members").values;
       return publish(packet, [{
         localId: `context-${subject.identity.revision_id}`,
         name: "context",
@@ -145,7 +146,10 @@ describe("failed STK Review correction through the public operator process", () 
             role: "review-context",
             scope: subject.identity.revision_id,
             group: "DEFAULT",
-            definition_members: [subject.identity.revision_id],
+            definition_members: [
+              subject.identity.revision_id,
+              ...contextMembers.map((member: any) => member.identity.revision_id),
+            ],
             evidence: [],
           },
           links: [],
@@ -179,7 +183,7 @@ describe("failed STK Review correction through the public operator process", () 
             summary: "The verification intent omits the unsupported route.",
           }]
         : [];
-      return publish(packet, [{
+      const reviewOutput: ProposalOutput = {
         localId: `review-${subject.identity.revision_id}`,
         name: "review",
         invocation: 0,
@@ -191,7 +195,20 @@ describe("failed STK Review correction through the public operator process", () 
               ? "simplification-product-definition"
               : "contextual",
             rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-            findings,
+            ...(productSimplification
+              ? outcome === "fail"
+                ? {
+                    simplification: {
+                      target: subject.identity.revision_id,
+                      findings: findings.map(({ id, severity, summary }) => ({
+                        id,
+                        severity,
+                        summary,
+                      })),
+                    },
+                  }
+                : {}
+              : { findings }),
             ...(outcome === "fail" && correctionAuthority
               ? { correction_authority: correctionAuthority }
               : {}),
@@ -206,7 +223,30 @@ describe("failed STK Review correction through the public operator process", () 
           ],
           body: `The independent Review ${outcome === "pass" ? "passes" : "fails"}.\n`,
         },
-      }], ["independent-reviewer"]);
+      };
+      if (productSimplification && outcome === "pass") {
+        const invalidPass = structuredClone(reviewOutput);
+        invalidPass.lifecycleDatum.payload.simplification = {
+          target: subject.identity.revision_id,
+          findings: [{
+            id: "F-001",
+            severity: "blocking",
+            summary: "A passing judgment cannot retain a blocking finding.",
+          }],
+        };
+        invalidPass.lifecycleDatum.links.push({
+          type: "blocks",
+          target: subject.identity.revision_id,
+        });
+        const rejected = respond(packet, [invalidPass], ["independent-reviewer"]);
+        expect(rejected.status).toBe(1);
+        expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
+          expect.arrayContaining([expect.objectContaining({
+            code: "scenario-completion-failed",
+          })]),
+        );
+      }
+      return publish(packet, [reviewOutput], ["independent-reviewer"]);
     };
 
     let packet = nextPacket();
@@ -512,8 +552,20 @@ describe("failed STK Review correction through the public operator process", () 
         };
 
         packet = nextPacket();
+        const candidateContextMembers = exactInput(packet, "context_members").values;
+        expect(candidateContextMembers.map((member: any) =>
+          member.identity.revision_id
+        )).toEqual(candidateMembers);
+        expect(candidateContextMembers.map((member: any) => member.identity.type))
+          .toEqual(["MAP", "PSP", "STK"]);
+        expect(candidateContextMembers.every((member: any) =>
+          typeof member.data.body === "string" && member.data.body.length > 0
+        )).toBe(true);
         publishContext(packet);
         packet = nextPacket();
+        expect(exactInput(packet, "context_members").values.map(
+          (member: any) => member.identity.revision_id,
+        )).toEqual(candidateMembers);
         publishReview(packet, "pass");
 
         const rejectionOutcome = nextOutcome();
