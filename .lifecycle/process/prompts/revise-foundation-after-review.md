@@ -1,6 +1,6 @@
 ---
 id: revise-foundation-after-review
-version: 3
+version: 2
 scenario: revise-foundation-after-review
 ---
 
@@ -12,8 +12,7 @@ failed Review, including all blocking Review Findings and each frozen Review
 Context.
 
 Publish one replacement Revision in the same Stable Datum lineage and lifecycle
-type while the package-derived two-cycle autonomous budget remains. Link
-`corrects-review` to every supplied failed Review. Correct the complete
+type. Link `corrects-review` to every supplied failed Review. Correct the complete
 blocking finding set, preserve unaffected claims, and do not delete or rewrite the
 failed Revision, Review, or Review Context. Do not broaden unrelated scope.
 

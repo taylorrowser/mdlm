@@ -27,13 +27,11 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.50.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(197);
+    expect(Object.keys(result.package.selectors)).toHaveLength(186);
     expect(result.package.selectors).toEqual(expect.objectContaining({
-      "initial-foundation-review-failures": expect.any(Object),
-      "first-replacement-review-failures": expect.any(Object),
-      "second-replacement-review-failures": expect.any(Object),
-      "exhausted-foundation-correction-lineages": expect.any(Object),
-      "stakeholder-intent-review-failures": expect.any(Object),
+      "cited-failing-reviews-by-correction": expect.any(Object),
+      "foundation-correction-history": expect.any(Object),
+      "foundation-review-failures-at-stage": expect.any(Object),
     }));
     expect(Object.keys(result.package.policies)).toHaveLength(9);
     expect(Object.keys(result.package.obligations)).toHaveLength(45);

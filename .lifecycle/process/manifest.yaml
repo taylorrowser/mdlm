@@ -87,19 +87,8 @@ catalog:
     - complete-superseding-intent-candidates-for
     - failed-phase-0-foundation-revisions
     - cited-failing-reviews-by-correction
-    - correction-revisions-through
-    - revision-lineage-through
-    - matching-review-for-subject
-    - reviewed-lineage-revisions-for-review
-    - failed-reviews-in-lineage-for
-    - stakeholder-owned-failing-reviews-for
-    - initial-foundation-review-failures
-    - first-replacement-review-failures
-    - second-replacement-review-failures
-    - exhausted-foundation-correction-lineages
-    - stakeholder-intent-review-failures
-    - autonomously-correctable-foundation-review-failures
-    - foundation-review-escalations
+    - foundation-correction-history
+    - foundation-review-failures-at-stage
     - failed-intent-candidates
     - failed-gate-signoff-decisions
     - gate-candidates-for-decision
@@ -355,7 +344,7 @@ assets:
     - prompts/create-phase-0-intent-candidate.md@1
     - prompts/record-gate-signoff.md@2
     - prompts/record-consequential-decision.md@1
-    - prompts/revise-foundation-after-review.md@3
+    - prompts/revise-foundation-after-review.md@2
     - prompts/escalate-foundation-review-correction.md@1
     - prompts/revise-intent-candidate-after-review.md@1
     - prompts/revise-gate-signoff-after-review.md@1

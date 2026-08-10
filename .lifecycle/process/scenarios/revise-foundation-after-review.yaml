@@ -8,23 +8,22 @@ inputs:
     types: [MAP, PSP, STK]
     cardinality: one
     identity: revision
-    conditions: >-
-      exists("failing-reviews-for@1", {subject: subject})
-      && none("stakeholder-owned-failing-reviews-for@1", {subject: subject})
-      && count("correction-revisions-through@1", {subject: subject}) < 2
-      && none("newer-revisions-for@1", {subject: subject})
+  - name: prior_failed_reviews
+    types: [REV]
+    cardinality: zero-or-more
+    identity: revision
   - name: failed_reviews
     types: [REV]
     cardinality: one-or-more
     identity: revision
-    conditions: 'exists("matching-failing-review-for@1", {subject: subject, review: failed_reviews})'
 outputs:
   - name: replacement
     types: [MAP, PSP, STK]
     cardinality: one
     required_links:
+      - {link: corrects-review, target: {input: prior_failed_reviews}}
       - {link: corrects-review, target: {input: failed_reviews}}
-prompt_ref: prompts/revise-foundation-after-review.md@3
+prompt_ref: prompts/revise-foundation-after-review.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

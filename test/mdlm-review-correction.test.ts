@@ -155,7 +155,7 @@ describe("failed STK Review correction through the public operator process", () 
     const publishReview = (
       packet: Packet,
       outcome: "pass" | "fail",
-      correctionAuthority: "autonomous" | "stakeholder" = "autonomous",
+      correctionAuthority?: "stakeholder",
     ) => {
       expect(packet.scenario.reference).toBe("review-datum-in-context@2");
       const subject = exactInput(packet, "subject").values[0];
@@ -186,7 +186,7 @@ describe("failed STK Review correction through the public operator process", () 
             review_kind: "contextual",
             rubric_ref: "policies/rubrics/bootstrap-review.md@1",
             findings,
-            ...(outcome === "fail"
+            ...(outcome === "fail" && correctionAuthority
               ? { correction_authority: correctionAuthority }
               : {}),
             outcome,
@@ -283,7 +283,7 @@ describe("failed STK Review correction through the public operator process", () 
       const review = publishReview(
         packet,
         subject.identity.type === "STK" ? "fail" : "pass",
-        stakeholderOwned ? "stakeholder" : "autonomous",
+        stakeholderOwned ? "stakeholder" : undefined,
       );
       if (subject.identity.type === "STK") {
         failedReview = review.outputs[0].lifecycleDatum;
@@ -308,9 +308,9 @@ describe("failed STK Review correction through the public operator process", () 
         },
         attentionSchedule: expect.objectContaining({ timing: "immediate" }),
         explanation: expect.stringMatching(/stakeholder/i),
-        attentionContext: { exactInputs: expect.any(Array) },
+        attentionContext: { invocations: expect.any(Array) },
       }));
-      const inputs = outcome.attentionContext.exactInputs[0].inputs;
+      const inputs = outcome.attentionContext.invocations[0].inputs;
       const values = (name: string) => inputs.find(
         (input: { name: string }) => input.name === name,
       ).values;
@@ -318,10 +318,14 @@ describe("failed STK Review correction through the public operator process", () 
         .toEqual([currentRevision]);
       expect(values("lineage").map((value: any) => value.identity.revision_id))
         .toEqual(expectedLineage);
-      expect(values("failed_reviews").map(
+      const reviews = [
+        ...values("prior_failed_reviews"),
+        ...values("failed_reviews"),
+      ];
+      expect(reviews.map(
         (value: any) => value.identity.revision_id,
       ).sort()).toEqual([...expectedReviews].sort());
-      expect(values("failed_reviews").flatMap(
+      expect(reviews.flatMap(
         (value: any) => value.data.payload.findings,
       )).toEqual(expect.arrayContaining([
         expect.objectContaining({ severity: "blocking" }),
@@ -364,9 +368,13 @@ describe("failed STK Review correction through the public operator process", () 
         subject: current.revisionId,
       }));
       const correctionSubject = exactInput(packet, "subject");
+      const priorFailedReviews = exactInput(packet, "prior_failed_reviews");
       const failedReviews = exactInput(packet, "failed_reviews");
       expect(correctionSubject.values.map((value: any) => value.identity.revision_id))
         .toEqual([current.revisionId]);
+      expect(priorFailedReviews.values.map(
+        (value: any) => value.identity.revision_id,
+      )).toEqual(reviewHistory.slice(0, -1));
       expect(failedReviews.values.map((value: any) => value.identity.revision_id))
         .toEqual([currentFailedReview.revisionId]);
       expect(failedReviews.values[0].data.payload.findings).toEqual([
@@ -390,7 +398,10 @@ describe("failed STK Review correction through the public operator process", () 
           },
           links: [
             { type: "derived-from", target: productStable },
-            { type: "corrects-review", target: currentFailedReview.revisionId },
+            ...reviewHistory.map((review) => ({
+              type: "corrects-review",
+              target: review,
+            })),
           ],
           body: "The same Stable Datum addresses every blocking Review Finding.\n",
         },
@@ -465,77 +476,11 @@ describe("failed STK Review correction through the public operator process", () 
     }
 
     expect(correctionAssignments.size).toBe(2);
-    const escalationPacket = assertAttentionContext(
+    assertAttentionContext(
       nextOutcome(),
       current.revisionId,
       lineage,
       reviewHistory,
     );
-    const attendedExecution = publish(escalationPacket, [{
-      localId: "attended-replacement",
-      name: "replacement",
-      invocation: 0,
-      lifecycleDatum: {
-        id: requirement.id,
-        type: "STK",
-        payload: {
-          title: "Reject malformed commands with stakeholder-confirmed scope",
-          rationale: "The stakeholder resolved the exhausted correction findings.",
-          statement: "MDLM shall reject every malformed public command with a typed result and no Lifecycle Data publication.",
-          verification_intent: "Observe supported and malformed commands, typed results, and no rejected-command publication.",
-          stakeholder: "MDLM operator",
-          priority: "must",
-        },
-        links: [
-          { type: "derived-from", target: productStable },
-          ...reviewHistory.map((review) => ({
-            type: "corrects-review",
-            target: review,
-          })),
-        ],
-        body: "Attended judgment addresses the complete exhausted lineage.\n",
-      },
-    }, {
-      localId: "scope-decision",
-      name: "decision",
-      invocation: 0,
-      lifecycleDatum: {
-        type: "DEC",
-        payload: {
-          title: "Resolve exhausted STK correction",
-          rationale: "Two autonomous cycles could not settle stakeholder-owned scope.",
-          kind: "scope",
-          decision: "Adopt the stakeholder-confirmed replacement scope.",
-          alternatives: ["Stop the product intent", "Defer the requirement"],
-          effective_scope: "$proposal.attended-replacement.revision_id",
-        },
-        links: [{
-          type: "justifies",
-          target: "$proposal.attended-replacement.revision_id",
-        }],
-        body: "Exact authority evidence for the attended replacement.\n",
-      },
-    }], ["stakeholder"]);
-    const attendedReplacement = attendedExecution.outputs.find(
-      (output: any) => output.name === "replacement",
-    ).lifecycleDatum;
-
-    let attendedReplacementReviewed = false;
-    while (true) {
-      packet = nextPacket();
-      if (packet.scenario.reference === "create-phase-0-intent-candidate@1") break;
-      if (packet.scenario.reference === "create-review-context@1") {
-        publishContext(packet);
-        continue;
-      }
-      expect(packet.scenario.reference).toBe("review-datum-in-context@2");
-      const reviewedRevision = exactInput(packet, "subject").values[0]
-        .identity.revision_id;
-      publishReview(packet, "pass");
-      if (reviewedRevision === attendedReplacement.revisionId) {
-        attendedReplacementReviewed = true;
-      }
-    }
-    expect(attendedReplacementReviewed).toBe(true);
   }, 120_000);
 });

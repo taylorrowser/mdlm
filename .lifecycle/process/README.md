@@ -219,18 +219,15 @@ repository. MAP, PSP, and STK are substantive review subjects: their ready Revie
 Context work sorts ahead of blocked Review work. Every context scopes one exact
 primary subject Revision while its definition may include the coherent parent and
 sibling slice; supporting membership does not make another member the primary
-Review subject. Each exact subject receives its own REV. Package Selectors count only immutable,
-`corrects-review`-backed replacement evidence: the initial autonomous failure and
-the first failed replacement each derive one fresh serial correction Assignment,
-followed by fresh exact context and independent Review. A passing Review at either
-cycle resumes blocked work through reevaluation. Failure of the second replacement
-derives immediate attended escalation with the complete exact lineage, Reviews,
-structured Review Findings, and exhaustion reason. A failed REV whose
-`correction_authority` is `stakeholder` escalates immediately without consuming the
-two-cycle autonomous budget. The versioned requirement template shares
-`corrects-review` and the distinct `changed-under` contract across STK and SYS
-without kernel type-family semantics. Assignment malformed-response attempts remain
-ignored operational transport state and never enter lifecycle budget Selectors.
+Review subject. Each exact subject receives its own REV. One parameterized package
+Selector classifies the initial failure, both replacement failures, exhausted
+lineage, and stakeholder-owned intent from immutable Review and `corrects-review`
+evidence. Two fresh serial correction-and-Review cycles are autonomous; continued
+failure or `correction_authority: stakeholder` derives immediate attended
+escalation with the exact lineage, Reviews, findings, and reason. Assignment
+malformed-response attempts are not lifecycle evidence and never enter this budget.
+The versioned requirement template shares `corrects-review` and the distinct
+`changed-under` contract across STK and SYS without kernel type-family semantics.
 Correction of a DEC still requires stakeholder authority. Candidate and Gate
 Sign-off review remain separate.
 An unreviewed exact gate DEC blocks a duplicate sign-off until its own context and

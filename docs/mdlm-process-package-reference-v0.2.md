@@ -915,9 +915,10 @@ Lifecycle Data. A failed current STK foundation Review exposes one subject-bound
 Assignment with every current failed REV and its structured Review Findings. The
 same-lineage replacement must cite those exact Reviews through `corrects-review`;
 normal reevaluation then derives a fresh Review Context and independent Review.
-Package Selectors distinguish the initial failure, first failed replacement, second
-failed replacement, and exhausted lineage from immutable Revisions, Reviews, and
-causal links. Two autonomous replacement-and-Review cycles are permitted. A second
+One parameterized package Selector distinguishes the initial failure, first failed
+replacement, second failed replacement, exhausted lineage, and stakeholder-owned
+intent from immutable Revisions, Reviews, and causal links. Two autonomous
+replacement-and-Review cycles are permitted. A second
 replacement failure projects immediate attended escalation with exact history;
 `correction_authority: stakeholder` does so immediately without consuming that
 budget. Assignment malformed-response attempts are ignored operational state and

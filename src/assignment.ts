@@ -32,6 +32,7 @@ import { resolveType } from "./index.js";
 import {
   dryRunExplicitScenario,
   dryRunResolverScenario,
+  type ScenarioBoundEntity,
   type ScenarioDryRun,
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
@@ -113,7 +114,9 @@ interface OperatorOutcomeBase {
 }
 
 export interface AttentionContext {
-  exactInputs: ScenarioDryRunInvocation[];
+  invocations: {
+    inputs: { name: string; values: ScenarioBoundEntity[] }[];
+  }[];
 }
 
 export type OperatorOutcome =
@@ -912,6 +915,16 @@ function invalidLease(repositoryRoot: string): AssignmentResult<never> {
   );
 }
 
+function attendedInputs(
+  invocations: ScenarioDryRunInvocation[],
+): AttentionContext {
+  return {
+    invocations: invocations.map((invocation) => ({
+      inputs: invocation.inputs.map(({ name, values }) => ({ name, values })),
+    })),
+  };
+}
+
 function leasedOutcome(
   exact: ExactAssignment,
   assignmentId: string,
@@ -929,7 +942,7 @@ function leasedOutcome(
         authorityRequirement: exact.classification.authorityRequirement,
         attentionSchedule: exact.classification.attentionSchedule,
         explanation: exact.classification.explanation,
-        attentionContext: { exactInputs: exact.dryRun.invocations },
+        attentionContext: attendedInputs(exact.dryRun.invocations),
         ...(exact.classification.checkpointConversation
           ? {
               checkpointConversation:
@@ -1097,27 +1110,26 @@ function statusOutcome(
     classification.kind === "lifecycle-complete"
   ) return terminalOutcomeProjection(classification);
   const exact = state.assignment;
-  if (!exact) {
-    throw new Error(
-      `Runnable Operator Outcome '${classification.kind}' is missing its exact prepared Assignment`,
-    );
-  }
-  const assignment = activeLease && sameAssignment(activeLease, exact)
+  const assignment = exact && activeLease && sameAssignment(activeLease, exact)
     ? { allocation: "active" as const, id: activeLease.id }
     : { allocation: "not-allocated" as const };
-  return classification.kind === "attention-required"
-    ? {
-        outcome: "attention-required",
-        assignment,
-        authorityRequirement: classification.authorityRequirement,
-        attentionSchedule: classification.attentionSchedule,
-        explanation: classification.explanation,
-        attentionContext: { exactInputs: exact.dryRun.invocations },
-        ...(classification.checkpointConversation
-          ? { checkpointConversation: classification.checkpointConversation }
-          : {}),
-      }
-    : { outcome: "assignment", assignment };
+  if (classification.kind !== "attention-required") {
+    return { outcome: "assignment", assignment };
+  }
+  if (!exact) {
+    throw new Error("Attention Required is missing its exact prepared Assignment");
+  }
+  return {
+    outcome: "attention-required",
+    assignment,
+    authorityRequirement: classification.authorityRequirement,
+    attentionSchedule: classification.attentionSchedule,
+    explanation: classification.explanation,
+    attentionContext: attendedInputs(exact.dryRun.invocations),
+    ...(classification.checkpointConversation
+      ? { checkpointConversation: classification.checkpointConversation }
+      : {}),
+  };
 }
 
 function selectedProfile(
