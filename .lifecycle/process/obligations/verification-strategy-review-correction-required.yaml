@@ -17,7 +17,7 @@ status_rules:
     priority: 200
     when: >-
       count("review-correction-history-for@1",
-        {subject: strategy, view: "corrections"}) >= 2
+        {subject: strategy, view: "autonomous-corrections"}) >= 2
     reason: Both autonomous strategy replacement-and-Review cycles failed; the same exact correction interface now requires stakeholder attention.
   - status: ready
     priority: 100

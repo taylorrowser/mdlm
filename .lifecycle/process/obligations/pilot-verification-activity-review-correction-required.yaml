@@ -17,7 +17,7 @@ status_rules:
     priority: 200
     when: >-
       count("review-correction-history-for@1",
-        {subject: activity, view: "corrections"}) >= 2
+        {subject: activity, view: "autonomous-corrections"}) >= 2
     reason: Both autonomous pilot activity replacement-and-Review cycles failed; the same exact correction interface now requires stakeholder attention.
   - status: ready
     priority: 100

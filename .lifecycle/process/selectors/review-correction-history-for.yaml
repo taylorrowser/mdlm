@@ -16,7 +16,9 @@ query:
       || ((view == "corrections" || view == "autonomous-corrections")
         && exists("cited-failing-reviews-by-correction@1", {replacement: revision})
         && (view != "autonomous-corrections"
-          || none("candidate-correction-decisions-for@1", {replacement: revision})))
+          || (none("candidate-correction-decisions-for@1", {replacement: revision})
+            && none("phase-1-assurance-correction-decisions-for@1",
+              {replacement: revision}))))
     )
   distinct: true
   order_by: [identity.revision]
