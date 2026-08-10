@@ -70,10 +70,56 @@ describe("resolveType", () => {
           expect.objectContaining({ types: ["PSP"], identity: "stable" }),
         ],
       }),
+      expect.objectContaining({
+        id: "corrects-gate-rejection",
+        targets: [
+          expect.objectContaining({ types: ["DEC"], identity: "revision" }),
+        ],
+      }),
     ]);
     expect(result.type.envelopeSchema.$id).toBe(
       "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
     );
+  });
+
+  it("requires exact findings for a gate rejection without changing approval", async () => {
+    const loaded = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+
+    const result = resolveType(loaded.package, "DEC");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
+      result.type.payloadSchema,
+    );
+    const decision = {
+      title: "Gate decision",
+      rationale: "Bind one exact candidate judgment.",
+      kind: "gate-signoff",
+      decision: "Return the candidate for correction.",
+      alternatives: ["Approve"],
+      effective_scope: "BSL-7K3M9Q2D8F-r00001",
+      gate_outcome: "reject",
+    };
+
+    expect(validate(decision)).toBe(false);
+    expect(validate({
+      ...decision,
+      gate_rejection: {
+        findings: [{
+          id: "G-001",
+          target: "STK-7K3M9Q2D8F-r00001",
+          summary: "The exact draft member remains ambiguous.",
+        }],
+      },
+    })).toBe(true);
+    expect(validate({
+      ...decision,
+      gate_outcome: "approve",
+      decision: "Approve the exact candidate.",
+    })).toBe(true);
   });
 
   it("preserves package-authored conditional payload constraints", async () => {

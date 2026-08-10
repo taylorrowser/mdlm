@@ -16,6 +16,7 @@ query:
       || (
         view == "corrections"
         && exists("cited-failing-reviews-by-correction@1", {replacement: revision})
+        && none("cited-gate-rejections-by-correction@1", {replacement: revision})
       )
     )
   distinct: true

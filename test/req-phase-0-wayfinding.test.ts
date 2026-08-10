@@ -34,21 +34,21 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(catalogs.types).toEqual([
       "ART@1",
       "ASP@1",
-      "BSL@2",
+      "BSL@3",
       "CHG@1",
-      "DEC@3",
+      "DEC@4",
       "DWP@1",
       "ENV@1",
       "ICSP@1",
-      "MAP@2",
+      "MAP@3",
       "PAS@1",
       "PRB@1",
-      "PSP@3",
+      "PSP@4",
       "QST@4",
       "RES@1",
       "REV@2",
       "RUN@1",
-      "STK@3",
+      "STK@4",
       "SYS@3",
       "VAI@1",
       "VER@1",
@@ -57,7 +57,7 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
       "build-exploratory-prototype@1",
       "chart-wayfinding-map@1",
-      "record-gate-signoff@2",
+      "record-gate-signoff@3",
       "review-datum-in-context@2",
     ]));
   });
@@ -74,7 +74,7 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(initialLooseEnds.status, initialLooseEnds.stderr).toBe(0);
     expect(JSON.parse(initialLooseEnds.stdout).looseEnds.items[0]).toEqual(expect.objectContaining({
       obligation: "initial-wayfinding-map-required",
-      subject: "phase-0-wayfinding@2",
+      subject: "phase-0-wayfinding@3",
       status: "ready",
       dispatchable: true,
       actionableResolver: "establish-initial-wayfinding-map@1",
@@ -257,7 +257,7 @@ describe("req Phase 0 wayfinding slice", () => {
       subject: product.revisionId,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@3",
+      actionableResolver: "revise-foundation-after-review@4",
     }));
     expect(JSON.parse(looseEnds.stdout).looseEnds.items.some((item: any) =>
       item.subject === product.revisionId &&
@@ -297,7 +297,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "revise-foundation-after-review@3",
+      "revise-foundation-after-review@4",
       "--obligation",
       correction.id,
       "--adapter",
@@ -600,7 +600,7 @@ describe("req Phase 0 wayfinding slice", () => {
 
     const initialMapWork = looseEnd(
       "initial-wayfinding-map-required@1",
-      "phase-0-wayfinding@2",
+      "phase-0-wayfinding@3",
     );
     expect(initialMapWork).toEqual(expect.objectContaining({
       status: "ready",
@@ -641,7 +641,7 @@ describe("req Phase 0 wayfinding slice", () => {
 
     const productWork = looseEnd(
       "product-specification-required@1",
-      "phase-0-wayfinding@2",
+      "phase-0-wayfinding@3",
     );
     expect(productWork).toEqual(expect.objectContaining({
       status: "ready",
@@ -909,8 +909,8 @@ describe("req Phase 0 wayfinding slice", () => {
     }
 
     const candidateWork = looseEnd(
-      "intent-candidate-required@1",
-      "phase-0-wayfinding@2",
+      "intent-candidate-required@2",
+      "phase-0-wayfinding@3",
     );
     expect(candidateWork).toEqual(expect.objectContaining({
       status: "ready",
@@ -1006,11 +1006,11 @@ describe("req Phase 0 wayfinding slice", () => {
     );
     await review(candidate.revisionId, candidateContext.revisionId);
 
-    const gate = looseEnd("candidate-gate-signoff@2", candidate.revisionId);
+    const gate = looseEnd("candidate-gate-signoff@3", candidate.revisionId);
     expect(gate).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "record-gate-signoff@2",
+      actionableResolver: "record-gate-signoff@3",
     }));
     const gateAdapter = await adapter({
       outputs: [{
@@ -1037,7 +1037,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "record-gate-signoff@2",
+      "record-gate-signoff@3",
       "--obligation",
       gate.id,
       "--adapter",
@@ -1059,7 +1059,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "record-gate-signoff@2",
+      "record-gate-signoff@3",
       "--obligation",
       gate.id,
       "--authorize",
@@ -1110,13 +1110,13 @@ describe("req Phase 0 wayfinding slice", () => {
     ).lifecycleDatum as { revisionId: string };
 
     const awaitingReviewGate = looseEnd(
-      "candidate-gate-signoff@2",
+      "candidate-gate-signoff@3",
       candidate.revisionId,
     );
     expect(awaitingReviewGate).toEqual(expect.objectContaining({
       status: "blocked",
       dispatchable: false,
-      eventualResolver: "record-gate-signoff@2",
+      eventualResolver: "record-gate-signoff@3",
       actionableResolver: "create-review-context@1",
       blockedBy: [expect.stringContaining(`:${signoff.revisionId}:`)],
     }));
@@ -1125,7 +1125,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "record-gate-signoff@2",
+      "record-gate-signoff@3",
       "--obligation",
       gate.id,
       "--adapter",

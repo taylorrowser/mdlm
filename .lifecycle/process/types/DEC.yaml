@@ -1,6 +1,6 @@
 kind: type-definition
 id: DEC
-version: 3
+version: 4
 name: Decision Record
 description: Consequential decision, assumption, waiver, scope outcome, deferral, standing authority delegation, disposition, or exact gate sign-off.
 extends: rationale-bearing@1
@@ -127,6 +127,23 @@ payload_schema:
             retained_items: {type: integer, minimum: 0}
             demonstrated: {type: boolean}
     gate_outcome: {enum: [approve, reject]}
+    gate_rejection:
+      type: object
+      additionalProperties: false
+      required: [findings]
+      properties:
+        findings:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, target, summary]
+            properties:
+              id: {type: string, pattern: '^G-[0-9]{3,}$'}
+              target: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+              summary: {type: string, minLength: 1}
     delegation:
       type: object
       additionalProperties: false
@@ -172,6 +189,16 @@ payload_schema:
           kind: {const: gate-signoff}
     - if:
         properties:
+          gate_outcome: {const: reject}
+        required: [gate_outcome]
+      then: {required: [gate_rejection]}
+    - if: {required: [gate_rejection]}
+      then:
+        properties:
+          kind: {const: gate-signoff}
+          gate_outcome: {const: reject}
+    - if:
+        properties:
           kind: {const: authority-delegation}
         required: [kind]
       then: {required: [delegation]}
@@ -194,6 +221,13 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: justified-by
+  - id: blocks
+    description: Exact candidate or permitted candidate member implicated by this gate rejection.
+    targets:
+      - {kind: datum, types: [MAP, PSP, STK, BSL], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: blocked-by-gate-rejection
   - id: confirms-revision
     description: Exact replacement requirement Revisions confirmed by a change-closure Decision.
     targets:

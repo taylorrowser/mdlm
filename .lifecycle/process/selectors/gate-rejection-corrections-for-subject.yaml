@@ -1,0 +1,18 @@
+kind: selector-definition
+id: gate-rejection-corrections-for-subject
+version: 1
+description: Same-lineage replacements citing every reviewed gate rejection that implicated the exact prior subject.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: subject, emit: entity}
+  as: replacement
+  where: >-
+    replacement.identity.id == subject.identity.id
+    && replacement.identity.revision > subject.identity.revision
+    && count("cited-gate-rejections-by-correction@1",
+      {replacement: replacement})
+      == count("reviewed-gate-rejections-for-subject@1", {subject: subject})
+  distinct: true
+  order_by: [identity.revision]

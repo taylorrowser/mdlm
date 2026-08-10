@@ -59,10 +59,11 @@ describe("failed STK Review correction through the public operator process", () 
 
   it.each([
     { route: "passes after the first replacement", replacementReviews: ["pass"] as const },
+    { route: "returns a rejected replacement candidate to the same gate", replacementReviews: ["pass"] as const, gateRejection: true },
     { route: "passes after the second replacement", replacementReviews: ["fail", "pass"] as const },
     { route: "exhausted lineage requests attention", replacementReviews: ["fail", "fail"] as const },
     { route: "stakeholder intent requests attention immediately", replacementReviews: [] as const, stakeholderOwned: true },
-  ])("$route", async ({ replacementReviews, stakeholderOwned = false }) => {
+  ])("$route", async ({ replacementReviews, stakeholderOwned = false, gateRejection = false }) => {
     const commit = (message: string) => {
       expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
       const committed = git(
@@ -202,7 +203,7 @@ describe("failed STK Review correction through the public operator process", () 
 
     let packet = nextPacket();
     expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@1");
-    publish(packet, [{
+    const mapExecution = publish(packet, [{
       localId: "map",
       name: "map",
       invocation: 0,
@@ -217,6 +218,10 @@ describe("failed STK Review correction through the public operator process", () 
         body: "One bounded decision frontier.\n",
       },
     }]);
+    const map = mapExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
 
     packet = nextPacket();
     publishContext(packet);
@@ -362,9 +367,9 @@ describe("failed STK Review correction through the public operator process", () 
       expect(correctionOutcome.outcome).toBe("assignment");
       packet = prepare(correctionOutcome);
       correctionAssignments.add(packet.assignment.id);
-      expect(packet.scenario.reference).toBe("revise-foundation-after-review@3");
+      expect(packet.scenario.reference).toBe("revise-foundation-after-review@4");
       expect(packet.obligation).toEqual(expect.objectContaining({
-        definition: "foundation-review-correction-required@3",
+        definition: "foundation-review-correction-required@4",
         subject: current.revisionId,
       }));
       const correctionSubject = exactInput(packet, "subject");
@@ -469,6 +474,287 @@ describe("failed STK Review correction through the public operator process", () 
       if (reviewOutcome === "pass") {
         packet = nextPacket();
         expect(packet.scenario.reference).toBe("create-phase-0-intent-candidate@1");
+        if (!gateRejection) return;
+
+        const candidateMembers = exactInput(packet, "definition_members").values
+          .map((value: any) => value.identity.revision_id) as string[];
+        const preservedCandidateEvidence = [reviewHistory[0]!];
+        const candidateExecution = publish(packet, [{
+          localId: "intent-candidate",
+          name: "candidate",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Typed command intent candidate",
+              kind: "intent-level-candidate",
+              role: "candidate",
+              scope: "Phase 0 typed command intent",
+              group: "DEFAULT",
+              definition_members: candidateMembers,
+              evidence: preservedCandidateEvidence,
+            },
+            links: [],
+            body: "The exact reviewed Phase 0 foundation and unaffected evidence.\n",
+          },
+        }]);
+        const candidate = candidateExecution.outputs[0].lifecycleDatum as {
+          id: string;
+          revisionId: string;
+        };
+
+        packet = nextPacket();
+        publishContext(packet);
+        packet = nextPacket();
+        publishReview(packet, "pass");
+
+        const rejectionOutcome = nextOutcome();
+        expect(rejectionOutcome).toEqual(expect.objectContaining({
+          outcome: "attention-required",
+          authorityRequirement: expect.objectContaining({
+            mode: "attended",
+            authority: "stakeholder",
+          }),
+        }));
+        packet = prepare(rejectionOutcome);
+        expect(packet.scenario.reference).toBe("record-gate-signoff@3");
+        const rejectionExecution = publish(packet, [{
+          localId: "gate-rejection",
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Reject ambiguous command intent",
+              rationale: "The exact candidate still leaves malformed command discrimination ambiguous.",
+              kind: "gate-signoff",
+              gate_outcome: "reject",
+              gate_rejection: {
+                findings: [{
+                  id: "G-001",
+                  target: current.revisionId,
+                  summary: "The requirement must name supported and malformed command outcomes.",
+                }],
+              },
+              decision: "Reject this exact candidate and correct the implicated requirement.",
+              alternatives: ["Approve the ambiguous candidate", "Record a separate terminal Decision"],
+              effective_scope: candidate.revisionId,
+            },
+            links: [
+              { type: "justifies", target: candidate.revisionId },
+              { type: "blocks", target: current.revisionId },
+            ],
+            body: "The rejection is correction evidence, not a terminal disposition.\n",
+          },
+        }], ["stakeholder"]);
+        const rejection = rejectionExecution.outputs[0].lifecycleDatum as {
+          revisionId: string;
+        };
+
+        packet = nextPacket();
+        publishContext(packet);
+        packet = nextPacket();
+        publishReview(packet, "pass");
+
+        packet = nextPacket();
+        expect(packet.scenario.reference)
+          .toBe("revise-foundation-after-review@4");
+        expect(packet.obligation).toEqual(expect.objectContaining({
+          definition: "foundation-review-correction-required@4",
+          subject: current.revisionId,
+        }));
+        const priorCorrectionReviews = exactInput(packet, "prior_failed_reviews")
+          .values.map((value: any) => value.identity.revision_id) as string[];
+        expect(exactInput(packet, "gate_rejections").values).toEqual([
+          expect.objectContaining({
+            identity: expect.objectContaining({ revision_id: rejection.revisionId }),
+            data: expect.objectContaining({
+              payload: expect.objectContaining({
+                rationale: expect.stringMatching(/ambiguous/),
+                gate_rejection: {
+                  findings: [expect.objectContaining({
+                    id: "G-001",
+                    target: current.revisionId,
+                  })],
+                },
+              }),
+            }),
+          }),
+        ]);
+        const gateCorrectionExecution = publish(packet, [{
+          localId: "gate-corrected-requirement",
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: requirement.id,
+            type: "STK",
+            payload: {
+              title: "Reject malformed commands with exact outcomes",
+              rationale: "The gate rejection identified the missing outcome discrimination.",
+              statement: "MDLM shall accept supported commands and return a typed rejection for malformed public commands.",
+              verification_intent: "Observe one supported result and one malformed rejection without a Lifecycle Data write.",
+              stakeholder: "MDLM operator",
+              priority: "must",
+            },
+            links: [
+              { type: "derived-from", target: productStable },
+              ...priorCorrectionReviews.map((review) => ({
+                type: "corrects-review",
+                target: review,
+              })),
+              { type: "corrects-gate-rejection", target: rejection.revisionId },
+            ],
+            body: "This exact Revision addresses every gate rejection finding for the member.\n",
+          },
+        }]);
+        let gateCorrected = gateCorrectionExecution.outputs[0].lifecycleDatum as {
+          id: string;
+          revisionId: string;
+        };
+
+        packet = nextPacket();
+        publishContext(packet);
+        packet = nextPacket();
+        const gateCorrectionFailure = publishReview(packet, "fail")
+          .outputs[0].lifecycleDatum as { revisionId: string };
+
+        packet = nextPacket();
+        expect(packet.scenario.reference).toBe("revise-foundation-after-review@4");
+        expect(exactInput(packet, "failed_reviews").values.map(
+          (value: any) => value.identity.revision_id,
+        )).toEqual([gateCorrectionFailure.revisionId]);
+        const priorGateCorrectionReviews = exactInput(packet, "prior_failed_reviews")
+          .values.map((value: any) => value.identity.revision_id) as string[];
+        const finalCorrectionExecution = publish(packet, [{
+          localId: "review-corrected-gate-requirement",
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: requirement.id,
+            type: "STK",
+            payload: {
+              title: "Reject malformed commands deterministically",
+              rationale: "The final correction preserves the gate outcome and resolves the fresh Review findings.",
+              statement: "MDLM shall return deterministic typed outcomes for supported and malformed public commands.",
+              verification_intent: "Observe supported and malformed vectors and verify rejection publishes no Lifecycle Data.",
+              stakeholder: "MDLM operator",
+              priority: "must",
+            },
+            links: [
+              { type: "derived-from", target: productStable },
+              ...priorGateCorrectionReviews.map((review) => ({
+                type: "corrects-review",
+                target: review,
+              })),
+              { type: "corrects-review", target: gateCorrectionFailure.revisionId },
+            ],
+            body: "The bounded Review correction retains immutable gate history.\n",
+          },
+        }]);
+        gateCorrected = finalCorrectionExecution.outputs[0].lifecycleDatum as {
+          id: string;
+          revisionId: string;
+        };
+
+        packet = nextPacket();
+        publishContext(packet);
+        packet = nextPacket();
+        publishReview(packet, "pass");
+
+        packet = nextPacket();
+        expect(packet.scenario.reference).toBe("revise-intent-candidate-after-review@2");
+        expect(exactInput(packet, "candidate").values[0].identity.revision_id)
+          .toBe(candidate.revisionId);
+        expect(exactInput(packet, "gate_rejections").values[0].identity.revision_id)
+          .toBe(rejection.revisionId);
+        const replacementMembers = exactInput(packet, "definition_members").values
+          .map((value: any) => value.identity.revision_id) as string[];
+        expect(replacementMembers).toContain(gateCorrected.revisionId);
+        const replacementCandidateOutput: ProposalOutput = {
+          localId: "replacement-candidate",
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: candidate.id,
+            type: "BSL",
+            payload: {
+              title: "Corrected typed command intent candidate",
+              kind: "intent-level-candidate",
+              role: "candidate",
+              scope: "Phase 0 typed command intent",
+              group: "DEFAULT",
+              definition_members: replacementMembers,
+              evidence: preservedCandidateEvidence,
+            },
+            links: [
+              { type: "supersedes", target: candidate.revisionId },
+              { type: "corrects-gate-rejection", target: rejection.revisionId },
+            ],
+            body: "The replacement preserves unaffected evidence and supersedes the rejected candidate.\n",
+          },
+        };
+        const omittedEvidence = structuredClone(replacementCandidateOutput);
+        omittedEvidence.lifecycleDatum.payload.evidence = [];
+        const evidenceRejected = respond(packet, [omittedEvidence]);
+        expect(evidenceRejected.status).toBe(1);
+        expect(JSON.parse(evidenceRejected.stdout).diagnostics).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ code: "scenario-completion-failed" }),
+          ]),
+        );
+        const replacementCandidateExecution = publish(packet, [replacementCandidateOutput]);
+        const replacementCandidate = replacementCandidateExecution.outputs[0]
+          .lifecycleDatum as { revisionId: string };
+
+        packet = nextPacket();
+        publishContext(packet);
+        packet = nextPacket();
+        publishReview(packet, "pass");
+
+        const returnedGate = nextOutcome();
+        expect(returnedGate).toEqual(expect.objectContaining({
+          outcome: "attention-required",
+          phase: "phase-0-wayfinding@3",
+        }));
+        packet = prepare(returnedGate);
+        expect(packet.scenario.reference).toBe("record-gate-signoff@3");
+        expect(packet.obligation.subject).toBe(replacementCandidate.revisionId);
+        const approvalExecution = publish(packet, [{
+          localId: "gate-approval",
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Approve corrected command intent",
+              rationale: "The replacement candidate and corrected exact member passed fresh Reviews.",
+              kind: "gate-signoff",
+              gate_outcome: "approve",
+              decision: "Approve the corrected candidate at the same Phase 0 gate.",
+              alternatives: ["Reject with exact blockers", "Record a separate terminal Decision"],
+              effective_scope: replacementCandidate.revisionId,
+            },
+            links: [{ type: "justifies", target: replacementCandidate.revisionId }],
+            body: "Approval applies only to the passing replacement candidate.\n",
+          },
+        }], ["stakeholder"]);
+        const approval = approvalExecution.outputs[0].lifecycleDatum as {
+          revisionId: string;
+        };
+        packet = nextPacket();
+        publishContext(packet);
+        packet = nextPacket();
+        publishReview(packet, "pass");
+
+        const resumed = nextOutcome();
+        expect(resumed.outcome).toBe("assignment");
+        expect(prepare(resumed).scenario.reference).not.toBe("record-gate-signoff@3");
+        expect(JSON.parse(
+          invokeMdlm(repository, ["show", rejection.revisionId, "--json"]).stdout,
+        ).lifecycleDatum.datum.payload.gate_outcome).toBe("reject");
+        expect(JSON.parse(
+          invokeMdlm(repository, ["show", approval.revisionId, "--json"]).stdout,
+        ).lifecycleDatum.datum.payload.gate_outcome).toBe("approve");
         return;
       }
       currentFailedReview = reviewExecution.outputs[0].lifecycleDatum;
@@ -482,5 +768,5 @@ describe("failed STK Review correction through the public operator process", () 
       lineage,
       reviewHistory,
     );
-  }, 120_000);
+  }, 300_000);
 });

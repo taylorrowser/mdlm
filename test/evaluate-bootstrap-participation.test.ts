@@ -13,7 +13,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.50.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.51.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -566,18 +566,49 @@ describe("bootstrap Scenario participation Policies", () => {
     ).toContain("implied approval");
   });
 
-  it("keeps a reviewed gate rejection from satisfying approval", () => {
+  it("routes a reviewed gate rejection to its exact implicated member", () => {
     const fixture = reviewedGateFixture(processRef);
+    const member = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
+      title: "Rejected requirement",
+      rationale: "The gate found this exact draft ambiguous.",
+      statement: "The product shall export a report.",
+      verification_intent: "Observe an export.",
+      stakeholder: "report author",
+      priority: "must",
+    });
+    fixture.candidate.datum.payload.definition_members = [
+      member.datum.revision_id,
+    ];
     fixture.signoff.datum.payload.gate_outcome = "reject";
-    fixture.signoff.datum.payload.decision = "Reject and revise the candidate.";
+    fixture.signoff.datum.payload.decision = "Reject and revise the implicated requirement.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        target: member.datum.revision_id,
+        summary: "The rejected requirement does not define the exported content.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: member.datum.revision_id,
+    });
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: fixture.records,
+      records: [...fixture.records, member],
       dependencyComparisons: [],
     });
 
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "foundation-review-correction-required" &&
+      item.subject === member.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-foundation-after-review@4",
+    }));
     expect(evaluation.obligations.find((item) =>
       item.obligation === "candidate-gate-signoff" &&
       item.subject === fixture.candidate.datum.revision_id
@@ -585,10 +616,46 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "blocked",
       dispatchable: false,
+      actionableResolver: "revise-foundation-after-review@4",
     }));
     expect(evaluation.phase?.gate.evaluations[0]).toEqual(
       expect.objectContaining({ complete: false }),
     );
+  });
+
+  it("routes a reviewed Phase 2 candidate-level rejection without changing its evidence boundary", () => {
+    const fixture = reviewedGateFixture(processRef);
+    fixture.candidate.datum.payload.kind = "level-candidate";
+    fixture.signoff.datum.payload.gate_outcome = "reject";
+    fixture.signoff.datum.payload.decision = "Reject the exact candidate boundary.";
+    fixture.signoff.datum.payload.gate_rejection = {
+      findings: [{
+        id: "G-001",
+        target: fixture.candidate.datum.revision_id,
+        summary: "The candidate-level rationale must state the controlled boundary.",
+      }],
+    };
+    fixture.signoff.datum.links.push({
+      type: "blocks",
+      target: fixture.candidate.datum.revision_id,
+    });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: fixture.records,
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "gate-rejection-candidate-revision-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "replace-rejected-candidate@1",
+    }));
   });
 
   it("rejects implied approval before gate sign-off reaches the adapter", async () => {
@@ -618,13 +685,13 @@ describe("bootstrap Scenario participation Policies", () => {
         dependencyComparisons: [],
       }));
       const obligation =
-        `candidate-gate-signoff@2:${fixture.candidate.datum.revision_id}:${snapshotProcessRef}`;
+        `candidate-gate-signoff@3:${fixture.candidate.datum.revision_id}:${snapshotProcessRef}`;
 
       const attempted = req(
         temporaryRoot,
         "scenario",
         "dry-run",
-        "record-gate-signoff@2",
+        "record-gate-signoff@3",
         "--obligation",
         obligation,
         "--snapshot",

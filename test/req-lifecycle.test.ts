@@ -109,7 +109,7 @@ describe("req lifecycle status and next work", () => {
       prototypeSnapshot,
     );
     expect(human.status, human.stderr).toBe(0);
-    expect(human.stdout).toContain("Phase: phase-2-system-definition@3");
+    expect(human.stdout).toContain("Phase: phase-2-system-definition@4");
     expect(human.stdout).toContain("Entry Satisfied: false");
     expect(human.stdout).toContain("Candidates: none");
     expect(human.stdout).toContain("Obligations: total=6");

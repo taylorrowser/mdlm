@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.50 — experimental implementation reference**
+**Bootstrap package 0.51 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -899,7 +899,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.50 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.51 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -929,7 +929,11 @@ history remains inspectable. The tracer
 reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
 the one primary subject Revision; each context may still include supporting parent
 or sibling Revisions. It then freezes and reviews an intent candidate and completes
-one reviewed exact Gate Sign-off.
+one reviewed exact Gate Sign-off. A reviewed rejection records structured exact
+blockers, derives causal same-lineage member correction or candidate-level
+replacement, requires fresh Reviews, preserves unaffected candidate evidence,
+and returns the superseding candidate to the same gate. Rejection itself is not
+a stop, deferral, or cancellation Decision.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable

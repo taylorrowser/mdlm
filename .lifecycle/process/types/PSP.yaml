@@ -1,6 +1,6 @@
 kind: type-definition
 id: PSP
-version: 3
+version: 4
 name: Product Specification
 description: Concise product intent covering problem, users, goals, exclusions, workflows, success, scope, and constraints.
 extends: rationale-bearing@1
@@ -52,4 +52,11 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: corrected-by
+  - id: corrects-gate-rejection
+    description: Exact reviewed gate rejection Decisions whose findings this replacement product specification Revision addresses.
+    targets:
+      - {kind: datum, types: [DEC], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-after-gate-rejection
 kernel_managed_payload_paths: []

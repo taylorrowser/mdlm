@@ -95,7 +95,7 @@ describe("phase evaluation", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.phase).toEqual({
       id: "phase-2-system-definition",
-      version: 3,
+      version: 4,
       attentionCheckpoints: [expect.objectContaining({
         id: "phase-2-system-gate",
         active: false,
@@ -204,9 +204,9 @@ describe("phase evaluation", () => {
           explanation:
             "The package-defined gate completion expression is not satisfied for this exact candidate.",
           obligationInstance:
-            `candidate-gate-signoff@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
+            `candidate-gate-signoff@3:${exactCandidate.datum.revision_id}:git:phase-gate`,
           status: "blocked",
-          eventualResolver: "record-gate-signoff@2",
+          eventualResolver: "record-gate-signoff@3",
           actionableResolver: "create-review-context@1",
           dispatchable: false,
           blockedBy: [
@@ -278,7 +278,7 @@ describe("phase evaluation", () => {
     expect(blockedGate).toEqual(expect.objectContaining({
       complete: false,
       status: "blocked",
-      eventualResolver: "record-gate-signoff@2",
+      eventualResolver: "record-gate-signoff@3",
       actionableResolver: "review-datum-in-context@2",
       dispatchable: false,
       blockedBy: [
@@ -387,7 +387,7 @@ describe("phase evaluation", () => {
         complete: false,
         authority: expect.objectContaining({
           policy: "phase-progression-participation@1",
-          scenario: "record-gate-signoff@2",
+          scenario: "record-gate-signoff@3",
           evidenceSelector: "applicable-gate-signoffs-for@1",
           subjects: [expect.objectContaining({
             identity: expect.objectContaining({

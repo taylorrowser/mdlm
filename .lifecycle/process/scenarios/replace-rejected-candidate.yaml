@@ -1,0 +1,35 @@
+kind: scenario-definition
+id: replace-rejected-candidate
+version: 1
+description: Supersede one candidate rejected for candidate-level findings without changing its exact definition or evidence boundary.
+phases: [phase-2-system-definition]
+inputs:
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    identity: revision
+    conditions: 'candidate.payload.role == "candidate"'
+  - name: rejections
+    types: [DEC]
+    cardinality: one-or-more
+    identity: revision
+    conditions: >-
+      rejections.payload.kind == "gate-signoff"
+      && rejections.payload.gate_outcome == "reject"
+      && exists("passing-reviews-for@1", {subject: rejections})
+outputs:
+  - name: replacement
+    types: [BSL]
+    cardinality: one
+    required_links:
+      - {link: supersedes, target: {input: candidate}}
+      - {link: corrects-gate-rejection, target: {input: rejections}}
+prompt_ref: prompts/replace-rejected-candidate.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && exists("complete-exact-gate-rejection-replacements-for@1",
+    {candidate: candidate})
+resolves: [gate-rejection-candidate-revision-required]
+prohibited_inputs: [mutation of rejected candidate history, changed exact definition membership, changed exact evidence, inferred stop, inferred deferral, inferred cancellation]
+batching: single

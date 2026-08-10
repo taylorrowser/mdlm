@@ -1,12 +1,19 @@
 kind: obligation-definition
 id: intent-candidate-required
-version: 1
+version: 2
 description: The reviewed current Phase 0 foundation requires one exact frozen intent-level candidate.
 phases: [phase-0-wayfinding]
 for_each: '[phase]'
 subject_as: required_phase
 satisfied_when: 'exists("complete-phase-0-intent-candidates@1", {})'
 status_rules:
+  - status: blocked
+    priority: 300
+    when: 'exists("failed-intent-candidates@1", {})'
+    reason: A failed or rejected intent candidate must be superseded before ordinary candidate creation can resume.
+    blocked_by:
+      - obligation: intent-candidate-review-correction-required@2
+        subjects: 'select("failed-intent-candidates@1", {})'
   - status: blocked
     priority: 200
     when: >-

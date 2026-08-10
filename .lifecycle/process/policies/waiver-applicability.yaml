@@ -30,7 +30,7 @@ rules:
         "passing-review-required@2",
         "open-question-resolution@2",
         "candidate-members-reviewed@2",
-        "candidate-gate-signoff@2"
+        "candidate-gate-signoff@3"
       ]
       && waiver.payload.kind == "waiver"
       && waiver.payload.waiver.instance == instance

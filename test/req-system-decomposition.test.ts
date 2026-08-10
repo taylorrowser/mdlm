@@ -1047,7 +1047,7 @@ describe("req system decomposition slice", () => {
 
     const gateWork = obligation("candidate-gate-signoff", levelCandidate.revisionId);
     expect(gateWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
-    expect(gateWork.actionableResolver).toBe("record-gate-signoff@2");
+    expect(gateWork.actionableResolver).toBe("record-gate-signoff@3");
     const gateExecution = await execute(
       gateWork,
       {

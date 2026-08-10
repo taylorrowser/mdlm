@@ -67,7 +67,7 @@ export async function distinctProgressionProcessPackage(
       /    condition: >-[\s\S]*?    policy_ref: phase-progression-participation@1/,
       `    condition: >-\n      every("candidate-baselines-of-kind@1",\n        {baseline_kind: "intent-level-candidate"}, candidate =>\n          exists("applicable-disposition-decisions-for@1",\n            {subject: candidate, decision_kind: "scope"}))\n    policy_ref: phase-progression-participation@1`,
     ).replace(
-      "    scenario: record-gate-signoff@2\n    subjects:",
+      "    scenario: record-gate-signoff@3\n    subjects:",
       "    scenario: record-consequential-decision@1\n    subjects:",
     ).replace(
       "    evidence_selector: applicable-gate-signoffs-for@1",

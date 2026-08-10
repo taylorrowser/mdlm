@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-1-product-assurance
-version: 1
+version: 2
 order: 1
 name: Product assurance qualification and pilot
 purpose: Qualify one declared environment and demonstrate that a source-independent pilot design distinguishes supported from intentionally unsupported behavior.
@@ -67,5 +67,5 @@ gate:
   required: false
   candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "group-candidate"})'
   candidate_as: candidate
-  obligation: candidate-gate-signoff@2
+  obligation: candidate-gate-signoff@3
   completion: 'false'

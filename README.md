@@ -33,6 +33,10 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   source-independent verification pilot, and move one reviewed Decomposition Work
   Package through exact SYS output, architecture/interface simplification,
   completion Review, composed group/level candidates, and a reviewed SYS gate.
+  A reviewed gate rejection retains exact blocker history, derives causal member
+  correction and fresh Review, freezes a superseding candidate with unaffected
+  evidence preserved, and returns attention to the same gate; rejection alone is
+  never a stop, deferral, or cancellation.
   A localized pilot-discovered change tracer preserves exact authorization while
   proving selective evidence reuse and package-routed Staleness. The final pilot
   assessment freezes durable observations, publishes generated structured
