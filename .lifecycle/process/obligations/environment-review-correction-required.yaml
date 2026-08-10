@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: environment-review-correction-required
-version: 1
-description: A current Phase 1 environment with a failed Review must be corrected with a fresh exact qualification chain.
+version: 2
+description: A current Phase 1 environment with a failed Review receives causal same-lineage correction and a fresh qualification chain while its autonomous budget remains, then attended escalation.
 phases: [phase-1-product-assurance]
 for_each: 'select("failed-current-environments@1", {})'
 subject_as: environment
@@ -9,11 +9,11 @@ satisfied_when: 'exists("corrected-environment-revisions-for@1", {environment: e
 status_rules:
   - status: ready
     priority: 100
-    when: 'none("corrected-environment-revisions-for@1", {environment: environment})'
-    reason: Exact failed environment Review findings require a corrected same-lineage ENV and fresh qualification chain.
+    when: 'true'
+    reason: Exact failed environment Review findings require correction and fresh qualification; the Scenario participation Policy determines autonomous or attended execution.
 default_status: ready
 resolve_with:
-  scenario: revise-environment-assurance-after-review@1
+  scenario: revise-environment-assurance-after-review@2
   inputs:
     environment: environment
     failed_reviews: 'select("failing-reviews-for@1", {subject: environment})'

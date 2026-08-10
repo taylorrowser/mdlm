@@ -1,12 +1,23 @@
 kind: obligation-definition
 id: pilot-verification-activity-required
-version: 1
+version: 2
 description: Every exact Phase 1 entry requirement with one applicable strategy requires a source-independent pilot verification activity.
 phases: [phase-1-product-assurance]
 for_each: 'select("current-phase-1-stakeholder-requirements@1", {})'
 subject_as: requirement
 satisfied_when: 'exists("pilot-verification-activities-for-requirement@1", {requirement: requirement})'
 status_rules:
+  - status: awaiting-review
+    priority: 300
+    when: >-
+      count("verification-strategies-for-requirement@1", {requirement: requirement}) == 1
+      && none("passing-reviews-for@1",
+        {subject: one("verification-strategies-for-requirement@1",
+          {requirement: requirement})})
+    reason: Pilot activity authoring waits for a passing independent Review of its exact strategy Revision so failed planning does not fan out.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("verification-strategies-for-requirement@1", {requirement: requirement})'
   - status: blocked
     priority: 200
     when: 'count("verification-strategies-for-requirement@1", {requirement: requirement}) != 1'

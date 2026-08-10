@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: verification-strategy-review-correction-required
-version: 1
-description: A current Phase 1 verification strategy with a failed Review must be corrected in the same lineage.
+version: 2
+description: A current Phase 1 verification strategy with a failed Review receives causal same-lineage correction while its autonomous budget remains, then attended escalation.
 phases: [phase-1-product-assurance]
 for_each: 'select("failed-current-verification-strategies@1", {})'
 subject_as: strategy
@@ -9,11 +9,11 @@ satisfied_when: 'exists("corrected-verification-strategy-revisions-for@1", {stra
 status_rules:
   - status: ready
     priority: 100
-    when: 'none("corrected-verification-strategy-revisions-for@1", {strategy: strategy})'
-    reason: Exact failed strategy Review findings require a corrected same-lineage strategy Revision.
+    when: 'true'
+    reason: Exact failed strategy Review findings require correction; the Scenario participation Policy determines autonomous or attended execution.
 default_status: ready
 resolve_with:
-  scenario: revise-verification-strategy-after-review@1
+  scenario: revise-verification-strategy-after-review@2
   inputs:
     strategy: strategy
     failed_reviews: 'select("failing-reviews-for@1", {subject: strategy})'

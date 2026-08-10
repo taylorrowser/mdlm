@@ -1089,15 +1089,75 @@ describe("evaluateLifecycle review flow", () => {
         subject: strategy.datum.revision_id,
         status: "ready",
         dispatchable: true,
-        actionableResolver: "revise-verification-strategy-after-review@1",
+        actionableResolver: "revise-verification-strategy-after-review@2",
+        participation: [expect.objectContaining({
+          authorityRequirement: expect.objectContaining({
+            mode: "autonomous",
+            authority: "package-evidence",
+          }),
+          attentionSchedule: expect.objectContaining({ timing: "none" }),
+        })],
       }),
       expect.objectContaining({
         obligation: "pilot-verification-activity-review-correction-required",
         subject: activity.datum.revision_id,
         status: "ready",
         dispatchable: true,
-        actionableResolver: "revise-pilot-verification-activity-after-review@1",
+        actionableResolver: "revise-pilot-verification-activity-after-review@2",
+        participation: [expect.objectContaining({
+          authorityRequirement: expect.objectContaining({
+            mode: "autonomous",
+            authority: "package-evidence",
+          }),
+          attentionSchedule: expect.objectContaining({ timing: "none" }),
+        })],
       }),
     ]));
   });
+
+  it("declares ambiguous Phase 1 assurance evidence as an intentional profile boundary", () => {
+    const product = record("PSP", "PSP-2A3B4C5D6E", { title: "Product" });
+    const requirement = record(
+      "STK",
+      "STK-2A3B4C5D6E",
+      { title: "Requirement" },
+      { links: [{ type: "derived-from", target: product.datum.id }] },
+    );
+    const strategy = (id: string) => record(
+      "VSP",
+      id,
+      {
+        title: "Competing strategy",
+        level: "stakeholder",
+        independence: { boundary: "black-box" },
+      },
+      {
+        links: [
+          { type: "governs", target: requirement.datum.id },
+          { type: "governs-revision", target: requirement.datum.revision_id },
+        ],
+      },
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:phase-1-ambiguity",
+      phaseId: "phase-1-product-assurance",
+      records: [
+        product,
+        requirement,
+        strategy("VSP-2A3B4C5D6E"),
+        strategy("VSP-2A3B4C5D6F"),
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.terminalOutcome).toEqual(expect.objectContaining({
+      outcome: "profile-boundary-reached",
+      explanation: expect.stringMatching(/multiple applicable/i),
+      evidence: expect.objectContaining({
+        condition: expect.objectContaining({ result: true }),
+      }),
+    }));
+  });
+
 });

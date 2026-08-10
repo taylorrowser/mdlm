@@ -997,7 +997,7 @@ describe("failed STK Review correction through the public operator process", () 
         const resumed = nextOutcome();
         expect(resumed).toEqual(expect.objectContaining({
           outcome: "assignment",
-          phase: "phase-1-product-assurance@3",
+          phase: "phase-1-product-assurance@4",
         }));
         expect(prepare(resumed).scenario.reference).not.toBe("record-gate-signoff@3");
         expect(JSON.parse(

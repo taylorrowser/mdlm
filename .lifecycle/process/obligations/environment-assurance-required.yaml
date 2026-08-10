@@ -1,12 +1,19 @@
 kind: obligation-definition
 id: environment-assurance-required
-version: 1
+version: 2
 description: Every applicable exact Phase 1 strategy requires one realized environment and its qualification activity and implementation.
 phases: [phase-1-product-assurance]
 for_each: 'select("current-phase-1-verification-strategies@1", {})'
 subject_as: strategy
 satisfied_when: 'exists("complete-environment-assurance-for-strategy@1", {strategy: strategy})'
 status_rules:
+  - status: awaiting-review
+    priority: 300
+    when: 'none("passing-reviews-for@1", {subject: strategy})'
+    reason: Environment realization waits for a passing independent Review of the exact strategy Revision so failed planning does not fan out.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: '[strategy]'
   - status: blocked
     priority: 200
     when: >-

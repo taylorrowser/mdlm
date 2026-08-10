@@ -1,9 +1,9 @@
 # Phase-hardening matrix
 
-This matrix records every distinct reachable public `mdlm` route in the Phase 0
-boundary. It describes Example Process Package behavior, not kernel semantics.
-Phase 1, Phase 2, VAI, and pilot-assessment hardening remain deferred to issues
-#96–#100.
+This matrix records every distinct reachable public `mdlm` route in the hardened
+Phase 0 and Phase 1 strategy/environment/pilot-VER boundary. It describes Example
+Process Package behavior, not kernel semantics. Failed VAI procedure correction,
+Phase 2, and pilot-assessment hardening remain deferred to issues #97–#100.
 
 ## Foundation and product simplification
 
@@ -60,6 +60,33 @@ Phase 1, Phase 2, VAI, and pilot-assessment hardening remain deferred to issues
 | Accepted intent | Frozen `intent-approved` BSL exactly `promotes` approved candidate and contains candidate simplification REV, approving DEC, and DEC Review | `intent-approval-required@1`; autonomous `accept-phase-0-intent@1` | Acceptance **Assignment**, then Phase 1 work | Mechanical publication reuses reviewed authority; no redundant judgment |
 | Phase progression | Accepted intent and applicable approving gate evidence both exist | Phase 0 readiness/authorization expressions | Phase 1 **Assignment** | Active Phase is derived; no mutable pointer or second approval |
 
+## Phase 1 strategy and assurance correction
+
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| VSP authored | Current accepted-intent STK Revisions; VSP carries Stable `governs` and exact `governs-revision` | `verification-strategy-required@1`, then ordinary context/Review Obligations | VSP context and independent Review **Assignments** | Downstream ENV and pilot VER fan-out waits for passing VSP Review |
+| Initial VSP Review fails | Immutable exact VSP, context, and every current failed REV/Finding | `verification-strategy-review-correction-required@2`; autonomous `revise-verification-strategy-after-review@2` | Exact VSP correction **Assignment** | 0 of 2 consumed; accepted intent and unrelated Reviews reused |
+| Corrected VSP fails or passes | Same-lineage VSP cites every failed Review of the exact Revision being corrected; fresh exact context and REV | `review-correction-history-for@1`; ordinary Review Obligations | Second correction **Assignment** on fail; dependent assurance on pass | 1 consumed; failed history retained; old exact-strategy-dependent ENV evidence is not silently rebound |
+| VSP second correction fails | Third failed REV after two causal autonomous replacements | `phase-1-assurance-correction-participation@1` on the same correction Scenario | Immediate stakeholder **Attention Required** with complete lineage/findings | 2 consumed; attended replacement requires exact scope DEC authority evidence |
+| Initial ENV Review fails | Exact failed ENV and Review plus its one exact VSP | `environment-review-correction-required@2`; autonomous `revise-environment-assurance-after-review@2` | Exact ENV/qualification correction **Assignment** | 0 of 2 consumed; old ENV, qualification, RUN/RES, context, and REV remain immutable |
+| Corrected ENV assurance | Same-lineage ENV cites every failed Review of the exact Revision being corrected; fresh qualification VER/VAI point only to replacement | Environment correction completion plus `verification-run-required@1` and exact context selectors | Fresh qualification run **Assignment**, then fresh context and independent Review **Assignments** | Prior RUN/RES cannot qualify replacement; unrelated requirement/VSP evidence reused |
+| ENV first or second replacement fails | Fresh exact context and failed ENV REV over replacement | Shared Phase 1 correction Policy and ENV correction Scenario | Next autonomous correction, then **Attention Required** after cycle two | Same 0/1/2 budget; each replacement rebuilds qualification claims rather than borrowing evidence |
+| Initial pilot VER Review fails | Exact requirement/VSP boundary and every current failed pilot VER REV/Finding | `pilot-verification-activity-review-correction-required@2`; autonomous `revise-pilot-verification-activity-after-review@2` | Exact pilot VER correction **Assignment** | 0 of 2 consumed; target and qualified ENV evidence remain reusable because their exact dependencies did not change |
+| Corrected pilot VER fails or passes | Same-lineage pilot VER retains exact claim class, requirement, and strategy links and cites every failed Review of the exact Revision being corrected | Shared correction history and Phase 1 participation Policy plus ordinary Review Obligations | Second correction **Assignment** on fail; implementation work on pass | Fresh context/REV replace only changed VER judgment; ENV/ART evidence reused |
+| Pilot VER second correction fails | Two causal autonomous replacements and another exact failed REV | Same correction Scenario under attended participation | Immediate stakeholder **Attention Required** | 2 consumed; no VAI correction is fabricated because issue #97 owns that deferred route |
+| Stakeholder-owned assurance finding | Current failed REV declares `correction_authority: stakeholder` | Shared correction participation default and exact type-specific Scenario | Immediate stakeholder **Attention Required** | Autonomous budget untouched; attended correction requires scope DEC |
+| Missing causal Review link or changed boundary | Proposed replacement omits a prior/current REV, cites an unrelated REV, changes lineage, or changes required exact bindings | Source-owned type links, Scenario required links, and correction completion Selectors | Invalid proposal; same Assignment gets contract diagnostics | Nothing publishes; malformed transport attempts do not consume lifecycle budget |
+
+## Phase 1 evidence availability and supported boundary
+
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| No pilot target yet | Current pilot VER and exact requirement have no boundary-complete ART | `pilot-target-required@1`; autonomous `register-pilot-target@1` | Target-registration **Assignment** | Existing requirement/VSP/VER/ENV evidence reused; typed inability publishes nothing |
+| Intentionally unsupported target behavior | ART records bounded supported and intentionally unsupported behavior plus exact public invocation/rejection protocol | Target and implementation Selectors; normal VAI/run Obligations | Source-independent implementation/run **Assignments** | Unsupported behavior is positive discrimination evidence, not a terminal disposition |
+| Empirical evidence unavailable | Open empirical QST has no available evidence | Source-boundary and `open-question-resolution@3`; attended/delegable evidence-provider participation | Source-freeze **Assignment**, then immediate **Attention Required** or typed inability | No unsupported conclusion publishes; explicit defer/cancel requires reviewed DEC |
+| Multiple applicable VSPs, ENVs, or pilot targets | More than one exact current candidate | Bootstrap Profile `terminal_outcomes.profile_boundary` condition | **Profile Boundary Reached** after any other runnable work drains | Explicitly unsupported in this narrow profile; no arbitrary evidence selection and no Process Dead End |
+| Missing or incomplete target boundary | ART lacks immutable commit observation, supported/unsupported bounds, typed command encoding, isolation, or exact observation protocol | ART schema and `register-pilot-target@1` completion | Invalid proposal or fresh registration **Assignment** | Incomplete ART is not eligible and cannot leak into VAI work |
+
 ## Transport and liveness invariants
 
 | Route | Expected result | Evidence behavior |
@@ -75,6 +102,12 @@ Phase 1, Phase 2, VAI, and pilot-assessment hardening remain deferred to issues
 `mdlm init` through ordinary Git commits, failed Review correction, candidate-
 centered simplification, reviewed gate rejection, exact member correction, fresh
 simplification, same-gate approval, accepted intent, and derived Phase 1 entry.
+`test/mdlm-phase-1-assurance-correction.test.ts` drives VSP, ENV, and pilot VER
+replacement, exact causal-link rejection, fresh ENV qualification output,
+unaffected evidence reuse, exhausted-budget attention, self-contained attended
+packets, and each VSP/ENV/target ambiguity through `mdlm next`, `scenario prepare`,
+and `scenario submit`, including proof that an attended Phase 1 replacement does
+not consume either autonomous correction cycle.
 `test/evaluate-bootstrap-participation.test.ts` covers exact simplification
 blockers, immediate stakeholder-owned candidate attention with preserved budget,
 candidate exhaustion through the same interface, Question Decision correction,

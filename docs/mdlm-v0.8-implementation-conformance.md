@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.52.0`
+- **Implementation package:** `mdlm-bootstrap@0.53.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -112,8 +112,8 @@ correction deepens into one
 interface whose participation changes from two autonomous cycles to attended
 escalation. Failed Question and gate Decisions retain the same causal-history
 contract under attended authority. Reviewed gate approval mechanically publishes
-an exact accepted-intent BSL before Phase progression. Remaining Phase 1, Phase 2,
-VAI, and pilot-assessment hardening stays deferred to issues #96–#100. The
+an exact accepted-intent BSL before Phase progression. Failed VAI procedure correction, remaining Phase 2, and pilot-assessment hardening
+stay deferred to issues #97–#100. The
 lifecycle-neutral operator contract exposes package-bound attended
 inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
 hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).
@@ -143,9 +143,12 @@ hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-
   all outputs and required links validate before one atomic transaction publishes.
 - Qualification, pilot, and formal evidence remain distinct. Pilot evidence
   cannot promote itself into formal requirement evidence.
-- A current failed VSP, ENV, or pilot VER Review projects autonomous same-lineage
-  correction. Exact failed REV links are complete, and corrected ENV assurance
-  requires a fresh qualification chain before fresh context and Review.
+- A current failed VSP, ENV, or pilot VER Review projects exact same-lineage
+  correction carrying every failed REV applicable to the current Revision. Two replacement cycles
+  remain autonomous before immediate attended escalation. Corrected ENV assurance
+  requires a fresh qualification chain before fresh context and Review; VSP Review
+  precedes dependent fan-out, assurance tied to a prior exact VSP cannot satisfy
+  its replacement, and unsupported ambiguity reaches an explicit Profile Boundary.
 - Current pilot activity requirements project exact bounded ART registration when
   no boundary-complete target exists. The target carries the public repository,
   versioned typed command with co-located exact parameter encodings, isolation,

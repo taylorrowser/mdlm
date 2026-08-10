@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.52.0
+version: 0.53.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -42,7 +42,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
@@ -76,6 +76,7 @@ catalog:
     - corrected-phase-1-assurance-reviews-for
     - matching-corrected-phase-1-assurance-review
     - unexpected-corrected-phase-1-assurance-reviews
+    - phase-1-assurance-correction-decisions-for
     - corrected-verification-strategy-revisions-for
     - corrected-environment-revisions-for
     - corrected-pilot-verification-activity-revisions-for
@@ -442,9 +443,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@26
+  default: bootstrap@27
   available:
-    - profiles/bootstrap.yaml@26
+    - profiles/bootstrap.yaml@27
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

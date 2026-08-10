@@ -674,7 +674,7 @@ describe("req product-assurance qualification and pilot slice", () => {
     expect(correctionWork).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-environment-assurance-after-review@1",
+      actionableResolver: "revise-environment-assurance-after-review@2",
     }));
     expect(correctionWork?.resolver).toEqual(expect.objectContaining({
       expectedOutputs: expect.arrayContaining([
@@ -1032,7 +1032,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       pilotActivityExecution.status,
       `${pilotActivityExecution.stderr}${pilotActivityExecution.stdout}`,
     ).toBe(0);
-    const pilotActivity = JSON.parse(pilotActivityExecution.stdout).execution.outputs[0]
+    let pilotActivity = JSON.parse(pilotActivityExecution.stdout).execution.outputs[0]
       .lifecycleDatum as { id: string; revisionId: string };
     const targetWork = looseEnds().find((item) =>
       item.obligation === "pilot-target-required" &&
@@ -1319,7 +1319,97 @@ describe("req product-assurance qualification and pilot slice", () => {
       [pilotActivity.revisionId],
       [requirement.revisionId, strategy.revisionId, pilotTarget.revisionId],
     );
-    await review(pilotActivity.revisionId, pilotActivityContext.revisionId);
+    const failedPilotActivityReview = await review(
+      pilotActivity.revisionId,
+      pilotActivityContext.revisionId,
+      "fail",
+      [{
+        id: "F-001",
+        target: pilotActivity.revisionId,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "The rejection observation is not deterministic enough for independent implementation.",
+      }],
+    );
+    const pilotActivityCorrection = looseEnds().find((item) =>
+      item.obligation === "pilot-verification-activity-review-correction-required" &&
+      item.subject === pilotActivity.revisionId
+    );
+    expect(pilotActivityCorrection).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-pilot-verification-activity-after-review@2",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({ mode: "autonomous" }),
+        attentionSchedule: expect.objectContaining({ timing: "none" }),
+      })],
+    }));
+    const correctedPilotActivityAdapter = await adapter({
+      outputs: [{
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: pilotActivity.id,
+          type: "VER",
+          payload: {
+            title: "Pilot report export with exact rejection discrimination",
+            rationale: "The correction makes both positive and negative observations deterministic",
+            kind: "pilot",
+            method: "demonstration",
+            assessment_mode: "witnessed",
+            claim: { kind: "pilot", scope: "verification-design", formal_evidence_eligible: false },
+            acceptance_criteria: [
+              "supported export is observed exactly",
+              "unsupported format is rejected with the declared exit status and streams",
+            ],
+            evidence_requirements: ["public invocation", "visible export", "byte-exact visible rejection"],
+            expected_success_activity: "Export the representative visible report",
+            expected_discrimination_activity: "Request the intentionally unsupported binary format and compare exact rejection output",
+          },
+          links: [
+            { type: "governed-by", target: strategy.revisionId },
+            { type: "verifies", target: requirement.id },
+            { type: "verifies-revision", target: requirement.revisionId },
+            { type: "corrects-review", target: failedPilotActivityReview },
+          ],
+          body: "The corrected pilot activity addresses the exact failed Review without changing its ENV or target evidence.\n",
+        },
+      }],
+      completionEvidence: {
+        summary: "The same pilot VER lineage now has deterministic rejection evidence.",
+      },
+    }, "pilot-activity-correction");
+    const correctedPilotActivityExecution = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(pilotActivityCorrection!.actionableResolver),
+      "--obligation",
+      String(pilotActivityCorrection!.id),
+      "--adapter",
+      correctedPilotActivityAdapter.executable,
+      "--json",
+    );
+    expect(
+      correctedPilotActivityExecution.status,
+      `${correctedPilotActivityExecution.stderr}${correctedPilotActivityExecution.stdout}`,
+    ).toBe(0);
+    pilotActivity = JSON.parse(correctedPilotActivityExecution.stdout).execution
+      .outputs[0].lifecycleDatum;
+    expect(pilotActivity.revisionId).toBe("VER-0000000002-r00002");
+    const correctedPilotContext = await createDiscoveredReviewContext(
+      pilotActivity.revisionId,
+      "Corrected pilot activity review context",
+      [pilotActivity.revisionId],
+      [requirement.revisionId, strategy.revisionId, pilotTarget.revisionId],
+    );
+    await review(pilotActivity.revisionId, correctedPilotContext.revisionId);
+    expect(req(repositoryRoot, "show", failedPilotActivityReview, "--json").status)
+      .toBe(0);
+    expect(req(repositoryRoot, "show", environment.revisionId, "--json").status)
+      .toBe(0);
+    expect(req(repositoryRoot, "show", pilotTarget.revisionId, "--json").status)
+      .toBe(0);
     const pilotImplementationWork = looseEnds().find((item) =>
       item.obligation === "pilot-verification-implementation-required" &&
       item.subject === pilotActivity.revisionId
@@ -2018,6 +2108,6 @@ describe("req product-assurance qualification and pilot slice", () => {
       "write-verification-activity@1",
     ]));
     expect(catalogs.obligations).toContain("verification-run-required@1");
-    expect(catalogs.phases).toContain("phase-1-product-assurance@3");
+    expect(catalogs.phases).toContain("phase-1-product-assurance@4");
   });
 });

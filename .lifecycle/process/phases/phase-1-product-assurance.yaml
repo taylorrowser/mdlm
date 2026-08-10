@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-1-product-assurance
-version: 3
+version: 4
 order: 1
 name: Product assurance qualification and pilot
 purpose: Qualify one declared environment and demonstrate that a source-independent pilot design distinguishes supported from intentionally unsupported behavior.
@@ -17,9 +17,9 @@ scenarios:
   - register-pilot-target@1
   - implement-verification-activity@1
   - execute-verification-run@1
-  - revise-verification-strategy-after-review@1
-  - revise-environment-assurance-after-review@1
-  - revise-pilot-verification-activity-after-review@1
+  - revise-verification-strategy-after-review@2
+  - revise-environment-assurance-after-review@2
+  - revise-pilot-verification-activity-after-review@2
   - prepare-pilot-assessment-context@1
   - create-review-context@1
   - review-datum-in-context@2
@@ -28,8 +28,8 @@ scenarios:
   - record-consequential-decision@1
 obligations:
   - verification-strategy-required@1
-  - environment-assurance-required@1
-  - pilot-verification-activity-required@1
+  - environment-assurance-required@2
+  - pilot-verification-activity-required@2
   - pilot-target-required@1
   - pilot-verification-implementation-required@1
   - review-context-required@2
@@ -37,9 +37,9 @@ obligations:
   - open-question-resolution@3
   - prototype-question-resolution@1
   - verification-run-required@1
-  - verification-strategy-review-correction-required@1
-  - environment-review-correction-required@1
-  - pilot-verification-activity-review-correction-required@1
+  - verification-strategy-review-correction-required@2
+  - environment-review-correction-required@2
+  - pilot-verification-activity-review-correction-required@2
 outputs: [VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
 progression:
   next_phase: phase-2-system-definition
