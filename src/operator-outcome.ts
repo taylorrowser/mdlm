@@ -1,7 +1,4 @@
-import type {
-  PhaseAttentionCheckpointEvaluation,
-  TerminalOutcomeEvaluation,
-} from "./evaluator.js";
+import type { TerminalOutcomeEvaluation } from "./evaluator.js";
 import type { ScenarioParticipation } from "./participation.js";
 
 export interface OperatorAuthorityRequirement {
@@ -111,10 +108,17 @@ function attendedRequirement(
   );
 }
 
-function immediateAttendedRequirement(
+function activeCheckpointRequirement(
   work: OperatorWorkFacts,
+  activeCheckpoints: Set<string>,
 ): OperatorAuthorityRequirement | undefined {
-  return attendedRequirement(work, "immediate");
+  return work.authorityRequirements.find((requirement) => {
+    const schedule = requirement.attentionSchedule;
+    return requirement.authorityRequirement.mode === "attended" &&
+      schedule.timing === "checkpoint" &&
+      schedule.checkpoint !== null &&
+      activeCheckpoints.has(schedule.checkpoint);
+  });
 }
 
 function runnableWithoutAttention(work: OperatorWorkFacts): boolean {
@@ -149,9 +153,10 @@ function checkpointConversation(
   return {
     checkpoint: selected.attentionSchedule.checkpoint!,
     consolidationGroup: selected.attentionSchedule.consolidationGroup,
-    items: work.flatMap((candidate) => {
-      const requirement = attendedRequirement(candidate, "checkpoint");
-      return requirement && compatibleCheckpointRequirement(requirement, selected)
+    items: work.flatMap((candidate) =>
+      candidate.authorityRequirements.some((requirement) =>
+          compatibleCheckpointRequirement(requirement, selected)
+        )
         ? [{
             instance: candidate.instance,
             scenario: candidate.scenario,
@@ -160,8 +165,8 @@ function checkpointConversation(
               : {}),
             explanation: candidate.explanation,
           }]
-        : [];
-    }),
+        : []
+    ),
     conversation: {
       format: "freeform",
       semanticMapping: "harness",
@@ -176,18 +181,13 @@ function checkpointConversation(
 export function classifyOperatorOutcome(
   work: OperatorWorkFacts[],
   terminal: TerminalOutcomeEvaluation | null = null,
-  checkpoints: PhaseAttentionCheckpointEvaluation[] = [],
+  activeCheckpointIds: string[] = [],
 ): OperatorOutcomeClassification {
-  const activeCheckpoints = new Set(
-    checkpoints.filter((checkpoint) => checkpoint.active).map(
-      (checkpoint) => checkpoint.id,
-    ),
-  );
+  const activeCheckpoints = new Set(activeCheckpointIds);
   for (const candidate of work) {
     if (!candidate.dispatchable) continue;
-    const attended = attendedRequirement(candidate, "checkpoint");
-    const checkpoint = attended?.attentionSchedule.checkpoint;
-    if (!attended || !checkpoint || !activeCheckpoints.has(checkpoint)) continue;
+    const attended = activeCheckpointRequirement(candidate, activeCheckpoints);
+    if (!attended) continue;
     return {
       kind: "attention-required",
       work: candidate,
@@ -199,7 +199,7 @@ export function classifyOperatorOutcome(
   }
   for (const candidate of work) {
     if (!candidate.dispatchable) continue;
-    const attended = immediateAttendedRequirement(candidate);
+    const attended = attendedRequirement(candidate, "immediate");
     if (!attended) continue;
     return {
       kind: "attention-required",

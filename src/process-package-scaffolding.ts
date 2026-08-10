@@ -382,7 +382,6 @@ function definitionSkeleton(kind: DefinitionKind, id: string): Record<string, un
         purpose: `Describe ${id}.`,
         coverage: "bootstrap-subset",
         entry: "process.integrity.package_valid == true",
-        attention_checkpoints: [],
         scenarios: ["replace-with-scenario@1"],
         obligations: [],
         outputs: ["TYP"],

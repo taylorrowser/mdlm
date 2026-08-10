@@ -14,9 +14,9 @@ Read, in order:
 
 Work from one exact open QST revision. Preferential questions require an explicit
 stakeholder answer and explicit `stakeholder` execution authority; empirical
-questions require cited evidence sufficient for the claim. If the needed answer
-is unavailable, defer only with a concrete QST `reactivation_condition` and
-blocking impact. Cancellation must be intentional and reasoned.
+questions require cited evidence sufficient for the claim. If the needed answer is unavailable, defer only with a concrete
+reactivation condition and blocking impact. Cancellation must be intentional and
+reasoned.
 
 For a consequential answer, any deferral, or any cancellation, create one DEC
 with a `resolves` link to the exact input QST revision. A routine autonomous

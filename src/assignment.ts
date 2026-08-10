@@ -766,7 +766,8 @@ async function exactOperatorState(
   const classification = classifyOperatorOutcome(
     workItems,
     evaluation.terminalOutcome,
-    evaluation.phase?.attentionCheckpoints ?? [],
+    evaluation.phase?.attentionCheckpoints.filter((checkpoint) => checkpoint.active)
+      .map((checkpoint) => checkpoint.id) ?? [],
   );
   const state: ExactOperatorState = {
     summary: selected.summary,

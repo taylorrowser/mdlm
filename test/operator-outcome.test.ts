@@ -9,10 +9,7 @@ import {
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
-import {
-  checkpointProcessRepository,
-  terminalProcessRepository,
-} from "./helpers/terminal-process-package.js";
+import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -52,6 +49,89 @@ async function recordInstalledPackageChange(
     contract.package.digest = digest;
     await fs.writeFile(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
   }
+}
+
+async function publishCheckpointQuestions(repository: string): Promise<void> {
+  const packageRoot = path.join(
+    repository,
+    ".lifecycle/packages/mdlm-bootstrap@0.50.0",
+  );
+  const phasePath = path.join(packageRoot, "phases/phase-0-wayfinding.yaml");
+  const phase = parse(await fs.readFile(phasePath, "utf8"));
+  phase.attention_checkpoints[0].readiness = "true";
+  await fs.writeFile(phasePath, stringify(phase));
+  const obligationPath = path.join(
+    packageRoot,
+    "obligations/open-question-resolution.yaml",
+  );
+  const obligation = parse(await fs.readFile(obligationPath, "utf8"));
+  obligation.status_rules[0].when = "false";
+  await fs.writeFile(obligationPath, stringify(obligation));
+  await recordInstalledPackageChange(repository, packageRoot);
+
+  const first = JSON.parse(mdlm(repository, "next").stdout);
+  const packet = JSON.parse(mdlm(
+    repository,
+    "scenario",
+    "prepare",
+    first.assignment.id,
+  ).stdout);
+  const questions = [
+    ["Choose the retained boundary", "Which boundary should remain?", "The answer changes product scope."],
+    ["Choose the public name", "Which name should be public?", "The answer changes the public label."],
+  ].map(([title, question, blockingImpact], index) => ({
+    localId: `question-${index + 1}`,
+    name: "questions",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "QST",
+      payload: {
+        title,
+        kind: "preferential",
+        question,
+        state: "open",
+        blocking_impact: blockingImpact,
+        attention_checkpoint: "phase-0-gate",
+        consolidation_group: "phase-0-stakeholder-questions",
+      },
+      links: [],
+      body: "Checkpoint-scheduled stakeholder question.\n",
+    },
+  }));
+  const submitted = mdlmWithInput(
+    repository,
+    `${JSON.stringify({
+      contract: "mdlm-assignment-response@1",
+      assignment: first.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "map",
+          name: "map",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "MAP",
+            payload: {
+              title: "Checkpoint conversation tracer",
+              purpose: "Exercise consolidated stakeholder attention.",
+              frontier: ["Resolve the checkpoint questions"],
+            },
+            links: [],
+            body: "Public operator-seam checkpoint tracer.\n",
+          },
+        }, ...questions],
+        completionEvidence: { summary: "Map and checkpoint questions proposed." },
+        loadedSkillRefs: packet.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    })}\n`,
+    "scenario",
+    "submit",
+  );
+  expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
 }
 
 function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {
@@ -146,12 +226,7 @@ describe("package-neutral Operator Outcome classification", () => {
     expect(classifyOperatorOutcome(
       [checkpointQuestion, work({ instance: "autonomous@1:ITM-r00001:process" })],
       null,
-      [{
-        id: "definition-gate",
-        active: false,
-        explanation: "The package-authored checkpoint readiness expression is false.",
-        evidence: { source: "false", result: false, selectors: [] },
-      }],
+      [],
     )).toEqual(expect.objectContaining({
       kind: "assignment",
       work: expect.objectContaining({
@@ -215,7 +290,16 @@ describe("package-neutral Operator Outcome classification", () => {
             },
           }],
         }),
-        question("QUE-TWO", "The second choice changes the interface."),
+        {
+          ...question("QUE-TWO", "The second choice changes the interface."),
+          authorityRequirements: [{
+            ...checkpointRequirement,
+            attentionSchedule: {
+              ...checkpointRequirement.attentionSchedule,
+              checkpoint: "later-gate",
+            },
+          }, checkpointRequirement],
+        },
         question("QUE-ONE", "The first choice changes product scope."),
         {
           ...question("QUE-THREE", "The third choice awaits exact source freezing."),
@@ -223,12 +307,7 @@ describe("package-neutral Operator Outcome classification", () => {
         },
       ],
       null,
-      [{
-        id: "definition-gate",
-        active: true,
-        explanation: "The package-authored checkpoint readiness expression is true.",
-        evidence: { source: "true", result: true, selectors: [] },
-      }],
+      ["definition-gate"],
     );
 
     expect(classified).toEqual(expect.objectContaining({
@@ -636,7 +715,7 @@ describe("public mdlm outcome and status seam", () => {
   }, 30_000);
 
   it("projects one complete checkpoint conversation and the first exact Assignment", async () => {
-    repository = await checkpointProcessRepository(parent);
+    await publishCheckpointQuestions(repository);
 
     const next = mdlm(repository, "next");
 
@@ -649,21 +728,21 @@ describe("public mdlm outcome and status seam", () => {
       assignment: { id: expect.any(String) },
       authorityRequirement: {
         mode: "attended",
-        authority: "fixture-stakeholder",
+        authority: "stakeholder",
         delegationAllowed: false,
       },
       attentionSchedule: {
         timing: "checkpoint",
-        checkpoint: "definition-gate",
-        consolidationGroup: "fixture-questions",
+        checkpoint: "phase-0-gate",
+        consolidationGroup: "phase-0-stakeholder-questions",
       },
       checkpointConversation: {
-        checkpoint: "definition-gate",
-        consolidationGroup: "fixture-questions",
+        checkpoint: "phase-0-gate",
+        consolidationGroup: "phase-0-stakeholder-questions",
         items: [
           expect.objectContaining({
             exactSubject: expect.objectContaining({
-              identity: expect.objectContaining({ type: "QUE" }),
+              identity: expect.objectContaining({ type: "QST" }),
               payload: expect.objectContaining({
                 question: expect.any(String),
                 blocking_impact: expect.any(String),
@@ -672,7 +751,7 @@ describe("public mdlm outcome and status seam", () => {
           }),
           expect.objectContaining({
             exactSubject: expect.objectContaining({
-              identity: expect.objectContaining({ type: "QUE" }),
+              identity: expect.objectContaining({ type: "QST" }),
               payload: expect.objectContaining({
                 question: expect.any(String),
                 blocking_impact: expect.any(String),
