@@ -345,7 +345,7 @@ describe("failed STK Review correction through the public operator process", () 
       ]));
       const escalationPacket = prepare(outcome);
       expect(escalationPacket.scenario.reference)
-        .toBe("escalate-foundation-review-correction@1");
+        .toBe("escalate-foundation-review-correction@2");
       return escalationPacket;
     };
 
