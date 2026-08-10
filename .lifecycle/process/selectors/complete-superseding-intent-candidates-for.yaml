@@ -20,27 +20,12 @@ query:
       exists("stakeholder-requirements-for@1",
         {product_specification: product_specification}))
     && none("phase-0-foundation-members-missing-review@1", {})
-    && every("phase-0-product-simplification-contexts@1", {}, context =>
-      every("product-simplification-reviews-for@1",
-        {subject_context: context, outcome: "pass"}, review =>
-          exists("baseline-contains-evidence@1",
-            {baseline: replacement, subject: review})))
     && replacement.payload.kind == "intent-level-candidate"
     && replacement.payload.role == "candidate"
     && every("phase-0-foundation-members@1", {}, member =>
       exists("candidate-members-matching@1",
         {candidate: replacement, required_member: member}))
     && none("non-phase-0-foundation-members-for@1", {candidate: replacement})
-    && (
-      none("failing-reviews-for@1", {subject: candidate})
-      || (
-        count("cited-failing-reviews-by-correction@1", {replacement: replacement})
-          == count("failing-reviews-for@1", {subject: candidate})
-        && every("failing-reviews-for@1", {subject: candidate}, review =>
-          exists("matching-cited-failing-review-by-correction@1",
-            {replacement: replacement, review: review}))
-      )
-    )
     && (
       none("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
       || (

@@ -9,7 +9,6 @@ import {
 } from "../src/index.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import {
-  acceptedIntentForReviewedGate,
   frozenLifecycleRecord,
   reviewedGateFixture,
 } from "./helpers/lifecycle-scenarios.js";
@@ -367,12 +366,11 @@ describe("phase evaluation", () => {
   });
 
   it("projects exact declarative progression authority without requiring a second approval", () => {
-    const fixture = reviewedGateFixture("git:phase-progression");
     const {
       signoff,
       signoffReview,
       beforeSignoffReview,
-    } = fixture;
+    } = reviewedGateFixture("git:phase-progression");
 
     const awaitingAuthorizationReview = evaluateLifecycle(processPackage, {
       processRef: "git:phase-progression",
@@ -407,14 +405,10 @@ describe("phase evaluation", () => {
       }),
     );
 
-    const acceptedIntent = acceptedIntentForReviewedGate(
-      "git:phase-progression",
-      fixture,
-    );
     const authorized = evaluateLifecycle(processPackage, {
       processRef: "git:phase-progression",
       phaseId: "phase-0-wayfinding",
-      records: [...beforeSignoffReview, signoffReview, acceptedIntent],
+      records: [...beforeSignoffReview, signoffReview],
       dependencyComparisons: [],
     });
     expect(authorized.phase?.progression).toEqual(expect.objectContaining({
@@ -533,19 +527,10 @@ describe("phase evaluation", () => {
       },
     );
 
-    const acceptedIntent = acceptedIntentForReviewedGate(
-      "git:distinct-progression",
-      fixture,
-    );
     const unreviewed = evaluateLifecycle(loaded.package, {
       processRef: "git:distinct-progression",
       phaseId: "phase-0-wayfinding",
-      records: [
-        ...fixture.records,
-        acceptedIntent,
-        progressionDecision,
-        progressionContext,
-      ],
+      records: [...fixture.records, progressionDecision, progressionContext],
       dependencyComparisons: [],
     });
     expect(unreviewed.phase?.progression).toEqual(expect.objectContaining({
@@ -560,7 +545,6 @@ describe("phase evaluation", () => {
       phaseId: "phase-0-wayfinding",
       records: [
         ...fixture.records,
-        acceptedIntent,
         progressionDecision,
         progressionContext,
         progressionReview,

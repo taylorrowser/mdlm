@@ -1,6 +1,6 @@
 ---
 id: revise-gate-signoff-after-review
-version: 2
+version: 1
 scenario: revise-gate-signoff-after-review
 ---
 
@@ -10,9 +10,6 @@ Read `skills/lifecycle-data.md@1`, `skills/gate-protocol.md@1`, the exact failed
 Decision, its failed Review and Review Context, and the exact candidate. After
 fresh explicit stakeholder authorization, publish one replacement DEC Revision
 in the same Stable Datum lineage. Preserve the exact candidate scope and
-`justifies` link, cite every supplied failed Review through `corrects-review`,
-address the complete blocking Finding set, and state `approve` or `reject`
-explicitly. When two replacements have already failed, treat the supplied
-lineage as exhausted escalation evidence rather than introducing another
-recovery path. The replacement requires a fresh contextual Review before
+`justifies` link, address only the Review findings, and state `approve` or
+`reject` explicitly. The replacement requires a fresh contextual Review before
 it can authorize progression.

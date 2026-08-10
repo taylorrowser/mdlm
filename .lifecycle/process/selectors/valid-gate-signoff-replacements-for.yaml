@@ -20,10 +20,5 @@ query:
     && none("newer-revisions-for@1", {subject: replacement})
     && exists("gate-candidates-for-decision@1", {decision: replacement})
     && none("other-gate-candidates-for-decision@1", {decision: replacement})
-    && count("cited-failing-reviews-by-correction@1", {replacement: replacement})
-      == count("failing-reviews-for@1", {subject: decision})
-    && every("failing-reviews-for@1", {subject: decision}, review =>
-      exists("matching-cited-failing-review-by-correction@1",
-        {replacement: replacement, review: review}))
   distinct: true
   order_by: [identity.revision]

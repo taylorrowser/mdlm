@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 26
+version: 25
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -29,12 +29,11 @@ success_criteria:
   - every unsatisfied obligation has a type-correct enabled resolver
   - every non-Resolver Scenario declares explicit initiation and publishes one validated atomic output batch
   - every type named by an authority-evidence contract publishes only through validated Scenario execution
-  - every current open QST receives one package-authored exact source boundary before a same-lineage Resolver output; preferential, empirical, checkpoint, evidence-work, deferral, cancellation, and unsupported routes remain explicit, and failed reviewed Question Decisions receive bounded causal correction and escalation
+  - every current open QST receives one package-authored exact source boundary before a same-lineage Resolver output, while prototype-bound empirical QST routes to exact bounded ART, DEC, and satisfying QST evidence and generic empirical questions retain their non-prototype resolver
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
-  - the complete required Phase 0 foundation emerges from package Obligations, receives exact evidence-bearing simplification before candidate and downstream fan-out, and routes blocking simplification findings through exact correction and re-Review
+  - the complete required Phase 0 foundation emerges from package Obligations, including exact correction and re-Review after failure
   - a reviewed gate rejection derives exact implicated-member or candidate correction, fresh Reviews, a superseding candidate with unaffected evidence preserved, and re-entry to the same gate without implying terminal disposition
-  - failed MAP, PSP, STK, intent-candidate, and gate-Decision Reviews derive exact causal correction, fresh Review, bounded retries, and attended escalation
-  - the reviewed Phase 0 gate Decision mechanically creates one exact accepted intent baseline and authorizes declarative entry to Phase 1 without a redundant approval
+  - the reviewed Phase 0 gate Decision authorizes declarative entry to Phase 1 without a redundant approval
   - failed Reviews of current VSP, ENV, and pilot VER artifacts derive same-lineage correction without stakeholder attention; corrected ENV assurance includes a fresh exact qualification chain
   - every current pilot activity requirement discovers one exact immutable bounded ART registration with a complete controlled public execution interface before implementation
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence

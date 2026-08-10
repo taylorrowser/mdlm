@@ -5,7 +5,6 @@ import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LifecycleRecord, LifecycleSnapshot } from "../src/index.js";
 import {
-  acceptedIntentForReviewedGate,
   exactContextWaiverFor,
   frozenLifecycleRecord,
   reviewedGateFixture,
@@ -214,10 +213,7 @@ describe("req lifecycle status and next work", () => {
     const gateSnapshot = await writeSnapshot(repositoryRoot, "reviewed-gate", {
       processRef: "git:req-lifecycle",
       phaseId: "phase-0-wayfinding",
-      records: [
-        ...gateFixture.records,
-        acceptedIntentForReviewedGate("git:req-lifecycle", gateFixture),
-      ],
+      records: gateFixture.records,
       dependencyComparisons: [],
     });
     const gate = req(

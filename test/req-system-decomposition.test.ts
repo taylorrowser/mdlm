@@ -240,25 +240,6 @@ describe("req system decomposition slice", () => {
       return execution.outputs[0].lifecycleDatum as { revisionId: string };
     };
 
-    const productSpecification = create(
-      "PSP",
-      "--scenario",
-      "compile-psp@2",
-      "--set",
-      "title=Portable report",
-      "--set",
-      "rationale=One bounded export validates the decomposition tracer",
-      "--set",
-      "problem=Completed reports cannot leave the product",
-      "--set",
-      'users=["report author"]',
-      "--set",
-      'goals=["export one completed report"]',
-      "--set",
-      'non_goals=["general integration platform"]',
-      "--set",
-      'success_measures=["one report crosses the public boundary"]',
-    );
     const stakeholder = create(
       "STK",
       "--scenario",
@@ -276,7 +257,25 @@ describe("req system decomposition slice", () => {
       "--set",
       "priority=must",
       "--link",
-      `derived-from=${productSpecification.id}`,
+      `derived-from=${create(
+        "PSP",
+        "--scenario",
+        "compile-psp@2",
+        "--set",
+        "title=Portable report",
+        "--set",
+        "rationale=One bounded export validates the decomposition tracer",
+        "--set",
+        "problem=Completed reports cannot leave the product",
+        "--set",
+        'users=["report author"]',
+        "--set",
+        'goals=["export one completed report"]',
+        "--set",
+        'non_goals=["general integration platform"]',
+        "--set",
+        'success_measures=["one report crosses the public boundary"]',
+      ).id}`,
     );
     const strategy = create(
       "VSP",
@@ -339,7 +338,7 @@ describe("req system decomposition slice", () => {
       intentCandidate.revisionId,
       [intentCandidate.revisionId],
     );
-    const intentCandidateReview = await publishDiscoveredReview(
+    await publishDiscoveredReview(
       intentCandidate.revisionId,
       intentCandidateContext.revisionId,
     );
@@ -379,33 +378,9 @@ describe("req system decomposition slice", () => {
       intentDecision.revisionId,
       [intentDecision.revisionId],
     );
-    const intentDecisionReview = await publishDiscoveredReview(
+    await publishDiscoveredReview(
       intentDecision.revisionId,
       intentDecisionContext.revisionId,
-    );
-    const acceptedIntent = baseline(
-      "Accepted intent",
-      "intent-approved",
-      "accepted",
-    );
-    const promotion = req(
-      repositoryRoot,
-      "link",
-      acceptedIntent.revisionId,
-      intentCandidate.revisionId,
-      "--type",
-      "promotes",
-      "--json",
-    );
-    expect(promotion.status, `${promotion.stderr}${promotion.stdout}`).toBe(0);
-    freeze(
-      acceptedIntent,
-      [productSpecification.revisionId, stakeholder.revisionId],
-      [
-        intentCandidateReview.revisionId,
-        intentDecision.revisionId,
-        intentDecisionReview.revisionId,
-      ],
     );
 
     expect(obligation("decomposition-planning-required", stakeholder.revisionId)).toEqual(

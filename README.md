@@ -29,18 +29,14 @@ packages may define different types, States, Obligations, Scenarios, and phases.
   The temporary `req` bridge retains prototype-era package-authoring and mutation
   behavior until the final clean-interface contract removes that bridge. The first repository-
   backed Example Process Package tracers move an exact MAP/PSP/STK intent slice
-  through earliest evidence-bearing product simplification, bounded causal Review
-  correction, a reviewed Gate Sign-off, one exact accepted intent baseline, and
-  declarative Phase progression; qualify one environment and run one
+  through a reviewed Gate Sign-off, qualify one environment and run one
   source-independent verification pilot, and move one reviewed Decomposition Work
   Package through exact SYS output, architecture/interface simplification,
   completion Review, composed group/level candidates, and a reviewed SYS gate.
   A reviewed gate rejection retains exact blocker history, derives causal member
   correction and fresh Review, freezes a superseding candidate with unaffected
-  evidence preserved, reruns simplification when the exact set changes, and returns
-  attention to the same gate; rejection alone is never a stop, deferral, or
-  cancellation. Preferential and empirical Questions route to package-declared
-  attention, evidence, reviewed disposition, or explicit unsupported outcomes.
+  evidence preserved, and returns attention to the same gate; rejection alone is
+  never a stop, deferral, or cancellation.
   A localized pilot-discovered change tracer preserves exact authorization while
   proving selective evidence reuse and package-routed Staleness. The final pilot
   assessment freezes durable observations, publishes generated structured

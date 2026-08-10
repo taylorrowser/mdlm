@@ -1,6 +1,6 @@
 kind: obligation-definition
 id: gate-signoff-review-correction-required
-version: 2
+version: 1
 description: A current gate sign-off Decision with a failed Review requires a stakeholder-authorized replacement in the same lineage and exact candidate scope.
 phases: [phase-0-wayfinding]
 for_each: 'select("failed-gate-signoff-decisions@1", {})'
@@ -8,21 +8,13 @@ subject_as: decision
 satisfied_when: 'exists("valid-gate-signoff-replacements-for@1", {decision: decision})'
 status_rules:
   - status: ready
-    priority: 200
-    when: >-
-      count("review-correction-history-for@1",
-        {subject: decision}) >= 2
-    reason: Two causal gate Decision replacements failed; renewed stakeholder judgment receives the complete exhausted lineage.
-  - status: ready
     priority: 100
     when: 'none("valid-gate-signoff-replacements-for@1", {decision: decision})'
     reason: The failed gate Decision Review requires a corrected exact Decision Revision.
 default_status: ready
 resolve_with:
-  scenario: revise-gate-signoff-after-review@2
+  scenario: revise-gate-signoff-after-review@1
   inputs:
     decision: decision
     candidate: 'one("gate-candidates-for-decision@1", {decision: decision})'
-    prior_failed_reviews: 'select("cited-failing-reviews-by-correction@1", {replacement: decision})'
-    failed_reviews: 'select("failing-reviews-for@1", {subject: decision})'
 waiver_policy_ref: waiver-applicability@1

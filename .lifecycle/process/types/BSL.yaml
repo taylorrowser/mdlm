@@ -1,6 +1,6 @@
 kind: type-definition
 id: BSL
-version: 4
+version: 3
 name: Baseline
 description: Exact immutable snapshot separating definition members, supporting evidence, composition, and integrity claims.
 extends: titled-datum@1
@@ -68,13 +68,6 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: superseded-by
-  - id: corrects-review
-    description: Exact failed Reviews whose blocking findings this replacement baseline Revision addresses.
-    targets:
-      - {kind: datum, types: [REV], identity: revision}
-    cardinality: {minimum: 0, maximum: many}
-    freeze_resolution: already-exact
-    inverse_label: corrected-by-baseline
   - id: corrects-gate-rejection
     description: Exact reviewed gate rejection Decisions addressed by this replacement candidate.
     targets:

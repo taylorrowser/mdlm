@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.52 — experimental implementation reference**
+**Bootstrap package 0.51 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -900,7 +900,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.52 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.51 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -911,9 +911,8 @@ answered QST Revision; empirical questions without that declaration retain the
 generic evidence path. Mutable targets, out-of-bound findings, incomplete batches,
 and RUN/RES substitutions fail before publication. The narrow repository-backed
 Phase 0 tracer begins with a Phase-scoped map Obligation, then derives PSP and STK
-work, exact Review Context and Review work, the earliest complete frozen
-product-definition context, independent evidence-bearing simplification, and only
-then candidate construction from Lifecycle Data. A failed current STK foundation Review exposes one subject-bounded replacement
+work, exact Review Context and Review work, and candidate construction from
+Lifecycle Data. A failed current STK foundation Review exposes one subject-bounded replacement
 Assignment with every current failed REV and its structured Review Findings. The
 same-lineage replacement must cite those exact Reviews through `corrects-review`;
 normal reevaluation then derives a fresh Review Context and independent Review.
@@ -930,22 +929,12 @@ type-family or multiple-inheritance mechanics. Immutable failed Revision and Rev
 history remains inspectable. The tracer
 reviews MAP, PSP, and STK separately in exact frozen contexts whose `scope` names
 the one primary subject Revision; each context may still include supporting parent
-or sibling Revisions. A failed simplification Review names canonical exact blockers
-through source-owned `blocks` links, derives subject-bounded correction, and
-requires fresh ordinary and set Reviews before fan-out. It then freezes and reviews
-an intent candidate and completes one reviewed exact Gate Sign-off. Candidate,
-Question Decision, and gate Decision Review failures use exact `corrects-review`
-causes, fresh Reviews, bounded replacement cycles, and attended escalation. The
-reviewed approving gate evidence mechanically freezes one exact `intent-approved`
-Accepted Baseline before progression without a redundant stakeholder Decision. A reviewed rejection records one canonical exact blocker set in `blocks` links
+or sibling Revisions. It then freezes and reviews an intent candidate and completes
+one reviewed exact Gate Sign-off. A reviewed rejection records one canonical exact blocker set in `blocks` links
 plus structured rationale applying to that set. It derives causal same-lineage
 Phase 0 member correction, requires fresh Reviews, preserves unaffected candidate
-evidence, reruns product simplification when exact membership changes, and returns
-the superseding candidate to the same gate. Rejection itself is not a stop,
-deferral, or cancellation Decision. Preferential and empirical Questions route to
-immediate or checkpoint attention, autonomous or delegated evidence work, reviewed
-formal disposition, or explicit unsupported cancellation; failed disposition
-Reviews cannot strand the route. Remaining Phase 2 rejection
+evidence, and returns the superseding candidate to the same gate. Rejection itself
+is not a stop, deferral, or cancellation Decision. Remaining Phase 2 rejection
 routes are deferred to issue #99.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then

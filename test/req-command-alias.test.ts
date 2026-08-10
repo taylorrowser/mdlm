@@ -62,7 +62,7 @@ async function repositoryWithQuestion(): Promise<{
   return {
     root,
     question,
-    obligation: `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.52.0#${packageDigest}`,
+    obligation: `open-question-resolution@2:${question.revisionId}:mdlm-bootstrap@0.51.0#${packageDigest}`,
   };
 }
 
@@ -293,7 +293,7 @@ describe("req Package Command Alias", () => {
       ":",
       configured.obligation.indexOf(":") + 1,
     );
-    const blockedObligation = `open-question-resolution@3:${preferentialRevision}:${configured.obligation.slice(secondSeparator + 1)}`;
+    const blockedObligation = `open-question-resolution@2:${preferentialRevision}:${configured.obligation.slice(secondSeparator + 1)}`;
     const missingEvidenceResponse = validResponse(configured.question);
     missingEvidenceResponse.outputs = missingEvidenceResponse.outputs.filter(
       (output) => output.name !== "decision",

@@ -34,9 +34,9 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(catalogs.types).toEqual([
       "ART@1",
       "ASP@1",
-      "BSL@4",
+      "BSL@3",
       "CHG@1",
-      "DEC@5",
+      "DEC@4",
       "DWP@1",
       "ENV@1",
       "ICSP@1",
@@ -46,7 +46,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "PSP@4",
       "QST@4",
       "RES@1",
-      "REV@3",
+      "REV@2",
       "RUN@1",
       "STK@4",
       "SYS@3",
@@ -74,7 +74,7 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(initialLooseEnds.status, initialLooseEnds.stderr).toBe(0);
     expect(JSON.parse(initialLooseEnds.stdout).looseEnds.items[0]).toEqual(expect.objectContaining({
       obligation: "initial-wayfinding-map-required",
-      subject: "phase-0-wayfinding@4",
+      subject: "phase-0-wayfinding@3",
       status: "ready",
       dispatchable: true,
       actionableResolver: "establish-initial-wayfinding-map@1",
@@ -257,7 +257,7 @@ describe("req Phase 0 wayfinding slice", () => {
       subject: product.revisionId,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@5",
+      actionableResolver: "revise-foundation-after-review@4",
     }));
     expect(JSON.parse(looseEnds.stdout).looseEnds.items.some((item: any) =>
       item.subject === product.revisionId &&
@@ -297,7 +297,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "revise-foundation-after-review@5",
+      "revise-foundation-after-review@4",
       "--obligation",
       correction.id,
       "--adapter",
@@ -600,7 +600,7 @@ describe("req Phase 0 wayfinding slice", () => {
 
     const initialMapWork = looseEnd(
       "initial-wayfinding-map-required@1",
-      "phase-0-wayfinding@4",
+      "phase-0-wayfinding@3",
     );
     expect(initialMapWork).toEqual(expect.objectContaining({
       status: "ready",
@@ -641,7 +641,7 @@ describe("req Phase 0 wayfinding slice", () => {
 
     const productWork = looseEnd(
       "product-specification-required@1",
-      "phase-0-wayfinding@4",
+      "phase-0-wayfinding@3",
     );
     expect(productWork).toEqual(expect.objectContaining({
       status: "ready",
@@ -908,107 +908,14 @@ describe("req Phase 0 wayfinding slice", () => {
       await review(subject, context);
     }
 
-    const simplificationContextWork = looseEnd(
-      "product-simplification-context-required@1",
-      "phase-0-wayfinding@4",
-    );
-    expect(simplificationContextWork).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "prepare-product-simplification-context@1",
-    }));
-    const simplificationContextAdapter = await adapter({
-      outputs: [{
-        name: "context",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Phase 0 product simplification context",
-            kind: "review-context",
-            role: "review-context",
-            scope: "phase-0-wayfinding@4",
-            group: "DEFAULT",
-            definition_members: reviewTargets,
-            evidence: [],
-          },
-          links: [],
-          body: "The earliest complete reviewed product-definition set.\n",
-        },
-      }],
-      completionEvidence: { summary: "The product simplification context was frozen." },
-    }, "product-simplification-context");
-    const preparedSimplification = req(
-      repositoryRoot,
-      "scenario",
-      "execute",
-      "prepare-product-simplification-context@1",
-      "--obligation",
-      simplificationContextWork.id,
-      "--adapter",
-      simplificationContextAdapter.executable,
-      "--json",
-    );
-    expect(
-      preparedSimplification.status,
-      `${preparedSimplification.stderr}${preparedSimplification.stdout}`,
-    ).toBe(0);
-    const simplificationContext = JSON.parse(preparedSimplification.stdout)
-      .execution.outputs[0].lifecycleDatum as { revisionId: string };
-
-    const simplificationWork = looseEnd(
-      "product-simplification-required@1",
-      simplificationContext.revisionId,
-    );
-    const simplificationAdapter = await adapter({
-      outputs: [{
-        name: "review",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "REV",
-          payload: {
-            title: "Passing Phase 0 product simplification Review",
-            review_kind: "simplification-product-definition",
-            rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-            findings: [],
-            outcome: "pass",
-          },
-          links: [
-            { type: "reviews", target: simplificationContext.revisionId },
-            { type: "contextualizes", target: simplificationContext.revisionId },
-          ],
-          body: "The exact product intent is the smallest sufficient set.\n",
-        },
-      }],
-      completionEvidence: { summary: "The product simplification Review passed." },
-    }, "product-simplification-review");
-    const simplified = req(
-      repositoryRoot,
-      "scenario",
-      "execute",
-      "simplify-product-definition@1",
-      "--obligation",
-      simplificationWork.id,
-      "--authorize",
-      "independent-reviewer",
-      "--adapter",
-      simplificationAdapter.executable,
-      "--input",
-      `subject_context=${simplificationContext.revisionId}`,
-      "--json",
-    );
-    expect(simplified.status, `${simplified.stderr}${simplified.stdout}`).toBe(0);
-    const simplificationReview = JSON.parse(simplified.stdout).execution.outputs[0]
-      .lifecycleDatum as { revisionId: string };
-
     const candidateWork = looseEnd(
-      "intent-candidate-required@3",
-      "phase-0-wayfinding@4",
+      "intent-candidate-required@2",
+      "phase-0-wayfinding@3",
     );
     expect(candidateWork).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "create-phase-0-intent-candidate@2",
+      actionableResolver: "create-phase-0-intent-candidate@1",
     }));
     const incompleteCandidateAdapter = await adapter({
       outputs: [{
@@ -1035,7 +942,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "create-phase-0-intent-candidate@2",
+      "create-phase-0-intent-candidate@1",
       "--obligation",
       candidateWork.id,
       "--adapter",
@@ -1068,7 +975,6 @@ describe("req Phase 0 wayfinding slice", () => {
               prototype.revisionId,
               finding.revisionId,
               answeredQuestion.revisionId,
-              simplificationReview.revisionId,
             ],
           },
           links: [],
@@ -1081,7 +987,7 @@ describe("req Phase 0 wayfinding slice", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "create-phase-0-intent-candidate@2",
+      "create-phase-0-intent-candidate@1",
       "--obligation",
       candidateWork.id,
       "--adapter",
@@ -1098,10 +1004,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "Intent candidate review context",
       [candidate.revisionId],
     );
-    const candidateReview = await review(
-      candidate.revisionId,
-      candidateContext.revisionId,
-    );
+    await review(candidate.revisionId, candidateContext.revisionId);
 
     const gate = looseEnd("candidate-gate-signoff@3", candidate.revisionId);
     expect(gate).toEqual(expect.objectContaining({
@@ -1272,46 +1175,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "Gate sign-off review context",
       [signoff.revisionId],
     );
-    const signoffReview = await review(signoff.revisionId, signoffContext.revisionId);
-
-    const approvalWork = looseEnd("intent-approval-required@1", candidate.revisionId);
-    const acceptanceAdapter = await adapter({
-      outputs: [{
-        name: "accepted_intent",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Accepted Phase 0 intent",
-            kind: "intent-approved",
-            role: "accepted",
-            scope: "Phase 0 product intent",
-            group: "DEFAULT",
-            definition_members: [
-              map.revisionId,
-              product.revisionId,
-              stakeholder.revisionId,
-            ],
-            evidence: [candidateReview, signoff.revisionId, signoffReview],
-          },
-          links: [{ type: "promotes", target: candidate.revisionId }],
-          body: "The reviewed approving gate evidence accepts this exact intent.\n",
-        },
-      }],
-      completionEvidence: { summary: "The exact approved intent was accepted." },
-    }, "accept-intent");
-    const accepted = req(
-      repositoryRoot,
-      "scenario",
-      "execute",
-      "accept-phase-0-intent@1",
-      "--obligation",
-      approvalWork.id,
-      "--adapter",
-      acceptanceAdapter.executable,
-      "--json",
-    );
-    expect(accepted.status, `${accepted.stderr}${accepted.stdout}`).toBe(0);
+    await review(signoff.revisionId, signoffContext.revisionId);
 
     const phase = req(
       repositoryRoot,
@@ -1353,7 +1217,6 @@ describe("req Phase 0 wayfinding slice", () => {
     );
     const expectedReviewTargets = [
       ...reviewTargets,
-      simplificationContext.revisionId,
       candidate.revisionId,
       signoff.revisionId,
     ].sort();
@@ -1368,7 +1231,6 @@ describe("req Phase 0 wayfinding slice", () => {
       mapContext.revisionId,
       productContext.revisionId,
       stakeholderContext.revisionId,
-      simplificationContext.revisionId,
       candidateContext.revisionId,
       signoffContext.revisionId,
     ];

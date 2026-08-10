@@ -1,6 +1,6 @@
 kind: type-definition
 id: DEC
-version: 5
+version: 4
 name: Decision Record
 description: Consequential decision, assumption, waiver, scope outcome, deferral, standing authority delegation, disposition, or exact gate sign-off.
 extends: rationale-bearing@1
@@ -227,13 +227,6 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: blocked-by-gate-rejection
-  - id: corrects-review
-    description: Exact failed Reviews whose blocking findings this replacement Decision Revision addresses.
-    targets:
-      - {kind: datum, types: [REV], identity: revision}
-    cardinality: {minimum: 0, maximum: many}
-    freeze_resolution: already-exact
-    inverse_label: corrected-by-decision
   - id: confirms-revision
     description: Exact replacement requirement Revisions confirmed by a change-closure Decision.
     targets:

@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.52.0`
+- **Implementation package:** `mdlm-bootstrap@0.51.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -46,7 +46,7 @@ the accepted overview and the reviewed pilot Decision.
 | Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54, #84 | `test/mdlm-command-application.test.ts`, `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
 | Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
-| Complete Phase 0 wayfinding, earliest product simplification, bounded correction, reviewed gate, accepted intent, and progression | 52–53, 57–58 | #44, #64, #92–#95 | `test/mdlm-review-correction.test.ts`, `test/req-phase-0-wayfinding.test.ts` |
+| Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact bounded ART registration, separately authorized pilot implementation, and exact-target pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76 | `test/req-product-assurance-pilot.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
@@ -103,20 +103,8 @@ set, each replacement cites the rejection and receives fresh Review, a supersedi
 candidate preserves unaffected evidence, and normal reevaluation returns attention
 to the same gate. Rejection remains immutable non-approval history and never
 implies stop, defer, or cancel. Remaining Phase 2 rejection routes stay deferred
-to issue #99. Issue #95 adds the earliest complete Phase 0 product-definition
-context and independent simplification Review before candidate or downstream
-fan-out; exact blocking simplification links derive ordinary subject-bounded
-correction rather than ceremony completion. Candidate, Question Decision, and gate
-Decision failures now carry exact causal replacement links, fresh Review, bounded
-retry, and attended escalation. The reviewed approving gate evidence mechanically
-freezes one exact `intent-approved` Accepted Baseline before declarative progression,
-without another authority interruption. Preferential and empirical Questions now
-route explicitly through immediate/checkpoint attention, evidence work, reviewed
-deferral/cancellation, or declared unsupported cancellation. The complete
-compiled-`mdlm` greenfield route uses ordinary Git commits and has no expected
-unfinished Phase 0 Process Dead End. The lifecycle-neutral operator contract
-exposes package-bound attended inputs without counting Assignment transport
-attempts as lifecycle failures. The implemented routes and deferred
+to issue #99. The lifecycle-neutral operator contract exposes package-bound attended
+inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
 hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).
 
 ## Demonstrated invariants

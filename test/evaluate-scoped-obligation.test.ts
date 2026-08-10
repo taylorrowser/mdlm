@@ -14,7 +14,7 @@ import {
 import { req } from "./helpers/req.js";
 
 const PROCESS_REF =
-  "mdlm-bootstrap@0.52.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  "mdlm-bootstrap@0.51.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 async function scopedProcessPackage(
   scope: "phase" | "process" = "phase",
@@ -58,7 +58,7 @@ result_schema:
 default: {matches: false}
 rules:
   - priority: 100
-    when: 'value == "phase-0-wayfinding@4"'
+    when: 'value == "phase-0-wayfinding@3"'
     result: {matches: true}
 `,
   );
@@ -157,9 +157,9 @@ describe("evaluateLifecycle scoped Obligations", () => {
     expect(evaluation.diagnostics).toEqual([]);
     expect(evaluation.looseEnds).toEqual([
       expect.objectContaining({
-        id: `initial-map-required@1:phase-0-wayfinding@4:${PROCESS_REF}`,
+        id: `initial-map-required@1:phase-0-wayfinding@3:${PROCESS_REF}`,
         obligation: "initial-map-required",
-        subject: "phase-0-wayfinding@4",
+        subject: "phase-0-wayfinding@3",
         status: "ready",
         eventualResolver: "chart-wayfinding-map@1",
         actionableResolver: "chart-wayfinding-map@1",
@@ -189,8 +189,8 @@ describe("evaluateLifecycle scoped Obligations", () => {
       expect(evaluation.diagnostics).toEqual([]);
       expect(evaluation.looseEnds).toEqual([
         expect.objectContaining({
-          id: `initial-map-required@1:process@phase-0-wayfinding@4:${PROCESS_REF}`,
-          subject: "process@phase-0-wayfinding@4",
+          id: `initial-map-required@1:process@phase-0-wayfinding@3:${PROCESS_REF}`,
+          subject: "process@phase-0-wayfinding@3",
           dispatchable: true,
           actionableResolver: "chart-wayfinding-map@1",
         }),
@@ -214,7 +214,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
       expect(looseEnds.status, looseEnds.stderr).toBe(0);
       const item = JSON.parse(looseEnds.stdout).looseEnds.items[0];
       expect(item).toEqual(expect.objectContaining({
-        subject: "process@phase-0-wayfinding@4",
+        subject: "process@phase-0-wayfinding@3",
         dispatchable: true,
       }));
       const dryRun = req(
@@ -270,12 +270,12 @@ describe("evaluateLifecycle scoped Obligations", () => {
           item.obligation === "initial-map-required",
       );
       expect(initial).toEqual(expect.objectContaining({
-        subject: "phase-0-wayfinding@4",
+        subject: "phase-0-wayfinding@3",
         dispatchable: true,
         actionableResolver: "chart-wayfinding-map@1",
       }));
       expect(initial.id).toMatch(
-        /^initial-map-required@1:phase-0-wayfinding@4:mdlm-bootstrap@0\.52\.0#sha256:[a-f0-9]{64}$/,
+        /^initial-map-required@1:phase-0-wayfinding@3:mdlm-bootstrap@0\.51\.0#sha256:[a-f0-9]{64}$/,
       );
 
       const snapshotPath = path.join(repositoryRoot, "empty-snapshot.json");
@@ -283,7 +283,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         snapshotPath,
         JSON.stringify({
           processRef: initial.id.replace(
-            "initial-map-required@1:phase-0-wayfinding@4:",
+            "initial-map-required@1:phase-0-wayfinding@3:",
             "",
           ),
           phaseId: "phase-0-wayfinding",
@@ -297,7 +297,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         "evaluate",
         "initial-map-required@1",
         "--subject",
-        "phase-0-wayfinding@4",
+        "phase-0-wayfinding@3",
         "--snapshot",
         snapshotPath,
         "--json",
@@ -312,7 +312,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         "evaluate",
         "scalar-string-policy@1",
         "--arg",
-        "value=phase-0-wayfinding@4",
+        "value=phase-0-wayfinding@3",
         "--snapshot",
         snapshotPath,
         "--json",
@@ -352,7 +352,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
           },
           obligation: expect.objectContaining({
             instance: initial.id,
-            subject: "phase-0-wayfinding@4",
+            subject: "phase-0-wayfinding@3",
             dispatchable: true,
           }),
           invocations: [{ inputs: [] }],
