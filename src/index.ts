@@ -200,30 +200,45 @@ function capabilityPrimitiveDiagnostics(
   return [];
 }
 
+function validateKernelCapabilityBindings(
+  kernelCapabilities: Record<string, KernelCapabilityBinding>,
+  types: Record<string, VersionedDefinition>,
+): ProcessDiagnostic[] {
+  return Object.entries(kernelCapabilities).flatMap(([reference, binding]) => {
+    const bindingPath = `manifest.kernel_capabilities.${reference}.type`;
+    if (reference !== exactBaselineCapability.reference) {
+      return [{
+        code: "unknown-kernel-capability",
+        path: bindingPath,
+        message: `Unknown Kernel Capability '${reference}'`,
+      }];
+    }
+    if (!types[binding.type]) {
+      return [{
+        code: "unknown-capability-type",
+        path: bindingPath,
+        message: `Kernel Capability '${reference}' binds unknown lifecycle type '${binding.type}'`,
+      }];
+    }
+    return [];
+  });
+}
+
 function validateKernelCapabilities(
   processPackage: ProcessPackage,
 ): ProcessDiagnostic[] {
-  const diagnostics: ProcessDiagnostic[] = [];
+  const diagnostics = validateKernelCapabilityBindings(
+    processPackage.kernelCapabilities,
+    processPackage.types,
+  );
   for (const [reference, binding] of Object.entries(
     processPackage.kernelCapabilities,
   )) {
     const bindingPath = `manifest.kernel_capabilities.${reference}.type`;
-    if (reference !== exactBaselineCapability.reference) {
-      diagnostics.push({
-        code: "unknown-kernel-capability",
-        path: bindingPath,
-        message: `Unknown Kernel Capability '${reference}'`,
-      });
-      continue;
-    }
-    if (!processPackage.types[binding.type]) {
-      diagnostics.push({
-        code: "unknown-capability-type",
-        path: bindingPath,
-        message: `Kernel Capability '${reference}' binds unknown lifecycle type '${binding.type}'`,
-      });
-      continue;
-    }
+    if (
+      reference !== exactBaselineCapability.reference ||
+      !processPackage.types[binding.type]
+    ) continue;
     const resolved = resolveType(processPackage, binding.type);
     if (!resolved.ok) {
       diagnostics.push(...resolved.diagnostics);
@@ -598,6 +613,17 @@ export async function loadProcessPackage(
         unknown
       >
       : {};
+    const manifestCapabilityBindings = manifestCapabilities as Record<
+      string,
+      KernelCapabilityBinding
+    >;
+    const capabilityBindingDiagnostics = validateKernelCapabilityBindings(
+      manifestCapabilityBindings,
+      definitions.types,
+    );
+    if (capabilityBindingDiagnostics.length > 0) {
+      return { ok: false, diagnostics: capabilityBindingDiagnostics };
+    }
     const exactBaselineBinding = typeof manifestCapabilities[
           "exact-baseline@1"
         ] === "object" && manifestCapabilities["exact-baseline@1"] !== null
