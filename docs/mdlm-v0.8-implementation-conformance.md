@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.56.0`
+- **Implementation package:** `mdlm-bootstrap@0.57.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -49,7 +49,7 @@ the accepted overview and the reviewed pilot Decision.
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
 | Phase 2 decomposition, exact-set and ordinary correction, ambiguity, evidence-preserving candidates, acceptance, and reviewed gate progression | 52–53, 57–58 | #46, #98–#99 | `test/req-system-decomposition.test.ts`, `test/mdlm-phase-2-simplification.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
-| Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
+| Accepted STK boundary, attended exact Change Request dispositions, selective replacement/reuse, and closure | 54, 57–58, 68–72 | #47, #101 | `test/mdlm-stakeholder-change-control.test.ts`, `test/mdlm-review-correction.test.ts` |
 | Durable pilot measurements, bounded PAS/Decision correction, independently reviewed expansion Decision, and explicit outcomes | 56–60 | #48, #68, #100 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts`, `test/mdlm-pilot-assessment.test.ts` |
 | Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
 
@@ -153,7 +153,15 @@ must cite the exact PAS and passing PAS Review, pass its own independent Review,
 and receive attended same-lineage Correction after failure. Reviewed `proceed`
 reports the omitted Phase 3–6 Profile Boundary, reviewed `change` enters the
 declared Phase 7 change-control route and reaches the boundary after supported
-work drains, and reviewed `stop` reports Lifecycle Complete. The lifecycle-neutral
+work drains, and reviewed `stop` reports Lifecycle Complete. Issue #101 hardens
+that declared Phase 7 route around accepted stakeholder intent: only an exact STK
+Revision in an authorized accepted intent baseline can enter CHG impact; exact CHG
+and Decision Reviews precede one attended approve/reject/defer/cancel disposition;
+only approval permits a same-lineage `changed-under` replacement; fresh causal
+context, STK Review, selective candidate, and candidate Review precede closure;
+and every unaffected accepted definition/evidence item remains reusable. Draft
+STK correction remains the ordinary Phase 0 route, while shared accepted SYS
+consumer behavior remains deferred to #102. The lifecycle-neutral
 operator contract exposes package-bound attended inputs without counting
 Assignment transport attempts as lifecycle failures. The implemented routes and
 deferred hardening breadth are recorded in
@@ -205,6 +213,11 @@ deferred hardening breadth are recorded in
   observation, guarantees cleanup, and continues all cases. Fresh context, Review,
   and run evidence is mandatory while prior VAI/RUN/RES/Review evidence remains
   immutable.
+- Accepted requirement maturity comes only from exact accepted-baseline membership,
+  never Review alone. Draft STK failures remain ordinary Correction. Accepted STK
+  impact, every attended disposition, same-lineage replacement, selective evidence
+  reuse, fresh candidate evidence, and exact closure are package-derived; accepted
+  history is never rewritten.
 - Complete reviewed Phase 2 candidates derive durable observation and exact
   assessment-context work. PAS publication, bounded failed-Review Correction,
   attended escalation, fresh independent Review, the final nondelegable
@@ -228,6 +241,7 @@ Decision therefore adopts `change`, not `proceed`.
 The following remain intentionally outside this completed profile:
 
 - Phase 3–6 package definitions and outputs;
+- shared accepted SYS multi-consumer impact, serial coverage replacement, and closure (#102);
 - production graph indexing before realistic repository measurements justify it;
 - claim/lease orchestration and broader concurrency profiles;
 - source-isolation containers;

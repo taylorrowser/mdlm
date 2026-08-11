@@ -115,7 +115,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       expect(obligation).toEqual(expect.objectContaining({
         status: "ready",
         dispatchable: true,
-        actionableResolver: "create-review-context@1",
+        actionableResolver: "create-review-context@2",
       }));
       if (!obligation) throw new Error(`Missing Review Context Obligation for ${subject}`);
       const configured = await adapter({
@@ -168,7 +168,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       expect(obligation).toEqual(expect.objectContaining({
         status: "awaiting-review",
         dispatchable: true,
-        actionableResolver: "review-datum-in-context@2",
+        actionableResolver: "review-datum-in-context@3",
       }));
       if (!obligation) throw new Error(`Missing Review Obligation for ${subject}`);
       const configured = await adapter({
@@ -609,7 +609,7 @@ describe("req product-assurance qualification and pilot slice", () => {
     expect(environmentContextWork).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "create-review-context@1",
+      actionableResolver: "create-review-context@2",
     }));
     const environmentContextAdapter = await adapter({
       outputs: [{
@@ -2086,7 +2086,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       "--type",
       "BSL",
       "--scenario",
-      "create-review-context@1",
+      "create-review-context@2",
       "--set",
       "title=Requirement revision boundary",
       "--set",

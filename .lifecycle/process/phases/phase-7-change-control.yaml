@@ -1,9 +1,9 @@
 kind: phase-definition
 id: phase-7-change-control
-version: 2
+version: 3
 order: 7
 name: Exact problem and change control
-purpose: Report pilot-discovered conditions, approve bounded impact, revise in original-V order, and close with exact replacement evidence.
+purpose: Protect accepted stakeholder intent through exact reviewed impact, attended disposition, selective original-V replacement, and closure evidence.
 coverage: bootstrap-subset
 omitted_capabilities:
   - multi-requirement ordered change scheduling
@@ -11,22 +11,24 @@ omitted_capabilities:
 entry: 'process.integrity.package_valid == true'
 scenarios:
   - report-problem@1
-  - analyze-change-impact@1
-  - create-review-context@1
-  - review-datum-in-context@2
-  - approve-change-request@2
-  - revise-requirement-under-change@1
-  - close-change-request@2
+  - analyze-change-impact@2
+  - create-review-context@2
+  - review-datum-in-context@3
+  - approve-change-request@3
+  - revise-requirement-under-change@2
+  - create-stakeholder-change-candidate@1
+  - close-change-request@3
   - record-consequential-decision@1
 obligations:
   - review-context-required@2
   - passing-review-required@2
   - problem-report-required@1
   - change-impact-required@1
-  - change-approval-required@1
-  - change-revision-required@1
-  - change-closure-required@1
-outputs: [PRB, CHG, DEC, SYS, BSL, REV, RES]
+  - change-approval-required@2
+  - change-revision-required@2
+  - stakeholder-change-candidate-required@1
+  - change-closure-required@2
+outputs: [PRB, CHG, DEC, STK, BSL, REV]
 progression: null
 gate:
   required: false

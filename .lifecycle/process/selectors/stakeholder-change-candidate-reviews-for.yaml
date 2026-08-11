@@ -1,0 +1,15 @@
+kind: selector-definition
+id: stakeholder-change-candidate-reviews-for
+version: 1
+description: Fresh passing Reviews of one exact replacement stakeholder intent candidate under its Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: change, link: changed-under, emit: source, types: [REV]}
+  as: review
+  where: >-
+    every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
+      exists("matching-passing-review-for@1", {subject: candidate, review: review}))
+  distinct: true
+  order_by: [identity.revision_id]

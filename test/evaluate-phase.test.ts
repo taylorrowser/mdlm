@@ -208,7 +208,7 @@ describe("phase evaluation", () => {
             `candidate-gate-signoff@3:${exactCandidate.datum.revision_id}:git:phase-gate`,
           status: "blocked",
           eventualResolver: "record-gate-signoff@3",
-          actionableResolver: "create-review-context@1",
+          actionableResolver: "create-review-context@2",
           dispatchable: false,
           blockedBy: [
             `candidate-members-reviewed@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
@@ -280,7 +280,7 @@ describe("phase evaluation", () => {
       complete: false,
       status: "blocked",
       eventualResolver: "record-gate-signoff@3",
-      actionableResolver: "review-datum-in-context@2",
+      actionableResolver: "review-datum-in-context@3",
       dispatchable: false,
       blockedBy: [
         `passing-review-required@2:${signoff.datum.revision_id}:git:exact-gate`,

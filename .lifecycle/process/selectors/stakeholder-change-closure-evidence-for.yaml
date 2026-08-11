@@ -1,0 +1,18 @@
+kind: selector-definition
+id: stakeholder-change-closure-evidence-for
+version: 1
+description: Exact replacement context, STK Review, candidate, and candidate Review required to close one accepted stakeholder change.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: change, link: changed-under, emit: source, types: [BSL, REV]}
+  as: evidence
+  where: >-
+    (evidence.identity.type == "BSL"
+      && evidence.payload.kind in ["review-context", "intent-change-candidate"])
+    || (evidence.identity.type == "REV"
+      && (exists("change-replacement-reviews-for@1", {change: change})
+        || exists("stakeholder-change-candidate-reviews-for@1", {change: change})))
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

@@ -85,7 +85,7 @@ describe("req system decomposition slice", () => {
         "BSL",
         "--scenario",
         kind === "review-context"
-          ? "create-review-context@1"
+          ? "create-review-context@2"
           : "create-candidate-baseline@1",
         "--set",
         `title=${title}`,
@@ -183,7 +183,7 @@ describe("req system decomposition slice", () => {
       evidence: string[] = [],
     ) => {
       const work = obligation("review-context-required", primarySubject);
-      expect(work.actionableResolver).toBe("create-review-context@1");
+      expect(work.actionableResolver).toBe("create-review-context@2");
       const execution = await execute(
         work,
         {
@@ -224,7 +224,7 @@ describe("req system decomposition slice", () => {
       expect(exactContext).toBe(context);
       if (!exactContext) throw new Error(`Missing Review Context for ${subject}`);
       const work = obligation("passing-review-required", subject);
-      expect(work.actionableResolver).toBe("review-datum-in-context@2");
+      expect(work.actionableResolver).toBe("review-datum-in-context@3");
       const execution = await execute(
         work,
         {

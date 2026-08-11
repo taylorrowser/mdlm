@@ -87,14 +87,14 @@ describe("evaluateLifecycle", () => {
       expect.objectContaining({
         subject: PSP_REVISION,
         status: "ready",
-        eventualResolver: "create-review-context@1",
-        actionableResolver: "create-review-context@1",
+        eventualResolver: "create-review-context@2",
+        actionableResolver: "create-review-context@2",
         dispatchable: true,
         blockedBy: [],
         blockerChains: [],
         unresolvedBindings: [],
         resolver: {
-          scenario: "create-review-context@1",
+          scenario: "create-review-context@2",
           promptRef: "prompts/create-review-context.md@1",
           expectedOutputs: [
             {
@@ -119,8 +119,8 @@ describe("evaluateLifecycle", () => {
       expect.objectContaining({
         subject: PSP_REVISION,
         status: "blocked",
-        eventualResolver: "review-datum-in-context@2",
-        actionableResolver: "create-review-context@1",
+        eventualResolver: "review-datum-in-context@3",
+        actionableResolver: "create-review-context@2",
         dispatchable: false,
         blockedBy: [
           `review-context-required@2:${PSP_REVISION}:git:current`,
@@ -130,7 +130,7 @@ describe("evaluateLifecycle", () => {
         ]],
         unresolvedBindings: ["review_context"],
         resolver: {
-          scenario: "review-datum-in-context@2",
+          scenario: "review-datum-in-context@3",
           promptRef: "prompts/review-datum-in-context.md@2",
           expectedOutputs: [
             {
@@ -211,7 +211,7 @@ describe("evaluateLifecycle", () => {
             },
             links: [],
             created_by: {
-              scenario: "create-review-context@1",
+              scenario: "create-review-context@2",
               prompt_ref: "prompts/create-review-context.md@1",
               process_ref: "git:current",
               loaded_skill_refs: [],

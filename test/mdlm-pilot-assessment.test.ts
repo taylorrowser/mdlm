@@ -356,7 +356,7 @@ describe("mdlm hardened pilot assessment", () => {
     let next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     let packet = prepare(next);
-    expect(packet.scenario.reference).toBe("create-review-context@1");
+    expect(packet.scenario.reference).toBe("create-review-context@2");
     const context = submit(packet, [output(
       `context-${subject.revisionId}`,
       "context",
@@ -375,7 +375,7 @@ describe("mdlm hardened pilot assessment", () => {
     next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     packet = prepare(next);
-    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    expect(packet.scenario.reference).toBe("review-datum-in-context@3");
     return submit(packet, [output(
       `review-${subject.revisionId}`,
       "review",
@@ -489,7 +489,7 @@ describe("mdlm hardened pilot assessment", () => {
 
   it.each([
     ["proceed", "profile-boundary-reached", "phase-2-pilot-assessment@3"],
-    ["change", "profile-boundary-reached", "phase-7-change-control@2"],
+    ["change", "profile-boundary-reached", "phase-7-change-control@3"],
     ["stop", "lifecycle-complete", "phase-2-pilot-assessment@3"],
   ] as const)(
     "maps a reviewed %s Decision to %s without fabricating later phases",
@@ -542,6 +542,6 @@ describe("mdlm hardened pilot assessment", () => {
     publishReview(replacement, "pass");
     next = nextOutcome();
     expect(next.outcome).toBe("profile-boundary-reached");
-    expect(next.phase).toBe("phase-7-change-control@2");
+    expect(next.phase).toBe("phase-7-change-control@3");
   }, 90_000);
 });

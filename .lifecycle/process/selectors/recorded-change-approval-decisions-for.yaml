@@ -1,7 +1,7 @@
 kind: selector-definition
 id: recorded-change-approval-decisions-for
-version: 1
-description: Exact valid change-approval Decisions for one exact reviewed Change Request, regardless of Decision Review completion.
+version: 2
+description: Exact valid attended disposition Decisions for one exact reviewed Change Request, regardless of Decision Review completion.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: revision
@@ -10,6 +10,7 @@ query:
   as: decision
   where: >-
     decision.payload.kind == "change-approval"
+    && decision.payload.change_disposition in ["approve", "reject", "defer", "cancel"]
     && decision.payload.effective_scope == change.identity.revision_id
     && state(decision, "validity") == "valid"
     && exists("passing-reviews-for@1", {subject: change})

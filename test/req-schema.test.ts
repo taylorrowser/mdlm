@@ -37,8 +37,8 @@ describe("req schema", () => {
       command: "schema",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.56.0",
-        reference: "mdlm-bootstrap@0.56.0",
+        version: "0.57.0",
+        reference: "mdlm-bootstrap@0.57.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -131,14 +131,14 @@ describe("req schema", () => {
     selectProcessPackage(
       repositoryRoot,
       processRoot,
-      "mdlm-bootstrap@0.56.0",
+      "mdlm-bootstrap@0.57.0",
     );
 
     const result = req(repositoryRoot, "schema", "SNP", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout).schema).toEqual(expect.objectContaining({
-      definition: "SNP@4",
+      definition: "SNP@5",
       kernelCapabilityBindings: [{
         reference: "exact-baseline@1",
         binding: { type: "SNP" },
@@ -183,7 +183,7 @@ describe("req schema", () => {
       ok: false,
       command: "schema",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.56.0",
+        reference: "mdlm-bootstrap@0.57.0",
       }),
       selected: true,
       diagnostics: [{
@@ -214,7 +214,7 @@ describe("req schema", () => {
     selectBootstrapProcessPackage(repositoryRoot);
     const selectedType = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.56.0/types/STK.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.57.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 

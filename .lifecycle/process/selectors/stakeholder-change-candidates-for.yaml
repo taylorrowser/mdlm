@@ -1,0 +1,36 @@
+kind: selector-definition
+id: stakeholder-change-candidates-for
+version: 1
+description: Exact replacement intent candidates containing changed STK evidence and every reusable accepted item.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "intent-change-candidate"
+    && candidate.payload.role == "candidate"
+    && candidate.storage.frozen == true
+    && exists("subject-changed-under@1", {subject: candidate, change: change})
+    && count("accepted-intent-baselines-for-change@1", {change: change}) == 1
+    && every("revised-requirements-for-change@2", {change: change}, requirement =>
+      exists("baseline-contains-definition@1", {baseline: candidate, subject: requirement}))
+    && every("reusable-change-definitions-for@1",
+      {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, definition =>
+        exists("baseline-contains-definition@1", {baseline: candidate, subject: definition}))
+    && every("candidate-definition-members@1", {candidate: candidate}, definition =>
+      exists("matching-change-candidate-definition@1",
+        {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change}), definition: definition}))
+    && every("change-review-contexts-for@1", {change: change}, context =>
+      exists("baseline-contains-evidence@1", {baseline: candidate, subject: context}))
+    && every("change-replacement-reviews-for@1", {change: change}, review =>
+      exists("baseline-contains-evidence@1", {baseline: candidate, subject: review}))
+    && every("reusable-change-evidence-for@1",
+      {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, evidence =>
+        exists("baseline-contains-evidence@1", {baseline: candidate, subject: evidence}))
+    && every("baseline-evidence@1", {baseline: candidate}, evidence =>
+      exists("matching-change-candidate-evidence@1",
+        {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change}), evidence: evidence}))
+  distinct: true
+  order_by: [identity.revision_id]

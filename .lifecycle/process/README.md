@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.56
+# MDLM bootstrap process package v0.57
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -332,7 +332,7 @@ derive reviewed-plan execution, exact question blockers, child Review completion
 parent coverage, and separate requirement-set and architecture/interface
 simplification work at the first exact SYS, ASP, ICSP, and planning-DWP set. The
 generic Review Context module deepens for an executed planning DWP: its ordinary
-`create-review-context@1` Assignment receives every exact set member and rejects
+`create-review-context@2` Assignment receives every exact set member and rejects
 both missing and unrelated definitions. A failed simplification Review nests every primary Finding under one exact target, binds collateral Findings to
 the complete canonical consistency set, and carries either one canonical SYS blocker or
 the exact complete definition-consistency blocker set. One SYS subject is corrected
@@ -379,24 +379,34 @@ package-owned outgoing link requires Stable identity. Generic type identifiers
 accept three through eight uppercase characters, permitting `ICSP` without core
 recognition of that or any other V-model noun.
 
-## Exact problem and change-control tracer slice
+## Exact accepted-STK change-control slice
 
-The package defines PRB and CHG as source-owned exact lifecycle data. An
-unsuitable pilot RES derives `problem-report-required@1`; its PRB preserves that
-immutable source through `reports`. The resulting CHG names exact affected
-requirements, Review Contexts, Reviews, baselines, and verification evidence in
-both payload impact categories and `impacts` links. Contextual Review blocks an
-exact `change-approval` DEC. Only then may the affected SYS Stable Datum receive
-its next Revision through `changed-under`.
+The package defines PRB and CHG as source-owned exact Lifecycle Data. A PRB
+preserves its immutable source through `reports`. The resulting CHG may name one
+STK Revision only when that exact identity belongs to an authorized
+`intent-approved` accepted baseline; an individual passing Review or an unaccepted
+Revision in the same lineage cannot satisfy the impact contract. Canonical `impacts` links bound the affected requirement, Review Contexts,
+Reviews, baselines, and verification evidence; target type and BSL kind classify
+the set without duplicate payload identity arrays. Draft STK defects continue through
+ordinary causal Phase 0 Correction without CHG ceremony.
 
-Replacement context, Review, candidate, and generated pilot RES data retain the
-exact CHG. Baseline comparison keeps exact historical Review and RES evidence
-while package Policy marks only dependencies whose Stable resolutions changed as
-Stale; unrelated exact evidence remains reusable. Closure atomically publishes a
-`change-closure` DEC citing the exact CHG and replacement evidence plus the next
-closed PRB Revision. `change-status@1` remains an independent computed dimension,
-and all routing uses generic Phase, Obligation, baseline, Scenario, and repository
-surfaces.
+After the CHG's contextual Review passes, one attended stakeholder Decision records
+`approve`, `reject`, `defer`, or `cancel`. It becomes applicable only after its own
+independent Review passes. Reviewed rejection, deferral, and cancellation close
+explicitly without a replacement or any rewrite of accepted history. Reviewed
+approval alone authorizes the same STK Stable Datum's next Revision through exact
+`changed-under`.
+
+The replacement receives a fresh `changed-under` Review Context and Review. A
+package-owned candidate Resolver then freezes one `intent-change-candidate`
+containing that replacement evidence and every exact accepted definition/evidence
+item outside the CHG impact. The candidate receives fresh Review; unrelated exact
+evidence remains reusable while declared changed dependencies reevaluate normally.
+Closure atomically publishes a `change-closure` DEC citing the exact CHG,
+replacement, context, Reviews, and candidate plus the next closed PRB Revision.
+`change-status@2` remains an independent computed dimension, and all routing uses
+generic Phase, Obligation, baseline, Scenario, and repository surfaces. Shared SYS
+multi-consumer change remains deliberately deferred to its sibling tracer.
 
 ## Reviewed Phase 0–2 pilot assessment
 

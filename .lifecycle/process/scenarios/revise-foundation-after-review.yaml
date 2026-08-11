@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: revise-foundation-after-review
-version: 5
+version: 6
 description: Replace one exact Phase 0 foundation Revision while autonomous correction budget remains, citing every current Review or gate-rejection cause and preserving immutable history.
 phases: [phase-0-wayfinding]
 inputs:
@@ -39,6 +39,7 @@ completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == subject.identity.id
   && replacement.identity.type == subject.identity.type
+  && none("baselines-containing-with-role@1", {subject: subject, role: "accepted"})
 resolves: [foundation-review-correction-required]
-prohibited_inputs: [mutation of the failed Revision, deletion of failed Review history, unrelated scope expansion]
+prohibited_inputs: [accepted requirement change without CHG, mutation of the failed Revision, deletion of failed Review history, unrelated scope expansion]
 batching: single

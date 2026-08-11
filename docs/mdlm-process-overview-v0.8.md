@@ -369,7 +369,7 @@ subject_as: subject
 satisfied_when: >-
   exists("valid-review-contexts-for@1", {subject: subject})
 resolve_with:
-  scenario: create-review-context@1
+  scenario: create-review-context@2
   inputs:
     subject: subject
 ```
@@ -1238,7 +1238,7 @@ dispatchable: false
 blocked_by:
   - passing-review-required@1:DEC-...-r00001:git:abc123
 eventual_resolver: record-gate-signoff@2
-actionable_resolver: review-datum-in-context@2
+actionable_resolver: review-datum-in-context@3
 ```
 
 Historical obligation records explain what was true under an exact subject revision and process reference. When a resolving scenario creates a new revision, current selectors are reevaluated; history is not rewritten and does not require a new lifecycle datum type.

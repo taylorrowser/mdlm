@@ -13,7 +13,7 @@ status_rules:
     reason: The exact blocking Review or gate rejection evidence requires a corrected replacement Revision.
 default_status: ready
 resolve_with:
-  scenario: revise-foundation-after-review@5
+  scenario: revise-foundation-after-review@6
   inputs:
     subject: subject
     prior_failed_reviews: 'select("cited-failing-reviews-by-correction@1", {replacement: subject})'

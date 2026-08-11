@@ -1,0 +1,18 @@
+kind: selector-definition
+id: change-review-contexts-for
+version: 1
+description: Exact replacement Review Contexts authored under one approved Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: context
+  where: >-
+    context.payload.kind == "review-context"
+    && context.storage.frozen == true
+    && exists("subject-changed-under@1", {subject: context, change: change})
+    && every("revised-requirements-for-change@2", {change: change}, requirement =>
+      exists("baseline-contains-definition@1", {baseline: context, subject: requirement}))
+  distinct: true
+  order_by: [identity.revision_id]

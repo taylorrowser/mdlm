@@ -1,0 +1,27 @@
+kind: selector-definition
+id: matching-change-candidate-evidence
+version: 1
+description: The supplied candidate evidence when it is the fresh replacement context or Review, or unaffected accepted evidence.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+  - {name: accepted, kind: baseline, types: [BSL]}
+  - {name: evidence, kind: revision}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
+  as: candidate
+  where: >-
+    candidate == evidence
+    && (
+      exists("matching-reusable-change-evidence@1",
+        {change: change, accepted: accepted, evidence: candidate})
+      || (candidate.identity.type == "BSL"
+        && candidate.payload.kind == "review-context"
+        && exists("subject-changed-under@1", {subject: candidate, change: change}))
+      || (candidate.identity.type == "REV"
+        && exists("subject-changed-under@1", {subject: candidate, change: change})
+        && every("revised-requirements-for-change@2", {change: change}, requirement =>
+          exists("matching-passing-review-for@1", {subject: requirement, review: candidate})))
+    )
+  distinct: true
+  order_by: [identity.revision_id]

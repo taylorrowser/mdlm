@@ -30,8 +30,8 @@ scenarios:
   - define-interface-control-specification@2
   - define-decomposition-work-package@2
   - execute-decomposition-work-package@2
-  - create-review-context@1
-  - review-datum-in-context@2
+  - create-review-context@2
+  - review-datum-in-context@3
   - simplify-requirement-set@2
   - simplify-architecture-and-interfaces@2
   - revise-phase-2-subject-after-simplification@1

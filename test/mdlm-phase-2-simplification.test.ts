@@ -194,8 +194,8 @@ batching: coherent-batch
   phase.scenarios = [
     "seed-phase-2-data@1",
     "seed-phase-2-reviews@1",
-    "create-review-context@1",
-    "review-datum-in-context@2",
+    "create-review-context@2",
+    "review-datum-in-context@3",
     "simplify-requirement-set@2",
     "simplify-architecture-and-interfaces@2",
     "revise-phase-2-subject-after-simplification@1",
@@ -556,7 +556,7 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     commit("Publish unaffected fresh corrected definition evidence");
 
     packet = next();
-    expect(packet.scenario.reference).toBe("create-review-context@1");
+    expect(packet.scenario.reference).toBe("create-review-context@2");
     expect(inputValues(packet, "subject")[0]!.identity.revision_id).toBe(correctedPlan);
     expect(inputValues(packet, "context_members").map((member) => member.identity.revision_id)).toEqual([
       correctedArchitecture,
@@ -574,7 +574,7 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     })]).outputs[0].lifecycleDatum as DatumRef;
 
     packet = next();
-    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    expect(packet.scenario.reference).toBe("review-datum-in-context@3");
     expect(inputValues(packet, "subject")[0]!.identity.revision_id).toBe(correctedPlan);
     expect(inputValues(packet, "context_members").map((member) => member.identity.revision_id)).toEqual([
       correctedArchitecture,

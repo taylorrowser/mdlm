@@ -589,36 +589,44 @@ execution record therefore captures the canonical Scenario request and exact
 package digest rather than inventing a second execution contract. `req process
 show` discovers the exact alias definition in the selected package catalog.
 
-### 11.1 Exact Problem Report and Change Request flow
+### 11.1 Exact accepted-STK Change Request flow
 
 The bootstrap change-control slice uses the same canonical execution boundary.
-An unsuitable pilot RES selects `problem-report-required@1`; `report-problem@1`
-creates PRB with an exact `reports` source. `analyze-change-impact@1` creates CHG
-whose payload separates exact requirement, Review Context, Review, baseline, and
-verification-evidence impact and whose `impacts` links preserve the same bounded
-set. CHG contextual Review is distinct from the exact `change-approval` DEC.
+An exact PRB preserves its immutable source through `reports`.
+`analyze-change-impact@2` accepts exactly one STK Revision only when that exact
+identity belongs to an `intent-approved` accepted baseline. A passing individual
+Review or another Revision in the same Stable Datum is insufficient. The CHG
+preserves exact requirement, Review Context, Review, baseline, and verification-
+evidence impact through canonical `impacts` links. Target type and BSL kind classify
+the set without duplicate payload identity arrays.
+Draft STK failures remain in ordinary Phase 0 Correction and cannot enter this
+post-acceptance Resolver.
 
-`change-revision-required@1` remains blocked until approval and revises the
-impacted SYS Stable Datum before replacement context, Review, baseline, and
-verification evidence. Exact historical REV and RES data may carry an additional
-Stable claim dependency alongside their exact judgment target. Frozen baselines
-resolve that dependency at each snapshot. A changed resolution emits a generic
-`stable-link-resolution-change`; `dependency-reassessment@1` decides Staleness.
-Evidence with an unchanged Stable resolution emits no change and remains reusable.
+After CHG contextual Review passes, `approve-change-request@3` projects immediate,
+nondelegable stakeholder attention for one exact `approve`, `reject`, `defer`, or
+`cancel` disposition. The exact Decision applies only after its own independent
+Review passes. Reviewed rejection, deferral, and cancellation close explicitly,
+publish no replacement, and preserve accepted history. Only reviewed approval
+makes `change-revision-required@2` Dispatchable.
 
-A frozen snapshot stores resolution targets as a deterministic multiset. During
-diff, exact authored targets are consumed before Stable-link resolutions are
-paired. This avoids confusing an exact Review target with a Stable dependency
-when both refer to the same Stable Datum lineage. The storage shape and package-
-neutral comparison contract remain unchanged.
+Approved implementation publishes one same-lineage STK replacement with exact
+`changed-under`. Generic Review Context and Review publication inherit that same
+CHG cause. `stakeholder-change-candidate-required@1` then freezes one
+`intent-change-candidate` containing the replacement, its fresh context and Review,
+and every exact accepted definition/evidence item outside the bounded impact.
+The candidate receives a fresh contextual Review. Thus affected context, Review,
+candidate, and evidence are replaced or become Stale through ordinary exact
+dependency reevaluation while unaffected accepted evidence remains reusable.
+Shared accepted SYS behavior and multi-consumer propagation remain deferred to the
+sibling shared-requirement slice.
 
-`close-change-request@2` requires the exact approval, revised requirements, and
-replacement BSL/REV/RES evidence selected from `changed-under`. One atomic
-Scenario publication creates a `change-closure` DEC citing exact evidence and the
-next closed PRB Revision linked to that Decision. `change-status@1` reports this
-progress independently from maturity, validity, disposition, and relationship
-overlays. No PRB, CHG, original-V, or change-status identifier is recognized by
-generic source.
+`close-change-request@3` becomes Dispatchable only with the exact replacement,
+Review Context, passing STK Review, candidate, and passing candidate Review. One
+atomic publication creates a `change-closure` DEC citing all exact evidence and
+the next closed PRB Revision. `change-status@2` reports reviewed terminal
+disposition or implementation progress independently from maturity, validity,
+disposition, and relationship overlays. No STK, PRB, CHG, original-V, or change-
+status identifier is recognized by generic source.
 
 ### 11.2 Reviewed pilot measurements and expansion Decision
 
@@ -900,7 +908,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.56 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.57 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring

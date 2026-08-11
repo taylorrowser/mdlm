@@ -132,7 +132,7 @@ describe("failed STK Review correction through the public operator process", () 
       return execution;
     };
     const publishContext = (packet: Packet) => {
-      expect(packet.scenario.reference).toBe("create-review-context@1");
+      expect(packet.scenario.reference).toBe("create-review-context@2");
       const subject = exactInput(packet, "subject").values[0];
       const contextMembers = exactInput(packet, "context_members").values;
       return publish(packet, [{
@@ -163,7 +163,7 @@ describe("failed STK Review correction through the public operator process", () 
       outcome: "pass" | "fail",
       correctionAuthority?: "stakeholder",
     ) => {
-      expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+      expect(packet.scenario.reference).toBe("review-datum-in-context@3");
       const subject = exactInput(packet, "subject").values[0];
       const context = exactInput(packet, "review_context").values[0];
       const productSimplification =
@@ -332,7 +332,7 @@ describe("failed STK Review correction through the public operator process", () 
     let failedReview: Record<string, any> | undefined;
     while (!failedReview) {
       packet = nextPacket();
-      expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+      expect(packet.scenario.reference).toBe("review-datum-in-context@3");
       const subject = exactInput(packet, "subject").values[0];
       const review = publishReview(
         packet,
@@ -478,11 +478,11 @@ describe("failed STK Review correction through the public operator process", () 
       let attendedFailure: { revisionId: string } | undefined;
       while (!attendedFailure) {
         packet = nextPacket();
-        if (packet.scenario.reference === "create-review-context@1") {
+        if (packet.scenario.reference === "create-review-context@2") {
           publishContext(packet);
           continue;
         }
-        expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+        expect(packet.scenario.reference).toBe("review-datum-in-context@3");
         const reviewSubject = exactInput(packet, "subject").values[0];
         const reviewExecution = publishReview(
           packet,
@@ -504,11 +504,14 @@ describe("failed STK Review correction through the public operator process", () 
       expect(correctionOutcome.outcome).toBe("assignment");
       packet = prepare(correctionOutcome);
       correctionAssignments.add(packet.assignment.id);
-      expect(packet.scenario.reference).toBe("revise-foundation-after-review@5");
+      expect(packet.scenario.reference).toBe("revise-foundation-after-review@6");
       expect(packet.obligation).toEqual(expect.objectContaining({
         definition: "foundation-review-correction-required@5",
         subject: current.revisionId,
       }));
+      expect(packet.exactInputs.flatMap((invocation: any) =>
+        invocation.inputs.flatMap((input: any) => input.values)
+      ).map((value: any) => value.identity.type)).not.toContain("CHG");
       const correctionSubject = exactInput(packet, "subject");
       const priorFailedReviews = exactInput(packet, "prior_failed_reviews");
       const failedReviews = exactInput(packet, "failed_reviews");
@@ -588,13 +591,13 @@ describe("failed STK Review correction through the public operator process", () 
       ).lifecycleDatum).toEqual(preservedInitialReview);
 
       packet = nextPacket();
-      expect(packet.scenario.reference).toBe("create-review-context@1");
+      expect(packet.scenario.reference).toBe("create-review-context@2");
       expect(exactInput(packet, "subject").values[0].identity.revision_id)
         .toBe(replacement.revisionId);
       const replacementContext = publishContext(packet).outputs[0].lifecycleDatum;
 
       packet = nextPacket();
-      expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+      expect(packet.scenario.reference).toBe("review-datum-in-context@3");
       expect(exactInput(packet, "subject").values[0].identity.revision_id)
         .toBe(replacement.revisionId);
       expect(exactInput(packet, "review_context").values[0].identity.revision_id)
@@ -762,7 +765,7 @@ describe("failed STK Review correction through the public operator process", () 
 
         packet = nextPacket();
         expect(packet.scenario.reference)
-          .toBe("revise-foundation-after-review@5");
+          .toBe("revise-foundation-after-review@6");
         expect(packet.obligation).toEqual(expect.objectContaining({
           definition: "foundation-review-correction-required@5",
           subject: current.revisionId,
@@ -829,7 +832,7 @@ describe("failed STK Review correction through the public operator process", () 
           .outputs[0].lifecycleDatum as { revisionId: string };
 
         packet = nextPacket();
-        expect(packet.scenario.reference).toBe("revise-foundation-after-review@5");
+        expect(packet.scenario.reference).toBe("revise-foundation-after-review@6");
         expect(exactInput(packet, "failed_reviews").values.map(
           (value: any) => value.identity.revision_id,
         )).toEqual([gateCorrectionFailure.revisionId]);

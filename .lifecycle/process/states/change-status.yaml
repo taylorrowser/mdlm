@@ -1,7 +1,7 @@
 kind: state-definition
 id: change-status
-version: 1
-description: Independent progress interpretation for exact Problem Reports and Change Requests.
+version: 2
+description: Independent exact progress or terminal-disposition interpretation for Problem Reports and Change Requests.
 subject_as: subject
 cardinality: exactly-one
 default: not-applicable
@@ -13,33 +13,34 @@ rules:
       (subject.identity.type == "PRB"
         && subject.payload.disposition == "closed")
       || (subject.identity.type == "CHG"
-        && exists("change-closure-decisions-for@1", {change: subject}))
-    explanation: Exact closure Decision and replacement evidence close the bounded change.
+        && (exists("change-closure-decisions-for@2", {change: subject})
+          || exists("terminal-change-disposition-decisions-for@1", {change: subject})))
+    explanation: Exact reviewed terminal disposition or exact replacement closure evidence closes the bounded change.
   - value: ready-to-close
     priority: 700
     when: >-
       subject.identity.type == "CHG"
-      && exists("change-approval-decisions-for@1", {change: subject})
-      && exists("revised-requirements-for-change@1", {change: subject})
-      && exists("change-evidence-for@1", {change: subject})
-    explanation: Approved replacement lifecycle and verification evidence are available.
+      && exists("change-approval-decisions-for@2", {change: subject})
+      && exists("revised-requirements-for-change@2", {change: subject})
+      && exists("stakeholder-change-candidate-reviews-for@1", {change: subject})
+    explanation: Approved replacement STK, Review, candidate, and candidate Review evidence are available.
   - value: implementation-in-progress
     priority: 600
     when: >-
       subject.identity.type == "CHG"
-      && exists("change-approval-decisions-for@1", {change: subject})
-      && exists("revised-requirements-for-change@1", {change: subject})
-    explanation: Requirement revision exists and downstream replacement evidence remains.
+      && exists("change-approval-decisions-for@2", {change: subject})
+      && exists("revised-requirements-for-change@2", {change: subject})
+    explanation: Same-lineage STK replacement exists and downstream replacement evidence remains.
   - value: approved
     priority: 500
     when: >-
       subject.identity.type == "CHG"
-      && exists("change-approval-decisions-for@1", {change: subject})
-    explanation: An exact Decision approves this exact reviewed Change Request.
+      && exists("change-approval-decisions-for@2", {change: subject})
+    explanation: A passing-reviewed attended Decision approves this exact reviewed Change Request.
   - value: awaiting-approval
     priority: 400
     when: 'subject.identity.type == "CHG"'
-    explanation: Impact is exact but no applicable approval Decision exists.
+    explanation: Impact is exact but no applicable passing-reviewed disposition exists.
   - value: impact-analyzed
     priority: 300
     when: >-

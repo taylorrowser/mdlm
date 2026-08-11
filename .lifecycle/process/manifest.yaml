@@ -1,13 +1,13 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.56.0
+version: 0.57.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
   narrow Phase 0 intent, Phase 1 qualification/pilot, Phase 2 system
-  decomposition, exact problem/change-control, and reviewed pilot-assessment slices.
+  decomposition, exact accepted-STK change control, and reviewed pilot-assessment slices.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -291,11 +291,27 @@ catalog:
     - source-problems-for-change
     - reported-evidence-for-problem
     - all-change-requests
+    - change-requests-authoring-subject
+    - subject-changed-under
+    - all-change-impact-links-for
+    - change-impacts-revision
     - recorded-change-approval-decisions-for
     - change-approval-decisions-for
+    - terminal-change-disposition-decisions-for
     - impacted-requirements-for-change
+    - accepted-stakeholder-requirements-for-change
+    - accepted-intent-baselines-for-change
     - revised-requirements-for-change
-    - change-evidence-for
+    - reusable-change-definitions-for
+    - reusable-change-evidence-for
+    - matching-reusable-change-evidence
+    - matching-change-candidate-definition
+    - matching-change-candidate-evidence
+    - change-review-contexts-for
+    - change-replacement-reviews-for
+    - stakeholder-change-candidates-for
+    - stakeholder-change-candidate-reviews-for
+    - stakeholder-change-closure-evidence-for
     - change-closure-decisions-for
     - pilot-assessment-contexts
     - pilot-assessments-for-context
@@ -351,6 +367,7 @@ catalog:
     - change-impact-required
     - change-approval-required
     - change-revision-required
+    - stakeholder-change-candidate-required
     - change-closure-required
     - pilot-observation-required
     - pilot-assessment-context-required
@@ -409,6 +426,7 @@ catalog:
     - analyze-change-impact
     - approve-change-request
     - revise-requirement-under-change
+    - create-stakeholder-change-candidate
     - close-change-request
     - record-pilot-observation
     - prepare-pilot-assessment-context
@@ -467,10 +485,11 @@ assets:
     - prompts/create-system-level-candidate.md@1
     - prompts/accept-phase-2-system.md@1
     - prompts/report-problem.md@1
-    - prompts/analyze-change-impact.md@1
-    - prompts/approve-change-request.md@2
-    - prompts/revise-requirement-under-change.md@1
-    - prompts/close-change-request.md@2
+    - prompts/analyze-change-impact.md@2
+    - prompts/approve-change-request.md@3
+    - prompts/revise-requirement-under-change.md@2
+    - prompts/create-stakeholder-change-candidate.md@1
+    - prompts/close-change-request.md@3
     - prompts/record-pilot-observation.md@2
     - prompts/prepare-pilot-assessment-context.md@1
     - prompts/assess-phase-0-2-pilot.md@1
@@ -510,9 +529,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@31
+  default: bootstrap@32
   available:
-    - profiles/bootstrap.yaml@31
+    - profiles/bootstrap.yaml@32
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

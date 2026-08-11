@@ -14,7 +14,7 @@ import {
 import { req } from "./helpers/req.js";
 
 const PROCESS_REF =
-  "mdlm-bootstrap@0.56.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  "mdlm-bootstrap@0.57.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 async function scopedProcessPackage(
   scope: "phase" | "process" = "phase",
@@ -488,7 +488,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         "--type",
         "BSL",
         "--scenario",
-        "create-review-context@1",
+        "create-review-context@2",
         "--set",
         "title=Scoped obligation target context",
         "--set",

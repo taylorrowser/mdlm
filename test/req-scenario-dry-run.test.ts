@@ -126,7 +126,7 @@ describe("req scenario dry-run", () => {
     const question = JSON.parse(createdQuestion.stdout).created;
     await freezeQuestionSource(repositoryRoot, question.revisionId);
     const obligation =
-      `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.56.0#${packageDigest}`;
+      `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.57.0#${packageDigest}`;
     const before = await treeDigest(repositoryRoot);
 
     const result = req(
@@ -207,7 +207,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "create-review-context@1",
+      "create-review-context@2",
       "--obligation",
       readyInstance,
       "--snapshot",
@@ -224,7 +224,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.56.0",
+          reference: "mdlm-bootstrap@0.57.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -233,7 +233,7 @@ describe("req scenario dry-run", () => {
           sideEffectFree: true,
           definition: {
             obligation: "review-context-required@2",
-            scenario: "create-review-context@1",
+            scenario: "create-review-context@2",
           },
           obligation: expect.objectContaining({
             instance: readyInstance,
@@ -376,7 +376,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "create-review-context@1",
+      "create-review-context@2",
       "--obligation",
       readyInstance,
       "--snapshot",
@@ -384,7 +384,7 @@ describe("req scenario dry-run", () => {
     );
     expect(human.status, human.stderr).toBe(0);
     expect(human.stdout).toContain(
-      "Scenario Dry Run: create-review-context@1 [executable]",
+      "Scenario Dry Run: create-review-context@2 [executable]",
     );
     expect(human.stdout).toContain(`Obligation: ${readyInstance}`);
     expect(human.stdout).toContain("Input subject: PSP-7K3M9Q2D8F-r00001");
@@ -402,7 +402,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "review-datum-in-context@2",
+      "review-datum-in-context@3",
       "--obligation",
       blockedInstance,
       "--snapshot",
@@ -438,7 +438,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "create-review-context@1",
+      "create-review-context@2",
       "--obligation",
       readyInstance,
       "--snapshot",
@@ -465,14 +465,14 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.56.0",
+        "mdlm-bootstrap@0.57.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(
         alternateRepository,
         "scenario",
         "dry-run",
-        "create-review-context@1",
+        "create-review-context@2",
         "--obligation",
         readyInstance,
         "--snapshot",
