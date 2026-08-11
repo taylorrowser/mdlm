@@ -299,11 +299,11 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
         { type: "verified-under", target: strategy },
       ], ids.plan),
       output("retained", "data", "SYS", requirementPayload("Export completed report", architecture), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: plan },
+        { type: "derived-from", target: parentRequirement }, { type: "decomposes", target: plan },
         { type: "allocated-to", target: architecture }, { type: "governed-by", target: interfaceSpec },
       ], ids.retained),
       output("removed", "data", "SYS", requirementPayload("Relay completed report", architecture), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: plan },
+        { type: "derived-from", target: parentRequirement }, { type: "decomposes", target: plan },
         { type: "allocated-to", target: architecture }, { type: "governed-by", target: interfaceSpec },
       ], ids.removed),
       contextOutput("set-context", "BSL-0DEFSETCTX", plan, initialMembers),
@@ -474,7 +474,7 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     expect(inputValues(correction, "failed_review")[0]!.data.payload.definition_simplification.primary_findings).toHaveLength(2);
     const published = submit(correction, [output("replacement", "replacement", "SYS",
       requirementPayload("Export one completed report", revision(ids.architecture)), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: revision(ids.plan) },
+        { type: "derived-from", target: revision(ids.parent) }, { type: "decomposes", target: revision(ids.plan) },
         { type: "allocated-to", target: revision(ids.architecture) }, { type: "governed-by", target: revision(ids.interface) },
         { type: "corrects-review", target: failedReview.revisionId },
       ], ids.retained)]);
@@ -524,7 +524,7 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
         { type: "verified-under", target: revision(ids.strategy) }, cause,
       ], ids.plan),
       output("requirement", "requirements", "SYS", requirementPayload("Export one completed report", correctedArchitecture), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: "$proposal.plan.revision_id" },
+        { type: "derived-from", target: revision(ids.parent) }, { type: "decomposes", target: "$proposal.plan.revision_id" },
         { type: "allocated-to", target: "$proposal.architecture.revision_id" }, { type: "governed-by", target: "$proposal.interface.revision_id" }, cause,
       ], ids.retained),
     ];

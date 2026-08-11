@@ -64,7 +64,7 @@ records:
         statement: The system shall compute every unsatisfied process obligation for the selected phase.
         verification_intent: Evaluate a controlled lifecycle graph and compare the loose ends with expected obligations.
       links:
-        - {type: derived-from, target: STK-X4N7AB2W6J}
+        - {type: derived-from, target: STK-X4N7AB2W6J-r00001}
       created_by:
         scenario: derive-system-requirements@1
         prompt_ref: prompts/derive-system-requirements.md@1

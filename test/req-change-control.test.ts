@@ -330,7 +330,7 @@ describe("req Problem Report and Change Request flow", () => {
       "--set",
       "verification_intent=Observe valid and malformed request behavior.",
       "--link",
-      `derived-from=${stakeholder.id}`,
+      `derived-from=${stakeholder.revisionId}`,
     );
     const unrelated = create(
       "SYS",
@@ -345,7 +345,7 @@ describe("req Problem Report and Change Request flow", () => {
       "--set",
       "verification_intent=Inspect the exported title.",
       "--link",
-      `derived-from=${stakeholder.id}`,
+      `derived-from=${stakeholder.revisionId}`,
     );
     const strategy = create(
       "VSP",
@@ -861,7 +861,7 @@ describe("req Problem Report and Change Request flow", () => {
               verification_intent: "Observe one valid success and one malformed rejection.",
             },
             links: [
-              { type: "derived-from", target: stakeholder.id },
+              { type: "derived-from", target: stakeholder.revisionId },
               { type: "changed-under", target: change.revisionId },
             ],
             body: "The approved correction changes only malformed-request handling.\n",
