@@ -31,24 +31,27 @@ terminal_outcomes:
         phase.id == "phase-2-pilot-assessment"
         && exists("all-pilot-assessments@1", {})
         && every("all-pilot-assessments@1", {}, assessment =>
-          count("pilot-expansion-decisions-by-outcome@1",
-            {assessment: assessment, outcome: "proceed"}) == 1)
+          count("pilot-expansion-decisions-for@1", {assessment: assessment}) == 1
+          && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
+            decision.payload.decision == "proceed"))
       )
       || (
         phase.id == "phase-7-change-control"
         && exists("all-pilot-assessments@1", {})
         && every("all-pilot-assessments@1", {}, assessment =>
-          count("pilot-expansion-decisions-by-outcome@1",
-            {assessment: assessment, outcome: "change"}) == 1)
+          count("pilot-expansion-decisions-for@1", {assessment: assessment}) == 1
+          && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
+            decision.payload.decision == "change"))
       )
-    explanation: The selected profile stops successfully when Phase 1 ambiguity exceeds its narrow supported breadth, a reviewed proceed Decision reaches the omitted Phase 3–6 boundary, or a reviewed change Decision enters and drains the declared narrow change-control route; omitted broader lifecycle capabilities remain outside the supported boundary.
+    explanation: The selected profile stops successfully when Phase 1 contains multiple applicable strategies, environments, or pilot targets beyond its narrow supported breadth, when a reviewed proceed Decision reaches the omitted Phase 3–6 boundary, or when a reviewed change Decision enters and drains the declared narrow change-control route; omitted broader lifecycle capabilities remain outside the supported boundary.
   lifecycle_complete:
     condition: >-
       phase.id == "phase-2-pilot-assessment"
       && exists("all-pilot-assessments@1", {})
       && every("all-pilot-assessments@1", {}, assessment =>
-        count("pilot-expansion-decisions-by-outcome@1",
-          {assessment: assessment, outcome: "stop"}) == 1)
+        count("pilot-expansion-decisions-for@1", {assessment: assessment}) == 1
+        && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
+          decision.payload.decision == "stop"))
     explanation: Every current exact reviewed Pilot Assessment has an applicable stakeholder stop Decision, so the selected package declares the lifecycle intentionally complete without fabricating Phase 3–6 work.
 success_criteria:
   - every definition conforms to its versioned meta-schema

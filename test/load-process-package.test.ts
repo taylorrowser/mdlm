@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.57.0");
+    expect(result.package.manifest.version).toBe("0.56.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(263);
+    expect(Object.keys(result.package.selectors)).toHaveLength(257);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
@@ -60,10 +60,6 @@ describe("loadProcessPackage", () => {
       "matching-cited-gate-rejection-by-correction": expect.any(Object),
       "gate-rejection-corrections-for-subject": expect.any(Object),
       "phase-1-assurance-correction-decisions-for": expect.any(Object),
-      "pilot-assessment-correction-decisions-for": expect.any(Object),
-      "failed-pilot-expansion-decisions": expect.any(Object),
-      "valid-pilot-expansion-decision-replacements-for": expect.any(Object),
-      "pilot-expansion-decisions-by-outcome": expect.any(Object),
     }));
     expect(Object.keys(result.package.policies)).toHaveLength(13);
     expect(Object.keys(result.package.obligations)).toHaveLength(55);
@@ -147,13 +143,13 @@ describe("loadProcessPackage", () => {
     expect(result.package.profiles.bootstrap?.terminal_outcomes).toEqual({
       profile_boundary: {
         condition: expect.objectContaining({
-          source: expect.stringContaining('outcome: "proceed"'),
+          source: expect.stringContaining('decision.payload.decision == "proceed"'),
         }),
         explanation: expect.stringContaining("Phase 3–6 boundary"),
       },
       lifecycle_complete: {
         condition: expect.objectContaining({
-          source: expect.stringContaining('outcome: "stop"'),
+          source: expect.stringContaining('decision.payload.decision == "stop"'),
         }),
         explanation: expect.stringContaining("intentionally complete"),
       },

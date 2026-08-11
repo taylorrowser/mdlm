@@ -417,22 +417,14 @@ valid exact frozen context. Direct PAS creation is prohibited by generated
 authorship. The PAS then requires ordinary independent contextual Review. A failed
 Review derives `pilot-assessment-review-correction-required@1`; its Resolver
 publishes a changed Revision in the same PAS lineage over the unchanged exact
-context, linked through `corrects-review` to every exact failing REV, before fresh
-Review. Two replacement-and-Review cycles are autonomous; continued failure or a
-stakeholder-owned finding projects immediate attended escalation through the same
-Correction interface and one exact scope DEC. Only a current passing PAS with no
-dominating failed Review makes `pilot-expansion-decision-required@1` Dispatchable.
-The resulting DEC requires explicit nondelegable stakeholder authority, must choose
-exactly the reviewed PAS recommendation—`proceed`, `change`, or `stop`—and cites
-both the exact PAS and its matching passing REV. That Decision receives independent
-Review; a failed Review derives attended same-lineage Decision Correction with the
-complete causal history before any outcome can apply.
-
-A reviewed `proceed` reports the declared Profile Boundary because Phases 3–6 are
-omitted. A reviewed `change` enters the package's declared Phase 7 change-control
-route and reports the Profile Boundary only after currently applicable supported
-change work drains. A reviewed `stop` reports Lifecycle Complete. None fabricates
-Phase 3–6 output or falls through to Process Dead End.
+context, linked through `corrects-review` to every exact failing REV, before fresh Review. Only a current passing PAS with no dominating failed
+Review makes `pilot-expansion-decision-required@1` Dispatchable. The resulting
+DEC requires explicit nondelegable stakeholder authority, must choose exactly the
+reviewed PAS recommendation—`proceed`, `change`, or `stop`—and cites both the
+exact PAS and its matching passing REV. The tracer records `change`:
+reuse, explanation, queue, profiles, and discrimination worked, but review/gate
+ceremony was high and the challenged Phase 2 slice retained rather than removed
+scope. Phases 3–6 remain absent.
 
 ## Scope
 

@@ -98,7 +98,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       id: outcome.assignment.id,
       disposition: "active",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.57.0",
+        reference: "mdlm-bootstrap@0.56.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       repository: {
@@ -1409,7 +1409,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.57.0/prompts/establish-initial-wayfinding-map.md",
+        ".lifecycle/packages/mdlm-bootstrap@0.56.0/prompts/establish-initial-wayfinding-map.md",
       ),
       "\nPackage change.\n",
     );
@@ -1425,7 +1425,7 @@ describe("MDLM Assignment leasing and preparation", () => {
   it("invalidates the active lease when next observes a package change", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);
     const promptRelative =
-      ".lifecycle/packages/mdlm-bootstrap@0.57.0/prompts/establish-initial-wayfinding-map.md";
+      ".lifecycle/packages/mdlm-bootstrap@0.56.0/prompts/establish-initial-wayfinding-map.md";
     await fs.appendFile(path.join(repository, promptRelative), "\nPackage change.\n");
 
     const changed = mdlm(repository, "next");

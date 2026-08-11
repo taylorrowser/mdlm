@@ -7,8 +7,6 @@ inputs:
   - {name: decision, types: [DEC], cardinality: one, identity: revision}
   - {name: assessment, types: [PAS], cardinality: one, identity: revision}
   - {name: assessment_review, types: [REV], cardinality: one, identity: revision}
-  - {name: lineage, types: [DEC], cardinality: one-or-more, identity: revision}
-  - {name: prior_failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
 outputs:
   - name: replacement
@@ -17,7 +15,6 @@ outputs:
     required_links:
       - {link: justifies, target: {input: assessment}}
       - {link: relies-on-review, target: {input: assessment_review}}
-      - {link: corrects-review, target: {input: prior_failed_reviews}}
       - {link: corrects-review, target: {input: failed_reviews}}
 prompt_ref: prompts/revise-pilot-expansion-decision-after-review.md@1
 review_policy_ref: review-applicability@1
@@ -31,8 +28,8 @@ completion: >-
   && replacement.payload.kind == "pilot-expansion"
   && replacement.payload.decision == assessment.payload.recommendation
   && replacement.payload.effective_scope == decision.payload.effective_scope
-  && exists("valid-pilot-expansion-decision-replacements-for@1",
-    {decision: decision})
+  && exists("recorded-pilot-expansion-decisions-for@1",
+    {assessment: assessment})
 resolves: [pilot-expansion-decision-review-correction-required]
 prohibited_inputs: [changed PAS recommendation, changed expansion scope, suppression of failed Reviews, mutation of immutable history, Phase 3–6 implementation outputs]
 batching: single

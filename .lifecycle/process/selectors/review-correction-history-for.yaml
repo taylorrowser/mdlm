@@ -22,8 +22,6 @@ query:
             && none("phase-1-assurance-correction-decisions-for@1",
               {replacement: revision})
             && none("phase-2-correction-decisions-for@1",
-              {replacement: revision})
-            && none("pilot-assessment-correction-decisions-for@1",
               {replacement: revision}))))
     )
   distinct: true

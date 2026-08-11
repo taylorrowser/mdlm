@@ -52,11 +52,11 @@ completion: >-
   && (
     (policy("pilot-assessment-correction-participation@1",
       {assessment: assessment}).authority_mode == "autonomous"
-      && none("pilot-assessment-correction-decisions-for@1",
+      && none("phase-2-correction-decisions-for@1",
         {replacement: replacement}))
     || (policy("pilot-assessment-correction-participation@1",
       {assessment: assessment}).authority_mode == "attended"
-      && count("pilot-assessment-correction-decisions-for@1",
+      && count("phase-2-correction-decisions-for@1",
         {replacement: replacement}) == 1)
   )
 resolves: [pilot-assessment-review-correction-required]

@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.57.0
+version: 0.56.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -284,7 +284,6 @@ catalog:
     - corrected-assessment-reviews-for
     - matching-corrected-assessment-review
     - unexpected-corrected-assessment-reviews
-    - pilot-assessment-correction-decisions-for
     - failing-pilot-results
     - problem-reports-for-result
     - open-problem-reports
@@ -301,13 +300,8 @@ catalog:
     - pilot-assessment-contexts
     - pilot-assessments-for-context
     - all-pilot-assessments
-    - pilot-assessments-for-expansion-decision
-    - pilot-assessment-reviews-for-expansion-decision
-    - failed-pilot-expansion-decisions
-    - valid-pilot-expansion-decision-replacements-for
     - recorded-pilot-expansion-decisions-for
     - pilot-expansion-decisions-for
-    - pilot-expansion-decisions-by-outcome
   obligations:
     - initial-wayfinding-map-required
     - product-specification-required

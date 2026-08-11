@@ -40,19 +40,21 @@ progression:
   readiness: >-
     exists("all-pilot-assessments@1", {})
     && every("all-pilot-assessments@1", {}, assessment =>
-      count("pilot-expansion-decisions-by-outcome@1",
-        {assessment: assessment, outcome: "change"}) == 1)
+      count("pilot-expansion-decisions-for@1", {assessment: assessment}) == 1
+      && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
+        decision.payload.decision == "change"))
   authorization:
     condition: >-
       exists("all-pilot-assessments@1", {})
       && every("all-pilot-assessments@1", {}, assessment =>
-        count("pilot-expansion-decisions-by-outcome@1",
-          {assessment: assessment, outcome: "change"}) == 1)
+        count("pilot-expansion-decisions-for@1", {assessment: assessment}) == 1
+        && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
+          decision.payload.decision == "change"))
     policy_ref: phase-progression-participation@1
     arguments: {phase: phase}
     scenario: decide-pilot-expansion@2
     subjects: 'select("all-pilot-assessments@1", {})'
-    evidence_selector: pilot-expansion-decisions-by-outcome@1
+    evidence_selector: pilot-expansion-decisions-for@1
 gate:
   required: false
   candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "level-candidate"})'

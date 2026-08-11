@@ -3,16 +3,13 @@ id: pilot-expansion-decision-review-correction-required
 version: 1
 description: A failed pilot-expansion Decision Review requires renewed exact stakeholder judgment before any result applies.
 phases: [phase-2-pilot-assessment]
-for_each: 'select("failed-pilot-expansion-decisions@1", {})'
-subject_as: decision
-satisfied_when: 'exists("valid-pilot-expansion-decision-replacements-for@1", {decision: decision})'
+for_each: 'select("all-pilot-assessments@1", {})'
+subject_as: assessment
+satisfied_when: >-
+  none("recorded-pilot-expansion-decisions-for@1", {assessment: assessment})
+  || every("recorded-pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
+    none("failing-reviews-for@1", {subject: decision}))
 status_rules:
-  - status: ready
-    priority: 200
-    when: >-
-      count("review-correction-history-for@1",
-        {subject: decision, view: "corrections"}) >= 2
-    reason: Two causal Expansion Decision replacements failed; renewed stakeholder judgment receives the complete exhausted lineage through the same correction interface.
   - status: ready
     priority: 100
     when: 'true'
@@ -21,13 +18,11 @@ default_status: ready
 resolve_with:
   scenario: revise-pilot-expansion-decision-after-review@1
   inputs:
-    decision: decision
-    assessment: 'one("pilot-assessments-for-expansion-decision@1", {decision: decision})'
-    assessment_review: 'one("pilot-assessment-reviews-for-expansion-decision@1", {decision: decision})'
-    lineage: >-
-      select("review-correction-history-for@1",
-        {subject: decision, view: "lineage"})
-    prior_failed_reviews: >-
-      select("cited-failing-reviews-by-correction@1", {replacement: decision})
-    failed_reviews: 'select("failing-reviews-for@1", {subject: decision})'
+    decision: 'one("recorded-pilot-expansion-decisions-for@1", {assessment: assessment})'
+    assessment: assessment
+    assessment_review: 'one("passing-reviews-for@1", {subject: assessment})'
+    failed_reviews: >-
+      select("failing-reviews-for@1",
+        {subject: one("recorded-pilot-expansion-decisions-for@1",
+          {assessment: assessment})})
 waiver_policy_ref: waiver-applicability@1
