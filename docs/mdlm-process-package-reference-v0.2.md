@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.53 — experimental implementation reference**
+**Bootstrap package 0.54 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -900,7 +900,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.53 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.54 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -977,12 +977,13 @@ Exact requirement and VSP Revision evidence then derives pilot VER work. The
 presence of current pilot activity work also derives exact ART registration when
 its requirement has no target. That Resolver records one immutable Git commit,
 bounded supported/unsupported behavior, and a controlled public execution interface
-containing the repository locator, typed command template with every parameter
-co-located with its exact encoding, isolated working-directory
-contract, ordered exact normal/raw-malformed/omitted/extra argument cases, and
-case-specific exit status plus base64 stdout/stderr bytes. Omitted parameters are
-explicitly distinct from raw empty tokens, and ordered duplicate tokens are
-preserved. It makes no verification,
+containing the repository locator, an ordered typed command matrix with every
+parameter co-located with its exact encoding and four case tokens, an isolated
+working-directory contract, exact normal/raw-malformed/omitted/extra argument
+cases, and case-specific exit status plus base64 stdout/stderr bytes. The matrix
+instantiates full vectors by construction: omitted markers can occur only on
+declared parameters, raw empty tokens remain supplied, extra-only tokens retain
+their position, and ordered duplicate common tokens are preserved. It makes no verification,
 acceptance, or scope-authorization claim; an existing singular boundary-complete
 target satisfies the work while multiple current targets remain ambiguous. A passing
 VER Review plus one qualified

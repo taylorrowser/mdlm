@@ -17,8 +17,9 @@ Implement only the reviewed exact VER Revision against the controlled public
 boundary of the package-resolved ART Revision and qualified ENV Revision. Record the activity
 bindings, exact implementation reference, authoring inputs, and distinct supported
 and intentionally unsupported target behavior. Bind every exact normal, raw-
-malformed, omitted-argument, and extra-argument case from the ART without
-collapsing an omitted argument into an empty token or deduplicating ordered tokens.
+malformed, omitted-argument, and extra-argument case from the ART, instantiating
+its ordered command matrix without collapsing an omitted marker into a supplied
+empty token or dropping repeated command tokens.
 
 Define bounded checkout, environment-check, and per-product-case deadlines as
 infrastructure-safety limits rather than product timing claims. On timeout,

@@ -22,13 +22,16 @@ command vector using ordered literal, checkout-path, and parameter tokens. Keep
 each parameter name and its exact public encoding together in its command token so
 no declared parameter can be disconnected from execution.
 
-Record full ordered token vectors for exact normal, raw-malformed, omitted-
-argument, and extra-argument cases. Preserve repeated tokens in order. A raw empty
-UTF-8 token is still one supplied argument; represent an omitted argument by its
-absent token vector plus the named omitted parameter, never by an empty token.
-For each case record the exact exit status and base64 stdout/stderr bytes, and
-classify malformed cases as automatic rejection. Record a fresh-temporary-
-directory working-directory contract.
+Record one ordered command template that deterministically instantiates the exact
+normal, raw-malformed, omitted-argument, and extra-argument vectors. Co-locate each
+parameter's name and encoding with its four case tokens: a supplied `value`, a raw
+malformed UTF-8 value where applicable, or an `omitted: true` marker. The marker
+omits that declared parameter; a raw empty UTF-8 value remains one supplied token.
+Place each extra-only raw token in the command order with `extra_argument`. Literal
+and checkout-path tokens participate in every vector, so repeated tokens cannot be
+dropped or deduplicated by a case. For each case record the exact exit status and
+base64 stdout/stderr bytes, and classify malformed cases as automatic rejection.
+Record a fresh-temporary-directory working-directory contract.
 The command may expose public entrypoint paths but must not expose product source,
 unit tests, private functions, implementation notes, or uncontrolled shortcuts.
 

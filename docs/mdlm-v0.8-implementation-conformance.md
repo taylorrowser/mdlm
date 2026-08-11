@@ -159,9 +159,10 @@ hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-
   its replacement, and unsupported ambiguity reaches an explicit Profile Boundary.
 - Current pilot activity requirements project exact bounded ART registration when
   no boundary-complete target exists. The target carries the public repository,
-  typed command template with co-located exact parameter encodings, isolation,
-  ordered normal/raw-malformed/omitted/extra cases, omitted-versus-empty-token
-  identity, and deterministic exact-byte observations needed by a fresh
+  ordered typed command matrix with co-located exact parameter encodings and case
+  tokens, isolation, exact normal/raw-malformed/omitted/extra cases,
+  omitted-versus-empty-token identity, and deterministic exact-byte observations
+  needed by a fresh
   source-blind implementer; existing singular evidence satisfies work and duplicates
   stay ambiguous rather than being silently selected.
 - A failed source-blind pilot VAI Review derives exact same-lineage correction with

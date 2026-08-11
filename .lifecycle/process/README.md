@@ -284,12 +284,14 @@ exact requirement coverage. Once pilot activity work exists,
 `pilot-target-required@1` records one existing immutable repository commit as a
 bounded ART derived from the exact requirement. Registration records supported and
 intentionally unsupported behavior plus the complete controlled public execution
-interface: repository locator, typed command template with each parameter
-co-located with its exact encoding, isolated working directory, and exact normal,
-raw-malformed, omitted-argument, and extra-argument cases. Full ordered token
-vectors preserve duplicates; omitted parameters remain distinct from raw empty
-tokens. Every case carries deterministic exact exit status and base64 stdout/stderr
-bytes in addition to the summary success/rejection protocol. It does not claim verification,
+interface: repository locator, an ordered typed command matrix with each
+parameter's exact encoding and four case tokens co-located, isolated working
+directory, and exact normal, raw-malformed, omitted-argument, and extra-argument
+cases. The matrix instantiates every full vector by construction: repeated common
+tokens remain ordered, omitted markers belong only to declared parameters, raw
+empty tokens remain supplied, and extra-only tokens retain their command position.
+Every case carries deterministic exact exit status and base64 stdout/stderr bytes
+in addition to the summary success/rejection protocol. It does not claim verification,
 acceptance, or new stakeholder scope. Existing singular boundary-complete evidence
 satisfies the work; multiple
 current targets remain explicitly ambiguous. The pilot VER Review unlocks

@@ -126,12 +126,27 @@ const pilotTargetPayload = (title: string, commit: string) => ({
   evidence_refs: [`git-object-observed:${commit}`],
   public_interface: {
     repository_locator: "file:///fixture",
-    command: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
+    command: [
+      { literal: "node" },
+      { checkout_path: "bin/fixture.mjs" },
+      {
+        parameter: {
+          name: "input",
+          encoding: "exact UTF-8 fixture input",
+          case_tokens: {
+            normal: { value: "ok" },
+            "raw-malformed": { raw: { encoding: "utf-8", value: "" } },
+            "omitted-argument": { omitted: true },
+            "extra-argument": { value: "ok" },
+          },
+        },
+      },
+      { extra_argument: { raw: { encoding: "utf-8", value: "extra" } } },
+    ],
     argument_cases: [
       {
         id: "normal",
         kind: "normal",
-        tokens: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
         expected_observation: {
           classification: "success", exit_status: 0,
           stdout: { encoding: "base64", bytes: "b2sK" },
@@ -141,10 +156,6 @@ const pilotTargetPayload = (title: string, commit: string) => ({
       {
         id: "raw-malformed",
         kind: "raw-malformed",
-        tokens: [
-          { literal: "node" }, { checkout_path: "bin/fixture.mjs" },
-          { raw: { encoding: "utf-8", value: "", role: "malformed" } },
-        ],
         expected_observation: {
           classification: "automatic-rejection", exit_status: 2,
           stdout: { encoding: "base64", bytes: "" },
@@ -154,8 +165,6 @@ const pilotTargetPayload = (title: string, commit: string) => ({
       {
         id: "omitted",
         kind: "omitted-argument",
-        omitted_parameters: ["input"],
-        tokens: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
         expected_observation: {
           classification: "automatic-rejection", exit_status: 2,
           stdout: { encoding: "base64", bytes: "" },
@@ -165,10 +174,6 @@ const pilotTargetPayload = (title: string, commit: string) => ({
       {
         id: "extra",
         kind: "extra-argument",
-        tokens: [
-          { literal: "node" }, { checkout_path: "bin/fixture.mjs" },
-          { raw: { encoding: "utf-8", value: "extra", role: "extra" } },
-        ],
         expected_observation: {
           classification: "automatic-rejection", exit_status: 2,
           stdout: { encoding: "base64", bytes: "" },
