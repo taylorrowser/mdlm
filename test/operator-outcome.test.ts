@@ -54,7 +54,7 @@ async function recordInstalledPackageChange(
 async function publishCheckpointQuestions(repository: string): Promise<void> {
   const packageRoot = path.join(
     repository,
-    ".lifecycle/packages/mdlm-bootstrap@0.54.0",
+    ".lifecycle/packages/mdlm-bootstrap@0.55.0",
   );
   const phasePath = path.join(packageRoot, "phases/phase-0-wayfinding.yaml");
   const phase = parse(await fs.readFile(phasePath, "utf8"));
@@ -443,8 +443,8 @@ describe("public mdlm outcome and status seam", () => {
       ok: true,
       command: "status",
       contract: "mdlm-status@1",
-      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.54.0" }),
-      profile: expect.objectContaining({ reference: "bootstrap@28" }),
+      package: expect.objectContaining({ reference: "mdlm-bootstrap@0.55.0" }),
+      profile: expect.objectContaining({ reference: "bootstrap@29" }),
       integrity: { status: "valid", diagnostics: [] },
       activePhase: expect.objectContaining({
         reference: "phase-0-wayfinding@4",
@@ -792,7 +792,7 @@ describe("public mdlm outcome and status seam", () => {
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.54.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.55.0",
     );
     const bootstrapProfilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
     const alternateProfilePath = path.join(packageRoot, "profiles/alternate.yaml");
@@ -802,10 +802,10 @@ describe("public mdlm outcome and status seam", () => {
     const manifestPath = path.join(packageRoot, "manifest.yaml");
     const manifest = parse(await fs.readFile(manifestPath, "utf8"));
     manifest.profiles = {
-      default: "alternate@28",
+      default: "alternate@29",
       available: [
-        "profiles/bootstrap.yaml@28",
-        "profiles/alternate.yaml@28",
+        "profiles/bootstrap.yaml@29",
+        "profiles/alternate.yaml@29",
       ],
     };
     await fs.writeFile(manifestPath, stringify(manifest));
@@ -815,14 +815,14 @@ describe("public mdlm outcome and status seam", () => {
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
-      reference: "alternate@28",
+      reference: "alternate@29",
     }));
   });
 
   it("classifies package-declared Phase progression as immediate attended work", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.54.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.55.0",
     );
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
@@ -1128,7 +1128,7 @@ gate:
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.54.0/manifest.yaml",
+        ".lifecycle/packages/mdlm-bootstrap@0.55.0/manifest.yaml",
       ),
       "\n# integrity failure\n",
     );

@@ -4,7 +4,7 @@ version: 1
 description: One exact review-context baseline when it contains the required exact member Revision.
 parameters:
   - {name: context, kind: revision, types: [BSL]}
-  - {name: required_member, kind: revision, types: [MAP, PSP, STK]}
+  - {name: required_member, kind: revision, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP]}
 result_kind: baseline
 query:
   from: {relation: baseline-memberships, of: required_member, emit: entity, types: [BSL]}

@@ -1,0 +1,50 @@
+kind: selector-definition
+id: valid-phase-2-simplification-review
+version: 1
+description: One exact simplification Review whose blocker and scope-reduction contract is coherent for the current Phase 2 definition set.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: candidate
+  where: >-
+    candidate == review
+    && candidate.payload.review_kind in ["simplification-requirements", "simplification-architecture-interfaces"]
+    && candidate.payload.decomposition_plan_revision == plan.identity.revision_id
+    && candidate.payload.outcome in ["pass", "fail", "cancelled"]
+    && state(candidate, "validity") == "valid"
+    && exists("phase-2-review-context-matches-plan@1", {review: candidate, plan: plan})
+    && (
+      (candidate.payload.outcome in ["pass", "cancelled"]
+        && none("phase-2-simplification-blockers-for-review@1", {review: candidate})
+        && none("phase-2-removed-outputs-for-review@1", {review: candidate}))
+      || (candidate.payload.outcome == "fail"
+        && every("phase-2-removed-outputs-for-review@1", {review: candidate}, removed =>
+          exists("matching-decomposition-output@1", {plan: plan, output: removed})
+          && exists("phase-2-review-blocks-definition-member@1",
+            {review: candidate, member: removed}))
+        && count("phase-2-removed-outputs-for-review@1", {review: candidate})
+          < count("phase-2-system-requirements-for-review@1", {review: candidate, plan: plan})
+        && ((present(candidate.payload.definition_simplification.scope_reduction)
+            && exists("phase-2-removed-outputs-for-review@1", {review: candidate}))
+          || (!present(candidate.payload.definition_simplification.scope_reduction)
+            && none("phase-2-removed-outputs-for-review@1", {review: candidate})))
+        && (
+          (candidate.payload.definition_simplification.correction_set == "subject"
+            && count("phase-2-simplification-blockers-for-review@1", {review: candidate}) == 1
+            && count("phase-2-primary-system-simplification-blocker@1", {review: candidate}) == 1
+            && exists("matching-decomposition-output@1", {plan: plan,
+              output: one("phase-2-primary-system-simplification-blocker@1", {review: candidate})}))
+          || (candidate.payload.definition_simplification.correction_set == "definition-consistency"
+            && count("phase-2-primary-simplification-blocker@1", {review: candidate}) == 1
+            && count("phase-2-simplification-blockers-for-review@1", {review: candidate})
+              == count("phase-2-definition-members-for-plan@1", {plan: plan})
+            && every("phase-2-definition-members-for-plan@1", {plan: plan}, member =>
+              exists("phase-2-review-blocks-definition-member@1",
+                {review: candidate, member: member})))
+        ))
+    )
+  distinct: true
+  order_by: [identity.revision_id]

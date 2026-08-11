@@ -1,0 +1,17 @@
+kind: selector-definition
+id: unreviewed-phase-2-definition-members-for-plan
+version: 1
+description: Current Phase 2 definition members lacking acceptable Review evidence for their exact Revision.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from:
+    selector: phase-2-definition-members-for-plan@1
+    arguments: {plan: plan}
+  as: member
+  where: >-
+    none("passing-reviews-for@1", {subject: member})
+    || exists("failing-reviews-for@1", {subject: member})
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

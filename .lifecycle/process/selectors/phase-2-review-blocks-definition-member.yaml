@@ -1,0 +1,14 @@
+kind: selector-definition
+id: phase-2-review-blocks-definition-member
+version: 1
+description: The supplied exact definition member when one Phase 2 simplification Review blocks it.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+  - {name: member, kind: revision, types: [SYS, ASP, ICSP, DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: review, link: blocks, emit: target, types: [SYS, ASP, ICSP, DWP]}
+  as: blocker
+  where: 'blocker == member'
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

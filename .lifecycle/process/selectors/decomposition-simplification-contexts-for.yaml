@@ -1,7 +1,7 @@
 kind: selector-definition
 id: decomposition-simplification-contexts-for
 version: 1
-description: Frozen DWP contexts that also contain every exact decomposition output.
+description: The frozen Review Context containing every and only member of the current planning DWP, SYS, ASP, and ICSP set.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: baseline
@@ -11,8 +11,11 @@ query:
     arguments: {plan: plan}
   as: context
   where: >-
-    every("decomposition-outputs-for@1", {plan: plan},
-      output => exists("matching-decomposition-context-for-output@1",
-        {output: output, context: context}))
+    context.payload.scope == plan.identity.revision_id
+    && count("review-context-members@1", {context: context})
+      == count("phase-2-definition-members-for-plan@1", {plan: plan})
+    && every("phase-2-definition-members-for-plan@1", {plan: plan}, member =>
+      exists("review-context-contains-member@1",
+        {context: context, required_member: member}))
   distinct: true
   order_by: [identity.revision_id]

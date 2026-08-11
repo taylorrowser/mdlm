@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.54.0`
+- **Implementation package:** `mdlm-bootstrap@0.55.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -48,7 +48,7 @@ the accepted overview and the reviewed pilot Decision.
 | Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
-| Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
+| Phase 2 decomposition, earliest exact-set simplification/correction, candidates, and reviewed gate | 52–53, 57–58 | #46, #98 | `test/req-system-decomposition.test.ts`, `test/mdlm-phase-2-simplification.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
 | Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
 | Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
@@ -117,11 +117,22 @@ bounded correction shape to failed source-blind pilot VAI Reviews while preservi
 exact VER, ENV, ART, case, and pilot claim-class bindings. Corrected procedures
 record bounded setup and case deadlines, forced timeout termination/reaping,
 partial raw observation, guaranteed cleanup, and continue-through-all-cases
-aggregation. ART command evidence now distinguishes normal, raw malformed,
+aggregation. Issue #98 moves Phase 2 simplification to the first frozen exact
+SYS/ASP/ICSP/planning-DWP set. Primary Findings are owned by one exact declared
+target, collateral Findings are bound to the complete canonical consistency set, and blockers must be
+either that one current SYS or every member of the exact consistency set. Failed
+Reviews route only from the one current complete Review Context. Every replacement
+has exact `corrects-review` causality and fresh contextual and simplification
+Reviews. Source-owned exact links are the sole DWP/SYS interface references, so
+duplicate payload references cannot drift from the atomic replacement graph. Exact
+`removes` links require a reduced plan to omit a proper subset of SYS outputs and
+retain replacements for every undeclared output lineage; complete parent-scope
+elimination returns typed inability rather than fabricating an empty decomposition.
+ART command evidence now distinguishes normal, raw malformed,
 omitted, and extra arguments—including omitted versus empty tokens—and gives every
 case deterministic exact-byte observations. Prior VAI/RUN/RES/Review evidence
 remains immutable and cannot satisfy fresh corrected work. Remaining Phase 2 and
-pilot-assessment hardening stay deferred to issues #98–#100. The
+pilot-assessment hardening stay deferred to issues #99–#100. The
 lifecycle-neutral operator contract exposes package-bound attended
 inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
 hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).

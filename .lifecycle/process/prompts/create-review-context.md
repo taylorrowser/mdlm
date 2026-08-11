@@ -16,9 +16,9 @@ For each input subject, create a review-context BSL whose `scope` is that exact
 subject Revision and whose definition contains the subject plus the minimum
 complete context needed to judge it. Include applicable
 parents, siblings in the same authored set, governing decisions, and the
-candidate baseline when one exists. The Assignment supplies every exact
-`context_members` Revision that is mandatory for a Phase 0 candidate; include all
-of them so the later independent Assignment receives their complete contents.
+candidate baseline when one exists. The Assignment supplies every exact `context_members` Revision mandatory beside
+the subject. For a Phase 0 candidate or an executed Phase 2 planning DWP, include
+all of them so later independent Assignments receive the complete exact set.
 Do not include unrelated artifacts merely because they are nearby.
 
 Use exact revision IDs for every member. Keep definition members separate from

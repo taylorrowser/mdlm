@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.54
+# MDLM bootstrap process package v0.55
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -328,8 +328,24 @@ from accepted exact intent, then derive DWP planning only when one exact
 architecture, interface, and VSP context is unambiguous. Further Obligations
 derive reviewed-plan execution, exact question blockers, child Review completion,
 parent coverage, and separate requirement-set and architecture/interface
-simplification work. The completion Scenario publishes the next DWP Revision in
-the same Stable Datum lineage only after those exact obligations resolve. Package-
+simplification work at the first exact SYS, ASP, ICSP, and planning-DWP set. The
+generic Review Context module deepens for an executed planning DWP: its ordinary
+`create-review-context@1` Assignment receives every exact set member and rejects
+both missing and unrelated definitions. A failed simplification Review nests every primary Finding under one exact target, binds collateral Findings to
+the complete canonical consistency set, and carries either one canonical SYS blocker or
+the exact complete definition-consistency blocker set. One SYS subject is corrected
+serially with all of its findings; an architecture/interface/DWP consistency change
+atomically replaces the exact ASP, every ICSP, planning DWP, and only the
+still-applicable SYS outputs. Source-owned exact links are the canonical ICSP
+references for DWP and SYS; duplicate payload reference arrays are deliberately
+absent, so stale payload/link combinations cannot publish. Every replacement cites
+the failed REV through `corrects-review`, receives fresh contextual Review with the
+complete exact member bodies in its Assignment, and re-enters both complete-set
+simplification judgments. Exact `removes` links preserve scope-reduction evidence:
+a reduced plan must retain at least one SYS output, leave removed lineages without
+a newer Revision, give every retained lineage exactly one replacement linked to
+the replacement plan, and admit no new lineage. The completion Scenario publishes the next DWP Revision in the same
+Stable Datum lineage only after those exact obligations resolve. Package-
 discovered candidate Scenarios freeze the exact reviewed completion, outputs,
 architecture, interfaces, and simplification evidence as a group candidate, then
 compose its reviewed Revision with shared VSP, ASP, and ICSP context as the level

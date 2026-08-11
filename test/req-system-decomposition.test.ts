@@ -32,9 +32,9 @@ describe("req system decomposition slice", () => {
     expect(shown.status, shown.stderr).toBe(0);
     const catalogs = JSON.parse(shown.stdout).inspection.definitionCatalogs;
     expect(catalogs.types).toEqual(expect.arrayContaining([
-      "ASP@1",
-      "DWP@1",
-      "ICSP@1",
+      "ASP@2",
+      "DWP@2",
+      "ICSP@2",
       "SYS@3",
     ]));
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
@@ -43,12 +43,16 @@ describe("req system decomposition slice", () => {
       "define-interface-control-specification@2",
       "define-system-architecture@2",
       "execute-decomposition-work-package@2",
+      "revise-phase-2-subject-after-simplification@1",
+      "revise-phase-2-definition-set-after-simplification@1",
       "simplify-architecture-and-interfaces@2",
       "simplify-requirement-set@2",
     ]));
     expect(catalogs.obligations).toEqual(expect.arrayContaining([
       "decomposition-completion-required@1",
       "decomposition-output-reviews-required@1",
+      "phase-2-simplification-correction-required@1",
+      "phase-2-definition-consistency-correction-required@1",
       "decomposition-parent-coverage-required@1",
       "decomposition-simplification-required@1",
     ]));
@@ -559,7 +563,6 @@ describe("req system decomposition slice", () => {
               behavioral_slice: "Public report export behavior and malformed-request discrimination",
               expected_coverage: ["successful export", "invalid request rejection"],
               exclusions: ["report rendering internals"],
-              interface_context: [interfaceSpec.revisionId],
               verification_strategy_revision: strategy.revisionId,
               dependencies: [],
               required_review_policy: "review-applicability@1",
@@ -729,7 +732,6 @@ describe("req system decomposition slice", () => {
                 architecture_revision: architecture.revisionId,
                 element: "AEL-0EXPRTAP00",
               },
-              interface_context: [interfaceSpec.revisionId],
             },
             links: [
               { type: "derived-from", target: stakeholder.id },
@@ -779,6 +781,17 @@ describe("req system decomposition slice", () => {
       [system.revisionId, plan.revisionId, architecture.revisionId, interfaceSpec.revisionId],
     );
     await publishDiscoveredReview(system.revisionId, definitionContext.revisionId);
+    const definitionMembers = [
+      architecture.revisionId,
+      plan.revisionId,
+      interfaceSpec.revisionId,
+      system.revisionId,
+    ];
+    const simplificationContext = await createDiscoveredReviewContext(
+      "Earliest exact Phase 2 definition set",
+      plan.revisionId,
+      definitionMembers,
+    );
 
     const simplify = async (
       obligationName: string,
@@ -806,19 +819,22 @@ describe("req system decomposition slice", () => {
                 review_kind: reviewKind,
                 decomposition_plan_revision: plan.revisionId,
                 rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-                findings: [],
                 outcome: "pass",
               },
               links: [
-                { type: "reviews", target: definitionContext.revisionId },
-                { type: "contextualizes", target: definitionContext.revisionId },
+                { type: "reviews", target: simplificationContext.revisionId },
+                { type: "contextualizes", target: simplificationContext.revisionId },
               ],
               body: "The exact set is minimal for its accepted scope.\n",
             },
           }],
           completionEvidence: { summary: "The dedicated simplification challenge passed." },
         },
-        [`plan=${plan.revisionId}`, `subject_context=${definitionContext.revisionId}`],
+        [
+          `plan=${plan.revisionId}`,
+          `subject_context=${simplificationContext.revisionId}`,
+          `definition_members=${definitionMembers.join(",")}`,
+        ],
         scenario,
         "independent-reviewer",
       );
@@ -864,7 +880,6 @@ describe("req system decomposition slice", () => {
               behavioral_slice: "Public report export behavior and malformed-request discrimination",
               expected_coverage: ["successful export", "invalid request rejection"],
               exclusions: ["report rendering internals"],
-              interface_context: [interfaceSpec.revisionId],
               verification_strategy_revision: strategy.revisionId,
               dependencies: [],
               required_review_policy: "review-applicability@1",

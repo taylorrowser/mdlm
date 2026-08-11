@@ -15,6 +15,7 @@ inputs:
     conditions: >-
       subject_context.payload.kind == "review-context"
       && subject_context.storage.frozen == true
+  - {name: definition_members, types: [SYS, ASP, ICSP, DWP], cardinality: one-or-more, identity: revision}
 outputs:
   - name: review
     types: [REV]
@@ -38,8 +39,7 @@ standing_delegation:
 completion: >-
   execution.integrity.contract_valid == true
   && review.payload.review_kind == "simplification-requirements"
-  && review.payload.decomposition_plan_revision == plan.identity.revision_id
-  && review.payload.outcome in ["pass", "fail", "cancelled"]
+  && exists("valid-phase-2-simplification-review@1", {review: review, plan: plan})
 resolves: [decomposition-simplification-required]
 prohibited_inputs: [scope expansion without accepted provenance, mutable latest aliases, prior review outcome as authority]
 batching: coherent-batch

@@ -1,0 +1,20 @@
+kind: selector-definition
+id: failed-phase-2-simplification-reviews-by-scope
+version: 1
+description: Uncorrected valid failed simplification Reviews for one current exact DWP context and declared correction scope.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+  - {name: correction_set, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    review.payload.review_kind in ["simplification-requirements", "simplification-architecture-interfaces"]
+    && review.payload.decomposition_plan_revision == plan.identity.revision_id
+    && review.payload.outcome == "fail"
+    && review.payload.definition_simplification.correction_set == correction_set
+    && exists("valid-phase-2-simplification-review@1", {review: review, plan: plan})
+    && none("phase-2-corrections-for-review@1", {review: review})
+  distinct: true
+  order_by: [identity.revision_id]

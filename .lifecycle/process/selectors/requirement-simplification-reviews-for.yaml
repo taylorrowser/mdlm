@@ -1,7 +1,7 @@
 kind: selector-definition
 id: requirement-simplification-reviews-for
 version: 1
-description: Passing requirement-set simplification Reviews for one exact DWP plan.
+description: Current-context passing requirement simplification Reviews for one exact DWP plan.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
@@ -10,8 +10,11 @@ query:
   as: review
   where: >-
     review.payload.review_kind == "simplification-requirements"
-    && review.payload.decomposition_plan_revision == plan.identity.revision_id
     && review.payload.outcome == "pass"
-    && state(review, "validity") == "valid"
+    && exists("valid-phase-2-simplification-review@1", {review: review, plan: plan})
+    && none("failed-phase-2-simplification-reviews-by-scope@1",
+      {plan: plan, correction_set: "subject"})
+    && none("failed-phase-2-simplification-reviews-by-scope@1",
+      {plan: plan, correction_set: "definition-consistency"})
   distinct: true
   order_by: [identity.revision_id]

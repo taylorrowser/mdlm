@@ -13,10 +13,14 @@ query:
     && context.payload.scope == subject.identity.revision_id
     && context.storage.frozen == true
     && state(context, "validity") == "valid"
-    && every("phase-0-candidate-review-context-members@1",
-      {subject: subject}, member =>
-        exists("review-context-contains-member@1",
-          {context: context, required_member: member}))
+    && every("review-context-members-for@1", {subject: subject}, member =>
+      exists("review-context-contains-member@1",
+        {context: context, required_member: member}))
+    && (subject.identity.type != "DWP"
+      || subject.payload.stage != "planning"
+      || none("decomposition-outputs-for@1", {plan: subject})
+      || count("review-context-members@1", {context: context})
+        == count("phase-2-definition-members-for-plan@1", {plan: subject}))
     && (subject.identity.type != "ENV"
       || exists("environment-assurance-context-matches@1",
         {environment: subject, context: context}))

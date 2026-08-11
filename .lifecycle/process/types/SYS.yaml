@@ -18,10 +18,6 @@ payload_schema:
       properties:
         architecture_revision: {type: string, pattern: '^ASP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
         element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
-    interface_context:
-      type: array
-      uniqueItems: true
-      items: {type: string, pattern: '^ICSP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
 outgoing_links:
   - id: derived-from
     description: Stakeholder commitments whose necessary system behavior this requirement expresses.

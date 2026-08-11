@@ -78,7 +78,7 @@ describe("req lifecycle status and next work", () => {
       command: "phase.status",
       phaseStatus: expect.objectContaining({
         id: "phase-2-system-definition",
-        version: 5,
+        version: 6,
         entry: expect.objectContaining({ satisfied: false }),
         candidateSelection: expect.objectContaining({ entities: [] }),
         obligations: {
@@ -110,7 +110,7 @@ describe("req lifecycle status and next work", () => {
       prototypeSnapshot,
     );
     expect(human.status, human.stderr).toBe(0);
-    expect(human.stdout).toContain("Phase: phase-2-system-definition@5");
+    expect(human.stdout).toContain("Phase: phase-2-system-definition@6");
     expect(human.stdout).toContain("Entry Satisfied: false");
     expect(human.stdout).toContain("Candidates: none");
     expect(human.stdout).toContain("Obligations: total=6");
