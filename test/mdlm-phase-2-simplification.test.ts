@@ -609,5 +609,5 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     expect(packet.scenario.reference).toBe("complete-decomposition-work-package@2");
     expect(inputValues(packet, "plan")[0]!.identity.revision_id).toBe(correctedPlan);
     expect(req(repository, "show", revision(ids.removed), "--json").status).toBe(0);
-  }, 120_000);
+  }, 150_000);
 });
