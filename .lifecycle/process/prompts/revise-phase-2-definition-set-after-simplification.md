@@ -24,10 +24,11 @@ the still-necessary same-lineage SYS replacements. Link every replacement throug
 `corrects-review` to every supplied failed REV and bind all internal references to
 the replacement Revisions.
 
-When `definition_simplification.scope_reduction` names removed work, do not copy
-that work into the replacement DWP or output set. Preserve its immutable historical
-Revision and Review evidence; the newer planning Revision and its exact output
-links make the removed work inapplicable to completion and candidate assembly.
-Never retain an obsolete output as simplification ceremony. Every published
+When the failed Review links exact SYS outputs through `removes` and records its
+`scope_reduction` rationale, do not copy those outputs into the replacement DWP or
+output set. Replace every prior output not so removed; never silently drop an
+unrelated lineage. Preserve immutable historical Revision and Review evidence;
+the newer planning Revision and its exact output links make removed work
+inapplicable to completion and candidate assembly. Every published
 replacement still requires fresh contextual Review, then both fresh complete-set
 simplification judgments, before DWP completion resumes.

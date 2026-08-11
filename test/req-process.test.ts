@@ -854,7 +854,7 @@ describe("req process package commands", () => {
           binding: { type: "BSL" },
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@4", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
+          types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@5", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
           phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@6", "phase-7-change-control@2"],
         }),
       },
@@ -1017,7 +1017,7 @@ describe("req process package commands", () => {
           ],
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@4", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
+          types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@5", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
           phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@6", "phase-7-change-control@2"],
         }),
       },
@@ -1033,7 +1033,7 @@ describe("req process package commands", () => {
       "Host Functions: count, every, exists, none, one, policy, present, select, state",
       "Collections: baselines [exact-baseline@1], revisions",
       "Kernel Capabilities: exact-baseline@1 -> BSL",
-      "Types: ART@1, ASP@2, BSL@4, CHG@1, DEC@5, DWP@2, ENV@1, ICSP@2, MAP@3, PAS@1, PRB@1, PSP@4, QST@4, RES@1, REV@4, RUN@1, STK@4, SYS@3, VAI@1, VER@1, VSP@1",
+      "Types: ART@1, ASP@2, BSL@4, CHG@1, DEC@5, DWP@2, ENV@1, ICSP@2, MAP@3, PAS@1, PRB@1, PSP@4, QST@4, RES@1, REV@5, RUN@1, STK@4, SYS@3, VAI@1, VER@1, VSP@1",
     ]) {
       expect(human.stdout).toContain(semantic);
     }

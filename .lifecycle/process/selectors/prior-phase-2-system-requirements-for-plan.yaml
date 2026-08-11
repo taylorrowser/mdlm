@@ -1,0 +1,13 @@
+kind: selector-definition
+id: prior-phase-2-system-requirements-for-plan
+version: 1
+description: Exact historical SYS outputs that cite one challenged DWP plan Revision.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: plan, link: decomposes, emit: source, types: [SYS]}
+  as: output
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]

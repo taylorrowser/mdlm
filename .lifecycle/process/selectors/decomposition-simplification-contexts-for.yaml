@@ -12,6 +12,8 @@ query:
   as: context
   where: >-
     context.payload.scope == plan.identity.revision_id
+    && count("phase-2-definition-context-members@1", {context: context})
+      == count("phase-2-definition-members-for-plan@1", {plan: plan})
     && every("decomposition-outputs-for@1", {plan: plan}, output =>
       exists("baseline-contains-definition@1", {baseline: context, subject: output}))
     && every("architectures-for-decomposition@1", {plan: plan}, architecture =>

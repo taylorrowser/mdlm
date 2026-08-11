@@ -1,0 +1,13 @@
+kind: selector-definition
+id: phase-2-definition-context-members
+version: 1
+description: Every exact definition member frozen in one Phase 2 simplification Review Context.
+parameters:
+  - {name: context, kind: baseline}
+result_kind: revision
+query:
+  from: {relation: baseline-members, of: context, emit: entity}
+  as: member
+  where: 'true'
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

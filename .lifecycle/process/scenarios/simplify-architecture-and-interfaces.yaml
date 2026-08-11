@@ -43,11 +43,31 @@ completion: >-
   && review.payload.outcome in ["pass", "fail", "cancelled"]
   && (
     (review.payload.outcome in ["pass", "cancelled"]
-      && none("phase-2-simplification-blockers-for-review@1", {review: review}))
+      && none("phase-2-simplification-blockers-for-review@1", {review: review})
+      && none("phase-2-removed-outputs-for-review@1", {review: review}))
     || (review.payload.outcome == "fail"
-      && exists("phase-2-simplification-blockers-for-review@1", {review: review})
-      && (review.payload.definition_simplification.correction_set == "definition-consistency"
-        || exists("phase-2-primary-system-simplification-blocker@1", {review: review})))
+      && every("phase-2-removed-outputs-for-review@1", {review: review}, removed =>
+        exists("matching-decomposition-output@1", {plan: plan, output: removed})
+        && exists("phase-2-review-blocks-definition-member@1",
+          {review: review, member: removed}))
+      && ((present(review.payload.definition_simplification.scope_reduction)
+          && exists("phase-2-removed-outputs-for-review@1", {review: review}))
+        || (!present(review.payload.definition_simplification.scope_reduction)
+          && none("phase-2-removed-outputs-for-review@1", {review: review})))
+      && (
+        (review.payload.definition_simplification.correction_set == "subject"
+          && count("phase-2-simplification-blockers-for-review@1", {review: review}) == 1
+          && count("phase-2-primary-system-simplification-blocker@1", {review: review}) == 1
+          && exists("matching-decomposition-output@1", {plan: plan,
+            output: one("phase-2-primary-system-simplification-blocker@1", {review: review})}))
+        || (review.payload.definition_simplification.correction_set == "definition-consistency"
+          && exists("phase-2-primary-definition-simplification-blocker@1", {review: review})
+          && count("phase-2-simplification-blockers-for-review@1", {review: review})
+            == count("phase-2-definition-members-for-plan@1", {plan: plan})
+          && every("phase-2-definition-members-for-plan@1", {plan: plan}, member =>
+            exists("phase-2-review-blocks-definition-member@1",
+              {review: review, member: member})))
+      ))
   )
 resolves: [architecture-interface-simplification-required]
 prohibited_inputs: [implementation convenience as necessity, mutable latest aliases, prior review outcome as authority]

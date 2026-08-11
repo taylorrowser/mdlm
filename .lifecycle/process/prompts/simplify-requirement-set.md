@@ -18,12 +18,13 @@ completion or candidate assembly. Look for removable, mergeable, duplicated,
 conflicting, unjustified, or missing behavior. Record a terminal Review with
 `review_kind: simplification-requirements`.
 
-A pass has no `blocks` links or `definition_simplification`. A failure records
-exact primary and collateral `findings`, declares the primary target and correction
-boundary in `definition_simplification`, and links `blocks` to exactly every
-blocking target. Use
-`correction_set: subject` only for one SYS Revision. Use
-`definition-consistency` only when every exact SYS, ASP, ICSP, and planning-DWP
-member must change atomically to preserve their references. When challenged scope
-is actually removed, name its exact historical Revisions and rationale under
-`scope_reduction`; do not retain obsolete downstream work as ceremony.
+A pass has no `blocks`, `removes`, or `definition_simplification`. A failure
+nests every blocking primary Finding under the exact `primary_target`; only a
+definition-consistency failure may add `collateral_findings`, whose exact target
+set is the complete canonical blocker set.
+Use `correction_set: subject` only with one canonical `blocks` link to that current
+SYS Revision. Use `definition-consistency` only with `blocks` links to every and
+only exact SYS, ASP, ICSP, and planning-DWP context member that must change
+atomically. When challenged SYS scope is actually removed, link each exact
+historical output through `removes` and record the rationale under
+`scope_reduction`; do not retain or silently drop downstream work.

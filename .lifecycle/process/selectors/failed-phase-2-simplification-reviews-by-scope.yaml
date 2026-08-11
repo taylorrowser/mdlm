@@ -14,6 +14,10 @@ query:
     && review.payload.outcome == "fail"
     && review.payload.definition_simplification.correction_set == correction_set
     && state(review, "validity") == "valid"
+    && count("phase-2-simplification-contexts-for-review@1", {review: review}) == 1
+    && count("decomposition-simplification-contexts-for@1", {plan: plan}) == 1
+    && one("phase-2-simplification-contexts-for-review@1", {review: review})
+      == one("decomposition-simplification-contexts-for@1", {plan: plan})
     && none("phase-2-corrections-for-review@1", {review: review})
   distinct: true
   order_by: [identity.revision_id]

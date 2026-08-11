@@ -194,19 +194,29 @@ catalog:
     - planning-revisions-for-completion
     - decomposition-parents-for
     - decomposition-outputs-for
+    - prior-phase-2-system-requirements-for-plan
     - unreviewed-decomposition-outputs-for
     - phase-2-definition-members-for-plan
+    - phase-2-definition-context-members
     - unreviewed-phase-2-definition-members-for-plan
     - decomposition-review-contexts-for
     - decomposition-simplification-contexts-for
     - matching-decomposition-context-for-output
     - phase-2-simplification-blockers-for-review
+    - phase-2-review-blocks-definition-member
+    - phase-2-removed-outputs-for-review
     - phase-2-simplification-contexts-for-review
+    - phase-2-primary-definition-simplification-blocker
     - phase-2-primary-system-simplification-blocker
     - phase-2-corrections-for-review
     - failed-phase-2-simplification-reviews-for-plan
     - failed-phase-2-simplification-reviews-by-scope
     - matching-prior-phase-2-system-requirement
+    - matching-replacement-phase-2-system-requirement
+    - phase-2-scope-removal-reviews-for-output
+    - phase-2-replacement-plan-corrects-review
+    - retained-removed-phase-2-system-requirements
+    - undeclared-removed-phase-2-system-requirements
     - unexpected-corrected-phase-2-system-requirements
     - requirement-simplification-reviews-for
     - architecture-simplification-reviews-for

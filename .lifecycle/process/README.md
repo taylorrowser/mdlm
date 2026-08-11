@@ -329,15 +329,15 @@ architecture, interface, and VSP context is unambiguous. Further Obligations
 derive reviewed-plan execution, exact question blockers, child Review completion,
 parent coverage, and separate requirement-set and architecture/interface
 simplification work at the first exact SYS, ASP, ICSP, and planning-DWP set. A
-failed simplification Review carries exact primary and collateral findings plus a
-canonical subject or declared definition-consistency blocker set. One SYS subject
-is corrected serially with all of its findings; an architecture/interface/DWP
-consistency change atomically replaces the exact ASP, ICSP, planning DWP, and only
-the still-applicable SYS outputs. Every replacement cites the failed REV through
-`corrects-review`, receives fresh contextual Review, and re-enters both complete-
-set simplification judgments. A reduced planning Revision leaves removed outputs
-as immutable history but excludes them from current completion and candidate
-selection. The completion Scenario publishes the next DWP Revision in the same
+failed simplification Review nests every primary Finding under one exact target, binds collateral Findings to
+the complete canonical consistency set, and carries either one canonical SYS blocker or
+the exact complete definition-consistency blocker set. One SYS subject is corrected
+serially with all of its findings; an architecture/interface/DWP consistency change
+atomically replaces the exact ASP, ICSP, planning DWP, and only the still-applicable
+SYS outputs. Every replacement cites the failed REV through `corrects-review`,
+receives fresh contextual Review, and re-enters both complete-set simplification
+judgments. Exact `removes` links preserve scope-reduction evidence: a reduced plan
+must omit those SYS lineages and replace every undeclared retained lineage. The completion Scenario publishes the next DWP Revision in the same
 Stable Datum lineage only after those exact obligations resolve. Package-
 discovered candidate Scenarios freeze the exact reviewed completion, outputs,
 architecture, interfaces, and simplification evidence as a group candidate, then

@@ -19,12 +19,13 @@ and interface obligation in the frozen context before DWP completion or candidat
 assembly. Remove complexity that exists only to support itself. Record a terminal
 Review with `review_kind: simplification-architecture-interfaces`.
 
-A pass has no `blocks` links or `definition_simplification`. A failure records
-exact primary and collateral `findings`, declares the primary target and correction
-boundary in `definition_simplification`, and links `blocks` to exactly every
-blocking target. Use
-`correction_set: subject` only for one SYS Revision. Architecture, interface, or
-planning-DWP change uses `definition-consistency` and names every exact SYS, ASP,
-ICSP, and planning-DWP member because their exact references must change
-atomically. Record actual removed scope separately under `scope_reduction`; do not
-preserve a removed element, boundary, behavior, or output as ceremony.
+A pass has no `blocks`, `removes`, or `definition_simplification`. A failure
+nests every blocking primary Finding under the exact `primary_target`; only a
+definition-consistency failure may add `collateral_findings`, whose exact target
+set is the complete canonical blocker set.
+Use `correction_set: subject` only with one canonical `blocks` link to that current
+SYS Revision. Architecture, interface, or planning-DWP change uses
+`definition-consistency` with `blocks` links to every and only exact SYS, ASP,
+ICSP, and planning-DWP context member. Record removed SYS outputs through exact
+`removes` links and rationale under `scope_reduction`; do not preserve or silently
+drop obsolete work.

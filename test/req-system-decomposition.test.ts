@@ -852,7 +852,6 @@ describe("req system decomposition slice", () => {
                 review_kind: reviewKind,
                 decomposition_plan_revision: plan.revisionId,
                 rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-                findings: [],
                 outcome: "pass",
               },
               links: [

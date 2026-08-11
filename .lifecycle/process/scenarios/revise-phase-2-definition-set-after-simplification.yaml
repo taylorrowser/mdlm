@@ -54,6 +54,10 @@ completion: >-
   && exists("decomposition-outputs-for@1", {plan: plan})
   && none("unexpected-corrected-phase-2-system-requirements@1",
     {prior_plan: prior_plan, replacement_plan: plan})
+  && none("retained-removed-phase-2-system-requirements@1",
+    {prior_plan: prior_plan, replacement_plan: plan})
+  && none("undeclared-removed-phase-2-system-requirements@1",
+    {prior_plan: prior_plan, replacement_plan: plan})
 resolves: [phase-2-definition-consistency-correction-required]
 prohibited_inputs: [scope expansion, unrelated definition subjects, mutation or deletion of failed evidence, downstream candidates, mutable latest aliases]
 batching: coherent-batch

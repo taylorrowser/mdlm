@@ -1,0 +1,20 @@
+kind: selector-definition
+id: undeclared-removed-phase-2-system-requirements
+version: 1
+description: Challenged SYS outputs silently dropped without exact scope-reduction evidence.
+parameters:
+  - {name: prior_plan, kind: revision, types: [DWP]}
+  - {name: replacement_plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from:
+    selector: prior-phase-2-system-requirements-for-plan@1
+    arguments: {plan: prior_plan}
+  as: prior
+  where: >-
+    none("phase-2-scope-removal-reviews-for-output@1",
+      {plan: prior_plan, output: prior, replacement_plan: replacement_plan})
+    && none("matching-replacement-phase-2-system-requirement@1",
+      {replacement_plan: replacement_plan, prior: prior})
+  distinct: true
+  order_by: [identity.revision_id]

@@ -15,6 +15,8 @@ completion: >-
   && context.payload.kind == "review-context"
   && context.payload.scope == plan.identity.revision_id
   && context.storage.frozen == true
+  && count("phase-2-definition-context-members@1", {context: context})
+    == count("phase-2-definition-members-for-plan@1", {plan: plan})
   && every("phase-2-definition-members-for-plan@1", {plan: plan}, member =>
     exists("baseline-contains-definition@1", {baseline: context, subject: member}))
 resolves: [phase-2-definition-context-required]

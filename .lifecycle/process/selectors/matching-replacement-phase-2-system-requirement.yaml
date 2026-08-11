@@ -1,0 +1,16 @@
+kind: selector-definition
+id: matching-replacement-phase-2-system-requirement
+version: 1
+description: Replacement-plan SYS output in the same Stable Datum lineage as one challenged exact output.
+parameters:
+  - {name: replacement_plan, kind: revision, types: [DWP]}
+  - {name: prior, kind: revision, types: [SYS]}
+result_kind: revision
+query:
+  from:
+    selector: decomposition-outputs-for@1
+    arguments: {plan: replacement_plan}
+  as: replacement
+  where: 'replacement.identity.id == prior.identity.id'
+  distinct: true
+  order_by: [identity.revision_id]

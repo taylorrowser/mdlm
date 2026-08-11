@@ -118,12 +118,13 @@ exact VER, ENV, ART, case, and pilot claim-class bindings. Corrected procedures
 record bounded setup and case deadlines, forced timeout termination/reaping,
 partial raw observation, guaranteed cleanup, and continue-through-all-cases
 aggregation. Issue #98 moves Phase 2 simplification to the first frozen exact
-SYS/ASP/ICSP/planning-DWP set. Typed primary and collateral Findings derive either
-one serial SYS correction or one explicitly declared atomic definition-set
-correction; every replacement has exact `corrects-review` causality and fresh
-contextual and simplification Reviews. A reduced replacement plan excludes removed
-SYS output work from completion and candidate selection while preserving its
-immutable history. ART command evidence now distinguishes normal, raw malformed,
+SYS/ASP/ICSP/planning-DWP set. Primary Findings are owned by one exact declared
+target, collateral Findings are bound to the complete canonical consistency set, and blockers must be
+either that one current SYS or every member of the exact consistency set. Failed
+Reviews route only from the one current complete Review Context. Every replacement
+has exact `corrects-review` causality and fresh contextual and simplification
+Reviews. Exact `removes` links require a reduced plan to omit declared removed SYS
+outputs and retain replacements for every undeclared output lineage. ART command evidence now distinguishes normal, raw malformed,
 omitted, and extra arguments—including omitted versus empty tokens—and gives every
 case deterministic exact-byte observations. Prior VAI/RUN/RES/Review evidence
 remains immutable and cannot satisfy fresh corrected work. Remaining Phase 2 and
