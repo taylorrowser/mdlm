@@ -178,6 +178,14 @@ describe("bootstrap Scenario participation Policies", () => {
         output: "decision",
         type: "DEC",
       },
+      "revise-pilot-assessment-after-review": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-pilot-expansion-decision-after-review": {
+        output: "replacement",
+        type: "DEC",
+      },
       "revise-pilot-vai-after-review": {
         output: "authorization",
         type: "DEC",

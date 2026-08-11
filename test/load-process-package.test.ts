@@ -61,9 +61,9 @@ describe("loadProcessPackage", () => {
       "gate-rejection-corrections-for-subject": expect.any(Object),
       "phase-1-assurance-correction-decisions-for": expect.any(Object),
     }));
-    expect(Object.keys(result.package.policies)).toHaveLength(12);
-    expect(Object.keys(result.package.obligations)).toHaveLength(54);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(56);
+    expect(Object.keys(result.package.policies)).toHaveLength(13);
+    expect(Object.keys(result.package.obligations)).toHaveLength(55);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(57);
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
       .toEqual([expect.objectContaining({
         id: "phase-0-gate",
@@ -143,9 +143,15 @@ describe("loadProcessPackage", () => {
     expect(result.package.profiles.bootstrap?.terminal_outcomes).toEqual({
       profile_boundary: {
         condition: expect.objectContaining({
-          source: expect.stringContaining('phase.id == "phase-2-pilot-assessment"'),
+          source: expect.stringContaining('decision.payload.decision == "proceed"'),
         }),
-        explanation: expect.stringContaining("Phases 3–6"),
+        explanation: expect.stringContaining("Phase 3–6 boundary"),
+      },
+      lifecycle_complete: {
+        condition: expect.objectContaining({
+          source: expect.stringContaining('decision.payload.decision == "stop"'),
+        }),
+        explanation: expect.stringContaining("intentionally complete"),
       },
     });
   });
@@ -177,11 +183,11 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       ambiguousPath,
       ambiguous.replace(
-        "terminal_outcomes:\n  profile_boundary:",
-        "terminal_outcomes:\n  lifecycle_complete:\n    condition: 'true'\n    explanation: Everything is complete.\n  profile_boundary:\n",
-      ).replace(
         /    condition: >-[\s\S]*?    explanation: The selected profile/,
         "    condition: 'true'\n    explanation: The selected profile",
+      ).replace(
+        /    condition: >-[\s\S]*?    explanation: Every current/,
+        "    condition: 'true'\n    explanation: Every current",
       ),
     );
 
@@ -344,8 +350,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       manifestPath,
       manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation]",
-        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation]",
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, pilot-assessment-correction-participation]",
+        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, pilot-assessment-correction-participation]",
       ),
     );
 

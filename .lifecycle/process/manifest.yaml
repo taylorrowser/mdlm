@@ -42,7 +42,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, pilot-assessment-correction-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
@@ -357,6 +357,7 @@ catalog:
     - pilot-assessment-required
     - pilot-assessment-review-correction-required
     - pilot-expansion-decision-required
+    - pilot-expansion-decision-review-correction-required
   scenarios:
     - chart-wayfinding-map
     - establish-initial-wayfinding-map
@@ -414,6 +415,7 @@ catalog:
     - assess-phase-0-2-pilot
     - revise-pilot-assessment-after-review
     - decide-pilot-expansion
+    - revise-pilot-expansion-decision-after-review
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
   aliases: [question.resolve]
 assets:
@@ -472,8 +474,9 @@ assets:
     - prompts/record-pilot-observation.md@2
     - prompts/prepare-pilot-assessment-context.md@1
     - prompts/assess-phase-0-2-pilot.md@1
-    - prompts/revise-pilot-assessment-after-review.md@1
+    - prompts/revise-pilot-assessment-after-review.md@2
     - prompts/decide-pilot-expansion.md@2
+    - prompts/revise-pilot-expansion-decision-after-review.md@1
   skills:
     - skills/lifecycle-data.md@1
     - skills/wayfinding-map.md@1
@@ -507,9 +510,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@30
+  default: bootstrap@31
   available:
-    - profiles/bootstrap.yaml@30
+    - profiles/bootstrap.yaml@31
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

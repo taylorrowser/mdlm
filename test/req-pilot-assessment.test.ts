@@ -29,8 +29,9 @@ describe("req Phase 0–2 pilot assessment", () => {
       "record-pilot-observation@2",
       "prepare-pilot-assessment-context@1",
       "assess-phase-0-2-pilot@1",
-      "revise-pilot-assessment-after-review@1",
+      "revise-pilot-assessment-after-review@2",
       "decide-pilot-expansion@2",
+      "revise-pilot-expansion-decision-after-review@1",
     ]));
     expect(catalogs.obligations).toEqual(expect.arrayContaining([
       "pilot-observation-required@1",
@@ -38,8 +39,9 @@ describe("req Phase 0–2 pilot assessment", () => {
       "pilot-assessment-required@1",
       "pilot-assessment-review-correction-required@1",
       "pilot-expansion-decision-required@1",
+      "pilot-expansion-decision-review-correction-required@1",
     ]));
-    expect(catalogs.phases).toContain("phase-2-pilot-assessment@2");
+    expect(catalogs.phases).toContain("phase-2-pilot-assessment@3");
     expect(catalogs.phases).not.toEqual(expect.arrayContaining([
       "phase-3-component-definition@1",
       "phase-4-design-definition@1",

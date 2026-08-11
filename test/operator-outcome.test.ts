@@ -444,7 +444,7 @@ describe("public mdlm outcome and status seam", () => {
       command: "status",
       contract: "mdlm-status@1",
       package: expect.objectContaining({ reference: "mdlm-bootstrap@0.56.0" }),
-      profile: expect.objectContaining({ reference: "bootstrap@30" }),
+      profile: expect.objectContaining({ reference: "bootstrap@31" }),
       integrity: { status: "valid", diagnostics: [] },
       activePhase: expect.objectContaining({
         reference: "phase-0-wayfinding@4",
@@ -802,10 +802,10 @@ describe("public mdlm outcome and status seam", () => {
     const manifestPath = path.join(packageRoot, "manifest.yaml");
     const manifest = parse(await fs.readFile(manifestPath, "utf8"));
     manifest.profiles = {
-      default: "alternate@30",
+      default: "alternate@31",
       available: [
-        "profiles/bootstrap.yaml@30",
-        "profiles/alternate.yaml@30",
+        "profiles/bootstrap.yaml@31",
+        "profiles/alternate.yaml@31",
       ],
     };
     await fs.writeFile(manifestPath, stringify(manifest));
@@ -815,7 +815,7 @@ describe("public mdlm outcome and status seam", () => {
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
-      reference: "alternate@30",
+      reference: "alternate@31",
     }));
   });
 

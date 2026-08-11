@@ -900,7 +900,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.55 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.56 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -953,8 +953,8 @@ stakeholder authority; after two causal replacements, the same interface carries
 explicit exhausted-lineage escalation. A reviewed approving gate mechanically
 derives one frozen `intent-approved` BSL containing exact candidate, candidate
 Review, DEC, and DEC Review evidence before progression. Rejection itself is not a
-stop, deferral, or cancellation Decision. Remaining Phase 2 and pilot-assessment
-hardening are deferred to issues #98–#100.
+stop, deferral, or cancellation Decision. The supported Phase 2 and pilot-assessment routes now carry exact Correction,
+Review, escalation, and explicit terminal behavior through issue #100.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable
@@ -1019,9 +1019,11 @@ syntax permits three-to-eight-character uppercase type prefixes, but the kernel
 recognizes none of these example IDs.
 
 Phases 0, 1, and 2, exact change control, and the reviewed pilot assessment
-remain explicit bootstrap subsets. The expansion Decision is `change`: complete
-promotion, formal verification, component/design decomposition, and implementation
-remain deferred until ceremony is reduced and scope removal is demonstrated. The
+remain explicit bootstrap subsets. The observed expansion Decision is `change`: it enters the declared narrow
+change-control route and reaches the Profile Boundary after supported work drains.
+Complete promotion, formal verification, component/design decomposition, and
+implementation remain deferred until ceremony is reduced and scope removal is
+demonstrated. The
 purpose is to validate the kernel/process seam, schema composition, graph querying,
 review evidence, baselines, policies, obligations, Scenario execution, gate
 routing, and evidence-based process assessment before broader lifecycle breadth.

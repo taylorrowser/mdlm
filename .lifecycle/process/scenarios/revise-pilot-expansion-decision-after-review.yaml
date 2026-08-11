@@ -1,0 +1,35 @@
+kind: scenario-definition
+id: revise-pilot-expansion-decision-after-review
+version: 1
+description: Replace one failed pilot-expansion Decision under renewed stakeholder authority without changing its exact reviewed recommendation or scope.
+phases: [phase-2-pilot-assessment]
+inputs:
+  - {name: decision, types: [DEC], cardinality: one, identity: revision}
+  - {name: assessment, types: [PAS], cardinality: one, identity: revision}
+  - {name: assessment_review, types: [REV], cardinality: one, identity: revision}
+  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: replacement
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {input: assessment}}
+      - {link: relies-on-review, target: {input: assessment_review}}
+      - {link: corrects-review, target: {input: failed_reviews}}
+prompt_ref: prompts/revise-pilot-expansion-decision-after-review.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: consequential-decision-participation@1
+  arguments: {subject: assessment}
+authority_evidence: {output: replacement, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == decision.identity.id
+  && replacement.payload.kind == "pilot-expansion"
+  && replacement.payload.decision == assessment.payload.recommendation
+  && replacement.payload.effective_scope == decision.payload.effective_scope
+  && exists("recorded-pilot-expansion-decisions-for@1",
+    {assessment: assessment})
+resolves: [pilot-expansion-decision-review-correction-required]
+prohibited_inputs: [changed PAS recommendation, changed expansion scope, suppression of failed Reviews, mutation of immutable history, Phase 3–6 implementation outputs]
+batching: single

@@ -855,7 +855,7 @@ describe("req process package commands", () => {
         }],
         definitionCatalogs: expect.objectContaining({
           types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@5", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
-          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@7", "phase-7-change-control@2"],
+          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@3", "phase-2-system-definition@7", "phase-7-change-control@2"],
         }),
       },
       diagnostics: [],
@@ -870,7 +870,7 @@ describe("req process package commands", () => {
       "Kernel Contract: mdlm-kernel-process-interface@1",
       "Primitive Catalog: primitives/kernel-v1.yaml@1",
       "Kernel Capabilities: exact-baseline@1 -> BSL",
-      "Phases: phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-pilot-assessment@2, phase-2-system-definition@7, phase-7-change-control@2",
+      "Phases: phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-pilot-assessment@3, phase-2-system-definition@7, phase-7-change-control@2",
     ]) {
       expect(human.stdout).toContain(semantic);
     }
@@ -1018,7 +1018,7 @@ describe("req process package commands", () => {
         }],
         definitionCatalogs: expect.objectContaining({
           types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@5", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
-          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@7", "phase-7-change-control@2"],
+          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@3", "phase-2-system-definition@7", "phase-7-change-control@2"],
         }),
       },
       diagnostics: [],
