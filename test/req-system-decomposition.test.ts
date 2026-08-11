@@ -741,7 +741,7 @@ describe("req system decomposition slice", () => {
               },
             },
             links: [
-              { type: "derived-from", target: stakeholder.id },
+              { type: "derived-from", target: stakeholder.revisionId },
               { type: "decomposes", target: plan.revisionId },
               { type: "allocated-to", target: architecture.revisionId },
               { type: "governed-by", target: interfaceSpec.revisionId },
@@ -762,7 +762,7 @@ describe("req system decomposition slice", () => {
     const system = systemExecution.outputs[0].lifecycleDatum as { id: string; revisionId: string };
     const shownSystem = req(repositoryRoot, "show", system.revisionId, "--json");
     expect(JSON.parse(shownSystem.stdout).lifecycleDatum.datum.links).toEqual([
-      { type: "derived-from", target: stakeholder.id },
+      { type: "derived-from", target: stakeholder.revisionId },
       { type: "decomposes", target: plan.revisionId },
       { type: "allocated-to", target: architecture.revisionId },
       { type: "governed-by", target: interfaceSpec.revisionId },
@@ -915,7 +915,7 @@ describe("req system decomposition slice", () => {
     ];
     const inconsistentAccountResponse = structuredClone(completionResponse);
     (inconsistentAccountResponse.outputs[0]!.lifecycleDatum.payload as Record<string, unknown>)
-      .coverage_account = [];
+      .parent_coverage_status = "gaps";
     const inconsistentAccountAdapter = await adapter(
       inconsistentAccountResponse,
       "inconsistent-dwp-account",
