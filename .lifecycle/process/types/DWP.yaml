@@ -13,8 +13,6 @@ payload_schema:
   additionalProperties: false
   required: [stage, architecture_element, target_child_type, behavioral_slice, expected_coverage, exclusions, dependencies, required_review_policy]
   properties:
-    title: {type: string, minLength: 1}
-    rationale: {type: string, minLength: 1}
     stage: {enum: [planning, completion]}
     architecture_element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
     target_child_type: {const: SYS}

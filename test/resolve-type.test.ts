@@ -59,6 +59,12 @@ describe("resolveType", () => {
         ],
       }),
       expect.objectContaining({
+        id: "corrects-gate-rejection",
+        targets: [
+          expect.objectContaining({ types: ["DEC"], identity: "revision" }),
+        ],
+      }),
+      expect.objectContaining({
         id: "changed-under",
         targets: [
           expect.objectContaining({ types: ["CHG"], identity: "revision" }),
@@ -68,12 +74,6 @@ describe("resolveType", () => {
         id: "derived-from",
         targets: [
           expect.objectContaining({ types: ["PSP"], identity: "stable" }),
-        ],
-      }),
-      expect.objectContaining({
-        id: "corrects-gate-rejection",
-        targets: [
-          expect.objectContaining({ types: ["DEC"], identity: "revision" }),
         ],
       }),
     ]);
