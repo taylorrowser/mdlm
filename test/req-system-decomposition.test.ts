@@ -934,7 +934,12 @@ describe("req system decomposition slice", () => {
     );
     expect(inconsistentAccount.status).toBe(1);
     expect(JSON.parse(inconsistentAccount.stdout).diagnostics).toContainEqual(
-      expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+      expect.objectContaining({
+        code: "scenario-completion-failed",
+        path: "complete-decomposition-work-package@2#completion",
+        message:
+          "Scenario 'complete-decomposition-work-package@2' did not satisfy its package-authored completion expression",
+      }),
     );
     expect(req(repositoryRoot, "show", `${plan.id}-r00002`, "--json").status).toBe(1);
 
