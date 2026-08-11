@@ -1,7 +1,7 @@
 kind: selector-definition
 id: decomposition-architecture-matches-requirement
 version: 1
-description: Current architecture for a requirement only when the DWP payload names its exact Revision.
+description: Current architecture for a requirement only when the DWP canonically links its exact Revision.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
   - {name: requirement, kind: revision, types: [STK]}
@@ -11,6 +11,6 @@ query:
     selector: current-architectures-for-requirement@1
     arguments: {requirement: requirement}
   as: architecture
-  where: 'architecture.identity.revision_id == plan.payload.architecture_context.revision'
+  where: 'exists("matching-decomposition-architecture@1", {plan: plan, architecture: architecture})'
   distinct: true
   order_by: [identity.revision_id]

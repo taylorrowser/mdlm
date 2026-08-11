@@ -1,17 +1,19 @@
 kind: scenario-definition
 id: revise-phase-2-subject-after-review
 version: 1
-description: Correct one exact Phase 2 definition subject with every current primary and collateral Review cause through one bounded interface.
+description: Correct one exact Phase 2 definition subject with every current Review or reviewed gate-rejection cause through one bounded interface.
 phases: [phase-2-system-definition]
 inputs:
   - {name: subject, types: [SYS, ASP, ICSP, DWP], cardinality: one, identity: revision}
-  - {name: reviews, types: [REV], cardinality: one-or-more, identity: revision}
+  - {name: reviews, types: [REV], cardinality: zero-or-more, identity: revision}
+  - {name: gate_rejections, types: [DEC], cardinality: zero-or-more, identity: revision}
 outputs:
   - name: replacement
     types: [SYS, ASP, ICSP, DWP]
     cardinality: one
     required_links:
       - {link: corrects-review, target: {input: reviews}}
+      - {link: corrects-gate-rejection, target: {input: gate_rejections}}
   - name: decision
     types: [DEC]
     cardinality: zero-or-one
@@ -27,6 +29,15 @@ completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == subject.identity.id
   && replacement.identity.type == subject.identity.type
+  && (exists("cited-reviews-by-correction@1", {replacement: replacement})
+    || exists("cited-gate-rejections-by-correction@1", {replacement: replacement}))
+  && count("cited-gate-rejections-by-correction@1", {replacement: replacement})
+    == count("reviewed-gate-rejections-for-subject@1", {subject: subject})
+  && every("reviewed-gate-rejections-for-subject@1", {subject: subject}, rejection =>
+    exists("matching-cited-gate-rejection-by-correction@1",
+      {replacement: replacement, rejection: rejection}))
+  && (replacement.identity.type != "DWP"
+    || exists("valid-phase-2-dwp-review-correction@1", {replacement: replacement}))
   && (
     (policy("phase-2-correction-participation@1",
       {subject: subject}).authority_mode == "autonomous"

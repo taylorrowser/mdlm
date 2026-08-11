@@ -10,6 +10,7 @@ inputs:
   - {name: prior_plan, types: [DWP], cardinality: one, identity: revision}
   - {name: prior_requirements, types: [SYS], cardinality: one-or-more, identity: revision}
   - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
 outputs:
   - name: architecture
     types: [ASP]
@@ -32,6 +33,7 @@ outputs:
       - {link: decomposes, target: {input: parents}}
       - {link: allocated-to, target: {output: architecture}}
       - {link: governed-by, target: {output: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
   - name: requirements
     types: [SYS]
     cardinality: one-or-more
@@ -57,7 +59,10 @@ completion: >-
   && architecture.identity.id == prior_architecture.identity.id
   && plan.identity.id == prior_plan.identity.id
   && plan.payload.stage == "planning"
-  && plan.payload.architecture_context.revision == architecture.identity.revision_id
+  && count("architectures-for-decomposition@1", {plan: plan}) == 1
+  && one("architectures-for-decomposition@1", {plan: plan}) == architecture
+  && count("strategies-for-decomposition@1", {plan: plan}) == 1
+  && one("strategies-for-decomposition@1", {plan: plan}) == verification_strategy
   && count("interfaces-for-decomposition@1", {plan: plan}) == count("interfaces-for-decomposition@1", {plan: prior_plan})
   && every("interfaces-for-decomposition@1", {plan: prior_plan}, prior_interface =>
     count("newer-revisions-for@1", {subject: prior_interface}) == 1

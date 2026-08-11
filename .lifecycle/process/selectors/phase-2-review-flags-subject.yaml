@@ -9,6 +9,9 @@ result_kind: revision
 query:
   from: {relation: outgoing-links, of: review, link: flags, emit: target, types: [SYS, ASP, ICSP, DWP]}
   as: target
-  where: 'target == subject'
+  where: >-
+    target == subject
+    && state(review, "validity") == "valid"
+    && state(review, "disposition") == "active"
   distinct: true
   order_by: [identity.revision_id]

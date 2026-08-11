@@ -37,6 +37,13 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: corrected-by
+  - id: corrects-gate-rejection
+    description: Exact reviewed gate rejection Decisions addressed by this replacement architecture Revision.
+    targets:
+      - {kind: datum, types: [DEC], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-gate-rejection
   - id: governs
     description: Exact requirements and decomposition plans organized by this architecture revision.
     targets:

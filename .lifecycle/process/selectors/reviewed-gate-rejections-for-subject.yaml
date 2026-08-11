@@ -1,9 +1,9 @@
 kind: selector-definition
 id: reviewed-gate-rejections-for-subject
 version: 1
-description: Reviewed exact gate rejections that name one Phase 0 draft subject as a blocker.
+description: Reviewed exact gate rejections that canonically name one correctable draft subject as a blocker.
 parameters:
-  - {name: subject, kind: revision, types: [MAP, PSP, STK]}
+  - {name: subject, kind: revision}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: subject, link: blocks, emit: source, types: [DEC]}

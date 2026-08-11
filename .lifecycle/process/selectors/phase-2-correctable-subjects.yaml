@@ -10,7 +10,10 @@ query:
   where: >-
     state(subject, "disposition") == "active"
     && none("newer-revisions-for@1", {subject: subject})
-    && exists("phase-2-correction-reviews-for-subject@1",
-      {subject: subject, view: "local"})
+    && (
+      exists("phase-2-correction-reviews-for-subject@1",
+        {subject: subject, view: "local"})
+      || exists("reviewed-gate-rejections-for-subject@1", {subject: subject})
+    )
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

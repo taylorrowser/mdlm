@@ -115,6 +115,7 @@ catalog:
     - gate-rejection-blockers-for
     - reviewed-gate-rejections-for-candidate
     - reviewed-gate-rejections-for-subject
+    - reviewed-gate-rejection-corrections-for-subject
     - gate-rejection-blocked-members-for-candidate
     - cited-gate-rejections-by-correction
     - matching-cited-gate-rejection-by-correction
@@ -188,15 +189,21 @@ catalog:
     - current-interfaces-for-architecture
     - current-strategies-for-phase-2-requirement
     - decomposition-architecture-matches-requirement
+    - matching-decomposition-architecture
     - decomposition-strategy-matches-requirement
+    - matching-decomposition-strategy
     - current-decomposition-plans-for-requirement
     - newer-planning-revisions-for
     - decomposition-plans
+    - valid-decomposition-completions-for-plan
     - decomposition-completions-for
     - current-decomposition-completions
     - planning-revisions-for-completion
     - decomposition-parents-for
+    - matching-decomposition-parent
     - decomposition-outputs-for
+    - system-output-parents-for
+    - matching-system-output-parent
     - unreviewed-decomposition-outputs-for
     - phase-2-definition-members-for-plan
     - unreviewed-phase-2-definition-members-for-plan
@@ -216,7 +223,22 @@ catalog:
     - phase-2-review-flags-subject
     - phase-2-correction-reviews-for-subject
     - phase-2-correctable-subjects
+    - valid-phase-2-dwp-review-correction
     - phase-2-correction-decisions-for
+    - matching-phase-2-candidate-definition-member
+    - phase-2-gate-rejection-blockers-for-candidate
+    - reviewed-gate-rejections-affecting-phase-2-candidate
+    - matching-reviewed-gate-rejection-correction-for-subject
+    - phase-2-candidate-member-predecessors-for
+    - candidate-reviewed-gate-corrections-for-subject
+    - phase-2-replacement-definition-members-for-candidate
+    - complete-superseding-phase-2-groups-for
+    - reviewed-complete-superseding-phase-2-groups-for
+    - matching-complete-superseding-phase-2-group
+    - phase-2-composed-group-predecessors-for
+    - phase-2-replacement-composed-groups-for-candidate
+    - unresolved-phase-2-candidate-gate-members
+    - unresolved-phase-2-candidate-groups
     - failed-phase-2-candidates
     - complete-superseding-phase-2-candidates-for
     - ambiguous-phase-2-subjects
@@ -232,6 +254,7 @@ catalog:
     - matching-decomposition-interface
     - matching-decomposition-output
     - completion-outputs-for
+    - completion-outputs-covering-parent
     - completion-simplification-evidence-for
     - phase-2-simplification-reviews-for-plan
     - strategies-for-decomposition

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-superseding-phase-2-candidates-for
 version: 1
-description: Same-lineage superseding Phase 2 candidates preserving every unaffected exact member, evidence item, and composed group.
+description: Same-lineage Phase 2 candidate replacements preserving unaffected exact evidence while substituting reviewed local gate Corrections.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: baseline
@@ -14,36 +14,55 @@ query:
     replacement.identity.id == candidate.identity.id
     && replacement.payload.kind == candidate.payload.kind
     && replacement.payload.role == candidate.payload.role
-    && replacement.payload.scope == candidate.payload.scope
+    && (
+      replacement.payload.scope == candidate.payload.scope
+      || every("composed-groups-for-level-candidate@1", {candidate: candidate}, prior_group =>
+        prior_group.identity.revision_id != candidate.payload.scope
+        || every("phase-2-replacement-composed-groups-for-candidate@1",
+          {candidate: candidate}, replacement_group =>
+            replacement_group.identity.id != prior_group.identity.id
+            || replacement.payload.scope == replacement_group.identity.revision_id))
+    )
     && replacement.payload.group == candidate.payload.group
     && replacement.storage.frozen == true
-    && every("candidate-definition-members@1", {candidate: candidate}, member =>
-      exists("candidate-members-matching@1",
-        {candidate: replacement, required_member: member}))
+    && count("candidate-definition-members@1", {candidate: replacement})
+      == count("candidate-definition-members@1", {candidate: candidate})
     && every("candidate-definition-members@1", {candidate: replacement}, member =>
-      exists("candidate-members-matching@1",
-        {candidate: candidate, required_member: member}))
+      exists("phase-2-candidate-member-predecessors-for@1",
+        {candidate: candidate, replacement_member: member}))
+    && every("candidate-definition-members@1", {candidate: candidate}, prior =>
+      (none("reviewed-gate-rejections-for-subject@1", {subject: prior})
+        && exists("baseline-contains-definition@1",
+          {baseline: replacement, subject: prior}))
+      || (exists("reviewed-gate-rejections-for-subject@1", {subject: prior})
+        && count("candidate-reviewed-gate-corrections-for-subject@1",
+          {candidate: replacement, subject: prior}) == 1))
+    && count("baseline-evidence@1", {baseline: replacement})
+      == count("baseline-evidence@1", {baseline: candidate})
     && every("baseline-evidence@1", {baseline: candidate}, evidence =>
       exists("baseline-contains-evidence@1",
         {baseline: replacement, subject: evidence}))
-    && every("baseline-evidence@1", {baseline: replacement}, evidence =>
-      exists("baseline-contains-evidence@1",
-        {baseline: candidate, subject: evidence}))
-    && every("composed-groups-for-level-candidate@1", {candidate: candidate}, group =>
-      exists("level-candidate-composes-group@1",
-        {candidate: replacement, group: group}))
+    && count("composed-groups-for-level-candidate@1", {candidate: replacement})
+      == count("composed-groups-for-level-candidate@1", {candidate: candidate})
     && every("composed-groups-for-level-candidate@1", {candidate: replacement}, group =>
-      exists("level-candidate-composes-group@1",
-        {candidate: candidate, group: group}))
+      exists("phase-2-composed-group-predecessors-for@1",
+        {candidate: candidate, replacement_group: group}))
+    && every("composed-groups-for-level-candidate@1", {candidate: candidate}, prior_group =>
+      (none("reviewed-gate-rejections-affecting-phase-2-candidate@1",
+        {candidate: prior_group})
+        && exists("level-candidate-composes-group@1",
+          {candidate: replacement, group: prior_group}))
+      || exists("complete-superseding-phase-2-groups-for@1",
+        {group: prior_group}))
     && count("cited-failing-reviews-by-correction@1",
       {replacement: replacement})
       == count("failing-reviews-for@1", {subject: candidate})
-    && count("cited-gate-rejections-by-correction@1",
-      {replacement: replacement})
-      == count("reviewed-gate-rejections-for-candidate@1",
+    && count("cited-gate-rejections-by-correction@1", {replacement: replacement})
+      == count("reviewed-gate-rejections-affecting-phase-2-candidate@1",
         {candidate: candidate})
-    && every("reviewed-gate-rejections-for-candidate@1", {candidate: candidate}, rejection =>
-      exists("matching-cited-gate-rejection-by-correction@1",
-        {replacement: replacement, rejection: rejection}))
+    && every("reviewed-gate-rejections-affecting-phase-2-candidate@1",
+      {candidate: candidate}, rejection =>
+        exists("matching-cited-gate-rejection-by-correction@1",
+          {replacement: replacement, rejection: rejection}))
   distinct: true
   order_by: [identity.revision]

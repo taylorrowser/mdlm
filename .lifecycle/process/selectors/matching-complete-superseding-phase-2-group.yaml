@@ -1,0 +1,16 @@
+kind: selector-definition
+id: matching-complete-superseding-phase-2-group
+version: 1
+description: The supplied reviewed group replacement when it completely supersedes one exact prior group.
+parameters:
+  - {name: group, kind: baseline, types: [BSL]}
+  - {name: replacement, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from:
+    selector: reviewed-complete-superseding-phase-2-groups-for@1
+    arguments: {group: group}
+  as: candidate
+  where: 'candidate == replacement'
+  distinct: true
+  order_by: [identity.revision_id]

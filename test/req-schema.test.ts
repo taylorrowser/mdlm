@@ -94,6 +94,13 @@ describe("req schema", () => {
           freeze_resolution: "already-exact",
           inverse_label: "corrected-by",
         }, {
+          id: "corrects-gate-rejection",
+          description: expect.stringContaining("gate rejection"),
+          targets: [{ kind: "datum", types: ["DEC"], identity: "revision" }],
+          cardinality: { minimum: 0, maximum: "many" },
+          freeze_resolution: "already-exact",
+          inverse_label: "corrected-by-gate-rejection",
+        }, {
           id: "changed-under",
           description: expect.stringContaining("Change Request"),
           targets: [{ kind: "datum", types: ["CHG"], identity: "revision" }],
@@ -107,13 +114,6 @@ describe("req schema", () => {
           cardinality: { minimum: 1, maximum: 1 },
           freeze_resolution: "exact-revision",
           inverse_label: "derives",
-        }, {
-          id: "corrects-gate-rejection",
-          description: expect.stringContaining("gate rejection"),
-          targets: [{ kind: "datum", types: ["DEC"], identity: "revision" }],
-          cardinality: { minimum: 0, maximum: "many" },
-          freeze_resolution: "already-exact",
-          inverse_label: "corrected-after-gate-rejection",
         }],
         lifecycleBehavior: {
           authorship: "authored",

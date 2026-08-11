@@ -1,0 +1,15 @@
+kind: selector-definition
+id: phase-2-replacement-composed-groups-for-candidate
+version: 1
+description: Exact composed group set for a Phase 2 level replacement, substituting only reviewed complete group Corrections.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: group
+  where: >-
+    exists("phase-2-composed-group-predecessors-for@1",
+      {candidate: candidate, replacement_group: group})
+  distinct: true
+  order_by: [identity.revision_id]

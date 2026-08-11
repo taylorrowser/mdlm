@@ -1,0 +1,16 @@
+kind: selector-definition
+id: matching-phase-2-candidate-definition-member
+version: 1
+description: The supplied exact Phase 2 definition Revision when it is held directly or through composition by one level candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: member, kind: revision}
+result_kind: revision
+query:
+  from:
+    selector: phase-2-level-candidate-definition-members@1
+    arguments: {candidate: candidate}
+  as: contained
+  where: 'contained == member'
+  distinct: true
+  order_by: [identity.revision_id]

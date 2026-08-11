@@ -19,10 +19,13 @@ query:
       {plan: plan, requirement: requirement}) == 1
     && count("architectures-for-decomposition@1", {plan: plan}) == 1
     && one("architectures-for-decomposition@1", {plan: plan}) == one("decomposition-architecture-matches-requirement@1", {plan: plan, requirement: requirement})
-    && count("current-interfaces-for-architecture@1",
-      {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}) == 1
-    && count("interfaces-for-decomposition@1", {plan: plan}) == 1
-    && one("interfaces-for-decomposition@1", {plan: plan}) == one("current-interfaces-for-architecture@1",
+    && exists("current-interfaces-for-architecture@1",
       {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
+    && count("interfaces-for-decomposition@1", {plan: plan})
+      == count("current-interfaces-for-architecture@1",
+        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
+    && every("current-interfaces-for-architecture@1",
+      {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}, interface =>
+        exists("matching-decomposition-interface@1", {plan: plan, interface: interface}))
   distinct: true
   order_by: [identity.id, identity.revision]

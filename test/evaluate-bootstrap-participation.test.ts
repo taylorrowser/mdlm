@@ -303,6 +303,127 @@ describe("bootstrap Scenario participation Policies", () => {
     ]));
   });
 
+  it("keeps multiple valid Phase 2 interfaces actionable for decomposition planning", () => {
+    const product = lifecycleDatum("PSP", "PSP-0MULTP2D00", {
+      title: "Plural interface fixture",
+      rationale: "Exercise supported Phase 2 interface multiplicity.",
+      problem: "One architecture has several controlled boundaries.",
+      users: ["operator"],
+      goals: ["plan against every exact interface"],
+      non_goals: [],
+      success_measures: ["decomposition remains actionable"],
+    });
+    const requirement = lifecycleDatum("STK", "STK-0MULTR3Q00", {
+      title: "One accepted requirement",
+      rationale: "The architecture must cover exact accepted intent.",
+      statement: "The product shall expose controlled read and write boundaries.",
+      verification_intent: "Inspect both controlled boundaries.",
+      stakeholder: "operator",
+      priority: "must",
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const accepted = lifecycleDatum("BSL", "BSL-0MULTB5000", {
+      title: "Accepted plural-interface fixture",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: "plural-interface-fixture",
+      group: "DEFAULT",
+      definition_members: [product.datum.revision_id, requirement.datum.revision_id],
+      evidence: [],
+    }, { frozen: true, scenario: "accept-phase-0-intent@1" });
+    const architecture = lifecycleDatum("ASP", "ASP-0MULTARC00", {
+      title: "System architecture",
+      rationale: "One architecture owns both exact boundaries.",
+      level: "system",
+      elements: [{
+        id: "AEL-0MULTARC00",
+        alias: "SYSTEM",
+        title: "System",
+        responsibilities: ["own read and write boundaries"],
+      }],
+      interactions: [],
+      constraints: [],
+      nominated_risks: [],
+    }, { links: [{ type: "governs", target: requirement.datum.revision_id }] });
+    const interfaceSpec = (id: string, operation: string) => lifecycleDatum("ICSP", id, {
+      title: `${operation} boundary`,
+      rationale: "This independently valid interface constrains decomposition.",
+      architecture_revision: architecture.datum.revision_id,
+      boundary: {
+        from_element: "AEL-0MULTARC00",
+        to_element: "AEL-0MULTARC00",
+      },
+      operations: [operation],
+      schemas: [`${operation}@1`],
+      units: [],
+      timing: [],
+      errors: [],
+      security: [],
+      ordering: [],
+      compatibility: ["version 1"],
+      interface_version: "1.0.0",
+    }, { links: [{ type: "defines-interface-for", target: architecture.datum.revision_id }] });
+    const strategy = lifecycleDatum("VSP", "VSP-0MULTVSP00", {
+      title: "System verification strategy",
+      rationale: "Bound decomposition with one exact strategy.",
+      level: "system",
+      permitted_methods: ["test"],
+      independence: {
+        boundary: "black-box",
+        prohibited_inputs: [
+          "product source code",
+          "product unit tests",
+          "private implementation details",
+          "uncontrolled implementation shortcuts",
+        ],
+      },
+      evidence_policy: "Capture exact boundary observations.",
+      assessment_policy: "Assess deterministic outcomes.",
+      environment_profile: {
+        id: "system-test",
+        purpose: "Exercise system boundaries.",
+        capabilities: {
+          controllability: ["set requests"],
+          observability: ["observe responses"],
+          external_services: [],
+          timing: "bounded",
+        },
+      },
+    }, {
+      links: [
+        { type: "governs", target: requirement.datum.id },
+        { type: "governs-revision", target: requirement.datum.revision_id },
+      ],
+    });
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [
+        product,
+        requirement,
+        accepted,
+        architecture,
+        interfaceSpec("ICSP-0MULT1CSP0", "read"),
+        interfaceSpec("ICSP-0MULT1CSP2", "write"),
+        strategy,
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "interface-control-specification-required" &&
+      item.subject === architecture.datum.revision_id
+    )).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "decomposition-planning-required" &&
+      item.subject === requirement.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "define-decomposition-work-package@2",
+    }));
+  });
+
   it("escalates a third reviewed Phase 2 candidate rejection", () => {
     const architecture = lifecycleDatum("ASP", "ASP-0GATEARC00", {
       title: "Stable system architecture",

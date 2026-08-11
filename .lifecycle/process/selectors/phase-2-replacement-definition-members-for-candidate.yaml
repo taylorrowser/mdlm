@@ -1,0 +1,15 @@
+kind: selector-definition
+id: phase-2-replacement-definition-members-for-candidate
+version: 1
+description: Exact direct definition set for a Phase 2 replacement candidate, substituting only reviewed same-lineage gate Corrections.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [SYS, ASP, ICSP, DWP, VSP]}
+  as: member
+  where: >-
+    exists("phase-2-candidate-member-predecessors-for@1",
+      {candidate: candidate, replacement_member: member})
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

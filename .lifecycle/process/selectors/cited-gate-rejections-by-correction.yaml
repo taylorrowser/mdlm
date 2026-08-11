@@ -3,7 +3,7 @@ id: cited-gate-rejections-by-correction
 version: 1
 description: Reviewed gate rejections cited by a correction Revision or replacement candidate.
 parameters:
-  - {name: replacement, kind: revision, types: [MAP, PSP, STK, BSL]}
+  - {name: replacement, kind: revision, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, BSL]}
 result_kind: revision
 query:
   from: {relation: outgoing-links, of: replacement, link: corrects-gate-rejection, emit: target, types: [DEC]}

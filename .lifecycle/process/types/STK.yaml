@@ -22,11 +22,4 @@ outgoing_links:
     cardinality: {minimum: 1, maximum: 1}
     freeze_resolution: exact-revision
     inverse_label: derives
-  - id: corrects-gate-rejection
-    description: Exact reviewed gate rejection Decisions whose findings this replacement requirement Revision addresses.
-    targets:
-      - {kind: datum, types: [DEC], identity: revision}
-    cardinality: {minimum: 0, maximum: many}
-    freeze_resolution: already-exact
-    inverse_label: corrected-after-gate-rejection
 kernel_managed_payload_paths: []

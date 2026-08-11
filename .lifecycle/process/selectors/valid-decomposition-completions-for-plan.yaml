@@ -1,0 +1,48 @@
+kind: selector-definition
+id: valid-decomposition-completions-for-plan
+version: 1
+description: Semantically complete DWP Revisions whose canonical links exactly account for one plan, every current output, and every parent lineage.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: plan, emit: entity, types: [DWP]}
+  as: completion
+  where: >-
+    completion.payload.stage == "completion"
+    && completion.payload.parent_coverage_status == "complete"
+    && completion.payload.output_reviews_complete == true
+    && state(completion, "disposition") == "active"
+    && state(completion, "validity") == "valid"
+    && count("planning-revisions-for-completion@1", {completion: completion}) == 1
+    && one("planning-revisions-for-completion@1", {completion: completion}) == plan
+    && count("decomposition-parents-for@1", {plan: completion})
+      == count("decomposition-parents-for@1", {plan: plan})
+    && every("decomposition-parents-for@1", {plan: plan}, parent =>
+      exists("matching-decomposition-parent@1", {plan: completion, parent: parent})
+      && exists("completion-outputs-covering-parent@1",
+        {completion: completion, parent: parent}))
+    && count("completion-outputs-for@1", {completion: completion})
+      == count("decomposition-outputs-for@1", {plan: plan})
+    && every("completion-outputs-for@1", {completion: completion}, output =>
+      exists("matching-decomposition-output@1", {plan: plan, output: output})
+      && every("system-output-parents-for@1", {output: output}, parent =>
+        exists("matching-decomposition-parent@1", {plan: plan, parent: parent})))
+    && count("architectures-for-decomposition@1", {plan: completion}) == 1
+    && one("architectures-for-decomposition@1", {plan: completion})
+      == one("architectures-for-decomposition@1", {plan: plan})
+    && count("strategies-for-decomposition@1", {plan: completion}) == 1
+    && one("strategies-for-decomposition@1", {plan: completion})
+      == one("strategies-for-decomposition@1", {plan: plan})
+    && count("interfaces-for-decomposition@1", {plan: completion})
+      == count("interfaces-for-decomposition@1", {plan: plan})
+    && every("interfaces-for-decomposition@1", {plan: plan}, interface =>
+      exists("matching-decomposition-interface@1",
+        {plan: completion, interface: interface}))
+    && count("completion-simplification-evidence-for@1", {completion: completion})
+      == count("phase-2-simplification-reviews-for-plan@1", {plan: plan})
+    && every("completion-simplification-evidence-for@1", {completion: completion}, review =>
+      exists("simplification-evidence-matches-plan@1",
+        {plan: plan, evidence: review}))
+  distinct: true
+  order_by: [identity.revision]

@@ -1,0 +1,23 @@
+kind: selector-definition
+id: valid-phase-2-dwp-review-correction
+version: 1
+description: The supplied DWP replacement only when its canonical planning or completion account remains semantically complete.
+parameters:
+  - {name: replacement, kind: revision}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: candidate
+  where: >-
+    candidate == replacement
+    && ((candidate.payload.stage == "planning"
+        && exists("decomposition-parents-for@1", {plan: candidate})
+        && count("architectures-for-decomposition@1", {plan: candidate}) == 1
+        && exists("interfaces-for-decomposition@1", {plan: candidate})
+        && count("strategies-for-decomposition@1", {plan: candidate}) == 1)
+      || (candidate.payload.stage == "completion"
+        && count("planning-revisions-for-completion@1", {completion: candidate}) == 1
+        && exists("valid-decomposition-completions-for-plan@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: candidate})})))
+  distinct: true
+  order_by: [identity.revision_id]

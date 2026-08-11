@@ -1,0 +1,16 @@
+kind: selector-definition
+id: completion-outputs-covering-parent
+version: 1
+description: Exact SYS outputs in one DWP completion that canonically derive from the supplied parent lineage.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+  - {name: parent, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from:
+    selector: completion-outputs-for@1
+    arguments: {completion: completion}
+  as: output
+  where: 'exists("matching-system-output-parent@1", {output: output, parent: parent})'
+  distinct: true
+  order_by: [identity.revision_id]

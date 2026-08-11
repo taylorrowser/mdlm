@@ -49,5 +49,6 @@ resolve_with:
     outputs: 'select("decomposition-outputs-for@1", {plan: plan})'
     architecture: 'one("architectures-for-decomposition@1", {plan: plan})'
     interfaces: 'select("interfaces-for-decomposition@1", {plan: plan})'
+    verification_strategy: 'one("strategies-for-decomposition@1", {plan: plan})'
     simplification_reviews: 'select("phase-2-simplification-reviews-for-plan@1", {plan: plan})'
 waiver_policy_ref: waiver-applicability@1

@@ -1,0 +1,18 @@
+kind: selector-definition
+id: unresolved-phase-2-candidate-groups
+version: 1
+description: Exact composed groups affected by reviewed gate rejection without one complete reviewed evidence-preserving replacement.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from:
+    selector: composed-groups-for-level-candidate@1
+    arguments: {candidate: candidate}
+  as: group
+  where: >-
+    exists("reviewed-gate-rejections-affecting-phase-2-candidate@1",
+      {candidate: group})
+    && none("reviewed-complete-superseding-phase-2-groups-for@1", {group: group})
+  distinct: true
+  order_by: [identity.revision_id]

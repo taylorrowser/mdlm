@@ -9,6 +9,7 @@ inputs:
   - {name: outputs, types: [SYS], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
   - {name: interfaces, types: [ICSP], cardinality: one-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
   - {name: simplification_reviews, types: [REV], cardinality: one-or-more, identity: revision}
 outputs:
   - name: completion
@@ -20,6 +21,7 @@ outputs:
       - {link: produces, target: {input: outputs}}
       - {link: allocated-to, target: {input: architecture}}
       - {link: governed-by, target: {input: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
       - {link: justifies, target: {input: simplification_reviews}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/complete-decomposition-work-package.md@1
@@ -28,19 +30,28 @@ completion: >-
   execution.integrity.contract_valid == true
   && completion.identity.id == plan.identity.id
   && completion.payload.stage == "completion"
-  && completion.payload.parent_coverage_status in ["complete", "waived"]
+  && completion.payload.parent_coverage_status == "complete"
   && completion.payload.output_reviews_complete == true
   && count("decomposition-parents-for@1", {plan: completion})
     == count("decomposition-parents-for@1", {plan: plan})
+  && every("decomposition-parents-for@1", {plan: plan}, parent =>
+    exists("matching-decomposition-parent@1", {plan: completion, parent: parent})
+    && exists("completion-outputs-covering-parent@1",
+      {completion: completion, parent: parent}))
   && count("completion-outputs-for@1", {completion: completion})
     == count("decomposition-outputs-for@1", {plan: plan})
+  && every("completion-outputs-for@1", {completion: completion}, output =>
+    exists("matching-decomposition-output@1", {plan: plan, output: output})
+    && every("system-output-parents-for@1", {output: output}, parent =>
+      exists("matching-decomposition-parent@1", {plan: plan, parent: parent})))
   && every("completion-simplification-evidence-for@1", {completion: completion}, review =>
     exists("simplification-evidence-matches-plan@1",
       {plan: plan, evidence: review}))
   && count("architectures-for-decomposition@1", {plan: completion}) == 1
   && one("architectures-for-decomposition@1", {plan: completion}) == one("architectures-for-decomposition@1", {plan: plan})
   && count("strategies-for-decomposition@1", {plan: completion}) == 1
-  && one("strategies-for-decomposition@1", {plan: completion}) == one("strategies-for-decomposition@1", {plan: plan})
+  && one("strategies-for-decomposition@1", {plan: completion}) == verification_strategy
+  && verification_strategy == one("strategies-for-decomposition@1", {plan: plan})
   && count("interfaces-for-decomposition@1", {plan: completion}) == count("interfaces-for-decomposition@1", {plan: plan})
   && every("interfaces-for-decomposition@1", {plan: plan},
     interface => exists("matching-decomposition-interface@1",

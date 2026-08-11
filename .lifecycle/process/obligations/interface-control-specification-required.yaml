@@ -1,19 +1,15 @@
 kind: obligation-definition
 id: interface-control-specification-required
 version: 1
-description: Every current Phase 2 architecture requires at least one exact normative interface contract.
+description: Every current Phase 2 architecture requires one or more exact normative interface contracts.
 phases: [phase-2-system-definition]
 for_each: 'select("current-phase-2-architectures@1", {})'
 subject_as: architecture
-satisfied_when: 'count("current-interfaces-for-architecture@1", {architecture: architecture}) == 1'
+satisfied_when: 'exists("current-interfaces-for-architecture@1", {architecture: architecture})'
 status_rules:
-  - status: blocked
-    priority: 200
-    when: 'count("current-interfaces-for-architecture@1", {architecture: architecture}) > 1'
-    reason: Multiple current interface Revisions are ambiguous and require explicit correction before decomposition can continue.
   - status: ready
     priority: 100
-    when: 'count("current-interfaces-for-architecture@1", {architecture: architecture}) == 0'
+    when: 'none("current-interfaces-for-architecture@1", {architecture: architecture})'
     reason: The exact architecture is ready for its bounded public interface contract.
 default_status: blocked
 resolve_with:
