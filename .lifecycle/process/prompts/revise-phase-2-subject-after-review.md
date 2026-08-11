@@ -11,13 +11,11 @@ Read `skills/lifecycle-data.md@1`, `skills/contextual-artifact-review.md@1`,
 interface, or DWP skill.
 
 Create one same-lineage replacement for the exact subject. Address every supplied
-primary and collateral Review Finding or reviewed gate rejection. Preserve all
-unaffected source-owned exact links and payload commitments; do not rebind a
-dependency merely because nearby evidence changed. Cite every supplied Review
-through `corrects-review` and every supplied rejection through
-`corrects-gate-rejection`. A DWP replacement must retain a mechanically complete
-canonical plan or completion account. The replacement requires a fresh exact
-Review Context and independent Review through normal reevaluation.
+primary and collateral Review Finding. Preserve all unaffected source-owned exact
+links and payload commitments; do not rebind a dependency merely because nearby
+evidence changed. Cite every supplied Review through `corrects-review`. The
+replacement requires a fresh exact Review Context
+and independent Review through normal reevaluation.
 
 When participation is attended, also publish the exact scope DEC required by the
 Assignment; it authorizes this Correction but does not replace fresh Review.

@@ -8,30 +8,32 @@ parameters:
   - {name: scope, kind: scalar, scalar_type: string}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: rejection, link: blocks, emit: target, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, BSL]}
+  from: {relation: outgoing-links, of: rejection, link: blocks, emit: target, types: [MAP, PSP, STK, BSL]}
   as: blocker
   where: >-
     (
       scope == "valid"
       && (
         blocker.identity.revision_id == candidate.identity.revision_id
-        || (candidate.payload.kind == "intent-level-candidate"
+        || (
+          candidate.payload.kind == "intent-level-candidate"
           && exists("baseline-contains-definition@1",
-            {baseline: candidate, subject: blocker}))
-        || (candidate.payload.kind == "level-candidate"
-          && exists("matching-phase-2-candidate-definition-member@1",
-            {candidate: candidate, member: blocker}))
+            {baseline: candidate, subject: blocker})
+        )
       )
     )
     || (
       scope == "unexpected"
-      && blocker.identity.revision_id != candidate.identity.revision_id
-      && !(candidate.payload.kind == "intent-level-candidate"
-        && exists("baseline-contains-definition@1",
-          {baseline: candidate, subject: blocker}))
-      && !(candidate.payload.kind == "level-candidate"
-        && exists("matching-phase-2-candidate-definition-member@1",
-          {candidate: candidate, member: blocker}))
+      && (
+        (
+          blocker.identity.revision_id != candidate.identity.revision_id
+          && !(
+            candidate.payload.kind == "intent-level-candidate"
+            && exists("baseline-contains-definition@1",
+              {baseline: candidate, subject: blocker})
+          )
+        )
+      )
     )
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

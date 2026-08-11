@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-phase-2-candidate-after-review
 version: 1
-description: Replace one failed or reviewed-rejected Phase 2 group or level candidate while preserving unaffected evidence and substituting reviewed local Corrections.
+description: Replace one failed or reviewed-rejected Phase 2 group or level candidate without discarding unaffected exact evidence.
 phases: [phase-2-system-definition]
 inputs:
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}
@@ -51,5 +51,5 @@ completion: >-
           && state(authority, "validity") == "valid"))
   )
 resolves: [phase-2-candidate-correction-required]
-prohibited_inputs: [mutation of prior candidate or judgment, omission of unaffected evidence, unreviewed member correction, unreviewed composed group replacement, inferred stop, inferred deferral, inferred cancellation, mutable latest aliases]
+prohibited_inputs: [mutation of prior candidate or judgment, omission of unaffected evidence, inferred stop, inferred deferral, inferred cancellation, mutable latest aliases]
 batching: single

@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: phase-2-review-correction-required
 version: 1
-description: Every current failed, collateral-flagged, or gate-rejected Phase 2 definition subject receives one exact causal same-lineage Correction, then fresh Review.
+description: Every current failed or collateral-flagged Phase 2 definition subject receives one exact causal same-lineage Correction, then fresh Review.
 phases: [phase-2-system-definition]
 for_each: 'select("phase-2-correctable-subjects@1", {})'
 subject_as: subject
@@ -26,5 +26,4 @@ resolve_with:
   inputs:
     subject: subject
     reviews: 'select("phase-2-correction-reviews-for-subject@1", {subject: subject, view: "local"})'
-    gate_rejections: 'select("reviewed-gate-rejections-for-subject@1", {subject: subject})'
 waiver_policy_ref: waiver-applicability@1

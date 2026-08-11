@@ -1163,7 +1163,7 @@ describe("req system decomposition slice", () => {
       [`completion=${completion.revisionId}`],
       "group-candidate",
     );
-    let groupCandidate = groupCandidateExecution.outputs[0].lifecycleDatum as {
+    const groupCandidate = groupCandidateExecution.outputs[0].lifecycleDatum as {
       id: string;
       revisionId: string;
     };
@@ -1277,15 +1277,15 @@ describe("req system decomposition slice", () => {
                   summary: "Clarify the exact candidate without changing its reviewed definition.",
                 }],
               },
-              decision: "Correct the implicated DWP completion and return to the same SYS gate",
-              alternatives: ["approve without correcting the exact account"],
+              decision: "Return this exact SYS candidate to the same gate",
+              alternatives: ["approve without clarification"],
               effective_scope: levelCandidate.revisionId,
             },
             links: [
               { type: "justifies", target: levelCandidate.revisionId },
-              { type: "blocks", target: completion.revisionId },
+              { type: "blocks", target: levelCandidate.revisionId },
             ],
-            body: "Reviewed rejection returns the implicated exact member for correction.\n",
+            body: "Reviewed rejection returns the exact candidate for correction.\n",
           },
         }],
         completionEvidence: { summary: "Exact gate rejection recorded." },
@@ -1304,146 +1304,16 @@ describe("req system decomposition slice", () => {
     );
     await publishDiscoveredReview(rejection.revisionId, rejectionContext.revisionId);
 
-    expect(obligation(
-      "phase-2-candidate-correction-required",
-      levelCandidate.revisionId,
-    )).toEqual(expect.objectContaining({
-      status: "blocked",
-      dispatchable: false,
-      actionableResolver: "revise-phase-2-subject-after-review@1",
-    }));
-
-    const rejectedCompletion = completion;
-    const completionGateCorrection = obligation(
-      "phase-2-review-correction-required",
-      rejectedCompletion.revisionId,
-    );
-    expect(completionGateCorrection).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "revise-phase-2-subject-after-review@1",
-    }));
-    const rejectedCompletionDatum = JSON.parse(req(
-      repositoryRoot,
-      "show",
-      rejectedCompletion.revisionId,
-      "--json",
-    ).stdout).lifecycleDatum.datum;
-    const completionGateCorrectionExecution = await execute(
-      completionGateCorrection,
-      {
-        outputs: [{
-          name: "replacement",
-          invocation: 0,
-          lifecycleDatum: {
-            id: rejectedCompletion.id,
-            type: "DWP",
-            payload: {
-              ...rejectedCompletionDatum.payload,
-              title: "Gate-corrected exact decomposition completion",
-            },
-            links: [
-              ...rejectedCompletionDatum.links,
-              { type: "corrects-gate-rejection", target: rejection.revisionId },
-            ],
-            body: "The exact completion account addresses the reviewed gate rejection.\n",
-          },
-        }],
-        completionEvidence: { summary: "Corrected the exact rejected DWP completion." },
-      },
-      [
-        `subject=${rejectedCompletion.revisionId}`,
-        `gate_rejections=${rejection.revisionId}`,
-      ],
-      "correct-gate-member",
-    );
-    completion = completionGateCorrectionExecution.outputs[0].lifecycleDatum as {
-      id: string;
-      revisionId: string;
-    };
-    const gateCorrectedCompletionContext = await createDiscoveredReviewContext(
-      "Gate-corrected DWP completion context",
-      completion.revisionId,
-      [completion.revisionId, system.revisionId, architecture.revisionId, interfaceSpec.revisionId],
-      [requirementSimplification, architectureSimplification],
-    );
-    await publishDiscoveredReview(
-      completion.revisionId,
-      gateCorrectedCompletionContext.revisionId,
-      "Review gate-corrected exact DWP completion",
-    );
-
-    const priorGroupCandidate = groupCandidate;
-    const groupCorrection = obligation(
-      "phase-2-candidate-correction-required",
-      priorGroupCandidate.revisionId,
-    );
-    expect(groupCorrection).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "revise-phase-2-candidate-after-review@1",
-    }));
-    const groupCorrectionExecution = await execute(
-      groupCorrection,
-      {
-        outputs: [{
-          name: "replacement",
-          invocation: 0,
-          lifecycleDatum: {
-            id: priorGroupCandidate.id,
-            type: "BSL",
-            payload: {
-              title: "Gate-corrected SYS group candidate",
-              kind: "group-candidate",
-              role: "candidate",
-              scope: completion.revisionId,
-              group: "DEFAULT",
-              definition_members: [
-                architecture.revisionId,
-                completion.revisionId,
-                interfaceSpec.revisionId,
-                system.revisionId,
-              ],
-              evidence: [requirementSimplification, architectureSimplification],
-            },
-            links: [
-              { type: "supersedes", target: priorGroupCandidate.revisionId },
-              { type: "corrects-gate-rejection", target: rejection.revisionId },
-            ],
-            body: "The replacement group preserves unaffected exact evidence.\n",
-          },
-        }],
-        completionEvidence: { summary: "Rebuilt the affected exact group candidate." },
-      },
-      [
-        `candidate=${priorGroupCandidate.revisionId}`,
-        `definition_members=${architecture.revisionId},${completion.revisionId},${interfaceSpec.revisionId},${system.revisionId}`,
-        `evidence=${requirementSimplification},${architectureSimplification}`,
-        `gate_rejections=${rejection.revisionId}`,
-      ],
-      "correct-system-group-candidate",
-    );
-    groupCandidate = groupCorrectionExecution.outputs[0].lifecycleDatum as {
-      id: string;
-      revisionId: string;
-    };
-    const replacementGroupContext = await createDiscoveredReviewContext(
-      "Replacement SYS group review",
-      groupCandidate.revisionId,
-      [groupCandidate.revisionId],
-    );
-    await publishDiscoveredReview(groupCandidate.revisionId, replacementGroupContext.revisionId);
-
-    const priorLevelCandidate = levelCandidate;
     const candidateCorrection = obligation(
       "phase-2-candidate-correction-required",
-      priorLevelCandidate.revisionId,
+      levelCandidate.revisionId,
     );
     expect(candidateCorrection).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
       actionableResolver: "revise-phase-2-candidate-after-review@1",
     }));
+    const priorLevelCandidate = levelCandidate;
     const candidateCorrectionExecution = await execute(
       candidateCorrection,
       {
@@ -1454,7 +1324,7 @@ describe("req system decomposition slice", () => {
             id: priorLevelCandidate.id,
             type: "BSL",
             payload: {
-              title: "Gate-corrected SYS level candidate",
+              title: "Clarified SYS level candidate",
               kind: "level-candidate",
               role: "candidate",
               scope: groupCandidate.revisionId,
@@ -1471,10 +1341,10 @@ describe("req system decomposition slice", () => {
               { type: "supersedes", target: priorLevelCandidate.revisionId },
               { type: "corrects-gate-rejection", target: rejection.revisionId },
             ],
-            body: "The replacement level composes the reviewed corrected group.\n",
+            body: "Clarified candidate preserves every exact member and composition.\n",
           },
         }],
-        completionEvidence: { summary: "Rebuilt the rejected exact level candidate." },
+        completionEvidence: { summary: "Replaced rejected candidate exactly." },
       },
       [
         `candidate=${priorLevelCandidate.revisionId}`,
@@ -1482,7 +1352,7 @@ describe("req system decomposition slice", () => {
         `composed_groups=${groupCandidate.revisionId}`,
         `gate_rejections=${rejection.revisionId}`,
       ],
-      "correct-system-level-candidate",
+      "correct-system-candidate",
     );
     levelCandidate = candidateCorrectionExecution.outputs[0].lifecycleDatum as {
       id: string;

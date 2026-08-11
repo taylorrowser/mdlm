@@ -136,17 +136,15 @@ remaining supported Phase 2 routes: failed or collateral-flagged SYS, ASP, ICSP,
 and planning/completion DWP Reviews derive one subject-bounded same-lineage
 Correction with two autonomous cycles before attended escalation; unsupported
 multiple-current single-valued definition cardinality derives exact attended cancellation and
-Review rather than arbitrary selection, while every valid interface in a nonempty
-ICSP set remains available to DWP planning. DWP planning and completion store
-exact parent, output, architecture, interface, strategy, and simplification
-identity only in canonical source-owned links; completion also proves each parent
-through SYS derivation and rejects duplicate payload accounts. A reviewed Phase 2
-rejection may implicate the level candidate or an exact SYS/ASP/ICSP/DWP member.
-Member Correction and fresh Review precede serial evidence-preserving group and
-level replacement, each recording `supersedes`; unaffected exact membership and
-evidence remain reusable. Reviewed approval then derives one flattened
-`level-accepted` baseline before the same exact gate evidence authorizes
-progression without a redundant stakeholder Decision. Pilot-assessment hardening stays deferred to
+Review rather than arbitrary selection; valid plural ICSP sets remain actionable;
+and DWP completion binds every exact parent, output, architecture, interface,
+strategy, plan, and simplification Review through canonical links, with parent
+coverage derived from exact SYS lineage instead of duplicated payload accounts.
+Failed or reviewed-rejected group and level candidates preserve unaffected exact
+membership, evidence, and composition while `supersedes` records the predecessor;
+Phase 2 gate rejection canonically blocks the exact level candidate. Reviewed approval then derives one flattened `level-accepted`
+baseline before the same exact gate evidence authorizes progression without a
+redundant stakeholder Decision. Pilot-assessment hardening stays deferred to
 issue #100. The
 lifecycle-neutral operator contract exposes package-bound attended
 inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
