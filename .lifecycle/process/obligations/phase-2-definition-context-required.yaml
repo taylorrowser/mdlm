@@ -1,0 +1,27 @@
+kind: obligation-definition
+id: phase-2-definition-context-required
+version: 1
+description: Every current DWP plan with exact outputs receives one frozen simplification context containing its complete current SYS, ASP, ICSP, and planning set.
+phases: [phase-2-system-definition]
+for_each: 'select("decomposition-plans@1", {})'
+subject_as: plan
+satisfied_when: 'exists("decomposition-simplification-contexts-for@1", {plan: plan})'
+status_rules:
+  - status: blocked
+    priority: 200
+    when: 'none("decomposition-outputs-for@1", {plan: plan})'
+    reason: The complete definition context waits for exact decomposition outputs.
+    blocked_by:
+      - obligation: decomposition-execution-required@1
+        subjects: '[plan]'
+  - status: ready
+    priority: 100
+    when: 'exists("decomposition-outputs-for@1", {plan: plan})'
+    reason: The exact current Phase 2 definition set is ready to freeze before simplification.
+default_status: blocked
+resolve_with:
+  scenario: create-phase-2-definition-context@1
+  inputs:
+    plan: plan
+    definition_members: 'select("phase-2-definition-members-for-plan@1", {plan: plan})'
+waiver_policy_ref: waiver-applicability@1

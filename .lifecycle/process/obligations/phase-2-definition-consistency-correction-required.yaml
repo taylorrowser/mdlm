@@ -1,0 +1,30 @@
+kind: obligation-definition
+id: phase-2-definition-consistency-correction-required
+version: 1
+description: A DWP plan with a declared definition-consistency simplification failure receives one atomic causal replacement set before downstream completion.
+phases: [phase-2-system-definition]
+for_each: 'select("decomposition-plans@1", {})'
+subject_as: plan
+satisfied_when: >-
+  none("failed-phase-2-simplification-reviews-by-scope@1",
+    {plan: plan, correction_set: "definition-consistency"})
+status_rules:
+  - status: ready
+    priority: 100
+    when: >-
+      exists("failed-phase-2-simplification-reviews-by-scope@1",
+        {plan: plan, correction_set: "definition-consistency"})
+    reason: Exact SYS, ASP, ICSP, and DWP references must change atomically while observed scope reduction removes obsolete outputs.
+default_status: ready
+resolve_with:
+  scenario: revise-phase-2-definition-set-after-simplification@1
+  inputs:
+    failed_reviews: >-
+      select("failed-phase-2-simplification-reviews-by-scope@1",
+        {plan: plan, correction_set: "definition-consistency"})
+    prior_architecture: 'one("architectures-for-decomposition@1", {plan: plan})'
+    prior_interface: 'one("interfaces-for-decomposition@1", {plan: plan})'
+    prior_plan: plan
+    requirements: 'select("decomposition-outputs-for@1", {plan: plan})'
+    parents: 'select("decomposition-parents-for@1", {plan: plan})'
+waiver_policy_ref: waiver-applicability@1

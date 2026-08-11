@@ -1,0 +1,59 @@
+kind: scenario-definition
+id: revise-phase-2-definition-set-after-simplification
+version: 1
+description: Atomically correct one declared exact SYS, ASP, ICSP, and planning-DWP consistency set after blocking simplification findings.
+phases: [phase-2-system-definition]
+inputs:
+  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+  - {name: prior_architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: prior_interface, types: [ICSP], cardinality: one, identity: revision}
+  - {name: prior_plan, types: [DWP], cardinality: one, identity: revision}
+  - {name: requirements, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: architecture
+    types: [ASP]
+    cardinality: one
+    required_links:
+      - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: governs, target: {input: parents}}
+      - {link: governs, target: {output: plan}}
+  - name: interface
+    types: [ICSP]
+    cardinality: one
+    required_links:
+      - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: defines-interface-for, target: {output: architecture}}
+  - name: plan
+    types: [DWP]
+    cardinality: one
+    required_links:
+      - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: decomposes, target: {input: parents}}
+      - {link: allocated-to, target: {output: architecture}}
+      - {link: governed-by, target: {output: interface}}
+  - name: requirements
+    types: [SYS]
+    cardinality: one-or-more
+    required_links:
+      - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: derived-from, target: {input: parents}}
+      - {link: decomposes, target: {output: plan}}
+      - {link: allocated-to, target: {output: architecture}}
+      - {link: governed-by, target: {output: interface}}
+prompt_ref: prompts/revise-phase-2-definition-set-after-simplification.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && architecture.identity.id == prior_architecture.identity.id
+  && interface.identity.id == prior_interface.identity.id
+  && plan.identity.id == prior_plan.identity.id
+  && plan.payload.stage == "planning"
+  && plan.payload.architecture_context.revision == architecture.identity.revision_id
+  && interface.payload.architecture_revision == architecture.identity.revision_id
+  && exists("decomposition-outputs-for@1", {plan: plan})
+  && none("unexpected-corrected-phase-2-system-requirements@1",
+    {prior_plan: prior_plan, replacement_plan: plan})
+resolves: [phase-2-definition-consistency-correction-required]
+prohibited_inputs: [scope expansion, unrelated definition subjects, mutation or deletion of failed evidence, downstream candidates, mutable latest aliases]
+batching: coherent-batch

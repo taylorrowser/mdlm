@@ -32,9 +32,9 @@ describe("req system decomposition slice", () => {
     expect(shown.status, shown.stderr).toBe(0);
     const catalogs = JSON.parse(shown.stdout).inspection.definitionCatalogs;
     expect(catalogs.types).toEqual(expect.arrayContaining([
-      "ASP@1",
-      "DWP@1",
-      "ICSP@1",
+      "ASP@2",
+      "DWP@2",
+      "ICSP@2",
       "SYS@3",
     ]));
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
@@ -43,12 +43,14 @@ describe("req system decomposition slice", () => {
       "define-interface-control-specification@2",
       "define-system-architecture@2",
       "execute-decomposition-work-package@2",
+      "create-phase-2-definition-context@1",
       "simplify-architecture-and-interfaces@2",
       "simplify-requirement-set@2",
     ]));
     expect(catalogs.obligations).toEqual(expect.arrayContaining([
       "decomposition-completion-required@1",
       "decomposition-output-reviews-required@1",
+      "phase-2-definition-context-required@1",
       "decomposition-parent-coverage-required@1",
       "decomposition-simplification-required@1",
     ]));
@@ -773,12 +775,56 @@ describe("req system decomposition slice", () => {
       }),
     );
 
-    const definitionContext = await createDiscoveredReviewContext(
-      "Exact decomposition definition set",
+    const definitionMembers = [
       system.revisionId,
-      [system.revisionId, plan.revisionId, architecture.revisionId, interfaceSpec.revisionId],
+      plan.revisionId,
+      architecture.revisionId,
+      interfaceSpec.revisionId,
+    ];
+    const definitionContext = await createDiscoveredReviewContext(
+      "Exact decomposition output context",
+      system.revisionId,
+      definitionMembers,
     );
     await publishDiscoveredReview(system.revisionId, definitionContext.revisionId);
+    const definitionContextWork = obligation(
+      "phase-2-definition-context-required",
+      plan.revisionId,
+    );
+    expect(definitionContextWork).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "create-phase-2-definition-context@1",
+    }));
+    const definitionContextExecution = await execute(
+      definitionContextWork,
+      {
+        outputs: [{
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Exact decomposition simplification context",
+              kind: "review-context",
+              role: "review-context",
+              scope: plan.revisionId,
+              group: "DEFAULT",
+              definition_members: definitionMembers,
+              evidence: [],
+            },
+            links: [],
+            body: "Earliest complete Phase 2 definition set.\n",
+          },
+        }],
+        completionEvidence: { summary: "The exact definition set was frozen." },
+      },
+      [],
+      "definition-context",
+    );
+    const simplificationContext = definitionContextExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
 
     const simplify = async (
       obligationName: string,
@@ -810,15 +856,15 @@ describe("req system decomposition slice", () => {
                 outcome: "pass",
               },
               links: [
-                { type: "reviews", target: definitionContext.revisionId },
-                { type: "contextualizes", target: definitionContext.revisionId },
+                { type: "reviews", target: simplificationContext.revisionId },
+                { type: "contextualizes", target: simplificationContext.revisionId },
               ],
               body: "The exact set is minimal for its accepted scope.\n",
             },
           }],
           completionEvidence: { summary: "The dedicated simplification challenge passed." },
         },
-        [`plan=${plan.revisionId}`, `subject_context=${definitionContext.revisionId}`],
+        [`plan=${plan.revisionId}`, `subject_context=${simplificationContext.revisionId}`],
         scenario,
         "independent-reviewer",
       );

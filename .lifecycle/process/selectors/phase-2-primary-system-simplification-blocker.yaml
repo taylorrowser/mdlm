@@ -1,0 +1,13 @@
+kind: selector-definition
+id: phase-2-primary-system-simplification-blocker
+version: 1
+description: The canonical SYS blocker matching one failed Review's typed primary target.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: review, link: blocks, emit: target, types: [SYS]}
+  as: blocker
+  where: 'blocker.identity.revision_id == review.payload.definition_simplification.primary_target'
+  distinct: true
+  order_by: [identity.revision_id]

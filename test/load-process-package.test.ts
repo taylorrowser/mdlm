@@ -24,16 +24,18 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.54.0");
+    expect(result.package.manifest.version).toBe("0.55.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(216);
+    expect(Object.keys(result.package.selectors)).toHaveLength(226);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
       "candidate-correction-decisions-for": expect.any(Object),
       "candidate-definition-members": expect.any(Object),
       "phase-0-candidate-review-context-members": expect.any(Object),
+      "phase-2-definition-members-for-plan": expect.any(Object),
+      "failed-phase-2-simplification-reviews-by-scope": expect.any(Object),
       "review-context-contains-member": expect.any(Object),
       "intent-candidates-matching-subject": expect.any(Object),
       "invalid-product-simplification-blockers-for-review": expect.any(Object),
@@ -58,8 +60,8 @@ describe("loadProcessPackage", () => {
       "phase-1-assurance-correction-decisions-for": expect.any(Object),
     }));
     expect(Object.keys(result.package.policies)).toHaveLength(11);
-    expect(Object.keys(result.package.obligations)).toHaveLength(48);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(50);
+    expect(Object.keys(result.package.obligations)).toHaveLength(51);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(53);
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
       .toEqual([expect.objectContaining({
         id: "phase-0-gate",

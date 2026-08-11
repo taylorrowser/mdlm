@@ -1,0 +1,19 @@
+kind: selector-definition
+id: failed-phase-2-simplification-reviews-for-plan
+version: 1
+description: Uncorrected valid failed simplification Reviews for one exact DWP plan and Review kind.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+  - {name: review_kind, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    review.payload.review_kind == review_kind
+    && review.payload.decomposition_plan_revision == plan.identity.revision_id
+    && review.payload.outcome == "fail"
+    && state(review, "validity") == "valid"
+    && none("phase-2-corrections-for-review@1", {review: review})
+  distinct: true
+  order_by: [identity.revision_id]

@@ -126,7 +126,7 @@ describe("req scenario dry-run", () => {
     const question = JSON.parse(createdQuestion.stdout).created;
     await freezeQuestionSource(repositoryRoot, question.revisionId);
     const obligation =
-      `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.54.0#${packageDigest}`;
+      `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.55.0#${packageDigest}`;
     const before = await treeDigest(repositoryRoot);
 
     const result = req(
@@ -224,7 +224,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.54.0",
+          reference: "mdlm-bootstrap@0.55.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -465,7 +465,7 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.54.0",
+        "mdlm-bootstrap@0.55.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(

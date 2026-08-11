@@ -1,9 +1,9 @@
 # Phase-hardening matrix
 
 This matrix records every distinct reachable public `mdlm` route in the hardened
-Phase 0 and Phase 1 assurance/implementation boundary. It describes Example
-Process Package behavior, not kernel semantics. Phase 2 and pilot-assessment
-hardening remain deferred to issues #98–#100.
+Phase 0, Phase 1 assurance/implementation, and earliest Phase 2 simplification
+boundary. It describes Example Process Package behavior, not kernel semantics.
+Remaining Phase 2 and pilot-assessment hardening stays deferred to issues #99–#100.
 
 ## Foundation and product simplification
 
@@ -89,6 +89,20 @@ hardening remain deferred to issues #98–#100.
 | Corrected VAI first or second Review fails | Fresh exact context and failed REV over the replacement | Shared Phase 1 correction history and participation Policy | Next autonomous correction, then **Attention Required** after cycle two | Same 0/1/2 budget; each corrected Revision requires fresh run evidence after passing Review |
 | Timeout during corrected execution | Partial raw stdout/stderr and execution observation retained; process group terminated, forcibly killed after grace, descendants reaped, cleanup guaranteed; later cases still invoked | VAI `execution_procedure`, `execute-verification-run@1`, RUN/RES exact bindings | Completed aggregate run evidence or explicit infrastructure outcome according to the exact procedure | Timeout does not hide later cases or make a product timing claim; all observations remain exact |
 
+## Phase 2 earliest evidence-bearing simplification
+
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| Earliest exact definition set | Current planning DWP, every exact SYS output, one exact ASP, and its exact ICSP set are frozen together in a plan-scoped Review Context; every member has fresh acceptable contextual Review | `phase-2-definition-context-required@1`, `phase-2-definition-members-for-plan@1`, and both simplification Obligations; delegated `independent-reviewer` | Definition-context **Assignment**, then requirement or architecture/interface simplification **Assignment** before DWP completion | No correction consumed; DWP completion, group/level candidate creation, and gate work remain blocked |
+| Simplification passes | Passing REV has the exact plan Revision and current complete frozen context, no canonical `blocks`, and no correction declaration | Current-context simplification Selectors and the dedicated simplification Scenario | Other simplification **Assignment**, then completion only after both pass | Exact member Reviews and pass evidence remain reusable while their Revisions do not change |
+| Subject simplification fails with several findings | Failed REV records every exact primary Finding for one SYS, `definition_simplification.correction_set: subject`, one exact primary target, and one matching canonical `blocks` link | `failed-phase-2-simplification-reviews-by-scope@1`; autonomous `revise-phase-2-subject-after-simplification@1` | One exact SYS correction **Assignment** | All current findings for the subject travel together; distinct primary subjects remain serial |
+| Subject correction publishes | Same-lineage SYS replacement preserves applicable exact parent/DWP/ASP/ICSP bindings and links `corrects-review` to every supplied failed REV | `phase-2-simplification-correction-required@1`; ordinary context/Review and complete-set simplification reevaluation | Fresh Review Context, Review, then both simplification **Assignments** | Failed Revision/context/REV stay immutable; unchanged definition members remain reusable |
+| Declared definition consistency fails | Failed REV has exact primary/collateral Findings and canonically blocks the declared SYS/ASP/ICSP/planning-DWP consistency set with `correction_set: definition-consistency` | `failed-phase-2-simplification-reviews-by-scope@1`; autonomous `revise-phase-2-definition-set-after-simplification@1` | One coherent multi-output correction **Assignment** | Distinct subjects are batched only by this explicit exact consistency declaration |
+| Coherent definition correction publishes | Same-lineage ASP, ICSP, planning DWP, and still-applicable SYS outputs all cite every failed REV through source-owned `corrects-review`; exact links bind only replacement Revisions | `phase-2-definition-consistency-correction-required@1`; atomic Scenario completion plus ordinary Review Obligations | Serial fresh context/Review **Assignments** for every affected output | Old exact definition/evidence remains history; no prior Review is silently rebound |
+| Observed scope reduction | Failed REV names exact removed targets and rationale; replacement planning DWP narrows coverage/exclusions and omits removed SYS from its exact `decomposes` output set | Atomic definition-set correction and `decomposition-outputs-for@1` on the replacement plan | Fresh evidence for retained set; no work for removed output | Removed Revision remains inspectable historical evidence but is absent from current completion/candidate selection rather than retained as ceremony |
+| Corrected definition set resumes | Every replacement has fresh passing contextual Review; both fresh complete-set simplification REVs pass against the corrected exact set | `unreviewed-phase-2-definition-members-for-plan@1`, both simplification selectors, `decomposition-completion-required@1` | DWP completion **Assignment** | Completion and all candidate/gate work stay blocked until the complete fresh evidence chain passes |
+| Invalid simplification blocker contract | Failed REV omits its typed correction scope or canonical blocker, a subject correction mismatches its exact SYS primary target, or pass/cancellation carries a blocker | REV schema, `phase-2-simplification-blockers-for-review@1`, and simplification Scenario completion | Invalid proposal; same Assignment gets contract diagnostics | Nothing publishes and no wrong-subject correction is derived |
+
 ## Phase 1 evidence availability and supported boundary
 
 | Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
@@ -120,6 +134,12 @@ unaffected evidence reuse, exhausted-budget attention, self-contained attended
 packets, and each VSP/ENV/target ambiguity through `mdlm next`, `scenario prepare`,
 and `scenario submit`, including proof that an attended Phase 1 replacement does
 not consume either autonomous correction cycle.
+`test/mdlm-phase-2-simplification.test.ts` drives a failed earliest exact
+SYS/ASP/ICSP/planning-DWP simplification Review with multiple primary and
+collateral Findings through one declared atomic correction, exact causal links,
+actual SYS scope removal, fresh contextual Reviews for every retained output,
+fresh complete-set simplification judgments, and resumed DWP completion through
+the same public operator seam.
 `test/req-product-assurance-pilot.test.ts` covers malformed command registration,
 omitted-versus-empty-token evidence, ordered duplicate tokens, and deterministic
 exact-byte rejection. `test/mdlm-phase-1-assurance-correction.test.ts` drives

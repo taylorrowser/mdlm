@@ -7,22 +7,39 @@ for_each: 'select("decomposition-plans@1", {})'
 subject_as: plan
 satisfied_when: 'exists("architecture-simplification-reviews-for@1", {plan: plan})'
 status_rules:
+  - status: failed
+    priority: 300
+    when: >-
+      exists("failed-phase-2-simplification-reviews-for-plan@1",
+        {plan: plan, review_kind: "simplification-architecture-interfaces"})
+    reason: Blocking architecture/interface simplification findings require exact subject-bounded or declared consistency-set correction before another judgment.
+    blocked_by:
+      - obligation: phase-2-simplification-correction-required@1
+        subjects: '[plan]'
+      - obligation: phase-2-definition-consistency-correction-required@1
+        subjects: '[plan]'
   - status: blocked
     priority: 200
     when: >-
       none("decomposition-outputs-for@1", {plan: plan})
       || none("decomposition-simplification-contexts-for@1", {plan: plan})
-    reason: Architecture simplification waits for exact outputs and one frozen definition-set context.
+      || exists("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})
+    reason: Architecture simplification waits for exact outputs, one frozen definition-set context, and fresh acceptable Reviews of every exact member.
     blocked_by:
       - obligation: decomposition-execution-required@1
         subjects: '[plan]'
-      - obligation: review-context-required@2
+      - obligation: phase-2-definition-context-required@1
         subjects: '[plan]'
+      - obligation: review-context-required@2
+        subjects: 'select("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})'
+      - obligation: passing-review-required@2
+        subjects: 'select("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})'
   - status: awaiting-review
     priority: 100
     when: >-
       exists("decomposition-outputs-for@1", {plan: plan})
       && exists("decomposition-simplification-contexts-for@1", {plan: plan})
+      && none("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})
     reason: The frozen architecture and interfaces are ready for adversarial simplification Review.
 default_status: blocked
 resolve_with:
@@ -30,4 +47,6 @@ resolve_with:
   inputs:
     plan: plan
     subject_context: 'one("decomposition-simplification-contexts-for@1", {plan: plan})'
+    definition_members: >-
+      select("phase-2-definition-members-for-plan@1", {plan: plan})
 waiver_policy_ref: waiver-applicability@1

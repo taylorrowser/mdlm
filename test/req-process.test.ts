@@ -43,8 +43,8 @@ describe("req process package commands", () => {
       command: "process.install",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.54.0",
-        reference: "mdlm-bootstrap@0.54.0",
+        version: "0.55.0",
+        reference: "mdlm-bootstrap@0.55.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -62,7 +62,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "use",
-      "mdlm-bootstrap@0.54.0",
+      "mdlm-bootstrap@0.55.0",
       "--json",
     );
     expect(selected.status, selected.stderr).toBe(0);
@@ -85,10 +85,10 @@ describe("req process package commands", () => {
       schemaVersion: 1,
       package: {
         id: "mdlm-bootstrap",
-        version: "0.54.0",
-        reference: "mdlm-bootstrap@0.54.0",
+        version: "0.55.0",
+        reference: "mdlm-bootstrap@0.55.0",
         digest: installation.package.digest,
-        path: ".lifecycle/packages/mdlm-bootstrap@0.54.0",
+        path: ".lifecycle/packages/mdlm-bootstrap@0.55.0",
       },
       language: { expressions: "mdlm-expression@1" },
     });
@@ -101,7 +101,7 @@ describe("req process package commands", () => {
     await fs.writeFile(
       manifestPath,
       (await fs.readFile(manifestPath, "utf8")).replace(
-        "version: 0.54.0",
+        "version: 0.55.0",
         "version: 0.40.0",
       ),
     );
@@ -401,13 +401,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, incompatiblePackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [incompatiblePackage, "0.54.0"],
+      [incompatiblePackage, "0.55.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.54.0",
+          "version: 0.55.0",
           `version: ${version}`,
         ),
       );
@@ -455,7 +455,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.54.0",
+      "mdlm-bootstrap@0.55.0",
       "--json",
     );
 
@@ -474,13 +474,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, incompatiblePackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [incompatiblePackage, "0.54.0"],
+      [incompatiblePackage, "0.55.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.54.0",
+          "version: 0.55.0",
           `version: ${version}`,
         ),
       );
@@ -544,7 +544,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.54.0",
+      "mdlm-bootstrap@0.55.0",
       "--json",
     );
 
@@ -563,13 +563,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [targetPackage, "0.54.0"],
+      [targetPackage, "0.55.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.54.0",
+          "version: 0.55.0",
           `version: ${version}`,
         ),
       );
@@ -651,7 +651,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.54.0",
+      "mdlm-bootstrap@0.55.0",
       "--json",
     );
 
@@ -670,7 +670,7 @@ describe("req process package commands", () => {
     await fs.writeFile(
       manifestPath,
       (await fs.readFile(manifestPath, "utf8")).replace(
-        "version: 0.54.0",
+        "version: 0.55.0",
         "version: 0.40.0",
       ),
     );
@@ -701,7 +701,7 @@ describe("req process package commands", () => {
         repositoryRoot,
         "process",
         "migrate",
-        "mdlm-bootstrap@0.54.0",
+        "mdlm-bootstrap@0.55.0",
         "--json",
       );
     } finally {
@@ -728,13 +728,13 @@ describe("req process package commands", () => {
     await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
     for (const [packageRoot, version] of [
       [previousPackage, "0.40.0"],
-      [targetPackage, "0.54.0"],
+      [targetPackage, "0.55.0"],
     ] as const) {
       const manifestPath = path.join(packageRoot, "manifest.yaml");
       await fs.writeFile(
         manifestPath,
         (await fs.readFile(manifestPath, "utf8")).replace(
-          "version: 0.54.0",
+          "version: 0.55.0",
           `version: ${version}`,
         ),
       );
@@ -753,7 +753,7 @@ describe("req process package commands", () => {
     ).toBe(0);
     const installedObligation = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.54.0/obligations/review-context-required.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.55.0/obligations/review-context-required.yaml",
     );
     await fs.writeFile(
       installedObligation,
@@ -773,7 +773,7 @@ describe("req process package commands", () => {
       repositoryRoot,
       "process",
       "migrate",
-      "mdlm-bootstrap@0.54.0",
+      "mdlm-bootstrap@0.55.0",
       "--json",
     );
 
@@ -799,7 +799,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.validate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.54.0",
+        reference: "mdlm-bootstrap@0.55.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -814,7 +814,7 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "validate");
     expect(human.status, human.stderr).toBe(0);
     expect(human.stdout).toContain(
-      "Validated Process Package: mdlm-bootstrap@0.54.0",
+      "Validated Process Package: mdlm-bootstrap@0.55.0",
     );
     expect(human.stdout).toContain("Expression Language: mdlm-expression@1");
     expect(human.stdout).toContain("Compilation: passed");
@@ -832,7 +832,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.show",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.54.0",
+        reference: "mdlm-bootstrap@0.55.0",
         language: "mdlm-expression@1",
       }),
       installed: true,
@@ -854,8 +854,8 @@ describe("req process package commands", () => {
           binding: { type: "BSL" },
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["ART@1", "ASP@1", "BSL@4", "CHG@1", "DEC@5", "DWP@1", "ENV@1", "ICSP@1", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@3", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
-          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@5", "phase-7-change-control@2"],
+          types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@4", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
+          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@6", "phase-7-change-control@2"],
         }),
       },
       diagnostics: [],
@@ -864,13 +864,13 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "show");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.54.0",
+      "Process Package: mdlm-bootstrap@0.55.0",
       "Expression Language: mdlm-expression@1",
       "Status: experimental",
       "Kernel Contract: mdlm-kernel-process-interface@1",
       "Primitive Catalog: primitives/kernel-v1.yaml@1",
       "Kernel Capabilities: exact-baseline@1 -> BSL",
-      "Phases: phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-pilot-assessment@2, phase-2-system-definition@5, phase-7-change-control@2",
+      "Phases: phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-pilot-assessment@2, phase-2-system-definition@6, phase-7-change-control@2",
     ]) {
       expect(human.stdout).toContain(semantic);
     }
@@ -947,7 +947,7 @@ describe("req process package commands", () => {
       ok: true,
       command: "process.capabilities",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.54.0",
+        reference: "mdlm-bootstrap@0.55.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -1017,8 +1017,8 @@ describe("req process package commands", () => {
           ],
         }],
         definitionCatalogs: expect.objectContaining({
-          types: ["ART@1", "ASP@1", "BSL@4", "CHG@1", "DEC@5", "DWP@1", "ENV@1", "ICSP@1", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@3", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
-          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@5", "phase-7-change-control@2"],
+          types: ["ART@1", "ASP@2", "BSL@4", "CHG@1", "DEC@5", "DWP@2", "ENV@1", "ICSP@2", "MAP@3", "PAS@1", "PRB@1", "PSP@4", "QST@4", "RES@1", "REV@4", "RUN@1", "STK@4", "SYS@3", "VAI@1", "VER@1", "VSP@1"],
+          phases: ["phase-0-wayfinding@4", "phase-1-product-assurance@5", "phase-2-pilot-assessment@2", "phase-2-system-definition@6", "phase-7-change-control@2"],
         }),
       },
       diagnostics: [],
@@ -1027,13 +1027,13 @@ describe("req process package commands", () => {
     const human = req(repositoryRoot, "process", "capabilities");
     expect(human.status, human.stderr).toBe(0);
     for (const semantic of [
-      "Process Package: mdlm-bootstrap@0.54.0",
+      "Process Package: mdlm-bootstrap@0.55.0",
       "Expression Language: mdlm-expression@1",
       "Context Roots: execution, phase, process",
       "Host Functions: count, every, exists, none, one, policy, present, select, state",
       "Collections: baselines [exact-baseline@1], revisions",
       "Kernel Capabilities: exact-baseline@1 -> BSL",
-      "Types: ART@1, ASP@1, BSL@4, CHG@1, DEC@5, DWP@1, ENV@1, ICSP@1, MAP@3, PAS@1, PRB@1, PSP@4, QST@4, RES@1, REV@3, RUN@1, STK@4, SYS@3, VAI@1, VER@1, VSP@1",
+      "Types: ART@1, ASP@2, BSL@4, CHG@1, DEC@5, DWP@2, ENV@1, ICSP@2, MAP@3, PAS@1, PRB@1, PSP@4, QST@4, RES@1, REV@4, RUN@1, STK@4, SYS@3, VAI@1, VER@1, VSP@1",
     ]) {
       expect(human.stdout).toContain(semantic);
     }

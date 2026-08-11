@@ -1,6 +1,6 @@
 kind: type-definition
 id: DWP
-version: 1
+version: 2
 name: Decomposition Work Package
 description: Durable planning and completion account for one bounded many-to-many decomposition from exact parent revisions to exact child revisions.
 extends: rationale-bearing@1
@@ -76,6 +76,13 @@ payload_schema:
         properties:
           output_reviews_complete: {const: true}
 outgoing_links:
+  - id: corrects-review
+    description: Exact failed Reviews whose blocking simplification findings this replacement decomposition Revision addresses.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by
   - id: decomposes
     description: Exact stakeholder requirement revisions whose bounded slices this work package accounts for.
     targets:

@@ -1,6 +1,6 @@
 kind: type-definition
 id: ASP
-version: 1
+version: 2
 name: Architecture Specification
 description: Exact system architecture context defining stable elements, responsibilities, interactions, constraints, and nominated risks.
 extends: rationale-bearing@1
@@ -30,6 +30,13 @@ payload_schema:
     constraints: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
     nominated_risks: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
 outgoing_links:
+  - id: corrects-review
+    description: Exact failed Reviews whose blocking simplification findings this replacement architecture Revision addresses.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by
   - id: governs
     description: Exact requirements and decomposition plans organized by this architecture revision.
     targets:

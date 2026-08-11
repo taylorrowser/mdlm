@@ -15,6 +15,7 @@ inputs:
     conditions: >-
       subject_context.payload.kind == "review-context"
       && subject_context.storage.frozen == true
+  - {name: definition_members, types: [SYS, ASP, ICSP, DWP], cardinality: one-or-more, identity: revision}
 outputs:
   - name: review
     types: [REV]
@@ -40,6 +41,14 @@ completion: >-
   && review.payload.review_kind == "simplification-architecture-interfaces"
   && review.payload.decomposition_plan_revision == plan.identity.revision_id
   && review.payload.outcome in ["pass", "fail", "cancelled"]
+  && (
+    (review.payload.outcome in ["pass", "cancelled"]
+      && none("phase-2-simplification-blockers-for-review@1", {review: review}))
+    || (review.payload.outcome == "fail"
+      && exists("phase-2-simplification-blockers-for-review@1", {review: review})
+      && (review.payload.definition_simplification.correction_set == "definition-consistency"
+        || exists("phase-2-primary-system-simplification-blocker@1", {review: review})))
+  )
 resolves: [architecture-interface-simplification-required]
 prohibited_inputs: [implementation convenience as necessity, mutable latest aliases, prior review outcome as authority]
 batching: coherent-batch

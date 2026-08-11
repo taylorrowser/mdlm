@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.54.0
+version: 0.55.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -195,9 +195,19 @@ catalog:
     - decomposition-parents-for
     - decomposition-outputs-for
     - unreviewed-decomposition-outputs-for
+    - phase-2-definition-members-for-plan
+    - unreviewed-phase-2-definition-members-for-plan
     - decomposition-review-contexts-for
     - decomposition-simplification-contexts-for
     - matching-decomposition-context-for-output
+    - phase-2-simplification-blockers-for-review
+    - phase-2-simplification-contexts-for-review
+    - phase-2-primary-system-simplification-blocker
+    - phase-2-corrections-for-review
+    - failed-phase-2-simplification-reviews-for-plan
+    - failed-phase-2-simplification-reviews-by-scope
+    - matching-prior-phase-2-system-requirement
+    - unexpected-corrected-phase-2-system-requirements
     - requirement-simplification-reviews-for
     - architecture-simplification-reviews-for
     - blocking-questions-for-decomposition
@@ -294,8 +304,11 @@ catalog:
     - decomposition-planning-required
     - decomposition-execution-required
     - decomposition-output-reviews-required
+    - phase-2-definition-context-required
     - decomposition-simplification-required
     - architecture-interface-simplification-required
+    - phase-2-simplification-correction-required
+    - phase-2-definition-consistency-correction-required
     - decomposition-completion-required
     - decomposition-parent-coverage-required
     - decomposition-group-candidate-required
@@ -346,8 +359,11 @@ catalog:
     - define-interface-control-specification
     - define-decomposition-work-package
     - execute-decomposition-work-package
+    - create-phase-2-definition-context
     - simplify-requirement-set
     - simplify-architecture-and-interfaces
+    - revise-phase-2-subject-after-simplification
+    - revise-phase-2-definition-set-after-simplification
     - complete-decomposition-work-package
     - create-decomposition-group-candidate
     - create-system-level-candidate
@@ -400,8 +416,11 @@ assets:
     - prompts/define-interface-control-specification.md@1
     - prompts/define-decomposition-work-package.md@1
     - prompts/execute-decomposition-work-package.md@1
+    - prompts/create-phase-2-definition-context.md@1
     - prompts/simplify-requirement-set.md@1
     - prompts/simplify-architecture-and-interfaces.md@1
+    - prompts/revise-phase-2-subject-after-simplification.md@1
+    - prompts/revise-phase-2-definition-set-after-simplification.md@1
     - prompts/complete-decomposition-work-package.md@1
     - prompts/create-decomposition-group-candidate.md@1
     - prompts/create-system-level-candidate.md@1
@@ -448,9 +467,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@28
+  default: bootstrap@29
   available:
-    - profiles/bootstrap.yaml@28
+    - profiles/bootstrap.yaml@29
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

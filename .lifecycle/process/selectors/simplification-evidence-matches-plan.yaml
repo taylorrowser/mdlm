@@ -15,5 +15,11 @@ query:
     && review.payload.decomposition_plan_revision == plan.identity.revision_id
     && review.payload.outcome == "pass"
     && state(review, "validity") == "valid"
+    && count("phase-2-simplification-contexts-for-review@1", {review: review}) == 1
+    && count("decomposition-simplification-contexts-for@1", {plan: plan}) == 1
+    && one("phase-2-simplification-contexts-for-review@1", {review: review})
+      == one("decomposition-simplification-contexts-for@1", {plan: plan})
+    && none("failed-phase-2-simplification-reviews-for-plan@1",
+      {plan: plan, review_kind: review.payload.review_kind})
   distinct: true
   order_by: [identity.revision_id]

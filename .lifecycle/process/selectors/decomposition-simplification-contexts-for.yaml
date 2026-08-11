@@ -1,7 +1,7 @@
 kind: selector-definition
 id: decomposition-simplification-contexts-for
 version: 1
-description: Frozen DWP contexts that also contain every exact decomposition output.
+description: Frozen Review Contexts containing the exact current DWP plan, SYS outputs, architecture, and interfaces.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: baseline
@@ -11,8 +11,12 @@ query:
     arguments: {plan: plan}
   as: context
   where: >-
-    every("decomposition-outputs-for@1", {plan: plan},
-      output => exists("matching-decomposition-context-for-output@1",
-        {output: output, context: context}))
+    context.payload.scope == plan.identity.revision_id
+    && every("decomposition-outputs-for@1", {plan: plan}, output =>
+      exists("baseline-contains-definition@1", {baseline: context, subject: output}))
+    && every("architectures-for-decomposition@1", {plan: plan}, architecture =>
+      exists("baseline-contains-definition@1", {baseline: context, subject: architecture}))
+    && every("interfaces-for-decomposition@1", {plan: plan}, interface =>
+      exists("baseline-contains-definition@1", {baseline: context, subject: interface}))
   distinct: true
   order_by: [identity.revision_id]

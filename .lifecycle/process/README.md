@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.54
+# MDLM bootstrap process package v0.55
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -328,8 +328,17 @@ from accepted exact intent, then derive DWP planning only when one exact
 architecture, interface, and VSP context is unambiguous. Further Obligations
 derive reviewed-plan execution, exact question blockers, child Review completion,
 parent coverage, and separate requirement-set and architecture/interface
-simplification work. The completion Scenario publishes the next DWP Revision in
-the same Stable Datum lineage only after those exact obligations resolve. Package-
+simplification work at the first exact SYS, ASP, ICSP, and planning-DWP set. A
+failed simplification Review carries exact primary and collateral findings plus a
+canonical subject or declared definition-consistency blocker set. One SYS subject
+is corrected serially with all of its findings; an architecture/interface/DWP
+consistency change atomically replaces the exact ASP, ICSP, planning DWP, and only
+the still-applicable SYS outputs. Every replacement cites the failed REV through
+`corrects-review`, receives fresh contextual Review, and re-enters both complete-
+set simplification judgments. A reduced planning Revision leaves removed outputs
+as immutable history but excludes them from current completion and candidate
+selection. The completion Scenario publishes the next DWP Revision in the same
+Stable Datum lineage only after those exact obligations resolve. Package-
 discovered candidate Scenarios freeze the exact reviewed completion, outputs,
 architecture, interfaces, and simplification evidence as a group candidate, then
 compose its reviewed Revision with shared VSP, ASP, and ICSP context as the level

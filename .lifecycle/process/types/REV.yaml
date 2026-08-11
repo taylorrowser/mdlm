@@ -1,6 +1,6 @@
 kind: type-definition
 id: REV
-version: 3
+version: 4
 name: Review
 description: Immutable judgment about one exact primary subject in one exact frozen context.
 extends: titled-datum@1
@@ -51,6 +51,25 @@ payload_schema:
               severity: {const: blocking}
               summary: {type: string, minLength: 1}
               evidence: {type: string, minLength: 1}
+    definition_simplification:
+      description: Exact Phase 2 subject or declared definition-consistency set selected by blocking simplification findings.
+      type: object
+      additionalProperties: false
+      required: [primary_target, correction_set]
+      properties:
+        primary_target: {type: string, pattern: '^(SYS|ASP|ICSP|DWP)-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+        correction_set: {enum: [subject, definition-consistency]}
+        scope_reduction:
+          type: object
+          additionalProperties: false
+          required: [removed_targets, rationale]
+          properties:
+            removed_targets:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items: {type: string, pattern: '^(SYS|ASP|ICSP|DWP)-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+            rationale: {type: string, minLength: 1}
     correction_authority:
       description: Marks a failed Review whose correction would change stakeholder-owned intent; omission leaves package-bounded autonomous correction applicable.
       const: stakeholder
@@ -77,6 +96,43 @@ payload_schema:
       else:
         required: [findings]
         not: {required: [simplification]}
+    - if:
+        properties:
+          review_kind: {enum: [simplification-requirements, simplification-architecture-interfaces]}
+        required: [review_kind]
+      then:
+        allOf:
+          - if:
+              properties:
+                outcome: {const: fail}
+              required: [outcome]
+            then:
+              required: [definition_simplification]
+              properties:
+                findings:
+                  minItems: 1
+                  contains:
+                    type: object
+                    required: [relationship, severity]
+                    properties:
+                      relationship: {const: primary}
+                      severity: {const: blocking}
+          - if:
+              properties:
+                outcome: {const: pass}
+              required: [outcome]
+            then:
+              not: {required: [definition_simplification]}
+              properties:
+                findings:
+                  not:
+                    contains:
+                      type: object
+                      required: [severity]
+                      properties:
+                        severity: {const: blocking}
+      else:
+        not: {required: [definition_simplification]}
 outgoing_links:
   - id: reviews
     description: The one exact primary artifact revision judged by this review.
@@ -100,9 +156,9 @@ outgoing_links:
     freeze_resolution: exact-revision
     inverse_label: review-dependency
   - id: blocks
-    description: Canonical exact candidate or candidate-member set selected by blocking product-simplification findings.
+    description: Canonical exact candidate, member, or Phase 2 definition set selected by blocking simplification findings.
     targets:
-      - {kind: datum, types: [MAP, PSP, STK, BSL], identity: revision}
+      - {kind: datum, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, BSL], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: blocked-by-review
