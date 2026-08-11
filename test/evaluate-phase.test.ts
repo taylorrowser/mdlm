@@ -96,7 +96,7 @@ describe("phase evaluation", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.phase).toEqual({
       id: "phase-2-system-definition",
-      version: 5,
+      version: 6,
       attentionCheckpoints: [expect.objectContaining({
         id: "phase-2-system-gate",
         active: false,
