@@ -1,0 +1,20 @@
+kind: selector-definition
+id: failed-pilot-expansion-decisions
+version: 1
+description: Current exact pilot-expansion Decisions with a failed Review and no causal same-lineage replacement.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DEC]}
+  as: decision
+  where: >-
+    decision.payload.kind == "pilot-expansion"
+    && state(decision, "disposition") == "active"
+    && state(decision, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: decision})
+    && count("pilot-assessments-for-expansion-decision@1", {decision: decision}) == 1
+    && count("pilot-assessment-reviews-for-expansion-decision@1", {decision: decision}) == 1
+    && exists("failing-reviews-for@1", {subject: decision})
+    && none("valid-pilot-expansion-decision-replacements-for@1", {decision: decision})
+  distinct: true
+  order_by: [identity.id, identity.revision]

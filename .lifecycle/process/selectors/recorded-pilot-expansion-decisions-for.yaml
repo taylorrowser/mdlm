@@ -12,6 +12,10 @@ query:
     decision.payload.kind == "pilot-expansion"
     && decision.payload.effective_scope == "Phase 3–6 Example Process Package expansion"
     && state(decision, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: decision})
+    && count("pilot-assessments-for-expansion-decision@1", {decision: decision}) == 1
+    && one("pilot-assessments-for-expansion-decision@1", {decision: decision}) == assessment
+    && count("pilot-assessment-reviews-for-expansion-decision@1", {decision: decision}) == 1
     && exists("passing-reviews-for@1", {subject: assessment})
     && none("failing-reviews-for@1", {subject: assessment})
   distinct: true

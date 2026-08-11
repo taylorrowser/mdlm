@@ -1,0 +1,28 @@
+kind: selector-definition
+id: valid-pilot-expansion-decision-replacements-for
+version: 1
+description: Current causal same-lineage replacements preserving one failed pilot-expansion Decision's exact PAS, Review, recommendation, and scope.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from:
+    selector: newer-revisions-for@1
+    arguments: {subject: decision}
+  as: replacement
+  where: >-
+    replacement.identity.id == decision.identity.id
+    && replacement.payload.kind == "pilot-expansion"
+    && replacement.payload.decision == decision.payload.decision
+    && replacement.payload.effective_scope == decision.payload.effective_scope
+    && state(replacement, "disposition") == "active"
+    && state(replacement, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: replacement})
+    && count("pilot-assessments-for-expansion-decision@1", {decision: replacement}) == 1
+    && one("pilot-assessments-for-expansion-decision@1", {decision: replacement})
+      == one("pilot-assessments-for-expansion-decision@1", {decision: decision})
+    && count("pilot-assessment-reviews-for-expansion-decision@1", {decision: replacement}) == 1
+    && one("pilot-assessment-reviews-for-expansion-decision@1", {decision: replacement})
+      == one("pilot-assessment-reviews-for-expansion-decision@1", {decision: decision})
+  distinct: true
+  order_by: [identity.revision]

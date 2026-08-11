@@ -1857,7 +1857,7 @@ describe("req system decomposition slice", () => {
       assessment.revisionId,
     );
     expect(correctionWork.actionableResolver).toBe(
-      "revise-pilot-assessment-after-review@1",
+      "revise-pilot-assessment-after-review@2",
     );
     const correctionExecution = await execute(
       correctionWork,

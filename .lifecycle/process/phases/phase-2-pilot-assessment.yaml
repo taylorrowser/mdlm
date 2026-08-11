@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-2-pilot-assessment
-version: 2
+version: 3
 order: 2
 name: Phase 0–2 pilot assessment
 purpose: Review durable pilot measurements and record an exact proceed, change, or stop Decision before Example Process Package work expands into Phases 3–6.
@@ -19,10 +19,11 @@ scenarios:
   - record-pilot-observation@2
   - prepare-pilot-assessment-context@1
   - assess-phase-0-2-pilot@1
-  - revise-pilot-assessment-after-review@1
+  - revise-pilot-assessment-after-review@2
   - create-review-context@1
   - review-datum-in-context@2
   - decide-pilot-expansion@2
+  - revise-pilot-expansion-decision-after-review@1
   - record-consequential-decision@1
 obligations:
   - review-context-required@2
@@ -32,9 +33,26 @@ obligations:
   - pilot-assessment-required@1
   - pilot-assessment-review-correction-required@1
   - pilot-expansion-decision-required@1
+  - pilot-expansion-decision-review-correction-required@1
 outputs: [PAS, REV, DEC, BSL]
-# The bootstrap profile intentionally stops before Phases 3–6.
-progression: null
+progression:
+  next_phase: phase-7-change-control
+  readiness: >-
+    exists("all-pilot-assessments@1", {})
+    && every("all-pilot-assessments@1", {}, assessment =>
+      count("pilot-expansion-decisions-by-outcome@1",
+        {assessment: assessment, outcome: "change"}) == 1)
+  authorization:
+    condition: >-
+      exists("all-pilot-assessments@1", {})
+      && every("all-pilot-assessments@1", {}, assessment =>
+        count("pilot-expansion-decisions-by-outcome@1",
+          {assessment: assessment, outcome: "change"}) == 1)
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: phase}
+    scenario: decide-pilot-expansion@2
+    subjects: 'select("all-pilot-assessments@1", {})'
+    evidence_selector: pilot-expansion-decisions-by-outcome@1
 gate:
   required: false
   candidate_selector: 'select("candidate-baselines-of-kind@1", {baseline_kind: "level-candidate"})'

@@ -1,0 +1,17 @@
+kind: selector-definition
+id: pilot-assessment-reviews-for-expansion-decision
+version: 1
+description: Exact passing PAS Review explicitly cited by one pilot-expansion Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: decision, link: relies-on-review, emit: target, types: [REV]}
+  as: review
+  where: >-
+    count("pilot-assessments-for-expansion-decision@1", {decision: decision}) == 1
+    && exists("matching-passing-review-for@1",
+      {subject: one("pilot-assessments-for-expansion-decision@1",
+        {decision: decision}), review: review})
+  distinct: true
+  order_by: [identity.revision_id]

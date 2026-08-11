@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.56.0`
+- **Implementation package:** `mdlm-bootstrap@0.57.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -50,7 +50,7 @@ the accepted overview and the reviewed pilot Decision.
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
 | Phase 2 decomposition, exact-set and ordinary correction, ambiguity, evidence-preserving candidates, acceptance, and reviewed gate progression | 52–53, 57–58 | #46, #98–#99 | `test/req-system-decomposition.test.ts`, `test/mdlm-phase-2-simplification.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
-| Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
+| Durable pilot measurements, bounded PAS/Decision correction, independently reviewed expansion Decision, and explicit outcomes | 56–60 | #48, #68, #100 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts`, `test/mdlm-pilot-assessment.test.ts` |
 | Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
 
 The full suite supplies overlapping regression coverage rather than treating this
@@ -84,9 +84,10 @@ when supporting parents are members. They do
 not add Phase 3–6 scope or change
 the reviewed `change` expansion Decision. Issue #89 adds exact Profile-authored
 Profile Boundary and Lifecycle Complete conditions to the package-neutral Operator
-Outcome seam. The bootstrap declares only its reviewed Phase 0–2 pilot boundary;
-`progression: null` by itself remains a Process Dead End and does not claim that
-Phases 3–6 are complete. Issue #90 completes the Assignment return protocol:
+Outcome seam. The bootstrap now declares reviewed proceed/change Profile Boundary
+conditions and a distinct reviewed stop Lifecycle Complete condition;
+`progression: null` by itself remains a Process Dead End and does not claim either
+successful result. Issue #90 completes the Assignment return protocol:
 typed inability abandons the exact ignored lease without Lifecycle Data, one
 malformed contract response preserves that Assignment for correction, a second
 exhausts it, and only a later deliberate `mdlm next` allocates fresh work. Issue
@@ -144,11 +145,19 @@ Failed or reviewed-rejected group and level candidates preserve unaffected exact
 membership, evidence, and composition while `supersedes` records the predecessor;
 Phase 2 gate rejection canonically blocks the exact level candidate. Reviewed approval then derives one flattened `level-accepted`
 baseline before the same exact gate evidence authorizes progression without a
-redundant stakeholder Decision. Pilot-assessment hardening stays deferred to
-issue #100. The
-lifecycle-neutral operator contract exposes package-bound attended
-inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
-hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).
+redundant stakeholder Decision. Issue #100 completes the pilot-assessment profile:
+a failed current PAS receives two autonomous same-lineage Correction cycles over
+the unchanged frozen context before attended escalation; only a current passing
+PAS exposes the nondelegable stakeholder Expansion Decision; and that Decision
+must cite the exact PAS and passing PAS Review, pass its own independent Review,
+and receive attended same-lineage Correction after failure. Reviewed `proceed`
+reports the omitted Phase 3–6 Profile Boundary, reviewed `change` enters the
+declared Phase 7 change-control route and reaches the boundary after supported
+work drains, and reviewed `stop` reports Lifecycle Complete. The lifecycle-neutral
+operator contract exposes package-bound attended inputs without counting
+Assignment transport attempts as lifecycle failures. The implemented routes and
+deferred hardening breadth are recorded in
+[`phase-hardening-matrix.md`](phase-hardening-matrix.md).
 
 ## Demonstrated invariants
 
@@ -197,12 +206,16 @@ hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-
   and run evidence is mandatory while prior VAI/RUN/RES/Review evidence remains
   immutable.
 - Complete reviewed Phase 2 candidates derive durable observation and exact
-  assessment-context work. PAS publication, failed-Review correction, fresh
-  independent Review, and the final nondelegable stakeholder Expansion Decision
-  are all projected through package Obligations and public Scenario execution.
-- The reviewed pilot recommendation is `change`; no Phase 3–6 definitions are
-  present, and the selected Profile reports that exact terminal evidence as a
-  Profile Boundary rather than Lifecycle Complete.
+  assessment-context work. PAS publication, bounded failed-Review Correction,
+  attended escalation, fresh independent Review, the final nondelegable
+  stakeholder Expansion Decision, failed Decision Review Correction, and all
+  explicit outcomes are projected through package Obligations and public Scenario
+  execution.
+- The observed reviewed pilot recommendation is `change`; no Phase 3–6 definitions
+  are present. The selected Profile enters its declared narrow change-control route
+  and reports Profile Boundary after supported work drains. A reviewed `proceed`
+  also reports Profile Boundary, while an exact reviewed `stop` alone reports
+  Lifecycle Complete.
 
 ## Pilot outcome and remaining limits
 

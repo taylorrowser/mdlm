@@ -1,9 +1,9 @@
 # Phase-hardening matrix
 
 This matrix records every distinct reachable public `mdlm` route in the hardened
-Phase 0, Phase 1 assurance/implementation, and complete implemented Phase 2
-system-definition boundary. It describes Example Process Package behavior, not
-kernel semantics. Pilot-assessment hardening stays deferred to issue #100.
+Phase 0, Phase 1 assurance/implementation, complete implemented Phase 2
+system definition, and pilot assessment. It describes Example Process Package
+behavior, not kernel semantics.
 
 ## Foundation and product simplification
 
@@ -121,6 +121,21 @@ kernel semantics. Pilot-assessment hardening stays deferred to issue #100.
 | Approval awaits Decision Review | Approving DEC exists but has no passing exact Review | `candidate-gate-signoff@3` blocks on `passing-review-required@2` | Gate Decision Review Context/Review **Assignments** | Candidate and member Reviews reused; approval cannot authorize acceptance or progression yet |
 | Exact system acceptance | Candidate/member Reviews pass and applicable approving gate DEC plus its Review exist | `system-acceptance-required@1`; autonomous `accept-phase-2-system@1` | Mechanical acceptance **Assignment** | Frozen `level-accepted` BSL contains flattened exact definition and candidate/gate Review evidence; no redundant authority |
 | Reviewed progression | Exact accepted system baseline and applicable gate evidence both exist | Phase 2 readiness plus existing `applicable-gate-signoffs-for@1` authorization | Pilot-assessment **Assignment** | The reviewed gate DEC is reused as progression authorization; no second stakeholder Decision |
+
+## Pilot assessment and explicit outcomes
+
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| Complete pilot evidence | Every complete reviewed Phase 2 level candidate has exactly one durable pilot-observation DEC; one frozen `pilot-assessment-context` contains every and only those candidate Revisions and observations | `pilot-observation-required@1`, `pilot-assessment-context-required@1`, then `pilot-assessment-required@1`; autonomous observation/context/PAS Scenarios | Observation, context, then PAS **Assignments** | No Correction consumed; exact candidate, gate, and observation evidence is reused |
+| Initial PAS Review fails | Immutable PAS, unchanged frozen assessment context, and exact failed REV/Findings | `failed-current-pilot-assessments@1`; `pilot-assessment-review-correction-required@1`; autonomous `revise-pilot-assessment-after-review@2` | Same-lineage PAS Correction **Assignment** | 0 of 2 consumed; failed PAS/context/REV retained |
+| First or second PAS replacement fails | Replacement preserves Stable identity and exact `measures` context, cites every current failed REV through `corrects-review`, then receives fresh context and REV | `review-correction-history-for@1`; `pilot-assessment-correction-participation@1` | Next autonomous Correction **Assignment**, then **Attention Required** after cycle two | 1 then 2 autonomous cycles; unrelated exact observations remain reusable |
+| PAS correction passes | Same-lineage replacement over the unchanged exact context has a fresh passing REV and no current failure | Ordinary Review Obligations plus `pilot-expansion-decision-required@1` | Nondelegable stakeholder **Attention Required** | Corrected PAS and fresh Review replace only the failed judgment chain |
+| PAS correction budget exhausted or stakeholder-owned | Two autonomous correction Revisions already exist, or the current failed REV declares stakeholder correction authority | PAS correction participation defaults to attended stakeholder authority on the same Resolver; attended proposal includes one exact scope DEC | Immediate **Attention Required** | Autonomous budget remains bounded at 2; attended cycles do not reset it |
+| Expansion Decision awaits Review | Exact stakeholder DEC adopts the current PAS recommendation and cites PAS through `justifies` plus its passing REV through `relies-on-review` | `pilot-expansion-decision-required@1`; attended/nondelegable `decide-pilot-expansion@2`, then ordinary delegated Review | Decision Review Context and Review **Assignments** | PAS/context/Review evidence reused; no result applies before Decision Review passes |
+| Expansion Decision Review fails | Current DEC has a failed exact REV and no causal current replacement | `failed-pilot-expansion-decisions@1`; `pilot-expansion-decision-review-correction-required@1`; attended `revise-pilot-expansion-decision-after-review@1` | Immediate **Attention Required**, then fresh independent Review | Replacement preserves PAS, PAS Review, recommendation, and scope; after two failures the same attended interface carries exhausted lineage |
+| Reviewed proceed | Current passing PAS and passing Review of exact `proceed` DEC | `pilot-expansion-decisions-by-outcome@1` satisfies Profile `profile_boundary` | **Profile Boundary Reached** | Phase 3–6 remain deliberately omitted; no later-phase output is fabricated |
+| Reviewed change | Current passing PAS and passing Review of exact `change` DEC | Pilot Phase progression reuses `pilot-expansion-decisions-by-outcome@1` and enters `phase-7-change-control`; Profile boundary applies only after runnable declared change work drains | Change-control **Assignment** when applicable, otherwise **Profile Boundary Reached** | Exact reviewed Decision is reused as route authorization; sibling change breadth remains deferred |
+| Reviewed stop | Current passing PAS and passing Review of exact `stop` DEC | `pilot-expansion-decisions-by-outcome@1` satisfies Profile `lifecycle_complete` | **Lifecycle Complete** | Explicit stakeholder stop is terminal; no Phase 3–6 work or Process Dead End |
 
 ## Phase 1 evidence availability and supported boundary
 
