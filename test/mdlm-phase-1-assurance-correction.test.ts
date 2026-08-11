@@ -299,8 +299,8 @@ batching: single
   phase1.scenarios = [
     "seed-assurance-review@1",
     "execute-verification-run@1",
-    "create-review-context@2",
-    "review-datum-in-context@3",
+    "create-review-context@1",
+    "review-datum-in-context@2",
     "revise-verification-strategy-after-review@2",
     "revise-environment-assurance-after-review@2",
     "revise-pilot-verification-activity-after-review@2",
@@ -413,7 +413,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       "--type",
       "BSL",
       "--scenario",
-      "create-review-context@2",
+      "create-review-context@1",
       "--set",
       `title=Review context for ${subject.revisionId}`,
       "--set",
@@ -606,7 +606,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     let outcome = next();
     expect(outcome.outcome).toBe("assignment");
     let packet = prepare(outcome);
-    expect(packet.scenario.reference).toBe("create-review-context@2");
+    expect(packet.scenario.reference).toBe("create-review-context@1");
     expect(packet.exactInputs[0].inputs.find(
       (input: { name: string }) => input.name === "subject",
     ).values[0].identity.revision_id).toBe(subject.revisionId);
@@ -629,7 +629,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     outcome = next();
     expect(outcome.outcome).toBe("assignment");
     packet = prepare(outcome);
-    expect(packet.scenario.reference).toBe("review-datum-in-context@3");
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
     expect(packet.exactInputs[0].inputs.find(
       (input: { name: string }) => input.name === "review_context",
     ).values[0].identity.revision_id).toBe(context.revisionId);

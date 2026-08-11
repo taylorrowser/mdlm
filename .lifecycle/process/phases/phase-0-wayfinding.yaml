@@ -25,15 +25,15 @@ scenarios:
   - build-exploratory-prototype@1
   - compile-psp@2
   - draft-stakeholder-requirements@2
-  - create-review-context@2
-  - review-datum-in-context@3
+  - create-review-context@1
+  - review-datum-in-context@2
   - resolve-question@2
   - revise-question-decision-after-review@1
   - resolve-question-with-prototype@2
   - create-phase-0-intent-candidate@1
   - record-gate-signoff@3
   - record-consequential-decision@1
-  - revise-foundation-after-review@6
+  - revise-foundation-after-review@5
   - escalate-foundation-review-correction@2
   - revise-intent-candidate-after-review@3
   - revise-gate-signoff-after-review@2

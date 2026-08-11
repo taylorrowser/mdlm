@@ -22,8 +22,8 @@ scenarios:
   - revise-pilot-verification-activity-after-review@2
   - revise-pilot-vai-after-review@1
   - prepare-pilot-assessment-context@1
-  - create-review-context@2
-  - review-datum-in-context@3
+  - create-review-context@1
+  - review-datum-in-context@2
   - resolve-question@2
   - resolve-question-with-prototype@2
   - record-consequential-decision@1

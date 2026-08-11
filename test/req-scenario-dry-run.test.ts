@@ -207,7 +207,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "create-review-context@2",
+      "create-review-context@1",
       "--obligation",
       readyInstance,
       "--snapshot",
@@ -233,7 +233,7 @@ describe("req scenario dry-run", () => {
           sideEffectFree: true,
           definition: {
             obligation: "review-context-required@2",
-            scenario: "create-review-context@2",
+            scenario: "create-review-context@1",
           },
           obligation: expect.objectContaining({
             instance: readyInstance,
@@ -376,7 +376,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "create-review-context@2",
+      "create-review-context@1",
       "--obligation",
       readyInstance,
       "--snapshot",
@@ -384,7 +384,7 @@ describe("req scenario dry-run", () => {
     );
     expect(human.status, human.stderr).toBe(0);
     expect(human.stdout).toContain(
-      "Scenario Dry Run: create-review-context@2 [executable]",
+      "Scenario Dry Run: create-review-context@1 [executable]",
     );
     expect(human.stdout).toContain(`Obligation: ${readyInstance}`);
     expect(human.stdout).toContain("Input subject: PSP-7K3M9Q2D8F-r00001");
@@ -402,7 +402,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "review-datum-in-context@3",
+      "review-datum-in-context@2",
       "--obligation",
       blockedInstance,
       "--snapshot",
@@ -438,7 +438,7 @@ describe("req scenario dry-run", () => {
       repositoryRoot,
       "scenario",
       "dry-run",
-      "create-review-context@2",
+      "create-review-context@1",
       "--obligation",
       readyInstance,
       "--snapshot",
@@ -472,7 +472,7 @@ describe("req scenario dry-run", () => {
         alternateRepository,
         "scenario",
         "dry-run",
-        "create-review-context@2",
+        "create-review-context@1",
         "--obligation",
         readyInstance,
         "--snapshot",

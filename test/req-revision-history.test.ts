@@ -60,7 +60,7 @@ describe("req revision lineage", () => {
       "--type",
       "BSL",
       "--scenario",
-      "create-review-context@2",
+      "create-review-context@1",
       "--set",
       "title=Frozen revision history",
       "--set",

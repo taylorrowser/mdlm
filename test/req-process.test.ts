@@ -608,7 +608,7 @@ describe("req process package commands", () => {
       "--type",
       "BSL",
       "--scenario",
-      "create-review-context@2",
+      "create-review-context@1",
       "--set",
       "title=Migration boundary",
       "--set",

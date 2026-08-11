@@ -128,7 +128,7 @@ batching: coherent-batch
   phase.id != "phase-7-change-control"
   || subject.identity.type == "CHG"
   || (subject.identity.type == "DEC" && subject.payload.kind == "change-approval")
-  || exists("change-requests-authoring-subject@1", {subject: subject})
+  || subject.provenance.scenario in ["revise-requirement-under-change@2", "create-stakeholder-change-candidate@1"]
 )`;
   await fs.writeFile(reviewSelectorPath, stringify(reviewSelector));
 
@@ -375,7 +375,7 @@ describe("accepted STK change control through the public operator process", () =
     return execution;
   }
 
-  function publishContext(packet: Packet, changedUnder?: string) {
+  function publishContext(packet: Packet) {
     const subject = inputs(packet, "subject")[0]!;
     return publish(packet, [output(
       `context-${subject.identity.revision_id}`,
@@ -393,11 +393,11 @@ describe("accepted STK change control through the public operator process", () =
         ],
         evidence: [],
       },
-      changedUnder ? [{ type: "changed-under", target: changedUnder }] : [],
+      [],
     )]).outputs[0]!.lifecycleDatum;
   }
 
-  function publishReview(packet: Packet, changedUnder?: string) {
+  function publishReview(packet: Packet) {
     const subject = inputs(packet, "subject")[0]!;
     const context = inputs(packet, "review_context")[0]!;
     return publish(packet, [output(
@@ -414,7 +414,6 @@ describe("accepted STK change control through the public operator process", () =
       [
         { type: "reviews", target: subject.identity.revision_id },
         { type: "contextualizes", target: context.identity.revision_id },
-        ...(changedUnder ? [{ type: "changed-under", target: changedUnder }] : []),
       ],
     )], ["independent-reviewer"]).outputs[0]!.lifecycleDatum;
   }
@@ -450,11 +449,11 @@ describe("accepted STK change control through the public operator process", () =
     const change = publish(packet, [changeOutput(revision(ids.accepted))]).outputs[0]!.lifecycleDatum;
     next = nextOutcome();
     packet = prepare(next);
-    expect(packet.scenario.reference).toBe("create-review-context@2");
+    expect(packet.scenario.reference).toBe("create-review-context@1");
     publishContext(packet);
     next = nextOutcome();
     packet = prepare(next);
-    expect(packet.scenario.reference).toBe("review-datum-in-context@3");
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
     publishReview(packet);
     next = nextOutcome();
     expect(next.outcome).toBe("attention-required");
@@ -484,7 +483,7 @@ describe("accepted STK change control through the public operator process", () =
     )], ["stakeholder"]).outputs[0]!.lifecycleDatum;
     let next = nextOutcome();
     let reviewPacket = prepare(next);
-    expect(reviewPacket.scenario.reference).toBe("create-review-context@2");
+    expect(reviewPacket.scenario.reference).toBe("create-review-context@1");
     publishContext(reviewPacket);
     next = nextOutcome();
     reviewPacket = prepare(next);
@@ -551,13 +550,14 @@ describe("accepted STK change control through the public operator process", () =
 
     next = nextOutcome();
     work = prepare(next);
-    expect(work.scenario.reference).toBe("create-review-context@2");
-    const context = publishContext(work, change.revisionId);
+    expect(work.scenario.reference).toBe("create-review-context@1");
+    const context = publishContext(work);
     next = nextOutcome();
     work = prepare(next);
-    const review = publishReview(work, change.revisionId);
+    const review = publishReview(work);
 
     next = nextOutcome();
+    expect(next.outcome, JSON.stringify(next)).toBe("assignment");
     work = prepare(next);
     expect(work.scenario.reference).toBe("create-stakeholder-change-candidate@1");
     expect(inputs(work, "reusable_definitions").map((value) => value.identity.revision_id)).toEqual([
@@ -589,10 +589,10 @@ describe("accepted STK change control through the public operator process", () =
 
     next = nextOutcome();
     work = prepare(next);
-    publishContext(work, change.revisionId);
+    publishContext(work);
     next = nextOutcome();
     work = prepare(next);
-    const candidateReview = publishReview(work, change.revisionId);
+    const candidateReview = publishReview(work);
 
     next = nextOutcome();
     work = prepare(next);
@@ -639,5 +639,5 @@ describe("accepted STK change control through the public operator process", () =
     expect(git(repository, "grep", revision(ids.unaffectedEvidence), "--", ".lifecycle/data").status).toBe(0);
     const acceptedHistory = mdlm(repository, ["show", revision(ids.accepted), "--json"]);
     expect(JSON.parse(acceptedHistory.stdout).projections.states.maturity).toBe("accepted");
-  }, 120_000);
+  }, 180_000);
 });

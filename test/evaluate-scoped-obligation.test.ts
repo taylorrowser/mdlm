@@ -488,7 +488,7 @@ describe("evaluateLifecycle scoped Obligations", () => {
         "--type",
         "BSL",
         "--scenario",
-        "create-review-context@2",
+        "create-review-context@1",
         "--set",
         "title=Scoped obligation target context",
         "--set",

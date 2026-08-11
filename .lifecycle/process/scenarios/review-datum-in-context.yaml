@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: review-datum-in-context
-version: 3
+version: 2
 description: Independently review one exact substantive revision in one exact frozen baseline context.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 inputs:
@@ -32,9 +32,6 @@ completion: >-
   && review_context.payload.kind == "review-context"
   && review_context.storage.frozen == true
   && review.payload.outcome in ["pass", "fail", "cancelled"]
-  && every("change-requests-authoring-subject@1", {subject: subject}, change =>
-    exists("subject-changed-under@1", {subject: review_context, change: change})
-    && exists("subject-changed-under@1", {subject: review, change: change}))
   && (
     (exists("intent-candidates-matching-subject@1", {subject: subject})
       && exists("valid-product-simplification-reviews@1", {review: review}))
@@ -42,5 +39,5 @@ completion: >-
       && review.payload.review_kind != "simplification-product-definition")
   )
 resolves: [passing-review-required, candidate-members-reviewed]
-prohibited_inputs: [unfrozen context, mutable latest aliases, prior review outcome as authority, omission of applicable changed-under causality]
+prohibited_inputs: [unfrozen context, mutable latest aliases, prior review outcome as authority]
 batching: coherent-batch

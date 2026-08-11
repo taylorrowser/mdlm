@@ -28,7 +28,7 @@ status_rules:
     reason: A deterministic exact review context can be created now.
 default_status: ready
 resolve_with:
-  scenario: create-review-context@2
+  scenario: create-review-context@1
   inputs:
     subject: subject
     context_members: 'select("review-context-members-for@1", {subject: subject})'

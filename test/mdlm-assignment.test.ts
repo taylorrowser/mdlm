@@ -1012,7 +1012,7 @@ describe("MDLM Assignment leasing and preparation", () => {
         "prepare",
         outcome.assignment.id,
       ).stdout);
-      while (packet.scenario.reference === "create-review-context@2") {
+      while (packet.scenario.reference === "create-review-context@1") {
         const subject = packet.exactInputs[0].inputs
           .find((input: any) => input.name === "subject")
           .values[0].identity.revision_id as string;
@@ -1158,7 +1158,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     const reviewOutcome = progression.outcome;
     const reviewPacket = progression.packet;
     expect(pspRevision).toMatch(/^PSP-.*-r00001$/);
-    expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@3");
+    expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
     expect(reviewPacket.authority.requirements).toEqual([
       expect.objectContaining({
         authorityRequirement: expect.objectContaining({

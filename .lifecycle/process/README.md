@@ -332,7 +332,7 @@ derive reviewed-plan execution, exact question blockers, child Review completion
 parent coverage, and separate requirement-set and architecture/interface
 simplification work at the first exact SYS, ASP, ICSP, and planning-DWP set. The
 generic Review Context module deepens for an executed planning DWP: its ordinary
-`create-review-context@2` Assignment receives every exact set member and rejects
+`create-review-context@1` Assignment receives every exact set member and rejects
 both missing and unrelated definitions. A failed simplification Review nests every primary Finding under one exact target, binds collateral Findings to
 the complete canonical consistency set, and carries either one canonical SYS blocker or
 the exact complete definition-consistency blocker set. One SYS subject is corrected
@@ -397,8 +397,8 @@ explicitly without a replacement or any rewrite of accepted history. Reviewed
 approval alone authorizes the same STK Stable Datum's next Revision through exact
 `changed-under`.
 
-The replacement receives a fresh `changed-under` Review Context and Review. A
-package-owned candidate Resolver then freezes one `intent-change-candidate`
+The replacement's exact Revision identity derives a fresh Review Context and Review. A
+package-owned candidate Resolver then freezes one CHG-linked `intent-change-candidate`
 containing that replacement evidence and every exact accepted definition/evidence
 item outside the CHG impact. The candidate receives fresh Review; unrelated exact
 evidence remains reusable while declared changed dependencies reevaluate normally.

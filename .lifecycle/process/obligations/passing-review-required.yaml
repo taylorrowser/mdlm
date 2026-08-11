@@ -33,7 +33,7 @@ status_rules:
     reason: Exact context exists and an independent review is required.
 default_status: blocked
 resolve_with:
-  scenario: review-datum-in-context@3
+  scenario: review-datum-in-context@2
   inputs:
     subject: subject
     review_context: 'one("valid-review-contexts-for@1", {subject: subject})'

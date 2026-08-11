@@ -1,7 +1,7 @@
 kind: selector-definition
 id: stakeholder-change-candidates-for
 version: 1
-description: Exact replacement intent candidates containing changed STK evidence and every reusable accepted item.
+description: Exact replacement intent candidates containing the changed STK, fresh Review evidence, and every unaffected accepted item.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: baseline
@@ -12,16 +12,17 @@ query:
     candidate.payload.kind == "intent-change-candidate"
     && candidate.payload.role == "candidate"
     && candidate.storage.frozen == true
-    && exists("subject-changed-under@1", {subject: candidate, change: change})
-    && count("accepted-intent-baselines-for-change@1", {change: change}) == 1
-    && every("revised-requirements-for-change@2", {change: change}, requirement =>
-      exists("baseline-contains-definition@1", {baseline: candidate, subject: requirement}))
+    && exists("change-impacts-revision@1", {change: change, impacted: one("accepted-intent-baselines-for-change@1", {change: change})})
+    && exists("baseline-contains-definition@1",
+      {baseline: candidate, subject: one("revised-requirements-for-change@2", {change: change})})
     && every("reusable-change-definitions-for@1",
       {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, definition =>
         exists("baseline-contains-definition@1", {baseline: candidate, subject: definition}))
     && every("candidate-definition-members@1", {candidate: candidate}, definition =>
-      exists("matching-change-candidate-definition@1",
-        {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change}), definition: definition}))
+      definition == one("revised-requirements-for-change@2", {change: change})
+      || (exists("baseline-contains-definition@1",
+          {baseline: one("accepted-intent-baselines-for-change@1", {change: change}), subject: definition})
+        && none("change-impacts-revision@1", {change: change, impacted: definition})))
     && every("change-review-contexts-for@1", {change: change}, context =>
       exists("baseline-contains-evidence@1", {baseline: candidate, subject: context}))
     && every("change-replacement-reviews-for@1", {change: change}, review =>
@@ -30,7 +31,10 @@ query:
       {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, evidence =>
         exists("baseline-contains-evidence@1", {baseline: candidate, subject: evidence}))
     && every("baseline-evidence@1", {baseline: candidate}, evidence =>
-      exists("matching-change-candidate-evidence@1",
-        {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change}), evidence: evidence}))
+      (exists("baseline-contains-evidence@1",
+          {baseline: one("accepted-intent-baselines-for-change@1", {change: change}), subject: evidence})
+        && none("change-impacts-revision@1", {change: change, impacted: evidence}))
+      || evidence == one("change-review-contexts-for@1", {change: change})
+      || evidence == one("change-replacement-reviews-for@1", {change: change}))
   distinct: true
   order_by: [identity.revision_id]

@@ -20,8 +20,8 @@ scenarios:
   - prepare-pilot-assessment-context@1
   - assess-phase-0-2-pilot@1
   - revise-pilot-assessment-after-review@2
-  - create-review-context@2
-  - review-datum-in-context@3
+  - create-review-context@1
+  - review-datum-in-context@2
   - decide-pilot-expansion@2
   - revise-pilot-expansion-decision-after-review@1
   - record-consequential-decision@1

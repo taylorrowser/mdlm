@@ -556,12 +556,12 @@ describe("public mdlm outcome and status seam", () => {
     ).stdout);
     let productStable = "";
     while ([
-      "create-review-context@2",
+      "create-review-context@1",
       "compile-psp@2",
       "draft-stakeholder-requirements@2",
     ].includes(boundaryPacket.scenario.reference)) {
       let outputs: Record<string, unknown>[];
-      if (boundaryPacket.scenario.reference === "create-review-context@2") {
+      if (boundaryPacket.scenario.reference === "create-review-context@1") {
         const subject = boundaryPacket.exactInputs[0].inputs.find(
           (input: { name: string }) => input.name === "subject",
         ).values[0].identity.revision_id as string;

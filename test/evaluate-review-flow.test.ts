@@ -83,7 +83,7 @@ describe("evaluateLifecycle review flow", () => {
         definition_members: [psp.datum.revision_id],
         evidence: [],
       },
-      { frozen: true, scenario: "create-review-context@2" },
+      { frozen: true, scenario: "create-review-context@1" },
     );
     const review = record(
       "REV",
@@ -96,7 +96,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: psp.datum.revision_id },
           { type: "contextualizes", target: context.datum.revision_id },
@@ -151,7 +151,7 @@ describe("evaluateLifecycle review flow", () => {
         definition_members: [original.datum.revision_id],
         evidence: [],
       },
-      { frozen: true, scenario: "create-review-context@2" },
+      { frozen: true, scenario: "create-review-context@1" },
     );
     const failedReview = record(
       "REV",
@@ -170,7 +170,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: original.datum.revision_id },
           {
@@ -223,7 +223,7 @@ describe("evaluateLifecycle review flow", () => {
         definition_members: [replacement.datum.revision_id],
         evidence: [],
       },
-      { frozen: true, scenario: "create-review-context@2" },
+      { frozen: true, scenario: "create-review-context@1" },
     );
     const passingReview = record(
       "REV",
@@ -236,7 +236,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: replacement.datum.revision_id },
           {
@@ -543,7 +543,7 @@ describe("evaluateLifecycle review flow", () => {
         definition_members: [psp.datum.revision_id],
         evidence: [],
       },
-      { frozen: true, scenario: "create-review-context@2" },
+      { frozen: true, scenario: "create-review-context@1" },
     );
     const review = record(
       "REV",
@@ -556,7 +556,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: psp.datum.revision_id },
           { type: "contextualizes", target: context.datum.revision_id },
@@ -628,7 +628,7 @@ describe("evaluateLifecycle review flow", () => {
       group: "DEFAULT",
       definition_members: [psp.datum.revision_id],
       evidence: [],
-    }, { frozen: true, scenario: "create-review-context@2" });
+    }, { frozen: true, scenario: "create-review-context@1" });
     const pspReview = record("REV", "REV-8ZT5KQ3P9M", {
       title: "Passing PSP Review",
       rubric_ref: "policies/rubrics/bootstrap-review.md@1",
@@ -636,7 +636,7 @@ describe("evaluateLifecycle review flow", () => {
       outcome: "pass",
     }, {
       frozen: true,
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
       links: [
         { type: "reviews", target: psp.datum.revision_id },
         { type: "contextualizes", target: pspContext.datum.revision_id },
@@ -662,7 +662,7 @@ describe("evaluateLifecycle review flow", () => {
         psp.datum.revision_id,
       ],
       evidence: [],
-    }, { frozen: true, scenario: "create-review-context@2" });
+    }, { frozen: true, scenario: "create-review-context@1" });
     const passingCandidateReview = record("REV", "REV-1BC3DF5GHK", {
       title: "Earlier passing candidate Review",
       review_kind: "simplification-product-definition",
@@ -670,7 +670,7 @@ describe("evaluateLifecycle review flow", () => {
       outcome: "pass",
     }, {
       frozen: true,
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
       links: [
         { type: "reviews", target: candidate.datum.revision_id },
         { type: "contextualizes", target: candidateContext.datum.revision_id },
@@ -691,7 +691,7 @@ describe("evaluateLifecycle review flow", () => {
       outcome: "fail",
     }, {
       frozen: true,
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
       links: [
         { type: "reviews", target: candidate.datum.revision_id },
         { type: "contextualizes", target: candidateContext.datum.revision_id },
@@ -800,7 +800,7 @@ describe("evaluateLifecycle review flow", () => {
         definition_members: [psp.datum.revision_id],
         evidence: [],
       },
-      { frozen: true, scenario: "create-review-context@2" },
+      { frozen: true, scenario: "create-review-context@1" },
     );
     const pspReview = record(
       "REV",
@@ -813,7 +813,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: psp.datum.revision_id },
           { type: "contextualizes", target: pspContext.datum.revision_id },
@@ -846,7 +846,7 @@ describe("evaluateLifecycle review flow", () => {
         definition_members: [candidate.datum.revision_id],
         evidence: [],
       },
-      { frozen: true, scenario: "create-review-context@2" },
+      { frozen: true, scenario: "create-review-context@1" },
     );
     const candidateReview = record(
       "REV",
@@ -859,7 +859,7 @@ describe("evaluateLifecycle review flow", () => {
       },
       {
         frozen: true,
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
         links: [
           { type: "reviews", target: candidate.datum.revision_id },
           {
@@ -901,7 +901,7 @@ describe("evaluateLifecycle review flow", () => {
         definition_members: [signoff.datum.revision_id],
         evidence: [],
       },
-      { frozen: true, scenario: "create-review-context@2" },
+      { frozen: true, scenario: "create-review-context@1" },
     );
 
     const records = [
@@ -930,7 +930,7 @@ describe("evaluateLifecycle review flow", () => {
       expect.objectContaining({
         status: "blocked",
         eventualResolver: "record-gate-signoff@3",
-        actionableResolver: "review-datum-in-context@3",
+        actionableResolver: "review-datum-in-context@2",
         dispatchable: false,
         blockedBy: [
           `passing-review-required@2:${signoff.datum.revision_id}:git:current`,
@@ -950,8 +950,8 @@ describe("evaluateLifecycle review flow", () => {
       ),
     ).toEqual(expect.objectContaining({
       status: "awaiting-review",
-      eventualResolver: "review-datum-in-context@3",
-      actionableResolver: "review-datum-in-context@3",
+      eventualResolver: "review-datum-in-context@2",
+      actionableResolver: "review-datum-in-context@2",
       dispatchable: true,
       unresolvedBindings: [],
     }));
@@ -1028,7 +1028,7 @@ describe("evaluateLifecycle review flow", () => {
           definition_members: [subject.datum.revision_id],
           evidence: [],
         },
-        { frozen: true, scenario: "create-review-context@2" },
+        { frozen: true, scenario: "create-review-context@1" },
       );
       const review = record(
         "REV",
@@ -1049,7 +1049,7 @@ describe("evaluateLifecycle review flow", () => {
         },
         {
           frozen: true,
-          scenario: "review-datum-in-context@3",
+          scenario: "review-datum-in-context@2",
           links: [
             { type: "reviews", target: subject.datum.revision_id },
             { type: "contextualizes", target: context.datum.revision_id },

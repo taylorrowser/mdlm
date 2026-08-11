@@ -491,7 +491,7 @@ describe("bootstrap Scenario participation Policies", () => {
       }, {
         frozen: true,
         links: [{ type: "reviews", target: decision.datum.revision_id }],
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
       });
       return { decision, review };
     };
@@ -563,7 +563,7 @@ describe("bootstrap Scenario participation Policies", () => {
       group: "DEFAULT",
       definition_members: [target.datum.revision_id],
       evidence: [],
-    }, { frozen: true, scenario: "create-review-context@2" });
+    }, { frozen: true, scenario: "create-review-context@1" });
     const empirical = question(
       "QST-8ZT5KQ3P9M",
       "Evidence can decide this",
@@ -866,7 +866,7 @@ describe("bootstrap Scenario participation Policies", () => {
     }, {
       frozen: true,
       links: [{ type: "reviews", target: decision.datum.revision_id }],
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
     });
     const unboundedDeferral = structuredClone(deferred);
     delete unboundedDeferral.datum.payload.reactivation_condition;
@@ -998,7 +998,7 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@6",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
     expect(evaluation.obligations.find((item) =>
       item.obligation === "candidate-gate-signoff" &&
@@ -1007,7 +1007,7 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "revise-foundation-after-review@6",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
     expect(evaluation.phase?.gate.evaluations[0]).toEqual(
       expect.objectContaining({ complete: false }),
@@ -1042,7 +1042,7 @@ describe("bootstrap Scenario participation Policies", () => {
     }, {
       frozen: true,
       links: [{ type: "reviews", target: subject.datum.revision_id }],
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
     });
     const firstFailure = failedReview(original, "REV-6K3M9Q2D8F");
     const firstReplacement = structuredClone(original);
@@ -1069,7 +1069,7 @@ describe("bootstrap Scenario participation Policies", () => {
     }, {
       frozen: true,
       links: [{ type: "reviews", target: current.datum.revision_id }],
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
     });
     fixture.candidate.datum.payload.definition_members = [
       current.datum.revision_id,
@@ -1182,7 +1182,7 @@ describe("bootstrap Scenario participation Policies", () => {
     }, {
       frozen: true,
       links: [{ type: "reviews", target: subject.datum.revision_id }],
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
     });
     const stakeholderFailure = failedReview(
       original,
@@ -1265,7 +1265,7 @@ describe("bootstrap Scenario participation Policies", () => {
     expect(correctionFor(evaluate(baseRecords), attended)).toEqual(
       expect.objectContaining({
         obligation: "foundation-review-correction-required",
-        actionableResolver: "revise-foundation-after-review@6",
+        actionableResolver: "revise-foundation-after-review@5",
       }),
     );
     const afterFirstAutonomous = [
@@ -1278,7 +1278,7 @@ describe("bootstrap Scenario participation Policies", () => {
       firstAutonomous,
     )).toEqual(expect.objectContaining({
       obligation: "foundation-review-correction-required",
-      actionableResolver: "revise-foundation-after-review@6",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
 
     const exhaustedRecords = [
@@ -1356,7 +1356,7 @@ describe("bootstrap Scenario participation Policies", () => {
       group: "phase-0-wayfinding",
       definition_members: [map.datum.revision_id],
       evidence: [],
-    }, { frozen: true, scenario: "create-review-context@2" });
+    }, { frozen: true, scenario: "create-review-context@1" });
     const redirectedReview = lifecycleDatum("REV", "REV-7K3M9Q2D8J", {
       title: "Mis-scoped product simplification Review",
       review_kind: "simplification-product-definition",
@@ -1372,7 +1372,7 @@ describe("bootstrap Scenario participation Policies", () => {
       outcome: "fail",
     }, {
       frozen: true,
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
       links: [
         { type: "reviews", target: map.datum.revision_id },
         { type: "contextualizes", target: context.datum.revision_id },
@@ -1447,7 +1447,7 @@ describe("bootstrap Scenario participation Policies", () => {
       {
         frozen: true,
         links: [{ type: "reviews", target: subject.datum.revision_id }],
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
       },
     ));
 
@@ -1524,7 +1524,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@6",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
     expect(evaluation.obligations.some((item) =>
       item.obligation === "foundation-review-correction-required" &&
@@ -1536,7 +1536,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "revise-foundation-after-review@6",
+      actionableResolver: "revise-foundation-after-review@5",
     }));
   });
 
@@ -1652,7 +1652,7 @@ describe("bootstrap Scenario participation Policies", () => {
         { type: "contextualizes", target: replacementContext.datum.revision_id },
         { type: "blocks", target: attendedReplacement.datum.revision_id },
       ],
-      scenario: "review-datum-in-context@3",
+      scenario: "review-datum-in-context@2",
     });
     snapshot.records.push(
       attendedReplacement,
@@ -1725,7 +1725,7 @@ describe("bootstrap Scenario participation Policies", () => {
           { type: "reviews", target: subject.datum.revision_id },
           { type: "blocks", target: subject.datum.revision_id },
         ],
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
       });
     const reviews = [
       failedReview(first, "REV-8K3M9Q2D8F"),
@@ -1993,7 +1993,7 @@ describe("bootstrap Scenario participation Policies", () => {
       }, {
         frozen: true,
         links: [{ type: "reviews", target: subject.datum.revision_id }],
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
       })
     );
     fixture.signoff.datum.payload.gate_outcome = "reject";
@@ -2112,7 +2112,7 @@ describe("bootstrap Scenario participation Policies", () => {
       }, {
         frozen: true,
         links: [{ type: "reviews", target: subject.datum.revision_id }],
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
       });
 
     const evaluation = evaluateLifecycle(processPackage, {

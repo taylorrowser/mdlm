@@ -13,7 +13,7 @@ query:
     && baseline.payload.role == "accepted"
     && baseline.storage.frozen == true
     && exists("change-impacts-revision@1", {change: change, impacted: baseline})
-    && every("accepted-stakeholder-requirements-for-change@1", {change: change}, requirement =>
+    && every("impacted-requirements-for-change@2", {change: change}, requirement =>
       exists("baseline-contains-definition@1", {baseline: baseline, subject: requirement}))
   distinct: true
   order_by: [identity.revision_id]

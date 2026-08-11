@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: create-review-context
-version: 2
+version: 1
 description: Deterministically freeze one primary subject with the exact parent, sibling, decision, and candidate context needed for review.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 inputs:
@@ -15,9 +15,7 @@ completion: >-
   && context.payload.kind == "review-context"
   && context.payload.scope == subject.identity.revision_id
   && context.storage.frozen == true
-  && every("change-requests-authoring-subject@1", {subject: subject}, change =>
-    exists("subject-changed-under@1", {subject: context, change: change}))
   && exists("valid-review-contexts-for@1", {subject: subject})
 resolves: [review-context-required]
-prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth, omission of applicable changed-under causality]
+prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth]
 batching: either

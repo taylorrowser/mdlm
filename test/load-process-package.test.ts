@@ -27,7 +27,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.57.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(273);
+    expect(Object.keys(result.package.selectors)).toHaveLength(266);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
@@ -464,7 +464,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-input-missing",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
-            "Obligation 'review-context-required' does not bind required input 'subject' for Resolver Scenario 'create-review-context@2'",
+            "Obligation 'review-context-required' does not bind required input 'subject' for Resolver Scenario 'create-review-context@1'",
         }),
       ]),
     );
@@ -494,7 +494,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-input-type",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
-            "Resolver input 'subject' for Scenario 'create-review-context@2' requires type QST, but the binding can provide ASP, BSL, CHG, DEC, DWP, ENV, ICSP, MAP, PAS, PRB, PSP, STK, SYS, VAI, VER, VSP",
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide ASP, BSL, CHG, DEC, DWP, ENV, ICSP, MAP, PAS, PRB, PSP, STK, SYS, VAI, VER, VSP",
         }),
       ]),
     );
@@ -521,7 +521,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-input-kind",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
-            "Resolver input 'subject' for Scenario 'create-review-context@2' requires stable identity, but the binding provides revision",
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires stable identity, but the binding provides revision",
         }),
       ]),
     );
@@ -548,7 +548,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-input-cardinality",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
-            "Resolver input 'subject' for Scenario 'create-review-context@2' requires one-or-more values, but the binding provides one",
+            "Resolver input 'subject' for Scenario 'create-review-context@1' requires one-or-more values, but the binding provides one",
         }),
       ]),
     );
@@ -575,7 +575,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-input-undeclared",
           path: "obligations.review-context-required.resolve_with.inputs.surprise",
           message:
-            "Obligation 'review-context-required' binds undeclared input 'surprise' for Resolver Scenario 'create-review-context@2'",
+            "Obligation 'review-context-required' binds undeclared input 'surprise' for Resolver Scenario 'create-review-context@1'",
         }),
       ]),
     );
@@ -740,7 +740,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       scenarioPath,
       scenario.replace(
-        "prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth, omission of applicable changed-under causality]",
+        "prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth]",
         "prohibited_inputs: [subject]",
       ),
     );
@@ -790,7 +790,7 @@ describe("loadProcessPackage", () => {
     const phase = await fs.readFile(phasePath, "utf8");
     await fs.writeFile(
       phasePath,
-      phase.replace("  - create-review-context@2\n", ""),
+      phase.replace("  - create-review-context@1\n", ""),
     );
 
     const result = await loadProcessPackage(processRoot);
@@ -802,7 +802,7 @@ describe("loadProcessPackage", () => {
           code: "resolver-scenario-disabled",
           path: "phases.phase-0-wayfinding.scenarios",
           message:
-            "Obligation 'review-context-required@2' is enabled in Phase 'phase-0-wayfinding' without Resolver Scenario 'create-review-context@2'",
+            "Obligation 'review-context-required@2' is enabled in Phase 'phase-0-wayfinding' without Resolver Scenario 'create-review-context@1'",
         }),
       ]),
     );
@@ -817,7 +817,7 @@ describe("loadProcessPackage", () => {
     const obligation = await fs.readFile(obligationPath, "utf8");
     await fs.writeFile(
       obligationPath,
-      obligation.replace("create-review-context@2", "missing-scenario@1"),
+      obligation.replace("create-review-context@1", "missing-scenario@1"),
     );
 
     const result = await loadProcessPackage(processRoot);

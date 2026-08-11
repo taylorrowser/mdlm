@@ -62,7 +62,7 @@ describe("exact consequential authorization", () => {
 
   it("rejects direct Review, gate, waiver, delegation, and question authority evidence", () => {
     const attempts = [
-      { type: "REV", scenario: "review-datum-in-context@3" },
+      { type: "REV", scenario: "review-datum-in-context@2" },
       { type: "DEC", scenario: "record-gate-signoff@3" },
       { type: "DEC", scenario: "record-consequential-decision@1" },
       { type: "DEC", scenario: "resolve-question@2" },
@@ -182,7 +182,7 @@ describe("exact consequential authorization", () => {
       "--type",
       "BSL",
       "--scenario",
-      "create-review-context@2",
+      "create-review-context@1",
       "--set",
       "title=Scope Decision boundary",
       "--set",
@@ -423,7 +423,7 @@ describe("exact consequential authorization", () => {
             delegation: {
               authority: "stakeholder",
               delegate: "independent-reviewer",
-              scenario: "review-datum-in-context@3",
+              scenario: "review-datum-in-context@2",
               expires_when: "target-revised",
               ...(complete
                 ? { reactivation_requires: "new-delegation-decision" }
@@ -475,7 +475,7 @@ describe("exact consequential authorization", () => {
       "--type",
       "BSL",
       "--scenario",
-      "create-review-context@2",
+      "create-review-context@1",
       "--set",
       "title=Delegated Review context",
       "--set",
@@ -562,7 +562,7 @@ describe("exact consequential authorization", () => {
       repositoryRoot,
       "scenario",
       "execute",
-      "review-datum-in-context@3",
+      "review-datum-in-context@2",
       "--obligation",
       delegationReviewWork.id,
       "--authorize",
@@ -586,7 +586,7 @@ describe("exact consequential authorization", () => {
       "--type",
       "BSL",
       "--scenario",
-      "create-review-context@2",
+      "create-review-context@1",
       "--set",
       "title=Target Review context",
       "--set",
@@ -652,7 +652,7 @@ describe("exact consequential authorization", () => {
     const prepared = mdlm(repositoryRoot, undefined, "scenario", "prepare", assignment);
     expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
     const packet = JSON.parse(prepared.stdout);
-    expect(packet.scenario.reference).toBe("review-datum-in-context@3");
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
     expect(packet.authority.standingDelegation).toEqual({
       selector: "applicable-authority-delegations-for@1",
       authority: "stakeholder",
@@ -742,7 +742,7 @@ describe("exact consequential authorization", () => {
       delegation: {
         authority: "stakeholder",
         delegate: "independent-reviewer",
-        scenario: "review-datum-in-context@3",
+        scenario: "review-datum-in-context@2",
         expires_when: "target-revised",
         reactivation_requires: "new-delegation-decision",
       },
@@ -778,7 +778,7 @@ describe("exact consequential authorization", () => {
         dependencyComparisons: [],
       }));
     };
-    const evaluate = (subject: string, scenario = "review-datum-in-context@3") =>
+    const evaluate = (subject: string, scenario = "review-datum-in-context@2") =>
       req(
         repositoryRoot,
         "selector",

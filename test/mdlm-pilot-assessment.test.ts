@@ -356,7 +356,7 @@ describe("mdlm hardened pilot assessment", () => {
     let next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     let packet = prepare(next);
-    expect(packet.scenario.reference).toBe("create-review-context@2");
+    expect(packet.scenario.reference).toBe("create-review-context@1");
     const context = submit(packet, [output(
       `context-${subject.revisionId}`,
       "context",
@@ -375,7 +375,7 @@ describe("mdlm hardened pilot assessment", () => {
     next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     packet = prepare(next);
-    expect(packet.scenario.reference).toBe("review-datum-in-context@3");
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
     return submit(packet, [output(
       `review-${subject.revisionId}`,
       "review",

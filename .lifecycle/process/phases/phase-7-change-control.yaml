@@ -12,8 +12,8 @@ entry: 'process.integrity.package_valid == true'
 scenarios:
   - report-problem@1
   - analyze-change-impact@2
-  - create-review-context@2
-  - review-datum-in-context@3
+  - create-review-context@1
+  - review-datum-in-context@2
   - approve-change-request@3
   - revise-requirement-under-change@2
   - create-stakeholder-change-candidate@1

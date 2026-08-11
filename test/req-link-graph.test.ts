@@ -173,7 +173,7 @@ describe("req source-owned links", () => {
       },
       links: [],
       created_by: {
-        scenario: "create-review-context@2",
+        scenario: "create-review-context@1",
         prompt_ref: "prompts/create-review-context.md@1",
         process_ref: "mdlm-bootstrap@0.57.0",
         loaded_skill_refs: [],

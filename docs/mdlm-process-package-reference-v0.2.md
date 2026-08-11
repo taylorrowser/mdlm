@@ -610,10 +610,10 @@ publish no replacement, and preserve accepted history. Only reviewed approval
 makes `change-revision-required@2` Dispatchable.
 
 Approved implementation publishes one same-lineage STK replacement with exact
-`changed-under`. Generic Review Context and Review publication inherit that same
-CHG cause. `stakeholder-change-candidate-required@1` then freezes one
-`intent-change-candidate` containing the replacement, its fresh context and Review,
-and every exact accepted definition/evidence item outside the bounded impact.
+`changed-under`. Its exact Revision identity derives ordinary fresh Review Context
+and Review work. `stakeholder-change-candidate-required@1` then freezes one
+CHG-linked `intent-change-candidate` containing the replacement, its fresh context
+and Review, and every exact accepted definition/evidence item outside the bounded impact.
 The candidate receives a fresh contextual Review. Thus affected context, Review,
 candidate, and evidence are replaced or become Stale through ordinary exact
 dependency reevaluation while unaffected accepted evidence remains reusable.

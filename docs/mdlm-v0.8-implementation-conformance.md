@@ -157,8 +157,8 @@ work drains, and reviewed `stop` reports Lifecycle Complete. Issue #101 hardens
 that declared Phase 7 route around accepted stakeholder intent: only an exact STK
 Revision in an authorized accepted intent baseline can enter CHG impact; exact CHG
 and Decision Reviews precede one attended approve/reject/defer/cancel disposition;
-only approval permits a same-lineage `changed-under` replacement; fresh causal
-context, STK Review, selective candidate, and candidate Review precede closure;
+only approval permits a same-lineage `changed-under` replacement; fresh exact
+context, STK Review, CHG-linked selective candidate, and candidate Review precede closure;
 and every unaffected accepted definition/evidence item remains reusable. Draft
 STK correction remains the ordinary Phase 0 route, while shared accepted SYS
 consumer behavior remains deferred to #102. The lifecycle-neutral
