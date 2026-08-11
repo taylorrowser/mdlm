@@ -1,0 +1,17 @@
+kind: selector-definition
+id: matching-reviewed-phase-2-system-requirement
+version: 1
+description: Exact reviewed SYS output in the same Stable Datum lineage as one proposed retained replacement.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+  - {name: plan, kind: revision, types: [DWP]}
+  - {name: replacement, kind: revision, types: [SYS]}
+result_kind: revision
+query:
+  from:
+    selector: phase-2-system-requirements-for-review@1
+    arguments: {review: review, plan: plan}
+  as: prior
+  where: 'prior.identity.id == replacement.identity.id'
+  distinct: true
+  order_by: [identity.revision_id]

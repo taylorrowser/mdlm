@@ -15,17 +15,11 @@ Read, in order:
 5. `skills/contextual-artifact-review.md@1`
 
 Independently challenge every architecture element, interaction, constraint,
-and interface obligation in the frozen context before DWP completion or candidate
-assembly. Remove complexity that exists only to support itself. Record a terminal
-Review with `review_kind: simplification-architecture-interfaces`.
-
-A pass has no `blocks`, `removes`, or `definition_simplification`. A failure
-nests every blocking primary Finding under the exact `primary_target`; only a
-definition-consistency failure may add `collateral_findings`, whose exact target
-set is the complete canonical blocker set.
-Use `correction_set: subject` only with one canonical `blocks` link to that current
-SYS Revision. Architecture, interface, or planning-DWP change uses
-`definition-consistency` with `blocks` links to every and only exact SYS, ASP,
-ICSP, and planning-DWP context member. Record removed SYS outputs through exact
-`removes` links and rationale under `scope_reduction`; do not preserve or silently
-drop obsolete work.
+and interface obligation in the frozen context. Remove complexity that exists
+only to support itself. Record a terminal Review with
+`review_kind: simplification-architecture-interfaces` against the supplied exact
+Review Context. A pass has no blockers. A failure declares one
+`definition_simplification`: use `subject` only for one exact SYS target, or
+`definition-consistency` when the complete SYS/ASP/ICSP/planning-DWP set must
+change atomically. Canonical `blocks` links name exactly that scope. Use `removes`
+and a `scope_reduction` rationale only for exact SYS outputs made unnecessary.

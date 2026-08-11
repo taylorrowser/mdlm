@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: phase-2-simplification-correction-required
 version: 1
-description: A DWP plan with an uncorrected subject-scoped simplification failure receives one causal same-lineage SYS correction containing all findings from that Review.
+description: One uncorrected subject-scoped simplification failure derives one same-lineage SYS correction carrying all of that Review's findings.
 phases: [phase-2-system-definition]
 for_each: 'select("decomposition-plans@1", {})'
 subject_as: plan
@@ -14,7 +14,7 @@ status_rules:
     when: >-
       exists("failed-phase-2-simplification-reviews-by-scope@1",
         {plan: plan, correction_set: "subject"})
-    reason: Every blocking Finding for one exact SYS subject is ready for one bounded correction.
+    reason: Every blocking Finding for one exact SYS subject travels in one serial Correction.
 default_status: ready
 resolve_with:
   scenario: revise-phase-2-subject-after-simplification@1
@@ -23,8 +23,8 @@ resolve_with:
       one("phase-2-primary-system-simplification-blocker@1",
         {review: one("failed-phase-2-simplification-reviews-by-scope@1",
           {plan: plan, correction_set: "subject"})})
-    failed_reviews: >-
-      select("failed-phase-2-simplification-reviews-by-scope@1",
+    failed_review: >-
+      one("failed-phase-2-simplification-reviews-by-scope@1",
         {plan: plan, correction_set: "subject"})
     plan: plan
     parents: 'select("decomposition-parents-for@1", {plan: plan})'

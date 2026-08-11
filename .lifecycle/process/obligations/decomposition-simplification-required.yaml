@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: decomposition-simplification-required
 version: 1
-description: Every executed DWP requires one passing dedicated requirement-set simplification Review.
+description: Every earliest complete Phase 2 definition set requires one passing requirement simplification Review.
 phases: [phase-2-system-definition]
 for_each: 'select("decomposition-plans@1", {})'
 subject_as: plan
@@ -10,9 +10,11 @@ status_rules:
   - status: failed
     priority: 300
     when: >-
-      exists("failed-phase-2-simplification-reviews-for-plan@1",
-        {plan: plan, review_kind: "simplification-requirements"})
-    reason: Blocking requirement simplification findings require exact subject-bounded or declared consistency-set correction before another judgment.
+      exists("failed-phase-2-simplification-reviews-by-scope@1",
+        {plan: plan, correction_set: "subject"})
+      || exists("failed-phase-2-simplification-reviews-by-scope@1",
+        {plan: plan, correction_set: "definition-consistency"})
+    reason: Exact blocking findings require bounded subject correction or one declared atomic consistency-set correction.
     blocked_by:
       - obligation: phase-2-simplification-correction-required@1
         subjects: '[plan]'
@@ -24,11 +26,11 @@ status_rules:
       none("decomposition-outputs-for@1", {plan: plan})
       || none("decomposition-simplification-contexts-for@1", {plan: plan})
       || exists("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})
-    reason: Simplification waits for exact outputs, one frozen definition-set context, and fresh acceptable Reviews of every exact member.
+    reason: Simplification waits for exact outputs, their complete Review Context, and acceptable Reviews of every exact member.
     blocked_by:
       - obligation: decomposition-execution-required@1
         subjects: '[plan]'
-      - obligation: phase-2-definition-context-required@1
+      - obligation: review-context-required@2
         subjects: '[plan]'
       - obligation: review-context-required@2
         subjects: 'select("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})'
@@ -37,16 +39,14 @@ status_rules:
   - status: awaiting-review
     priority: 100
     when: >-
-      exists("decomposition-outputs-for@1", {plan: plan})
-      && exists("decomposition-simplification-contexts-for@1", {plan: plan})
+      exists("decomposition-simplification-contexts-for@1", {plan: plan})
       && none("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})
-    reason: The frozen requirement set is ready for an adversarial simplification Review.
+    reason: The earliest exact definition set is ready for independent requirement simplification.
 default_status: blocked
 resolve_with:
   scenario: simplify-requirement-set@2
   inputs:
     plan: plan
     subject_context: 'one("decomposition-simplification-contexts-for@1", {plan: plan})'
-    definition_members: >-
-      select("phase-2-definition-members-for-plan@1", {plan: plan})
+    definition_members: 'select("phase-2-definition-members-for-plan@1", {plan: plan})'
 waiver_policy_ref: waiver-applicability@1

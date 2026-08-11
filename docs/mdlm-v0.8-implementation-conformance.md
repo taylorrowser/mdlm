@@ -128,7 +128,7 @@ outputs and retain replacements for every undeclared output lineage. ART command
 omitted, and extra arguments—including omitted versus empty tokens—and gives every
 case deterministic exact-byte observations. Prior VAI/RUN/RES/Review evidence
 remains immutable and cannot satisfy fresh corrected work. Remaining Phase 2 and
-pilot-assessment hardening stay deferred to issues #98–#100. The
+pilot-assessment hardening stay deferred to issues #99–#100. The
 lifecycle-neutral operator contract exposes package-bound attended
 inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
 hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).

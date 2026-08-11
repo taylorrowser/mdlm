@@ -1,0 +1,31 @@
+kind: selector-definition
+id: review-context-members-for
+version: 1
+description: Exact supporting Revisions required beside one primary subject in its current Review Context.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP]}
+  as: member
+  where: >-
+    member != subject
+    && (
+      (exists("intent-candidates-matching-subject@1", {subject: subject})
+        && exists("candidate-members-matching@1",
+          {candidate: one("intent-candidates-matching-subject@1", {subject: subject}), required_member: member}))
+      || (subject.identity.type == "DWP"
+        && subject.payload.stage == "planning"
+        && exists("decomposition-outputs-for@1", {plan: subject})
+        && (
+          (member.identity.type == "SYS"
+            && exists("matching-decomposition-output@1", {plan: subject, output: member}))
+          || (member.identity.type == "ASP"
+            && count("architectures-for-decomposition@1", {plan: subject}) == 1
+            && member == one("architectures-for-decomposition@1", {plan: subject}))
+          || (member.identity.type == "ICSP"
+            && exists("matching-decomposition-interface@1", {plan: subject, interface: member}))
+        ))
+    )
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

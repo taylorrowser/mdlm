@@ -1,7 +1,7 @@
 kind: selector-definition
-id: phase-2-simplification-contexts-for-review
+id: phase-2-contexts-for-review
 version: 1
-description: The exact frozen Review Context cited by one Phase 2 simplification Review.
+description: Exact frozen Review Context cited by one Phase 2 simplification Review.
 parameters:
   - {name: review, kind: revision, types: [REV]}
 result_kind: baseline

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: decomposition-outputs-for
 version: 1
-description: Current exact SYS revisions that identify the supplied reviewed DWP plan as their decomposition source.
+description: Current valid SYS Revisions that identify the supplied reviewed DWP plan as their decomposition source.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision

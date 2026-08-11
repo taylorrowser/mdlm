@@ -15,7 +15,6 @@ Read, in order:
 
 Correct the exact SYS Revision once for every supplied blocking Review Finding.
 Keep its Stable Datum identity and all still-applicable exact parent, DWP,
-architecture, and interface bindings. Link `corrects-review` to every supplied
-failed REV. Do not absorb another subject's findings or add replacement scope.
+architecture, and interface bindings. Link `corrects-review` to the supplied failed REV. Do not absorb another subject's findings or add replacement scope.
 The corrected Revision requires a fresh exact Review Context, contextual Review,
 and complete-set simplification judgment before DWP completion can resume.

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: architecture-simplification-reviews-for
 version: 1
-description: Passing architecture/interface simplification Reviews for one exact DWP plan.
+description: Current-context passing architecture and interface simplification Reviews for one exact DWP plan.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
@@ -10,14 +10,11 @@ query:
   as: review
   where: >-
     review.payload.review_kind == "simplification-architecture-interfaces"
-    && review.payload.decomposition_plan_revision == plan.identity.revision_id
     && review.payload.outcome == "pass"
-    && state(review, "validity") == "valid"
-    && count("phase-2-simplification-contexts-for-review@1", {review: review}) == 1
-    && count("decomposition-simplification-contexts-for@1", {plan: plan}) == 1
-    && one("phase-2-simplification-contexts-for-review@1", {review: review})
-      == one("decomposition-simplification-contexts-for@1", {plan: plan})
-    && none("failed-phase-2-simplification-reviews-for-plan@1",
-      {plan: plan, review_kind: "simplification-architecture-interfaces"})
+    && exists("valid-phase-2-simplification-review@1", {review: review, plan: plan})
+    && none("failed-phase-2-simplification-reviews-by-scope@1",
+      {plan: plan, correction_set: "subject"})
+    && none("failed-phase-2-simplification-reviews-by-scope@1",
+      {plan: plan, correction_set: "definition-consistency"})
   distinct: true
   order_by: [identity.revision_id]

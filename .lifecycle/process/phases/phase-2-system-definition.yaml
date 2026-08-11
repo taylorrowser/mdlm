@@ -31,7 +31,6 @@ scenarios:
   - define-decomposition-work-package@2
   - execute-decomposition-work-package@2
   - create-review-context@1
-  - create-phase-2-definition-context@1
   - review-datum-in-context@2
   - simplify-requirement-set@2
   - simplify-architecture-and-interfaces@2
@@ -55,7 +54,6 @@ obligations:
   - decomposition-planning-required@1
   - decomposition-execution-required@1
   - decomposition-output-reviews-required@1
-  - phase-2-definition-context-required@1
   - decomposition-simplification-required@1
   - architecture-interface-simplification-required@1
   - phase-2-simplification-correction-required@1

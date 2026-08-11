@@ -1,7 +1,7 @@
 kind: selector-definition
 id: decomposition-simplification-contexts-for
 version: 1
-description: Frozen Review Contexts containing the exact current DWP plan, SYS outputs, architecture, and interfaces.
+description: The frozen Review Context containing every and only member of the current planning DWP, SYS, ASP, and ICSP set.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: baseline
@@ -12,13 +12,10 @@ query:
   as: context
   where: >-
     context.payload.scope == plan.identity.revision_id
-    && count("phase-2-definition-context-members@1", {context: context})
+    && count("review-context-members@1", {context: context})
       == count("phase-2-definition-members-for-plan@1", {plan: plan})
-    && every("decomposition-outputs-for@1", {plan: plan}, output =>
-      exists("baseline-contains-definition@1", {baseline: context, subject: output}))
-    && every("architectures-for-decomposition@1", {plan: plan}, architecture =>
-      exists("baseline-contains-definition@1", {baseline: context, subject: architecture}))
-    && every("interfaces-for-decomposition@1", {plan: plan}, interface =>
-      exists("baseline-contains-definition@1", {baseline: context, subject: interface}))
+    && every("phase-2-definition-members-for-plan@1", {plan: plan}, member =>
+      exists("review-context-contains-member@1",
+        {context: context, required_member: member}))
   distinct: true
   order_by: [identity.revision_id]

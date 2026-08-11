@@ -1,7 +1,7 @@
 kind: selector-definition
 id: phase-2-primary-system-simplification-blocker
 version: 1
-description: The canonical SYS blocker matching one failed Review's typed primary target.
+description: The canonical SYS blocker matching one Review's declared primary target.
 parameters:
   - {name: review, kind: revision, types: [REV]}
 result_kind: revision

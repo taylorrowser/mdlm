@@ -1,11 +1,11 @@
 kind: scenario-definition
 id: revise-phase-2-subject-after-simplification
 version: 1
-description: Correct one exact SYS subject and all of its current blocking simplification findings without widening scope.
+description: Correct one exact SYS subject and every blocking Finding in its current simplification Review without widening scope.
 phases: [phase-2-system-definition]
 inputs:
   - {name: subject, types: [SYS], cardinality: one, identity: revision}
-  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+  - {name: failed_review, types: [REV], cardinality: one, identity: revision}
   - {name: plan, types: [DWP], cardinality: one, identity: revision}
   - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
@@ -15,7 +15,7 @@ outputs:
     types: [SYS]
     cardinality: one
     required_links:
-      - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: corrects-review, target: {input: failed_review}}
       - {link: derived-from, target: {input: parents}}
       - {link: decomposes, target: {input: plan}}
       - {link: allocated-to, target: {input: architecture}}

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: phase-2-review-blocks-definition-member
 version: 1
-description: The supplied exact definition member when one Phase 2 simplification Review canonically blocks it.
+description: The supplied exact definition member when one Phase 2 simplification Review blocks it.
 parameters:
   - {name: review, kind: revision, types: [REV]}
   - {name: member, kind: revision, types: [SYS, ASP, ICSP, DWP]}

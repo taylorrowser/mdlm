@@ -13,18 +13,12 @@ Read, in order:
 3. `skills/coverage-analysis.md@1`
 4. `skills/contextual-artifact-review.md@1`
 
-Independently challenge every exact requirement in the frozen context before DWP
-completion or candidate assembly. Look for removable, mergeable, duplicated,
-conflicting, unjustified, or missing behavior. Record a terminal Review with
-`review_kind: simplification-requirements`.
-
-A pass has no `blocks`, `removes`, or `definition_simplification`. A failure
-nests every blocking primary Finding under the exact `primary_target`; only a
-definition-consistency failure may add `collateral_findings`, whose exact target
-set is the complete canonical blocker set.
-Use `correction_set: subject` only with one canonical `blocks` link to that current
-SYS Revision. Use `definition-consistency` only with `blocks` links to every and
-only exact SYS, ASP, ICSP, and planning-DWP context member that must change
-atomically. When challenged SYS scope is actually removed, link each exact
-historical output through `removes` and record the rationale under
-`scope_reduction`; do not retain or silently drop downstream work.
+Independently challenge every exact requirement in the frozen context. Look for
+removable, mergeable, duplicated, conflicting, unjustified, or missing behavior.
+Record a terminal Review with `review_kind: simplification-requirements` against
+the supplied exact Review Context. A pass has no blockers. A failure declares one
+`definition_simplification`: use `subject` with one exact SYS `primary_target` and
+all of its primary Findings, or `definition-consistency` only when the complete
+SYS/ASP/ICSP/planning-DWP set must change atomically. Canonical `blocks` links
+name the one subject or every member of that exact set. Use `removes` plus a
+`scope_reduction` rationale only for exact SYS outputs that no longer apply.

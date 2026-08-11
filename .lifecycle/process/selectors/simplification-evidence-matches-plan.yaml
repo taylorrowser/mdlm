@@ -1,7 +1,7 @@
 kind: selector-definition
 id: simplification-evidence-matches-plan
 version: 1
-description: The supplied Review only when it is valid passing simplification evidence for one exact DWP plan Revision.
+description: The supplied Review only when it is current valid passing simplification evidence for one exact DWP plan Revision.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
   - {name: evidence, kind: revision, types: [REV]}
@@ -11,15 +11,11 @@ query:
   as: review
   where: >-
     review == evidence
-    && review.payload.review_kind in ["simplification-requirements", "simplification-architecture-interfaces"]
-    && review.payload.decomposition_plan_revision == plan.identity.revision_id
     && review.payload.outcome == "pass"
-    && state(review, "validity") == "valid"
-    && count("phase-2-simplification-contexts-for-review@1", {review: review}) == 1
-    && count("decomposition-simplification-contexts-for@1", {plan: plan}) == 1
-    && one("phase-2-simplification-contexts-for-review@1", {review: review})
-      == one("decomposition-simplification-contexts-for@1", {plan: plan})
-    && none("failed-phase-2-simplification-reviews-for-plan@1",
-      {plan: plan, review_kind: review.payload.review_kind})
+    && exists("valid-phase-2-simplification-review@1", {review: review, plan: plan})
+    && none("failed-phase-2-simplification-reviews-by-scope@1",
+      {plan: plan, correction_set: "subject"})
+    && none("failed-phase-2-simplification-reviews-by-scope@1",
+      {plan: plan, correction_set: "definition-consistency"})
   distinct: true
   order_by: [identity.revision_id]

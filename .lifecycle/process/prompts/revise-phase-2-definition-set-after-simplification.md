@@ -18,11 +18,11 @@ Read, in order:
 
 The failed Review declared that its exact architecture, interface, planning DWP,
 and SYS definitions must change atomically to preserve their controlled
-consistency. Address every primary and collateral Finding in the supplied failed
-REV set. Publish same-lineage ASP, ICSP, and planning-DWP replacements plus only
+consistency. Address every primary and collateral Finding in the supplied failed REV.
+Publish same-lineage ASP, every ICSP, and the planning-DWP replacements plus only
 the still-necessary same-lineage SYS replacements. Link every replacement through
-`corrects-review` to every supplied failed REV and bind all internal references to
-the replacement Revisions.
+`corrects-review` to that failed REV and bind all internal references to the
+replacement Revisions.
 
 When the failed Review links exact SYS outputs through `removes` and records its
 `scope_reduction` rationale, do not copy those outputs into the replacement DWP or

@@ -43,14 +43,16 @@ describe("req system decomposition slice", () => {
       "define-interface-control-specification@2",
       "define-system-architecture@2",
       "execute-decomposition-work-package@2",
-      "create-phase-2-definition-context@1",
+      "revise-phase-2-subject-after-simplification@1",
+      "revise-phase-2-definition-set-after-simplification@1",
       "simplify-architecture-and-interfaces@2",
       "simplify-requirement-set@2",
     ]));
     expect(catalogs.obligations).toEqual(expect.arrayContaining([
       "decomposition-completion-required@1",
       "decomposition-output-reviews-required@1",
-      "phase-2-definition-context-required@1",
+      "phase-2-simplification-correction-required@1",
+      "phase-2-definition-consistency-correction-required@1",
       "decomposition-parent-coverage-required@1",
       "decomposition-simplification-required@1",
     ]));
@@ -775,56 +777,23 @@ describe("req system decomposition slice", () => {
       }),
     );
 
-    const definitionMembers = [
-      system.revisionId,
-      plan.revisionId,
-      architecture.revisionId,
-      interfaceSpec.revisionId,
-    ];
     const definitionContext = await createDiscoveredReviewContext(
-      "Exact decomposition output context",
+      "Exact decomposition definition set",
       system.revisionId,
-      definitionMembers,
+      [system.revisionId, plan.revisionId, architecture.revisionId, interfaceSpec.revisionId],
     );
     await publishDiscoveredReview(system.revisionId, definitionContext.revisionId);
-    const definitionContextWork = obligation(
-      "phase-2-definition-context-required",
+    const definitionMembers = [
+      architecture.revisionId,
       plan.revisionId,
+      interfaceSpec.revisionId,
+      system.revisionId,
+    ];
+    const simplificationContext = await createDiscoveredReviewContext(
+      "Earliest exact Phase 2 definition set",
+      plan.revisionId,
+      definitionMembers,
     );
-    expect(definitionContextWork).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "create-phase-2-definition-context@1",
-    }));
-    const definitionContextExecution = await execute(
-      definitionContextWork,
-      {
-        outputs: [{
-          name: "context",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "BSL",
-            payload: {
-              title: "Exact decomposition simplification context",
-              kind: "review-context",
-              role: "review-context",
-              scope: plan.revisionId,
-              group: "DEFAULT",
-              definition_members: definitionMembers,
-              evidence: [],
-            },
-            links: [],
-            body: "Earliest complete Phase 2 definition set.\n",
-          },
-        }],
-        completionEvidence: { summary: "The exact definition set was frozen." },
-      },
-      [],
-      "definition-context",
-    );
-    const simplificationContext = definitionContextExecution.outputs[0].lifecycleDatum as {
-      revisionId: string;
-    };
 
     const simplify = async (
       obligationName: string,
@@ -863,7 +832,11 @@ describe("req system decomposition slice", () => {
           }],
           completionEvidence: { summary: "The dedicated simplification challenge passed." },
         },
-        [`plan=${plan.revisionId}`, `subject_context=${simplificationContext.revisionId}`],
+        [
+          `plan=${plan.revisionId}`,
+          `subject_context=${simplificationContext.revisionId}`,
+          `definition_members=${definitionMembers.join(",")}`,
+        ],
         scenario,
         "independent-reviewer",
       );

@@ -97,6 +97,8 @@ catalog:
     - candidate-members-matching
     - candidate-definition-members
     - phase-0-candidate-review-context-members
+    - review-context-members-for
+    - review-context-members
     - review-context-contains-member
     - complete-phase-0-intent-candidates
     - complete-superseding-intent-candidates-for
@@ -194,30 +196,25 @@ catalog:
     - planning-revisions-for-completion
     - decomposition-parents-for
     - decomposition-outputs-for
-    - prior-phase-2-system-requirements-for-plan
     - unreviewed-decomposition-outputs-for
     - phase-2-definition-members-for-plan
-    - phase-2-definition-context-members
     - unreviewed-phase-2-definition-members-for-plan
     - decomposition-review-contexts-for
     - decomposition-simplification-contexts-for
     - matching-decomposition-context-for-output
+    - phase-2-contexts-for-review
+    - phase-2-review-context-matches-plan
     - phase-2-simplification-blockers-for-review
     - phase-2-review-blocks-definition-member
     - phase-2-removed-outputs-for-review
-    - phase-2-simplification-contexts-for-review
-    - phase-2-primary-definition-simplification-blocker
+    - phase-2-review-removes-output
+    - phase-2-primary-simplification-blocker
     - phase-2-primary-system-simplification-blocker
     - phase-2-corrections-for-review
-    - failed-phase-2-simplification-reviews-for-plan
+    - phase-2-system-requirements-for-review
+    - matching-reviewed-phase-2-system-requirement
+    - valid-phase-2-simplification-review
     - failed-phase-2-simplification-reviews-by-scope
-    - matching-prior-phase-2-system-requirement
-    - matching-replacement-phase-2-system-requirement
-    - phase-2-scope-removal-reviews-for-output
-    - phase-2-replacement-plan-corrects-review
-    - retained-removed-phase-2-system-requirements
-    - undeclared-removed-phase-2-system-requirements
-    - unexpected-corrected-phase-2-system-requirements
     - requirement-simplification-reviews-for
     - architecture-simplification-reviews-for
     - blocking-questions-for-decomposition
@@ -314,7 +311,6 @@ catalog:
     - decomposition-planning-required
     - decomposition-execution-required
     - decomposition-output-reviews-required
-    - phase-2-definition-context-required
     - decomposition-simplification-required
     - architecture-interface-simplification-required
     - phase-2-simplification-correction-required
@@ -369,7 +365,6 @@ catalog:
     - define-interface-control-specification
     - define-decomposition-work-package
     - execute-decomposition-work-package
-    - create-phase-2-definition-context
     - simplify-requirement-set
     - simplify-architecture-and-interfaces
     - revise-phase-2-subject-after-simplification
@@ -426,7 +421,6 @@ assets:
     - prompts/define-interface-control-specification.md@1
     - prompts/define-decomposition-work-package.md@1
     - prompts/execute-decomposition-work-package.md@1
-    - prompts/create-phase-2-definition-context.md@1
     - prompts/simplify-requirement-set.md@1
     - prompts/simplify-architecture-and-interfaces.md@1
     - prompts/revise-phase-2-subject-after-simplification.md@1

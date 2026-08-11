@@ -1,7 +1,7 @@
 kind: selector-definition
-id: phase-2-primary-definition-simplification-blocker
+id: phase-2-primary-simplification-blocker
 version: 1
-description: The canonical Phase 2 definition blocker matching one failed Review's declared primary target.
+description: The canonical Phase 2 definition blocker matching one Review's declared primary target.
 parameters:
   - {name: review, kind: revision, types: [REV]}
 result_kind: revision

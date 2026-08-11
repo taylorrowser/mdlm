@@ -1,7 +1,7 @@
 kind: selector-definition
 id: unreviewed-phase-2-definition-members-for-plan
 version: 1
-description: Current exact SYS, ASP, ICSP, or planning-DWP members lacking fresh acceptable contextual Review before simplification.
+description: Current Phase 2 definition members lacking acceptable Review evidence for their exact Revision.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
