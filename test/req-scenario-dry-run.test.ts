@@ -57,7 +57,7 @@ async function packageWithRejectedInput(): Promise<string> {
         "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
       )
       .replace(
-        "  - {name: context_members, types: [MAP, PSP, STK], cardinality: zero-or-more, identity: revision}\n",
+        "  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP], cardinality: zero-or-more, identity: revision}\n",
         "",
       ),
   );
@@ -69,7 +69,7 @@ async function packageWithRejectedInput(): Promise<string> {
   await fs.writeFile(
     obligationPath,
     obligation.replace(
-      "    context_members: 'select(\"phase-0-candidate-review-context-members@1\", {subject: subject})'\n",
+      "    context_members: 'select(\"review-context-members-for@1\", {subject: subject})'\n",
       "",
     ),
   );
@@ -297,7 +297,7 @@ describe("req scenario dry-run", () => {
                 expect.objectContaining({
                   name: "context_members",
                   contract: expect.objectContaining({
-                    types: ["MAP", "PSP", "STK"],
+                    types: ["ASP", "DWP", "ICSP", "MAP", "PSP", "STK", "SYS"],
                     cardinality: "zero-or-more",
                     identity: "revision",
                   }),
