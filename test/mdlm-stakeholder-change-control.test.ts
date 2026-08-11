@@ -21,6 +21,8 @@ const ids = {
   problem: "PRB-1010000000",
   baseline: "BSL-1010000000",
   sourceBoundary: "BSL-1010000001",
+  draftReviewContext: "BSL-1010000002",
+  draftReview: "REV-1010000000",
 };
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
@@ -88,7 +90,7 @@ initiation: explicit
 phases: [phase-7-change-control]
 inputs: []
 outputs:
-  - {name: data, types: [PSP, STK, VSP, VER, ART, PRB, BSL], cardinality: one-or-more, required_links: []}
+  - {name: data, types: [PSP, STK, VSP, VER, ART, PRB, BSL, REV], cardinality: one-or-more, required_links: []}
 prompt_ref: prompts/seed-accepted-stakeholder-change.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
@@ -309,6 +311,25 @@ describe("accepted STK change control through the public operator process", () =
     };
     await executeSeed(outputs);
     await executeSeed([
+      output("draft-review-context", "data", "BSL", {
+        title: "Review Context for individually passing unaccepted intent",
+        kind: "review-context",
+        role: "review-context",
+        scope: revision(ids.draft),
+        group: "DEFAULT",
+        definition_members: [revision(ids.draft)],
+        evidence: [],
+      }, [], ids.draftReviewContext),
+      output("draft-review", "data", "REV", {
+        title: "Passing Review of unaccepted stakeholder requirement",
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      }, [
+        { type: "reviews", target: revision(ids.draft) },
+        { type: "contextualizes", target: revision(ids.draftReviewContext) },
+      ], ids.draftReview),
       output("accepted-baseline", "data", "BSL", {
         title: "Authorized accepted intent",
         kind: "intent-approved",
@@ -440,6 +461,12 @@ describe("accepted STK change control through the public operator process", () =
     let packet = prepare(next);
     expect(packet.scenario.reference).toBe("analyze-change-impact@2");
 
+    const unacceptedReview = mdlm(repository, ["show", revision(ids.draftReview), "--json"]);
+    expect(unacceptedReview.status, `${unacceptedReview.stderr}${unacceptedReview.stdout}`).toBe(0);
+    expect(JSON.parse(unacceptedReview.stdout).lifecycleDatum.datum.payload.outcome).toBe("pass");
+    const unacceptedRequirement = mdlm(repository, ["show", revision(ids.draft), "--json"]);
+    expect(unacceptedRequirement.status, `${unacceptedRequirement.stderr}${unacceptedRequirement.stdout}`).toBe(0);
+    expect(JSON.parse(unacceptedRequirement.stdout).projections.states.maturity).toBe("review-frozen");
     const draftRejected = respond(packet, [changeOutput(revision(ids.draft))]);
     expect(draftRejected.status).toBe(1);
     expect(JSON.parse(draftRejected.stdout).diagnostics).toEqual(expect.arrayContaining([
@@ -500,6 +527,9 @@ describe("accepted STK change control through the public operator process", () =
       const terminal = nextOutcome();
       expect(terminal.outcome).toBe("profile-boundary-reached");
       expect(terminal.phase).toBe("phase-7-change-control@3");
+      const status = mdlm(repository, ["status", "--json"]);
+      expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+      expect(JSON.parse(status.stdout).unresolvedWork.total).toBe(0);
       expect(git(repository, "grep", "STK-1010000001-r00002", "--", ".lifecycle/data").status).toBe(1);
       const accepted = mdlm(repository, ["show", revision(ids.accepted), "--json"]);
       expect(accepted.status, `${accepted.stderr}${accepted.stdout}`).toBe(0);
@@ -555,6 +585,12 @@ describe("accepted STK change control through the public operator process", () =
     next = nextOutcome();
     work = prepare(next);
     const review = publishReview(work);
+
+    const implementingChange = mdlm(repository, ["show", change.revisionId, "--json"]);
+    expect(implementingChange.status, `${implementingChange.stderr}${implementingChange.stdout}`).toBe(0);
+    expect(JSON.parse(implementingChange.stdout).projections.states["change-status"]).toBe(
+      "implementation-in-progress",
+    );
 
     next = nextOutcome();
     expect(next.outcome, JSON.stringify(next)).toBe("assignment");

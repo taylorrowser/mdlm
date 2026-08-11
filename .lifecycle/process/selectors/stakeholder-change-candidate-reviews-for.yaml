@@ -9,7 +9,8 @@ query:
   from: {collection: revisions, types: [REV]}
   as: review
   where: >-
-    every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
+    exists("stakeholder-change-candidates-for@1", {change: change})
+    && every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
       exists("matching-passing-review-for@1", {subject: candidate, review: review}))
   distinct: true
   order_by: [identity.revision_id]

@@ -5,7 +5,9 @@ description: Every approved accepted-STK replacement requires a fresh exact revi
 phases: [phase-7-change-control]
 for_each: 'select("all-change-requests@1", {})'
 subject_as: change
-satisfied_when: 'exists("stakeholder-change-candidates-for@1", {change: change})'
+satisfied_when: >-
+  exists("stakeholder-change-candidates-for@1", {change: change})
+  || exists("terminal-change-disposition-decisions-for@1", {change: change})
 status_rules:
   - status: blocked
     priority: 300

@@ -11,6 +11,7 @@ query:
   where: >-
     context.payload.kind == "review-context"
     && context.storage.frozen == true
+    && exists("revised-requirements-for-change@2", {change: change})
     && every("revised-requirements-for-change@2", {change: change}, requirement =>
       exists("baseline-contains-definition@1", {baseline: context, subject: requirement}))
   distinct: true

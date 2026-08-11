@@ -9,7 +9,8 @@ query:
   from: {collection: revisions, types: [REV]}
   as: review
   where: >-
-    every("revised-requirements-for-change@2", {change: change}, requirement =>
+    exists("revised-requirements-for-change@2", {change: change})
+    && every("revised-requirements-for-change@2", {change: change}, requirement =>
       exists("matching-passing-review-for@1", {subject: requirement, review: review}))
   distinct: true
   order_by: [identity.revision_id]
