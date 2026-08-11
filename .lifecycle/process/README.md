@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.55
+# MDLM bootstrap process package v0.56
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -250,8 +250,10 @@ candidate preserves unaffected evidence and links `supersedes` to the rejected
 candidate. Its fresh passing product-simplification Review returns normal
 attention to the same package gate. Failed member re-Review enters the existing two-cycle correction
 budget and attended escalation. Rejection never implies stop, defer, or cancel;
-those dispositions require separate exact reviewed Decisions. Remaining Phase 2
-rejection routes are intentionally deferred to issue #99.
+those dispositions require separate exact reviewed Decisions. Phase 2 uses the
+same correction-and-return behavior for its exact level candidate: a causal
+same-lineage replacement preserves every unaffected member, evidence Revision,
+and composed group while `supersedes` records the rejected predecessor.
 
 ## Phase 1 qualification and pilot tracer slice
 
@@ -341,16 +343,33 @@ references for DWP and SYS; duplicate payload reference arrays are deliberately
 absent, so stale payload/link combinations cannot publish. Every replacement cites
 the failed REV through `corrects-review`, receives fresh contextual Review with the
 complete exact member bodies in its Assignment, and re-enters both complete-set
-simplification judgments. Exact `removes` links preserve scope-reduction evidence:
+simplification judgments. Ordinary failed Reviews and exact collateral `flags`
+across SYS, ASP, ICSP, and planning or completion DWP Revisions use one deep
+subject-bounded Correction interface. It carries all exact causes, preserves
+unaffected source-owned links, permits two autonomous cycles, and then projects
+immediate attended escalation. Unsupported multiple-current single-valued
+architecture, strategy, or plan cardinality projects an attended exact
+cancellation Decision and its independent Review instead of choosing arbitrarily;
+valid multi-interface sets remain intact. Exact `removes` links preserve scope-reduction evidence:
 a reduced plan must retain at least one SYS output, leave removed lineages without
 a newer Revision, give every retained lineage exactly one replacement linked to
 the replacement plan, and admit no new lineage. The completion Scenario publishes the next DWP Revision in the same
-Stable Datum lineage only after those exact obligations resolve. Package-
+Stable Datum lineage only after those exact obligations resolve. Its canonical
+`decomposes`, `produces`, `allocated-to`, `governed-by`, `derived-from`, and
+`justifies` links must cover every and only the package-bound parent, output,
+architecture, interface, and simplification inputs, so an incomplete account
+cannot publish. Package-
 discovered candidate Scenarios freeze the exact reviewed completion, outputs,
 architecture, interfaces, and simplification evidence as a group candidate, then
 compose its reviewed Revision with shared VSP, ASP, and ICSP context as the level
-candidate. Only that reviewed level candidate receives exact gate authorization,
-and the same reviewed approval authorizes progression to pilot assessment.
+candidate. Failed group or level candidate Reviews derive an evidence-preserving
+same-lineage replacement with `supersedes`, fresh Review, and bounded escalation.
+Only the reviewed level candidate receives exact gate authorization. After the
+approving gate DEC and its independent Review pass, an autonomous mechanical
+Scenario freezes every flattened exact member and the exact candidate/gate Review
+evidence in a `level-accepted` baseline. That existing reviewed approval then
+authorizes progression to pilot assessment without a redundant stakeholder
+Decision.
 
 Scenario required-link validation follows the source type's identity contract, so
 an exact Revision input is normalized to its Stable Datum ID only when the

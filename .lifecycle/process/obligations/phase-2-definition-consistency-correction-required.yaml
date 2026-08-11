@@ -10,6 +10,12 @@ satisfied_when: >-
     {plan: plan, correction_set: "definition-consistency"})
 status_rules:
   - status: ready
+    priority: 200
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: plan, view: "autonomous-corrections"}) >= 2
+    reason: Two autonomous consistency-set Correction cycles failed; immediate attended escalation now uses the same exact interface.
+  - status: ready
     priority: 100
     when: >-
       exists("failed-phase-2-simplification-reviews-by-scope@1",

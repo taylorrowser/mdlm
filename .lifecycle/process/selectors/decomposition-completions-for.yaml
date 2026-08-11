@@ -1,13 +1,17 @@
 kind: selector-definition
 id: decomposition-completions-for
 version: 1
-description: Exact completion revisions in the supplied DWP plan lineage.
+description: Current exact valid completion Revision in the supplied DWP plan lineage; failed predecessors remain immutable history.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
 query:
   from: {relation: revisions, of: plan, emit: entity, types: [DWP]}
   as: completion
-  where: 'completion.payload.stage == "completion"'
+  where: >-
+    completion.payload.stage == "completion"
+    && state(completion, "disposition") == "active"
+    && state(completion, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: completion})
   distinct: true
   order_by: [identity.revision]

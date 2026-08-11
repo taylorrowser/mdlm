@@ -5,12 +5,22 @@ description: Record the next exact completion Revision for a reviewed, covered, 
 phases: [phase-2-system-definition]
 inputs:
   - {name: plan, types: [DWP], cardinality: one, identity: revision}
+  - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: outputs, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: one-or-more, identity: revision}
+  - {name: simplification_reviews, types: [REV], cardinality: one-or-more, identity: revision}
 outputs:
   - name: completion
     types: [DWP]
     cardinality: one
     required_links:
       - {link: derived-from, target: {input: plan}}
+      - {link: decomposes, target: {input: parents}}
+      - {link: produces, target: {input: outputs}}
+      - {link: allocated-to, target: {input: architecture}}
+      - {link: governed-by, target: {input: interfaces}}
+      - {link: justifies, target: {input: simplification_reviews}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/complete-decomposition-work-package.md@1
 review_policy_ref: review-applicability@1
@@ -20,6 +30,13 @@ completion: >-
   && completion.payload.stage == "completion"
   && completion.payload.parent_coverage_status in ["complete", "waived"]
   && completion.payload.output_reviews_complete == true
+  && count("decomposition-parents-for@1", {plan: completion})
+    == count("decomposition-parents-for@1", {plan: plan})
+  && count("completion-outputs-for@1", {completion: completion})
+    == count("decomposition-outputs-for@1", {plan: plan})
+  && every("completion-simplification-evidence-for@1", {completion: completion}, review =>
+    exists("simplification-evidence-matches-plan@1",
+      {plan: plan, evidence: review}))
   && count("architectures-for-decomposition@1", {plan: completion}) == 1
   && one("architectures-for-decomposition@1", {plan: completion}) == one("architectures-for-decomposition@1", {plan: plan})
   && count("strategies-for-decomposition@1", {plan: completion}) == 1

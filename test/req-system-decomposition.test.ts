@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -5,7 +6,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { req } from "./helpers/req.js";
 import { freezeQuestionSource } from "./helpers/source-boundary.js";
 
-const examplePackage = path.join(process.cwd(), ".lifecycle/process");
+const projectRoot = process.cwd();
+const examplePackage = path.join(projectRoot, ".lifecycle/process");
+const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
+
+function mdlm(repository: string, ...arguments_: string[]) {
+  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
+    cwd: repository,
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
 
 describe("req system decomposition slice", () => {
   let repositoryRoot: string;
@@ -858,13 +869,11 @@ describe("req system decomposition slice", () => {
     );
     const completionWork = obligation("decomposition-completion-required", plan.revisionId);
     expect(completionWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
-    const completionExecution = await execute(
-      completionWork,
-      {
-        outputs: [{
-          name: "completion",
-          invocation: 0,
-          lifecycleDatum: {
+    const completionResponse = {
+      outputs: [{
+        name: "completion",
+        invocation: 0,
+        lifecycleDatum: {
             id: plan.id,
             type: "DWP",
             payload: {
@@ -904,15 +913,48 @@ describe("req system decomposition slice", () => {
               { type: "justifies", target: requirementSimplification },
               { type: "justifies", target: architectureSimplification },
             ],
-            body: "All exact parent coverage and simplification evidence is accounted for.\n",
-          },
-        }],
-        completionEvidence: { summary: "The DWP completion Revision records complete coverage." },
-      },
-      [`plan=${plan.revisionId}`],
+          body: "All exact parent coverage and simplification evidence is accounted for.\n",
+        },
+      }],
+      completionEvidence: { summary: "The DWP completion Revision records complete coverage." },
+    };
+    const completionInputs = [
+      `plan=${plan.revisionId}`,
+      `parents=${stakeholder.revisionId}`,
+      `outputs=${system.revisionId}`,
+      `architecture=${architecture.revisionId}`,
+      `interfaces=${interfaceSpec.revisionId}`,
+      `simplification_reviews=${requirementSimplification},${architectureSimplification}`,
+    ];
+    const incompleteResponse = structuredClone(completionResponse);
+    incompleteResponse.outputs[0]!.lifecycleDatum.links = incompleteResponse.outputs[0]!
+      .lifecycleDatum.links.filter((link) => link.type !== "produces");
+    const incompleteAdapter = await adapter(incompleteResponse, "incomplete-dwp");
+    const incompleteCompletion = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(completionWork.actionableResolver),
+      "--obligation",
+      String(completionWork.id),
+      "--adapter",
+      incompleteAdapter,
+      ...completionInputs.flatMap((input) => ["--input", input]),
+      "--json",
+    );
+    expect(incompleteCompletion.status).toBe(1);
+    expect(JSON.parse(incompleteCompletion.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "scenario-output-required-link-missing" }),
+    );
+    expect(req(repositoryRoot, "show", `${plan.id}-r00002`, "--json").status).toBe(1);
+
+    const completionExecution = await execute(
+      completionWork,
+      completionResponse,
+      completionInputs,
       "complete-dwp",
     );
-    const completion = completionExecution.outputs[0].lifecycleDatum as { id: string; revisionId: string };
+    let completion = completionExecution.outputs[0].lifecycleDatum as { id: string; revisionId: string };
     expect(completion.id).toBe(plan.id);
     expect(completion.revisionId).toBe(`${plan.id}-r00002`);
     expect(phaseItems().find((item) =>
@@ -929,14 +971,115 @@ describe("req system decomposition slice", () => {
     expect(obligation("passing-review-required", completion.revisionId)).toEqual(
       expect.objectContaining({ status: "awaiting-review", dispatchable: true }),
     );
+    const failedCompletionWork = obligation("passing-review-required", completion.revisionId);
+    const failedCompletionExecution = await execute(
+      failedCompletionWork,
+      {
+        outputs: [{
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: "Failed exact DWP completion Review",
+              review_kind: "contextual",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [{
+                id: "F-099",
+                target: completion.revisionId,
+                relationship: "primary",
+                severity: "blocking",
+                summary: "Clarify that every exact output remains canonically accounted for.",
+              }],
+              outcome: "fail",
+            },
+            links: [
+              { type: "reviews", target: completion.revisionId },
+              { type: "contextualizes", target: completionContext.revisionId },
+            ],
+            body: "The exact account needs one local clarification.\n",
+          },
+        }],
+        completionEvidence: { summary: "Independent completion Review failed." },
+      },
+      [
+        `subject=${completion.revisionId}`,
+        `review_context=${completionContext.revisionId}`,
+      ],
+      "failed-completion-review",
+      "independent-reviewer",
+    );
+    const failedCompletionReview = failedCompletionExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const completionCorrection = obligation(
+      "phase-2-review-correction-required",
+      completion.revisionId,
+    );
+    expect(completionCorrection).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-phase-2-subject-after-review@1",
+    }));
+    const priorCompletion = completion;
+    const priorCompletionResult = req(
+      repositoryRoot,
+      "show",
+      priorCompletion.revisionId,
+      "--json",
+    );
+    const priorCompletionDatum = JSON.parse(priorCompletionResult.stdout).lifecycleDatum.datum;
+    const correctedCompletionExecution = await execute(
+      completionCorrection,
+      {
+        outputs: [{
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: priorCompletion.id,
+            type: "DWP",
+            payload: {
+              ...priorCompletionDatum.payload,
+              title: "Clarified complete report export decomposition",
+            },
+            links: [
+              ...priorCompletionDatum.links,
+              { type: "corrects-review", target: failedCompletionReview.revisionId },
+            ],
+            body: "Clarified exact account preserves every canonical dependency.\n",
+          },
+        }],
+        completionEvidence: { summary: "Corrected one exact completion subject." },
+      },
+      [
+        `subject=${priorCompletion.revisionId}`,
+        `reviews=${failedCompletionReview.revisionId}`,
+      ],
+      "correct-completion-review",
+    );
+    completion = correctedCompletionExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    const correctedCompletionContext = await createDiscoveredReviewContext(
+      "Corrected DWP completion context",
+      completion.revisionId,
+      [completion.revisionId, system.revisionId, architecture.revisionId, interfaceSpec.revisionId],
+      [requirementSimplification, architectureSimplification],
+    );
     await publishDiscoveredReview(
       completion.revisionId,
-      completionContext.revisionId,
-      "Review exact DWP completion",
+      correctedCompletionContext.revisionId,
+      "Review corrected exact DWP completion",
     );
     const shownCompletion = req(repositoryRoot, "show", completion.revisionId, "--json");
     expect(JSON.parse(shownCompletion.stdout).lifecycleDatum).toMatchObject({
       storage: { editable: false, frozen: true },
+      datum: {
+        links: expect.arrayContaining([
+          { type: "corrects-review", target: failedCompletionReview.revisionId },
+        ]),
+      },
     });
     expect(phaseItems().find((item) =>
       item.obligation === "passing-review-required" &&
@@ -1088,7 +1231,7 @@ describe("req system decomposition slice", () => {
       levelInputs,
       "level-candidate",
     );
-    const levelCandidate = levelCandidateExecution.outputs[0].lifecycleDatum as {
+    let levelCandidate = levelCandidateExecution.outputs[0].lifecycleDatum as {
       id: string;
       revisionId: string;
     };
@@ -1097,7 +1240,121 @@ describe("req system decomposition slice", () => {
       levelCandidate.revisionId,
       [levelCandidate.revisionId],
     );
-    await publishDiscoveredReview(levelCandidate.revisionId, levelReviewContext.revisionId);
+    await publishDiscoveredReview(
+      levelCandidate.revisionId,
+      levelReviewContext.revisionId,
+    );
+
+    const rejectionWork = obligation("candidate-gate-signoff", levelCandidate.revisionId);
+    const rejectionExecution = await execute(
+      rejectionWork,
+      {
+        outputs: [{
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Reject exact SYS candidate",
+              rationale: "The candidate needs a clearer bounded presentation",
+              kind: "gate-signoff",
+              gate_outcome: "reject",
+              gate_rejection: {
+                findings: [{
+                  id: "G-099",
+                  summary: "Clarify the exact candidate without changing its reviewed definition.",
+                }],
+              },
+              decision: "Return this exact SYS candidate to the same gate",
+              alternatives: ["approve without clarification"],
+              effective_scope: levelCandidate.revisionId,
+            },
+            links: [
+              { type: "justifies", target: levelCandidate.revisionId },
+              { type: "blocks", target: levelCandidate.revisionId },
+            ],
+            body: "Reviewed rejection returns the exact candidate for correction.\n",
+          },
+        }],
+        completionEvidence: { summary: "Exact gate rejection recorded." },
+      },
+      [`candidate=${levelCandidate.revisionId}`],
+      "reject-system-gate",
+      "stakeholder",
+    );
+    const rejection = rejectionExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+    const rejectionContext = await createDiscoveredReviewContext(
+      "SYS rejection Review Context",
+      rejection.revisionId,
+      [rejection.revisionId],
+    );
+    await publishDiscoveredReview(rejection.revisionId, rejectionContext.revisionId);
+
+    const candidateCorrection = obligation(
+      "phase-2-candidate-correction-required",
+      levelCandidate.revisionId,
+    );
+    expect(candidateCorrection).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-phase-2-candidate-after-review@1",
+    }));
+    const priorLevelCandidate = levelCandidate;
+    const candidateCorrectionExecution = await execute(
+      candidateCorrection,
+      {
+        outputs: [{
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: priorLevelCandidate.id,
+            type: "BSL",
+            payload: {
+              title: "Clarified SYS level candidate",
+              kind: "level-candidate",
+              role: "candidate",
+              scope: groupCandidate.revisionId,
+              group: "SYSTEM",
+              definition_members: [
+                architecture.revisionId,
+                interfaceSpec.revisionId,
+                strategy.revisionId,
+              ],
+              evidence: [],
+            },
+            links: [
+              { type: "composes", target: groupCandidate.revisionId },
+              { type: "supersedes", target: priorLevelCandidate.revisionId },
+              { type: "corrects-gate-rejection", target: rejection.revisionId },
+            ],
+            body: "Clarified candidate preserves every exact member and composition.\n",
+          },
+        }],
+        completionEvidence: { summary: "Replaced rejected candidate exactly." },
+      },
+      [
+        `candidate=${priorLevelCandidate.revisionId}`,
+        `definition_members=${architecture.revisionId},${interfaceSpec.revisionId},${strategy.revisionId}`,
+        `composed_groups=${groupCandidate.revisionId}`,
+        `gate_rejections=${rejection.revisionId}`,
+      ],
+      "correct-system-candidate",
+    );
+    levelCandidate = candidateCorrectionExecution.outputs[0].lifecycleDatum as {
+      id: string;
+      revisionId: string;
+    };
+    const replacementLevelContext = await createDiscoveredReviewContext(
+      "Replacement SYS level review",
+      levelCandidate.revisionId,
+      [levelCandidate.revisionId],
+    );
+    const levelCandidateReview = await publishDiscoveredReview(
+      levelCandidate.revisionId,
+      replacementLevelContext.revisionId,
+    );
 
     const gateWork = obligation("candidate-gate-signoff", levelCandidate.revisionId);
     expect(gateWork).toEqual(expect.objectContaining({ status: "ready", dispatchable: true }));
@@ -1135,9 +1392,82 @@ describe("req system decomposition slice", () => {
       gateDecision.revisionId,
       [gateDecision.revisionId],
     );
-    await publishDiscoveredReview(gateDecision.revisionId, gateReviewContext.revisionId);
+    const gateDecisionReview = await publishDiscoveredReview(
+      gateDecision.revisionId,
+      gateReviewContext.revisionId,
+    );
 
-    const phase = req(
+    const beforeAcceptancePhase = mdlm(
+      repositoryRoot,
+      "phase",
+      "status",
+      "phase-2-system-definition",
+    );
+    expect(
+      beforeAcceptancePhase.status,
+      `${beforeAcceptancePhase.stderr}${beforeAcceptancePhase.stdout}`,
+    ).toBe(0);
+    expect(beforeAcceptancePhase.stdout).toContain("Progression Ready: false");
+    expect(beforeAcceptancePhase.stdout).toContain("Progression Authorized: true");
+    expect(beforeAcceptancePhase.stdout).toContain("Progression Complete: false");
+
+    expect(obligation("system-acceptance-required", levelCandidate.revisionId)).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "accept-phase-2-system@1",
+      }),
+    );
+
+    const acceptanceWork = obligation(
+      "system-acceptance-required",
+      levelCandidate.revisionId,
+    );
+    const acceptanceExecution = await execute(
+      acceptanceWork,
+      {
+        outputs: [{
+          name: "accepted",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Accepted exact SYS level",
+              kind: "level-accepted",
+              role: "accepted",
+              scope: levelCandidate.revisionId,
+              group: "SYSTEM",
+              definition_members: [
+                architecture.revisionId,
+                completion.revisionId,
+                interfaceSpec.revisionId,
+                strategy.revisionId,
+                system.revisionId,
+              ],
+              evidence: [
+                levelCandidateReview.revisionId,
+                gateDecision.revisionId,
+                gateDecisionReview.revisionId,
+              ],
+            },
+            links: [{ type: "promotes", target: levelCandidate.revisionId }],
+            body: "Mechanically accepted exact reviewed system definition.\n",
+          },
+        }],
+        completionEvidence: { summary: "Exact reviewed SYS candidate accepted." },
+      },
+      [
+        `candidate=${levelCandidate.revisionId}`,
+        `definition_members=${architecture.revisionId},${completion.revisionId},${interfaceSpec.revisionId},${strategy.revisionId},${system.revisionId}`,
+        `evidence=${levelCandidateReview.revisionId},${gateDecision.revisionId},${gateDecisionReview.revisionId}`,
+      ],
+      "accept-system",
+    );
+    const acceptedSystem = acceptanceExecution.outputs[0].lifecycleDatum as {
+      revisionId: string;
+    };
+
+    const phase = mdlm(
       repositoryRoot,
       "phase",
       "status",
@@ -1150,6 +1480,18 @@ describe("req system decomposition slice", () => {
     expect(phase.stdout).toContain("Progression Ready: true");
     expect(phase.stdout).toContain("Progression Authorized: true");
     expect(phase.stdout).toContain("Progression Complete: true");
+    const shownAcceptedSystem = req(repositoryRoot, "show", acceptedSystem.revisionId, "--json");
+    expect(JSON.parse(shownAcceptedSystem.stdout).lifecycleDatum.datum).toMatchObject({
+      payload: {
+        kind: "level-accepted",
+        role: "accepted",
+        definition_members: expect.arrayContaining([
+          completion.revisionId,
+          system.revisionId,
+        ]),
+      },
+      links: [{ type: "promotes", target: levelCandidate.revisionId }],
+    });
     const shownLevel = req(repositoryRoot, "show", levelCandidate.revisionId, "--json");
     const levelDatum = JSON.parse(shownLevel.stdout).lifecycleDatum.datum;
     expect(levelDatum.payload.definition_members).toEqual([

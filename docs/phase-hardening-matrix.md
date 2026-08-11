@@ -1,9 +1,9 @@
 # Phase-hardening matrix
 
 This matrix records every distinct reachable public `mdlm` route in the hardened
-Phase 0, Phase 1 assurance/implementation, and earliest Phase 2 simplification
-boundary. It describes Example Process Package behavior, not kernel semantics.
-Remaining Phase 2 and pilot-assessment hardening stays deferred to issues #99–#100.
+Phase 0, Phase 1 assurance/implementation, and complete implemented Phase 2
+system-definition boundary. It describes Example Process Package behavior, not
+kernel semantics. Pilot-assessment hardening stays deferred to issue #100.
 
 ## Foundation and product simplification
 
@@ -104,6 +104,24 @@ Remaining Phase 2 and pilot-assessment hardening stays deferred to issues #99–
 | Corrected definition set resumes | Every replacement has fresh passing contextual Review; the ordinary planning-DWP Review Assignment contains the corrected ASP, ICSP, and SYS bodies; both fresh complete-set simplification REVs pass | `review-context-members-for@1`, `passing-review-required@2`, `unreviewed-phase-2-definition-members-for-plan@1`, both simplification selectors, `decomposition-completion-required@1` | DWP completion **Assignment** | Completion and all candidate/gate work stay blocked until the complete fresh evidence chain passes |
 | Invalid simplification blocker contract | Failed REV omits its typed correction scope or canonical blocker, a subject correction mismatches its exact SYS primary target, or pass/cancellation carries a blocker | REV schema, `phase-2-simplification-blockers-for-review@1`, and simplification Scenario completion | Invalid proposal; same Assignment gets contract diagnostics | Nothing publishes and no wrong-subject correction is derived |
 
+## Phase 2 remaining failure, candidate, and gate routes
+
+| Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
+| --- | --- | --- | --- | --- |
+| Ordinary SYS/ASP/ICSP/planning-DWP Review fails | Immutable failed REV with every primary Finding; replacement retains source-owned dependencies and cites every current cause through `corrects-review` | `phase-2-correctable-subjects@1`; `phase-2-review-correction-required@1`; `revise-phase-2-subject-after-review@1` | Exact local Correction **Assignment** | 0 of 2 consumed initially; unrelated definition and Review evidence reused |
+| Completion-DWP Review fails | Exact failed completion REV and complete account context | Same deep Phase 2 Correction interface, preserving completion stage and canonical account links | Same-lineage completion Correction **Assignment**, then fresh context/Review | Existing plan, outputs, simplification, and member Reviews reused |
+| Collateral Phase 2 Finding | REV has one exact `flags` link per collateral SYS/ASP/ICSP/DWP target; primary judgment remains immutable | `phase-2-review-flags-subject@1` feeds the same subject-bounded correction Obligation | Serial exact target Correction **Assignment** | Primary Review is retained; only the flagged target and dependent evidence are replaced |
+| First or second corrected subject fails | Causal replacement and fresh exact context/REV | `review-correction-history-for@1`; `phase-2-correction-participation@1` | Next autonomous Correction, then **Attention Required** after cycle two | 1 then 2 autonomous cycles; attended scope DEC does not consume a later autonomous cycle |
+| Stakeholder-owned Phase 2 finding | Failed REV declares `correction_authority: stakeholder` | Phase 2 participation Policy on the same deep correction Scenario | Immediate **Attention Required** | Autonomous budget untouched; exact scope DEC is authority evidence, not Review |
+| Ambiguous single-valued architecture/strategy/plan cardinality | Every competing exact Revision remains active until one reviewed cancellation DEC `justifies` it; valid multiple-interface sets remain intact | `ambiguous-phase-2-subjects@1`; attended `phase-2-ambiguity-resolution-required@1`; `resolve-phase-2-ambiguity@1` | **Attention Required**, then Decision Review **Assignment** | No arbitrary latest selection; unaffected definition evidence remains reusable |
+| Incomplete DWP account | Completion omits or adds parent, output, architecture, interface, or simplification links, or claims gaps as complete | `complete-decomposition-work-package@2` exact required links plus completion matching Selectors | Invalid proposal; same Assignment receives contract diagnostics | Nothing publishes; all exact plan/output/Review evidence remains reusable |
+| Group candidate Review fails | Failed REV against exact frozen group candidate | `failed-phase-2-candidates@1`; `phase-2-candidate-correction-required@1`; `revise-phase-2-candidate-after-review@1` | Evidence-preserving group replacement **Assignment**, then fresh Review | Same-lineage BSL preserves every member/evidence item and records predecessor through `supersedes` |
+| Level candidate Review fails | Failed REV against exact composed level candidate | Same candidate correction interface and bounded participation | Evidence/composition-preserving level replacement **Assignment**, then fresh Review | Exact group and shared members reused; 0/1/2 budget applies |
+| Reviewed Phase 2 rejection | Passing Review of rejecting gate DEC; Phase 2 canonical blocker is the exact level candidate | Candidate correction consumes exact rejection through `corrects-gate-rejection` | Superseding candidate **Assignment**, fresh Review, then same gate **Attention Required** | Rejection immutable; exact members, evidence, and composition reused; each autonomous rejection Correction consumes the shared two-cycle budget; rejection is not terminal disposition |
+| Approval awaits Decision Review | Approving DEC exists but has no passing exact Review | `candidate-gate-signoff@3` blocks on `passing-review-required@2` | Gate Decision Review Context/Review **Assignments** | Candidate and member Reviews reused; approval cannot authorize acceptance or progression yet |
+| Exact system acceptance | Candidate/member Reviews pass and applicable approving gate DEC plus its Review exist | `system-acceptance-required@1`; autonomous `accept-phase-2-system@1` | Mechanical acceptance **Assignment** | Frozen `level-accepted` BSL contains flattened exact definition and candidate/gate Review evidence; no redundant authority |
+| Reviewed progression | Exact accepted system baseline and applicable gate evidence both exist | Phase 2 readiness plus existing `applicable-gate-signoffs-for@1` authorization | Pilot-assessment **Assignment** | The reviewed gate DEC is reused as progression authorization; no second stakeholder Decision |
+
 ## Phase 1 evidence availability and supported boundary
 
 | Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
@@ -122,6 +140,7 @@ Remaining Phase 2 and pilot-assessment hardening stays deferred to issues #99–
 | Typed inability | Assignment is consumed and orchestration stops truthfully; a deliberate later `next` may allocate fresh work | No Lifecycle Data publishes |
 | Ordinary publication | `scenario submit`, doctor/diff, and ordinary Git commit precede the next Assignment | Transaction is atomic; ignored leases never become Lifecycle Data |
 | Every expected unfinished Phase 0 state | **Assignment** or **Attention Required** | No expected Phase 0 route projects null or Process Dead End |
+| Every supported unfinished Phase 2 state | **Assignment** or **Attention Required** | Exact correction, ambiguity disposition, completion, candidate, gate, or acceptance work prevents accidental Process Dead End |
 
 ## Executable evidence
 
@@ -135,6 +154,11 @@ unaffected evidence reuse, exhausted-budget attention, self-contained attended
 packets, and each VSP/ENV/target ambiguity through `mdlm next`, `scenario prepare`,
 and `scenario submit`, including proof that an attended Phase 1 replacement does
 not consume either autonomous correction cycle.
+`test/evaluate-bootstrap-participation.test.ts` validates attended Phase 2
+ambiguity without treating supported interface multiplicity as a conflict.
+`test/req-system-decomposition.test.ts` carries exact correction, completion,
+candidate replacement, and reviewed gate evidence through mechanical system
+acceptance and reviewed progression, including compiled `mdlm` phase outcomes.
 `test/mdlm-phase-2-simplification.test.ts` uses the actual public simplification
 Assignments to reject cross-subject and incoherent blocker contracts, correct one
 SYS with several Findings, route a later exact SYS/ASP/ICSP/planning-DWP consistency

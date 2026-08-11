@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.55.0
+version: 0.56.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -42,7 +42,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
@@ -104,6 +104,7 @@ catalog:
     - complete-superseding-intent-candidates-for
     - failed-phase-0-foundation-revisions
     - cited-failing-reviews-by-correction
+    - cited-reviews-by-correction
     - foundation-correction-history
     - foundation-correction-decisions-for
     - foundation-review-failures-at-stage
@@ -212,6 +213,14 @@ catalog:
     - phase-2-primary-system-simplification-blocker
     - phase-2-corrections-for-review
     - phase-2-system-requirements-for-review
+    - phase-2-review-flags-subject
+    - phase-2-correction-reviews-for-subject
+    - phase-2-correctable-subjects
+    - phase-2-correction-decisions-for
+    - failed-phase-2-candidates
+    - complete-superseding-phase-2-candidates-for
+    - ambiguous-phase-2-subjects
+    - phase-2-ambiguity-decisions-for
     - matching-reviewed-phase-2-system-requirement
     - valid-phase-2-simplification-review
     - failed-phase-2-simplification-reviews-by-scope
@@ -222,6 +231,9 @@ catalog:
     - interfaces-for-decomposition
     - matching-decomposition-interface
     - matching-decomposition-output
+    - completion-outputs-for
+    - completion-simplification-evidence-for
+    - phase-2-simplification-reviews-for-plan
     - strategies-for-decomposition
     - baseline-contains-definition
     - baseline-contains-evidence
@@ -240,6 +252,10 @@ catalog:
     - level-candidate-matches-group
     - complete-level-candidate-evidence-for
     - complete-phase-2-level-candidates
+    - composed-groups-containing-member
+    - phase-2-level-candidate-definition-members
+    - system-acceptance-evidence-for-candidate
+    - accepted-system-baselines-for-candidate
     - complete-phase-2-requirements
     - matching-complete-phase-2-requirement
     - matching-complete-phase-2-level-revision
@@ -315,10 +331,14 @@ catalog:
     - architecture-interface-simplification-required
     - phase-2-simplification-correction-required
     - phase-2-definition-consistency-correction-required
+    - phase-2-review-correction-required
+    - phase-2-candidate-correction-required
+    - phase-2-ambiguity-resolution-required
     - decomposition-completion-required
     - decomposition-parent-coverage-required
     - decomposition-group-candidate-required
     - system-level-candidate-required
+    - system-acceptance-required
     - problem-report-required
     - change-impact-required
     - change-approval-required
@@ -369,9 +389,13 @@ catalog:
     - simplify-architecture-and-interfaces
     - revise-phase-2-subject-after-simplification
     - revise-phase-2-definition-set-after-simplification
+    - revise-phase-2-subject-after-review
+    - revise-phase-2-candidate-after-review
+    - resolve-phase-2-ambiguity
     - complete-decomposition-work-package
     - create-decomposition-group-candidate
     - create-system-level-candidate
+    - accept-phase-2-system
     - report-problem
     - analyze-change-impact
     - approve-change-request
@@ -425,9 +449,13 @@ assets:
     - prompts/simplify-architecture-and-interfaces.md@1
     - prompts/revise-phase-2-subject-after-simplification.md@1
     - prompts/revise-phase-2-definition-set-after-simplification.md@1
+    - prompts/revise-phase-2-subject-after-review.md@1
+    - prompts/revise-phase-2-candidate-after-review.md@1
+    - prompts/resolve-phase-2-ambiguity.md@1
     - prompts/complete-decomposition-work-package.md@1
     - prompts/create-decomposition-group-candidate.md@1
     - prompts/create-system-level-candidate.md@1
+    - prompts/accept-phase-2-system.md@1
     - prompts/report-problem.md@1
     - prompts/analyze-change-impact.md@1
     - prompts/approve-change-request.md@2
@@ -471,9 +499,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@29
+  default: bootstrap@30
   available:
-    - profiles/bootstrap.yaml@29
+    - profiles/bootstrap.yaml@30
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

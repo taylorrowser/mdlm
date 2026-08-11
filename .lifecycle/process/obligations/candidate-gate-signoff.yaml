@@ -16,6 +16,8 @@ status_rules:
         subjects: 'select("gate-rejection-blocked-members-for-candidate@1", {candidate: candidate})'
       - obligation: intent-candidate-review-correction-required@3
         subjects: '[candidate]'
+      - obligation: phase-2-candidate-correction-required@1
+        subjects: '[candidate]'
   - status: blocked
     priority: 300
     when: >-

@@ -41,8 +41,17 @@ outputs:
       - {link: decomposes, target: {output: plan}}
       - {link: allocated-to, target: {output: architecture}}
       - {link: governed-by, target: {output: interfaces}}
+  - name: decision
+    types: [DEC]
+    cardinality: zero-or-one
+    required_links:
+      - {link: justifies, target: {output: plan}}
 prompt_ref: prompts/revise-phase-2-definition-set-after-simplification.md@1
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: phase-2-correction-participation@1
+  arguments: {subject: prior_plan}
+authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && architecture.identity.id == prior_architecture.identity.id
@@ -67,6 +76,16 @@ completion: >-
     exists("matching-reviewed-phase-2-system-requirement@1",
       {review: failed_review, plan: prior_plan, replacement: requirement})
     && requirement.payload.architecture_allocation.architecture_revision == architecture.identity.revision_id)
+  && (
+    (policy("phase-2-correction-participation@1",
+      {subject: prior_plan}).authority_mode == "autonomous"
+      && none("phase-2-correction-decisions-for@1",
+        {replacement: plan}))
+    || (policy("phase-2-correction-participation@1",
+      {subject: prior_plan}).authority_mode == "attended"
+      && count("phase-2-correction-decisions-for@1",
+        {replacement: plan}) == 1)
+  )
 resolves: [phase-2-definition-consistency-correction-required]
 prohibited_inputs: [scope expansion, unrelated definition subjects, mutation or deletion of failed evidence, downstream candidates, mutable latest aliases]
 batching: coherent-batch

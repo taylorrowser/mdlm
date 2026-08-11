@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 29
+version: 30
 status: experimental
 description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
 enabled:
@@ -57,8 +57,13 @@ success_criteria:
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
   - accepted exact intent derives ASP, ICSP, and one unambiguous DWP planning Obligation before reviewed-plan execution
   - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations
-  - the earliest exact planning-DWP, SYS, ASP, and ICSP set receives independent simplification before completion; blocking findings derive serial subject Correction or one atomic exact consistency-set Correction with causal links, fresh Reviews, and observed scope reduction
+  - the earliest exact planning-DWP, SYS, ASP, and ICSP set receives independent simplification before completion; blocking findings derive serial subject Correction or one atomic exact consistency-set Correction with causal links, fresh Reviews, bounded autonomous retries, attended escalation, and observed scope reduction
+  - failed or collateral-flagged Reviews of every current Phase 2 SYS, ASP, ICSP, and planning/completion DWP derive one subject-bounded same-lineage Correction with complete exact causes, two autonomous cycles, attended escalation, and fresh Review
+  - ambiguous current single-valued architecture, strategy, or DWP cardinality derives exact attended cancellation and independent Review rather than arbitrary selection or a Process Dead End
+  - DWP completion binds every exact parent, output, architecture, interface, and simplification Review through canonical source-owned links; incomplete accounts cannot publish
   - exact reviewed completion evidence derives a reviewed SYS level candidate composed from its package-discovered group candidate and shared architecture/interface context
+  - failed or reviewed-rejected group and level candidates preserve every exact unaffected member, evidence item, and composition while naming their predecessor through supersedes and returning to fresh Review and the same gate
+  - reviewed approving Phase 2 gate evidence mechanically publishes one exact flattened level-accepted baseline before progression, without redundant stakeholder authority
   - exact reviewed level-gate authorization controls progression into pilot assessment
   - every complete Phase 2 level candidate derives one exact durable observation before the package freezes their complete evidence boundary
   - a failed PAS Review derives same-lineage correction over the unchanged context and fresh independent Review

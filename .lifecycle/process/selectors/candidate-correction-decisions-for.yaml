@@ -1,13 +1,18 @@
 kind: selector-definition
 id: candidate-correction-decisions-for
 version: 1
-description: Exact Decisions published as authority evidence for one candidate correction.
+description: Exact valid scope-authority Decisions published atomically with one candidate Correction.
 parameters:
   - {name: replacement, kind: revision, types: [BSL]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: replacement, link: justifies, emit: source, types: [DEC]}
   as: decision
-  where: 'true'
+  where: >-
+    decision.provenance.scenario == replacement.provenance.scenario
+    && decision.payload.kind == "scope"
+    && decision.payload.effective_scope == replacement.identity.revision_id
+    && state(decision, "disposition") == "active"
+    && state(decision, "validity") == "valid"
   distinct: true
   order_by: [identity.revision_id]

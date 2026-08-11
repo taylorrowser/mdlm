@@ -1,0 +1,12 @@
+kind: selector-definition
+id: completion-simplification-evidence-for
+version: 1
+description: Exact simplification Review evidence canonically retained by one DWP completion Revision.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: completion, link: justifies, emit: target, types: [REV]}
+  as: review
+  distinct: true
+  order_by: [identity.revision_id]

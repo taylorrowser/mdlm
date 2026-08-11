@@ -181,6 +181,13 @@ outgoing_links:
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: blocked-by-review
+  - id: flags
+    description: Exact Phase 2 definition subjects selected by collateral Review Findings for local correction or attended escalation.
+    targets:
+      - {kind: datum, types: [SYS, ASP, ICSP, DWP], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: flagged-by-review
   - id: removes
     description: Exact SYS outputs removed from current scope by observed Phase 2 simplification evidence.
     targets:

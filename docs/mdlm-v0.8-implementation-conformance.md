@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.55.0`
+- **Implementation package:** `mdlm-bootstrap@0.56.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -48,7 +48,7 @@ the accepted overview and the reviewed pilot Decision.
 | Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
-| Phase 2 decomposition, earliest exact-set simplification/correction, candidates, and reviewed gate | 52–53, 57–58 | #46, #98 | `test/req-system-decomposition.test.ts`, `test/mdlm-phase-2-simplification.test.ts` |
+| Phase 2 decomposition, exact-set and ordinary correction, ambiguity, evidence-preserving candidates, acceptance, and reviewed gate progression | 52–53, 57–58 | #46, #98–#99 | `test/req-system-decomposition.test.ts`, `test/mdlm-phase-2-simplification.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
 | Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
 | Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
@@ -131,8 +131,19 @@ elimination returns typed inability rather than fabricating an empty decompositi
 ART command evidence now distinguishes normal, raw malformed,
 omitted, and extra arguments—including omitted versus empty tokens—and gives every
 case deterministic exact-byte observations. Prior VAI/RUN/RES/Review evidence
-remains immutable and cannot satisfy fresh corrected work. Remaining Phase 2 and
-pilot-assessment hardening stay deferred to issues #99–#100. The
+remains immutable and cannot satisfy fresh corrected work. Issue #99 closes the
+remaining supported Phase 2 routes: failed or collateral-flagged SYS, ASP, ICSP,
+and planning/completion DWP Reviews derive one subject-bounded same-lineage
+Correction with two autonomous cycles before attended escalation; unsupported
+multiple-current single-valued definition cardinality derives exact attended cancellation and
+Review rather than arbitrary selection; and DWP completion binds every exact
+parent, output, architecture, interface, and simplification Review through
+canonical links. Failed or reviewed-rejected group and level candidates preserve
+unaffected exact membership, evidence, and composition while `supersedes` records
+the predecessor. Reviewed approval then derives one flattened `level-accepted`
+baseline before the same exact gate evidence authorizes progression without a
+redundant stakeholder Decision. Pilot-assessment hardening stays deferred to
+issue #100. The
 lifecycle-neutral operator contract exposes package-bound attended
 inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
 hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).

@@ -10,6 +10,15 @@ satisfied_when: >-
     {plan: plan, correction_set: "subject"})
 status_rules:
   - status: ready
+    priority: 200
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: one("phase-2-primary-system-simplification-blocker@1",
+          {review: one("failed-phase-2-simplification-reviews-by-scope@1",
+            {plan: plan, correction_set: "subject"})}),
+         view: "autonomous-corrections"}) >= 2
+    reason: Two autonomous simplification Correction cycles failed; immediate attended escalation now uses the same exact interface.
+  - status: ready
     priority: 100
     when: >-
       exists("failed-phase-2-simplification-reviews-by-scope@1",

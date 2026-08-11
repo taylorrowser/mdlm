@@ -1,0 +1,24 @@
+kind: selector-definition
+id: phase-2-correction-reviews-for-subject
+version: 1
+description: Exact Reviews that route local correction or determine correction authority for one Phase 2 subject.
+parameters:
+  - {name: subject, kind: revision, types: [SYS, ASP, ICSP, DWP, BSL]}
+  - {name: view, kind: scalar, scalar_type: string}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    (
+      (review.payload.outcome == "fail"
+        && exists("matching-failing-review-for@1",
+          {subject: subject, review: review}))
+      || exists("phase-2-review-flags-subject@1",
+        {review: review, subject: subject})
+    )
+    || (view == "authority"
+      && exists("phase-2-review-blocks-definition-member@1",
+        {review: review, member: subject}))
+  distinct: true
+  order_by: [identity.revision_id]

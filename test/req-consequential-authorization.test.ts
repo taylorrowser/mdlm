@@ -11,7 +11,7 @@ import {
 } from "./helpers/process-package.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.55.0#sha256:authorization-test";
+const processRef = "mdlm-bootstrap@0.56.0#sha256:authorization-test";
 const mdlmExecutable = path.join(process.cwd(), "dist/mdlm.js");
 
 function mdlm(repository: string, input: string | undefined, ...arguments_: string[]) {

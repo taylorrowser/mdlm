@@ -14,7 +14,7 @@ import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 import { req } from "./helpers/req.js";
 
-const processRef = "mdlm-bootstrap@0.55.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.56.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -146,6 +146,7 @@ describe("bootstrap Scenario participation Policies", () => {
       "implement-verification-activity": { output: "authorization", type: "DEC" },
       "record-consequential-decision": { output: "decision", type: "DEC" },
       "record-gate-signoff": { output: "decision", type: "DEC" },
+      "resolve-phase-2-ambiguity": { output: "decision", type: "DEC" },
       "resolve-question": { output: "decision", type: "DEC" },
       "resolve-question-with-prototype": { output: "finding", type: "DEC" },
       "review-datum-in-context": { output: "review", type: "REV" },
@@ -158,6 +159,22 @@ describe("bootstrap Scenario participation Policies", () => {
         type: "DEC",
       },
       "revise-intent-candidate-after-review": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-phase-2-candidate-after-review": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-phase-2-definition-set-after-simplification": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-phase-2-subject-after-review": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-phase-2-subject-after-simplification": {
         output: "decision",
         type: "DEC",
       },
@@ -180,6 +197,223 @@ describe("bootstrap Scenario participation Policies", () => {
       "simplify-architecture-and-interfaces": { output: "review", type: "REV" },
       "simplify-requirement-set": { output: "review", type: "REV" },
     });
+  });
+
+  it("projects attended exact disposition instead of choosing ambiguous Phase 2 architecture", () => {
+    const product = lifecycleDatum("PSP", "PSP-0AMBGP2D00", {
+      title: "Ambiguous architecture fixture",
+      rationale: "Exercise exact Phase 2 cardinality handling.",
+      problem: "Two current architectures compete.",
+      users: ["operator"],
+      goals: ["select explicitly"],
+      non_goals: [],
+      success_measures: ["no arbitrary selection"],
+    });
+    const requirement = lifecycleDatum("STK", "STK-0AMBGR3Q00", {
+      title: "One accepted requirement",
+      rationale: "Architecture must organize exact accepted intent.",
+      statement: "The product shall expose one exact boundary.",
+      verification_intent: "Inspect the selected boundary.",
+      stakeholder: "operator",
+      priority: "must",
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const accepted = lifecycleDatum("BSL", "BSL-0AMBGB5000", {
+      title: "Accepted ambiguity fixture",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: "ambiguity-fixture",
+      group: "DEFAULT",
+      definition_members: [product.datum.revision_id, requirement.datum.revision_id],
+      evidence: [],
+    }, { frozen: true, scenario: "accept-phase-0-intent@1" });
+    const architecture = (id: string, alias: string) => lifecycleDatum("ASP", id, {
+      title: `${alias} architecture`,
+      rationale: "Competing exact architecture.",
+      level: "system",
+      elements: [{
+        id: `AEL-${alias.padEnd(10, "0")}`,
+        alias,
+        title: alias,
+        responsibilities: ["own the exact boundary"],
+      }],
+      interactions: [],
+      constraints: [],
+      nominated_risks: ["ambiguous selection"],
+    }, { links: [{ type: "governs", target: requirement.datum.revision_id }] });
+    const first = architecture("ASP-0AMBGARC00", "FRST");
+    const second = architecture("ASP-0AMBGARC20", "SCND");
+    const interfaceSpec = (id: string, operation: string) => lifecycleDatum("ICSP", id, {
+      title: `${operation} boundary`,
+      rationale: "Multiple exact interfaces are valid for one architecture.",
+      architecture_revision: first.datum.revision_id,
+      boundary: {
+        from_element: "AEL-FRST000000",
+        to_element: "AEL-FRST000000",
+      },
+      operations: [operation],
+      schemas: [`${operation}@1`],
+      units: [],
+      timing: [],
+      errors: [],
+      security: [],
+      ordering: [],
+      compatibility: ["version 1"],
+      interface_version: "1.0.0",
+    }, { links: [{ type: "defines-interface-for", target: first.datum.revision_id }] });
+    const firstInterface = interfaceSpec("ICSP-0AMBG1CSP0", "read");
+    const secondInterface = interfaceSpec("ICSP-0AMBG1CSP2", "write");
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [
+        product,
+        requirement,
+        accepted,
+        first,
+        second,
+        firstInterface,
+        secondInterface,
+      ],
+      dependencyComparisons: [],
+    });
+
+    const ambiguity = evaluation.looseEnds.filter((item) =>
+      item.obligation === "phase-2-ambiguity-resolution-required"
+    );
+    expect(ambiguity).toHaveLength(2);
+    expect(ambiguity).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        subject: first.datum.revision_id,
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "resolve-phase-2-ambiguity@1",
+        participation: projectedParticipation(
+          "consequential-decision-participation@1",
+          "attended",
+          "stakeholder",
+          false,
+          "immediate",
+          null,
+          null,
+          "single",
+        ),
+      }),
+      expect.objectContaining({ subject: second.datum.revision_id }),
+    ]));
+  });
+
+  it("escalates a third reviewed Phase 2 candidate rejection", () => {
+    const architecture = lifecycleDatum("ASP", "ASP-0GATEARC00", {
+      title: "Stable system architecture",
+      rationale: "Candidate correction reuses unaffected exact definition members.",
+      level: "system",
+      elements: [{
+        id: "AEL-0GATEARC00",
+        alias: "SYSTEM",
+        title: "System",
+        responsibilities: ["own system behavior"],
+      }],
+      interactions: [],
+      constraints: [],
+      nominated_risks: [],
+    });
+    const candidate = (revision: number, links: Array<{ type: string; target: string }> = []) => {
+      const record = lifecycleDatum("BSL", "BSL-0GATECND00", {
+        title: `System candidate ${revision}`,
+        kind: "level-candidate",
+        role: "candidate",
+        scope: "system",
+        group: "SYSTEM",
+        definition_members: [architecture.datum.revision_id],
+        evidence: [],
+      }, { frozen: true, links, scenario: "revise-phase-2-candidate-after-review@1" });
+      record.datum.revision = revision;
+      record.datum.revision_id = `${record.datum.id}-r${String(revision).padStart(5, "0")}`;
+      return record;
+    };
+    const first = candidate(1);
+    const rejection = (subject: LifecycleRecord, id: string) => {
+      const decision = lifecycleDatum("DEC", id, {
+        title: `Reject ${subject.datum.revision_id}`,
+        rationale: "The exact candidate presentation needs correction.",
+        kind: "gate-signoff",
+        gate_outcome: "reject",
+        gate_rejection: {
+          findings: [{ id: "G-001", summary: "Clarify the bounded candidate." }],
+        },
+        decision: "Return to the same gate after correction.",
+        alternatives: ["Approve unchanged"],
+        effective_scope: subject.datum.revision_id,
+      }, {
+        frozen: true,
+        links: [
+          { type: "justifies", target: subject.datum.revision_id },
+          { type: "blocks", target: subject.datum.revision_id },
+        ],
+        scenario: "record-gate-signoff@3",
+      });
+      const review = lifecycleDatum("REV", id.replace("DEC", "REV"), {
+        title: `Review ${decision.datum.revision_id}`,
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      }, {
+        frozen: true,
+        links: [{ type: "reviews", target: decision.datum.revision_id }],
+        scenario: "review-datum-in-context@2",
+      });
+      return { decision, review };
+    };
+    const firstRejection = rejection(first, "DEC-0GATEGAT10");
+    const second = candidate(2, [
+      { type: "supersedes", target: first.datum.revision_id },
+      { type: "corrects-gate-rejection", target: firstRejection.decision.datum.revision_id },
+    ]);
+    const secondRejection = rejection(second, "DEC-0GATEGAT20");
+    const third = candidate(3, [
+      { type: "supersedes", target: second.datum.revision_id },
+      { type: "corrects-gate-rejection", target: secondRejection.decision.datum.revision_id },
+    ]);
+    const thirdRejection = rejection(third, "DEC-0GATEGAT30");
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [
+        architecture,
+        first,
+        firstRejection.decision,
+        firstRejection.review,
+        second,
+        secondRejection.decision,
+        secondRejection.review,
+        third,
+        thirdRejection.decision,
+        thirdRejection.review,
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.looseEnds.find((item) =>
+      item.obligation === "phase-2-candidate-correction-required" &&
+      item.subject === third.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-phase-2-candidate-after-review@1",
+      participation: projectedParticipation(
+        "phase-2-correction-participation@1",
+        "attended",
+        "stakeholder",
+        false,
+        "immediate",
+        null,
+        null,
+        "single",
+      ),
+    }));
   });
 
   it("derives Review delegation and Question authority from exact Scenario inputs", () => {

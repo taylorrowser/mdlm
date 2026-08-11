@@ -1,0 +1,13 @@
+kind: selector-definition
+id: phase-2-simplification-reviews-for-plan
+version: 1
+description: Exact current valid passing requirement and architecture/interface simplification Reviews for one DWP plan.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: 'exists("simplification-evidence-matches-plan@1", {plan: plan, evidence: review})'
+  distinct: true
+  order_by: [identity.revision_id]
