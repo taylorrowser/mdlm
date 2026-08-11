@@ -10,7 +10,7 @@ lifecycle:
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  required: [stage, parent_revisions, architecture_context, target_child_type, behavioral_slice, expected_coverage, exclusions, interface_context, verification_strategy_revision, dependencies, required_review_policy]
+  required: [stage, parent_revisions, architecture_context, target_child_type, behavioral_slice, expected_coverage, exclusions, verification_strategy_revision, dependencies, required_review_policy]
   properties:
     stage: {enum: [planning, completion]}
     parent_revisions:
@@ -29,10 +29,6 @@ payload_schema:
     behavioral_slice: {type: string, minLength: 1}
     expected_coverage: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
     exclusions: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
-    interface_context:
-      type: array
-      uniqueItems: true
-      items: {type: string, pattern: '^ICSP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     verification_strategy_revision: {type: string, pattern: '^VSP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     dependencies:
       type: array

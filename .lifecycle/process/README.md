@@ -336,11 +336,15 @@ the complete canonical consistency set, and carries either one canonical SYS blo
 the exact complete definition-consistency blocker set. One SYS subject is corrected
 serially with all of its findings; an architecture/interface/DWP consistency change
 atomically replaces the exact ASP, every ICSP, planning DWP, and only the
-still-applicable SYS outputs. Every replacement cites the failed REV through `corrects-review`,
-receives fresh contextual Review, and re-enters both complete-set simplification
-judgments. Exact `removes` links preserve scope-reduction evidence: a reduced plan
-must leave removed lineages without a newer Revision, give every retained lineage
-exactly one replacement linked to the replacement plan, and admit no new lineage. The completion Scenario publishes the next DWP Revision in the same
+still-applicable SYS outputs. Source-owned exact links are the canonical ICSP
+references for DWP and SYS; duplicate payload reference arrays are deliberately
+absent, so stale payload/link combinations cannot publish. Every replacement cites
+the failed REV through `corrects-review`, receives fresh contextual Review with the
+complete exact member bodies in its Assignment, and re-enters both complete-set
+simplification judgments. Exact `removes` links preserve scope-reduction evidence:
+a reduced plan must retain at least one SYS output, leave removed lineages without
+a newer Revision, give every retained lineage exactly one replacement linked to
+the replacement plan, and admit no new lineage. The completion Scenario publishes the next DWP Revision in the same
 Stable Datum lineage only after those exact obligations resolve. Package-
 discovered candidate Scenarios freeze the exact reviewed completion, outputs,
 architecture, interfaces, and simplification evidence as a group candidate, then

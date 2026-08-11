@@ -22,3 +22,5 @@ all of its primary Findings, or `definition-consistency` only when the complete
 SYS/ASP/ICSP/planning-DWP set must change atomically. Canonical `blocks` links
 name the one subject or every member of that exact set. Use `removes` plus a
 `scope_reduction` rationale only for exact SYS outputs that no longer apply.
+Retain at least one SYS output. If the accepted parent requires no system behavior,
+return typed inability because parent-scope cancellation is outside this Assignment.

@@ -24,10 +24,11 @@ for execution; the resulting REV, not reviewer prose or a completion summary,
 is the durable judgment evidence.
 
 Create one REV with exactly one `reviews` link and one `contextualizes` link.
-For an `intent-level-candidate`, this candidate is the earliest complete
-evidence-bearing MAP/PSP/STK set. Read every exact `context_members` input; the
-candidate and its hash manifest alone are not a substitute for their contents.
-Use `review_kind:
+Read every exact `context_members` input; the frozen context and its hash
+manifest are not substitutes for the member contents. For an
+`intent-level-candidate`, these members are the earliest complete evidence-bearing
+MAP/PSP/STK set. For a Phase 2 planning DWP, they are its complete current
+SYS/ASP/ICSP definition set. Use `review_kind:
 simplification-product-definition` and challenge product purpose, stakeholder
 intent, and scope. A passing Review has neither `simplification` nor `blocks`. A failed Review
 records one exact `simplification.target`, every current blocking finding for

@@ -123,8 +123,12 @@ target, collateral Findings are bound to the complete canonical consistency set,
 either that one current SYS or every member of the exact consistency set. Failed
 Reviews route only from the one current complete Review Context. Every replacement
 has exact `corrects-review` causality and fresh contextual and simplification
-Reviews. Exact `removes` links require a reduced plan to omit declared removed SYS
-outputs and retain replacements for every undeclared output lineage. ART command evidence now distinguishes normal, raw malformed,
+Reviews. Source-owned exact links are the sole DWP/SYS interface references, so
+duplicate payload references cannot drift from the atomic replacement graph. Exact
+`removes` links require a reduced plan to omit a proper subset of SYS outputs and
+retain replacements for every undeclared output lineage; complete parent-scope
+elimination returns typed inability rather than fabricating an empty decomposition.
+ART command evidence now distinguishes normal, raw malformed,
 omitted, and extra arguments—including omitted versus empty tokens—and gives every
 case deterministic exact-byte observations. Prior VAI/RUN/RES/Review evidence
 remains immutable and cannot satisfy fresh corrected work. Remaining Phase 2 and

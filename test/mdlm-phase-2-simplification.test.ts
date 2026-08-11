@@ -50,6 +50,12 @@ const initialMembers = [
   revision(ids.retained),
   revision(ids.removed),
 ];
+const initialReviewSubjects = [
+  ...initialMembers,
+  revision(ids.product),
+  revision(ids.parent),
+  revision(ids.strategy),
+];
 
 function mdlm(repository: string, arguments_: string[], input?: string) {
   return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
@@ -160,6 +166,8 @@ batching: coherent-batch
   await fs.writeFile(manifestPath, stringify(manifest));
 
   const retainedObligations = new Set([
+    "review-context-required",
+    "passing-review-required",
     "phase-2-simplification-correction-required",
     "phase-2-definition-consistency-correction-required",
     "decomposition-simplification-required",
@@ -186,6 +194,8 @@ batching: coherent-batch
   phase.scenarios = [
     "seed-phase-2-data@1",
     "seed-phase-2-reviews@1",
+    "create-review-context@1",
+    "review-datum-in-context@2",
     "simplify-requirement-set@2",
     "simplify-architecture-and-interfaces@2",
     "revise-phase-2-subject-after-simplification@1",
@@ -193,6 +203,8 @@ batching: coherent-batch
     "complete-decomposition-work-package@2",
   ];
   phase.obligations = [
+    "review-context-required@2",
+    "passing-review-required@2",
     "phase-2-simplification-correction-required@1",
     "phase-2-definition-consistency-correction-required@1",
     "decomposition-simplification-required@1",
@@ -228,7 +240,7 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     const fixture = initialFixtureOutputs();
     seedData(fixture.filter((item) => item.lifecycleDatum.type !== "BSL"));
     seedData(fixture.filter((item) => item.lifecycleDatum.type === "BSL"));
-    seedReviews(revision(ids.plan), revision("BSL-0DEFSETCTX"), initialMembers);
+    seedReviews(revision(ids.plan), revision("BSL-0DEFSETCTX"), initialReviewSubjects);
     expect(git(repository, "init", "--quiet", "--initial-branch=main", "--template=").status)
       .toBe(0);
     commit("Initialize exact Phase 2 fixture");
@@ -280,28 +292,30 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
         boundary: { from_element: "AEL-0REPRTCR00", to_element: "AEL-0EXPRTAP00" },
         operations: ["POST /exports"], schemas: ["report@1"], units: [], timing: [], errors: ["invalid-report"], security: [], ordering: [], compatibility: ["v1"], interface_version: "1.0.0",
       }, [{ type: "defines-interface-for", target: architecture }], ids.interface),
-      output("plan", "data", "DWP", planPayload(architecture, interfaceSpec, strategy, false), [
+      output("plan", "data", "DWP", planPayload(architecture, strategy, false), [
         { type: "decomposes", target: parentRequirement },
         { type: "allocated-to", target: architecture },
         { type: "governed-by", target: interfaceSpec },
       ], ids.plan),
-      output("retained", "data", "SYS", requirementPayload("Export completed report", architecture, interfaceSpec), [
+      output("retained", "data", "SYS", requirementPayload("Export completed report", architecture), [
         { type: "derived-from", target: ids.parent }, { type: "decomposes", target: plan },
         { type: "allocated-to", target: architecture }, { type: "governed-by", target: interfaceSpec },
       ], ids.retained),
-      output("removed", "data", "SYS", requirementPayload("Relay completed report", architecture, interfaceSpec), [
+      output("removed", "data", "SYS", requirementPayload("Relay completed report", architecture), [
         { type: "derived-from", target: ids.parent }, { type: "decomposes", target: plan },
         { type: "allocated-to", target: architecture }, { type: "governed-by", target: interfaceSpec },
       ], ids.removed),
       contextOutput("set-context", "BSL-0DEFSETCTX", plan, initialMembers),
     ];
-    initialMembers.forEach((member, index) => {
-      outputs.push(contextOutput(`member-context-${index}`, `BSL-0MEMCTX00${index}`, member, [member]));
+    initialReviewSubjects.forEach((member, index) => {
+      if (member !== plan) {
+        outputs.push(contextOutput(`member-context-${index}`, `BSL-0MEMCTX00${index}`, member, [member]));
+      }
     });
     return outputs;
   }
 
-  function planPayload(architecture: string, interfaceSpec: string, strategy: string, reduced: boolean) {
+  function planPayload(architecture: string, strategy: string, reduced: boolean) {
     return {
       title: reduced ? "Minimal report export decomposition" : "Decompose report export",
       rationale: reduced ? "Duplicate relay work no longer applies." : "Bound exact system outputs.",
@@ -310,18 +324,17 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
       target_child_type: "SYS",
       behavioral_slice: reduced ? "One public report export" : "Report export and duplicate relay behavior",
       expected_coverage: ["export"], exclusions: reduced ? ["internal relay behavior"] : [],
-      interface_context: [interfaceSpec], verification_strategy_revision: strategy,
+      verification_strategy_revision: strategy,
       dependencies: [], required_review_policy: "review-applicability@1",
     };
   }
 
-  function requirementPayload(title: string, architecture: string, interfaceSpec: string) {
+  function requirementPayload(title: string, architecture: string) {
     return {
       title, rationale: "Express only necessary public behavior.",
       statement: `The system shall ${title.toLowerCase()}.`,
       verification_intent: "Observe exact success and malformed rejection.",
       architecture_allocation: { architecture_revision: architecture, element: "AEL-0EXPRTAP00" },
-      interface_context: [interfaceSpec],
     };
   }
 
@@ -339,14 +352,20 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     expect(seeded.status, `${seeded.stderr}${seeded.stdout}`).toBe(0);
   }
 
-  function seedReviews(plan: string, setContext: string, members: string[]) {
+  function seedReviews(
+    plan: string,
+    setContext: string,
+    members: string[],
+    contexts = members.map((member, index) =>
+      member === plan ? setContext : revision(`BSL-0MEMCTX00${index}`)),
+  ) {
     const reviews = members.map((member, index) => {
       const review = output(`review-${index}`, "reviews", "REV", {
         title: `Passing Review of ${member}`, review_kind: "contextual",
         rubric_ref: "policies/rubrics/bootstrap-review.md@1", findings: [], outcome: "pass",
       }, [
         { type: "reviews", target: member },
-        { type: "contextualizes", target: member === plan ? setContext : revision(`BSL-0MEMCTX00${index}`) },
+        { type: "contextualizes", target: contexts[index]! },
       ]);
       review.invocation = 0;
       return review;
@@ -454,7 +473,7 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     expect(inputValues(correction, "subject")[0]!.identity.revision_id).toBe(revision(ids.retained));
     expect(inputValues(correction, "failed_review")[0]!.data.payload.definition_simplification.primary_findings).toHaveLength(2);
     const published = submit(correction, [output("replacement", "replacement", "SYS",
-      requirementPayload("Export one completed report", revision(ids.architecture), revision(ids.interface)), [
+      requirementPayload("Export one completed report", revision(ids.architecture)), [
         { type: "derived-from", target: ids.parent }, { type: "decomposes", target: revision(ids.plan) },
         { type: "allocated-to", target: revision(ids.architecture) }, { type: "governed-by", target: revision(ids.interface) },
         { type: "corrects-review", target: failedReview.revisionId },
@@ -466,6 +485,16 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
   it("atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion", () => {
     let packet = next();
     const context = inputValues(packet, "subject_context")[0]!.identity.revision_id;
+    const allOutputRemoval = failedPayload(packet, "definition-consistency");
+    const allOutputReduction = allOutputRemoval.definition_simplification.scope_reduction;
+    expect(submitResult(packet, [output("invalid-all-output-review", "review", "REV", allOutputRemoval, [
+      { type: "reviews", target: context }, { type: "contextualizes", target: context },
+      ...initialMembers.map((member) => ({ type: "blocks", target: member })),
+      { type: "removes", target: revision(ids.retained) },
+      { type: "removes", target: revision(ids.removed) },
+    ])], ["independent-reviewer"]).status).toBe(1);
+    expect(allOutputReduction).toBeDefined();
+
     const failure = submit(packet, [output("failed-set-review", "review", "REV", failedPayload(packet, "definition-consistency"), [
       { type: "reviews", target: context }, { type: "contextualizes", target: context },
       ...initialMembers.map((member) => ({ type: "blocks", target: member })),
@@ -489,20 +518,19 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
         title: "Minimal public boundary", rationale: "One controlled boundary remains necessary.", architecture_revision: correctedArchitecture,
         boundary: { from_element: "AEL-0EXPRTAP00", to_element: "AEL-0EXPRTAP00" }, operations: ["POST /exports"], schemas: ["report@1"], units: [], timing: [], errors: ["invalid-report"], security: [], ordering: [], compatibility: ["v1"], interface_version: "1.1.0",
       }, [{ type: "defines-interface-for", target: "$proposal.architecture.revision_id" }, cause], ids.interface),
-      output("plan", "plan", "DWP", planPayload(correctedArchitecture, correctedInterface, revision(ids.strategy), true), [
+      output("plan", "plan", "DWP", planPayload(correctedArchitecture, revision(ids.strategy), true), [
         { type: "decomposes", target: revision(ids.parent) }, { type: "allocated-to", target: "$proposal.architecture.revision_id" },
         { type: "governed-by", target: "$proposal.interface.revision_id" }, cause,
       ], ids.plan),
-      output("requirement", "requirements", "SYS", requirementPayload("Export one completed report", correctedArchitecture, correctedInterface), [
+      output("requirement", "requirements", "SYS", requirementPayload("Export one completed report", correctedArchitecture), [
         { type: "derived-from", target: ids.parent }, { type: "decomposes", target: "$proposal.plan.revision_id" },
         { type: "allocated-to", target: "$proposal.architecture.revision_id" }, { type: "governed-by", target: "$proposal.interface.revision_id" }, cause,
       ], ids.retained),
     ];
-    const obsolete = output("obsolete", "requirements", "SYS", requirementPayload("Relay completed report", correctedArchitecture, correctedInterface), [
-      { type: "derived-from", target: ids.parent }, { type: "decomposes", target: "$proposal.plan.revision_id" },
-      { type: "allocated-to", target: "$proposal.architecture.revision_id" }, { type: "governed-by", target: "$proposal.interface.revision_id" }, cause,
-    ], ids.removed);
-    expect(submitResult(packet, [...corrected, obsolete]).status).toBe(1);
+    const stalePayloadReferences = structuredClone(corrected);
+    (stalePayloadReferences.find((item) => item.name === "plan")!.lifecycleDatum.payload.interface_context as string[]) = [revision(ids.interface)];
+    (stalePayloadReferences.find((item) => item.name === "requirements")!.lifecycleDatum.payload.interface_context as string[]) = [revision(ids.interface)];
+    expect(submitResult(packet, stalePayloadReferences).status).toBe(1);
     const correction = submit(packet, corrected);
     for (const published of correction.outputs) {
       const shown = req(repository, "show", published.lifecycleDatum.revisionId, "--json");
@@ -517,14 +545,51 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     );
     expect(completion).toEqual(expect.objectContaining({ status: "blocked", dispatchable: false }));
 
-    const correctedMembers = [correctedArchitecture, correctedPlan, correctedInterface, revision(ids.retained, 2)];
-    const freshContexts = [contextOutput("fresh-set", "BSL-0NEWSETCTX", correctedPlan, correctedMembers)];
-    correctedMembers.forEach((member, index) => {
-      freshContexts.push(contextOutput(`fresh-member-${index}`, `BSL-0NEWCTX00${index}`, member, [member]));
-    });
-    seedData(freshContexts);
-    seedReviews(correctedPlan, revision("BSL-0NEWSETCTX"), correctedMembers);
-    commit("Publish fresh corrected definition evidence");
+    const correctedRequirement = revision(ids.retained, 2);
+    const correctedMembers = [correctedArchitecture, correctedPlan, correctedInterface, correctedRequirement];
+    const preReviewedMembers = [correctedArchitecture, correctedInterface, correctedRequirement];
+    const preReviewedContexts = preReviewedMembers.map((member, index) => revision(`BSL-0NEWCTX00${index}`));
+    seedData(preReviewedMembers.map((member, index) =>
+      contextOutput(`fresh-member-${index}`, `BSL-0NEWCTX00${index}`, member, [member])));
+    seedReviews(correctedPlan, preReviewedContexts[0]!, preReviewedMembers, preReviewedContexts);
+    commit("Publish unaffected fresh corrected definition evidence");
+
+    packet = next();
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    expect(inputValues(packet, "subject")[0]!.identity.revision_id).toBe(correctedPlan);
+    expect(inputValues(packet, "context_members").map((member) => member.identity.revision_id)).toEqual([
+      correctedArchitecture,
+      correctedInterface,
+      correctedRequirement,
+    ]);
+    const planContext = submit(packet, [output("fresh-plan-context", "context", "BSL", {
+      title: `Exact Review Context for ${correctedPlan}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: correctedPlan,
+      group: "DEFAULT",
+      definition_members: correctedMembers,
+      evidence: [],
+    })]).outputs[0].lifecycleDatum as DatumRef;
+
+    packet = next();
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    expect(inputValues(packet, "subject")[0]!.identity.revision_id).toBe(correctedPlan);
+    expect(inputValues(packet, "context_members").map((member) => member.identity.revision_id)).toEqual([
+      correctedArchitecture,
+      correctedInterface,
+      correctedRequirement,
+    ]);
+    submit(packet, [output("fresh-plan-review", "review", "REV", {
+      title: `Passing Review of ${correctedPlan}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, [
+      { type: "reviews", target: correctedPlan },
+      { type: "contextualizes", target: planContext.revisionId },
+    ])], ["independent-reviewer"]);
 
     const remaining = new Set(["simplify-requirement-set@2", "simplify-architecture-and-interfaces@2"]);
     for (let index = 0; index < 2; index += 1) {

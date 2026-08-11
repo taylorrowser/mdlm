@@ -6,7 +6,7 @@ phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definitio
 inputs:
   - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}
   - {name: review_context, types: [BSL], cardinality: one, identity: revision}
-  - {name: context_members, types: [MAP, PSP, STK], cardinality: zero-or-more, identity: revision}
+  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP], cardinality: zero-or-more, identity: revision}
 outputs:
   - name: review
     types: [REV]

@@ -563,7 +563,6 @@ describe("req system decomposition slice", () => {
               behavioral_slice: "Public report export behavior and malformed-request discrimination",
               expected_coverage: ["successful export", "invalid request rejection"],
               exclusions: ["report rendering internals"],
-              interface_context: [interfaceSpec.revisionId],
               verification_strategy_revision: strategy.revisionId,
               dependencies: [],
               required_review_policy: "review-applicability@1",
@@ -733,7 +732,6 @@ describe("req system decomposition slice", () => {
                 architecture_revision: architecture.revisionId,
                 element: "AEL-0EXPRTAP00",
               },
-              interface_context: [interfaceSpec.revisionId],
             },
             links: [
               { type: "derived-from", target: stakeholder.id },
@@ -882,7 +880,6 @@ describe("req system decomposition slice", () => {
               behavioral_slice: "Public report export behavior and malformed-request discrimination",
               expected_coverage: ["successful export", "invalid request rejection"],
               exclusions: ["report rendering internals"],
-              interface_context: [interfaceSpec.revisionId],
               verification_strategy_revision: strategy.revisionId,
               dependencies: [],
               required_review_policy: "review-applicability@1",
