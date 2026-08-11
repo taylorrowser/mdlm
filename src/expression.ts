@@ -2296,7 +2296,10 @@ export function findDefinitionExpressionBindingReference(
 ): CompiledTextExpression | undefined {
   const definitionKey = `${definition.kind}:${definition.id}`;
   if (visited.has(definitionKey)) return undefined;
-  const nextVisited = new Set(visited).add(definitionKey);
+  // One reachability search only needs to inspect each definition once. Sharing
+  // the visited set avoids rewalking every path through a converging Selector
+  // graph while still exploring every reachable definition.
+  visited.add(definitionKey);
   const expressions: CompiledTextExpression[] = [];
   const visit = (value: unknown): void => {
     if (isCompiledTextExpression(value)) {
@@ -2317,7 +2320,7 @@ export function findDefinitionExpressionBindingReference(
       expression,
       binding,
       catalogs,
-      nextVisited,
+      visited,
     );
     if (found) return found;
   }
@@ -2336,7 +2339,7 @@ export function findDefinitionExpressionBindingReference(
           referenced,
           binding,
           catalogs,
-          nextVisited,
+          visited,
         )
       : undefined;
     if (found) return found;
