@@ -16,14 +16,17 @@ outputs:
       - {link: decomposes, target: {input: parents}}
       - {link: allocated-to, target: {input: architecture}}
       - {link: governed-by, target: {input: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
 prompt_ref: prompts/define-decomposition-work-package.md@1
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && plan.payload.stage == "planning"
-  && plan.payload.architecture_context.revision == architecture.identity.revision_id
-  && plan.payload.verification_strategy_revision == verification_strategy.identity.revision_id
+  && count("architectures-for-decomposition@1", {plan: plan}) == 1
+  && one("architectures-for-decomposition@1", {plan: plan}) == architecture
+  && count("strategies-for-decomposition@1", {plan: plan}) == 1
+  && one("strategies-for-decomposition@1", {plan: plan}) == verification_strategy
 resolves: [decomposition-planning-required]
 prohibited_inputs: [mutable latest aliases, product source code, proposed implementation details]
 batching: single

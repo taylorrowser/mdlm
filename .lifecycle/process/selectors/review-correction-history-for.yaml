@@ -14,10 +14,14 @@ query:
     && (
       view == "lineage"
       || ((view == "corrections" || view == "autonomous-corrections")
-        && exists("cited-failing-reviews-by-correction@1", {replacement: revision})
+        && (exists("cited-reviews-by-correction@1", {replacement: revision})
+          || exists("cited-gate-rejections-by-correction@1",
+            {replacement: revision}))
         && (view != "autonomous-corrections"
           || (none("candidate-correction-decisions-for@1", {replacement: revision})
             && none("phase-1-assurance-correction-decisions-for@1",
+              {replacement: revision})
+            && none("phase-2-correction-decisions-for@1",
               {replacement: revision}))))
     )
   distinct: true

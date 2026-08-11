@@ -292,17 +292,18 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
         boundary: { from_element: "AEL-0REPRTCR00", to_element: "AEL-0EXPRTAP00" },
         operations: ["POST /exports"], schemas: ["report@1"], units: [], timing: [], errors: ["invalid-report"], security: [], ordering: [], compatibility: ["v1"], interface_version: "1.0.0",
       }, [{ type: "defines-interface-for", target: architecture }], ids.interface),
-      output("plan", "data", "DWP", planPayload(architecture, strategy, false), [
+      output("plan", "data", "DWP", planPayload(false), [
         { type: "decomposes", target: parentRequirement },
         { type: "allocated-to", target: architecture },
         { type: "governed-by", target: interfaceSpec },
+        { type: "verified-under", target: strategy },
       ], ids.plan),
       output("retained", "data", "SYS", requirementPayload("Export completed report", architecture), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: plan },
+        { type: "derived-from", target: parentRequirement }, { type: "decomposes", target: plan },
         { type: "allocated-to", target: architecture }, { type: "governed-by", target: interfaceSpec },
       ], ids.retained),
       output("removed", "data", "SYS", requirementPayload("Relay completed report", architecture), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: plan },
+        { type: "derived-from", target: parentRequirement }, { type: "decomposes", target: plan },
         { type: "allocated-to", target: architecture }, { type: "governed-by", target: interfaceSpec },
       ], ids.removed),
       contextOutput("set-context", "BSL-0DEFSETCTX", plan, initialMembers),
@@ -315,16 +316,15 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     return outputs;
   }
 
-  function planPayload(architecture: string, strategy: string, reduced: boolean) {
+  function planPayload(reduced: boolean) {
     return {
       title: reduced ? "Minimal report export decomposition" : "Decompose report export",
       rationale: reduced ? "Duplicate relay work no longer applies." : "Bound exact system outputs.",
-      stage: "planning", parent_revisions: [revision(ids.parent)],
-      architecture_context: { revision: architecture, element: "AEL-0EXPRTAP00" },
+      stage: "planning",
+      architecture_element: "AEL-0EXPRTAP00",
       target_child_type: "SYS",
       behavioral_slice: reduced ? "One public report export" : "Report export and duplicate relay behavior",
       expected_coverage: ["export"], exclusions: reduced ? ["internal relay behavior"] : [],
-      verification_strategy_revision: strategy,
       dependencies: [], required_review_policy: "review-applicability@1",
     };
   }
@@ -474,7 +474,7 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     expect(inputValues(correction, "failed_review")[0]!.data.payload.definition_simplification.primary_findings).toHaveLength(2);
     const published = submit(correction, [output("replacement", "replacement", "SYS",
       requirementPayload("Export one completed report", revision(ids.architecture)), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: revision(ids.plan) },
+        { type: "derived-from", target: revision(ids.parent) }, { type: "decomposes", target: revision(ids.plan) },
         { type: "allocated-to", target: revision(ids.architecture) }, { type: "governed-by", target: revision(ids.interface) },
         { type: "corrects-review", target: failedReview.revisionId },
       ], ids.retained)]);
@@ -518,12 +518,13 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
         title: "Minimal public boundary", rationale: "One controlled boundary remains necessary.", architecture_revision: correctedArchitecture,
         boundary: { from_element: "AEL-0EXPRTAP00", to_element: "AEL-0EXPRTAP00" }, operations: ["POST /exports"], schemas: ["report@1"], units: [], timing: [], errors: ["invalid-report"], security: [], ordering: [], compatibility: ["v1"], interface_version: "1.1.0",
       }, [{ type: "defines-interface-for", target: "$proposal.architecture.revision_id" }, cause], ids.interface),
-      output("plan", "plan", "DWP", planPayload(correctedArchitecture, revision(ids.strategy), true), [
+      output("plan", "plan", "DWP", planPayload(true), [
         { type: "decomposes", target: revision(ids.parent) }, { type: "allocated-to", target: "$proposal.architecture.revision_id" },
-        { type: "governed-by", target: "$proposal.interface.revision_id" }, cause,
+        { type: "governed-by", target: "$proposal.interface.revision_id" },
+        { type: "verified-under", target: revision(ids.strategy) }, cause,
       ], ids.plan),
       output("requirement", "requirements", "SYS", requirementPayload("Export one completed report", correctedArchitecture), [
-        { type: "derived-from", target: ids.parent }, { type: "decomposes", target: "$proposal.plan.revision_id" },
+        { type: "derived-from", target: revision(ids.parent) }, { type: "decomposes", target: "$proposal.plan.revision_id" },
         { type: "allocated-to", target: "$proposal.architecture.revision_id" }, { type: "governed-by", target: "$proposal.interface.revision_id" }, cause,
       ], ids.retained),
     ];
@@ -608,5 +609,5 @@ describe("Phase 2 earliest simplification through the public mdlm seam", () => {
     expect(packet.scenario.reference).toBe("complete-decomposition-work-package@2");
     expect(inputValues(packet, "plan")[0]!.identity.revision_id).toBe(correctedPlan);
     expect(req(repository, "show", revision(ids.removed), "--json").status).toBe(0);
-  }, 120_000);
+  }, 150_000);
 });

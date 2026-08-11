@@ -15,7 +15,9 @@ Read, in order:
 5. `skills/traceability.md@1`
 6. `skills/clarification-protocol.md@1`
 
-Plan one bounded many-to-many decomposition. Record exact parents, architecture
-element, interface and verification context, target child type, intended slice,
-expected coverage, exclusions, dependencies, blocking questions, and review
-policy. Do not begin decomposition before the exact plan passes review.
+Plan one bounded many-to-many decomposition. Record the architecture element,
+target child type, intended slice, expected coverage, exclusions, dependencies,
+blocking questions, and review policy in the payload. Record exact parents,
+architecture, every applicable interface, and verification strategy only through
+the source-owned canonical links. Do not begin decomposition before the exact
+plan passes review.

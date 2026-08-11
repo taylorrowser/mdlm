@@ -20,13 +20,32 @@ outputs:
       - {link: decomposes, target: {input: plan}}
       - {link: allocated-to, target: {input: architecture}}
       - {link: governed-by, target: {input: interfaces}}
+  - name: decision
+    types: [DEC]
+    cardinality: zero-or-one
+    required_links:
+      - {link: justifies, target: {output: replacement}}
 prompt_ref: prompts/revise-phase-2-subject-after-simplification.md@1
 review_policy_ref: review-applicability@1
+participation:
+  policy_ref: phase-2-correction-participation@1
+  arguments: {subject: subject}
+authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == subject.identity.id
   && replacement.identity.type == subject.identity.type
   && replacement.payload.architecture_allocation.architecture_revision == architecture.identity.revision_id
+  && (
+    (policy("phase-2-correction-participation@1",
+      {subject: subject}).authority_mode == "autonomous"
+      && none("phase-2-correction-decisions-for@1",
+        {replacement: replacement}))
+    || (policy("phase-2-correction-participation@1",
+      {subject: subject}).authority_mode == "attended"
+      && count("phase-2-correction-decisions-for@1",
+        {replacement: replacement}) == 1)
+  )
 resolves: [phase-2-simplification-correction-required]
 prohibited_inputs: [unrelated subjects, scope expansion, mutation or deletion of failed evidence, mutable latest aliases]
 batching: single

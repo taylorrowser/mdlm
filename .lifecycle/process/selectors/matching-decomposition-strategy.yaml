@@ -1,0 +1,16 @@
+kind: selector-definition
+id: matching-decomposition-strategy
+version: 1
+description: The supplied exact verification strategy when it is canonically linked by one DWP Revision.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+  - {name: strategy, kind: revision, types: [VSP]}
+result_kind: revision
+query:
+  from:
+    selector: strategies-for-decomposition@1
+    arguments: {plan: plan}
+  as: linked
+  where: 'linked == strategy'
+  distinct: true
+  order_by: [identity.revision_id]

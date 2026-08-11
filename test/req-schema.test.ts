@@ -37,8 +37,8 @@ describe("req schema", () => {
       command: "schema",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.55.0",
-        reference: "mdlm-bootstrap@0.55.0",
+        version: "0.56.0",
+        reference: "mdlm-bootstrap@0.56.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -94,6 +94,13 @@ describe("req schema", () => {
           freeze_resolution: "already-exact",
           inverse_label: "corrected-by",
         }, {
+          id: "corrects-gate-rejection",
+          description: expect.stringContaining("gate rejection"),
+          targets: [{ kind: "datum", types: ["DEC"], identity: "revision" }],
+          cardinality: { minimum: 0, maximum: "many" },
+          freeze_resolution: "already-exact",
+          inverse_label: "corrected-by-gate-rejection",
+        }, {
           id: "changed-under",
           description: expect.stringContaining("Change Request"),
           targets: [{ kind: "datum", types: ["CHG"], identity: "revision" }],
@@ -107,13 +114,6 @@ describe("req schema", () => {
           cardinality: { minimum: 1, maximum: 1 },
           freeze_resolution: "exact-revision",
           inverse_label: "derives",
-        }, {
-          id: "corrects-gate-rejection",
-          description: expect.stringContaining("gate rejection"),
-          targets: [{ kind: "datum", types: ["DEC"], identity: "revision" }],
-          cardinality: { minimum: 0, maximum: "many" },
-          freeze_resolution: "already-exact",
-          inverse_label: "corrected-after-gate-rejection",
         }],
         lifecycleBehavior: {
           authorship: "authored",
@@ -131,7 +131,7 @@ describe("req schema", () => {
     selectProcessPackage(
       repositoryRoot,
       processRoot,
-      "mdlm-bootstrap@0.55.0",
+      "mdlm-bootstrap@0.56.0",
     );
 
     const result = req(repositoryRoot, "schema", "SNP", "--json");
@@ -183,7 +183,7 @@ describe("req schema", () => {
       ok: false,
       command: "schema",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.55.0",
+        reference: "mdlm-bootstrap@0.56.0",
       }),
       selected: true,
       diagnostics: [{
@@ -214,7 +214,7 @@ describe("req schema", () => {
     selectBootstrapProcessPackage(repositoryRoot);
     const selectedType = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.55.0/types/STK.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.56.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 

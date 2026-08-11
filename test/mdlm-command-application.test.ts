@@ -103,7 +103,7 @@ describe("shared MDLM command application", () => {
       command: "process.show",
       selected: true,
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.55.0",
+        reference: "mdlm-bootstrap@0.56.0",
       }),
     }));
 
@@ -131,7 +131,7 @@ describe("shared MDLM command application", () => {
       ok: true,
       command: "init",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.55.0",
+        reference: "mdlm-bootstrap@0.56.0",
       }),
     }));
   });

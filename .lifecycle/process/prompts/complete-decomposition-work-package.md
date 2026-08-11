@@ -14,7 +14,12 @@ Read, in order:
 4. `skills/traceability.md@1`
 
 Create the next exact Revision in the planning DWP lineage. Account for every
-parent through reviewed child revisions or an exact termination or waiver,
-record deferred questions and cross-group dependencies, and retain exact
-simplification evidence. Do not claim completion while any blocking question or
-required Review remains unresolved.
+supplied parent through at least one supplied reviewed SYS Revision, record
+deferred questions and cross-group dependencies, and retain every supplied
+simplification Review. The source-owned `decomposes`, `produces`, `allocated-to`,
+`governed-by`, `verified-under`, `derived-from`, and `justifies` links—and each
+SYS `derived-from` link—are the sole canonical exact account. Do not duplicate
+those identities in payload fields or claim completion while any blocker,
+coverage gap, or required Review remains unresolved. Waived or terminated
+coverage requires a separately implemented exact authority route and is not a
+valid completion proposal in this profile.

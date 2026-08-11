@@ -1,0 +1,33 @@
+kind: scenario-definition
+id: accept-phase-2-system
+version: 1
+description: Mechanically freeze one exact approved Phase 2 system definition as accepted without requesting redundant authority.
+phases: [phase-2-system-definition]
+inputs:
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      candidate.payload.kind == "level-candidate"
+      && candidate.storage.frozen == true
+      && exists("passing-reviews-for@1", {subject: candidate})
+      && none("candidate-members-missing-review@1", {candidate: candidate})
+      && exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+  - {name: definition_members, types: [SYS, ASP, ICSP, DWP, VSP], cardinality: one-or-more, identity: revision}
+  - {name: evidence, types: [REV, DEC], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: accepted
+    types: [BSL]
+    cardinality: one
+    required_links:
+      - {link: promotes, target: {input: candidate}}
+prompt_ref: prompts/accept-phase-2-system.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && exists("accepted-system-baselines-for-candidate@1",
+    {candidate: candidate})
+resolves: [system-acceptance-required]
+prohibited_inputs: [unreviewed members, unreviewed candidate, unreviewed gate Decision, inferred authority, mutable latest aliases]
+batching: single

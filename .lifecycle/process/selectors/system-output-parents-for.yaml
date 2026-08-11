@@ -1,0 +1,13 @@
+kind: selector-definition
+id: system-output-parents-for
+version: 1
+description: Exact stakeholder parent Revisions from which one SYS output is canonically derived.
+parameters:
+  - {name: output, kind: revision, types: [SYS]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: output, link: derived-from, emit: target, types: [STK]}
+  as: parent
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]

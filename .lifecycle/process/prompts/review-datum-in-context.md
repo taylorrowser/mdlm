@@ -38,8 +38,10 @@ cross-subject batch.
 
 Record primary and collateral findings separately. Primary blocking findings
 force `fail`; collateral findings use `needs-triage` and do not automatically fail
-the subject. Do not silently edit the subject during review and do not inherit a
-prior reviewer’s outcome.
+the subject. In Phase 2, add one exact `flags` link for every SYS, ASP, ICSP, or
+DWP subject selected by a collateral Finding so normal reevaluation derives one
+subject-bounded Correction with the complete immutable Review. Do not silently
+edit the subject during review and do not inherit a prior reviewer’s outcome.
 
 Complete the REV as pass, fail, or cancelled and preserve exact prompt, skill,
 policy, process, subject, and context provenance.

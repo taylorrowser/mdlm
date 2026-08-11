@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-2-system-definition
-version: 6
+version: 7
 order: 2
 name: System definition tracer
 purpose: Plan, review, execute, simplify, and complete one bounded decomposition into an exact reviewed SYS candidate with architecture and interface context.
@@ -36,6 +36,9 @@ scenarios:
   - simplify-architecture-and-interfaces@2
   - revise-phase-2-subject-after-simplification@1
   - revise-phase-2-definition-set-after-simplification@1
+  - revise-phase-2-subject-after-review@1
+  - revise-phase-2-candidate-after-review@1
+  - resolve-phase-2-ambiguity@1
   - complete-decomposition-work-package@2
   - resolve-question@2
   - resolve-question-with-prototype@2
@@ -43,6 +46,7 @@ scenarios:
   - create-decomposition-group-candidate@1
   - create-system-level-candidate@1
   - record-gate-signoff@3
+  - accept-phase-2-system@1
   - record-consequential-decision@1
 obligations:
   - review-context-required@2
@@ -58,12 +62,16 @@ obligations:
   - architecture-interface-simplification-required@1
   - phase-2-simplification-correction-required@1
   - phase-2-definition-consistency-correction-required@1
+  - phase-2-review-correction-required@1
+  - phase-2-candidate-correction-required@1
+  - phase-2-ambiguity-resolution-required@1
   - decomposition-completion-required@1
   - decomposition-parent-coverage-required@1
   - decomposition-group-candidate-required@1
   - system-level-candidate-required@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@3
+  - system-acceptance-required@1
 outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC, ART]
 progression:
   next_phase: phase-2-pilot-assessment
@@ -75,7 +83,9 @@ progression:
     && every("complete-phase-2-level-candidates@1", {}, candidate =>
         none("candidate-members-missing-review@1", {candidate: candidate})
         && exists("passing-reviews-for@1", {subject: candidate})
-        && none("failing-reviews-for@1", {subject: candidate}))
+        && none("failing-reviews-for@1", {subject: candidate})
+        && exists("accepted-system-baselines-for-candidate@1",
+          {candidate: candidate}))
     && none("open-blocking-questions@1", {})
   authorization:
     condition: >-

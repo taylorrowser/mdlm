@@ -1,0 +1,24 @@
+kind: selector-definition
+id: system-acceptance-evidence-for-candidate
+version: 1
+description: Exact candidate Review, approving gate Decision, and Decision Review required to accept one Phase 2 candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV, DEC]}
+  as: evidence
+  where: >-
+    (evidence.identity.type == "REV"
+      && exists("matching-passing-review-for@1",
+        {subject: candidate, review: evidence}))
+    || (evidence.identity.type == "DEC"
+      && count("applicable-gate-signoffs-for@1", {candidate: candidate}) == 1
+      && evidence == one("applicable-gate-signoffs-for@1", {candidate: candidate}))
+    || (evidence.identity.type == "REV"
+      && count("applicable-gate-signoffs-for@1", {candidate: candidate}) == 1
+      && exists("matching-passing-review-for@1",
+        {subject: one("applicable-gate-signoffs-for@1", {candidate: candidate}),
+         review: evidence}))
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

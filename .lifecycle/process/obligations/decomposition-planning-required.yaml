@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: decomposition-planning-required
 version: 1
-description: Every accepted Phase 2 requirement requires one exact DWP plan after architecture, interface, and strategy context is unambiguous.
+description: Every accepted Phase 2 requirement requires one exact DWP plan after one architecture, a complete nonempty interface set, and one strategy are available.
 phases: [phase-2-system-definition]
 for_each: 'select("phase-2-entry-requirements@1", {})'
 subject_as: requirement
@@ -22,9 +22,9 @@ status_rules:
     priority: 250
     when: >-
       count("current-architectures-for-requirement@1", {requirement: requirement}) == 1
-      && count("current-interfaces-for-architecture@1",
-        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}) != 1
-    reason: DWP planning requires one unambiguous exact normative interface Revision.
+      && none("current-interfaces-for-architecture@1",
+        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
+    reason: DWP planning requires at least one exact normative interface Revision.
     blocked_by:
       - obligation: interface-control-specification-required@1
         subjects: 'select("current-architectures-for-requirement@1", {requirement: requirement})'
@@ -39,10 +39,10 @@ status_rules:
     priority: 100
     when: >-
       count("current-architectures-for-requirement@1", {requirement: requirement}) == 1
-      && count("current-interfaces-for-architecture@1",
-        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}) == 1
+      && exists("current-interfaces-for-architecture@1",
+        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
       && count("current-strategies-for-phase-2-requirement@1", {requirement: requirement}) == 1
-    reason: Exact accepted parent, architecture, interface, and verification context is sufficient for bounded DWP planning.
+    reason: Exact accepted parent, architecture, complete interface set, and verification context are sufficient for bounded DWP planning.
 default_status: blocked
 resolve_with:
   scenario: define-decomposition-work-package@2

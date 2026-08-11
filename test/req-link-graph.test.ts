@@ -165,7 +165,7 @@ describe("req source-owned links", () => {
           member_hashes: { [revisionId]: `sha256:${"0".repeat(64)}` },
           resolved_links: {},
           process_provenance: {
-            process_ref: "mdlm-bootstrap@0.55.0",
+            process_ref: "mdlm-bootstrap@0.56.0",
             manifest_hash: `sha256:${"1".repeat(64)}`,
             asset_refs: [],
           },
@@ -175,7 +175,7 @@ describe("req source-owned links", () => {
       created_by: {
         scenario: "create-review-context@1",
         prompt_ref: "prompts/create-review-context.md@1",
-        process_ref: "mdlm-bootstrap@0.55.0",
+        process_ref: "mdlm-bootstrap@0.56.0",
         loaded_skill_refs: [],
         policy_refs: [],
       },

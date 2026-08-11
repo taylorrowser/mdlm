@@ -1,13 +1,13 @@
 kind: selector-definition
 id: strategies-for-decomposition
 version: 1
-description: Exact verification strategy Revision named by one DWP payload.
+description: Exact verification strategy Revision canonically linked by one DWP.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
 query:
-  from: {collection: revisions, types: [VSP]}
+  from: {relation: outgoing-links, of: plan, link: verified-under, emit: target, types: [VSP]}
   as: strategy
-  where: 'strategy.identity.revision_id == plan.payload.verification_strategy_revision'
+  where: 'true'
   distinct: true
   order_by: [identity.revision_id]
