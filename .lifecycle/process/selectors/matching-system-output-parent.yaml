@@ -1,7 +1,7 @@
 kind: selector-definition
 id: matching-system-output-parent
 version: 1
-description: The supplied exact parent lineage when one SYS output canonically derives from it.
+description: The supplied exact stakeholder parent Revision when one SYS output canonically derives from it.
 parameters:
   - {name: output, kind: revision, types: [SYS]}
   - {name: parent, kind: revision, types: [STK]}
@@ -11,6 +11,6 @@ query:
     selector: system-output-parents-for@1
     arguments: {output: output}
   as: linked
-  where: 'linked.identity.id == parent.identity.id'
+  where: 'linked.identity.revision_id == parent.identity.revision_id'
   distinct: true
   order_by: [identity.revision_id]
