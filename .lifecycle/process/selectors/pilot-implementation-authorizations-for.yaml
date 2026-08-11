@@ -9,7 +9,8 @@ query:
   from: {relation: incoming-links, of: implementation, link: justifies, emit: source, types: [DEC]}
   as: authorization
   where: >-
-    authorization.payload.kind == "decision"
+    authorization.provenance.scenario == implementation.provenance.scenario
+    && authorization.payload.kind in ["decision", "scope"]
     && authorization.payload.effective_scope == implementation.identity.revision_id
     && state(authorization, "disposition") == "active"
     && state(authorization, "validity") == "valid"

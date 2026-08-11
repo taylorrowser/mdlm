@@ -3,7 +3,7 @@ id: phase-1-assurance-correction-participation
 version: 1
 description: Keep two Phase 1 assurance Review-correction cycles autonomous, then require immediate stakeholder escalation through the same exact Scenario.
 parameters:
-  - {name: subject, kind: revision, types: [VSP, ENV, VER]}
+  - {name: subject, kind: revision, types: [VSP, ENV, VER, VAI]}
 result_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object

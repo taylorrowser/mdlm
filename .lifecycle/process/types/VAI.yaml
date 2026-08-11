@@ -11,6 +11,11 @@ payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   required: [kind, implementation_ref, independence_mode, authoring_input_refs, prohibited_inputs_observed, activity_bindings, target_behavior]
+  allOf:
+    - if:
+        properties: {kind: {const: pilot}, independence_mode: {const: source-blind}}
+        required: [kind, independence_mode]
+      then: {required: [execution_procedure]}
   properties:
     kind: {enum: [qualification, pilot, formal]}
     implementation_ref: {type: string, pattern: '^(git:[a-f0-9]{40}|procedure:sha256:[a-f0-9]{64})$'}
@@ -30,7 +35,39 @@ payload_schema:
       properties:
         supported: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
         intentionally_unsupported: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+    execution_procedure:
+      type: object
+      additionalProperties: false
+      required: [deadlines_ms, deadline_scope, timeout, cleanup, aggregation]
+      properties:
+        deadlines_ms:
+          type: object
+          additionalProperties: false
+          required: [checkout, environment_check, product_case]
+          properties:
+            checkout: {type: integer, minimum: 1, maximum: 3600000}
+            environment_check: {type: integer, minimum: 1, maximum: 3600000}
+            product_case: {type: integer, minimum: 1, maximum: 3600000}
+        deadline_scope: {const: infrastructure-safety-only}
+        timeout:
+          type: object
+          additionalProperties: false
+          required: [termination, force_after_ms, reaping, capture_partial_raw_observation]
+          properties:
+            termination: {const: process-group-sigterm-then-sigkill}
+            force_after_ms: {type: integer, minimum: 1, maximum: 60000}
+            reaping: {const: all-descendants}
+            capture_partial_raw_observation: {const: true}
+        cleanup: {const: guaranteed}
+        aggregation: {const: continue-through-all-cases}
 outgoing_links:
+  - id: corrects-review
+    description: Exact failed Review findings addressed by this corrected verification implementation Revision.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-implementation-revision
   - id: realizes
     description: Exact verification activity implemented by this executable or procedure.
     targets:

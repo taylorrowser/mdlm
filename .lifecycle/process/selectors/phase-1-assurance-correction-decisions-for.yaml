@@ -3,7 +3,7 @@ id: phase-1-assurance-correction-decisions-for
 version: 1
 description: Exact valid scope authority Decision published atomically with one attended Phase 1 assurance correction.
 parameters:
-  - {name: replacement, kind: revision, types: [VSP, ENV, VER]}
+  - {name: replacement, kind: revision, types: [VSP, ENV, VER, VAI]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: replacement, link: justifies, emit: source, types: [DEC]}

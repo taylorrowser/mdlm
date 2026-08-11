@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.53.0`
+- **Implementation package:** `mdlm-bootstrap@0.54.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -47,7 +47,7 @@ the accepted overview and the reviewed pilot Decision.
 | Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
 | Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
-| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact bounded ART registration, separately authorized pilot implementation, and exact-target pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76 | `test/req-product-assurance-pilot.test.ts` |
+| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
 | Phase 2 decomposition, simplification, candidates, and reviewed gate | 52–53, 57–58 | #46 | `test/req-system-decomposition.test.ts` |
 | Exact problem/change control with selective historical reuse | 54, 57–58 | #47 | `test/req-change-control.test.ts` |
 | Durable pilot measurements, independent Review, and expansion Decision | 56–60 | #48, #68 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts` |
@@ -112,8 +112,16 @@ correction deepens into one
 interface whose participation changes from two autonomous cycles to attended
 escalation. Failed Question and gate Decisions retain the same causal-history
 contract under attended authority. Reviewed gate approval mechanically publishes
-an exact accepted-intent BSL before Phase progression. Failed VAI procedure correction, remaining Phase 2, and pilot-assessment hardening
-stay deferred to issues #97–#100. The
+an exact accepted-intent BSL before Phase progression. Issue #97 applies that
+bounded correction shape to failed source-blind pilot VAI Reviews while preserving
+exact VER, ENV, ART, case, and pilot claim-class bindings. Corrected procedures
+record bounded setup and case deadlines, forced timeout termination/reaping,
+partial raw observation, guaranteed cleanup, and continue-through-all-cases
+aggregation. ART command evidence now distinguishes normal, raw malformed,
+omitted, and extra arguments—including omitted versus empty tokens—and gives every
+case deterministic exact-byte observations. Prior VAI/RUN/RES/Review evidence
+remains immutable and cannot satisfy fresh corrected work. Remaining Phase 2 and
+pilot-assessment hardening stay deferred to issues #98–#100. The
 lifecycle-neutral operator contract exposes package-bound attended
 inputs without counting Assignment transport attempts as lifecycle failures. The implemented routes and deferred
 hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-matrix.md).
@@ -151,10 +159,19 @@ hardening breadth are recorded in [`phase-hardening-matrix.md`](phase-hardening-
   its replacement, and unsupported ambiguity reaches an explicit Profile Boundary.
 - Current pilot activity requirements project exact bounded ART registration when
   no boundary-complete target exists. The target carries the public repository,
-  versioned typed command with co-located exact parameter encodings, isolation,
-  and observation protocol needed by a fresh
+  ordered typed command matrix with co-located exact parameter encodings and case
+  tokens, isolation, exact normal/raw-malformed/omitted/extra cases,
+  omitted-versus-empty-token identity, and deterministic exact-byte observations
+  needed by a fresh
   source-blind implementer; existing singular evidence satisfies work and duplicates
   stay ambiguous rather than being silently selected.
+- A failed source-blind pilot VAI Review derives exact same-lineage correction with
+  every applicable Review and Finding. Exact activity, ENV, ART, case, and claim-
+  class bindings are retained; the procedure bounds checkout, environment checks,
+  and product cases, terminates and reaps timeouts while retaining partial raw
+  observation, guarantees cleanup, and continues all cases. Fresh context, Review,
+  and run evidence is mandatory while prior VAI/RUN/RES/Review evidence remains
+  immutable.
 - Complete reviewed Phase 2 candidates derive durable observation and exact
   assessment-context work. PAS publication, failed-Review correction, fresh
   independent Review, and the final nondelegable stakeholder Expansion Decision

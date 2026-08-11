@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.53.0
+version: 0.54.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -66,6 +66,8 @@ catalog:
     - pilot-target-matches-implementation
     - pilot-implementation-authorizations-for
     - complete-pilot-implementations-for-activity
+    - failed-current-pilot-verification-implementations
+    - corrected-pilot-verification-implementation-revisions-for
     - environments-for-strategy
     - complete-environment-assurance-for-strategy
     - complete-environment-assurance-for-environment
@@ -286,6 +288,7 @@ catalog:
     - verification-strategy-review-correction-required
     - environment-review-correction-required
     - pilot-verification-activity-review-correction-required
+    - pilot-vai-review-correction-required
     - system-architecture-required
     - interface-control-specification-required
     - decomposition-planning-required
@@ -338,6 +341,7 @@ catalog:
     - revise-verification-strategy-after-review
     - revise-environment-assurance-after-review
     - revise-pilot-verification-activity-after-review
+    - revise-pilot-vai-after-review
     - define-system-architecture
     - define-interface-control-specification
     - define-decomposition-work-package
@@ -391,6 +395,7 @@ assets:
     - prompts/revise-verification-strategy-after-review.md@1
     - prompts/revise-environment-assurance-after-review.md@1
     - prompts/revise-pilot-verification-activity-after-review.md@1
+    - prompts/revise-pilot-vai-after-review.md@1
     - prompts/define-system-architecture.md@1
     - prompts/define-interface-control-specification.md@1
     - prompts/define-decomposition-work-package.md@1
@@ -443,9 +448,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@27
+  default: bootstrap@28
   available:
-    - profiles/bootstrap.yaml@27
+    - profiles/bootstrap.yaml@28
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

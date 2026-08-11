@@ -1059,7 +1059,6 @@ describe("req product-assurance qualification and pilot slice", () => {
             unsupported_behavior: ["export an intentionally unsupported binary format"],
             evidence_refs: [`git-object-observed:${existingRepositoryCommit}`],
             public_interface: {
-              interface_version: 2,
               repository_locator: `file://${process.cwd()}`,
               command: [
                 { literal: "node" },
@@ -1068,28 +1067,77 @@ describe("req product-assurance qualification and pilot slice", () => {
                   parameter: {
                     name: "input",
                     encoding: "exact UTF-8 path to the controlled input fixture",
+                    case_tokens: {
+                      normal: { value: "report.txt" },
+                      "raw-malformed": { value: "report.txt" },
+                      "omitted-argument": { value: "report.txt" },
+                      "extra-argument": { value: "report.txt" },
+                    },
                   },
                 },
                 {
                   parameter: {
                     name: "format",
                     encoding: "visible report -> text; excluded binary report -> binary",
+                    case_tokens: {
+                      normal: { value: "text" },
+                      "raw-malformed": { raw: { encoding: "utf-8", value: "" } },
+                      "omitted-argument": { omitted: true },
+                      "extra-argument": { value: "text" },
+                    },
+                  },
+                },
+                {
+                  extra_argument: {
+                    raw: { encoding: "utf-8", value: "extra" },
+                  },
+                },
+                { literal: "--trace" },
+                { literal: "--trace" },
+              ],
+              argument_cases: [
+                {
+                  id: "normal-export",
+                  kind: "normal",
+                  expected_observation: {
+                    classification: "success",
+                    exit_status: 0,
+                    stdout: { encoding: "base64", bytes: "cmVwb3J0Cg==" },
+                    stderr: { encoding: "base64", bytes: "" },
+                  },
+                },
+                {
+                  id: "raw-malformed-format",
+                  kind: "raw-malformed",
+                  expected_observation: {
+                    classification: "automatic-rejection",
+                    exit_status: 2,
+                    stdout: { encoding: "base64", bytes: "" },
+                    stderr: { encoding: "base64", bytes: "aW52YWxpZAo=" },
+                  },
+                },
+                {
+                  id: "omitted-format",
+                  kind: "omitted-argument",
+                  expected_observation: {
+                    classification: "automatic-rejection",
+                    exit_status: 2,
+                    stdout: { encoding: "base64", bytes: "" },
+                    stderr: { encoding: "base64", bytes: "cmVxdWlyZWQK" },
+                  },
+                },
+                {
+                  id: "extra-format",
+                  kind: "extra-argument",
+                  expected_observation: {
+                    classification: "automatic-rejection",
+                    exit_status: 2,
+                    stdout: { encoding: "base64", bytes: "" },
+                    stderr: { encoding: "base64", bytes: "ZXh0cmEK" },
                   },
                 },
               ],
               working_directory: "fresh-temporary-directory",
-              observation_protocol: {
-                success: {
-                  exit_status: 0,
-                  stdout_contract: "one exact visible report followed by a newline",
-                  stderr_contract: "empty",
-                },
-                rejection: {
-                  exit_status: 2,
-                  stdout_contract: "empty",
-                  stderr_contract: "one diagnostic line followed by a newline",
-                },
-              },
             },
           },
           links: [{ type: "derived-from", target: requirement.revisionId }],
@@ -1147,6 +1195,92 @@ describe("req product-assurance qualification and pilot slice", () => {
     );
     expect(unencodedParameter.status).toBe(1);
     expect(JSON.parse(unencodedParameter.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+      ]),
+    );
+
+    const divergentCaseEncodingResponse = structuredClone(targetResponse);
+    const normalCaseToken = divergentCaseEncodingResponse.outputs[0]!.lifecycleDatum
+      .payload.public_interface.command[2] as {
+        parameter: { case_tokens: { normal: { value: string; encoding?: string } } };
+      };
+    normalCaseToken.parameter.case_tokens.normal.encoding = "raw bytes";
+    const divergentCaseEncodingAdapter = await adapter(
+      divergentCaseEncodingResponse,
+      "divergent-case-encoding-pilot-target",
+    );
+    const divergentCaseEncoding = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      divergentCaseEncodingAdapter.executable,
+      "--json",
+    );
+    expect(divergentCaseEncoding.status).toBe(1);
+    expect(JSON.parse(divergentCaseEncoding.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+      ]),
+    );
+
+    const suppliedOmittedParameterResponse = structuredClone(targetResponse);
+    const omittedCaseToken = suppliedOmittedParameterResponse.outputs[0]!.lifecycleDatum
+      .payload.public_interface.command[3] as {
+        parameter: {
+          case_tokens: { "omitted-argument": { omitted: true } | { value: string } };
+        };
+      };
+    omittedCaseToken.parameter.case_tokens["omitted-argument"] = { value: "" };
+    const suppliedOmittedParameterAdapter = await adapter(
+      suppliedOmittedParameterResponse,
+      "supplied-omitted-parameter-pilot-target",
+    );
+    const suppliedOmittedParameter = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      suppliedOmittedParameterAdapter.executable,
+      "--json",
+    );
+    expect(suppliedOmittedParameter.status).toBe(1);
+    expect(JSON.parse(suppliedOmittedParameter.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+      ]),
+    );
+
+    const missingOmittedCaseResponse = structuredClone(targetResponse);
+    missingOmittedCaseResponse.outputs[0]!.lifecycleDatum.payload.public_interface
+      .argument_cases = missingOmittedCaseResponse.outputs[0]!.lifecycleDatum.payload
+        .public_interface.argument_cases.filter(
+          (item: { kind: string }) => item.kind !== "omitted-argument",
+        );
+    const missingOmittedCaseAdapter = await adapter(
+      missingOmittedCaseResponse,
+      "missing-omitted-case-pilot-target",
+    );
+    const missingOmittedCase = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      String(targetWork!.actionableResolver),
+      "--obligation",
+      String(targetWork!.id),
+      "--adapter",
+      missingOmittedCaseAdapter.executable,
+      "--json",
+    );
+    expect(missingOmittedCase.status).toBe(1);
+    expect(JSON.parse(missingOmittedCase.stdout).diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "scenario-output-schema-invalid" }),
       ]),
@@ -1268,6 +1402,28 @@ describe("req product-assurance qualification and pilot slice", () => {
       .toBe(0);
     const pilotTarget = JSON.parse(targetExecution.stdout).execution.outputs[0]
       .lifecycleDatum as { id: string; revisionId: string };
+    const storedTarget = JSON.parse(req(
+      repositoryRoot,
+      "show",
+      pilotTarget.revisionId,
+      "--json",
+    ).stdout).lifecycleDatum.datum.payload.public_interface;
+    expect(storedTarget.command.slice(-2)).toEqual([
+      { literal: "--trace" },
+      { literal: "--trace" },
+    ]);
+    expect(storedTarget.command[3].parameter).toEqual(expect.objectContaining({
+      name: "format",
+      encoding: "visible report -> text; excluded binary report -> binary",
+      case_tokens: expect.objectContaining({
+        normal: { value: "text" },
+        "raw-malformed": { raw: { encoding: "utf-8", value: "" } },
+        "omitted-argument": { omitted: true },
+      }),
+    }));
+    expect(storedTarget.command[4]).toEqual({
+      extra_argument: { raw: { encoding: "utf-8", value: "extra" } },
+    });
     expect(looseEnds().find((item) =>
       item.obligation === "pilot-target-required" &&
       item.subject === requirement.revisionId
@@ -1479,6 +1635,18 @@ describe("req product-assurance qualification and pilot slice", () => {
               target_behavior: {
                 supported: ["export the representative visible report"],
                 intentionally_unsupported: ["export an intentionally unsupported binary format"],
+              },
+              execution_procedure: {
+                deadlines_ms: {checkout: 30000, environment_check: 20000, product_case: 5000},
+                deadline_scope: "infrastructure-safety-only",
+                timeout: {
+                  termination: "process-group-sigterm-then-sigkill",
+                  force_after_ms: 1000,
+                  reaping: "all-descendants",
+                  capture_partial_raw_observation: true,
+                },
+                cleanup: "guaranteed",
+                aggregation: "continue-through-all-cases",
               },
             },
             links: [
@@ -2105,9 +2273,17 @@ describe("req product-assurance qualification and pilot slice", () => {
       "execute-verification-run@1",
       "implement-verification-activity@1",
       "realize-verification-environment@1",
+      "revise-pilot-vai-after-review@1",
       "write-verification-activity@1",
     ]));
-    expect(catalogs.obligations).toContain("verification-run-required@1");
-    expect(catalogs.phases).toContain("phase-1-product-assurance@4");
+    expect(catalogs.selectors).toEqual(expect.arrayContaining([
+      "corrected-pilot-verification-implementation-revisions-for@1",
+      "failed-current-pilot-verification-implementations@1",
+    ]));
+    expect(catalogs.obligations).toEqual(expect.arrayContaining([
+      "pilot-vai-review-correction-required@1",
+      "verification-run-required@1",
+    ]));
+    expect(catalogs.phases).toContain("phase-1-product-assurance@5");
   });
 });

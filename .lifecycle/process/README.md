@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.53
+# MDLM bootstrap process package v0.54
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -284,18 +284,32 @@ exact requirement coverage. Once pilot activity work exists,
 `pilot-target-required@1` records one existing immutable repository commit as a
 bounded ART derived from the exact requirement. Registration records supported and
 intentionally unsupported behavior plus the complete controlled public execution
-interface: repository locator, versioned typed command vector with each parameter
-co-located with its exact encoding, isolated working
-directory, and observable success/rejection protocol. It does not claim verification,
+interface: repository locator, an ordered typed command matrix with each
+parameter's exact encoding and four case tokens co-located, isolated working
+directory, and exact normal, raw-malformed, omitted-argument, and extra-argument
+cases. The matrix instantiates every full vector by construction: repeated common
+tokens remain ordered, omitted markers belong only to declared parameters, raw
+empty tokens remain supplied, and extra-only tokens retain their command position.
+Every case carries deterministic exact exit status and base64 stdout/stderr bytes
+in addition to the summary success/rejection protocol. It does not claim verification,
 acceptance, or new stakeholder scope. Existing singular boundary-complete evidence
 satisfies the work; multiple
 current targets remain explicitly ambiguous. The pilot VER Review unlocks
 `pilot-verification-implementation-required@1` only when one qualified reviewed
 ENV Revision and one current ART Revision are unambiguous. Independent implementation
 requires a projected delegated Authority Requirement and atomically publishes its
-VAI Revision with an exact authorization DEC. `verification-run-required@1` remains
-blocked until the VAI Review passes, then binds the package-resolved exact VER,
-ENV, and ART Revisions before publishing RUN/RES atomically.
+VAI Revision with an exact authorization DEC. A source-blind pilot VAI procedure
+records bounded checkout, environment-check, and product-case deadlines as
+infrastructure safety rather than a product timing claim; process-group termination,
+forced kill and descendant reaping; partial raw observation; guaranteed cleanup;
+and continue-through-all-cases aggregation. A failed current VAI Review derives
+same-lineage correction with every exact failed Review and Finding while retaining
+its exact VER, ENV, ART, claim-class, and case bindings. Two cycles remain
+autonomous before attended escalation. Failed VAI, RUN, RES, and Review evidence
+stays immutable and cannot satisfy the corrected Revision's fresh Review or run.
+`verification-run-required@1` remains blocked until the VAI Review passes, then
+binds the package-resolved exact VER, ENV, and ART Revisions before publishing
+RUN/RES atomically.
 
 Pilot authoring and execution declare product source, unit tests, private
 implementation details, and uncontrolled shortcuts as prohibited inputs. A pilot

@@ -105,6 +105,18 @@ const pilotPayload = (title: string) => ({
   expected_success_activity: "Exercise the supported public command.",
   expected_discrimination_activity: "Exercise the malformed public command.",
 });
+const executionProcedure = {
+  deadlines_ms: { checkout: 30_000, environment_check: 20_000, product_case: 5_000 },
+  deadline_scope: "infrastructure-safety-only",
+  timeout: {
+    termination: "process-group-sigterm-then-sigkill",
+    force_after_ms: 1_000,
+    reaping: "all-descendants",
+    capture_partial_raw_observation: true,
+  },
+  cleanup: "guaranteed",
+  aggregation: "continue-through-all-cases",
+};
 const pilotTargetPayload = (title: string, commit: string) => ({
   title,
   kind: "prototype",
@@ -113,14 +125,63 @@ const pilotTargetPayload = (title: string, commit: string) => ({
   unsupported_behavior: ["malformed public command"],
   evidence_refs: [`git-object-observed:${commit}`],
   public_interface: {
-    interface_version: 2,
     repository_locator: "file:///fixture",
-    command: [{ literal: "node" }, { checkout_path: "bin/fixture.mjs" }],
+    command: [
+      { literal: "node" },
+      { checkout_path: "bin/fixture.mjs" },
+      {
+        parameter: {
+          name: "input",
+          encoding: "exact UTF-8 fixture input",
+          case_tokens: {
+            normal: { value: "ok" },
+            "raw-malformed": { raw: { encoding: "utf-8", value: "" } },
+            "omitted-argument": { omitted: true },
+            "extra-argument": { value: "ok" },
+          },
+        },
+      },
+      { extra_argument: { raw: { encoding: "utf-8", value: "extra" } } },
+    ],
+    argument_cases: [
+      {
+        id: "normal",
+        kind: "normal",
+        expected_observation: {
+          classification: "success", exit_status: 0,
+          stdout: { encoding: "base64", bytes: "b2sK" },
+          stderr: { encoding: "base64", bytes: "" },
+        },
+      },
+      {
+        id: "raw-malformed",
+        kind: "raw-malformed",
+        expected_observation: {
+          classification: "automatic-rejection", exit_status: 2,
+          stdout: { encoding: "base64", bytes: "" },
+          stderr: { encoding: "base64", bytes: "ZXJyb3IK" },
+        },
+      },
+      {
+        id: "omitted",
+        kind: "omitted-argument",
+        expected_observation: {
+          classification: "automatic-rejection", exit_status: 2,
+          stdout: { encoding: "base64", bytes: "" },
+          stderr: { encoding: "base64", bytes: "cmVxdWlyZWQK" },
+        },
+      },
+      {
+        id: "extra",
+        kind: "extra-argument",
+        expected_observation: {
+          classification: "automatic-rejection", exit_status: 2,
+          stdout: { encoding: "base64", bytes: "" },
+          stderr: { encoding: "base64", bytes: "ZXh0cmEK" },
+        },
+      },
+    ],
     working_directory: "fresh-temporary-directory",
-    observation_protocol: {
-      success: { exit_status: 0, stdout_contract: "success", stderr_contract: "empty" },
-      rejection: { exit_status: 2, stdout_contract: "empty", stderr_contract: "error" },
-    },
   },
 });
 
@@ -137,7 +198,7 @@ description: Test-only explicit publication of one exact assurance Review.
 initiation: explicit
 phases: [phase-1-product-assurance]
 inputs:
-  - {name: subject, types: [VSP, ENV, VER], cardinality: one, identity: revision}
+  - {name: subject, types: [VSP, ENV, VER, VAI], cardinality: one, identity: revision}
   - {name: review_context, types: [BSL], cardinality: one, identity: revision}
 outputs:
   - name: review
@@ -152,7 +213,7 @@ participation:
   policy_ref: contextual-review-participation@1
   arguments: {subject: subject, review_context: review_context}
 authority_evidence: {output: review, type: REV}
-completion: 'execution.integrity.contract_valid == true && review.payload.outcome == "fail"'
+completion: 'execution.integrity.contract_valid == true'
 resolves: []
 prohibited_inputs: [mutable latest aliases]
 batching: single
@@ -173,6 +234,7 @@ batching: single
     "verification-strategy-review-correction-required",
     "environment-review-correction-required",
     "pilot-verification-activity-review-correction-required",
+    "pilot-vai-review-correction-required",
     "verification-run-required",
     "review-context-required",
     "passing-review-required",
@@ -194,7 +256,7 @@ batching: single
   const reviewPolicy = parse(await fs.readFile(reviewPolicyPath, "utf8"));
   reviewPolicy.rules = [{
     priority: 400,
-    when: `subject.identity.type in ["VSP", "ENV", "VER"]
+    when: `subject.identity.type in ["VSP", "ENV", "VER", "VAI"]
       && exists("cited-failing-reviews-by-correction@1", {replacement: subject})`,
     result: {
       required: true,
@@ -202,6 +264,29 @@ batching: single
     },
   }];
   await fs.writeFile(reviewPolicyPath, stringify(reviewPolicy));
+
+  const runObligationPath = path.join(
+    packageRoot,
+    "obligations/verification-run-required.yaml",
+  );
+  const runObligation = parse(await fs.readFile(runObligationPath, "utf8"));
+  runObligation.status_rules = [{
+    status: "awaiting-review",
+    priority: 200,
+    when: `implementation.payload.kind == "pilot"
+      && none("passing-reviews-for@1", {subject: implementation})`,
+    reason: "The focused fixture requires a passing Review of the exact pilot VAI.",
+    blocked_by: [{
+      obligation: "passing-review-required@2",
+      subjects: "[implementation]",
+    }],
+  }, {
+    status: "ready",
+    priority: 100,
+    when: "true",
+    reason: "The focused fixture isolates exact run selection after correction.",
+  }];
+  await fs.writeFile(runObligationPath, stringify(runObligation));
 
   const phase0Path = path.join(packageRoot, "phases/phase-0-wayfinding.yaml");
   const phase0 = parse(await fs.readFile(phase0Path, "utf8"));
@@ -219,11 +304,13 @@ batching: single
     "revise-verification-strategy-after-review@2",
     "revise-environment-assurance-after-review@2",
     "revise-pilot-verification-activity-after-review@2",
+    "revise-pilot-vai-after-review@1",
   ];
   phase1.obligations = [
     "verification-strategy-review-correction-required@2",
     "environment-review-correction-required@2",
     "pilot-verification-activity-review-correction-required@2",
+    "pilot-vai-review-correction-required@1",
     "verification-run-required@1",
     "review-context-required@2",
     "passing-review-required@2",
@@ -269,6 +356,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       ENV: "realize-verification-environment@1",
       VER: "write-verification-activity@1",
       ART: "register-pilot-target@1",
+      VAI: "implement-verification-activity@1",
     };
     const arguments_ = [
       "new",
@@ -354,8 +442,9 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     return context;
   };
 
-  const seedFailedReview = async (
+  const seedReview = async (
     subject: Created,
+    reviewOutcome: "pass" | "fail",
     stakeholderOwned = false,
   ): Promise<Created> => {
     const context = createContext(subject);
@@ -368,10 +457,10 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
         lifecycleDatum: {
           type: "REV",
           payload: {
-            title: `Failed Review of ${subject.revisionId}`,
+            title: `${reviewOutcome === "pass" ? "Passing" : "Failed"} Review of ${subject.revisionId}`,
             review_kind: "contextual",
             rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-            findings: [{
+            findings: reviewOutcome === "fail" ? [{
               id: "F-001",
               target: subject.revisionId,
               relationship: "primary",
@@ -383,9 +472,9 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
               relationship: "primary",
               severity: "blocking",
               summary: "The exact rejection observation also needs correction.",
-            }],
+            }] : [],
             ...(stakeholderOwned ? { correction_authority: "stakeholder" } : {}),
-            outcome: "fail",
+            outcome: reviewOutcome,
           },
           links: [
             { type: "reviews", target: subject.revisionId },
@@ -508,10 +597,11 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     expect(packet.prompt.content).toContain("`justifies`");
   };
 
-  const publishFailedReview = (
+  const publishReview = (
     subject: Created,
     definitionMembers: string[] = [subject.revisionId],
     evidence: string[] = [],
+    reviewOutcome: "pass" | "fail" = "fail",
   ): Created => {
     let outcome = next();
     expect(outcome.outcome).toBe("assignment");
@@ -548,17 +638,17 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       "review",
       "REV",
       {
-        title: `Failed Review of ${subject.revisionId}`,
+        title: `${reviewOutcome === "pass" ? "Passing" : "Failed"} Review of ${subject.revisionId}`,
         review_kind: "contextual",
         rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [{
+        findings: reviewOutcome === "fail" ? [{
           id: "F-001",
           target: subject.revisionId,
           relationship: "primary",
           severity: "blocking",
           summary: "The fresh exact discrimination evidence still needs correction.",
-        }],
-        outcome: "fail",
+        }] : [],
+        outcome: reviewOutcome,
       },
       [
         { type: "reviews", target: subject.revisionId },
@@ -724,7 +814,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
   it("bounds VSP correction before projecting attended escalation", async () => {
     const { requirement, strategy: initialStrategy } = createProductBoundary();
     let strategy = initialStrategy;
-    let failedReview = await seedFailedReview(strategy);
+    let failedReview = await seedReview(strategy, "fail");
     initializeGit();
 
     for (let cycle = 1; cycle <= 2; cycle += 1) {
@@ -762,7 +852,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
           .status).toBe(1);
       }
       strategy = submit(packet, [correctionOutput]).outputs[0].lifecycleDatum;
-      failedReview = publishFailedReview(strategy);
+      failedReview = publishReview(strategy);
     }
 
     const escalation = next();
@@ -789,7 +879,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       "container:public-command-initial",
       "a",
     ), [{ type: "realizes", target: strategy.revisionId }]);
-    let failedReview = await seedFailedReview(environment, true);
+    let failedReview = await seedReview(environment, "fail", true);
     initializeGit();
     const qualificationRevisions: string[] = [];
     const completeCycle = (execution: any, cycle: number) => {
@@ -808,7 +898,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       ).outputs.map((item: { lifecycleDatum: Created }) =>
         item.lifecycleDatum.revisionId
       );
-      failedReview = publishFailedReview(
+      failedReview = publishReview(
         environment,
         [strategy.revisionId, environment.revisionId],
         [activity.revisionId, implementation.revisionId, ...runEvidence],
@@ -899,7 +989,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       { type: "verifies", target: requirement.id },
       { type: "verifies-revision", target: requirement.revisionId },
     ]);
-    let failedReview = await seedFailedReview(activity);
+    let failedReview = await seedReview(activity, "fail");
     initializeGit();
     const preservedEnvironment = mdlm(
       repository,
@@ -938,7 +1028,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       }
       const execution = submit(packet, [correctionOutput]);
       activity = execution.outputs[0].lifecycleDatum;
-      failedReview = publishFailedReview(activity);
+      failedReview = publishReview(activity);
     }
 
     expect(mdlm(repository, ["show", environment.revisionId, "--json"]).stdout)
@@ -959,6 +1049,210 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     expectSelfContainedAttendedPacket(escalationPacket);
   }, 120_000);
 
+  it("corrects failed pilot VAI procedures without reusing prior run evidence", async () => {
+    const { requirement, strategy } = createProductBoundary();
+    const environment = create("ENV", environmentPayload(
+      "Reusable pilot environment",
+      strategy,
+      "container:vai-correction",
+      "e",
+    ), [{ type: "realizes", target: strategy.revisionId }]);
+    const activity = create("VER", pilotPayload("Exact malformed-input pilot"), [
+      { type: "governed-by", target: strategy.revisionId },
+      { type: "verifies", target: requirement.id },
+      { type: "verifies-revision", target: requirement.revisionId },
+    ]);
+    const target = create(
+      "ART",
+      pilotTargetPayload("Exact malformed-input target", "f".repeat(40)),
+      [{ type: "derived-from", target: requirement.revisionId }],
+    );
+    const otherEnvironment = create("ENV", environmentPayload(
+      "Unrelated pilot environment",
+      strategy,
+      "container:unrelated-vai",
+      "a",
+    ), [{ type: "realizes", target: strategy.revisionId }]);
+    const implementation = create("VAI", {
+      title: "Initial source-blind pilot procedure",
+      rationale: "Execute every exact public command case.",
+      kind: "pilot",
+      implementation_ref: `procedure:sha256:${"b".repeat(64)}`,
+      independence_mode: "source-blind",
+      authoring_input_refs: [activity.revisionId, environment.revisionId, target.revisionId],
+      prohibited_inputs_observed: prohibitedInputs,
+      activity_bindings: ["normal", "raw-malformed", "omitted", "extra"],
+      target_behavior: {
+        supported: ["supported public command"],
+        intentionally_unsupported: ["malformed public command"],
+      },
+      execution_procedure: executionProcedure,
+    }, [
+      { type: "realizes", target: activity.revisionId },
+      { type: "uses", target: environment.revisionId },
+      { type: "targets", target: target.revisionId },
+    ]);
+    await seedReview(implementation, "pass");
+    initializeGit();
+
+    let outcome = next();
+    let packet = prepare(outcome);
+    expect(packet.scenario.reference).toBe("execute-verification-run@1");
+    const oldRun = submit(packet, [
+      proposedDatum("old-run", "run", "RUN", {
+        title: "Prior unsuitable pilot run",
+        kind: "pilot",
+        started_at: "2026-08-11T10:00:00.000Z",
+        completed_at: "2026-08-11T10:01:00.000Z",
+        execution_state: "completed",
+        execution_target: { kind: "prototype", ref: target.revisionId },
+        runner_ref: "runner:initial@1",
+        configuration_refs: ["configuration:initial"],
+        activities_expected: ["normal", "raw-malformed", "omitted", "extra"],
+        activities_invoked: ["normal", "raw-malformed", "omitted", "extra"],
+        evidence_locations: ["evidence:initial"],
+      }, [
+        { type: "executes", target: implementation.revisionId },
+        { type: "uses", target: environment.revisionId },
+        { type: "targets", target: target.revisionId },
+        { type: "produces", target: "$proposal.old-result.revision_id" },
+      ]),
+      proposedDatum("old-result", "result", "RES", {
+        title: "Prior unsuitable pilot result",
+        claim: {
+          kind: "pilot",
+          scope: "verification-design",
+          outcome: "unsuitable",
+          formal_evidence_eligible: false,
+        },
+        assessment_state: "accepted",
+        observations: {
+          expected_success_observed: false,
+          expected_discrimination_observed: false,
+          details: "The original procedure did not recover through every case.",
+        },
+        evidence_refs: ["evidence:initial"],
+        assessor_ref: "assessor:initial@1",
+      }, [{ type: "assessed-in", target: environment.revisionId }]),
+    ]).outputs.map((output: { lifecycleDatum: Created }) => output.lifecycleDatum);
+    const failedReviews = [
+      await seedReview(implementation, "fail"),
+      await seedReview(implementation, "fail"),
+    ];
+    commit("Record exact failed VAI Reviews");
+
+    const showDatum = (revisionId: string) => {
+      const shown = mdlm(repository, ["show", revisionId, "--json"]);
+      expect(shown.status).toBe(0);
+      return JSON.parse(shown.stdout).lifecycleDatum.datum;
+    };
+    const immutableBefore = [implementation, ...oldRun, ...failedReviews]
+      .map((datum) => [datum.revisionId, showDatum(datum.revisionId)] as const);
+
+    outcome = next();
+    expect(outcome.outcome).toBe("assignment");
+    packet = prepare(outcome);
+    expect(packet.scenario.reference).toBe("revise-pilot-vai-after-review@1");
+    expect(packet.authority.requirements).toEqual([]);
+    const inputValues = (name: string) => packet.exactInputs[0].inputs.find(
+      (input: { name: string }) => input.name === name,
+    ).values;
+    expect(inputValues("failed_reviews").map(
+      (review: { identity: { revision_id: string } }) => review.identity.revision_id,
+    ).sort()).toEqual(failedReviews.map((review) => review.revisionId).sort());
+
+    const correctedPayload = {
+      title: "Corrected source-blind pilot procedure",
+      rationale: "Bound recovery without making a product timing claim.",
+      kind: "pilot",
+      implementation_ref: `procedure:sha256:${"c".repeat(64)}`,
+      independence_mode: "source-blind",
+      authoring_input_refs: [
+        activity.revisionId,
+        environment.revisionId,
+        target.revisionId,
+        ...failedReviews.map((review) => review.revisionId),
+      ],
+      prohibited_inputs_observed: prohibitedInputs,
+      activity_bindings: ["normal", "raw-malformed", "omitted", "extra"],
+      target_behavior: {
+        supported: ["supported public command"],
+        intentionally_unsupported: ["malformed public command"],
+      },
+      execution_procedure: executionProcedure,
+    };
+    const correction = (environmentTarget: string): ProposalOutput[] => [
+      proposedDatum(
+        "replacement",
+        "replacement",
+        "VAI",
+        correctedPayload,
+        [
+          { type: "realizes", target: activity.revisionId },
+          { type: "uses", target: environmentTarget },
+          { type: "targets", target: target.revisionId },
+          ...failedReviews.map((review) => ({
+            type: "corrects-review",
+            target: review.revisionId,
+          })),
+        ],
+        implementation.id,
+      ),
+      proposedDatum("authorization", "authorization", "DEC", {
+        title: "Authorize exact corrected VAI",
+        rationale: "Package evidence preserves every reviewed verification binding.",
+        kind: "decision",
+        decision: "Authorize this exact corrected pilot implementation.",
+        alternatives: ["Retain the failed procedure"],
+        effective_scope: "$proposal.replacement.revision_id",
+      }, [{ type: "justifies", target: "$proposal.replacement.revision_id" }]),
+    ];
+    const incompleteCorrection = correction(otherEnvironment.revisionId);
+    incompleteCorrection[0]!.lifecycleDatum.links = incompleteCorrection[0]!
+      .lifecycleDatum.links.filter(
+        (link) => link.target !== failedReviews[1]!.revisionId,
+      );
+    const rejected = respond(packet, incompleteCorrection);
+    expect(rejected.status).toBe(1);
+    expect(JSON.parse(rejected.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "scenario-output-required-link-missing",
+          path: "outputs.replacement.links.uses",
+        }),
+        expect.objectContaining({
+          code: "scenario-output-required-link-missing",
+          path: "outputs.replacement.links.corrects-review",
+        }),
+      ]),
+    );
+    expect(mdlm(repository, ["show", `${implementation.id}-r00002`, "--json"]).status)
+      .toBe(1);
+
+    const corrected = submit(packet, correction(environment.revisionId))
+      .outputs.find((output: { name: string }) => output.name === "replacement")
+      .lifecycleDatum as Created;
+    expect(showDatum(corrected.revisionId).payload.execution_procedure.timeout)
+      .toEqual(expect.objectContaining({
+        termination: "process-group-sigterm-then-sigkill",
+        reaping: "all-descendants",
+        capture_partial_raw_observation: true,
+      }));
+    for (const [revisionId, datum] of immutableBefore) {
+      expect(showDatum(revisionId)).toEqual(datum);
+    }
+
+    publishReview(corrected, [corrected.revisionId], [], "pass");
+    outcome = next();
+    packet = prepare(outcome);
+    expect(packet.scenario.reference).toBe("execute-verification-run@1");
+    expect(packet.exactInputs[0].inputs.find(
+      (input: { name: string }) => input.name === "implementation",
+    ).values[0].identity.revision_id).toBe(corrected.revisionId);
+    expect(oldRun.map((datum: Created) => datum.revisionId))
+      .not.toContain(corrected.revisionId);
+  }, 120_000);
+
   const expectProfileBoundary = () => {
     initializeGit();
     const outcome = next();
@@ -968,10 +1262,10 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
     expect(outcome).toEqual(expect.objectContaining({
       contract: "mdlm-next@1",
       outcome: "profile-boundary-reached",
-      phase: "phase-1-product-assurance@4",
+      phase: "phase-1-product-assurance@5",
       explanation: expect.stringMatching(/multiple applicable/i),
       evidence: expect.objectContaining({
-        profile: "bootstrap@27",
+        profile: "bootstrap@28",
         condition: expect.objectContaining({ result: true }),
       }),
     }));

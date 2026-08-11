@@ -1,6 +1,6 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.53 — experimental implementation reference**
+**Bootstrap package 0.54 — experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;
@@ -900,7 +900,7 @@ corrupting `.lifecycle/generated` changes no durable lifecycle result.
 
 ## 14. Bootstrap scope
 
-Bootstrap package 0.53 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
+Bootstrap package 0.54 models MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP,
 DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, and PAS. MAP is a linked frontier index and ART records
 an exact implementation or prototype pointer with its supported and intentionally
 unsupported behavior. A QST may explicitly require prototype evidence by declaring
@@ -953,8 +953,8 @@ stakeholder authority; after two causal replacements, the same interface carries
 explicit exhausted-lineage escalation. A reviewed approving gate mechanically
 derives one frozen `intent-approved` BSL containing exact candidate, candidate
 Review, DEC, and DEC Review evidence before progression. Rejection itself is not a
-stop, deferral, or cancellation Decision. Failed VAI procedure correction, remaining Phase 2, and pilot-assessment hardening
-are deferred to issues #97–#100.
+stop, deferral, or cancellation Decision. Remaining Phase 2 and pilot-assessment
+hardening are deferred to issues #98–#100.
 
 The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable
@@ -977,16 +977,27 @@ Exact requirement and VSP Revision evidence then derives pilot VER work. The
 presence of current pilot activity work also derives exact ART registration when
 its requirement has no target. That Resolver records one immutable Git commit,
 bounded supported/unsupported behavior, and a controlled public execution interface
-containing the repository locator, versioned typed command vector with every
-parameter co-located with its exact encoding, isolated working-directory
-contract, and exact observable success/rejection protocol. It makes no verification,
+containing the repository locator, an ordered typed command matrix with every
+parameter co-located with its exact encoding and four case tokens, an isolated
+working-directory contract, exact normal/raw-malformed/omitted/extra argument
+cases, and case-specific exit status plus base64 stdout/stderr bytes. The matrix
+instantiates full vectors by construction: omitted markers can occur only on
+declared parameters, raw empty tokens remain supplied, extra-only tokens retain
+their position, and ordered duplicate common tokens are preserved. It makes no verification,
 acceptance, or scope-authorization claim; an existing singular boundary-complete
 target satisfies the work while multiple current targets remain ambiguous. A passing
 VER Review plus one qualified
 reviewed ENV Revision and one ART Revision derive separately authorized VAI work; that transaction records both the VAI
-Revision and its exact authorization DEC. The VAI Review then unlocks execution
-bound to the package-resolved exact target Revision without an operator selecting
-core Scenario names.
+Revision and its exact authorization DEC. A source-blind pilot VAI records
+bounded checkout, environment-check, and product-case deadlines solely for
+infrastructure safety, plus process-group termination, forced kill and reaping,
+partial raw observation, guaranteed cleanup, and continue-through-all-cases
+aggregation. Failed VAI Review derives same-lineage correction carrying every
+applicable Review and Finding while preserving exact activity, ENV, ART, case, and
+pilot claim-class bindings. Prior VAI/RUN/RES/Review evidence remains immutable;
+the replacement requires fresh context, independent Review, and exact run work.
+The VAI Review then unlocks execution bound to the package-resolved exact target
+Revision without an operator selecting core Scenario names.
 Package schemas distinguish qualification `environment-capability`, pilot
 `verification-design`, and formal `requirement` claims. RUN and RES are
 package-declared generated terminal types: generic direct creation and revision
