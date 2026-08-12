@@ -44,7 +44,7 @@ describe("req system decomposition slice", () => {
     const catalogs = JSON.parse(shown.stdout).inspection.definitionCatalogs;
     expect(catalogs.types).toEqual(expect.arrayContaining([
       "ASP@2",
-      "DWP@2",
+      "DWP@3",
       "ICSP@2",
       "SYS@3",
     ]));

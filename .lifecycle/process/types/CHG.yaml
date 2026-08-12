@@ -1,6 +1,6 @@
 kind: type-definition
 id: CHG
-version: 2
+version: 3
 name: Change Request
 description: Reviewed bounded change with exact traceability-based impact and explicit original-V implementation order.
 extends: rationale-bearing@1
@@ -32,9 +32,9 @@ outgoing_links:
     freeze_resolution: already-exact
     inverse_label: corrected-by-change-request
   - id: impacts
-    description: The exact accepted STK Revision and accepted intent baseline that bound this change; all affected context and evidence are derived from those roots through traceability.
+    description: The exact accepted STK or SYS Revision and its accepted baseline; all affected consumers, context, and evidence are derived from those roots through traceability.
     targets:
-      - {kind: datum, types: [STK, BSL], identity: revision}
+      - {kind: datum, types: [STK, SYS, BSL], identity: revision}
     cardinality: {minimum: 2, maximum: 2}
     freeze_resolution: already-exact
     inverse_label: impacted-by

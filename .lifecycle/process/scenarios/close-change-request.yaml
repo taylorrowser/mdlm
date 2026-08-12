@@ -1,14 +1,14 @@
 kind: scenario-definition
 id: close-change-request
-version: 3
-description: Close one approved Change Request and its originating Problem Report with exact replacement evidence.
+version: 4
+description: Close one approved accepted-requirement Change Request and its originating Problem Report with exact selective replacement evidence.
 phases: [phase-7-change-control]
 inputs:
   - {name: change, types: [CHG], cardinality: one, identity: revision}
   - {name: problem, types: [PRB], cardinality: one, identity: revision}
   - {name: approval, types: [DEC], cardinality: one, identity: revision}
   - {name: source_evidence, types: [RUN, RES, REV, ART], cardinality: one-or-more, identity: revision}
-  - {name: revised_requirements, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: revised_requirements, types: [STK, SYS], cardinality: one-or-more, identity: revision}
   - {name: closure_evidence, types: [BSL, REV, RES], cardinality: one-or-more, identity: revision}
 outputs:
   - name: closure
@@ -35,6 +35,6 @@ completion: >-
   && closure.payload.effective_scope == change.identity.revision_id
   && closed_problem.identity.id == problem.identity.id
   && closed_problem.payload.disposition == "closed"
-resolves: [change-closure-required]
+resolves: [change-closure-required, shared-system-change-closure-required]
 prohibited_inputs: [missing replacement Review or candidate evidence, unrelated evidence, mutable latest aliases, implicit closure, rewriting accepted history]
 batching: single

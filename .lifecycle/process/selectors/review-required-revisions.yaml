@@ -11,7 +11,7 @@ query:
     policy("review-applicability@1", {subject: subject}).required == true
     && state(subject, "disposition") == "active"
     && none("newer-revisions-for@1", {subject: subject})
-    && none("implemented-changes-impacting-revision@1", {subject: subject})
+    && none("implemented-changes-impacting-revision@2", {subject: subject})
     && !(
       phase.id == "phase-0-wayfinding"
       && subject.identity.type in ["MAP", "PSP", "STK"]

@@ -1,0 +1,16 @@
+kind: selector-definition
+id: accepted-system-candidates-for-change-baseline
+version: 1
+description: Exact reviewed and authorized level candidate promoted by one accepted system baseline.
+parameters:
+  - {name: accepted, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "level-candidate"
+    && candidate.payload.role == "candidate"
+    && exists("accepted-baseline-promotes-candidate@1", {accepted: accepted, candidate: candidate})
+  distinct: true
+  order_by: [identity.revision_id]

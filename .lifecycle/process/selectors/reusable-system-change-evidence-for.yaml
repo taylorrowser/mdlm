@@ -1,0 +1,27 @@
+kind: selector-definition
+id: reusable-system-change-evidence-for
+version: 1
+description: Exact accepted system evidence outside the complete traceability-derived shared-SYS impact set.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+  - {name: accepted, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: accepted, emit: entity}
+  as: evidence
+  where: >-
+    every("shared-system-change-contexts@1", {change: change}, context =>
+      context != evidence
+      && every("revisions-tracing-subject@1", {subject: context}, review => review != evidence))
+    && every("shared-system-change-candidates@1", {change: change}, candidate =>
+      candidate != evidence
+      && every("revisions-tracing-subject@1", {subject: candidate}, dependent =>
+        dependent != evidence
+        && every("revisions-tracing-subject@1", {subject: dependent}, downstream => downstream != evidence)))
+    && every("shared-system-change-verification-evidence@1", {change: change}, verification =>
+      verification != evidence
+      && every("revisions-tracing-subject@1", {subject: verification}, dependent => dependent != evidence))
+    && every("shared-system-consumers-for-change@1", {change: change}, consumer => consumer != evidence)
+    && every("impacted-system-requirements-for-change@1", {change: change}, requirement => requirement != evidence)
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

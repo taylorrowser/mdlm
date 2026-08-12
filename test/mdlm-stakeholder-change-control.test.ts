@@ -882,7 +882,7 @@ describe("accepted STK change control through the public operator process", () =
       publishDisposition(packet, change, disposition);
       const terminal = nextOutcome();
       expect(terminal.outcome).toBe("profile-boundary-reached");
-      expect(terminal.phase).toBe("phase-7-change-control@3");
+      expect(terminal.phase).toBe("phase-7-change-control@4");
       const status = mdlm(repository, ["status", "--json"]);
       expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
       expect(JSON.parse(status.stdout).unresolvedWork.total).toBe(0);

@@ -1,0 +1,15 @@
+kind: selector-definition
+id: changed-outdated-shared-system-consumers
+version: 1
+description: Current accepted-system consumers whose replacement shared SYS names one approved Change Request.
+parameters: []
+result_kind: revision
+query:
+  from: {selector: outdated-shared-system-consumers@2, arguments: {}}
+  as: consumer
+  where: >-
+    count("replacement-system-requirements-for-consumer@2", {consumer: consumer}) == 1
+    && every("replacement-system-requirements-for-consumer@2", {consumer: consumer}, requirement =>
+      count("changes-changed-under-subject@1", {subject: requirement}) == 1)
+  distinct: true
+  order_by: [identity.id, identity.revision]

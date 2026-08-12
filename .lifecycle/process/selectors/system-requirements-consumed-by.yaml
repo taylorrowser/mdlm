@@ -1,0 +1,12 @@
+kind: selector-definition
+id: system-requirements-consumed-by
+version: 1
+description: Exact SYS Revisions bound as decomposition parents by one consumer DWP Revision.
+parameters:
+  - {name: consumer, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: consumer, link: decomposes, emit: target, types: [SYS]}
+  as: requirement
+  distinct: true
+  order_by: [identity.id, identity.revision]

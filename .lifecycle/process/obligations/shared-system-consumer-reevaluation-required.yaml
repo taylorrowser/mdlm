@@ -1,0 +1,21 @@
+kind: obligation-definition
+id: shared-system-consumer-reevaluation-required
+version: 1
+description: Every exact decomposition consumer of a replaced shared SYS requires its own serial same-lineage coverage reevaluation and fresh Review.
+phases: [phase-7-change-control]
+for_each: 'select("changed-outdated-shared-system-consumers@1", {})'
+subject_as: consumer
+satisfied_when: 'exists("newer-revisions-for@1", {subject: consumer})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'count("replacement-system-requirements-for-consumer@2", {consumer: consumer}) == 1'
+    reason: Rebind this one exact consumer to the replacement shared SYS and record complete separate coverage.
+default_status: blocked
+resolve_with:
+  scenario: reevaluate-shared-system-consumer@1
+  inputs:
+    consumer: consumer
+    replacement_requirement: 'one("replacement-system-requirements-for-consumer@2", {consumer: consumer})'
+    change: 'one("changes-changed-under-subject@1", {subject: one("replacement-system-requirements-for-consumer@2", {consumer: consumer})})'
+waiver_policy_ref: waiver-applicability@1

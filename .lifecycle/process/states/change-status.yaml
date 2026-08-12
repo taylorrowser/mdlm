@@ -1,7 +1,7 @@
 kind: state-definition
 id: change-status
-version: 2
-description: Independent exact progress or terminal-disposition interpretation for Problem Reports and Change Requests.
+version: 3
+description: Independent exact progress or terminal-disposition interpretation for Problem Reports and accepted-requirement Change Requests.
 subject_as: subject
 cardinality: exactly-one
 default: not-applicable
@@ -21,18 +21,25 @@ rules:
     when: >-
       subject.identity.type == "CHG"
       && exists("change-approval-decisions-for@2", {change: subject})
-      && exists("revised-requirements-for-change@2", {change: subject})
-      && exists("stakeholder-change-candidates-for@1", {change: subject})
-      && every("stakeholder-change-candidates-for@1", {change: subject}, candidate =>
-        exists("passing-reviews-for@1", {subject: candidate}))
-    explanation: Approved replacement STK, Review, candidate, and candidate Review evidence are available.
+      && exists("revised-requirements-for-change@3", {change: subject})
+      && (
+        (count("impacted-stakeholder-requirements-for-change@1", {change: subject}) == 1
+          && exists("stakeholder-change-candidates-for@1", {change: subject})
+          && every("stakeholder-change-candidates-for@1", {change: subject}, candidate =>
+            exists("passing-reviews-for@1", {subject: candidate})))
+        || (count("impacted-system-requirements-for-change@1", {change: subject}) == 1
+          && exists("shared-system-change-candidates-for@1", {change: subject})
+          && every("shared-system-change-candidates-for@1", {change: subject}, candidate =>
+            exists("passing-reviews-for@1", {subject: candidate})))
+      )
+    explanation: Approved replacement requirement, selective candidate, and fresh exact Review evidence are available.
   - value: implementation-in-progress
     priority: 600
     when: >-
       subject.identity.type == "CHG"
       && exists("change-approval-decisions-for@2", {change: subject})
-      && exists("revised-requirements-for-change@2", {change: subject})
-    explanation: Same-lineage STK replacement exists and downstream replacement evidence remains.
+      && exists("revised-requirements-for-change@3", {change: subject})
+    explanation: Same-lineage accepted requirement replacement exists and downstream consumer or candidate evidence remains.
   - value: approved
     priority: 500
     when: >-

@@ -1,13 +1,13 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.57.0
+version: 0.58.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
   narrow Phase 0 intent, Phase 1 qualification/pilot, Phase 2 system
-  decomposition, exact accepted-STK change control, and reviewed pilot-assessment slices.
+  decomposition, exact accepted STK and shared-SYS change control, and reviewed pilot-assessment slices.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -291,6 +291,27 @@ catalog:
     - source-problems-for-change
     - reported-evidence-for-problem
     - all-change-requests
+    - stakeholder-change-requests
+    - shared-system-change-requests
+    - accepted-system-baselines-for-change
+    - accepted-system-baselines-for-requirement
+    - accepted-system-candidates-for-change-baseline
+    - system-requirements-consumed-by
+    - replacement-system-requirements-for-consumer
+    - outdated-shared-system-consumers
+    - draft-outdated-shared-system-consumers
+    - changed-outdated-shared-system-consumers
+    - shared-system-consumers-for-change
+    - updated-shared-system-consumer-for
+    - updated-shared-system-consumers-for-change
+    - shared-system-change-contexts
+    - shared-system-change-candidates
+    - shared-system-change-verification-evidence
+    - reusable-system-change-definitions-for
+    - reusable-system-change-evidence-for
+    - fresh-shared-system-change-evidence
+    - shared-system-change-candidates-for
+    - shared-system-change-closure-evidence-for
     - change-impacts-revision
     - valid-stakeholder-change-impact
     - accepted-intent-candidates-for-change
@@ -302,8 +323,12 @@ catalog:
     - change-approval-decisions-for
     - terminal-change-disposition-decisions-for
     - impacted-requirements-for-change
+    - impacted-stakeholder-requirements-for-change
+    - impacted-system-requirements-for-change
     - accepted-intent-baselines-for-change
     - revised-requirements-for-change
+    - revised-stakeholder-requirements-for-change
+    - revised-system-requirements-for-change
     - reusable-change-definitions-for
     - reusable-change-evidence-for
     - stakeholder-change-candidates-for
@@ -311,6 +336,7 @@ catalog:
     - changes-controlling-stakeholder-change-subject
     - stakeholder-change-decision-targets
     - changes-changed-under-subject
+    - change-level-candidates-matching-subject
     - failed-stakeholder-change-subjects
     - failed-change-dispositions
     - stakeholder-change-correction-decisions-for
@@ -369,10 +395,14 @@ catalog:
     - change-impact-required
     - change-approval-required
     - change-revision-required
+    - draft-shared-system-consumer-reevaluation-required
+    - shared-system-consumer-reevaluation-required
     - stakeholder-change-candidate-required
+    - shared-system-change-candidate-required
     - stakeholder-change-review-correction-required
     - change-disposition-review-correction-required
     - change-closure-required
+    - shared-system-change-closure-required
     - pilot-observation-required
     - pilot-assessment-context-required
     - pilot-assessment-required
@@ -430,7 +460,10 @@ catalog:
     - analyze-change-impact
     - approve-change-request
     - revise-requirement-under-change
+    - reevaluate-draft-shared-system-consumer
+    - reevaluate-shared-system-consumer
     - create-stakeholder-change-candidate
+    - create-shared-system-change-candidate
     - revise-stakeholder-change-after-review
     - revise-change-disposition-after-review
     - close-change-request
@@ -493,8 +526,10 @@ assets:
     - prompts/report-problem.md@1
     - prompts/analyze-change-impact.md@2
     - prompts/approve-change-request.md@3
-    - prompts/revise-requirement-under-change.md@2
+    - prompts/revise-requirement-under-change.md@3
+    - prompts/reevaluate-shared-system-consumer.md@1
     - prompts/create-stakeholder-change-candidate.md@1
+    - prompts/create-shared-system-change-candidate.md@1
     - prompts/revise-stakeholder-change-after-review.md@1
     - prompts/revise-change-disposition-after-review.md@1
     - prompts/close-change-request.md@3
@@ -537,9 +572,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@1
 profiles:
-  default: bootstrap@32
+  default: bootstrap@33
   available:
-    - profiles/bootstrap.yaml@32
+    - profiles/bootstrap.yaml@33
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

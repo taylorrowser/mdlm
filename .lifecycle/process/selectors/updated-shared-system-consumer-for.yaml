@@ -1,0 +1,22 @@
+kind: selector-definition
+id: updated-shared-system-consumer-for
+version: 1
+description: Current same-lineage consumer coverage Revision rebound to the changed SYS under the exact Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+  - {name: consumer, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: consumer, emit: entity, types: [DWP]}
+  as: replacement
+  where: >-
+    replacement.identity.revision > consumer.identity.revision
+    && none("newer-revisions-for@1", {subject: replacement})
+    && replacement.payload.stage == consumer.payload.stage
+    && replacement.payload.parent_coverage_status == "complete"
+    && !every("changes-changed-under-subject@1", {subject: replacement}, owner => owner != change)
+    && every("revised-requirements-for-change@3", {change: change}, requirement =>
+      exists("system-requirements-consumed-by@1", {consumer: replacement})
+      && !every("system-requirements-consumed-by@1", {consumer: replacement}, parent => parent != requirement))
+  distinct: true
+  order_by: [identity.revision]

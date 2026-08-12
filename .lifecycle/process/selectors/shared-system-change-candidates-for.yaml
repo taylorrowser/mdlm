@@ -1,0 +1,41 @@
+kind: selector-definition
+id: shared-system-change-candidates-for
+version: 1
+description: Exact replacement system candidates containing the changed shared SYS, both updated consumers, fresh evidence, and every reusable accepted item.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "level-candidate"
+    && candidate.payload.role == "candidate"
+    && candidate.storage.frozen == true
+    && !every("changes-changed-under-subject@1", {subject: candidate}, owner => owner != change)
+    && none("newer-revisions-for@1", {subject: candidate})
+    && every("revised-requirements-for-change@3", {change: change}, requirement =>
+      exists("baseline-contains-definition@1", {baseline: candidate, subject: requirement}))
+    && every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
+      exists("baseline-contains-definition@1", {baseline: candidate, subject: consumer}))
+    && every("reusable-system-change-definitions-for@1",
+      {change: change, accepted: one("accepted-system-baselines-for-change@1", {change: change})}, definition =>
+        exists("baseline-contains-definition@1", {baseline: candidate, subject: definition}))
+    && every("candidate-definition-members@1", {candidate: candidate}, definition =>
+      !every("revised-requirements-for-change@3", {change: change}, requirement => requirement != definition)
+      || !every("updated-shared-system-consumers-for-change@1", {change: change}, consumer => consumer != definition)
+      || !every("reusable-system-change-definitions-for@1",
+        {change: change, accepted: one("accepted-system-baselines-for-change@1", {change: change})}, reusable =>
+          reusable != definition))
+    && every("fresh-shared-system-change-evidence@1", {change: change}, evidence =>
+      exists("baseline-contains-evidence@1", {baseline: candidate, subject: evidence}))
+    && every("reusable-system-change-evidence-for@1",
+      {change: change, accepted: one("accepted-system-baselines-for-change@1", {change: change})}, evidence =>
+        exists("baseline-contains-evidence@1", {baseline: candidate, subject: evidence}))
+    && every("baseline-evidence@1", {baseline: candidate}, evidence =>
+      !every("fresh-shared-system-change-evidence@1", {change: change}, fresh => fresh != evidence)
+      || !every("reusable-system-change-evidence-for@1",
+        {change: change, accepted: one("accepted-system-baselines-for-change@1", {change: change})}, reusable =>
+          reusable != evidence))
+  distinct: true
+  order_by: [identity.revision_id]

@@ -1,0 +1,32 @@
+kind: scenario-definition
+id: create-shared-system-change-candidate
+version: 1
+description: Freeze one post-acceptance system candidate after the shared SYS and both exact consumers have fresh separate coverage evidence.
+phases: [phase-7-change-control]
+inputs:
+  - {name: change, types: [CHG], cardinality: one, identity: revision}
+  - {name: accepted, types: [BSL], cardinality: one, identity: revision}
+  - {name: replacement, types: [SYS], cardinality: one, identity: revision}
+  - {name: updated_consumers, types: [DWP], cardinality: one-or-more, identity: revision}
+  - {name: fresh_evidence, types: [BSL, REV], cardinality: one-or-more, identity: revision}
+  - {name: reusable_definitions, types: [SYS, ASP, ICSP, DWP, VSP], cardinality: zero-or-more, identity: revision}
+  - {name: reusable_evidence, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
+outputs:
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    required_links:
+      - {link: changed-under, target: {input: change}}
+prompt_ref: prompts/create-shared-system-change-candidate.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && candidate.payload.kind == "level-candidate"
+  && candidate.payload.role == "candidate"
+  && candidate.payload.scope == accepted.payload.scope
+  && candidate.payload.group == accepted.payload.group
+  && candidate.storage.frozen == true
+  && exists("shared-system-change-candidates-for@1", {change: change})
+resolves: [shared-system-change-candidate-required]
+prohibited_inputs: [copied SYS lineages, old consumer bindings, affected historical evidence as reusable, mutation of accepted history, parallel consumer publication]
+batching: single

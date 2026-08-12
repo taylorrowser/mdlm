@@ -1,0 +1,21 @@
+kind: selector-definition
+id: shared-system-change-candidates
+version: 1
+description: Every exact historical candidate containing the accepted shared SYS or one of its decomposition consumers.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.role == "candidate"
+    && every("changes-changed-under-subject@1", {subject: candidate}, owner => owner != change)
+    && (
+      !every("impacted-requirements-for-change@3", {change: change}, requirement =>
+        none("baseline-contains-definition@1", {baseline: candidate, subject: requirement}))
+      || !every("shared-system-consumers-for-change@1", {change: change}, consumer =>
+        none("baseline-contains-definition@1", {baseline: candidate, subject: consumer}))
+    )
+  distinct: true
+  order_by: [identity.revision_id]

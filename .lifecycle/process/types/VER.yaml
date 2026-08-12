@@ -1,6 +1,6 @@
 kind: type-definition
 id: VER
-version: 1
+version: 2
 name: Verification Activity
 description: Source-independent specification of one qualification, pilot, or formal verification claim and its acceptance evidence.
 extends: rationale-bearing@1
@@ -72,9 +72,9 @@ outgoing_links:
     freeze_resolution: exact-revision
     inverse_label: verification-activity
   - id: verifies-revision
-    description: Exact requirement Revision whose ready Phase 1 design is exercised by this pilot activity.
+    description: Exact stakeholder or system requirement Revision exercised by this verification activity.
     targets:
-      - {kind: datum, types: [STK], identity: revision}
+      - {kind: datum, types: [STK, SYS], identity: revision}
     cardinality: {minimum: 0, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: exact-verification-activity

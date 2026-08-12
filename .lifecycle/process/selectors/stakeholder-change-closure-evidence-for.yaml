@@ -10,9 +10,9 @@ query:
   as: evidence
   where: >-
     evidence == one("valid-review-contexts-for@1",
-      {subject: one("revised-requirements-for-change@2", {change: change})})
+      {subject: one("revised-requirements-for-change@3", {change: change})})
     || evidence == one("passing-reviews-for@1",
-      {subject: one("revised-requirements-for-change@2", {change: change})})
+      {subject: one("revised-requirements-for-change@3", {change: change})})
     || evidence == one("stakeholder-change-candidates-for@1", {change: change})
     || evidence == one("passing-reviews-for@1",
       {subject: one("stakeholder-change-candidates-for@1", {change: change})})

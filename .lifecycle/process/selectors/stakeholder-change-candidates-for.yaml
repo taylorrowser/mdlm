@@ -16,16 +16,16 @@ query:
       owner != change)
     && none("newer-revisions-for@1", {subject: candidate})
     && exists("baseline-contains-definition@1",
-      {baseline: candidate, subject: one("revised-requirements-for-change@2", {change: change})})
+      {baseline: candidate, subject: one("revised-requirements-for-change@3", {change: change})})
     && every("reusable-change-definitions-for@1",
       {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, definition =>
         exists("baseline-contains-definition@1", {baseline: candidate, subject: definition}))
     && every("candidate-definition-members@1", {candidate: candidate}, definition =>
-      definition == one("revised-requirements-for-change@2", {change: change})
+      definition == one("revised-requirements-for-change@3", {change: change})
       || !every("reusable-change-definitions-for@1",
         {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, reusable =>
           reusable != definition))
-    && every("revised-requirements-for-change@2", {change: change}, requirement =>
+    && every("revised-requirements-for-change@3", {change: change}, requirement =>
       exists("valid-review-contexts-for@1", {subject: requirement})
       && every("valid-review-contexts-for@1", {subject: requirement}, context =>
         exists("baseline-contains-evidence@1", {baseline: candidate, subject: context}))
@@ -39,7 +39,7 @@ query:
       !every("reusable-change-evidence-for@1",
         {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, reusable =>
           reusable != evidence)
-      || !every("revised-requirements-for-change@2", {change: change}, requirement =>
+      || !every("revised-requirements-for-change@3", {change: change}, requirement =>
         evidence != one("valid-review-contexts-for@1", {subject: requirement})
         && evidence != one("passing-reviews-for@1", {subject: requirement})))
   distinct: true

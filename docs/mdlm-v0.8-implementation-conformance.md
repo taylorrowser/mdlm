@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating implementation profile
 - **Design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.57.0`
+- **Implementation package:** `mdlm-bootstrap@0.58.0`
 - **Expansion decision:** `change`
 
 ## Purpose
@@ -49,7 +49,7 @@ the accepted overview and the reviewed pilot Decision.
 | Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
 | Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
 | Phase 2 decomposition, exact-set and ordinary correction, ambiguity, evidence-preserving candidates, acceptance, and reviewed gate progression | 52–53, 57–58 | #46, #98–#99 | `test/req-system-decomposition.test.ts`, `test/mdlm-phase-2-simplification.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
-| Accepted STK boundary, attended exact Change Request dispositions, selective replacement/reuse, and closure | 54, 57–58, 68–72 | #47, #101 | `test/mdlm-stakeholder-change-control.test.ts`, `test/mdlm-review-correction.test.ts` |
+| Accepted STK and shared-SYS boundaries, attended exact Change Request dispositions, serial consumer coverage replacement, selective reuse, and closure | 54, 57–58, 68–75 | #47, #101–#102 | `test/mdlm-stakeholder-change-control.test.ts`, `test/mdlm-shared-system-change-control.test.ts`, `test/evaluate-shared-system-change.test.ts`, `test/mdlm-review-correction.test.ts` |
 | Durable pilot measurements, bounded PAS/Decision correction, independently reviewed expansion Decision, and explicit outcomes | 56–60 | #48, #68, #100 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts`, `test/mdlm-pilot-assessment.test.ts` |
 | Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
 
@@ -163,9 +163,7 @@ every directly traced affected item derives from the exact STK/baseline roots an
 projects Stale after implementation;
 and every unaffected accepted definition/evidence item remains reusable. Failed CHG,
 disposition, STK, and candidate Reviews route to causal same-lineage Correction and
-fresh independent Review instead of stranding Phase 7. Draft
-STK correction remains the ordinary Phase 0 route, while shared accepted SYS
-consumer behavior remains deferred to #102. The lifecycle-neutral
+fresh independent Review instead of stranding Phase 7. Draft STK correction remains the ordinary Phase 0 route. Issue #102 extends the same package-owned accepted boundary to one shared SYS consumed by two exact DWP lineages: exact links expose both consumers and dependent context, Review, candidate/gate, and verification evidence; draft replacement reevaluates each consumer without CHG; accepted replacement requires attended reviewed CHG authority and serial fresh consumer coverage before selective candidate and closure. The lifecycle-neutral
 operator contract exposes package-bound attended inputs without counting
 Assignment transport attempts as lifecycle failures. The implemented routes and
 deferred hardening breadth are recorded in
@@ -249,7 +247,6 @@ Decision therefore adopts `change`, not `proceed`.
 The following remain intentionally outside this completed profile:
 
 - Phase 3–6 package definitions and outputs;
-- shared accepted SYS multi-consumer impact, serial coverage replacement, and closure (#102);
 - production graph indexing before realistic repository measurements justify it;
 - claim/lease orchestration and broader concurrency profiles;
 - source-isolation containers;

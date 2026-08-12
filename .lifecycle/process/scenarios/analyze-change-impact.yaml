@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: analyze-change-impact
 version: 2
-description: Create one exact bounded Change Request for accepted STK intent with traceability-based selective impact.
+description: Create one exact bounded Change Request for accepted STK intent or a shared accepted SYS with complete package-derived impact.
 phases: [phase-7-change-control]
 inputs:
   - {name: problem, types: [PRB], cardinality: one, identity: revision}
@@ -15,7 +15,7 @@ prompt_ref: prompts/analyze-change-impact.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
-  && exists("valid-stakeholder-change-impact@1", {change: change})
+  && exists("valid-stakeholder-change-impact@2", {change: change})
 resolves: [change-impact-required]
 prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth, unbounded inferred impact]
 batching: single

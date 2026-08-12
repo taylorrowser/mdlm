@@ -1,7 +1,7 @@
 kind: selector-definition
 id: valid-stakeholder-change-impact
-version: 1
-description: One exact accepted-STK Change Request whose authored impact equals the complete directly traceable accepted-intent impact set.
+version: 2
+description: One exact accepted STK or shared SYS Change Request whose roots expose the complete package-derived impact set.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: revision
@@ -11,9 +11,15 @@ query:
   where: >-
     candidate == change
     && candidate.payload.implementation_order == "requirements -> context -> reviews -> baselines -> verification"
-    && count("impacted-requirements-for-change@2", {change: candidate}) == 1
-    && every("impacted-requirements-for-change@2", {change: candidate}, requirement =>
-      exists("accepted-intent-candidates-for-requirement@2", {requirement: requirement}))
-    && count("accepted-intent-baselines-for-change@1", {change: candidate}) == 1
+    && count("impacted-requirements-for-change@3", {change: candidate}) == 1
+    && (
+      (count("impacted-stakeholder-requirements-for-change@1", {change: candidate}) == 1
+        && every("impacted-requirements-for-change@3", {change: candidate}, requirement =>
+          exists("accepted-intent-candidates-for-requirement@2", {requirement: requirement}))
+        && count("accepted-intent-baselines-for-change@1", {change: candidate}) == 1)
+      || (count("impacted-system-requirements-for-change@1", {change: candidate}) == 1
+        && count("accepted-system-baselines-for-change@1", {change: candidate}) == 1
+        && count("shared-system-consumers-for-change@1", {change: candidate}) >= 2)
+    )
   distinct: true
   order_by: [identity.revision_id]

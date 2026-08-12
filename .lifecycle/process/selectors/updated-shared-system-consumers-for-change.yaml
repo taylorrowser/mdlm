@@ -1,0 +1,16 @@
+kind: selector-definition
+id: updated-shared-system-consumers-for-change
+version: 1
+description: Complete current consumer coverage Revisions for every original consumer affected by one shared-SYS Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: replacement
+  where: >-
+    !every("shared-system-consumers-for-change@1", {change: change}, consumer =>
+      every("updated-shared-system-consumer-for@1", {change: change, consumer: consumer}, updated =>
+        updated != replacement))
+  distinct: true
+  order_by: [identity.id, identity.revision]

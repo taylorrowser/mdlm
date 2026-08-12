@@ -18,9 +18,9 @@ rules:
     explanation: Parseability, schema, identity, reference, or frozen-byte integrity is broken.
   - value: stale
     priority: 250
-    when: 'exists("implemented-changes-impacting-revision@1", {subject: subject})'
-    explanation: An implemented reviewed Change Request derives this exact Revision as affected from its accepted-STK roots and prevents silent reuse.
-    explanation_evidence: 'select("implemented-changes-impacting-revision@1", {subject: subject})'
+    when: 'exists("implemented-changes-impacting-revision@2", {subject: subject})'
+    explanation: An implemented reviewed Change Request derives this exact Revision as affected from its accepted requirement roots and prevents silent reuse.
+    explanation_evidence: 'select("implemented-changes-impacting-revision@2", {subject: subject})'
   - value: stale
     priority: 200
     when: 'policy("dependency-reassessment@1", {subject: subject}).required == true'

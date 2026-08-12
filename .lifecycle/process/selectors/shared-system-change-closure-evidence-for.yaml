@@ -1,0 +1,17 @@
+kind: selector-definition
+id: shared-system-change-closure-evidence-for
+version: 1
+description: Exact replacement, two consumer coverage Reviews, system candidate, and candidate Review evidence required for shared-SYS closure.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [BSL, REV]}
+  as: evidence
+  where: >-
+    !every("fresh-shared-system-change-evidence@1", {change: change}, fresh => fresh != evidence)
+    || evidence == one("shared-system-change-candidates-for@1", {change: change})
+    || evidence == one("passing-reviews-for@1",
+      {subject: one("shared-system-change-candidates-for@1", {change: change})})
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

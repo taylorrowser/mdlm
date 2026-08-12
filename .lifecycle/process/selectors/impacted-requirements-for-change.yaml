@@ -1,12 +1,12 @@
 kind: selector-definition
 id: impacted-requirements-for-change
-version: 2
-description: Exact accepted-boundary STK Revisions named consistently by one Change Request impact analysis.
+version: 3
+description: Exact accepted-boundary STK or SYS Revisions named consistently by one Change Request impact analysis.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: change, link: impacts, emit: target, types: [STK]}
+  from: {relation: outgoing-links, of: change, link: impacts, emit: target, types: [STK, SYS]}
   as: requirement
   distinct: true
   order_by: [identity.type, identity.revision_id]

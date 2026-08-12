@@ -1,0 +1,17 @@
+kind: selector-definition
+id: shared-system-consumers-for-change
+version: 1
+description: Every exact decomposition consumer bound to the accepted shared SYS Revision impacted by one Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: 'one("impacted-system-requirements-for-change@1", {change: change})'
+    link: decomposes
+    emit: source
+    types: [DWP]
+  as: consumer
+  distinct: true
+  order_by: [identity.id, identity.revision]

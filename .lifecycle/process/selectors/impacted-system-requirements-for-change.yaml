@@ -1,0 +1,12 @@
+kind: selector-definition
+id: impacted-system-requirements-for-change
+version: 1
+description: Exact accepted shared SYS roots named by one Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: change, link: impacts, emit: target, types: [SYS]}
+  as: requirement
+  distinct: true
+  order_by: [identity.revision_id]

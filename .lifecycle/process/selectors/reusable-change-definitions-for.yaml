@@ -10,7 +10,7 @@ query:
   from: {relation: baseline-members, of: accepted, emit: entity, types: [MAP, PSP, STK]}
   as: definition
   where: >-
-    every("impacted-requirements-for-change@2", {change: change}, requirement =>
+    every("impacted-requirements-for-change@3", {change: change}, requirement =>
       requirement != definition)
   distinct: true
   order_by: [identity.type, identity.revision_id]

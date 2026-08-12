@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.57
+# MDLM bootstrap process package v0.58
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -414,8 +414,7 @@ attended escalation, while disposition correction renews attended judgment.
 Closure atomically publishes a `change-closure` DEC citing the exact CHG,
 replacement, context, Reviews, and candidate plus the next closed PRB Revision.
 `change-status@2` remains an independent computed dimension, and all routing uses
-generic Phase, Obligation, baseline, Scenario, and repository surfaces. Shared SYS
-multi-consumer change remains deliberately deferred to its sibling tracer.
+generic Phase, Obligation, baseline, Scenario, and repository surfaces. A shared accepted SYS remains one Stable Datum lineage. Each DWP consumer binds its exact Revision through `decomposes` and records a separate complete coverage account. Draft replacement derives lightweight serial consumer reevaluation with no CHG. Accepted replacement requires the same reviewed attended disposition as STK, then one `changed-under` SYS Revision, one serial same-lineage DWP coverage Revision per exact consumer, fresh contexts and Reviews, a selective level candidate, and exact closure. Selectors derive every affected consumer, context, Review, historical candidate/gate route, and verification dependency; unrelated accepted evidence remains reusable.
 
 ## Reviewed Phase 0–2 pilot assessment
 

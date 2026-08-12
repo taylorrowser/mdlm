@@ -1,0 +1,31 @@
+kind: scenario-definition
+id: reevaluate-shared-system-consumer
+version: 1
+description: Rebind one exact decomposition consumer to a replacement shared SYS Revision and record its own complete coverage account.
+phases: [phase-7-change-control]
+inputs:
+  - {name: consumer, types: [DWP], cardinality: one, identity: revision}
+  - {name: replacement_requirement, types: [SYS], cardinality: one, identity: revision}
+  - {name: change, types: [CHG], cardinality: one, identity: revision}
+outputs:
+  - name: replacement_consumer
+    types: [DWP]
+    cardinality: one
+    required_links:
+      - {link: decomposes, target: {input: replacement_requirement}}
+prompt_ref: prompts/reevaluate-shared-system-consumer.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement_consumer.identity.id == consumer.identity.id
+  && replacement_consumer.payload.stage == consumer.payload.stage
+  && replacement_consumer.payload.parent_coverage_status == "complete"
+  && count("system-requirements-consumed-by@1", {consumer: replacement_consumer}) == 1
+  && one("system-requirements-consumed-by@1", {consumer: replacement_consumer}) == replacement_requirement
+  && count("changes-changed-under-subject@1", {subject: replacement_requirement}) == 1
+  && count("changes-changed-under-subject@1", {subject: replacement_consumer}) == 1
+  && one("changes-changed-under-subject@1", {subject: replacement_requirement}) == change
+  && one("changes-changed-under-subject@1", {subject: replacement_consumer}) == change
+resolves: [shared-system-consumer-reevaluation-required]
+prohibited_inputs: [copied requirement lineages, unrelated consumers, incomplete coverage, mutable latest aliases, parallel consumer publication]
+batching: single

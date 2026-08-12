@@ -1,0 +1,20 @@
+kind: obligation-definition
+id: draft-shared-system-consumer-reevaluation-required
+version: 1
+description: Every draft consumer of a replacement unaccepted shared SYS receives one serial same-lineage coverage reevaluation without Change Request ceremony.
+phases: [phase-2-system-definition]
+for_each: 'select("draft-outdated-shared-system-consumers@1", {})'
+subject_as: consumer
+satisfied_when: 'exists("newer-revisions-for@1", {subject: consumer})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: Rebind this draft consumer to the exact shared SYS replacement and preserve all unaffected work.
+default_status: ready
+resolve_with:
+  scenario: reevaluate-draft-shared-system-consumer@1
+  inputs:
+    consumer: consumer
+    replacement_requirement: 'one("replacement-system-requirements-for-consumer@2", {consumer: consumer})'
+waiver_policy_ref: waiver-applicability@1

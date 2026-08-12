@@ -1,0 +1,17 @@
+kind: selector-definition
+id: replacement-system-requirements-for-consumer
+version: 2
+description: Current later SYS Revisions in a Stable Datum lineage bound by one exact consumer.
+parameters:
+  - {name: consumer, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [SYS]}
+  as: replacement
+  where: >-
+    none("newer-revisions-for@1", {subject: replacement})
+    && every("system-requirements-consumed-by@1", {consumer: consumer}, requirement =>
+      requirement.identity.id == replacement.identity.id
+      && requirement.identity.revision < replacement.identity.revision)
+  distinct: true
+  order_by: [identity.id, identity.revision]

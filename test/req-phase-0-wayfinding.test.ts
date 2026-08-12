@@ -35,9 +35,9 @@ describe("req Phase 0 wayfinding slice", () => {
       "ART@1",
       "ASP@2",
       "BSL@4",
-      "CHG@2",
+      "CHG@3",
       "DEC@6",
-      "DWP@2",
+      "DWP@3",
       "ENV@1",
       "ICSP@2",
       "MAP@3",
@@ -51,7 +51,7 @@ describe("req Phase 0 wayfinding slice", () => {
       "STK@4",
       "SYS@3",
       "VAI@1",
-      "VER@1",
+      "VER@2",
       "VSP@1",
     ]);
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([
