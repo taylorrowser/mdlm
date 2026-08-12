@@ -802,10 +802,10 @@ describe("public mdlm outcome and status seam", () => {
     const manifestPath = path.join(packageRoot, "manifest.yaml");
     const manifest = parse(await fs.readFile(manifestPath, "utf8"));
     manifest.profiles = {
-      default: "alternate@33",
+      default: "alternate@34",
       available: [
         "profiles/bootstrap.yaml@34",
-        "profiles/alternate.yaml@33",
+        "profiles/alternate.yaml@34",
       ],
     };
     await fs.writeFile(manifestPath, stringify(manifest));
@@ -815,7 +815,7 @@ describe("public mdlm outcome and status seam", () => {
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(expect.objectContaining({
-      reference: "alternate@33",
+      reference: "alternate@34",
     }));
   });
 
