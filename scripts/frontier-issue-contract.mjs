@@ -4,11 +4,26 @@ function readyForSerialWork(issue) {
     && issue.blockedBy.every((blocker) => blocker.state === "CLOSED");
 }
 
-export function findReadyItem(issues) {
-  return [...issues].sort((left, right) => left.number - right.number).find(readyForSerialWork);
+export function findReadyItem(issues, { excludedIssueNumbers = [] } = {}) {
+  const excluded = new Set(excludedIssueNumbers);
+  return [...issues]
+    .sort((left, right) => left.number - right.number)
+    .find((issue) => !excluded.has(issue.number) && readyForSerialWork(issue));
 }
 
 export const findFrontier = findReadyItem;
+
+export function selectFixedScopeCandidate(priorityIssues, backlogIssues, { excludedIssueNumbers = [] } = {}) {
+  const priority = findReadyItem(priorityIssues, { excludedIssueNumbers });
+  if (priority) return { issue: priority, scope: "priority-map frontier" };
+  const backlog = findReadyItem(backlogIssues, { excludedIssueNumbers });
+  return backlog ? { issue: backlog, scope: "older ready backlog" } : { issue: undefined, scope: "fixed delivery scope" };
+}
+
+export function fixedIdentitiesAreClosed(issueNumbers, issues) {
+  const byNumber = new Map(issues.map((issue) => [issue.number, issue]));
+  return issueNumbers.every((number) => byNumber.get(number)?.state === "CLOSED");
+}
 
 export function normalizeNativeBlockers(value) {
   if (Array.isArray(value)) return value;

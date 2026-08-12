@@ -2,7 +2,15 @@ function commonEditingPolicy(issue) {
   return `Read the complete issue and comments, parent spec, repository instructions, glossary, relevant ADRs, branch commits, and existing work. Treat issue #${issue.number} acceptance criteria as the current implementation boundary: parent invariants remain binding, but explicitly deferred sibling work remains deferred. Run focused checks and type checking while editing; do not run the full suite, and do not invoke code review or another Pi agent: the orchestrator independently owns the one full-suite run and independent review at the final committed tip. This instruction overrides the implementation skill's default completion procedure for validation and review. Commit completed work with issue #${issue.number} in the commit message. Work autonomously without asking for confirmation. Do not push, create or merge a PR, or close issues; the orchestrator owns publication.`;
 }
 
-export function editingAgentPrompt(kind, { issue, resumed = false, reasonLog, reasons = [] }) {
+export function editingAgentPrompt(kind, {
+  issue,
+  resumed = false,
+  reasonLog,
+  reasons = [],
+  evidencePath,
+  failureFingerprint,
+  failureRepeated = false,
+}) {
   const policy = commonEditingPolicy(issue);
   if (kind === "implementation") {
     return `/skill:implement ${resumed ? "Continue and finish" : "Implement"} GitHub issue #${issue.number} (${issue.title}) on the current branch. ${policy} Use TDD where possible at the agreed public-process seam. Keep MDLM lifecycle-neutral and modules deep; simplify before implementation complexity fans out. Claiming has already been handled.`;
@@ -19,6 +27,9 @@ export function editingAgentPrompt(kind, { issue, resumed = false, reasonLog, re
   }
   if (kind === "contract-review") {
     return `/skill:implement Resolve a repeated complexity deadlock for GitHub issue #${issue.number} (${issue.title}) and finish it autonomously. Explicitly apply grilling, codebase-design, and diagnosing-bugs. Inspect ${reasonLog}. ${policy} First replace the implementation with a substantially simpler design that preserves the written contract. Only if a criterion itself forces disproportionate machinery, choose the smallest user-goal-preserving clarification. Never waive atomic publication, one canonical writer, package neutrality, harness neutrality, independent judgment, tests, or review. Record a clarification as an issue comment naming retained behavior, intentionally given-up behavior, and why it still satisfies the parent goal; do not rewrite history.`;
+  }
+  if (kind === "targeted-repair") {
+    return `/skill:implement Repair the latest narrow failure for GitHub issue #${issue.number} (${issue.title}) on the current branch. Use the diagnosing-bugs method. The sole primary failure evidence is the durable artifact at ${evidencePath}; its stable fingerprint is ${failureFingerprint} and repeated=${failureRepeated ? "yes" : "no"}. ${policy} Reproduce that narrow signal, make the smallest root-cause repair, run focused tests and typecheck only, and commit. Do not inspect the historical issue log as primary evidence. You must not alter the issue contract or broadly redesign the implementation. Do not add speculative recovery or unrelated cleanup.`;
   }
   throw new Error(`Unknown editing action: ${kind}`);
 }
