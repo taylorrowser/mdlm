@@ -71,6 +71,16 @@ export function quarantineIssueComment(marker, record) {
   return `${marker}\nFrontier automation quarantined this open ticket after its targeted repair budget was exhausted.\n\nClass: \`product-correction-exhausted\`\nFinal fingerprint: \`${record.failureFingerprint}\`\nReason: ${record.reason}\nPreserved branch: \`${record.branch}\`\nPreserved worktree: \`${record.worktree}\`\nFailure evidence: \`${record.failureEvidencePath}\`\n\nThis issue was not closed or merged.`;
 }
 
+export function publishQuarantineCommentOnce({ commandOutput, issueNumber, comments, marker, record }) {
+  if (comments?.some((comment) => String(comment.body ?? "").includes(marker))) return "observed";
+  commandOutput(
+    "gh",
+    ["issue", "comment", String(issueNumber), "--body", quarantineIssueComment(marker, record)],
+    { maximumAttempts: 1 },
+  );
+  return "published";
+}
+
 export function createTicketRunner({
   repositoryRoot,
   writeState,
@@ -253,8 +263,15 @@ export function createTicketRunner({
       message: `Quarantining #${issue.number}; branch and worktree will be preserved`,
     });
     const live = commandJson("gh", ["issue", "view", String(issue.number), "--json", "comments,assignees"]);
-    if (!live.comments?.some((comment) => String(comment.body ?? "").includes(marker))) {
-      commandOutput("gh", ["issue", "comment", String(issue.number), "--body", quarantineIssueComment(marker, record)]);
+    const commentStatus = publishQuarantineCommentOnce({
+      commandOutput,
+      issueNumber: issue.number,
+      comments: live.comments,
+      marker,
+      record,
+    });
+    if (commentStatus === "published") {
+      throw publicationRetry(`Published quarantine comment for #${issue.number}; waiting to observe its durable marker before continuing`);
     }
     const login = viewerLogin();
     if (live.assignees?.some((assignee) => assignee.login === login)) {

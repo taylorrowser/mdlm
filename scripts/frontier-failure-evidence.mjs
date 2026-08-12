@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
 
 const ansiPattern = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+const inlineDurationPattern = /\s+\(?\d+(?:\.\d+)?(?:ms|s)\)?\s*$/i;
+const vitestStatusPrefixPattern = /^\s*(?:(?:FAIL|PASS)\b|[✓✔×✕✖❯])/u;
+const tapStatusPrefixPattern = /^\s*(?:not )?ok\b/i;
+
+function stripRunnerStatusTiming(line) {
+  if (!vitestStatusPrefixPattern.test(line) && !tapStatusPrefixPattern.test(line)) return line;
+  return line.replace(inlineDurationPattern, "");
+}
 
 export function normalizeFailureEvidence({ commandIdentity, output }) {
   const normalizedOutput = String(output ?? "")
@@ -12,6 +20,7 @@ export function normalizeFailureEvidence({ commandIdentity, output }) {
     .replace(/(?:\/private)?\/(?:tmp|var\/folders)\/[^\s:]+(?=\/(?:src|test|scripts)\/)/g, "<temp-root>")
     .replace(/\b(mdlm-[A-Za-z0-9_-]*?)[A-Za-z0-9]{6,}\b/g, "$1<run>")
     .split("\n")
+    .map(stripRunnerStatusTiming)
     .map((line) => line.trimEnd())
     .filter((line) => line.trim() !== "")
     .join("\n");

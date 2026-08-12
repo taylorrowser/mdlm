@@ -60,7 +60,12 @@ import {
 import { createMaintenanceController, maintenanceBoundaryIsSafe } from "./frontier-maintenance.mjs";
 import { runInProcessGroup } from "./frontier-process-group.mjs";
 import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompts.mjs";
-import { createTicketRunner, quarantineIssueComment, quarantineIssueRecord } from "./frontier-ticket-runner.mjs";
+import {
+  createTicketRunner,
+  publishQuarantineCommentOnce,
+  quarantineIssueComment,
+  quarantineIssueRecord,
+} from "./frontier-ticket-runner.mjs";
 import { sleep } from "./frontier-time.mjs";
 
 function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
@@ -638,6 +643,45 @@ test("quarantine records distinguish product exhaustion from agent infrastructur
   assert.match(quarantineIssueComment("<!-- marker -->", product), /targeted repair budget was exhausted/i);
 });
 
+test("quarantine comment publication is single-attempt and re-entry observes the marker before continuing", () => {
+  const marker = "<!-- mdlm-frontier-quarantine:83:101 -->";
+  const record = {
+    class: "product-correction-exhausted",
+    branch: "agent/issue-101",
+    worktree: "/tmp/issue-101",
+    failureFingerprint: "final-fingerprint",
+    failureEvidencePath: "/tmp/failure.md",
+    reason: "targeted repair budget exhausted",
+  };
+  const requests = [];
+  const commandOutput = (...request) => {
+    requests.push(request);
+    return "https://github.com/example/repo/issues/101#issuecomment-1";
+  };
+
+  assert.equal(publishQuarantineCommentOnce({
+    commandOutput,
+    issueNumber: 101,
+    comments: [],
+    marker,
+    record,
+  }), "published");
+  assert.deepEqual(requests[0], [
+    "gh",
+    ["issue", "comment", "101", "--body", quarantineIssueComment(marker, record)],
+    { maximumAttempts: 1 },
+  ]);
+
+  assert.equal(publishQuarantineCommentOnce({
+    commandOutput,
+    issueNumber: 101,
+    comments: [{ body: `${marker}\nAlready published` }],
+    marker,
+    record,
+  }), "observed");
+  assert.equal(requests.length, 1);
+});
+
 test("state migration never infers a missing validated head from review or publication state", () => {
   const migrated = migrateFrontierState({
     schemaVersion: 4,
@@ -820,11 +864,20 @@ test("targeted repair cap produces quarantine instead of another editing action"
 });
 
 test("stable semantic failure fingerprints ignore runtime noise and track repetition", () => {
-  const firstOutput = "\u001b[31mFAIL test/example.test.ts > rejects stale input\u001b[0m\n2026-08-12T01:02:03.000Z AssertionError: expected 2 to equal 1\n at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7\nDuration 27m 3.2s";
-  const secondOutput = "FAIL test/example.test.ts > rejects stale input\n2027-01-01T04:05:06.000Z AssertionError: expected 2 to equal 1\n at /tmp/mdlm-run-z9/test/example.test.ts:44:7\nDuration 12.8s";
+  const firstOutput = "\u001b[31mFAIL test/example.test.ts > rejects stale input 12746ms\u001b[0m\n2026-08-12T01:02:03.000Z AssertionError: expected timeout 5ms but received 10ms\n at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7\nDuration 27m 3.2s";
+  const secondOutput = "FAIL test/example.test.ts > rejects stale input 376.58s\n2027-01-01T04:05:06.000Z AssertionError: expected timeout 5ms but received 10ms\n at /tmp/mdlm-run-z9/test/example.test.ts:44:7\nDuration 12.8s";
   const fingerprint = failureFingerprint({ commandIdentity: "npm test", output: firstOutput });
   assert.equal(failureFingerprint({ commandIdentity: "npm test", output: secondOutput }), fingerprint);
-  assert.notEqual(failureFingerprint({ commandIdentity: "npm test", output: secondOutput.replace("expected 2", "expected 3") }), fingerprint);
+  assert.notEqual(failureFingerprint({ commandIdentity: "npm test", output: secondOutput.replace("received 10ms", "received 11ms") }), fingerprint);
+
+  const firstTapOutput = "not ok 1 - rejects stale input (0.49325ms)\n  AssertionError: expected timeout 5ms but received 10ms\n    at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7";
+  const secondTapOutput = "not ok 1 - rejects stale input (892.75ms)\n  AssertionError: expected timeout 5ms but received 10ms\n    at /tmp/mdlm-run-z9/test/example.test.ts:44:7";
+  const tapFingerprint = failureFingerprint({ commandIdentity: "node --test", output: firstTapOutput });
+  assert.equal(failureFingerprint({ commandIdentity: "node --test", output: secondTapOutput }), tapFingerprint);
+  assert.notEqual(
+    failureFingerprint({ commandIdentity: "node --test", output: secondTapOutput.replace("expected timeout 5ms", "expected timeout 6ms") }),
+    tapFingerprint,
+  );
   assert.notEqual(
     failureFingerprint({ commandIdentity: "npm test", output: "AssertionError: expected timeout 5ms but received 10ms" }),
     failureFingerprint({ commandIdentity: "npm test", output: "AssertionError: expected timeout 500ms but received 10ms" }),
