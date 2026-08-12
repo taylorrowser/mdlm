@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.58
+# MDLM bootstrap process package v0.59
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
