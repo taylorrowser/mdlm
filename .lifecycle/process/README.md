@@ -387,9 +387,9 @@ STK Revision only when that exact identity belongs to an authorized
 `intent-approved` accepted baseline; an individual passing Review or an unaccepted
 Revision in the same lineage cannot satisfy the impact contract. The CHG names only
 that exact STK and its accepted baseline as canonical `impacts` roots. Package
-Selectors derive every directly traced affected context and evidence Revision from
-those roots, so callers cannot turn affected evidence into reusable evidence by
-omitting it. Draft STK defects continue through ordinary causal Phase 0 Correction
+Selectors derive every directly traced affected context and the promoted intent
+candidate's Review/gate dependency route from those roots, so callers cannot turn
+affected candidate evidence into reusable evidence by omitting it. Draft STK defects continue through ordinary causal Phase 0 Correction
 without CHG ceremony.
 
 After the CHG's contextual Review passes, one attended stakeholder Decision records
@@ -399,11 +399,14 @@ explicitly without a replacement or any rewrite of accepted history. Reviewed
 approval alone authorizes the same STK Stable Datum's next Revision through exact
 `changed-under`.
 
-The replacement's exact Revision identity derives a fresh Review Context and Review. A
-package-owned candidate Resolver then freezes one CHG-linked `intent-change-candidate`
+The replacement's exact Revision identity derives a fresh Review Context containing
+the CHG and attended disposition before independent Review. A package-owned
+candidate Resolver then freezes one CHG-linked `intent-change-candidate`
 containing that replacement evidence and every exact accepted definition/evidence
-item outside the CHG impact. The candidate receives fresh Review; affected exact evidence projects Stale while
-unrelated exact evidence remains reusable. Failed CHG, disposition, replacement,
+item outside the CHG impact. The candidate receives a fresh Review over every candidate member plus the CHG and
+disposition; the promoted predecessor candidate, its contexts, Reviews, gate
+Decision, and gate Review project Stale while unrelated exact evidence remains
+reusable. Failed CHG, disposition, replacement,
 or candidate Reviews derive same-lineage Correction through normal `mdlm next`;
 non-Decision correction uses one deep interface with two autonomous cycles before
 attended escalation, while disposition correction renews attended judgment.

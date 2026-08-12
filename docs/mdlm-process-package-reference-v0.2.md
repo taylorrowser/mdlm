@@ -598,8 +598,8 @@ identity belongs to an `intent-approved` accepted baseline. A passing individual
 Review or another Revision in the same Stable Datum is insufficient. The CHG
 records exactly two canonical `impacts` roots: the accepted STK Revision and the
 accepted baseline containing it. Package Selectors derive the complete directly
-traced Review Context, Review, candidate, and verification-evidence impact from
-those roots. Callers therefore cannot make affected evidence reusable by omission,
+traced Review Context and verification evidence plus the promoted intent
+candidate's Review/gate dependency route from those roots. Callers therefore cannot make affected evidence reusable by omission,
 and unrelated roots fail the Scenario contract. Draft STK failures remain in
 ordinary Phase 0 Correction and cannot enter this post-acceptance Resolver.
 
@@ -608,15 +608,18 @@ nondelegable stakeholder attention for one exact `approve`, `reject`, `defer`, o
 `cancel` disposition. The exact Decision applies only after its own independent
 Review passes. Reviewed rejection, deferral, and cancellation close explicitly,
 publish no replacement, and preserve accepted history. Only reviewed approval
-makes `change-revision-required@2` Dispatchable.
+makes `change-revision-required@2` Dispatchable. The replacement STK's independent
+Review Context includes that exact CHG and attended disposition.
 
 Approved implementation publishes one same-lineage STK replacement with exact
 `changed-under`. Its exact Revision identity derives ordinary fresh Review Context
 and Review work. `stakeholder-change-candidate-required@1` then freezes one
 CHG-linked `intent-change-candidate` containing the replacement, its fresh context
 and Review, and every exact accepted definition/evidence item outside the bounded impact.
-The candidate receives a fresh contextual Review. Affected context, Review,
-candidate, and evidence are replaced or explicitly project Stale, while unaffected
+The candidate receives a fresh contextual Review with every exact candidate member,
+the CHG, and its disposition declared to the independent Assignment. The promoted
+predecessor candidate, its contexts, Reviews, gate Decision, gate Review, and other
+affected evidence are replaced or explicitly project Stale, while unaffected
 accepted evidence remains reusable. Failed CHG, replacement STK, and candidate BSL
 Reviews use `revise-stakeholder-change-after-review@1`, one deep same-lineage
 Correction interface with two autonomous cycles before attended escalation. A failed

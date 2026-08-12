@@ -1,16 +1,27 @@
 kind: selector-definition
 id: traceability-affected-change-evidence
 version: 1
-description: Exact non-baseline evidence directly tracing an STK impacted by one bounded Change Request.
+description: Exact accepted-intent records in the promoted-candidate dependency route of one bounded stakeholder Change Request.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: revision
 query:
   from:
-    relation: incoming-links
-    of: 'one("impacted-requirements-for-change@2", {change: change})'
-    emit: source
-    types: [REV, VER, VAI, RUN, RES, ASP, ICSP, VSP, ENV, ART]
+    relation: baseline-evidence
+    of: 'one("accepted-intent-baselines-for-change@1", {change: change})'
+    emit: entity
   as: evidence
+  where: >-
+    !every("impacted-requirements-for-change@2", {change: change}, requirement =>
+      every("revisions-tracing-subject@1", {subject: requirement}, dependent =>
+        dependent != evidence))
+    || !every("traceability-affected-change-contexts@1", {change: change}, context =>
+      context != evidence)
+    || !every("accepted-intent-candidates-for-change@1", {change: change}, candidate =>
+      candidate != evidence
+      && every("revisions-tracing-subject@1", {subject: candidate}, dependent =>
+        dependent != evidence
+        && every("revisions-tracing-subject@1", {subject: dependent}, downstream =>
+          downstream != evidence)))
   distinct: true
   order_by: [identity.type, identity.revision_id]

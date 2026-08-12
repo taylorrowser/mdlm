@@ -6,7 +6,7 @@ phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definitio
 inputs:
   - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}
   - {name: review_context, types: [BSL], cardinality: one, identity: revision}
-  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP], cardinality: zero-or-more, identity: revision}
+  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, DEC, CHG], cardinality: zero-or-more, identity: revision}
 outputs:
   - name: review
     types: [REV]
@@ -33,9 +33,9 @@ completion: >-
   && review_context.storage.frozen == true
   && review.payload.outcome in ["pass", "fail", "cancelled"]
   && (
-    (exists("intent-candidates-matching-subject@1", {subject: subject})
+    (exists("intent-level-candidates-matching-subject@1", {subject: subject})
       && exists("valid-product-simplification-reviews@1", {review: review}))
-    || (none("intent-candidates-matching-subject@1", {subject: subject})
+    || (none("intent-level-candidates-matching-subject@1", {subject: subject})
       && review.payload.review_kind != "simplification-product-definition")
   )
 resolves: [passing-review-required, candidate-members-reviewed]

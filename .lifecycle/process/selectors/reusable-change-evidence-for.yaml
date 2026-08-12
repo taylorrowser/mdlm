@@ -12,7 +12,5 @@ query:
   where: >-
     every("traceability-affected-change-evidence@1",
       {change: change}, affected => affected != evidence)
-    && every("traceability-affected-change-contexts@1",
-      {change: change}, context => context != evidence)
   distinct: true
   order_by: [identity.type, identity.revision_id]

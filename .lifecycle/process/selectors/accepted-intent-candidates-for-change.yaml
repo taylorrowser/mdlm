@@ -1,0 +1,17 @@
+kind: selector-definition
+id: accepted-intent-candidates-for-change
+version: 1
+description: Exact intent candidate promoted by the accepted baseline rooted in one bounded stakeholder Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    && !every("accepted-intent-baselines-for-change@1", {change: change}, accepted =>
+      none("accepted-baseline-promotes-candidate@1",
+        {accepted: accepted, candidate: candidate}))
+  distinct: true
+  order_by: [identity.revision_id]

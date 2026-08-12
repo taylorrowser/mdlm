@@ -1,7 +1,7 @@
 kind: selector-definition
-id: intent-candidates-matching-subject
+id: intent-level-candidates-matching-subject
 version: 1
-description: The exact intent definition candidate when the supplied generic Review subject is an initial or changed candidate.
+description: The exact Phase 0 intent-level candidate when the supplied generic Review subject is that candidate.
 parameters:
   - {name: subject, kind: revision}
 result_kind: baseline
@@ -9,7 +9,7 @@ query:
   from: {collection: baselines, types: [BSL]}
   as: candidate
   where: >-
-    candidate.payload.kind in ["intent-level-candidate", "intent-change-candidate"]
+    candidate.payload.kind == "intent-level-candidate"
     && candidate.identity.revision_id == subject.identity.revision_id
   distinct: true
   order_by: [identity.revision_id]

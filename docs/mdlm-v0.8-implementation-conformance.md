@@ -219,10 +219,12 @@ deferred hardening breadth are recorded in
   immutable.
 - Accepted requirement maturity comes only from exact accepted-baseline membership,
   never Review alone. Draft STK failures remain ordinary Correction. Accepted STK
-  impact derives complete direct exact traceability from its accepted-STK roots and
-  cannot preserve evidence by omission; every attended disposition, same-lineage
-  replacement, selective Staleness and reuse, failed-Review Correction, fresh
-  candidate evidence, and exact closure are
+  impact derives complete direct exact traceability and the promoted candidate's
+  Review/gate dependency route from its accepted-STK roots and cannot preserve
+  evidence by omission; every attended disposition, same-lineage replacement,
+  declared CHG/disposition context for independent replacement and candidate
+  judgment, selective candidate/gate Staleness and reuse, failed-Review Correction,
+  fresh candidate evidence, and exact closure are
   package-derived. Accepted history is never rewritten.
 - Complete reviewed Phase 2 candidates derive durable observation and exact
   assessment-context work. PAS publication, bounded failed-Review Correction,

@@ -25,6 +25,12 @@ const ids = {
   acceptedReviewContext: "BSL-1010000003",
   draftReview: "REV-1010000000",
   acceptedReview: "REV-1010000001",
+  intentCandidate: "BSL-1010000004",
+  intentCandidateContext: "BSL-1010000005",
+  intentCandidateReview: "REV-1010000002",
+  gateDecision: "DEC-1010000000",
+  gateDecisionContext: "BSL-1010000006",
+  gateDecisionReview: "REV-1010000003",
 };
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
@@ -92,7 +98,7 @@ initiation: explicit
 phases: [phase-7-change-control]
 inputs: []
 outputs:
-  - {name: data, types: [PSP, STK, VSP, VER, ART, PRB, BSL, REV], cardinality: one-or-more, required_links: []}
+  - {name: data, types: [PSP, STK, VSP, VER, ART, PRB, BSL, REV, DEC], cardinality: one-or-more, required_links: []}
 prompt_ref: prompts/seed-accepted-stakeholder-change.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
@@ -353,6 +359,80 @@ describe("accepted STK change control through the public operator process", () =
       ], ids.acceptedReview),
     ]);
     await executeSeed([
+      output("intent-candidate", "data", "BSL", {
+        title: "Reviewed intent candidate promoted by accepted intent",
+        kind: "intent-level-candidate",
+        role: "candidate",
+        scope: "DEFAULT",
+        group: "DEFAULT",
+        definition_members: [
+          revision(ids.product),
+          revision(ids.accepted),
+          revision(ids.unaffected),
+        ],
+        evidence: [revision(ids.acceptedReview)],
+      }, [], ids.intentCandidate),
+    ]);
+    await executeSeed([
+      output("intent-candidate-context", "data", "BSL", {
+        title: "Review Context for accepted intent candidate",
+        kind: "review-context",
+        role: "review-context",
+        scope: revision(ids.intentCandidate),
+        group: "DEFAULT",
+        definition_members: [
+          revision(ids.intentCandidate),
+          revision(ids.product),
+          revision(ids.accepted),
+          revision(ids.unaffected),
+        ],
+        evidence: [],
+      }, [], ids.intentCandidateContext),
+    ]);
+    await executeSeed([
+      output("intent-candidate-review", "data", "REV", {
+        title: "Passing simplification Review of accepted intent candidate",
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        outcome: "pass",
+      }, [
+        { type: "reviews", target: revision(ids.intentCandidate) },
+        { type: "contextualizes", target: revision(ids.intentCandidateContext) },
+      ], ids.intentCandidateReview),
+      output("gate-decision", "data", "DEC", {
+        title: "Approve accepted intent candidate",
+        rationale: "The exact reviewed intent candidate is authorized.",
+        kind: "gate-signoff",
+        decision: "Approve the exact intent candidate.",
+        alternatives: ["reject"],
+        effective_scope: revision(ids.intentCandidate),
+        gate_outcome: "approve",
+      }, [{ type: "justifies", target: revision(ids.intentCandidate) }], ids.gateDecision),
+    ]);
+    await executeSeed([
+      output("gate-decision-context", "data", "BSL", {
+        title: "Review Context for accepted intent gate Decision",
+        kind: "review-context",
+        role: "review-context",
+        scope: revision(ids.gateDecision),
+        group: "DEFAULT",
+        definition_members: [revision(ids.gateDecision)],
+        evidence: [],
+      }, [], ids.gateDecisionContext),
+    ]);
+    await executeSeed([
+      output("gate-decision-review", "data", "REV", {
+        title: "Passing Review of accepted intent gate Decision",
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      }, [
+        { type: "reviews", target: revision(ids.gateDecision) },
+        { type: "contextualizes", target: revision(ids.gateDecisionContext) },
+      ], ids.gateDecisionReview),
+    ]);
+    await executeSeed([
       output("accepted-baseline", "data", "BSL", {
         title: "Authorized accepted intent",
         kind: "intent-approved",
@@ -369,8 +449,12 @@ describe("accepted STK change control through the public operator process", () =
           revision(ids.unaffectedEvidence),
           revision(ids.acceptedReviewContext),
           revision(ids.acceptedReview),
+          revision(ids.intentCandidate),
+          revision(ids.intentCandidateReview),
+          revision(ids.gateDecision),
+          revision(ids.gateDecisionReview),
         ],
-      }, [], ids.baseline),
+      }, [{ type: "promotes", target: revision(ids.intentCandidate) }], ids.baseline),
       output("source-boundary", "data", "BSL", {
         title: "Frozen exact change source",
         kind: "source-boundary",
@@ -828,7 +912,7 @@ describe("accepted STK change control through the public operator process", () =
     next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     expect(prepare(next).scenario.reference).toBe("create-review-context@1");
-  }, 180_000);
+  }, 300_000);
 
   it("requires same-lineage replacement, preserves unaffected exact evidence, and closes with fresh Review and candidate evidence", async () => {
     await seed();
@@ -862,6 +946,10 @@ describe("accepted STK change control through the public operator process", () =
     next = nextOutcome();
     work = prepare(next);
     expect(work.scenario.reference).toBe("create-review-context@1");
+    expect(inputs(work, "context_members").map((value) => value.identity.type)).toEqual([
+      "CHG",
+      "DEC",
+    ]);
     const context = publishContext(work);
     next = nextOutcome();
     work = prepare(next);
@@ -876,6 +964,19 @@ describe("accepted STK change control through the public operator process", () =
     const unaffectedEvidence = mdlm(repository, ["show", revision(ids.unaffectedEvidence), "--json"]);
     expect(JSON.parse(affectedEvidence.stdout).projections.states.validity).toBe("stale");
     expect(JSON.parse(unaffectedEvidence.stdout).projections.states.validity).toBe("valid");
+    for (const affected of [
+      ids.acceptedReviewContext,
+      ids.intentCandidate,
+      ids.intentCandidateContext,
+      ids.intentCandidateReview,
+      ids.gateDecision,
+      ids.gateDecisionContext,
+      ids.gateDecisionReview,
+    ]) {
+      const projection = mdlm(repository, ["show", revision(affected), "--json"]);
+      expect(projection.status, `${projection.stderr}${projection.stdout}`).toBe(0);
+      expect(JSON.parse(projection.stdout).projections.states.validity).toBe("stale");
+    }
 
     next = nextOutcome();
     expect(next.outcome, JSON.stringify(next)).toBe("assignment");
@@ -894,9 +995,25 @@ describe("accepted STK change control through the public operator process", () =
 
     next = nextOutcome();
     work = prepare(next);
+    expect(inputs(work, "context_members").map((value) => value.identity.revision_id)).toEqual(
+      expect.arrayContaining([
+        replacement.revisionId,
+        revision(ids.product),
+        revision(ids.unaffected),
+        change.revisionId,
+      ]),
+    );
     publishContext(work);
     next = nextOutcome();
     work = prepare(next);
+    expect(inputs(work, "context_members").map((value) => value.identity.revision_id)).toEqual(
+      expect.arrayContaining([
+        replacement.revisionId,
+        revision(ids.product),
+        revision(ids.unaffected),
+        change.revisionId,
+      ]),
+    );
     const candidateReview = publishReview(work);
 
     next = nextOutcome();
@@ -944,5 +1061,5 @@ describe("accepted STK change control through the public operator process", () =
     expect(git(repository, "grep", revision(ids.unaffectedEvidence), "--", ".lifecycle/data").status).toBe(0);
     const acceptedHistory = mdlm(repository, ["show", revision(ids.accepted), "--json"]);
     expect(JSON.parse(acceptedHistory.stdout).projections.states.maturity).toBe("accepted");
-  }, 180_000);
+  }, 240_000);
 });
