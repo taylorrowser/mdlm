@@ -13,7 +13,6 @@ query:
     && candidate.payload.role == "candidate"
     && candidate.storage.frozen == true
     && none("newer-revisions-for@1", {subject: candidate})
-    && exists("change-impacts-revision@1", {change: change, impacted: one("accepted-intent-baselines-for-change@1", {change: change})})
     && exists("baseline-contains-definition@1",
       {baseline: candidate, subject: one("revised-requirements-for-change@2", {change: change})})
     && every("reusable-change-definitions-for@1",
@@ -21,9 +20,9 @@ query:
         exists("baseline-contains-definition@1", {baseline: candidate, subject: definition}))
     && every("candidate-definition-members@1", {candidate: candidate}, definition =>
       definition == one("revised-requirements-for-change@2", {change: change})
-      || (exists("baseline-contains-definition@1",
-          {baseline: one("accepted-intent-baselines-for-change@1", {change: change}), subject: definition})
-        && none("change-impacts-revision@1", {change: change, impacted: definition})))
+      || !every("reusable-change-definitions-for@1",
+        {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, reusable =>
+          reusable != definition))
     && every("revised-requirements-for-change@2", {change: change}, requirement =>
       exists("valid-review-contexts-for@1", {subject: requirement})
       && every("valid-review-contexts-for@1", {subject: requirement}, context =>

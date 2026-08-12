@@ -19,7 +19,7 @@ rules:
   - value: stale
     priority: 250
     when: 'exists("implemented-changes-impacting-revision@1", {subject: subject})'
-    explanation: An implemented reviewed Change Request explicitly marks this exact Revision as affected and prevents silent reuse.
+    explanation: An implemented reviewed Change Request derives this exact Revision as affected from its accepted-STK roots and prevents silent reuse.
     explanation_evidence: 'select("implemented-changes-impacting-revision@1", {subject: subject})'
   - value: stale
     priority: 200

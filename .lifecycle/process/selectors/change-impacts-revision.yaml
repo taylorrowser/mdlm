@@ -7,7 +7,7 @@ parameters:
   - {name: impacted, kind: revision}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: change, link: impacts, emit: target, types: [STK, SYS, BSL, REV, VER, VAI, RUN, RES, ASP, ICSP, VSP, ENV, ART]}
+  from: {relation: outgoing-links, of: change, link: impacts, emit: target, types: [STK, BSL]}
   as: candidate
   where: 'candidate == impacted'
   distinct: true

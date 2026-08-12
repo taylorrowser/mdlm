@@ -15,21 +15,5 @@ query:
     && every("impacted-requirements-for-change@2", {change: candidate}, requirement =>
       exists("accepted-intent-candidates-for-requirement@2", {requirement: requirement}))
     && count("accepted-intent-baselines-for-change@1", {change: candidate}) == 1
-    && every("traceability-affected-change-evidence@1",
-      {change: candidate}, evidence =>
-        exists("change-impacts-revision@1", {change: candidate, impacted: evidence}))
-    && every("traceability-affected-change-contexts@1",
-      {change: candidate}, context =>
-        exists("change-impacts-revision@1", {change: candidate, impacted: context}))
-    && every("change-impact-targets@1", {change: candidate}, target =>
-      !every("impacted-requirements-for-change@2", {change: candidate}, requirement =>
-        requirement != target)
-      || target == one("accepted-intent-baselines-for-change@1", {change: candidate})
-      || !every("traceability-affected-change-evidence@1",
-        {change: candidate}, evidence =>
-          evidence != target)
-      || !every("traceability-affected-change-contexts@1",
-        {change: candidate}, context =>
-          context != target))
   distinct: true
   order_by: [identity.revision_id]

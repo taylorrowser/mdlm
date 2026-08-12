@@ -1,13 +1,22 @@
 kind: selector-definition
 id: implemented-changes-impacting-revision
 version: 1
-description: Reviewed approved Change Requests that explicitly impact the supplied exact Revision and have published a same-lineage STK replacement.
+description: Reviewed approved Change Requests whose exact accepted-STK roots derive the supplied affected Revision and have published a same-lineage replacement.
 parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: subject, link: impacts, emit: source, types: [CHG]}
+  from: {collection: revisions, types: [CHG]}
   as: change
-  where: 'exists("revised-requirements-for-change@2", {change: change})'
+  where: >-
+    exists("revised-requirements-for-change@2", {change: change})
+    && (
+      !every("impacted-requirements-for-change@2", {change: change}, requirement =>
+        requirement != subject)
+      || !every("traceability-affected-change-contexts@1", {change: change}, context =>
+        context != subject)
+      || !every("traceability-affected-change-evidence@1", {change: change}, evidence =>
+        evidence != subject)
+    )
   distinct: true
   order_by: [identity.revision_id]

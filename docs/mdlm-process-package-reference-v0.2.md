@@ -596,12 +596,12 @@ An exact PRB preserves its immutable source through `reports`.
 `analyze-change-impact@2` accepts exactly one STK Revision only when that exact
 identity belongs to an `intent-approved` accepted baseline. A passing individual
 Review or another Revision in the same Stable Datum is insufficient. The CHG
-preserves the exact requirement, Review Context, Review, baseline, and verification-
-evidence impact through canonical `impacts` links. `valid-stakeholder-change-impact@1`
-derives the complete direct traceability set and rejects either omissions or unrelated
-extras, so authored omission can never make affected evidence reusable.
-Draft STK failures remain in ordinary Phase 0 Correction and cannot enter this
-post-acceptance Resolver.
+records exactly two canonical `impacts` roots: the accepted STK Revision and the
+accepted baseline containing it. Package Selectors derive the complete directly
+traced Review Context, Review, candidate, and verification-evidence impact from
+those roots. Callers therefore cannot make affected evidence reusable by omission,
+and unrelated roots fail the Scenario contract. Draft STK failures remain in
+ordinary Phase 0 Correction and cannot enter this post-acceptance Resolver.
 
 After CHG contextual Review passes, `approve-change-request@3` projects immediate,
 nondelegable stakeholder attention for one exact `approve`, `reject`, `defer`, or

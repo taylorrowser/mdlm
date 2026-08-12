@@ -159,7 +159,8 @@ Revision in an authorized accepted intent baseline can enter CHG impact; exact C
 and Decision Reviews precede one attended approve/reject/defer/cancel disposition;
 only approval permits a same-lineage `changed-under` replacement; fresh exact
 context, STK Review, CHG-linked selective candidate, and candidate Review precede closure;
-every directly traced affected item must be named and projects Stale after implementation;
+every directly traced affected item derives from the exact STK/baseline roots and
+projects Stale after implementation;
 and every unaffected accepted definition/evidence item remains reusable. Failed CHG,
 disposition, STK, and candidate Reviews route to causal same-lineage Correction and
 fresh independent Review instead of stranding Phase 7. Draft
@@ -218,9 +219,10 @@ deferred hardening breadth are recorded in
   immutable.
 - Accepted requirement maturity comes only from exact accepted-baseline membership,
   never Review alone. Draft STK failures remain ordinary Correction. Accepted STK
-  impact is complete over direct exact traceability and cannot preserve evidence by
-  omission; every attended disposition, same-lineage replacement, selective Staleness
-  and reuse, failed-Review Correction, fresh candidate evidence, and exact closure are
+  impact derives complete direct exact traceability from its accepted-STK roots and
+  cannot preserve evidence by omission; every attended disposition, same-lineage
+  replacement, selective Staleness and reuse, failed-Review Correction, fresh
+  candidate evidence, and exact closure are
   package-derived. Accepted history is never rewritten.
 - Complete reviewed Phase 2 candidates derive durable observation and exact
   assessment-context work. PAS publication, bounded failed-Review Correction,

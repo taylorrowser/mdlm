@@ -32,10 +32,10 @@ outgoing_links:
     freeze_resolution: already-exact
     inverse_label: corrected-by-change-request
   - id: impacts
-    description: Canonical exact requirement, context, Review, baseline, and verification evidence identified by traceability analysis; target type and BSL kind classify each impact without duplicate payload identity arrays.
+    description: The exact accepted STK Revision and accepted intent baseline that bound this change; all affected context and evidence are derived from those roots through traceability.
     targets:
-      - {kind: datum, types: [STK, SYS, BSL, REV, VER, VAI, RUN, RES, ASP, ICSP, VSP, ENV, ART], identity: revision}
-    cardinality: {minimum: 1, maximum: many}
+      - {kind: datum, types: [STK, BSL], identity: revision}
+    cardinality: {minimum: 2, maximum: 2}
     freeze_resolution: already-exact
     inverse_label: impacted-by
 kernel_managed_payload_paths: []

@@ -27,7 +27,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.57.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(274);
+    expect(Object.keys(result.package.selectors)).toHaveLength(272);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),

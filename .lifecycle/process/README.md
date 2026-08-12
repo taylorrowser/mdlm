@@ -385,11 +385,12 @@ The package defines PRB and CHG as source-owned exact Lifecycle Data. A PRB
 preserves its immutable source through `reports`. The resulting CHG may name one
 STK Revision only when that exact identity belongs to an authorized
 `intent-approved` accepted baseline; an individual passing Review or an unaccepted
-Revision in the same lineage cannot satisfy the impact contract. The deep
-`valid-stakeholder-change-impact@1` Selector derives the complete direct exact
-traceability set, and canonical `impacts` links must equal that set; omission cannot
-turn affected evidence into reusable evidence. Draft STK defects continue through
-ordinary causal Phase 0 Correction without CHG ceremony.
+Revision in the same lineage cannot satisfy the impact contract. The CHG names only
+that exact STK and its accepted baseline as canonical `impacts` roots. Package
+Selectors derive every directly traced affected context and evidence Revision from
+those roots, so callers cannot turn affected evidence into reusable evidence by
+omitting it. Draft STK defects continue through ordinary causal Phase 0 Correction
+without CHG ceremony.
 
 After the CHG's contextual Review passes, one attended stakeholder Decision records
 `approve`, `reject`, `defer`, or `cancel`. It becomes applicable only after its own

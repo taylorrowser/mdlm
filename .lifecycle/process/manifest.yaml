@@ -293,8 +293,6 @@ catalog:
     - all-change-requests
     - change-impacts-revision
     - valid-stakeholder-change-impact
-    - change-impact-targets
-    - revision-traces-requirement
     - traceability-affected-change-evidence
     - traceability-affected-change-contexts
     - implemented-changes-impacting-revision

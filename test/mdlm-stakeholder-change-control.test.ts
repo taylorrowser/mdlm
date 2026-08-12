@@ -473,7 +473,10 @@ describe("accepted STK change control through the public operator process", () =
     )], ["independent-reviewer"]).outputs[0]!.lifecycleDatum;
   }
 
-  function changeOutput(requirement: string, includeAffectedEvidence = true): ProposalOutput {
+  function changeOutput(
+    requirement: string,
+    acceptedBaseline = revision(ids.baseline),
+  ): ProposalOutput {
     return output("change", "change", "CHG", {
       title: "Reject malformed report exports",
       rationale: "Change only the exact accepted export commitment and traced evidence.",
@@ -484,13 +487,7 @@ describe("accepted STK change control through the public operator process", () =
     }, [
       { type: "derived-from", target: revision(ids.problem) },
       { type: "impacts", target: requirement },
-      { type: "impacts", target: revision(ids.baseline) },
-      { type: "impacts", target: revision(ids.acceptedReviewContext) },
-      { type: "impacts", target: revision(ids.acceptedReview) },
-      { type: "impacts", target: revision(ids.strategy) },
-      ...(includeAffectedEvidence
-        ? [{ type: "impacts", target: revision(ids.affectedEvidence) }]
-        : []),
+      { type: "impacts", target: acceptedBaseline },
     ]);
   }
 
@@ -557,15 +554,77 @@ describe("accepted STK change control through the public operator process", () =
     return decision;
   }
 
-  it("atomically rejects impact that omits directly traceable accepted evidence", async () => {
+  function replacementOutput(
+    change: DatumRef,
+    name: "revised_requirement" | "replacement",
+    correctingReview?: DatumRef,
+  ) {
+    return output(
+      `replacement-${name}`,
+      name,
+      "STK",
+      requirementPayload(
+        "Validate report exports",
+        "The product shall export valid completed reports and reject malformed exports observably.",
+      ),
+      [
+        { type: "derived-from", target: ids.product },
+        { type: "changed-under", target: change.revisionId },
+        ...(correctingReview
+          ? [{ type: "corrects-review", target: correctingReview.revisionId }]
+          : []),
+      ],
+      ids.accepted,
+    );
+  }
+
+  function candidateOutput(
+    change: DatumRef,
+    replacement: DatumRef,
+    context: DatumRef,
+    review: DatumRef,
+    name: "candidate" | "replacement",
+    candidateId?: string,
+    correctingReview?: DatumRef,
+  ) {
+    return output(
+      `candidate-${name}`,
+      name,
+      "BSL",
+      {
+        title: "Replacement stakeholder intent candidate",
+        kind: "intent-change-candidate",
+        role: "candidate",
+        scope: "DEFAULT",
+        group: "DEFAULT",
+        definition_members: [
+          replacement.revisionId,
+          revision(ids.product),
+          revision(ids.unaffected),
+        ],
+        evidence: [context.revisionId, review.revisionId, revision(ids.unaffectedEvidence)],
+      },
+      [
+        { type: "changed-under", target: change.revisionId },
+        ...(correctingReview
+          ? [{ type: "corrects-review", target: correctingReview.revisionId }]
+          : []),
+      ],
+      candidateId,
+    );
+  }
+
+  it("atomically rejects impact outside the exact accepted baseline", async () => {
     await seed();
     const next = nextOutcome();
     const packet = prepare(next);
     expect(packet.scenario.reference).toBe("analyze-change-impact@2");
 
-    const underReported = respond(packet, [changeOutput(revision(ids.accepted), false)]);
-    expect(underReported.status).toBe(1);
-    expect(JSON.parse(underReported.stdout).diagnostics).toEqual(expect.arrayContaining([
+    const wrongBaseline = respond(packet, [
+      changeOutput(revision(ids.accepted), revision(ids.sourceBoundary)),
+    ]);
+    expect(wrongBaseline.status).toBe(1);
+    expect(JSON.parse(wrongBaseline.stdout).diagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "scenario-completion-failed" }),
     ]));
     expect(git(repository, "grep", "type: CHG", "--", ".lifecycle/data").status).toBe(1);
@@ -605,10 +664,6 @@ describe("accepted STK change control through the public operator process", () =
         { type: "derived-from", target: revision(ids.problem) },
         { type: "impacts", target: revision(ids.accepted) },
         { type: "impacts", target: revision(ids.baseline) },
-        { type: "impacts", target: revision(ids.acceptedReviewContext) },
-        { type: "impacts", target: revision(ids.acceptedReview) },
-        { type: "impacts", target: revision(ids.strategy) },
-        { type: "impacts", target: revision(ids.affectedEvidence) },
         { type: "corrects-review", target: failedReview.revisionId },
       ],
       change.id,
@@ -709,6 +764,72 @@ describe("accepted STK change control through the public operator process", () =
     expect(prepare(next).scenario.reference).toBe("revise-requirement-under-change@2");
   }, 180_000);
 
+  it("keeps failed replacement and candidate Reviews live through the same Correction interface", async () => {
+    await seed();
+    const { change, packet } = publishChangeAndReview();
+    publishDisposition(packet, change, "approve");
+
+    let next = nextOutcome();
+    let work = prepare(next);
+    const initialReplacement = publish(work, [
+      replacementOutput(change, "revised_requirement"),
+    ]).outputs[0]!.lifecycleDatum;
+    next = nextOutcome();
+    work = prepare(next);
+    publishContext(work);
+    next = nextOutcome();
+    work = prepare(next);
+    const failedReplacementReview = publishReview(work, "fail");
+
+    next = nextOutcome();
+    work = prepare(next);
+    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@1");
+    expect(inputs(work, "subject")[0]!.identity.revision_id).toBe(initialReplacement.revisionId);
+    const replacement = publish(work, [
+      replacementOutput(change, "replacement", failedReplacementReview),
+    ]).outputs[0]!.lifecycleDatum;
+    expect(replacement.revisionId).toBe(revision(ids.accepted, 3));
+
+    next = nextOutcome();
+    work = prepare(next);
+    const context = publishContext(work);
+    next = nextOutcome();
+    work = prepare(next);
+    const review = publishReview(work);
+    next = nextOutcome();
+    work = prepare(next);
+    const candidate = publish(work, [
+      candidateOutput(change, replacement, context, review, "candidate"),
+    ]).outputs[0]!.lifecycleDatum;
+    next = nextOutcome();
+    work = prepare(next);
+    publishContext(work);
+    next = nextOutcome();
+    work = prepare(next);
+    const failedCandidateReview = publishReview(work, "fail");
+
+    next = nextOutcome();
+    work = prepare(next);
+    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@1");
+    expect(inputs(work, "subject")[0]!.identity.revision_id).toBe(candidate.revisionId);
+    const correctedCandidate = publish(work, [
+      candidateOutput(
+        change,
+        replacement,
+        context,
+        review,
+        "replacement",
+        candidate.id,
+        failedCandidateReview,
+      ),
+    ]).outputs[0]!.lifecycleDatum;
+    expect(correctedCandidate.revisionId).toBe(revision(candidate.id, 2));
+
+    next = nextOutcome();
+    expect(next.outcome).toBe("assignment");
+    expect(prepare(next).scenario.reference).toBe("create-review-context@1");
+  }, 180_000);
+
   it("requires same-lineage replacement, preserves unaffected exact evidence, and closes with fresh Review and candidate evidence", async () => {
     await seed();
     const { change, packet } = publishChangeAndReview();
@@ -733,53 +854,15 @@ describe("accepted STK change control through the public operator process", () =
     expect(JSON.parse(wrongLineage.stdout).diagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "scenario-completion-failed" }),
     ]));
-    let replacement = publish(work, [output(
-      "replacement",
-      "revised_requirement",
-      "STK",
-      requirementPayload(
-        "Validate report exports",
-        "The product shall export valid completed reports and reject malformed exports observably.",
-      ),
-      [
-        { type: "derived-from", target: ids.product },
-        { type: "changed-under", target: change.revisionId },
-      ],
-      ids.accepted,
-    )]).outputs[0]!.lifecycleDatum;
+    const replacement = publish(work, [
+      replacementOutput(change, "revised_requirement"),
+    ]).outputs[0]!.lifecycleDatum;
     expect(replacement.revisionId).toBe(revision(ids.accepted, 2));
 
     next = nextOutcome();
     work = prepare(next);
     expect(work.scenario.reference).toBe("create-review-context@1");
-    let context = publishContext(work);
-    next = nextOutcome();
-    work = prepare(next);
-    const failedReplacementReview = publishReview(work, "fail");
-
-    next = nextOutcome();
-    work = prepare(next);
-    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@1");
-    replacement = publish(work, [output(
-      "corrected-replacement",
-      "replacement",
-      "STK",
-      requirementPayload(
-        "Validate report exports after Review",
-        "The product shall export valid completed reports and reject malformed exports observably.",
-      ),
-      [
-        { type: "derived-from", target: ids.product },
-        { type: "changed-under", target: change.revisionId },
-        { type: "corrects-review", target: failedReplacementReview.revisionId },
-      ],
-      ids.accepted,
-    )]).outputs[0]!.lifecycleDatum;
-    expect(replacement.revisionId).toBe(revision(ids.accepted, 3));
-
-    next = nextOutcome();
-    work = prepare(next);
-    context = publishContext(work);
+    const context = publishContext(work);
     next = nextOutcome();
     work = prepare(next);
     const review = publishReview(work);
@@ -805,60 +888,9 @@ describe("accepted STK change control through the public operator process", () =
     expect(inputs(work, "reusable_evidence").map((value) => value.identity.revision_id)).toEqual([
       revision(ids.unaffectedEvidence),
     ]);
-    let candidate = publish(work, [output(
-      "candidate",
-      "candidate",
-      "BSL",
-      {
-        title: "Replacement stakeholder intent candidate",
-        kind: "intent-change-candidate",
-        role: "candidate",
-        scope: "DEFAULT",
-        group: "DEFAULT",
-        definition_members: [
-          replacement.revisionId,
-          revision(ids.product),
-          revision(ids.unaffected),
-        ],
-        evidence: [context.revisionId, review.revisionId, revision(ids.unaffectedEvidence)],
-      },
-      [{ type: "changed-under", target: change.revisionId }],
-    )]).outputs[0]!.lifecycleDatum;
-
-    next = nextOutcome();
-    work = prepare(next);
-    publishContext(work);
-    next = nextOutcome();
-    work = prepare(next);
-    const failedCandidateReview = publishReview(work, "fail");
-
-    next = nextOutcome();
-    work = prepare(next);
-    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@1");
-    candidate = publish(work, [output(
-      "corrected-candidate",
-      "replacement",
-      "BSL",
-      {
-        title: "Corrected replacement stakeholder intent candidate",
-        kind: "intent-change-candidate",
-        role: "candidate",
-        scope: "DEFAULT",
-        group: "DEFAULT",
-        definition_members: [
-          replacement.revisionId,
-          revision(ids.product),
-          revision(ids.unaffected),
-        ],
-        evidence: [context.revisionId, review.revisionId, revision(ids.unaffectedEvidence)],
-      },
-      [
-        { type: "changed-under", target: change.revisionId },
-        { type: "corrects-review", target: failedCandidateReview.revisionId },
-      ],
-      candidate.id,
-    )]).outputs[0]!.lifecycleDatum;
-    expect(candidate.revisionId).toBe(revision(candidate.id, 2));
+    const candidate = publish(work, [
+      candidateOutput(change, replacement, context, review, "candidate"),
+    ]).outputs[0]!.lifecycleDatum;
 
     next = nextOutcome();
     work = prepare(next);
