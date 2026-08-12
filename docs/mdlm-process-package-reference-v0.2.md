@@ -631,7 +631,7 @@ The shared-requirement slice extends this exact route to one accepted SYS Stable
 `close-change-request@4` becomes Dispatchable only with the exact replacement,
 Review Context, passing STK Review, candidate, and passing candidate Review. One
 atomic publication creates a `change-closure` DEC citing all exact evidence and
-the next closed PRB Revision. `change-status@2` reports reviewed terminal
+the next closed PRB Revision. `change-status@3` reports reviewed terminal
 disposition or implementation progress independently from maturity, validity,
 disposition, and relationship overlays. No STK, PRB, CHG, original-V, or change-
 status identifier is recognized by generic source.

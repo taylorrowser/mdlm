@@ -37,7 +37,7 @@ scenarios:
   - revise-phase-2-subject-after-simplification@1
   - revise-phase-2-definition-set-after-simplification@1
   - revise-phase-2-subject-after-review@1
-  - reevaluate-draft-shared-system-consumer@1
+  - reevaluate-shared-system-consumer@1
   - revise-phase-2-candidate-after-review@1
   - resolve-phase-2-ambiguity@1
   - complete-decomposition-work-package@2
@@ -64,7 +64,7 @@ obligations:
   - phase-2-simplification-correction-required@1
   - phase-2-definition-consistency-correction-required@1
   - phase-2-review-correction-required@1
-  - draft-shared-system-consumer-reevaluation-required@1
+  - shared-system-consumer-reevaluation-required@1
   - phase-2-candidate-correction-required@1
   - phase-2-ambiguity-resolution-required@1
   - decomposition-completion-required@1

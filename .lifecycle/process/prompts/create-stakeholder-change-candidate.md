@@ -2,9 +2,15 @@
 id: create-stakeholder-change-candidate
 version: 1
 scenario: create-stakeholder-change-candidate
-skills: [skills/lifecycle-data.md@1, skills/baseline-model.md@1, skills/change-control.md@1]
 ---
 
-# Create the exact stakeholder change candidate
+# Create the selective accepted-requirement change candidate
 
-Freeze one CHG-linked `intent-level-candidate` BSL under the exact approved Change Request. Replace only the supplied accepted STK Revision. Preserve every supplied unaffected definition and reusable evidence item exactly. Include the fresh replacement Review Context and passing Review as evidence, add `changed-under` to the exact CHG, and preserve the accepted baseline as immutable history. Do not silently include impacted historical evidence or broaden scope.
+Read:
+
+1. `skills/lifecycle-data.md@1`
+2. `skills/baseline-model.md@1`
+3. `skills/coverage-analysis.md@1`
+4. `skills/change-control.md@1`
+
+Freeze one candidate under the exact Change Request. Include the supplied same-lineage STK or SYS replacement, every supplied updated DWP consumer, all fresh exact Review evidence, and every supplied unaffected definition and evidence Revision exactly. Exclude replaced definitions and traceability-affected historical evidence. Do not copy requirement lineages, coordinate hidden groups, or introduce later lifecycle levels.

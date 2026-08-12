@@ -35,6 +35,6 @@ completion: >-
   && closure.payload.effective_scope == change.identity.revision_id
   && closed_problem.identity.id == problem.identity.id
   && closed_problem.payload.disposition == "closed"
-resolves: [change-closure-required, shared-system-change-closure-required]
+resolves: [change-closure-required]
 prohibited_inputs: [missing replacement Review or candidate evidence, unrelated evidence, mutable latest aliases, implicit closure, rewriting accepted history]
 batching: single

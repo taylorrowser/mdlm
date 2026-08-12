@@ -74,7 +74,7 @@ batching: coherent-batch
   phase.entry = "true";
   phase.scenarios.push("seed-shared-system-change@1");
   if (phaseId === "phase-2-system-definition") {
-    phase.obligations = ["draft-shared-system-consumer-reevaluation-required@1"];
+    phase.obligations = ["shared-system-consumer-reevaluation-required@1"];
   }
   await fs.writeFile(phasePath, stringify(phase));
   const phase0Path = path.join(root, "phases/phase-0-wayfinding.yaml");
@@ -88,7 +88,7 @@ batching: coherent-batch
 && (
   subject.identity.type == "CHG"
   || (subject.identity.type == "DEC" && subject.payload.kind == "change-approval")
-  || subject.provenance.scenario in ["revise-requirement-under-change@3", "reevaluate-shared-system-consumer@1", "create-shared-system-change-candidate@1", "revise-stakeholder-change-after-review@2"]
+  || subject.provenance.scenario in ["revise-requirement-under-change@3", "reevaluate-shared-system-consumer@1", "create-stakeholder-change-candidate@1", "revise-stakeholder-change-after-review@2"]
 )`;
   await fs.writeFile(reviewPath, stringify(review));
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
@@ -227,7 +227,7 @@ describe("shared accepted SYS change control through the public operator process
 
     let outcome = next();
     let packet = prepare(outcome);
-    expect(packet.scenario.reference).toBe("reevaluate-draft-shared-system-consumer@1");
+    expect(packet.scenario.reference).toBe("reevaluate-shared-system-consumer@1");
     expect(values(packet, "consumer")[0].identity.revision_id).toBe(revision(ids.consumerA));
     expect(values(packet, "replacement_requirement")[0].identity.revision_id).toBe(revision(ids.system, 2));
     expect(packet.exactInputs[0].inputs.map((input: any) => input.name)).not.toContain("change");
@@ -235,9 +235,23 @@ describe("shared accepted SYS change control through the public operator process
 
     outcome = next();
     packet = prepare(outcome);
-    expect(packet.scenario.reference).toBe("reevaluate-draft-shared-system-consumer@1");
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    expect(values(packet, "subject")[0].identity.revision_id).toBe(revision(ids.consumerA, 2));
+    publishContext(packet);
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("reevaluate-shared-system-consumer@1");
     expect(values(packet, "consumer")[0].identity.revision_id).toBe(revision(ids.consumerB));
     publish(packet, [consumerReplacement(packet)]);
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    expect(values(packet, "subject")[0].identity.revision_id).toBe(revision(ids.consumerB, 2));
+    publishContext(packet);
+    for (const consumer of [ids.consumerA, ids.consumerB]) {
+      packet = prepare(next());
+      expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+      expect(values(packet, "subject")[0].identity.revision_id).toBe(revision(consumer, 2));
+      publishReview(packet);
+    }
 
     const consumerA = mdlm(repository, ["show", revision(ids.consumerA, 2), "--json"]);
     const consumerB = mdlm(repository, ["show", revision(ids.consumerB, 2), "--json"]);
@@ -268,4 +282,5 @@ describe("shared accepted SYS change control through the public operator process
       revision(ids.verification),
     ]));
   }, 120_000);
+
 });

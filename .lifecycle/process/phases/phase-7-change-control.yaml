@@ -19,7 +19,6 @@ scenarios:
   - revise-requirement-under-change@3
   - reevaluate-shared-system-consumer@1
   - create-stakeholder-change-candidate@1
-  - create-shared-system-change-candidate@1
   - revise-stakeholder-change-after-review@2
   - revise-change-disposition-after-review@1
   - close-change-request@4
@@ -33,11 +32,9 @@ obligations:
   - change-revision-required@2
   - shared-system-consumer-reevaluation-required@1
   - stakeholder-change-candidate-required@1
-  - shared-system-change-candidate-required@1
   - stakeholder-change-review-correction-required@2
   - change-disposition-review-correction-required@1
   - change-closure-required@2
-  - shared-system-change-closure-required@1
 outputs: [PRB, CHG, DEC, STK, SYS, DWP, BSL, REV]
 progression: null
 gate:

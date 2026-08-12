@@ -20,8 +20,6 @@ query:
       candidate != subject)
     || !every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
       consumer != subject)
-    || !every("shared-system-change-candidates-for@1", {change: change}, candidate =>
-      candidate != subject)
     || !every("stakeholder-change-decision-targets@1", {decision: subject}, target =>
       target != change
       && every("revised-requirements-for-change@3", {change: change}, requirement =>
@@ -29,8 +27,6 @@ query:
       && every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
         candidate != target)
       && every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
-        consumer != target)
-      && every("shared-system-change-candidates-for@1", {change: change}, candidate =>
-        candidate != target))
+        consumer != target))
   distinct: true
   order_by: [identity.revision_id]

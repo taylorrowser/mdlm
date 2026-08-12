@@ -8,7 +8,7 @@ result_kind: revision
 query:
   from:
     relation: incoming-links
-    of: 'one("impacted-system-requirements-for-change@1", {change: change})'
+    of: 'one("impacted-requirements-for-change@3", {change: change})'
     link: verifies-revision
     emit: source
     types: [VER]

@@ -13,7 +13,8 @@ query:
     && exists("revised-requirements-for-change@3", {change: change})
     && count("impacted-requirements-for-change@3", {change: change}) == 1
     && (
-      (count("impacted-stakeholder-requirements-for-change@1", {change: change}) == 1
+      (every("impacted-requirements-for-change@3", {change: change}, requirement =>
+          requirement.identity.type == "STK")
         && (
           !every("impacted-requirements-for-change@3", {change: change}, requirement =>
             requirement != subject)
@@ -22,7 +23,8 @@ query:
           || !every("traceability-affected-change-evidence@1", {change: change}, evidence =>
             evidence != subject)
         ))
-      || (count("impacted-system-requirements-for-change@1", {change: change}) == 1
+      || (every("impacted-requirements-for-change@3", {change: change}, requirement =>
+          requirement.identity.type == "SYS")
         && (
           !every("impacted-requirements-for-change@3", {change: change}, requirement =>
             requirement != subject)

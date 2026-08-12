@@ -38,12 +38,8 @@ completion: >-
       && !every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
         consumer != replacement))
     || (replacement.identity.type == "BSL"
-      && (
-        !every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
-          candidate != replacement)
-        || !every("shared-system-change-candidates-for@1", {change: change}, candidate =>
-          candidate != replacement)
-      ))
+      && !every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
+        candidate != replacement))
   )
   && (
     (policy("stakeholder-change-correction-participation@2",

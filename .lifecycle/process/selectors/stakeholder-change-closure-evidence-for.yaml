@@ -1,7 +1,7 @@
 kind: selector-definition
 id: stakeholder-change-closure-evidence-for
 version: 1
-description: The exact replacement context, STK Review, candidate, and candidate Review required to close one accepted stakeholder change.
+description: Exact fresh requirement, consumer, candidate, and Review evidence required to close one accepted-requirement change.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: revision
@@ -9,10 +9,7 @@ query:
   from: {collection: revisions, types: [BSL, REV]}
   as: evidence
   where: >-
-    evidence == one("valid-review-contexts-for@1",
-      {subject: one("revised-requirements-for-change@3", {change: change})})
-    || evidence == one("passing-reviews-for@1",
-      {subject: one("revised-requirements-for-change@3", {change: change})})
+    !every("fresh-shared-system-change-evidence@1", {change: change}, fresh => fresh != evidence)
     || evidence == one("stakeholder-change-candidates-for@1", {change: change})
     || evidence == one("passing-reviews-for@1",
       {subject: one("stakeholder-change-candidates-for@1", {change: change})})

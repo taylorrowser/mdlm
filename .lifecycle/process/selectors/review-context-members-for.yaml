@@ -34,11 +34,12 @@ query:
         && exists("candidate-members-matching@1",
           {candidate: one("change-level-candidates-matching-subject@1", {subject: subject}), required_member: member}))
       || (subject.identity.type == "CHG"
-        && count("impacted-system-requirements-for-change@1", {change: subject}) == 1
+        && every("impacted-requirements-for-change@3", {change: subject}, requirement =>
+          requirement.identity.type == "SYS")
         && exists("valid-stakeholder-change-impact@2", {change: subject})
         && (
-          !every("impacted-system-requirements-for-change@1", {change: subject}, requirement => requirement != member)
-          || !every("accepted-system-baselines-for-change@1", {change: subject}, accepted => accepted != member)
+          !every("impacted-requirements-for-change@3", {change: subject}, requirement => requirement != member)
+          || !every("accepted-intent-baselines-for-change@1", {change: subject}, accepted => accepted != member)
           || !every("shared-system-consumers-for-change@1", {change: subject}, consumer => consumer != member)
           || !every("shared-system-change-contexts@1", {change: subject}, context => context != member)
           || !every("shared-system-change-candidates@1", {change: subject}, candidate => candidate != member)

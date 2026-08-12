@@ -1,7 +1,7 @@
 kind: selector-definition
 id: stakeholder-change-candidates-for
 version: 1
-description: Exact replacement intent candidates containing the changed STK, fresh Review evidence, and every unaffected accepted item.
+description: Exact selective replacement candidate for one accepted STK or shared SYS Change Request.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: baseline
@@ -9,38 +9,35 @@ query:
   from: {collection: baselines, types: [BSL]}
   as: candidate
   where: >-
-    candidate.payload.kind == "intent-level-candidate"
-    && candidate.payload.role == "candidate"
+    candidate.payload.role == "candidate"
     && candidate.storage.frozen == true
-    && !every("changes-changed-under-subject@1", {subject: candidate}, owner =>
-      owner != change)
+    && !every("changes-changed-under-subject@1", {subject: candidate}, owner => owner != change)
     && none("newer-revisions-for@1", {subject: candidate})
-    && exists("baseline-contains-definition@1",
-      {baseline: candidate, subject: one("revised-requirements-for-change@3", {change: change})})
+    && every("impacted-requirements-for-change@3", {change: change}, requirement =>
+      (requirement.identity.type == "STK" && candidate.payload.kind == "intent-level-candidate")
+      || (requirement.identity.type == "SYS" && candidate.payload.kind == "level-candidate"))
+    && every("revised-requirements-for-change@3", {change: change}, requirement =>
+      exists("baseline-contains-definition@1", {baseline: candidate, subject: requirement}))
+    && every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
+      exists("baseline-contains-definition@1", {baseline: candidate, subject: consumer}))
     && every("reusable-change-definitions-for@1",
       {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, definition =>
         exists("baseline-contains-definition@1", {baseline: candidate, subject: definition}))
     && every("candidate-definition-members@1", {candidate: candidate}, definition =>
-      definition == one("revised-requirements-for-change@3", {change: change})
+      !every("revised-requirements-for-change@3", {change: change}, requirement => requirement != definition)
+      || !every("updated-shared-system-consumers-for-change@1", {change: change}, consumer => consumer != definition)
       || !every("reusable-change-definitions-for@1",
         {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, reusable =>
           reusable != definition))
-    && every("revised-requirements-for-change@3", {change: change}, requirement =>
-      exists("valid-review-contexts-for@1", {subject: requirement})
-      && every("valid-review-contexts-for@1", {subject: requirement}, context =>
-        exists("baseline-contains-evidence@1", {baseline: candidate, subject: context}))
-      && exists("passing-reviews-for@1", {subject: requirement})
-      && every("passing-reviews-for@1", {subject: requirement}, review =>
-        exists("baseline-contains-evidence@1", {baseline: candidate, subject: review})))
+    && every("fresh-shared-system-change-evidence@1", {change: change}, evidence =>
+      exists("baseline-contains-evidence@1", {baseline: candidate, subject: evidence}))
     && every("reusable-change-evidence-for@1",
       {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, evidence =>
         exists("baseline-contains-evidence@1", {baseline: candidate, subject: evidence}))
     && every("baseline-evidence@1", {baseline: candidate}, evidence =>
-      !every("reusable-change-evidence-for@1",
+      !every("fresh-shared-system-change-evidence@1", {change: change}, fresh => fresh != evidence)
+      || !every("reusable-change-evidence-for@1",
         {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})}, reusable =>
-          reusable != evidence)
-      || !every("revised-requirements-for-change@3", {change: change}, requirement =>
-        evidence != one("valid-review-contexts-for@1", {subject: requirement})
-        && evidence != one("passing-reviews-for@1", {subject: requirement})))
+          reusable != evidence))
   distinct: true
   order_by: [identity.revision_id]

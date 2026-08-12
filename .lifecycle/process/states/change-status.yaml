@@ -22,16 +22,9 @@ rules:
       subject.identity.type == "CHG"
       && exists("change-approval-decisions-for@2", {change: subject})
       && exists("revised-requirements-for-change@3", {change: subject})
-      && (
-        (count("impacted-stakeholder-requirements-for-change@1", {change: subject}) == 1
-          && exists("stakeholder-change-candidates-for@1", {change: subject})
-          && every("stakeholder-change-candidates-for@1", {change: subject}, candidate =>
-            exists("passing-reviews-for@1", {subject: candidate})))
-        || (count("impacted-system-requirements-for-change@1", {change: subject}) == 1
-          && exists("shared-system-change-candidates-for@1", {change: subject})
-          && every("shared-system-change-candidates-for@1", {change: subject}, candidate =>
-            exists("passing-reviews-for@1", {subject: candidate})))
-      )
+      && exists("stakeholder-change-candidates-for@1", {change: subject})
+      && every("stakeholder-change-candidates-for@1", {change: subject}, candidate =>
+        exists("passing-reviews-for@1", {subject: candidate}))
     explanation: Approved replacement requirement, selective candidate, and fresh exact Review evidence are available.
   - value: implementation-in-progress
     priority: 600
