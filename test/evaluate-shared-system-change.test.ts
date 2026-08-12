@@ -1,15 +1,24 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { evaluateLifecycle, loadProcessPackage, type LifecycleRecord, type ProcessPackage } from "../src/index.js";
+import { evaluateProcessDefinition } from "../src/evaluator.js";
+import { evaluateLifecycle, loadProcessPackage, type ExactTypedEntity, type LifecycleRecord, type ProcessPackage } from "../src/index.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 const processRoot = ".lifecycle/process";
-const processRef = "mdlm-bootstrap@0.58.0#sha256:shared-system";
+const processRef = "mdlm-bootstrap@0.59.0#sha256:shared-system";
 let processPackage: ProcessPackage;
 const rev = (id: string, n = 1) => `${id}-r${String(n).padStart(5, "0")}`;
 const ids = { sys: "SYS-1020000001", other: "SYS-1020000002", a: "DWP-1020000001", b: "DWP-1020000002", verification: "VER-1020000001", otherVerification: "VER-1020000002", candidate: "BSL-1020000001", accepted: "BSL-1020000002", problem: "PRB-1020000001", source: "ART-1020000001", change: "CHG-1020000001" };
 
-function record(type: string, id: string, payload: Record<string, unknown>, links: {type: string; target: string}[] = [], scenario?: string): LifecycleRecord {
-  return frozenLifecycleRecord(processRef, type, id, payload, {links, ...(scenario ? {scenario} : {})});
+function record(type: string, id: string, payload: Record<string, unknown>, links: {type: string; target: string}[] = [], scenario?: string, revisionNumber = 1): LifecycleRecord {
+  const base = frozenLifecycleRecord(processRef, type, id, payload, {links, ...(scenario ? {scenario} : {})});
+  return revisionNumber === 1 ? base : {
+    ...base,
+    datum: {
+      ...base.datum,
+      revision: revisionNumber,
+      revision_id: rev(id, revisionNumber),
+    },
+  };
 }
 const requirement = (title: string) => ({title, rationale: "One shared lineage.", statement: title, verification_intent: "Inspect exact behavior."});
 const dwp = (title: string) => ({title, rationale: "Separate exact consumer coverage.", stage: "completion", architecture_element: "AEL-1020000000", target_child_type: "SYS", behavioral_slice: title, expected_coverage: [title], exclusions: [], dependencies: [], required_review_policy: "review-applicability@1", parent_coverage_status: "complete", deferred_questions: [], cross_group_dependencies: [], output_reviews_complete: true, simplification_disposition: "retained"});
@@ -18,6 +27,28 @@ const verification = (title: string) => ({title, rationale: "Exact evidence depe
 beforeAll(async () => { const loaded = await loadProcessPackage(processRoot); if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics)); processPackage = loaded.package; });
 
 describe("shared accepted SYS package behavior", () => {
+  it("selects only the current Revision of each accepted consumer Stable Datum lineage", () => {
+    const system = record("SYS", ids.sys, requirement("Shared export"));
+    const consumerA1 = record("DWP", ids.a, dwp("API coverage"), [{type: "decomposes", target: system.datum.revision_id}]);
+    const consumerB1 = record("DWP", ids.b, dwp("CLI coverage"), [{type: "decomposes", target: system.datum.revision_id}]);
+    const accepted = record("BSL", ids.accepted, {title: "Accepted system", kind: "level-accepted", role: "accepted", scope: "SYSTEM", group: "DEFAULT", definition_members: [system.datum.revision_id, consumerA1.datum.revision_id, consumerB1.datum.revision_id], evidence: []});
+    const change = record("CHG", ids.change, {title: "Change shared SYS", rationale: "Bound current consumers.", scope: "One shared SYS", planned_changes: ["change"], implementation_order: "requirements -> context -> reviews -> baselines -> verification", closure_criteria: ["both current consumers"]}, [{type: "impacts", target: system.datum.revision_id}, {type: "impacts", target: accepted.datum.revision_id}]);
+    const changedLinks = [{type: "decomposes", target: rev(ids.sys, 2)}, {type: "changed-under", target: change.datum.revision_id}];
+    const consumerA2 = record("DWP", ids.a, dwp("API coverage"), changedLinks, "reevaluate-shared-system-consumer@1", 2);
+    const consumerA3 = record("DWP", ids.a, dwp("API coverage"), [...changedLinks, {type: "corrects-review", target: "REV-1020000009-r00001"}], "revise-stakeholder-change-after-review@2", 3);
+    const snapshot = {processRef, phaseId: "phase-7-change-control", records: [system, consumerA1, consumerA2, consumerA3, consumerB1, accepted, change], dependencyComparisons: []};
+
+    const selected = evaluateProcessDefinition(processPackage, snapshot, "selector", "shared-system-consumers-for-change@1", {change: change.datum.revision_id});
+    expect((selected.result as ExactTypedEntity[]).map((item) => item.identity.revision_id)).toEqual([
+      consumerA3.datum.revision_id,
+      consumerB1.datum.revision_id,
+    ]);
+    const updated = evaluateProcessDefinition(processPackage, snapshot, "selector", "updated-shared-system-consumers-for-change@1", {change: change.datum.revision_id});
+    expect((updated.result as ExactTypedEntity[]).map((item) => item.identity.revision_id)).toEqual([
+      consumerA3.datum.revision_id,
+    ]);
+  });
+
   it("exposes both exact consumers and preserves unrelated evidence after same-lineage replacement", () => {
     const system = record("SYS", ids.sys, requirement("Shared export"), [], "derive-system-requirements@1");
     const other = record("SYS", ids.other, requirement("Unrelated title"));

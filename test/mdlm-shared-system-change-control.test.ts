@@ -86,7 +86,8 @@ batching: coherent-batch
 && none("newer-revisions-for@1", {subject: subject})
 && none("implemented-changes-impacting-revision@2", {subject: subject})
 && (
-  subject.identity.type == "CHG"
+  (subject.identity.type == "CHG"
+    && none("revised-requirements-for-change@3", {change: subject}))
   || (subject.identity.type == "DEC" && subject.payload.kind == "change-approval")
   || subject.provenance.scenario in ["revise-requirement-under-change@3", "reevaluate-shared-system-consumer@1", "create-stakeholder-change-candidate@1", "revise-stakeholder-change-after-review@2"]
 )`;
@@ -195,8 +196,11 @@ describe("shared accepted SYS change control through the public operator process
   function next() { const result = mdlm(repository, ["next"]); expect(result.status, `${result.stderr}${result.stdout}`).toBe(0); return JSON.parse(result.stdout); }
   function prepare(outcome: any): Packet { expect(outcome.assignment, JSON.stringify(outcome)).toBeDefined(); const result = mdlm(repository, ["scenario", "prepare", outcome.assignment.id]); expect(result.status, `${result.stderr}${result.stdout}`).toBe(0); return JSON.parse(result.stdout); }
   function values(packet: Packet, name: string) { return packet.exactInputs[0].inputs.find((input: any) => input.name === name).values as any[]; }
+  function respond(packet: Packet, outputs: Output[], authorities: string[] = []) {
+    return mdlm(repository, ["scenario", "submit"], `${JSON.stringify({contract: "mdlm-assignment-response@1", assignment: packet.assignment.id, kind: "proposal", proposal: {outputs, completionEvidence: {summary: "Publish exact shared-system change evidence."}, loadedSkillRefs: packet.prompt.skills.map((skill: any) => skill.reference), authoritySupplies: authorities, standingDelegations: []}})}\n`);
+  }
   function publish(packet: Packet, outputs: Output[], authorities: string[] = []) {
-    const result = mdlm(repository, ["scenario", "submit"], `${JSON.stringify({contract: "mdlm-assignment-response@1", assignment: packet.assignment.id, kind: "proposal", proposal: {outputs, completionEvidence: {summary: "Publish exact shared-system change evidence."}, loadedSkillRefs: packet.prompt.skills.map((skill: any) => skill.reference), authoritySupplies: authorities, standingDelegations: []}})}\n`);
+    const result = respond(packet, outputs, authorities);
     expect(result.status, `${result.stderr}${result.stdout}`).toBe(0); const execution = JSON.parse(result.stdout).execution; commit(`Publish ${packet.scenario.reference}`); return execution.outputs.map((item: any) => item.lifecycleDatum) as DatumRef[];
   }
   function publishContext(packet: Packet) {
@@ -265,7 +269,7 @@ describe("shared accepted SYS change control through the public operator process
     }
   }, 180_000);
 
-  it("projects both consumers and every exact dependent evidence route in accepted-SYS impact", async () => {
+  it("replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure", async () => {
     await initialize("phase-7-change-control");
     await seed();
     let outcome = next(), packet = prepare(outcome);
@@ -281,6 +285,137 @@ describe("shared accepted SYS change control through the public operator process
       revision(ids.candidateReview), revision(ids.gate), revision(ids.gateContext), revision(ids.gateReview),
       revision(ids.verification),
     ]));
-  }, 120_000);
+    publishContext(packet);
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    publishReview(packet);
+
+    outcome = next();
+    expect(outcome.outcome).toBe("attention-required");
+    packet = prepare(outcome);
+    expect(packet.scenario.reference).toBe("approve-change-request@3");
+    const approval = publish(packet, [output("approval", "approval", "DEC", {
+      title: "Approve shared SYS change", rationale: "Authorize the bounded impact and serial implementation.", kind: "change-approval", change_disposition: "approve", decision: "Approve the exact shared SYS change.", alternatives: ["reject", "defer", "cancel"], effective_scope: change.revisionId,
+    }, [{type: "justifies", target: change.revisionId}])], ["stakeholder"])[0]!;
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    publishContext(packet);
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    publishReview(packet);
+
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("revise-requirement-under-change@3");
+    const replacement = publish(packet, [output("replacement", "revised_requirement", "SYS", requirementPayload("export one shared report and reject malformed exports"), [
+      {type: "derived-from", target: revision(ids.stakeholder)},
+      {type: "changed-under", target: change.revisionId},
+    ], ids.system)])[0]!;
+    expect(replacement.revisionId).toBe(revision(ids.system, 2));
+
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("reevaluate-shared-system-consumer@1");
+    expect(values(packet, "consumer")[0].identity.revision_id).toBe(revision(ids.consumerA));
+    const changedCoverage = dwpPayload("API consumer coverage");
+    changedCoverage.expected_coverage = ["discarded unaffected coverage"];
+    const rejected = respond(packet, [output("replacement-consumer", "replacement_consumer", "DWP", changedCoverage, [
+      {type: "decomposes", target: replacement.revisionId},
+      {type: "allocated-to", target: revision(ids.architecture)},
+      {type: "governed-by", target: revision(ids.interface)},
+      {type: "verified-under", target: revision(ids.strategy)},
+      {type: "changed-under", target: change.revisionId},
+    ], ids.consumerA)]);
+    expect(rejected.status).toBe(1);
+    expect(JSON.parse(rejected.stdout).diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({code: "scenario-completion-failed"}),
+    ]));
+    const consumerA = publish(packet, [consumerReplacement(packet, change)])[0]!;
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    const consumerAContext = publishContext(packet);
+
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("reevaluate-shared-system-consumer@1");
+    expect(values(packet, "consumer")[0].identity.revision_id).toBe(revision(ids.consumerB));
+    const consumerB = publish(packet, [consumerReplacement(packet, change)])[0]!;
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    const consumerBContext = publishContext(packet);
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    expect(values(packet, "subject")[0].identity.revision_id).toBe(replacement.revisionId);
+    const replacementContext = publishContext(packet);
+    const reviewedSubjects = [consumerA, consumerB, replacement];
+    const reviews: DatumRef[] = [];
+    for (const subject of reviewedSubjects) {
+      packet = prepare(next());
+      expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+      expect(values(packet, "subject")[0].identity.revision_id).toBe(subject.revisionId);
+      reviews.push(publishReview(packet));
+    }
+    const [consumerAReview, consumerBReview, replacementReview] = reviews as [DatumRef, DatumRef, DatumRef];
+
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-stakeholder-change-candidate@1");
+    expect(values(packet, "updated_consumers").map((item) => item.identity.revision_id)).toEqual([
+      consumerA.revisionId,
+      consumerB.revisionId,
+    ]);
+    expect(values(packet, "reusable_definitions").map((item) => item.identity.revision_id)).toEqual([
+      revision(ids.unaffected),
+    ]);
+    expect(values(packet, "reusable_evidence").map((item) => item.identity.revision_id)).toEqual([
+      revision(ids.unaffectedVerification),
+    ]);
+    const freshEvidence = values(packet, "fresh_evidence").map((item) => item.identity.revision_id);
+    const reusableEvidence = values(packet, "reusable_evidence").map((item) => item.identity.revision_id);
+    const candidate = publish(packet, [output("candidate", "candidate", "BSL", {
+      title: "Selective shared SYS replacement candidate", kind: "level-candidate", role: "candidate", scope: "SYSTEM", group: "DEFAULT",
+      definition_members: [replacement.revisionId, consumerA.revisionId, consumerB.revisionId, revision(ids.unaffected)],
+      evidence: [...freshEvidence, ...reusableEvidence],
+    }, [{type: "changed-under", target: change.revisionId}])])[0]!;
+
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-review-context@1");
+    const candidateContext = publishContext(packet);
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    const candidateReview = publishReview(packet);
+
+    packet = prepare(next());
+    expect(packet.scenario.reference).toBe("close-change-request@4");
+    expect(values(packet, "approval")[0].identity.revision_id).toBe(approval.revisionId);
+    expect(values(packet, "revised_requirements")[0].identity.revision_id).toBe(replacement.revisionId);
+    expect(values(packet, "closure_evidence").map((item) => item.identity.revision_id)).toEqual(expect.arrayContaining([
+      replacementContext.revisionId, replacementReview.revisionId,
+      consumerAContext.revisionId, consumerBContext.revisionId,
+      consumerAReview.revisionId, consumerBReview.revisionId,
+      candidate.revisionId, candidateContext.revisionId, candidateReview.revisionId,
+    ]));
+    publish(packet, [
+      output("closure", "closure", "DEC", {title: "Close shared SYS change", rationale: "Both consumers and the selective candidate have fresh exact evidence.", kind: "change-closure", decision: "Close the bounded shared SYS change.", alternatives: ["leave open"], effective_scope: change.revisionId}, [
+        {type: "justifies", target: change.revisionId},
+        {type: "confirms-revision", target: replacement.revisionId},
+        ...values(packet, "closure_evidence").map((item) => ({type: "closes-with", target: item.identity.revision_id})),
+      ]),
+      output("closed-problem", "closed_problem", "PRB", {title: "Shared export change", rationale: "Fresh exact replacement evidence closes the observation.", condition: "The accepted shared behavior changed.", severity: "major", disposition: "closed", evidence_refs: [revision(ids.source)], closure_summary: "Both exact consumers now bind the changed shared SYS."}, [
+        {type: "reports", target: revision(ids.source)},
+        {type: "resolved-by", target: "$proposal.closure.revision_id"},
+      ], ids.problem),
+    ]);
+
+    const terminal = next();
+    expect(terminal.outcome, JSON.stringify(terminal)).toBe("profile-boundary-reached");
+    const closedChange = mdlm(repository, ["show", change.revisionId, "--json"]);
+    expect(JSON.parse(closedChange.stdout).projections.states["change-status"]).toBe("closed");
+    const changedSystem = JSON.parse(mdlm(repository, ["show", replacement.revisionId, "--json"]).stdout).lifecycleDatum.datum;
+    expect(changedSystem.id).toBe(ids.system);
+    expect(changedSystem.links).toContainEqual({type: "changed-under", target: change.revisionId});
+    const selectiveCandidate = JSON.parse(mdlm(repository, ["show", candidate.revisionId, "--json"]).stdout).lifecycleDatum.datum;
+    expect(selectiveCandidate.payload.definition_members).toEqual([
+      replacement.revisionId, consumerA.revisionId, consumerB.revisionId, revision(ids.unaffected),
+    ]);
+    const unaffectedEvidence = mdlm(repository, ["show", revision(ids.unaffectedVerification), "--json"]);
+    expect(JSON.parse(unaffectedEvidence.stdout).projections.states.validity).toBe("valid");
+  }, 1_800_000);
 
 });

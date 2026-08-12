@@ -12,7 +12,7 @@ query:
   where: >-
     every("impacted-requirements-for-change@3", {change: change}, requirement =>
       requirement != definition)
-    && every("shared-system-consumers-for-change@1", {change: change}, consumer =>
+    && every("accepted-shared-system-consumer-revisions-for-change@1", {change: change}, consumer =>
       consumer != definition)
   distinct: true
   order_by: [identity.type, identity.revision_id]

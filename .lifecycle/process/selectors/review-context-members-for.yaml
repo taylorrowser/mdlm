@@ -40,7 +40,7 @@ query:
         && (
           !every("impacted-requirements-for-change@3", {change: subject}, requirement => requirement != member)
           || !every("accepted-intent-baselines-for-change@1", {change: subject}, accepted => accepted != member)
-          || !every("shared-system-consumers-for-change@1", {change: subject}, consumer => consumer != member)
+          || !every("accepted-shared-system-consumer-revisions-for-change@1", {change: subject}, consumer => consumer != member)
           || !every("shared-system-change-contexts@1", {change: subject}, context => context != member)
           || !every("shared-system-change-candidates@1", {change: subject}, candidate => candidate != member)
           || !every("shared-system-change-verification-evidence@1", {change: subject}, evidence => evidence != member)

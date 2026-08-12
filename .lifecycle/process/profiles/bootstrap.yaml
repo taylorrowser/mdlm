@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 33
+version: 34
 status: experimental
 description: Narrow profile validating typed kernel/process seams through reviewed intent, qualification/pilot, bounded system decomposition, exact accepted-STK and two-consumer shared-SYS change control, and a reviewed expansion Decision.
 enabled:

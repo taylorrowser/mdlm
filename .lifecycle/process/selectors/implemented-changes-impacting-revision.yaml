@@ -28,7 +28,7 @@ query:
         && (
           !every("impacted-requirements-for-change@3", {change: change}, requirement =>
             requirement != subject)
-          || !every("shared-system-consumers-for-change@1", {change: change}, consumer =>
+          || !every("accepted-shared-system-consumer-revisions-for-change@1", {change: change}, consumer =>
             consumer != subject)
           || !every("shared-system-change-contexts@1", {change: change}, context =>
             context != subject)

@@ -14,7 +14,7 @@ query:
     && (
       !every("impacted-requirements-for-change@3", {change: change}, requirement =>
         none("baseline-contains-definition@1", {baseline: candidate, subject: requirement}))
-      || !every("shared-system-consumers-for-change@1", {change: change}, consumer =>
+      || !every("accepted-shared-system-consumer-revisions-for-change@1", {change: change}, consumer =>
         none("baseline-contains-definition@1", {baseline: candidate, subject: consumer}))
     )
   distinct: true

@@ -14,7 +14,7 @@ import {
 import { req } from "./helpers/req.js";
 
 const PROCESS_REF =
-  "mdlm-bootstrap@0.58.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  "mdlm-bootstrap@0.59.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 async function scopedProcessPackage(
   scope: "phase" | "process" = "phase",

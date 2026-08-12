@@ -27,7 +27,7 @@ query:
       && every("shared-system-change-verification-evidence@1", {change: change}, verification =>
         verification != evidence
         && every("revisions-tracing-subject@1", {subject: verification}, dependent => dependent != evidence))
-      && every("shared-system-consumers-for-change@1", {change: change}, consumer => consumer != evidence)
+      && every("accepted-shared-system-consumer-revisions-for-change@1", {change: change}, consumer => consumer != evidence)
       && every("impacted-requirements-for-change@3", {change: change}, requirement => requirement != evidence))
   distinct: true
   order_by: [identity.type, identity.revision_id]
