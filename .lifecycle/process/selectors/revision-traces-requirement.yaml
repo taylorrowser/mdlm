@@ -1,0 +1,14 @@
+kind: selector-definition
+id: revision-traces-requirement
+version: 1
+description: The supplied exact requirement when one evidence Revision directly cites it through a source-owned traceability link.
+parameters:
+  - {name: evidence, kind: revision}
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: evidence, emit: target, types: [STK]}
+  as: target
+  where: 'target == requirement'
+  distinct: true
+  order_by: [identity.revision_id]

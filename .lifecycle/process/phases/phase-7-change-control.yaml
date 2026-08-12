@@ -17,6 +17,8 @@ scenarios:
   - approve-change-request@3
   - revise-requirement-under-change@2
   - create-stakeholder-change-candidate@1
+  - revise-stakeholder-change-after-review@1
+  - revise-change-disposition-after-review@1
   - close-change-request@3
   - record-consequential-decision@1
 obligations:
@@ -27,6 +29,8 @@ obligations:
   - change-approval-required@2
   - change-revision-required@2
   - stakeholder-change-candidate-required@1
+  - stakeholder-change-review-correction-required@1
+  - change-disposition-review-correction-required@1
   - change-closure-required@2
 outputs: [PRB, CHG, DEC, STK, BSL, REV]
 progression: null

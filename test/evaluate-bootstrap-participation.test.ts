@@ -150,6 +150,10 @@ describe("bootstrap Scenario participation Policies", () => {
       "resolve-question": { output: "decision", type: "DEC" },
       "resolve-question-with-prototype": { output: "finding", type: "DEC" },
       "review-datum-in-context": { output: "review", type: "REV" },
+      "revise-change-disposition-after-review": {
+        output: "replacement",
+        type: "DEC",
+      },
       "revise-environment-assurance-after-review": {
         output: "decision",
         type: "DEC",
@@ -196,6 +200,10 @@ describe("bootstrap Scenario participation Policies", () => {
       },
       "revise-question-decision-after-review": {
         output: "replacement",
+        type: "DEC",
+      },
+      "revise-stakeholder-change-after-review": {
+        output: "authority",
         type: "DEC",
       },
       "revise-verification-strategy-after-review": {

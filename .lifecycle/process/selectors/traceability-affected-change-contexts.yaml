@@ -1,0 +1,16 @@
+kind: selector-definition
+id: traceability-affected-change-contexts
+version: 1
+description: Exact baseline context containing an STK impacted by one bounded Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: context
+  where: >-
+    !every("impacted-requirements-for-change@2", {change: change}, requirement =>
+      none("baseline-contains-definition@1",
+        {baseline: context, subject: requirement}))
+  distinct: true
+  order_by: [identity.revision_id]

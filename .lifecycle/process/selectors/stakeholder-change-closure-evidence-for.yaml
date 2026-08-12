@@ -9,9 +9,12 @@ query:
   from: {collection: revisions, types: [BSL, REV]}
   as: evidence
   where: >-
-    evidence == one("change-review-contexts-for@1", {change: change})
-    || evidence == one("change-replacement-reviews-for@1", {change: change})
+    evidence == one("valid-review-contexts-for@1",
+      {subject: one("revised-requirements-for-change@2", {change: change})})
+    || evidence == one("passing-reviews-for@1",
+      {subject: one("revised-requirements-for-change@2", {change: change})})
     || evidence == one("stakeholder-change-candidates-for@1", {change: change})
-    || evidence == one("stakeholder-change-candidate-reviews-for@1", {change: change})
+    || evidence == one("passing-reviews-for@1",
+      {subject: one("stakeholder-change-candidates-for@1", {change: change})})
   distinct: true
   order_by: [identity.type, identity.revision_id]

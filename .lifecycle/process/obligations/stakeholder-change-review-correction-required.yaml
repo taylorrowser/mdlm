@@ -1,0 +1,29 @@
+kind: obligation-definition
+id: stakeholder-change-review-correction-required
+version: 1
+description: Every current failed non-Decision accepted-STK change subject receives one causal same-lineage Correction and fresh independent Review.
+phases: [phase-7-change-control]
+for_each: 'select("failed-stakeholder-change-subjects@1", {})'
+subject_as: subject
+satisfied_when: 'exists("newer-revisions-for@1", {subject: subject})'
+status_rules:
+  - status: ready
+    priority: 200
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: subject, view: "autonomous-corrections"}) >= 2
+      || !every("failing-reviews-for@1", {subject: subject}, review =>
+        review.payload.correction_authority != "stakeholder")
+    reason: The autonomous correction budget is exhausted or exact judgment changes stakeholder-owned scope; immediate attended escalation is required.
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: The exact subject and all current failed Reviews are ready for one local same-lineage Correction.
+default_status: ready
+resolve_with:
+  scenario: revise-stakeholder-change-after-review@1
+  inputs:
+    subject: subject
+    change: 'one("changes-controlling-stakeholder-change-subject@1", {subject: subject})'
+    reviews: 'select("failing-reviews-for@1", {subject: subject})'
+waiver_policy_ref: waiver-applicability@1

@@ -1,0 +1,12 @@
+kind: selector-definition
+id: change-impact-targets
+version: 1
+description: Every exact Revision explicitly named by one Change Request impact analysis.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: change, link: impacts, emit: target, types: [STK, SYS, BSL, REV, VER, VAI, RUN, RES, ASP, ICSP, VSP, ENV, ART]}
+  as: target
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

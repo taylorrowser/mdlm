@@ -20,8 +20,9 @@ status_rules:
     priority: 200
     when: >-
       none("revised-requirements-for-change@2", {change: change})
-      || none("change-review-contexts-for@1", {change: change})
-      || none("change-replacement-reviews-for@1", {change: change})
+      || !every("revised-requirements-for-change@2", {change: change}, requirement =>
+        exists("valid-review-contexts-for@1", {subject: requirement})
+        && exists("passing-reviews-for@1", {subject: requirement}))
     reason: The same-lineage STK replacement needs fresh exact Review evidence before candidate assembly.
     blocked_by:
       - obligation: change-revision-required@2
@@ -30,7 +31,8 @@ status_rules:
     priority: 100
     when: >-
       exists("change-approval-decisions-for@2", {change: change})
-      && exists("change-replacement-reviews-for@1", {change: change})
+      && every("revised-requirements-for-change@2", {change: change}, requirement =>
+        exists("passing-reviews-for@1", {subject: requirement}))
     reason: Assemble one exact candidate from the replacement and every unaffected reusable accepted item.
 default_status: blocked
 resolve_with:
@@ -39,8 +41,12 @@ resolve_with:
     change: change
     accepted: 'one("accepted-intent-baselines-for-change@1", {change: change})'
     replacement: 'one("revised-requirements-for-change@2", {change: change})'
-    replacement_context: 'one("change-review-contexts-for@1", {change: change})'
-    replacement_review: 'one("change-replacement-reviews-for@1", {change: change})'
+    replacement_context: >-
+      one("valid-review-contexts-for@1",
+        {subject: one("revised-requirements-for-change@2", {change: change})})
+    replacement_review: >-
+      one("passing-reviews-for@1",
+        {subject: one("revised-requirements-for-change@2", {change: change})})
     reusable_definitions: >-
       select("reusable-change-definitions-for@1",
         {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})})

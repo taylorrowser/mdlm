@@ -8,5 +8,6 @@ result_kind: revision
 query:
   from: {relation: incoming-links, of: change, link: changed-under, emit: source, types: [STK]}
   as: requirement
+  where: 'none("newer-revisions-for@1", {subject: requirement})'
   distinct: true
   order_by: [identity.type, identity.revision_id]

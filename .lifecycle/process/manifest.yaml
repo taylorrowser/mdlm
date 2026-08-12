@@ -42,7 +42,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, pilot-assessment-correction-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, stakeholder-change-correction-participation, pilot-assessment-correction-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
@@ -292,6 +292,12 @@ catalog:
     - reported-evidence-for-problem
     - all-change-requests
     - change-impacts-revision
+    - valid-stakeholder-change-impact
+    - change-impact-targets
+    - revision-traces-requirement
+    - traceability-affected-change-evidence
+    - traceability-affected-change-contexts
+    - implemented-changes-impacting-revision
     - recorded-change-approval-decisions-for
     - change-approval-decisions-for
     - terminal-change-disposition-decisions-for
@@ -300,11 +306,13 @@ catalog:
     - revised-requirements-for-change
     - reusable-change-definitions-for
     - reusable-change-evidence-for
-    - change-review-contexts-for
-    - change-replacement-reviews-for
     - stakeholder-change-candidates-for
-    - stakeholder-change-candidate-reviews-for
     - stakeholder-change-closure-evidence-for
+    - changes-controlling-stakeholder-change-subject
+    - stakeholder-change-decision-targets
+    - failed-stakeholder-change-subjects
+    - failed-change-dispositions
+    - stakeholder-change-correction-decisions-for
     - change-closure-decisions-for
     - pilot-assessment-contexts
     - pilot-assessments-for-context
@@ -361,6 +369,8 @@ catalog:
     - change-approval-required
     - change-revision-required
     - stakeholder-change-candidate-required
+    - stakeholder-change-review-correction-required
+    - change-disposition-review-correction-required
     - change-closure-required
     - pilot-observation-required
     - pilot-assessment-context-required
@@ -420,6 +430,8 @@ catalog:
     - approve-change-request
     - revise-requirement-under-change
     - create-stakeholder-change-candidate
+    - revise-stakeholder-change-after-review
+    - revise-change-disposition-after-review
     - close-change-request
     - record-pilot-observation
     - prepare-pilot-assessment-context
@@ -482,6 +494,8 @@ assets:
     - prompts/approve-change-request.md@3
     - prompts/revise-requirement-under-change.md@2
     - prompts/create-stakeholder-change-candidate.md@1
+    - prompts/revise-stakeholder-change-after-review.md@1
+    - prompts/revise-change-disposition-after-review.md@1
     - prompts/close-change-request.md@3
     - prompts/record-pilot-observation.md@2
     - prompts/prepare-pilot-assessment-context.md@1

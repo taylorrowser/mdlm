@@ -22,7 +22,9 @@ rules:
       subject.identity.type == "CHG"
       && exists("change-approval-decisions-for@2", {change: subject})
       && exists("revised-requirements-for-change@2", {change: subject})
-      && exists("stakeholder-change-candidate-reviews-for@1", {change: subject})
+      && exists("stakeholder-change-candidates-for@1", {change: subject})
+      && every("stakeholder-change-candidates-for@1", {change: subject}, candidate =>
+        exists("passing-reviews-for@1", {subject: candidate}))
     explanation: Approved replacement STK, Review, candidate, and candidate Review evidence are available.
   - value: implementation-in-progress
     priority: 600

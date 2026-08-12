@@ -15,11 +15,7 @@ prompt_ref: prompts/analyze-change-impact.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
-  && change.payload.implementation_order == "requirements -> context -> reviews -> baselines -> verification"
-  && count("impacted-requirements-for-change@2", {change: change}) == 1
-  && every("impacted-requirements-for-change@2", {change: change}, requirement =>
-    exists("accepted-intent-candidates-for-requirement@2", {requirement: requirement}))
-  && count("accepted-intent-baselines-for-change@1", {change: change}) == 1
+  && exists("valid-stakeholder-change-impact@1", {change: change})
 resolves: [change-impact-required]
 prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth, unbounded inferred impact]
 batching: single

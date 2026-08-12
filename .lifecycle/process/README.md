@@ -385,9 +385,10 @@ The package defines PRB and CHG as source-owned exact Lifecycle Data. A PRB
 preserves its immutable source through `reports`. The resulting CHG may name one
 STK Revision only when that exact identity belongs to an authorized
 `intent-approved` accepted baseline; an individual passing Review or an unaccepted
-Revision in the same lineage cannot satisfy the impact contract. Canonical `impacts` links bound the affected requirement, Review Contexts,
-Reviews, baselines, and verification evidence; target type and BSL kind classify
-the set without duplicate payload identity arrays. Draft STK defects continue through
+Revision in the same lineage cannot satisfy the impact contract. The deep
+`valid-stakeholder-change-impact@1` Selector derives the complete direct exact
+traceability set, and canonical `impacts` links must equal that set; omission cannot
+turn affected evidence into reusable evidence. Draft STK defects continue through
 ordinary causal Phase 0 Correction without CHG ceremony.
 
 After the CHG's contextual Review passes, one attended stakeholder Decision records
@@ -400,8 +401,11 @@ approval alone authorizes the same STK Stable Datum's next Revision through exac
 The replacement's exact Revision identity derives a fresh Review Context and Review. A
 package-owned candidate Resolver then freezes one CHG-linked `intent-change-candidate`
 containing that replacement evidence and every exact accepted definition/evidence
-item outside the CHG impact. The candidate receives fresh Review; unrelated exact
-evidence remains reusable while declared changed dependencies reevaluate normally.
+item outside the CHG impact. The candidate receives fresh Review; affected exact evidence projects Stale while
+unrelated exact evidence remains reusable. Failed CHG, disposition, replacement,
+or candidate Reviews derive same-lineage Correction through normal `mdlm next`;
+non-Decision correction uses one deep interface with two autonomous cycles before
+attended escalation, while disposition correction renews attended judgment.
 Closure atomically publishes a `change-closure` DEC citing the exact CHG,
 replacement, context, Reviews, and candidate plus the next closed PRB Revision.
 `change-status@2` remains an independent computed dimension, and all routing uses

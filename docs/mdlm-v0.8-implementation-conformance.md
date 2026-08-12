@@ -159,7 +159,10 @@ Revision in an authorized accepted intent baseline can enter CHG impact; exact C
 and Decision Reviews precede one attended approve/reject/defer/cancel disposition;
 only approval permits a same-lineage `changed-under` replacement; fresh exact
 context, STK Review, CHG-linked selective candidate, and candidate Review precede closure;
-and every unaffected accepted definition/evidence item remains reusable. Draft
+every directly traced affected item must be named and projects Stale after implementation;
+and every unaffected accepted definition/evidence item remains reusable. Failed CHG,
+disposition, STK, and candidate Reviews route to causal same-lineage Correction and
+fresh independent Review instead of stranding Phase 7. Draft
 STK correction remains the ordinary Phase 0 route, while shared accepted SYS
 consumer behavior remains deferred to #102. The lifecycle-neutral
 operator contract exposes package-bound attended inputs without counting
@@ -215,9 +218,10 @@ deferred hardening breadth are recorded in
   immutable.
 - Accepted requirement maturity comes only from exact accepted-baseline membership,
   never Review alone. Draft STK failures remain ordinary Correction. Accepted STK
-  impact, every attended disposition, same-lineage replacement, selective evidence
-  reuse, fresh candidate evidence, and exact closure are package-derived; accepted
-  history is never rewritten.
+  impact is complete over direct exact traceability and cannot preserve evidence by
+  omission; every attended disposition, same-lineage replacement, selective Staleness
+  and reuse, failed-Review Correction, fresh candidate evidence, and exact closure are
+  package-derived. Accepted history is never rewritten.
 - Complete reviewed Phase 2 candidates derive durable observation and exact
   assessment-context work. PAS publication, bounded failed-Review Correction,
   attended escalation, fresh independent Review, the final nondelegable

@@ -17,6 +17,11 @@ rules:
       || subject.integrity.hash_valid == false
     explanation: Parseability, schema, identity, reference, or frozen-byte integrity is broken.
   - value: stale
+    priority: 250
+    when: 'exists("implemented-changes-impacting-revision@1", {subject: subject})'
+    explanation: An implemented reviewed Change Request explicitly marks this exact Revision as affected and prevents silent reuse.
+    explanation_evidence: 'select("implemented-changes-impacting-revision@1", {subject: subject})'
+  - value: stale
     priority: 200
     when: 'policy("dependency-reassessment@1", {subject: subject}).required == true'
     explanation: Package Policy requires reassessment for at least one classified dependency change.

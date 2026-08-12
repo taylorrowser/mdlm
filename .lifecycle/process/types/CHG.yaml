@@ -24,6 +24,13 @@ outgoing_links:
     cardinality: {minimum: 1, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: change-request
+  - id: corrects-review
+    description: Exact failed Reviews whose blocking findings this replacement Change Request Revision addresses.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-change-request
   - id: impacts
     description: Canonical exact requirement, context, Review, baseline, and verification evidence identified by traceability analysis; target type and BSL kind classify each impact without duplicate payload identity arrays.
     targets:

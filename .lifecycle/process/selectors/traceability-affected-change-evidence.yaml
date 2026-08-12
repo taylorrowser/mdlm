@@ -1,0 +1,16 @@
+kind: selector-definition
+id: traceability-affected-change-evidence
+version: 1
+description: Exact non-baseline evidence directly tracing an STK impacted by one bounded Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV, VER, VAI, RUN, RES, ASP, ICSP, VSP, ENV, ART]}
+  as: evidence
+  where: >-
+    !every("impacted-requirements-for-change@2", {change: change}, requirement =>
+      none("revision-traces-requirement@1",
+        {evidence: evidence, requirement: requirement}))
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

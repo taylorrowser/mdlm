@@ -1,0 +1,22 @@
+kind: obligation-definition
+id: change-disposition-review-correction-required
+version: 1
+description: A failed exact Change Request disposition or correction-authority Review requires renewed attended judgment before it applies.
+phases: [phase-7-change-control]
+for_each: 'select("failed-change-dispositions@1", {})'
+subject_as: decision
+satisfied_when: 'exists("newer-revisions-for@1", {subject: decision})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: The exact failed disposition findings require renewed attended stakeholder judgment.
+default_status: ready
+resolve_with:
+  scenario: revise-change-disposition-after-review@1
+  inputs:
+    decision: decision
+    change: 'one("changes-controlling-stakeholder-change-subject@1", {subject: decision})'
+    target: 'one("stakeholder-change-decision-targets@1", {decision: decision})'
+    failed_reviews: 'select("failing-reviews-for@1", {subject: decision})'
+waiver_policy_ref: waiver-applicability@1

@@ -596,9 +596,10 @@ An exact PRB preserves its immutable source through `reports`.
 `analyze-change-impact@2` accepts exactly one STK Revision only when that exact
 identity belongs to an `intent-approved` accepted baseline. A passing individual
 Review or another Revision in the same Stable Datum is insufficient. The CHG
-preserves exact requirement, Review Context, Review, baseline, and verification-
-evidence impact through canonical `impacts` links. Target type and BSL kind classify
-the set without duplicate payload identity arrays.
+preserves the exact requirement, Review Context, Review, baseline, and verification-
+evidence impact through canonical `impacts` links. `valid-stakeholder-change-impact@1`
+derives the complete direct traceability set and rejects either omissions or unrelated
+extras, so authored omission can never make affected evidence reusable.
 Draft STK failures remain in ordinary Phase 0 Correction and cannot enter this
 post-acceptance Resolver.
 
@@ -614,9 +615,13 @@ Approved implementation publishes one same-lineage STK replacement with exact
 and Review work. `stakeholder-change-candidate-required@1` then freezes one
 CHG-linked `intent-change-candidate` containing the replacement, its fresh context
 and Review, and every exact accepted definition/evidence item outside the bounded impact.
-The candidate receives a fresh contextual Review. Thus affected context, Review,
-candidate, and evidence are replaced or become Stale through ordinary exact
-dependency reevaluation while unaffected accepted evidence remains reusable.
+The candidate receives a fresh contextual Review. Affected context, Review,
+candidate, and evidence are replaced or explicitly project Stale, while unaffected
+accepted evidence remains reusable. Failed CHG, replacement STK, and candidate BSL
+Reviews use `revise-stakeholder-change-after-review@1`, one deep same-lineage
+Correction interface with two autonomous cycles before attended escalation. A failed
+disposition Review uses renewed attended judgment through
+`revise-change-disposition-after-review@1`; every replacement receives fresh Review.
 Shared accepted SYS behavior and multi-consumer propagation remain deferred to the
 sibling shared-requirement slice.
 

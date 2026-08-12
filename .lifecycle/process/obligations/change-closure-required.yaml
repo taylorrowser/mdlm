@@ -22,10 +22,12 @@ status_rules:
     priority: 200
     when: >-
       none("revised-requirements-for-change@2", {change: change})
-      || none("change-review-contexts-for@1", {change: change})
-      || none("change-replacement-reviews-for@1", {change: change})
+      || !every("revised-requirements-for-change@2", {change: change}, requirement =>
+        exists("valid-review-contexts-for@1", {subject: requirement})
+        && exists("passing-reviews-for@1", {subject: requirement}))
       || none("stakeholder-change-candidates-for@1", {change: change})
-      || none("stakeholder-change-candidate-reviews-for@1", {change: change})
+      || !every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
+        exists("passing-reviews-for@1", {subject: candidate}))
     reason: Exact STK replacement, fresh Review Context and Review, replacement candidate, and candidate Review remain required.
     blocked_by:
       - obligation: stakeholder-change-candidate-required@1
@@ -36,7 +38,8 @@ status_rules:
     priority: 100
     when: >-
       exists("change-approval-decisions-for@2", {change: change})
-      && exists("stakeholder-change-candidate-reviews-for@1", {change: change})
+      && every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
+        exists("passing-reviews-for@1", {subject: candidate}))
     reason: The exact approved replacement and all required downstream evidence can now close without rewriting accepted history.
 default_status: blocked
 resolve_with:

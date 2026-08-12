@@ -1,0 +1,13 @@
+kind: selector-definition
+id: implemented-changes-impacting-revision
+version: 1
+description: Reviewed approved Change Requests that explicitly impact the supplied exact Revision and have published a same-lineage STK replacement.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: subject, link: impacts, emit: source, types: [CHG]}
+  as: change
+  where: 'exists("revised-requirements-for-change@2", {change: change})'
+  distinct: true
+  order_by: [identity.revision_id]
