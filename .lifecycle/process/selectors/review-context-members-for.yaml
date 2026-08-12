@@ -28,7 +28,7 @@ query:
         ))
       || !every("changes-changed-under-subject@1", {subject: subject}, change =>
         change != member
-        && every("change-dispositions-for-context@1", {change: change}, decision =>
+        && every("recorded-change-approval-decisions-for@2", {change: change}, decision =>
           decision != member))
     )
   distinct: true

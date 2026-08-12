@@ -9,9 +9,11 @@ query:
   from: {collection: baselines, types: [BSL]}
   as: candidate
   where: >-
-    candidate.payload.kind == "intent-change-candidate"
+    candidate.payload.kind == "intent-level-candidate"
     && candidate.payload.role == "candidate"
     && candidate.storage.frozen == true
+    && !every("changes-changed-under-subject@1", {subject: candidate}, owner =>
+      owner != change)
     && none("newer-revisions-for@1", {subject: candidate})
     && exists("baseline-contains-definition@1",
       {baseline: candidate, subject: one("revised-requirements-for-change@2", {change: change})})

@@ -93,7 +93,6 @@ catalog:
     - invalid-product-simplification-blockers-for-review
     - valid-product-simplification-reviews
     - intent-candidates-matching-subject
-    - intent-level-candidates-matching-subject
     - non-phase-0-foundation-members-for
     - candidate-members-matching
     - candidate-definition-members
@@ -312,7 +311,6 @@ catalog:
     - changes-controlling-stakeholder-change-subject
     - stakeholder-change-decision-targets
     - changes-changed-under-subject
-    - change-dispositions-for-context
     - failed-stakeholder-change-subjects
     - failed-change-dispositions
     - stakeholder-change-correction-decisions-for

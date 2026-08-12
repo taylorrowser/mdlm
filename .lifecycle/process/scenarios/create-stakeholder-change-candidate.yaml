@@ -21,7 +21,7 @@ prompt_ref: prompts/create-stakeholder-change-candidate.md@1
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
-  && candidate.payload.kind == "intent-change-candidate"
+  && candidate.payload.kind == "intent-level-candidate"
   && candidate.payload.role == "candidate"
   && candidate.payload.scope == accepted.payload.scope
   && candidate.payload.group == accepted.payload.group

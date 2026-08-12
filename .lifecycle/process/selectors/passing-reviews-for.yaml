@@ -12,9 +12,9 @@ query:
     review.payload.outcome == "pass"
     && state(review, "validity") == "valid"
     && (
-      (exists("intent-level-candidates-matching-subject@1", {subject: subject})
+      (exists("intent-candidates-matching-subject@1", {subject: subject})
         && exists("valid-product-simplification-reviews@1", {review: review}))
-      || (none("intent-level-candidates-matching-subject@1", {subject: subject})
+      || (none("intent-candidates-matching-subject@1", {subject: subject})
         && review.payload.review_kind != "simplification-product-definition")
     )
   distinct: true

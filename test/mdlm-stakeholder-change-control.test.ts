@@ -533,26 +533,44 @@ describe("accepted STK change control through the public operator process", () =
   function publishReview(packet: Packet, outcome: "pass" | "fail" = "pass") {
     const subject = inputs(packet, "subject")[0]!;
     const context = inputs(packet, "review_context")[0]!;
+    const intentCandidate =
+      subject.identity.type === "BSL" &&
+      subject.data.payload.kind === "intent-level-candidate";
+    const finding = {
+      id: "F-101",
+      severity: "blocking",
+      summary: "The exact change evidence needs correction before it can advance.",
+    };
     return publish(packet, [output(
       `review-${subject.identity.revision_id}`,
       "review",
       "REV",
       {
         title: `${outcome === "pass" ? "Passing" : "Failing"} Review of ${subject.identity.revision_id}`,
-        review_kind: "contextual",
+        review_kind: intentCandidate
+          ? "simplification-product-definition"
+          : "contextual",
         rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: outcome === "pass" ? [] : [{
-          id: "F-101",
-          target: subject.identity.revision_id,
-          relationship: "primary",
-          severity: "blocking",
-          summary: "The exact change evidence needs correction before it can advance.",
-        }],
+        ...(intentCandidate
+          ? outcome === "fail"
+            ? { simplification: {
+                target: subject.identity.revision_id,
+                findings: [finding],
+              } }
+            : {}
+          : { findings: outcome === "pass" ? [] : [{
+              ...finding,
+              target: subject.identity.revision_id,
+              relationship: "primary",
+            }] }),
         outcome,
       },
       [
         { type: "reviews", target: subject.identity.revision_id },
         { type: "contextualizes", target: context.identity.revision_id },
+        ...(intentCandidate && outcome === "fail"
+          ? [{ type: "blocks", target: subject.identity.revision_id }]
+          : []),
       ],
     )], ["independent-reviewer"]).outputs[0]!.lifecycleDatum;
   }
@@ -677,7 +695,7 @@ describe("accepted STK change control through the public operator process", () =
       "BSL",
       {
         title: "Replacement stakeholder intent candidate",
-        kind: "intent-change-candidate",
+        kind: "intent-level-candidate",
         role: "candidate",
         scope: "DEFAULT",
         group: "DEFAULT",

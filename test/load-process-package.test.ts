@@ -27,7 +27,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.57.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(277);
+    expect(Object.keys(result.package.selectors)).toHaveLength(275);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
@@ -40,11 +40,9 @@ describe("loadProcessPackage", () => {
       "failed-phase-2-simplification-reviews-by-scope": expect.any(Object),
       "review-context-contains-member": expect.any(Object),
       "intent-candidates-matching-subject": expect.any(Object),
-      "intent-level-candidates-matching-subject": expect.any(Object),
       "accepted-intent-candidates-for-change": expect.any(Object),
       "revisions-tracing-subject": expect.any(Object),
       "changes-changed-under-subject": expect.any(Object),
-      "change-dispositions-for-context": expect.any(Object),
       "invalid-product-simplification-blockers-for-review": expect.any(Object),
       "matching-product-simplification-review": expect.any(Object),
       "product-simplification-blockers-for-candidate": expect.any(Object),

@@ -34,7 +34,7 @@ describe("req Phase 0 wayfinding slice", () => {
     expect(catalogs.types).toEqual([
       "ART@1",
       "ASP@2",
-      "BSL@5",
+      "BSL@4",
       "CHG@2",
       "DEC@6",
       "DWP@2",

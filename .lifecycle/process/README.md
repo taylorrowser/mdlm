@@ -401,10 +401,11 @@ approval alone authorizes the same STK Stable Datum's next Revision through exac
 
 The replacement's exact Revision identity derives a fresh Review Context containing
 the CHG and attended disposition before independent Review. A package-owned
-candidate Resolver then freezes one CHG-linked `intent-change-candidate`
+candidate Resolver then freezes one CHG-linked `intent-level-candidate`
 containing that replacement evidence and every exact accepted definition/evidence
-item outside the CHG impact. The candidate receives a fresh Review over every candidate member plus the CHG and
-disposition; the promoted predecessor candidate, its contexts, Reviews, gate
+item outside the CHG impact. The candidate receives the same fresh independent
+simplification Review used by intent candidates, over every candidate member plus
+the CHG and disposition; the promoted predecessor candidate, its contexts, Reviews, gate
 Decision, and gate Review project Stale while unrelated exact evidence remains
 reusable. Failed CHG, disposition, replacement,
 or candidate Reviews derive same-lineage Correction through normal `mdlm next`;

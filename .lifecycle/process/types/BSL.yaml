@@ -1,6 +1,6 @@
 kind: type-definition
 id: BSL
-version: 5
+version: 4
 name: Baseline
 description: Exact immutable snapshot separating definition members, supporting evidence, composition, and integrity claims.
 extends: titled-datum@1
@@ -12,7 +12,7 @@ payload_schema:
   type: object
   required: [kind, role, scope, group, definition_members, evidence]
   properties:
-    kind: {enum: [source-boundary, review-context, pilot-assessment-context, intent-group-candidate, intent-level-candidate, intent-change-candidate, intent-approved, group-candidate, level-candidate, group-accepted, level-accepted]}
+    kind: {enum: [source-boundary, review-context, pilot-assessment-context, intent-group-candidate, intent-level-candidate, intent-approved, group-candidate, level-candidate, group-accepted, level-accepted]}
     role: {enum: [source-boundary, review-context, candidate, accepted]}
     scope: {type: string, minLength: 1}
     group: {type: string, minLength: 1}

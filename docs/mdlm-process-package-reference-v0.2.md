@@ -614,10 +614,11 @@ Review Context includes that exact CHG and attended disposition.
 Approved implementation publishes one same-lineage STK replacement with exact
 `changed-under`. Its exact Revision identity derives ordinary fresh Review Context
 and Review work. `stakeholder-change-candidate-required@1` then freezes one
-CHG-linked `intent-change-candidate` containing the replacement, its fresh context
+CHG-linked `intent-level-candidate` containing the replacement, its fresh context
 and Review, and every exact accepted definition/evidence item outside the bounded impact.
-The candidate receives a fresh contextual Review with every exact candidate member,
-the CHG, and its disposition declared to the independent Assignment. The promoted
+The candidate reuses the existing independent intent-candidate simplification Review
+interface with every exact candidate member, the CHG, and its disposition declared
+to the Assignment. The promoted
 predecessor candidate, its contexts, Reviews, gate Decision, gate Review, and other
 affected evidence are replaced or explicitly project Stale, while unaffected
 accepted evidence remains reusable. Failed CHG, replacement STK, and candidate BSL
