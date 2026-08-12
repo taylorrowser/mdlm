@@ -1,4 +1,4 @@
-# MDLM bootstrap process package v0.56
+# MDLM bootstrap process package v0.57
 
 This experimental package is migrating the typed declarative model described in
 [`docs/mdlm-process-package-reference-v0.2.md`](../../docs/mdlm-process-package-reference-v0.2.md)
@@ -379,24 +379,43 @@ package-owned outgoing link requires Stable identity. Generic type identifiers
 accept three through eight uppercase characters, permitting `ICSP` without core
 recognition of that or any other V-model noun.
 
-## Exact problem and change-control tracer slice
+## Exact accepted-STK change-control slice
 
-The package defines PRB and CHG as source-owned exact lifecycle data. An
-unsuitable pilot RES derives `problem-report-required@1`; its PRB preserves that
-immutable source through `reports`. The resulting CHG names exact affected
-requirements, Review Contexts, Reviews, baselines, and verification evidence in
-both payload impact categories and `impacts` links. Contextual Review blocks an
-exact `change-approval` DEC. Only then may the affected SYS Stable Datum receive
-its next Revision through `changed-under`.
+The package defines PRB and CHG as source-owned exact Lifecycle Data. A PRB
+preserves its immutable source through `reports`. The resulting CHG may name one
+STK Revision only when that exact identity belongs to an authorized
+`intent-approved` accepted baseline; an individual passing Review or an unaccepted
+Revision in the same lineage cannot satisfy the impact contract. The CHG names only
+that exact STK and its accepted baseline as canonical `impacts` roots. Package
+Selectors derive every directly traced affected context and the promoted intent
+candidate's Review/gate dependency route from those roots, so callers cannot turn
+affected candidate evidence into reusable evidence by omitting it. Draft STK defects continue through ordinary causal Phase 0 Correction
+without CHG ceremony.
 
-Replacement context, Review, candidate, and generated pilot RES data retain the
-exact CHG. Baseline comparison keeps exact historical Review and RES evidence
-while package Policy marks only dependencies whose Stable resolutions changed as
-Stale; unrelated exact evidence remains reusable. Closure atomically publishes a
-`change-closure` DEC citing the exact CHG and replacement evidence plus the next
-closed PRB Revision. `change-status@1` remains an independent computed dimension,
-and all routing uses generic Phase, Obligation, baseline, Scenario, and repository
-surfaces.
+After the CHG's contextual Review passes, one attended stakeholder Decision records
+`approve`, `reject`, `defer`, or `cancel`. It becomes applicable only after its own
+independent Review passes. Reviewed rejection, deferral, and cancellation close
+explicitly without a replacement or any rewrite of accepted history. Reviewed
+approval alone authorizes the same STK Stable Datum's next Revision through exact
+`changed-under`.
+
+The replacement's exact Revision identity derives a fresh Review Context containing
+the CHG and attended disposition before independent Review. A package-owned
+candidate Resolver then freezes one CHG-linked `intent-level-candidate`
+containing that replacement evidence and every exact accepted definition/evidence
+item outside the CHG impact. The candidate receives the same fresh independent
+simplification Review used by intent candidates, over every candidate member plus
+the CHG and disposition; the promoted predecessor candidate, its contexts, Reviews, gate
+Decision, and gate Review project Stale while unrelated exact evidence remains
+reusable. Failed CHG, disposition, replacement,
+or candidate Reviews derive same-lineage Correction through normal `mdlm next`;
+non-Decision correction uses one deep interface with two autonomous cycles before
+attended escalation, while disposition correction renews attended judgment.
+Closure atomically publishes a `change-closure` DEC citing the exact CHG,
+replacement, context, Reviews, and candidate plus the next closed PRB Revision.
+`change-status@2` remains an independent computed dimension, and all routing uses
+generic Phase, Obligation, baseline, Scenario, and repository surfaces. Shared SYS
+multi-consumer change remains deliberately deferred to its sibling tracer.
 
 ## Reviewed Phase 0–2 pilot assessment
 

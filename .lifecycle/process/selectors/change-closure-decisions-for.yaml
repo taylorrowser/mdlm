@@ -1,7 +1,7 @@
 kind: selector-definition
 id: change-closure-decisions-for
-version: 1
-description: Exact closure Decisions citing one exact Change Request and its replacement evidence.
+version: 2
+description: Exact closure Decisions citing one approved accepted-STK Change Request and its complete replacement evidence.
 parameters:
   - {name: change, kind: revision, types: [CHG]}
 result_kind: revision

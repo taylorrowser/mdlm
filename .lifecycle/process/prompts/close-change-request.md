@@ -1,12 +1,10 @@
 ---
 id: close-change-request
-version: 2
+version: 3
 scenario: close-change-request
 skills: [skills/lifecycle-data.md@1, skills/traceability.md@1, skills/change-control.md@1]
 ---
 
-# Close with exact replacement evidence
+# Close one exact accepted-STK change
 
-Verify the approved CHG, revised requirements, replacement context and Reviews,
-replacement baseline, and independent verification result. Closure is an
-evidence-driven completion, not a separate stakeholder authorization. Record a `change-closure` DEC justifying the exact CHG and exact evidence. Create the next PRB Revision with closed disposition, its original exact `reports` links, and `resolved-by` to the closure Decision. Publish both atomically.
+Verify the passing-reviewed approve Decision, same-lineage STK replacement, exact `changed-under` Review Context and passing Review, replacement intent candidate, and passing candidate Review. Closure is evidence-driven completion, not separate stakeholder authorization. Record a `change-closure` DEC justifying the exact CHG, confirming the exact replacement Revision, and citing every supplied closure-evidence Revision. Create the next PRB Revision with closed disposition, its original exact `reports` links, and `resolved-by` to the closure Decision. Publish both atomically without rewriting accepted history.

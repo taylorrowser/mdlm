@@ -13,7 +13,7 @@ status_rules:
     reason: Exact source evidence is available for impact analysis.
 default_status: blocked
 resolve_with:
-  scenario: analyze-change-impact@1
+  scenario: analyze-change-impact@2
   inputs:
     problem: problem
 waiver_policy_ref: waiver-applicability@1

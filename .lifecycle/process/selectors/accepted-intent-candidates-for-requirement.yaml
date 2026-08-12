@@ -12,7 +12,7 @@ query:
     candidate.payload.kind == "intent-approved"
     && candidate.payload.role == "accepted"
     && candidate.storage.frozen == true
-    && state(candidate, "validity") == "valid"
+    && state(candidate, "validity") != "invalid"
     && exists("candidate-members-matching@1",
       {candidate: candidate, required_member: requirement})
   distinct: true

@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: approve-change-request
-version: 2
-description: Record authorization of one exact reviewed Change Request as an exact Decision.
+version: 3
+description: Record one attended approve, reject, defer, or cancel disposition for an exact reviewed Change Request.
 phases: [phase-7-change-control]
 inputs:
   - {name: change, types: [CHG], cardinality: one, identity: revision}
@@ -11,7 +11,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: justifies, target: {input: change}}
-prompt_ref: prompts/approve-change-request.md@2
+prompt_ref: prompts/approve-change-request.md@3
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: consequential-decision-participation@1
@@ -20,7 +20,8 @@ authority_evidence: {output: approval, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && approval.payload.kind == "change-approval"
+  && approval.payload.change_disposition in ["approve", "reject", "defer", "cancel"]
   && approval.payload.effective_scope == change.identity.revision_id
 resolves: [change-approval-required]
-prohibited_inputs: [unreviewed change requests, mutable latest aliases, implicit approval]
+prohibited_inputs: [unreviewed change requests, mutable latest aliases, implicit disposition, mutation of accepted history]
 batching: single

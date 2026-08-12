@@ -1,0 +1,56 @@
+kind: obligation-definition
+id: stakeholder-change-candidate-required
+version: 1
+description: Every approved accepted-STK replacement requires a fresh exact reviewed candidate while unaffected accepted evidence remains reusable.
+phases: [phase-7-change-control]
+for_each: 'select("all-change-requests@1", {})'
+subject_as: change
+satisfied_when: >-
+  exists("stakeholder-change-candidates-for@1", {change: change})
+  || exists("terminal-change-disposition-decisions-for@1", {change: change})
+status_rules:
+  - status: blocked
+    priority: 300
+    when: 'none("change-approval-decisions-for@2", {change: change})'
+    reason: Exact reviewed approval is required before candidate replacement.
+    blocked_by:
+      - obligation: change-approval-required@2
+        subjects: '[change]'
+  - status: blocked
+    priority: 200
+    when: >-
+      none("revised-requirements-for-change@2", {change: change})
+      || !every("revised-requirements-for-change@2", {change: change}, requirement =>
+        exists("valid-review-contexts-for@1", {subject: requirement})
+        && exists("passing-reviews-for@1", {subject: requirement}))
+    reason: The same-lineage STK replacement needs fresh exact Review evidence before candidate assembly.
+    blocked_by:
+      - obligation: change-revision-required@2
+        subjects: '[change]'
+  - status: ready
+    priority: 100
+    when: >-
+      exists("change-approval-decisions-for@2", {change: change})
+      && every("revised-requirements-for-change@2", {change: change}, requirement =>
+        exists("passing-reviews-for@1", {subject: requirement}))
+    reason: Assemble one exact candidate from the replacement and every unaffected reusable accepted item.
+default_status: blocked
+resolve_with:
+  scenario: create-stakeholder-change-candidate@1
+  inputs:
+    change: change
+    accepted: 'one("accepted-intent-baselines-for-change@1", {change: change})'
+    replacement: 'one("revised-requirements-for-change@2", {change: change})'
+    replacement_context: >-
+      one("valid-review-contexts-for@1",
+        {subject: one("revised-requirements-for-change@2", {change: change})})
+    replacement_review: >-
+      one("passing-reviews-for@1",
+        {subject: one("revised-requirements-for-change@2", {change: change})})
+    reusable_definitions: >-
+      select("reusable-change-definitions-for@1",
+        {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})})
+    reusable_evidence: >-
+      select("reusable-change-evidence-for@1",
+        {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})})
+waiver_policy_ref: waiver-applicability@1

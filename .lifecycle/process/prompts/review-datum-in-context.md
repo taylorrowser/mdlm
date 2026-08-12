@@ -26,9 +26,12 @@ is the durable judgment evidence.
 Create one REV with exactly one `reviews` link and one `contextualizes` link.
 Read every exact `context_members` input; the frozen context and its hash
 manifest are not substitutes for the member contents. For an
-`intent-level-candidate`, these members are the earliest complete evidence-bearing
-MAP/PSP/STK set. For a Phase 2 planning DWP, they are its complete current
-SYS/ASP/ICSP definition set. Use `review_kind:
+`intent-level-candidate`, these members are its complete evidence-bearing
+MAP/PSP/STK set. A candidate linked through `changed-under` additionally receives
+the bounded CHG and attended disposition; a replacement STK receives the same
+change context so its judgment is scoped to the approved change.
+For a Phase 2 planning DWP, they are its complete current SYS/ASP/ICSP definition
+set. Use `review_kind:
 simplification-product-definition` and challenge product purpose, stakeholder
 intent, and scope. A passing Review has neither `simplification` nor `blocks`. A failed Review
 records one exact `simplification.target`, every current blocking finding for

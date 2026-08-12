@@ -1,24 +1,27 @@
 kind: scenario-definition
 id: revise-requirement-under-change
-version: 1
-description: Revise one exact affected SYS requirement first in the approved original-V change order.
+version: 2
+description: Replace one exact accepted STK in its Stable Datum lineage under the approved bounded Change Request.
 phases: [phase-7-change-control]
 inputs:
   - {name: change, types: [CHG], cardinality: one, identity: revision}
-  - {name: requirement, types: [SYS], cardinality: one, identity: revision}
+  - {name: requirement, types: [STK], cardinality: one, identity: revision}
   - {name: approval, types: [DEC], cardinality: one, identity: revision}
 outputs:
   - name: revised_requirement
-    types: [SYS]
+    types: [STK]
     cardinality: one
     required_links:
       - {link: changed-under, target: {input: change}}
-prompt_ref: prompts/revise-requirement-under-change.md@1
+prompt_ref: prompts/revise-requirement-under-change.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && revised_requirement.identity.id == requirement.identity.id
+  && revised_requirement.identity.type == requirement.identity.type
+  && exists("accepted-intent-candidates-for-requirement@2", {requirement: requirement})
   && approval.payload.kind == "change-approval"
+  && approval.payload.change_disposition == "approve"
 resolves: [change-revision-required]
 prohibited_inputs: [unapproved changes, unrelated requirements, mutable latest aliases]
 batching: single

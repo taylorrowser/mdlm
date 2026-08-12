@@ -7,6 +7,8 @@ result_kind: revision
 query:
   from: {collection: revisions, types: [CHG]}
   as: change
-  where: 'state(change, "validity") == "valid"'
+  where: >-
+    state(change, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: change})
   distinct: true
   order_by: [identity.id, identity.revision]

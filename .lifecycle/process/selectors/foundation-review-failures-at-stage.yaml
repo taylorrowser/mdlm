@@ -7,7 +7,7 @@ parameters:
 result_kind: revision
 query:
   from:
-    selector: failed-phase-0-foundation-revisions@1
+    selector: failed-phase-0-foundation-revisions@2
     arguments: {}
   as: subject
   where: >-

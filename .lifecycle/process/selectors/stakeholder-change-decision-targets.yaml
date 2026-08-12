@@ -1,0 +1,12 @@
+kind: selector-definition
+id: stakeholder-change-decision-targets
+version: 1
+description: Exact CHG, replacement STK, or replacement candidate justified by one accepted-STK change Decision.
+parameters:
+  - {name: decision, kind: revision}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: decision, link: justifies, emit: target, types: [CHG, STK, BSL]}
+  as: target
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

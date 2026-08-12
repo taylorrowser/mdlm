@@ -57,7 +57,7 @@ async function packageWithRejectedInput(): Promise<string> {
         "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
       )
       .replace(
-        "  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP], cardinality: zero-or-more, identity: revision}\n",
+        "  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, DEC, CHG], cardinality: zero-or-more, identity: revision}\n",
         "",
       ),
   );
@@ -126,7 +126,7 @@ describe("req scenario dry-run", () => {
     const question = JSON.parse(createdQuestion.stdout).created;
     await freezeQuestionSource(repositoryRoot, question.revisionId);
     const obligation =
-      `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.56.0#${packageDigest}`;
+      `open-question-resolution@3:${question.revisionId}:mdlm-bootstrap@0.57.0#${packageDigest}`;
     const before = await treeDigest(repositoryRoot);
 
     const result = req(
@@ -224,7 +224,7 @@ describe("req scenario dry-run", () => {
         ok: true,
         command: "scenario.dry-run",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.56.0",
+          reference: "mdlm-bootstrap@0.57.0",
           language: "mdlm-expression@1",
           digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -297,7 +297,17 @@ describe("req scenario dry-run", () => {
                 expect.objectContaining({
                   name: "context_members",
                   contract: expect.objectContaining({
-                    types: ["ASP", "DWP", "ICSP", "MAP", "PSP", "STK", "SYS"],
+                    types: [
+                      "ASP",
+                      "CHG",
+                      "DEC",
+                      "DWP",
+                      "ICSP",
+                      "MAP",
+                      "PSP",
+                      "STK",
+                      "SYS",
+                    ],
                     cardinality: "zero-or-more",
                     identity: "revision",
                   }),
@@ -465,7 +475,7 @@ describe("req scenario dry-run", () => {
       selectProcessPackage(
         alternateRepository,
         processRoot,
-        "mdlm-bootstrap@0.56.0",
+        "mdlm-bootstrap@0.57.0",
       );
       const before = await treeDigest(alternateRepository);
       const result = req(

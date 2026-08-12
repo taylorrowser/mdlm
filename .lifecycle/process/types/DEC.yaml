@@ -1,6 +1,6 @@
 kind: type-definition
 id: DEC
-version: 5
+version: 6
 name: Decision Record
 description: Consequential decision, assumption, waiver, scope outcome, deferral, standing authority delegation, disposition, or exact gate sign-off.
 extends: rationale-bearing@1
@@ -13,6 +13,8 @@ payload_schema:
   required: [kind, decision, alternatives, effective_scope]
   properties:
     kind: {enum: [decision, assumption, scope, waiver, deferral, authority-delegation, gate-signoff, change-approval, change-closure, pilot-observation, pilot-expansion, retirement, cancellation]}
+    change_disposition: {enum: [approve, reject, defer, cancel]}
+    change_reactivation_condition: {type: string, minLength: 1}
     decision: {type: string, minLength: 1}
     alternatives:
       type: array
@@ -198,6 +200,25 @@ payload_schema:
           gate_outcome: {const: reject}
     - if:
         properties:
+          kind: {const: change-approval}
+        required: [kind]
+      then: {required: [change_disposition]}
+    - if: {required: [change_disposition]}
+      then:
+        properties:
+          kind: {const: change-approval}
+    - if:
+        properties:
+          change_disposition: {const: defer}
+        required: [change_disposition]
+      then: {required: [change_reactivation_condition]}
+    - if: {required: [change_reactivation_condition]}
+      then:
+        properties:
+          kind: {const: change-approval}
+          change_disposition: {const: defer}
+    - if:
+        properties:
           kind: {const: authority-delegation}
         required: [kind]
       then: {required: [delegation]}
@@ -237,7 +258,7 @@ outgoing_links:
   - id: confirms-revision
     description: Exact replacement requirement Revisions confirmed by a change-closure Decision.
     targets:
-      - {kind: datum, types: [SYS], identity: revision}
+      - {kind: datum, types: [STK, SYS], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: confirmed-by-closure

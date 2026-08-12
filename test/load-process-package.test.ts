@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.56.0");
+    expect(result.package.manifest.version).toBe("0.57.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(257);
+    expect(Object.keys(result.package.selectors)).toHaveLength(275);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
@@ -40,6 +40,9 @@ describe("loadProcessPackage", () => {
       "failed-phase-2-simplification-reviews-by-scope": expect.any(Object),
       "review-context-contains-member": expect.any(Object),
       "intent-candidates-matching-subject": expect.any(Object),
+      "accepted-intent-candidates-for-change": expect.any(Object),
+      "revisions-tracing-subject": expect.any(Object),
+      "changes-changed-under-subject": expect.any(Object),
       "invalid-product-simplification-blockers-for-review": expect.any(Object),
       "matching-product-simplification-review": expect.any(Object),
       "product-simplification-blockers-for-candidate": expect.any(Object),
@@ -61,9 +64,9 @@ describe("loadProcessPackage", () => {
       "gate-rejection-corrections-for-subject": expect.any(Object),
       "phase-1-assurance-correction-decisions-for": expect.any(Object),
     }));
-    expect(Object.keys(result.package.policies)).toHaveLength(13);
-    expect(Object.keys(result.package.obligations)).toHaveLength(55);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(57);
+    expect(Object.keys(result.package.policies)).toHaveLength(14);
+    expect(Object.keys(result.package.obligations)).toHaveLength(58);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(60);
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
       .toEqual([expect.objectContaining({
         id: "phase-0-gate",
@@ -130,6 +133,26 @@ describe("loadProcessPackage", () => {
       expect(prompt).toContain("$proposal.<replacement-local-id>.revision_id");
       expect(prompt).toContain("`justifies`");
     }
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  it("validates Review Context membership contracts for DEC and CHG callers", async () => {
+    const result = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+
+    expect(result.ok, result.diagnostics.map((item) => item.message).join("\n")).toBe(
+      true,
+    );
+    if (!result.ok) return;
+
+    expect(result.package.selectors["review-context-contains-member"]?.parameters)
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: "required_member",
+          types: expect.arrayContaining(["DEC", "CHG"]),
+        }),
+      ]));
     expect(result.diagnostics).toEqual([]);
   });
 
@@ -350,8 +373,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       manifestPath,
       manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, pilot-assessment-correction-participation]",
-        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, pilot-assessment-correction-participation]",
+        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, stakeholder-change-correction-participation, pilot-assessment-correction-participation]",
+        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, stakeholder-change-correction-participation, pilot-assessment-correction-participation]",
       ),
     );
 

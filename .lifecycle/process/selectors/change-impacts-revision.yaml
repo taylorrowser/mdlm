@@ -1,0 +1,14 @@
+kind: selector-definition
+id: change-impacts-revision
+version: 1
+description: The supplied exact Revision when the Change Request names it through impacts.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+  - {name: impacted, kind: revision}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: change, link: impacts, emit: target, types: [STK, BSL]}
+  as: candidate
+  where: 'candidate == impacted'
+  distinct: true
+  order_by: [identity.revision_id]

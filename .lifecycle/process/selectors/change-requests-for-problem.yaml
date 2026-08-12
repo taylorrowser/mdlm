@@ -8,5 +8,6 @@ result_kind: revision
 query:
   from: {relation: incoming-links, of: problem, link: derived-from, emit: source, types: [CHG]}
   as: change
+  where: 'none("newer-revisions-for@1", {subject: change})'
   distinct: true
   order_by: [identity.revision_id]

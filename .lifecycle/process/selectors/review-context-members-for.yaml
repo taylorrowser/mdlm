@@ -6,7 +6,7 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP]}
+  from: {collection: revisions, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, DEC, CHG]}
   as: member
   where: >-
     member != subject
@@ -26,6 +26,10 @@ query:
           || (member.identity.type == "ICSP"
             && exists("matching-decomposition-interface@1", {plan: subject, interface: member}))
         ))
+      || !every("changes-changed-under-subject@1", {subject: subject}, change =>
+        change != member
+        && every("recorded-change-approval-decisions-for@2", {change: change}, decision =>
+          decision != member))
     )
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]
