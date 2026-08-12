@@ -9,7 +9,8 @@ query:
   from: {collection: revisions, types: [CHG]}
   as: change
   where: >-
-    exists("revised-requirements-for-change@3", {change: change})
+    change != subject
+    && exists("revised-requirements-for-change@3", {change: change})
     && count("impacted-requirements-for-change@3", {change: change}) == 1
     && (
       (count("impacted-stakeholder-requirements-for-change@1", {change: change}) == 1

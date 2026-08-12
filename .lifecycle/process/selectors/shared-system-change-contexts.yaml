@@ -17,6 +17,10 @@ query:
         none("baseline-contains-definition@1", {baseline: context, subject: requirement}))
       || !every("shared-system-consumers-for-change@1", {change: change}, consumer =>
         none("baseline-contains-definition@1", {baseline: context, subject: consumer}))
+      || !every("shared-system-change-candidates@1", {change: change}, candidate =>
+        every("revisions-tracing-subject@1", {subject: candidate}, dependent =>
+          dependent.identity.type != "DEC"
+          || none("baseline-contains-definition@1", {baseline: context, subject: dependent})))
     )
   distinct: true
   order_by: [identity.revision_id]

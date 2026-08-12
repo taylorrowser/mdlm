@@ -12,7 +12,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: decomposes, target: {input: replacement_requirement}}
-prompt_ref: prompts/reevaluate-shared-system-consumer.md@1
+prompt_ref: prompts/reevaluate-draft-shared-system-consumer.md@1
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

@@ -13,7 +13,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: changed-under, target: {input: change}}
-prompt_ref: prompts/revise-requirement-under-change.md@2
+prompt_ref: prompts/revise-requirement-under-change.md@3
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

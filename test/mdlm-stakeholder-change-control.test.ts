@@ -167,7 +167,7 @@ batching: coherent-batch
   phase.id != "phase-7-change-control"
   || subject.identity.type == "CHG"
   || (subject.identity.type == "DEC" && subject.payload.kind == "change-approval")
-  || subject.provenance.scenario in ["revise-requirement-under-change@2", "create-stakeholder-change-candidate@1", "revise-stakeholder-change-after-review@1"]
+  || subject.provenance.scenario in ["revise-requirement-under-change@3", "create-stakeholder-change-candidate@1", "revise-stakeholder-change-after-review@2"]
 )`;
     await fs.writeFile(reviewSelectorPath, stringify(reviewSelector));
   }
@@ -838,7 +838,7 @@ describe("accepted STK change control through the public operator process", () =
     next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     packet = prepare(next);
-    expect(packet.scenario.reference).toBe("revise-stakeholder-change-after-review@1");
+    expect(packet.scenario.reference).toBe("revise-stakeholder-change-after-review@2");
     expect(inputs(packet, "subject")[0]!.identity.revision_id).toBe(change.revisionId);
     const correctedChange = publish(packet, [output(
       "corrected-change",
@@ -953,7 +953,7 @@ describe("accepted STK change control through the public operator process", () =
     publishReview(work);
     next = nextOutcome();
     expect(next.outcome).toBe("assignment");
-    expect(prepare(next).scenario.reference).toBe("revise-requirement-under-change@2");
+    expect(prepare(next).scenario.reference).toBe("revise-requirement-under-change@3");
   }, 180_000);
 
   it("keeps failed replacement and candidate Reviews live through the same Correction interface", async () => {
@@ -975,7 +975,7 @@ describe("accepted STK change control through the public operator process", () =
 
     next = nextOutcome();
     work = prepare(next);
-    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@1");
+    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@2");
     expect(inputs(work, "subject")[0]!.identity.revision_id).toBe(initialReplacement.revisionId);
     const replacement = publish(work, [
       replacementOutput(change, "replacement", failedReplacementReview),
@@ -1002,7 +1002,7 @@ describe("accepted STK change control through the public operator process", () =
 
     next = nextOutcome();
     work = prepare(next);
-    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@1");
+    expect(work.scenario.reference).toBe("revise-stakeholder-change-after-review@2");
     expect(inputs(work, "subject")[0]!.identity.revision_id).toBe(candidate.revisionId);
     const correctedCandidate = publish(work, [
       candidateOutput(
@@ -1030,7 +1030,7 @@ describe("accepted STK change control through the public operator process", () =
     let next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     let work = prepare(next);
-    expect(work.scenario.reference).toBe("revise-requirement-under-change@2");
+    expect(work.scenario.reference).toBe("revise-requirement-under-change@3");
     expect(inputs(work, "requirement")[0]!.identity.revision_id).toBe(revision(ids.accepted));
     const wrongLineage = respond(work, [output(
       "wrong-lineage",
@@ -1126,7 +1126,7 @@ describe("accepted STK change control through the public operator process", () =
 
     next = nextOutcome();
     work = prepare(next);
-    expect(work.scenario.reference).toBe("close-change-request@3");
+    expect(work.scenario.reference).toBe("close-change-request@4");
     expect(inputs(work, "revised_requirements")[0]!.identity.revision_id).toBe(replacement.revisionId);
     expect(inputs(work, "closure_evidence").map((value) => value.identity.revision_id)).toEqual(expect.arrayContaining([
       context.revisionId,

@@ -40,7 +40,10 @@ function mdlm(repository: string, args: string[], input?: string) {
 }
 function git(repository: string, ...args: string[]) { return spawnSync("git", ["-C", repository, ...args], {encoding: "utf8"}); }
 
-async function focusedPackage(parent: string) {
+async function focusedPackage(
+  parent: string,
+  phaseId: "phase-2-system-definition" | "phase-7-change-control",
+) {
   const root = path.join(parent, "process");
   await fs.cp(bundledPackage, root, {recursive: true});
   await fs.writeFile(path.join(root, "scenarios/seed-shared-system-change.yaml"), `kind: scenario-definition
@@ -48,7 +51,7 @@ id: seed-shared-system-change
 version: 1
 description: Test-only publication of exact shared-system accepted evidence.
 initiation: explicit
-phases: [phase-7-change-control]
+phases: [${phaseId}]
 inputs: []
 outputs:
   - {name: data, types: [PSP, STK, ASP, ICSP, VSP, SYS, DWP, VER, ART, PRB, BSL, REV, DEC], cardinality: one-or-more, required_links: []}
@@ -65,8 +68,14 @@ batching: coherent-batch
   manifest.catalog.scenarios.push("seed-shared-system-change");
   manifest.assets.prompts.push("prompts/seed-shared-system-change.md@1");
   await fs.writeFile(manifestPath, stringify(manifest));
-  const phasePath = path.join(root, "phases/phase-7-change-control.yaml");
-  const phase = parse(await fs.readFile(phasePath, "utf8")); phase.order = 0; phase.entry = "true"; phase.scenarios.push("seed-shared-system-change@1");
+  const phasePath = path.join(root, `phases/${phaseId}.yaml`);
+  const phase = parse(await fs.readFile(phasePath, "utf8"));
+  phase.order = 0;
+  phase.entry = "true";
+  phase.scenarios.push("seed-shared-system-change@1");
+  if (phaseId === "phase-2-system-definition") {
+    phase.obligations = ["draft-shared-system-consumer-reevaluation-required@1"];
+  }
   await fs.writeFile(phasePath, stringify(phase));
   const phase0Path = path.join(root, "phases/phase-0-wayfinding.yaml");
   const phase0 = parse(await fs.readFile(phase0Path, "utf8")); phase0.order = 8; await fs.writeFile(phase0Path, stringify(phase0));
@@ -99,10 +108,14 @@ const contextPayload = (title: string, scope: string, definitions: string[]) => 
 describe("shared accepted SYS change control through the public operator process", () => {
   let parent: string; let repository: string;
   beforeEach(async () => {
-    parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-sys-change-")); repository = path.join(parent, "repository"); await fs.mkdir(repository);
-    const initialized = spawnSync(process.execPath, [reqExecutable, "init", "--process", await focusedPackage(parent), "--json"], {cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024});
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-sys-change-"));
+    repository = path.join(parent, "repository");
+    await fs.mkdir(repository);
   });
+  async function initialize(phaseId: "phase-2-system-definition" | "phase-7-change-control") {
+    const initialized = spawnSync(process.execPath, [reqExecutable, "init", "--process", await focusedPackage(parent, phaseId), "--json"], {cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024});
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+  }
   afterEach(async () => fs.rm(parent, {recursive: true, force: true}));
 
   function commit(message: string) {
@@ -116,7 +129,7 @@ describe("shared accepted SYS change control through the public operator process
     const result = spawnSync(process.execPath, [reqExecutable, "scenario", "execute", "seed-shared-system-change@1", "--initiate", "--adapter", adapter, "--json"], {cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024});
     expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
   }
-  async function seed() {
+  async function seed(accepted = true) {
     const sys = revision(ids.system), unaffected = revision(ids.unaffected), a = revision(ids.consumerA), b = revision(ids.consumerB);
     const architecture = revision(ids.architecture), interfaceRevision = revision(ids.interface), strategy = revision(ids.strategy), stakeholder = revision(ids.stakeholder);
     const consumerLinks = (requirement: string) => [
@@ -138,6 +151,17 @@ describe("shared accepted SYS change control through the public operator process
       output("source", "data", "ART", {title: "Shared system observation", kind: "prototype", repository_ref: `git:${"a".repeat(40)}`, supported_behavior: ["shared export"], unsupported_behavior: ["malformed export"]}, [], ids.source),
       output("problem", "data", "PRB", {title: "Shared export change", rationale: "Both exact consumers need reassessment.", condition: "The accepted shared behavior changed.", severity: "major", disposition: "open", evidence_refs: [revision(ids.source)]}, [{type: "reports", target: revision(ids.source)}], ids.problem),
     ]);
+    if (!accepted) {
+      await seedBatch([
+        output("draft-definition-context", "data", "BSL", contextPayload("Draft shared definition context", sys, [sys, a, b]), [], ids.systemContext),
+      ]);
+      await seedBatch([
+        output("draft-sys", "data", "SYS", requirementPayload("export one shared report with explicit rejection"), [{type: "derived-from", target: stakeholder}], ids.system),
+      ]);
+      expect(git(repository, "init", "--quiet", "--initial-branch=main", "--template=").status).toBe(0);
+      commit("Initialize draft shared SYS fixture");
+      return;
+    }
     await seedBatch([
       output("sys-context", "data", "BSL", contextPayload("SYS context", sys, [sys]), [], ids.systemContext),
       output("a-context", "data", "BSL", contextPayload("Consumer A context", a, [a, sys]), [], ids.consumerAContext),
@@ -184,19 +208,64 @@ describe("shared accepted SYS change control through the public operator process
     const kind = subject.identity.type === "BSL" ? "cross-group" : "contextual";
     return publish(packet, [output("review", "review", "REV", reviewPayload(`Review ${subject.identity.revision_id}`, kind), [{type: "reviews", target: subject.identity.revision_id}, {type: "contextualizes", target: context.identity.revision_id}])], ["independent-reviewer"])[0]!;
   }
+  function consumerReplacement(packet: Packet, change?: DatumRef) {
+    const consumer = values(packet, "consumer")[0];
+    const replacement = values(packet, "replacement_requirement")[0];
+    const title = consumer.identity.id === ids.consumerA ? "API consumer coverage" : "CLI consumer coverage";
+    return output("replacement-consumer", "replacement_consumer", "DWP", dwpPayload(title), [
+      {type: "decomposes", target: replacement.identity.revision_id},
+      {type: "allocated-to", target: revision(ids.architecture)},
+      {type: "governed-by", target: revision(ids.interface)},
+      {type: "verified-under", target: revision(ids.strategy)},
+      ...(change ? [{type: "changed-under", target: change.revisionId}] : []),
+    ], consumer.identity.id);
+  }
 
-  it("projects both shared-SYS consumers and all exact dependent evidence through the public operator process", async () => {
+  it("reevaluates both draft consumers serially without Change Request ceremony", async () => {
+    await initialize("phase-2-system-definition");
+    await seed(false);
+
+    let outcome = next();
+    let packet = prepare(outcome);
+    expect(packet.scenario.reference).toBe("reevaluate-draft-shared-system-consumer@1");
+    expect(values(packet, "consumer")[0].identity.revision_id).toBe(revision(ids.consumerA));
+    expect(values(packet, "replacement_requirement")[0].identity.revision_id).toBe(revision(ids.system, 2));
+    expect(packet.exactInputs[0].inputs.map((input: any) => input.name)).not.toContain("change");
+    publish(packet, [consumerReplacement(packet)]);
+
+    outcome = next();
+    packet = prepare(outcome);
+    expect(packet.scenario.reference).toBe("reevaluate-draft-shared-system-consumer@1");
+    expect(values(packet, "consumer")[0].identity.revision_id).toBe(revision(ids.consumerB));
+    publish(packet, [consumerReplacement(packet)]);
+
+    const consumerA = mdlm(repository, ["show", revision(ids.consumerA, 2), "--json"]);
+    const consumerB = mdlm(repository, ["show", revision(ids.consumerB, 2), "--json"]);
+    expect(consumerA.status, `${consumerA.stderr}${consumerA.stdout}`).toBe(0);
+    expect(consumerB.status, `${consumerB.stderr}${consumerB.stdout}`).toBe(0);
+    for (const result of [consumerA, consumerB]) {
+      const datum = JSON.parse(result.stdout).lifecycleDatum.datum;
+      expect(datum.links).toContainEqual({type: "decomposes", target: revision(ids.system, 2)});
+      expect(datum.links.some((link: any) => link.type === "changed-under")).toBe(false);
+      expect(datum.payload.parent_coverage_status).toBe("complete");
+    }
+  }, 180_000);
+
+  it("projects both consumers and every exact dependent evidence route in accepted-SYS impact", async () => {
+    await initialize("phase-7-change-control");
     await seed();
     let outcome = next(), packet = prepare(outcome);
     expect(packet.scenario.reference).toBe("analyze-change-impact@2");
     const change = publish(packet, [output("change", "change", "CHG", {title: "Change shared export", rationale: "Both exact consumers must rebind.", scope: "One accepted shared SYS and all exact consumers.", planned_changes: ["Revise the shared export contract."], implementation_order: "requirements -> context -> reviews -> baselines -> verification", closure_criteria: ["Both consumers have fresh coverage and Review evidence."]}, [{type: "derived-from", target: revision(ids.problem)}, {type: "impacts", target: revision(ids.system)}, {type: "impacts", target: revision(ids.accepted)}])])[0]!;
 
     packet = prepare(next());
+    expect(packet.scenario.reference).toBe("create-review-context@1");
     expect(values(packet, "context_members").map((item) => item.identity.revision_id)).toEqual(expect.arrayContaining([
+      revision(ids.system), revision(ids.accepted), revision(ids.systemContext), revision(ids.systemReview),
       revision(ids.consumerA), revision(ids.consumerB), revision(ids.consumerAContext), revision(ids.consumerBContext),
       revision(ids.consumerAReview), revision(ids.consumerBReview), revision(ids.candidate), revision(ids.candidateContext),
-      revision(ids.candidateReview), revision(ids.gate), revision(ids.gateReview), revision(ids.verification),
+      revision(ids.candidateReview), revision(ids.gate), revision(ids.gateContext), revision(ids.gateReview),
+      revision(ids.verification),
     ]));
-    expect(packet.scenario.reference).toBe("create-review-context@1");
   }, 120_000);
 });

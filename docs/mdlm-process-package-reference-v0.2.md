@@ -622,13 +622,13 @@ to the Assignment. The promoted
 predecessor candidate, its contexts, Reviews, gate Decision, gate Review, and other
 affected evidence are replaced or explicitly project Stale, while unaffected
 accepted evidence remains reusable. Failed CHG, replacement STK, and candidate BSL
-Reviews use `revise-stakeholder-change-after-review@1`, one deep same-lineage
+Reviews use `revise-stakeholder-change-after-review@2`, one deep same-lineage
 Correction interface with two autonomous cycles before attended escalation. A failed
 disposition Review uses renewed attended judgment through
 `revise-change-disposition-after-review@1`; every replacement receives fresh Review.
 The shared-requirement slice extends this exact route to one accepted SYS Stable Datum consumed by at least two DWP Revisions. Each DWP binds the exact SYS Revision through `decomposes` and retains its own complete coverage account. Draft replacement derives serial consumer reevaluation without CHG. Accepted replacement derives every consumer plus dependent Review Context, Review, candidate/gate, and verification Revision from exact links; only a reviewed attended Change Request disposition permits one same-lineage `changed-under` SYS, after which consumers update serially with fresh coverage and Review before a selective level candidate and exact closure.
 
-`close-change-request@3` becomes Dispatchable only with the exact replacement,
+`close-change-request@4` becomes Dispatchable only with the exact replacement,
 Review Context, passing STK Review, candidate, and passing candidate Review. One
 atomic publication creates a `change-closure` DEC citing all exact evidence and
 the next closed PRB Revision. `change-status@2` reports reviewed terminal

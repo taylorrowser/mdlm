@@ -41,5 +41,6 @@ describe("shared accepted SYS package behavior", () => {
     expect(result.artifacts[unrelatedVerification.datum.revision_id]?.states.validity).toBe("valid");
     expect(result.artifacts[consumerA.datum.revision_id]?.states.validity).toBe("stale");
     expect(result.artifacts[consumerB.datum.revision_id]?.states.validity).toBe("stale");
+    expect(result.artifacts[change.datum.revision_id]?.states.validity).toBe("valid");
   });
 });
