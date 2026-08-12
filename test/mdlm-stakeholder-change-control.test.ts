@@ -8,6 +8,14 @@ import { parse, stringify } from "yaml";
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
 const bundledPackage = path.join(projectRoot, ".lifecycle/process");
+const livenessTestName =
+  "uses bundled Review selectors to replace accepted STK evidence and close without historical Review loops";
+const bundledReviewSelectorFiles = [
+  "review-required-revisions.yaml",
+  "implemented-changes-impacting-revision.yaml",
+  "traceability-affected-change-contexts.yaml",
+  "review-context-contains-member.yaml",
+] as const;
 
 const ids = {
   product: "PSP-1010000000",
@@ -95,7 +103,14 @@ function output(
   };
 }
 
-async function focusedChangePackage(parent: string): Promise<string> {
+type FocusedChangePackageOptions = {
+  useBundledReviewSelectors: boolean;
+};
+
+async function focusedChangePackage(
+  parent: string,
+  { useBundledReviewSelectors }: FocusedChangePackageOptions,
+): Promise<string> {
   const packageRoot = path.join(parent, "process");
   await fs.cp(bundledPackage, packageRoot, { recursive: true });
   await fs.writeFile(
@@ -139,6 +154,24 @@ batching: coherent-batch
   phase0.order = 8;
   await fs.writeFile(phase0Path, stringify(phase0));
 
+  if (!useBundledReviewSelectors) {
+    const reviewSelectorPath = path.join(
+      packageRoot,
+      "selectors/review-required-revisions.yaml",
+    );
+    const reviewSelector = parse(await fs.readFile(reviewSelectorPath, "utf8"));
+    reviewSelector.query.where = `policy("review-applicability@1", {subject: subject}).required == true
+&& state(subject, "disposition") == "active"
+&& none("newer-revisions-for@1", {subject: subject})
+&& (
+  phase.id != "phase-7-change-control"
+  || subject.identity.type == "CHG"
+  || (subject.identity.type == "DEC" && subject.payload.kind == "change-approval")
+  || subject.provenance.scenario in ["revise-requirement-under-change@2", "create-stakeholder-change-candidate@1", "revise-stakeholder-change-after-review@1"]
+)`;
+    await fs.writeFile(reviewSelectorPath, stringify(reviewSelector));
+  }
+
   const profilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
   profile.terminal_outcomes.profile_boundary.condition = `phase.id == "phase-7-change-control"
@@ -178,21 +211,21 @@ function activityPayload(title: string) {
 describe("accepted STK change control through the public operator process", () => {
   let parent: string;
   let repository: string;
+  let useBundledReviewSelectors: boolean;
 
-  beforeEach(async () => {
+  beforeEach(async (context) => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-stk-change-"));
     repository = path.join(parent, "repository");
     await fs.mkdir(repository);
-    // Setup adds only seed/phase-boundary fixtures; production Selector behavior stays bundled.
-    const packageRoot = await focusedChangePackage(parent);
-    for (const selector of [
-      "review-required-revisions.yaml",
-      "implemented-changes-impacting-revision.yaml",
-      "traceability-affected-change-contexts.yaml",
-      "review-context-contains-member.yaml",
-    ]) {
-      expect(await fs.readFile(path.join(packageRoot, "selectors", selector), "utf8"))
-        .toBe(await fs.readFile(path.join(bundledPackage, "selectors", selector), "utf8"));
+    useBundledReviewSelectors = context.task.name === livenessTestName;
+    const packageRoot = await focusedChangePackage(parent, {
+      useBundledReviewSelectors,
+    });
+    if (useBundledReviewSelectors) {
+      for (const selector of bundledReviewSelectorFiles) {
+        expect(await fs.readFile(path.join(packageRoot, "selectors", selector), "utf8"))
+          .toBe(await fs.readFile(path.join(bundledPackage, "selectors", selector), "utf8"));
+      }
     }
     const reqExecutable = path.join(projectRoot, "dist/req-entry.js");
     const selected = spawnSync(process.execPath, [reqExecutable, "init", "--process", packageRoot, "--json"], {
@@ -364,55 +397,57 @@ describe("accepted STK change control through the public operator process", () =
         { type: "contextualizes", target: revision(ids.acceptedReviewContext) },
       ], ids.acceptedReview),
     ]);
-    await executeSeed([
-      ...[
-        ["product", ids.productReviewContext, ids.product],
-        ["unaffected", ids.unaffectedReviewContext, ids.unaffected],
-        ["strategy", ids.strategyReviewContext, ids.strategy],
-        ["affected-evidence", ids.affectedEvidenceReviewContext, ids.affectedEvidence],
-        ["unaffected-evidence", ids.unaffectedEvidenceReviewContext, ids.unaffectedEvidence],
-      ].map(([name, contextId, subjectId]) => output(
-        `${name}-review-context`,
-        "data",
-        "BSL",
-        {
-          title: `Review Context for ${revision(subjectId!)}`,
-          kind: "review-context",
-          role: "review-context",
-          scope: revision(subjectId!),
-          group: "DEFAULT",
-          definition_members: [revision(subjectId!)],
-          evidence: [],
-        },
-        [],
-        contextId,
-      )),
-    ]);
-    await executeSeed([
-      ...[
-        ["product", ids.productReview, ids.product, ids.productReviewContext],
-        ["unaffected", ids.unaffectedReview, ids.unaffected, ids.unaffectedReviewContext],
-        ["strategy", ids.strategyReview, ids.strategy, ids.strategyReviewContext],
-        ["affected-evidence", ids.affectedEvidenceReview, ids.affectedEvidence, ids.affectedEvidenceReviewContext],
-        ["unaffected-evidence", ids.unaffectedEvidenceReview, ids.unaffectedEvidence, ids.unaffectedEvidenceReviewContext],
-      ].map(([name, reviewId, subjectId, contextId]) => output(
-        `${name}-review`,
-        "data",
-        "REV",
-        {
-          title: `Passing Review of ${revision(subjectId!)}`,
-          review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-          findings: [],
-          outcome: "pass",
-        },
-        [
-          { type: "reviews", target: revision(subjectId!) },
-          { type: "contextualizes", target: revision(contextId!) },
-        ],
-        reviewId,
-      )),
-    ]);
+    if (useBundledReviewSelectors) {
+      await executeSeed([
+        ...[
+          ["product", ids.productReviewContext, ids.product],
+          ["unaffected", ids.unaffectedReviewContext, ids.unaffected],
+          ["strategy", ids.strategyReviewContext, ids.strategy],
+          ["affected-evidence", ids.affectedEvidenceReviewContext, ids.affectedEvidence],
+          ["unaffected-evidence", ids.unaffectedEvidenceReviewContext, ids.unaffectedEvidence],
+        ].map(([name, contextId, subjectId]) => output(
+          `${name}-review-context`,
+          "data",
+          "BSL",
+          {
+            title: `Review Context for ${revision(subjectId!)}`,
+            kind: "review-context",
+            role: "review-context",
+            scope: revision(subjectId!),
+            group: "DEFAULT",
+            definition_members: [revision(subjectId!)],
+            evidence: [],
+          },
+          [],
+          contextId,
+        )),
+      ]);
+      await executeSeed([
+        ...[
+          ["product", ids.productReview, ids.product, ids.productReviewContext],
+          ["unaffected", ids.unaffectedReview, ids.unaffected, ids.unaffectedReviewContext],
+          ["strategy", ids.strategyReview, ids.strategy, ids.strategyReviewContext],
+          ["affected-evidence", ids.affectedEvidenceReview, ids.affectedEvidence, ids.affectedEvidenceReviewContext],
+          ["unaffected-evidence", ids.unaffectedEvidenceReview, ids.unaffectedEvidence, ids.unaffectedEvidenceReviewContext],
+        ].map(([name, reviewId, subjectId, contextId]) => output(
+          `${name}-review`,
+          "data",
+          "REV",
+          {
+            title: `Passing Review of ${revision(subjectId!)}`,
+            review_kind: "contextual",
+            rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+            findings: [],
+            outcome: "pass",
+          },
+          [
+            { type: "reviews", target: revision(subjectId!) },
+            { type: "contextualizes", target: revision(contextId!) },
+          ],
+          reviewId,
+        )),
+      ]);
+    }
     await executeSeed([
       output("intent-candidate", "data", "BSL", {
         title: "Reviewed intent candidate promoted by accepted intent",
@@ -987,7 +1022,7 @@ describe("accepted STK change control through the public operator process", () =
     expect(prepare(next).scenario.reference).toBe("create-review-context@1");
   }, 300_000);
 
-  it("uses bundled Review selectors to replace accepted STK evidence and close without historical Review loops", async () => {
+  it(livenessTestName, async () => {
     await seed();
     const { change, packet } = publishChangeAndReview();
     publishDisposition(packet, change, "approve");
