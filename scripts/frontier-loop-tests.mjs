@@ -63,6 +63,7 @@ import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompt
 import {
   createTicketRunner,
   publishQuarantineCommentOnce,
+  reconcileMergedIssueState,
   quarantineIssueComment,
   quarantineIssueRecord,
 } from "./frontier-ticket-runner.mjs";
@@ -222,7 +223,8 @@ test("agent prompts reserve full validation for the orchestrator and preserve tr
   const reviewer = independentReviewerPrompt("/tmp/evidence.md");
   for (const prompt of editingPrompts) {
     assert.match(prompt, /^\/skill:implement/);
-    assert.match(prompt, /do not run the full suite/);
+    assert.match(prompt, /do not run npm test or journey suites/);
+    assert.match(prompt, /authoritative fast-suite run/);
     assert.match(prompt, /do not invoke code review or another Pi agent/);
     assert.match(prompt, /overrides the implementation skill's default completion procedure/);
     assert.doesNotMatch(prompt, /Invoke code review/);
@@ -311,6 +313,18 @@ test("child commands have a finite timeout", () => {
     () => commandResult(process.execPath, ["-e", "setTimeout(() => {}, 10000)"], { timeout: 10, maximumAttempts: 1 }),
     /ETIMEDOUT|timed out/i,
   );
+});
+
+test("successful process groups return without waiting for their timeout", () => {
+  const startedAt = performance.now();
+  const result = runInProcessGroup(process.execPath, ["-e", "process.exit(0)"], {
+    timeout: 1_000,
+    terminationGrace: 100,
+  });
+  const elapsed = performance.now() - startedAt;
+  assert.equal(result.timedOut, false);
+  assert.equal(result.status, 0);
+  assert.ok(elapsed < 500, `successful child waited ${elapsed.toFixed(0)}ms for its timeout`);
 });
 
 test("timed-out process groups terminate both child and long-lived grandchild", () => {
@@ -968,6 +982,38 @@ test("transient infrastructure and Pi provider failures are classified narrowly"
   assert.equal(isTransientAgentFailure(new Error("TypeError: fetch failed caused by ECONNRESET")), true);
   assert.equal(isTransientAgentFailure(new Error("spawnSync pi ETIMEDOUT")), true);
   assert.equal(isTransientAgentFailure(new Error("tests failed with assertion error")), false);
+});
+
+test("merged publication recovery clears exact manually validated state and exposes the next ticket", () => {
+  const reviewedHead = "e5d88e583c451395a76bc717284035731d638a9e";
+  const state = {
+    currentIssue: 102,
+    currentIssueTitle: "Protect shared accepted SYS requirements across consumers",
+    branch: "agent/issue-102-1786527039742",
+    worktree: "/preserved/issue-102",
+    issueLog: "/evidence/issue-102.log",
+    pullRequest: 132,
+    pendingAction: { kind: "validation" },
+    commandsValidatedHead: reviewedHead,
+    validatedHead: reviewedHead,
+    reviewedHead,
+    reviewedPassed: true,
+    reviewedSimplify: false,
+  };
+  const reconciled = reconcileMergedIssueState(state, {
+    number: 132,
+    state: "MERGED",
+    headRefOid: reviewedHead,
+  });
+  assert.equal(reconciled.phase, "between-tickets");
+  assert.equal(reconciled.currentIssue, null);
+  assert.equal(reconciled.branch, null);
+  assert.equal(reconciled.worktree, null);
+  assert.equal(reconciled.validatedHead, null);
+  assert.equal(findFrontier([
+    issue(102, { state: "CLOSED" }),
+    issue(103, { blockedBy: [{ number: 102, state: "CLOSED" }] }),
+  ])?.number, 103);
 });
 
 test("merged publication recovery requires the PR head to equal the validated head", () => {
