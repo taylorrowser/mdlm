@@ -81,6 +81,52 @@ export function publishQuarantineCommentOnce({ commandOutput, issueNumber, comme
   return "published";
 }
 
+export function betweenTicketsPatch() {
+  return {
+    phase: "between-tickets",
+    currentIssue: null,
+    currentIssueTitle: null,
+    branch: null,
+    worktree: null,
+    issueLog: null,
+    pullRequest: null,
+    remediationUsed: false,
+    diagnosticEscalations: 0,
+    designEscalations: 0,
+    contractReviews: 0,
+    targetedRepairCount: 0,
+    agentTimeoutCount: 0,
+    agentTimeoutOccurrences: [],
+    agentAttempt: null,
+    lastAgentTimeout: null,
+    currentFailureFingerprint: null,
+    previousFailureFingerprint: null,
+    failureRepeatCount: 0,
+    failureEvidencePath: null,
+    failureEvidenceIdentity: null,
+    quarantineStartedAt: null,
+    complexityReviewedHead: null,
+    commandsInFlightHead: null,
+    commandsAttemptedHead: null,
+    commandsValidatedHead: null,
+    reviewedHead: null,
+    reviewedEvidenceFingerprint: null,
+    reviewedPassed: null,
+    reviewedSimplify: null,
+    pendingAction: null,
+    validatedHead: null,
+    noProgressHead: null,
+    lastError: null,
+  };
+}
+
+export function reconcileMergedIssueState(state, pullRequest) {
+  if (!mergedPullRequestMatchesValidatedHead(state, pullRequest)) {
+    throw new Error(`Merged PR #${pullRequest?.number} head does not match the validated head for #${state.currentIssue}; preserving its branch and worktree`);
+  }
+  return { ...state, ...betweenTicketsPatch() };
+}
+
 export function createTicketRunner({
   repositoryRoot,
   writeState,
@@ -512,45 +558,6 @@ export function createTicketRunner({
     return prNumber;
   }
 
-  function betweenTicketsPatch() {
-    return {
-      phase: "between-tickets",
-      currentIssue: null,
-      currentIssueTitle: null,
-      branch: null,
-      worktree: null,
-      issueLog: null,
-      pullRequest: null,
-      remediationUsed: false,
-      diagnosticEscalations: 0,
-      designEscalations: 0,
-      contractReviews: 0,
-      targetedRepairCount: 0,
-      agentTimeoutCount: 0,
-      agentTimeoutOccurrences: [],
-      agentAttempt: null,
-      lastAgentTimeout: null,
-      currentFailureFingerprint: null,
-      previousFailureFingerprint: null,
-      failureRepeatCount: 0,
-      failureEvidencePath: null,
-      failureEvidenceIdentity: null,
-      quarantineStartedAt: null,
-      complexityReviewedHead: null,
-      commandsInFlightHead: null,
-      commandsAttemptedHead: null,
-      commandsValidatedHead: null,
-      reviewedHead: null,
-      reviewedEvidenceFingerprint: null,
-      reviewedPassed: null,
-      reviewedSimplify: null,
-      pendingAction: null,
-      validatedHead: null,
-      noProgressHead: null,
-      lastError: null,
-    };
-  }
-
   function mergeValidatedIssue(issue, paths, state, prepared, issueLog) {
     const head = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
     if (!validatedHeadMatches(state, head)) fail(`Validated branch changed before publication for #${issue.number}`);
@@ -599,8 +606,11 @@ export function createTicketRunner({
       if (current?.state === "CLOSED") fail(`Issue #${state.currentIssue} closed without a confirmed merged PR; preserving its branch and worktree`);
       return state;
     }
-    if (!mergedPullRequestMatchesValidatedHead(state, merged[0])) {
-      fail(`Merged PR #${merged[0].number} head does not match the validated head for #${state.currentIssue}; preserving its branch and worktree`);
+    let reconciledState;
+    try {
+      reconciledState = reconcileMergedIssueState(state, merged[0]);
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
     }
     const prNumber = merged[0].number;
     if (current?.state === "OPEN") {
@@ -613,7 +623,7 @@ export function createTicketRunner({
     deleteRemoteBranch(cwd, state.branch);
     removeWorktree(state.worktree, state.branch);
     log(`Reconciled confirmed merged issue #${state.currentIssue} after interrupted publication or cleanup`);
-    return writeState(paths, state, betweenTicketsPatch());
+    return writeState(paths, state, reconciledState);
   }
 
   function processIssue(issue, paths, state) {

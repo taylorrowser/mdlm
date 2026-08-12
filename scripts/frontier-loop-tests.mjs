@@ -63,6 +63,7 @@ import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompt
 import {
   createTicketRunner,
   publishQuarantineCommentOnce,
+  reconcileMergedIssueState,
   quarantineIssueComment,
   quarantineIssueRecord,
 } from "./frontier-ticket-runner.mjs";
@@ -981,6 +982,38 @@ test("transient infrastructure and Pi provider failures are classified narrowly"
   assert.equal(isTransientAgentFailure(new Error("TypeError: fetch failed caused by ECONNRESET")), true);
   assert.equal(isTransientAgentFailure(new Error("spawnSync pi ETIMEDOUT")), true);
   assert.equal(isTransientAgentFailure(new Error("tests failed with assertion error")), false);
+});
+
+test("merged publication recovery clears exact manually validated state and exposes the next ticket", () => {
+  const reviewedHead = "e5d88e583c451395a76bc717284035731d638a9e";
+  const state = {
+    currentIssue: 102,
+    currentIssueTitle: "Protect shared accepted SYS requirements across consumers",
+    branch: "agent/issue-102-1786527039742",
+    worktree: "/preserved/issue-102",
+    issueLog: "/evidence/issue-102.log",
+    pullRequest: 132,
+    pendingAction: { kind: "validation" },
+    commandsValidatedHead: reviewedHead,
+    validatedHead: reviewedHead,
+    reviewedHead,
+    reviewedPassed: true,
+    reviewedSimplify: false,
+  };
+  const reconciled = reconcileMergedIssueState(state, {
+    number: 132,
+    state: "MERGED",
+    headRefOid: reviewedHead,
+  });
+  assert.equal(reconciled.phase, "between-tickets");
+  assert.equal(reconciled.currentIssue, null);
+  assert.equal(reconciled.branch, null);
+  assert.equal(reconciled.worktree, null);
+  assert.equal(reconciled.validatedHead, null);
+  assert.equal(findFrontier([
+    issue(102, { state: "CLOSED" }),
+    issue(103, { blockedBy: [{ number: 102, state: "CLOSED" }] }),
+  ])?.number, 103);
 });
 
 test("merged publication recovery requires the PR head to equal the validated head", () => {

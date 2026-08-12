@@ -1,10 +1,22 @@
 import { readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { relative, resolve, sep } from "node:path";
 import { fastTests, journeyTests } from "../vitest.suites.mjs";
 
-const discovered = readdirSync(new URL("../test", import.meta.url))
-  .filter((name) => name.endsWith(".test.ts"))
-  .map((name) => `test/${name}`)
-  .sort();
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+const testRoot = resolve(repositoryRoot, "test");
+
+function discoverTests(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return discoverTests(path);
+    return entry.isFile() && entry.name.endsWith(".test.ts")
+      ? [relative(repositoryRoot, path).split(sep).join("/")]
+      : [];
+  });
+}
+
+const discovered = discoverTests(testRoot).sort();
 const classified = [...fastTests, ...journeyTests].sort();
 const duplicates = classified.filter((path, index) => classified.indexOf(path) !== index);
 const missing = discovered.filter((path) => !classified.includes(path));
