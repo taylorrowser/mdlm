@@ -1,0 +1,17 @@
+kind: selector-definition
+id: shared-system-change-verification-evidence
+version: 1
+description: Every exact verification activity declaring the accepted shared SYS Revision as its dependency.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: 'one("impacted-requirements-for-change@3", {change: change})'
+    link: verifies-revision
+    emit: source
+    types: [VER]
+  as: evidence
+  distinct: true
+  order_by: [identity.revision_id]

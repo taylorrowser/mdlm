@@ -1,15 +1,15 @@
 kind: scenario-definition
 id: revise-stakeholder-change-after-review
-version: 1
-description: Correct one exact non-Decision accepted-STK change subject through one same-lineage interface while preserving its bounded Change Request.
+version: 2
+description: Correct one exact non-Decision accepted requirement, consumer, or candidate subject through one same-lineage interface while preserving its bounded Change Request.
 phases: [phase-7-change-control]
 inputs:
-  - {name: subject, types: [CHG, STK, BSL], cardinality: one, identity: revision}
+  - {name: subject, types: [CHG, STK, SYS, DWP, BSL], cardinality: one, identity: revision}
   - {name: change, types: [CHG], cardinality: one, identity: revision}
   - {name: reviews, types: [REV], cardinality: one-or-more, identity: revision}
 outputs:
   - name: replacement
-    types: [CHG, STK, BSL]
+    types: [CHG, STK, SYS, DWP, BSL]
     cardinality: one
     required_links:
       - {link: corrects-review, target: {input: reviews}}
@@ -21,7 +21,7 @@ outputs:
 prompt_ref: prompts/revise-stakeholder-change-after-review.md@1
 review_policy_ref: review-applicability@1
 participation:
-  policy_ref: stakeholder-change-correction-participation@1
+  policy_ref: stakeholder-change-correction-participation@2
   arguments: {subject: subject}
 authority_evidence: {output: authority, type: DEC}
 completion: >-
@@ -30,20 +30,23 @@ completion: >-
   && replacement.identity.type == subject.identity.type
   && (
     (replacement.identity.type == "CHG"
-      && exists("valid-stakeholder-change-impact@1", {change: replacement}))
-    || (replacement.identity.type == "STK"
-      && !every("revised-requirements-for-change@2", {change: change}, requirement =>
+      && exists("valid-stakeholder-change-impact@2", {change: replacement}))
+    || (replacement.identity.type in ["STK", "SYS"]
+      && !every("revised-requirements-for-change@3", {change: change}, requirement =>
         requirement != replacement))
+    || (replacement.identity.type == "DWP"
+      && !every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
+        consumer != replacement))
     || (replacement.identity.type == "BSL"
       && !every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
         candidate != replacement))
   )
   && (
-    (policy("stakeholder-change-correction-participation@1",
+    (policy("stakeholder-change-correction-participation@2",
       {subject: subject}).authority_mode == "autonomous"
       && none("stakeholder-change-correction-decisions-for@1",
         {replacement: replacement}))
-    || (policy("stakeholder-change-correction-participation@1",
+    || (policy("stakeholder-change-correction-participation@2",
       {subject: subject}).authority_mode == "attended"
       && count("stakeholder-change-correction-decisions-for@1",
         {replacement: replacement}) == 1)

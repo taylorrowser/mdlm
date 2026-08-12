@@ -1,7 +1,7 @@
 kind: selector-definition
 id: changes-controlling-stakeholder-change-subject
-version: 1
-description: Current exact Change Request that owns one CHG, disposition, replacement STK, or replacement candidate Revision.
+version: 2
+description: Current exact Change Request that owns one CHG, disposition, replacement requirement, consumer coverage, or replacement candidate Revision.
 parameters:
   - {name: subject, kind: revision}
 result_kind: revision
@@ -14,15 +14,19 @@ query:
     change == subject
     || !every("recorded-change-approval-decisions-for@2", {change: change}, decision =>
       decision != subject)
-    || !every("revised-requirements-for-change@2", {change: change}, requirement =>
+    || !every("revised-requirements-for-change@3", {change: change}, requirement =>
       requirement != subject)
     || !every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
       candidate != subject)
+    || !every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
+      consumer != subject)
     || !every("stakeholder-change-decision-targets@1", {decision: subject}, target =>
       target != change
-      && every("revised-requirements-for-change@2", {change: change}, requirement =>
+      && every("revised-requirements-for-change@3", {change: change}, requirement =>
         requirement != target)
       && every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
-        candidate != target))
+        candidate != target)
+      && every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
+        consumer != target))
   distinct: true
   order_by: [identity.revision_id]

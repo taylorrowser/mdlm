@@ -11,7 +11,7 @@ query:
   where: >-
     context.payload.kind == "review-context"
     && (
-      !every("impacted-requirements-for-change@2", {change: change}, requirement =>
+      !every("impacted-requirements-for-change@3", {change: change}, requirement =>
         none("baseline-contains-definition@1",
           {baseline: context, subject: requirement}))
       || !every("accepted-intent-candidates-for-change@1", {change: change}, candidate =>

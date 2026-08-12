@@ -1,15 +1,15 @@
 kind: scenario-definition
 id: create-stakeholder-change-candidate
 version: 1
-description: Freeze one exact post-acceptance STK candidate while preserving every unaffected accepted definition and evidence item.
+description: Freeze one selective post-acceptance candidate for an STK or shared SYS change.
 phases: [phase-7-change-control]
 inputs:
   - {name: change, types: [CHG], cardinality: one, identity: revision}
   - {name: accepted, types: [BSL], cardinality: one, identity: revision}
-  - {name: replacement, types: [STK], cardinality: one, identity: revision}
-  - {name: replacement_context, types: [BSL], cardinality: one, identity: revision}
-  - {name: replacement_review, types: [REV], cardinality: one, identity: revision}
-  - {name: reusable_definitions, types: [MAP, PSP, STK], cardinality: one-or-more, identity: revision}
+  - {name: replacement, types: [STK, SYS], cardinality: one, identity: revision}
+  - {name: updated_consumers, types: [DWP], cardinality: zero-or-more, identity: revision}
+  - {name: fresh_evidence, types: [BSL, REV], cardinality: one-or-more, identity: revision}
+  - {name: reusable_definitions, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP], cardinality: zero-or-more, identity: revision}
   - {name: reusable_evidence, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
 outputs:
   - name: candidate
@@ -21,12 +21,15 @@ prompt_ref: prompts/create-stakeholder-change-candidate.md@1
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
-  && candidate.payload.kind == "intent-level-candidate"
   && candidate.payload.role == "candidate"
   && candidate.payload.scope == accepted.payload.scope
   && candidate.payload.group == accepted.payload.group
   && candidate.storage.frozen == true
+  && (
+    (replacement.identity.type == "STK" && candidate.payload.kind == "intent-level-candidate")
+    || (replacement.identity.type == "SYS" && candidate.payload.kind == "level-candidate")
+  )
   && exists("stakeholder-change-candidates-for@1", {change: change})
 resolves: [stakeholder-change-candidate-required]
-prohibited_inputs: [unreviewed replacement, impacted historical evidence as reusable, mutation of accepted history, unrelated scope expansion]
+prohibited_inputs: [unreviewed changed evidence, affected historical evidence as reusable, mutation of accepted history, copied lineages, parallel consumer publication]
 batching: single

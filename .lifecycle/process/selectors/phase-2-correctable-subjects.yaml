@@ -10,6 +10,8 @@ query:
   where: >-
     state(subject, "disposition") == "active"
     && none("newer-revisions-for@1", {subject: subject})
+    && (subject.identity.type != "SYS"
+      || none("accepted-system-baselines-for-requirement@1", {requirement: subject}))
     && exists("phase-2-correction-reviews-for-subject@1",
       {subject: subject, view: "local"})
   distinct: true

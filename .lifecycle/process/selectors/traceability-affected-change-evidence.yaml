@@ -12,7 +12,7 @@ query:
     emit: entity
   as: evidence
   where: >-
-    !every("impacted-requirements-for-change@2", {change: change}, requirement =>
+    !every("impacted-requirements-for-change@3", {change: change}, requirement =>
       every("revisions-tracing-subject@1", {subject: requirement}, dependent =>
         dependent != evidence))
     || !every("traceability-affected-change-contexts@1", {change: change}, context =>

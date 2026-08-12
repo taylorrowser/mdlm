@@ -5,7 +5,7 @@ description: Deterministically freeze one primary subject with the exact parent,
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 inputs:
   - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}
-  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, DEC, CHG], cardinality: zero-or-more, identity: revision}
+  - {name: context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
 outputs:
   - {name: context, types: [BSL], cardinality: one, required_links: []}
 prompt_ref: prompts/create-review-context.md@1

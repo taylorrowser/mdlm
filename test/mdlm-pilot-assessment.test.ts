@@ -489,7 +489,7 @@ describe("mdlm hardened pilot assessment", () => {
 
   it.each([
     ["proceed", "profile-boundary-reached", "phase-2-pilot-assessment@3"],
-    ["change", "profile-boundary-reached", "phase-7-change-control@3"],
+    ["change", "profile-boundary-reached", "phase-7-change-control@4"],
     ["stop", "lifecycle-complete", "phase-2-pilot-assessment@3"],
   ] as const)(
     "maps a reviewed %s Decision to %s without fabricating later phases",
@@ -542,6 +542,6 @@ describe("mdlm hardened pilot assessment", () => {
     publishReview(replacement, "pass");
     next = nextOutcome();
     expect(next.outcome).toBe("profile-boundary-reached");
-    expect(next.phase).toBe("phase-7-change-control@3");
+    expect(next.phase).toBe("phase-7-change-control@4");
   }, 90_000);
 });

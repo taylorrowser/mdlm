@@ -1,9 +1,9 @@
 kind: obligation-definition
 id: stakeholder-change-review-correction-required
-version: 1
-description: Every current failed non-Decision accepted-STK change subject receives one causal same-lineage Correction and fresh independent Review.
+version: 2
+description: Every current failed non-Decision accepted requirement, consumer, or candidate change subject receives one causal same-lineage Correction and fresh independent Review.
 phases: [phase-7-change-control]
-for_each: 'select("failed-stakeholder-change-subjects@1", {})'
+for_each: 'select("failed-stakeholder-change-subjects@2", {})'
 subject_as: subject
 satisfied_when: 'exists("newer-revisions-for@1", {subject: subject})'
 status_rules:
@@ -21,9 +21,9 @@ status_rules:
     reason: The exact subject and all current failed Reviews are ready for one local same-lineage Correction.
 default_status: ready
 resolve_with:
-  scenario: revise-stakeholder-change-after-review@1
+  scenario: revise-stakeholder-change-after-review@2
   inputs:
     subject: subject
-    change: 'one("changes-controlling-stakeholder-change-subject@1", {subject: subject})'
+    change: 'one("changes-controlling-stakeholder-change-subject@2", {subject: subject})'
     reviews: 'select("failing-reviews-for@1", {subject: subject})'
 waiver_policy_ref: waiver-applicability@1

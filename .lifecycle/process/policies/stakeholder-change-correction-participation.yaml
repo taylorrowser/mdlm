@@ -1,9 +1,9 @@
 kind: policy-definition
 id: stakeholder-change-correction-participation
-version: 1
-description: Keep two exact non-Decision accepted-STK change Review Corrections autonomous, then require immediate stakeholder escalation through the same interface.
+version: 2
+description: Keep two exact non-Decision accepted-requirement change Review Corrections autonomous, then require immediate stakeholder escalation through the same interface.
 parameters:
-  - {name: subject, kind: revision, types: [CHG, STK, BSL]}
+  - {name: subject, kind: revision, types: [CHG, STK, SYS, DWP, BSL]}
 result_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object

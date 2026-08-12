@@ -10,9 +10,9 @@ query:
   where: >-
     decision.payload.kind in ["change-approval", "scope"]
     && (decision.payload.kind != "scope"
-      || decision.provenance.scenario == "revise-stakeholder-change-after-review@1")
+      || decision.provenance.scenario == "revise-stakeholder-change-after-review@2")
     && none("newer-revisions-for@1", {subject: decision})
     && exists("failing-reviews-for@1", {subject: decision})
-    && exists("changes-controlling-stakeholder-change-subject@1", {subject: decision})
+    && exists("changes-controlling-stakeholder-change-subject@2", {subject: decision})
   distinct: true
   order_by: [identity.id, identity.revision]

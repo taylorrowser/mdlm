@@ -1,0 +1,60 @@
+kind: scenario-definition
+id: reevaluate-shared-system-consumer
+version: 1
+description: Rebind one exact decomposition consumer to a replacement shared SYS Revision, with Change Request evidence only after acceptance.
+phases: [phase-2-system-definition, phase-7-change-control]
+inputs:
+  - {name: consumer, types: [DWP], cardinality: one, identity: revision}
+  - {name: replacement_requirement, types: [SYS], cardinality: one, identity: revision}
+outputs:
+  - name: replacement_consumer
+    types: [DWP]
+    cardinality: one
+    required_links:
+      - {link: decomposes, target: {input: replacement_requirement}}
+prompt_ref: prompts/reevaluate-shared-system-consumer.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement_consumer.identity.id == consumer.identity.id
+  && replacement_consumer.payload.title == consumer.payload.title
+  && replacement_consumer.payload.rationale == consumer.payload.rationale
+  && replacement_consumer.payload.stage == consumer.payload.stage
+  && replacement_consumer.payload.architecture_element == consumer.payload.architecture_element
+  && replacement_consumer.payload.target_child_type == consumer.payload.target_child_type
+  && replacement_consumer.payload.behavioral_slice == consumer.payload.behavioral_slice
+  && replacement_consumer.payload.expected_coverage == consumer.payload.expected_coverage
+  && replacement_consumer.payload.exclusions == consumer.payload.exclusions
+  && replacement_consumer.payload.dependencies == consumer.payload.dependencies
+  && replacement_consumer.payload.required_review_policy == consumer.payload.required_review_policy
+  && replacement_consumer.payload.parent_coverage_status == consumer.payload.parent_coverage_status
+  && replacement_consumer.payload.parent_coverage_status == "complete"
+  && replacement_consumer.payload.deferred_questions == consumer.payload.deferred_questions
+  && replacement_consumer.payload.cross_group_dependencies == consumer.payload.cross_group_dependencies
+  && replacement_consumer.payload.output_reviews_complete == consumer.payload.output_reviews_complete
+  && replacement_consumer.payload.simplification_disposition == consumer.payload.simplification_disposition
+  && select("decomposition-parents-for@1", {plan: replacement_consumer})
+    == select("decomposition-parents-for@1", {plan: consumer})
+  && select("architectures-for-decomposition@1", {plan: replacement_consumer})
+    == select("architectures-for-decomposition@1", {plan: consumer})
+  && select("interfaces-for-decomposition@1", {plan: replacement_consumer})
+    == select("interfaces-for-decomposition@1", {plan: consumer})
+  && select("strategies-for-decomposition@1", {plan: replacement_consumer})
+    == select("strategies-for-decomposition@1", {plan: consumer})
+  && select("completion-outputs-for@1", {completion: replacement_consumer})
+    == select("completion-outputs-for@1", {completion: consumer})
+  && select("planning-revisions-for-completion@1", {completion: replacement_consumer})
+    == select("planning-revisions-for-completion@1", {completion: consumer})
+  && select("completion-simplification-evidence-for@1", {completion: replacement_consumer})
+    == select("completion-simplification-evidence-for@1", {completion: consumer})
+  && select("cited-reviews-by-correction@1", {replacement: replacement_consumer})
+    == select("cited-reviews-by-correction@1", {replacement: consumer})
+  && count("system-requirements-consumed-by@1", {consumer: replacement_consumer}) == 1
+  && one("system-requirements-consumed-by@1", {consumer: replacement_consumer}) == replacement_requirement
+  && every("changes-changed-under-subject@1", {subject: replacement_requirement}, owner =>
+    !every("changes-changed-under-subject@1", {subject: replacement_consumer}, copied => copied != owner))
+  && every("changes-changed-under-subject@1", {subject: replacement_consumer}, owner =>
+    !every("changes-changed-under-subject@1", {subject: replacement_requirement}, cause => cause != owner))
+resolves: [shared-system-consumer-reevaluation-required]
+prohibited_inputs: [copied requirement lineages, unrelated consumers, incomplete coverage, mutable latest aliases, parallel consumer publication]
+batching: single

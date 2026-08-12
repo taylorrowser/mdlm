@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: change-closure-required
 version: 2
-description: An approved accepted-STK change closes after exact replacement Review and candidate evidence; rejection, deferral, and cancellation close through their reviewed disposition.
+description: An approved accepted-requirement change closes after its exact replacement, consumer, candidate, and Review evidence; other dispositions close explicitly.
 phases: [phase-7-change-control]
 for_each: 'select("all-change-requests@1", {})'
 subject_as: change
@@ -21,14 +21,10 @@ status_rules:
   - status: blocked
     priority: 200
     when: >-
-      none("revised-requirements-for-change@2", {change: change})
-      || !every("revised-requirements-for-change@2", {change: change}, requirement =>
-        exists("valid-review-contexts-for@1", {subject: requirement})
-        && exists("passing-reviews-for@1", {subject: requirement}))
-      || none("stakeholder-change-candidates-for@1", {change: change})
+      count("stakeholder-change-candidates-for@1", {change: change}) != 1
       || !every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
         exists("passing-reviews-for@1", {subject: candidate}))
-    reason: Exact STK replacement, fresh Review Context and Review, replacement candidate, and candidate Review remain required.
+    reason: Exact replacement, consumer coverage when applicable, selective candidate, and fresh Reviews remain required.
     blocked_by:
       - obligation: stakeholder-change-candidate-required@1
         subjects: '[change]'
@@ -38,17 +34,18 @@ status_rules:
     priority: 100
     when: >-
       exists("change-approval-decisions-for@2", {change: change})
+      && count("stakeholder-change-candidates-for@1", {change: change}) == 1
       && every("stakeholder-change-candidates-for@1", {change: change}, candidate =>
         exists("passing-reviews-for@1", {subject: candidate}))
-    reason: The exact approved replacement and all required downstream evidence can now close without rewriting accepted history.
+    reason: Every exact changed claim and candidate judgment is fresh; close without rewriting accepted history.
 default_status: blocked
 resolve_with:
-  scenario: close-change-request@3
+  scenario: close-change-request@4
   inputs:
     change: change
     problem: 'one("source-problems-for-change@1", {change: change})'
     approval: 'one("change-approval-decisions-for@2", {change: change})'
     source_evidence: 'select("reported-evidence-for-problem@1", {problem: one("source-problems-for-change@1", {change: change})})'
-    revised_requirements: 'select("revised-requirements-for-change@2", {change: change})'
+    revised_requirements: 'select("revised-requirements-for-change@3", {change: change})'
     closure_evidence: 'select("stakeholder-change-closure-evidence-for@1", {change: change})'
 waiver_policy_ref: waiver-applicability@1

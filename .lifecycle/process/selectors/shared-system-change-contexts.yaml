@@ -1,0 +1,26 @@
+kind: selector-definition
+id: shared-system-change-contexts
+version: 1
+description: Every exact Review Context containing the accepted shared SYS or one of its decomposition consumers.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: context
+  where: >-
+    context.payload.kind == "review-context"
+    && context.payload.scope != change.identity.revision_id
+    && every("changes-changed-under-subject@1", {subject: context}, owner => owner != change)
+    && (
+      !every("impacted-requirements-for-change@3", {change: change}, requirement =>
+        none("baseline-contains-definition@1", {baseline: context, subject: requirement}))
+      || !every("accepted-shared-system-consumer-revisions-for-change@1", {change: change}, consumer =>
+        none("baseline-contains-definition@1", {baseline: context, subject: consumer}))
+      || !every("shared-system-change-candidates@1", {change: change}, candidate =>
+        every("revisions-tracing-subject@1", {subject: candidate}, dependent =>
+          dependent.identity.type != "DEC"
+          || none("baseline-contains-definition@1", {baseline: context, subject: dependent})))
+    )
+  distinct: true
+  order_by: [identity.revision_id]

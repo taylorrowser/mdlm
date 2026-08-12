@@ -1265,7 +1265,7 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       phase: "phase-1-product-assurance@5",
       explanation: expect.stringMatching(/multiple applicable/i),
       evidence: expect.objectContaining({
-        profile: "bootstrap@32",
+        profile: "bootstrap@34",
         condition: expect.objectContaining({ result: true }),
       }),
     }));

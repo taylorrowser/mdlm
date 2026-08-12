@@ -6,7 +6,7 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, DEC, CHG]}
+  from: {collection: revisions, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
   as: member
   where: >-
     member != subject
@@ -25,6 +25,31 @@ query:
             && member == one("architectures-for-decomposition@1", {plan: subject}))
           || (member.identity.type == "ICSP"
             && exists("matching-decomposition-interface@1", {plan: subject, interface: member}))
+        ))
+      || (subject.identity.type == "DWP"
+        && member.identity.type == "SYS"
+        && !every("system-requirements-consumed-by@1", {consumer: subject}, requirement =>
+          requirement != member))
+      || (exists("change-level-candidates-matching-subject@1", {subject: subject})
+        && exists("candidate-members-matching@1",
+          {candidate: one("change-level-candidates-matching-subject@1", {subject: subject}), required_member: member}))
+      || (subject.identity.type == "CHG"
+        && every("impacted-requirements-for-change@3", {change: subject}, requirement =>
+          requirement.identity.type == "SYS")
+        && exists("valid-stakeholder-change-impact@2", {change: subject})
+        && (
+          !every("impacted-requirements-for-change@3", {change: subject}, requirement => requirement != member)
+          || !every("accepted-intent-baselines-for-change@1", {change: subject}, accepted => accepted != member)
+          || !every("accepted-shared-system-consumer-revisions-for-change@1", {change: subject}, consumer => consumer != member)
+          || !every("shared-system-change-contexts@1", {change: subject}, context => context != member)
+          || !every("shared-system-change-candidates@1", {change: subject}, candidate => candidate != member)
+          || !every("shared-system-change-verification-evidence@1", {change: subject}, evidence => evidence != member)
+          || !every("shared-system-change-contexts@1", {change: subject}, context =>
+            every("revisions-tracing-subject@1", {subject: context}, review => review != member))
+          || !every("shared-system-change-candidates@1", {change: subject}, candidate =>
+            every("revisions-tracing-subject@1", {subject: candidate}, dependent =>
+              dependent != member
+              && every("revisions-tracing-subject@1", {subject: dependent}, downstream => downstream != member)))
         ))
       || !every("changes-changed-under-subject@1", {subject: subject}, change =>
         change != member

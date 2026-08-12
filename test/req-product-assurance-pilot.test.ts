@@ -2265,7 +2265,7 @@ describe("req product-assurance qualification and pilot slice", () => {
       "RES@1",
       "RUN@1",
       "VAI@1",
-      "VER@1",
+      "VER@2",
       "VSP@1",
     ]));
     expect(catalogs.scenarios).toEqual(expect.arrayContaining([

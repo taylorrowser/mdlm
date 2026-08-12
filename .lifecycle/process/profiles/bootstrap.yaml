@@ -1,8 +1,8 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 32
+version: 34
 status: experimental
-description: Narrow profile validating typed kernel/process seams through atomically initiated reviewed intent, qualification/pilot, bounded system decomposition, exact change control, and a reviewed expansion Decision.
+description: Narrow profile validating typed kernel/process seams through reviewed intent, qualification/pilot, bounded system decomposition, exact accepted-STK and two-consumer shared-SYS change control, and a reviewed expansion Decision.
 enabled:
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
@@ -89,5 +89,5 @@ success_criteria:
   - only a current passing PAS exposes the final nondelegable stakeholder Authority Requirement for exact proceed, change, or stop publication
   - each Expansion Decision preserves exact PAS and Review evidence, requires independent Review, and receives same-lineage attended Correction after failure
   - reviewed proceed reaches the omitted Phase 3–6 Profile Boundary, reviewed change enters the declared change-control route, and reviewed stop declares Lifecycle Complete
-  - exact accepted-baseline membership, not Review alone, protects one STK through bounded impact, reviewed attended approve/reject/defer/cancel disposition, same-lineage changed-under replacement, selective candidate/evidence reuse, and exact closure while draft correction remains ordinary and shared SYS breadth stays deferred
+  - exact accepted-baseline membership, not Review alone, protects STK and shared SYS through bounded impact, reviewed attended approve/reject/defer/cancel disposition, same-lineage changed-under replacement, selective candidate/evidence reuse, and exact closure; two exact shared-SYS consumers rebind serially with separate fresh coverage while draft replacement remains ordinary
   - one exact pilot evidence context records reviewed burden, reuse, queue, ceremony, discrimination, and scope measurements before an exact proceed, change, or stop Decision

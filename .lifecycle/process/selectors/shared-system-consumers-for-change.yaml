@@ -1,0 +1,16 @@
+kind: selector-definition
+id: shared-system-consumers-for-change
+version: 1
+description: Current distinct DWP Revisions for accepted consumer Stable Datum lineages impacted by one shared-SYS Change Request.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: consumer
+  where: >-
+    none("newer-revisions-for@1", {subject: consumer})
+    && !every("accepted-shared-system-consumer-revisions-for-change@1", {change: change}, accepted =>
+      accepted.identity.id != consumer.identity.id)
+  distinct: true
+  order_by: [identity.id, identity.revision]

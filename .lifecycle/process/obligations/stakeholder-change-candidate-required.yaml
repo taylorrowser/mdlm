@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: stakeholder-change-candidate-required
 version: 1
-description: Every approved accepted-STK replacement requires a fresh exact reviewed candidate while unaffected accepted evidence remains reusable.
+description: Every approved accepted-requirement replacement requires one fresh selective candidate, including every shared-SYS consumer when applicable.
 phases: [phase-7-change-control]
 for_each: 'select("all-change-requests@1", {})'
 subject_as: change
@@ -19,34 +19,41 @@ status_rules:
   - status: blocked
     priority: 200
     when: >-
-      none("revised-requirements-for-change@2", {change: change})
-      || !every("revised-requirements-for-change@2", {change: change}, requirement =>
+      count("revised-requirements-for-change@3", {change: change}) != 1
+      || !every("revised-requirements-for-change@3", {change: change}, requirement =>
         exists("valid-review-contexts-for@1", {subject: requirement})
         && exists("passing-reviews-for@1", {subject: requirement}))
-    reason: The same-lineage STK replacement needs fresh exact Review evidence before candidate assembly.
+      || count("updated-shared-system-consumers-for-change@1", {change: change})
+        != count("shared-system-consumers-for-change@1", {change: change})
+      || !every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
+        exists("valid-review-contexts-for@1", {subject: consumer})
+        && exists("passing-reviews-for@1", {subject: consumer}))
+    reason: The replacement and every affected shared-SYS consumer need separate fresh Review evidence.
     blocked_by:
       - obligation: change-revision-required@2
         subjects: '[change]'
+      - obligation: shared-system-consumer-reevaluation-required@1
+        subjects: 'select("outdated-shared-system-consumers@2", {})'
   - status: ready
     priority: 100
     when: >-
       exists("change-approval-decisions-for@2", {change: change})
-      && every("revised-requirements-for-change@2", {change: change}, requirement =>
+      && every("revised-requirements-for-change@3", {change: change}, requirement =>
         exists("passing-reviews-for@1", {subject: requirement}))
-    reason: Assemble one exact candidate from the replacement and every unaffected reusable accepted item.
+      && count("updated-shared-system-consumers-for-change@1", {change: change})
+        == count("shared-system-consumers-for-change@1", {change: change})
+      && every("updated-shared-system-consumers-for-change@1", {change: change}, consumer =>
+        exists("passing-reviews-for@1", {subject: consumer}))
+    reason: Assemble one exact candidate from fresh changed evidence and every unaffected reusable item.
 default_status: blocked
 resolve_with:
   scenario: create-stakeholder-change-candidate@1
   inputs:
     change: change
     accepted: 'one("accepted-intent-baselines-for-change@1", {change: change})'
-    replacement: 'one("revised-requirements-for-change@2", {change: change})'
-    replacement_context: >-
-      one("valid-review-contexts-for@1",
-        {subject: one("revised-requirements-for-change@2", {change: change})})
-    replacement_review: >-
-      one("passing-reviews-for@1",
-        {subject: one("revised-requirements-for-change@2", {change: change})})
+    replacement: 'one("revised-requirements-for-change@3", {change: change})'
+    updated_consumers: 'select("updated-shared-system-consumers-for-change@1", {change: change})'
+    fresh_evidence: 'select("fresh-shared-system-change-evidence@1", {change: change})'
     reusable_definitions: >-
       select("reusable-change-definitions-for@1",
         {change: change, accepted: one("accepted-intent-baselines-for-change@1", {change: change})})
