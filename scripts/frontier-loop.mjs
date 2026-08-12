@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { AgentProcessTimeoutError } from "./frontier-agent-runner.mjs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
   failureBaseState,
@@ -255,13 +256,17 @@ function runLoop(parent) {
   mkdirSync(paths.worktrees, { recursive: true });
   const maintenance = createMaintenanceController(paths.root);
   let state = readState(paths) ?? writeState(paths, {}, {
-    schemaVersion: 4,
+    schemaVersion: 5,
     parentIssue: parent,
     session: sessionName(parent),
     phase: "starting",
     message: "Starting frontier loop",
     startedAt: isoNow(),
     currentIssue: null,
+    agentTimeoutCount: 0,
+    agentTimeoutOccurrences: [],
+    agentAttempt: null,
+    lastAgentTimeout: null,
     quarantines: [],
   });
   const migrated = migrateFrontierState(state);
@@ -364,6 +369,11 @@ function runLoop(parent) {
         state = ticketRunner.processIssue(issue, paths, state);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        if (error instanceof AgentProcessTimeoutError && !stopped(paths)) {
+          state = failureBaseState(state, readState(paths));
+          log(`${state.message}: ${message}`);
+          continue;
+        }
         if (isRemoteValidationFailure(error) && !stopped(paths)) {
           state = failureBaseState(state, readState(paths));
           if (!error.productFailureScheduled) state = ticketRunner.scheduleExternalProductFailure(paths, state, error);
@@ -518,15 +528,24 @@ function status(parent) {
     if (state.worktree) process.stdout.write(`Worktree:      ${state.worktree}\n`);
     if (state.issueLog) process.stdout.write(`Issue log:     ${state.issueLog}\n`);
     process.stdout.write(`Corrections:   remediation=${state.remediationUsed ? 1 : 0}/1, diagnosis=${state.diagnosticEscalations ?? 0}/1, simplification=${state.designEscalations ?? 0}/1, contract-review=${state.contractReviews ?? 0}/1, targeted-repair=${state.targetedRepairCount ?? 0}/3\n`);
+    process.stdout.write(`Agent timeout: ${state.agentTimeoutCount ?? 0}/2 ticket-wide\n`);
     if (state.currentFailureFingerprint) process.stdout.write(`Failure:       ${state.currentFailureFingerprint} (repeats ${state.failureRepeatCount ?? 0})\n`);
     if (state.failureEvidencePath) process.stdout.write(`Evidence:      ${state.failureEvidencePath}\n`);
     if (state.supervisorRestarts) process.stdout.write(`Restarts:      ${state.supervisorRestarts}\n`);
     if (state.lastError) process.stdout.write(`Last error:    ${state.lastError}\n`);
     for (const quarantine of state.quarantines ?? []) {
-      process.stdout.write(`Quarantine:    #${quarantine.issue} fingerprint=${quarantine.failureFingerprint}, repeats=${quarantine.failureRepeatCount ?? 0}\n`);
+      const quarantineClass = quarantine.class ?? "product-correction-exhausted";
+      process.stdout.write(`Quarantine:    #${quarantine.issue} class=${quarantineClass}\n`);
       process.stdout.write(`  Corrections: remediation=${quarantine.remediationUsed ? 1 : 0}/1, diagnosis=${quarantine.diagnosticEscalations ?? 0}/1, simplification=${quarantine.designEscalations ?? 0}/1, contract-review=${quarantine.contractReviews ?? 0}/1, targeted-repair=${quarantine.targetedRepairCount ?? 0}/3\n`);
+      process.stdout.write(`  Timeouts:    ${quarantine.agentTimeoutCount ?? 0}/2\n`);
       process.stdout.write(`  Preserved:   ${quarantine.branch} at ${quarantine.worktree}\n`);
-      process.stdout.write(`  Evidence:    ${quarantine.failureEvidencePath}\n`);
+      if (quarantineClass === "agent-infrastructure-timeout") {
+        process.stdout.write(`  Timeout:     action=${quarantine.timeoutAction}, evidence=${quarantine.timeoutEvidence}\n`);
+        process.stdout.write(`  Agent log:   ${quarantine.timeoutLog}\n`);
+      } else {
+        process.stdout.write(`  Failure:     fingerprint=${quarantine.failureFingerprint}, repeats=${quarantine.failureRepeatCount ?? 0}\n`);
+        process.stdout.write(`  Evidence:    ${quarantine.failureEvidencePath}\n`);
+      }
     }
     if (createMaintenanceController(paths.root).requested() && state.phase !== "maintenance-ready") process.stdout.write("Maintenance:   requested; drains after the current ticket\n");
     process.stdout.write(`Updated:       ${state.updatedAt} (${age(state.updatedAt)} ago)\n`);

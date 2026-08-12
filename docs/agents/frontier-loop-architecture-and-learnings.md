@@ -13,7 +13,7 @@ The frontier loop is a deterministic, serial controller around probabilistic cod
 - The runner reserves one dependency-safe ticket at a time.
 - Each editing action receives a fresh GPT-5.6 Sol/high Pi process in an isolated worktree.
 - Editing agents run focused checks and typecheck; the runner alone owns the authoritative full suite and independent review.
-- Every Pi editing action is recorded durably before Pi starts, and validation/publication records exact commit identity.
+- Every Pi editing action and every editing/review attempt start are recorded durably before Pi starts, and validation/publication records exact commit identity.
 - The normal publication path pushes and merges only the exact commit that passed commands and independent review.
 - Failures advance through a finite, cumulative ticket-wide ladder: one contract review, three targeted repairs, then quarantine.
 - Quarantine preserves failed work while allowing independent fixed-scope work to continue; an unrecoverable fixed-scope stall becomes terminal `process-dead-end`.
@@ -177,7 +177,7 @@ Before Pi starts, the runner persists a typed pending action:
 - `contract-review`; or
 - `targeted-repair`.
 
-A contract-review count is consumed in the same atomic state write that schedules its pending action, and it can never exceed one for the whole ticket. Targeted-repair counts use the same boundary and can never exceed three. Recovery sees the existing pending action and resumes it without changing either count.
+A contract-review count is consumed in the same atomic state write that schedules its pending action, and it can never exceed one for the whole ticket. Targeted-repair counts use the same boundary and can never exceed three. Recovery sees the existing pending action and resumes it without changing either count. Immediately before each editing or review Pi invocation, the controller also persists an attempt-start identity. That identity combines with the action kind to deduplicate an observed timeout across crash/resume.
 
 The fresh Pi process is explicitly pinned to:
 
@@ -186,7 +186,7 @@ openai-codex/gpt-5.6-sol
 thinking: high
 ```
 
-Both editing and read-only reviewer Pi processes are started without shell interpolation in their own Unix session/process group. The runner enforces the existing timeout by signaling the entire group with SIGTERM, waiting a short grace period, then sending SIGKILL and waiting for the group to disappear. The wrapper returns one deterministic timeout status, so a Pi-launched Vitest, compiler, or build descendant cannot survive merely because Pi itself timed out.
+Both editing and read-only reviewer Pi processes are started without shell interpolation in their own Unix session/process group. The runner enforces the existing timeout by signaling the entire group with SIGTERM, waiting a short grace period, then sending SIGKILL and waiting for the group to disappear. The agent-runner boundary converts the deterministic timeout status into a typed timeout carrying action kind, durable attempt-start identity, log, and evidence. The ticket runner persists that occurrence and a separate ticket-wide count before returning control. One fresh retry is allowed; a second timeout quarantines as `agent-infrastructure-timeout`. Thus a Pi-launched Vitest, compiler, or build descendant cannot survive merely because Pi itself timed out, and the controller cannot restart timeout batches forever.
 
 Editing sessions are non-persistent. They receive the issue, parent, repository guidance, branch history, current worktree, correction log, and role-specific instructions.
 
@@ -308,13 +308,14 @@ Important state includes:
 - independently reviewed head and evidence fingerprint;
 - final publication-validated head;
 - remediation use and diagnostic/design/contract/targeted-repair counts;
+- ticket-wide agent-timeout count, exact occurrence identities, and current attempt-start identity;
 - current and previous product-failure fingerprints, repeat count, and latest failure-evidence path;
 - quarantine records with preserved branches/worktrees and all ticket counters;
 - complexity-reviewed and no-progress heads;
 - supervisor restart count; and
 - last error.
 
-Recovery is deliberately at-least-once for editing actions. Scheduling and budget consumption happen in one atomic write before Pi starts. If Pi finished but the controller crashed before atomically acknowledging completion, the supervisor may start a fresh Pi in the same action mode against the preserved commits and uncommitted bytes, but it does not consume another count. Once an action is acknowledged, pending state advances durably to validation so a crash cannot accidentally launch a new implementation pass. Safe reload migrates legacy schema-3 states that already exceeded one contract review away from another broad action and back to exact validation, after which only the finite targeted ladder is available; historical counts remain preserved.
+Recovery is deliberately at-least-once for editing actions. Scheduling and product-budget consumption happen in one atomic write before Pi starts. Each concrete Pi invocation then receives a durable attempt-start identity. If Pi finished but the controller crashed before atomically acknowledging completion, the supervisor may start a fresh Pi in the same action mode against the preserved commits and uncommitted bytes, but it does not consume another product count. If the timeout occurrence was already persisted, action kind plus attempt-start identity prevents recounting it after a crash. Once an action is acknowledged, pending state advances durably to validation so a crash cannot accidentally launch a new implementation pass. A timed-out reviewer retains exact command-validation identity, so its one fresh retry resumes at review. Safe reload migrates legacy schema-3 states that already exceeded one contract review away from another broad action and back to exact validation, after which only the finite targeted ladder is available; historical counts remain preserved. Migration never infers a missing publication `validatedHead` from GitHub or weaker local review state.
 
 Publication recovery is reconciliation-based. If a PR merged but issue closure or cleanup was interrupted, restart confirms PR identity, `MERGED` state, and equality between the PR head and persisted validated SHA before closing the issue and deleting work. It does not republish product bytes.
 
@@ -326,8 +327,9 @@ The loop separates failures that require different responses.
 | --- | --- |
 | Product command or valid independent-review failure | Persist exact latest evidence/fingerprint, then advance the finite ticket-wide correction ladder. |
 | Malformed reviewer verdict | Retry read-only review only; consume no product budget and create no quarantine evidence. |
-| Transient Pi/provider failure | Retry the same typed agent action in place; consume no product budget and create no quarantine evidence. |
-| Pi timeout | TERM then KILL the complete dedicated process group and return a deterministic timeout result; no test/build descendant remains. |
+| Transient Pi/provider failure | Retry the same typed agent action in place; consume no product budget and create no product-failure evidence. |
+| First ticket-wide Pi timeout | TERM then KILL the complete process group, persist the exact occurrence and timeout count, then allow one fresh retry of the same editing/review action; consume no product budget. |
+| Second ticket-wide Pi timeout | Quarantine as `agent-infrastructure-timeout`, preserve branch/worktree and timeout log/evidence, remove assignment, and continue independent fixed scope; create no product fingerprint/finding. |
 | Transient GitHub/network failure | Retry commands with backoff or keep publication in a same-runner retry state; consume no product budget. |
 | Observed failing remote check | Persist the exact check output and enter the same finite product-correction ladder. |
 | Missing/unconfirmable remote check state | Retry publication without editing product code. |
@@ -374,11 +376,11 @@ It cannot waive atomic Scenario publication, one canonical writer, package neutr
 
 Every completed product failure replaces one per-ticket artifact with only the latest command identity, exact failed command or read-only reviewer output, stable fingerprint, and repeated flag. It does not use the entire historical issue log as primary repair evidence. Fingerprinting strips ANSI controls, wall-clock timestamps, durations, and temporary-root/run noise while retaining semantic lines including failed test names, error and assertion text, source locations, reviewer blocking findings, verdicts, and command identity. State records current and previous fingerprints plus the consecutive repeat count. A no-progress pass reuses the exact artifact, marks it repeated, and advances the finite budget.
 
-Infrastructure and provider failures never enter this evidence path. That separation prevents an HTTP outage, malformed verdict, missing check registration, or connection reset from consuming product corrections or manufacturing a quarantine reason.
+Infrastructure and provider failures never enter the product-failure evidence path. Agent timeouts have their own durable occurrence identity, count, action, evidence, and log. That separation prevents an HTTP outage, malformed verdict, missing check registration, connection reset, or Pi timeout from consuming product corrections or manufacturing a product fingerprint/finding.
 
 ## Quarantine and terminal convergence
 
-Quarantine is a product disposition of the orchestrator, not a claim that implementation passed. The ticket remains open, preserving its dependency-blocker role. The branch and worktree are not deleted, the PR is not merged, and exact counters/evidence are copied into both status and the durable quarantine record. A marker in the issue comment makes comment publication idempotent across crashes; durable record append and active-state clearing are likewise reconciled on resume.
+Quarantine is a terminal ticket disposition of the orchestrator, not a claim that implementation passed. It has two explicit classes: `product-correction-exhausted`, with product fingerprint/evidence, and `agent-infrastructure-timeout`, with timeout action/evidence/log and no product fingerprint. The ticket remains open, preserving its dependency-blocker role. The branch and worktree are not deleted, the PR is not merged, and exact class-appropriate counters/evidence are copied into both status and the durable quarantine record. A marker in the issue comment makes comment publication idempotent across crashes; durable record append and active-state clearing are likewise reconciled on resume.
 
 After quarantine, serial selection first tries runnable non-quarantined priority identities, then independently ready non-quarantined backlog identities from the original snapshot. If neither pool has a runnable identity and some fixed identity remains open—whether quarantined, dependency-blocked, or assigned—the controller records `process-dead-end` and exits. The supervisor recognizes it as terminal and health reports nonzero. There is deliberately no attended/human-stop state. `complete` is reserved for the stronger fact that every fixed identity is closed.
 
@@ -580,7 +582,7 @@ Repeated broad sessions received historical logs and rediscovered architecture a
 
 A timed-out Pi left Vitest/MDLM descendants alive. Killing only the direct process made subsequent suites slower and could turn cleanup failure into misleading product failures.
 
-**Lesson:** place every Pi in a dedicated process group and make timeout completion mean the whole group has received TERM, grace, and KILL. Test this with a real child/grandchild tree.
+**Lesson:** place every Pi in a dedicated process group and make timeout completion mean the whole group has received TERM, grace, and KILL. Then classify the boundary result explicitly and bound controller retries durably; descendant cleanup alone does not prove convergence. Test cleanup with a real child/grandchild tree and state transitions with editing/reviewer timeout cases.
 
 ## Practices that keep agents moving
 
@@ -642,7 +644,8 @@ A timed-out Pi left Vitest/MDLM descendants alive. Killing only the direct proce
 | Architecture follow-ups with passing Spec and invariants | Non-blocking improvement. | Ship and record follow-up. |
 | Merged PR but issue/worktree remains | Interrupted cleanup. | Let reconciliation confirm merge and finish cleanup. |
 | Controller update needed during active work | Maintenance case. | Merge controller fix, then `npm run frontier:reload`. |
-| Targeted repairs reach 3/3 | Finite product correction is exhausted. | Expect one auditable quarantine comment, preserved branch/worktree, assignment removal, and continued independent selection. |
+| Targeted repairs reach 3/3 | Finite product correction is exhausted. | Expect a `product-correction-exhausted` quarantine with product evidence, preserved branch/worktree, assignment removal, and continued independent selection. |
+| Agent timeouts reach 2/2 | Agent infrastructure did not complete the original action or its one fresh retry. | Expect an `agent-infrastructure-timeout` quarantine with timeout action/log, no product fingerprint or consumed correction count, and continued independent selection. |
 | `process-dead-end` with quarantines/blockers | Fixed scope is unfinished and cannot advance autonomously. | Inspect status/evidence; supervisor intentionally remains stopped and health is nonzero. |
 | Immediate safety concern or destructive behavior | Emergency. | `npm run frontier:stop`; Pi timeout cleanup already owns its process group, but inspect unrelated commands if needed. |
 
@@ -656,7 +659,7 @@ The current system is intentionally small, but it is not finished infrastructure
 4. **Complexity thresholds are coarse branch statistics.** Generated files, migrations, and test-heavy tracers can cross them without poor architecture.
 5. **Health proves supervision, not progress, except at a dead end.** A live tmux session can contain a stalled non-Pi external process; activity age remains a second signal. `process-dead-end` is explicitly nonzero.
 6. **Emergency stop is broader than Pi timeout.** The dedicated runner cleans every timed-out Pi process group, but an immediate tmux stop while unrelated Git/npm commands are active is not a general repository-wide process reaper.
-7. **The supervisor retries unexpected persistent runner exits indefinitely.** This favors unattended infrastructure recovery but can hide a deterministic controller defect; explicit `process-dead-end` is the bounded exception the supervisor never restarts.
+7. **An unrelated deterministic controller defect can still restart indefinitely.** The supervisor intentionally retries unexpected exits, which can hide a persistent non-agent defect; explicit agent timeouts and `process-dead-end` are bounded paths the supervisor does not turn into infinite retry batches.
 8. **The full suite remains expensive and process-heavy.** Worker limits improve stability at some wall-clock cost; test architecture should continue moving toward faster compiled-CLI seams.
 9. **Synchronous orchestration limits heartbeat visibility.** The process-group module hides asynchronous TERM/KILL handling behind a small synchronous interface, preserving serial control but not exposing fine-grained progress.
 10. **Worktree creation is not atomically recorded.** A crash after `git worktree add` but before status persistence leaves an unrecognized directory that blocks automatic resume until an operator reconciles it.
@@ -674,7 +677,7 @@ Future changes should preserve these properties:
 4. **One owner per expensive operation.** Especially full validation, independent review, publication, and cleanup.
 5. **Fixed authority, live evidence.** Scope cannot drift, but blockers and contracts can.
 6. **Serial publication.** No concurrent ticket can race the canonical repository state.
-7. **Bounded correction with terminal successors.** No mode can replenish its budget; contract review leads to targeted repair, targeted repair leads to quarantine, and an unadvanceable fixed scope leads to `process-dead-end`.
+7. **Bounded correction and agent execution with terminal successors.** No product mode can replenish its budget; contract review leads to targeted repair and product quarantine. A Pi action gets one fresh timeout retry, then infrastructure quarantine. An unadvanceable fixed scope leads to `process-dead-end`.
 8. **Narrow evidence after broad work.** As uncertainty contracts, repair context contracts to the latest semantic failure rather than historical logs.
 9. **Delivery-biased quality.** Block defects and invariant violations; ship bounded working slices with follow-ups.
 10. **Safe maintenance boundary.** Update the controller without corrupting or abandoning current work.

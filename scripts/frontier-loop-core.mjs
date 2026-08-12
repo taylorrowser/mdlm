@@ -39,6 +39,44 @@ export function actionProgressed(before, after) {
   return before.head !== after.head || before.worktree !== after.worktree || before.issueActivity !== after.issueActivity;
 }
 
+export function agentTimeoutTransition(state, {
+  actionKind,
+  attemptStartIdentity,
+  evidence,
+  logPath,
+}) {
+  if (!actionKind || !attemptStartIdentity) throw new Error("Agent timeout requires durable action and attempt-start identity");
+  const occurrenceIdentity = JSON.stringify([actionKind, attemptStartIdentity]);
+  const occurrences = state.agentTimeoutOccurrences ?? [];
+  if (occurrences.includes(occurrenceIdentity)) return state;
+  const agentTimeoutCount = Math.min((state.agentTimeoutCount ?? 0) + 1, 2);
+  const timeout = {
+    actionKind,
+    attemptStartIdentity,
+    evidence,
+    logPath,
+    occurrenceIdentity,
+  };
+  const transition = {
+    ...state,
+    agentTimeoutCount,
+    agentTimeoutOccurrences: [...occurrences, occurrenceIdentity],
+    agentAttempt: null,
+    lastAgentTimeout: timeout,
+  };
+  if (agentTimeoutCount < 2) return transition;
+  return {
+    ...transition,
+    pendingAction: {
+      kind: "quarantine",
+      quarantineClass: "agent-infrastructure-timeout",
+      timeoutAction: actionKind,
+      timeoutEvidence: evidence,
+      timeoutLog: logPath,
+    },
+  };
+}
+
 export function validationFailureAction({
   remediationUsed,
   diagnosticEscalations,
@@ -111,18 +149,35 @@ export function scheduleFailureAction(state, {
       pendingAction: { kind: "targeted-repair", ...evidence },
     };
   }
-  return { ...state, pendingAction: { kind: "quarantine", ...evidence } };
+  return {
+    ...state,
+    pendingAction: {
+      kind: "quarantine",
+      quarantineClass: "product-correction-exhausted",
+      ...evidence,
+    },
+  };
 }
 
 export function migrateFrontierState(state) {
-  if ((state.schemaVersion ?? 0) >= 4) return state;
-  const repeatedLegacyContractReview = (state.contractReviews ?? 0) > 1
+  if ((state.schemaVersion ?? 0) >= 5) return state;
+  const repeatedLegacyContractReview = (state.schemaVersion ?? 0) < 4
+    && (state.contractReviews ?? 0) > 1
     && !["validation", "failed-validation", "review", "targeted-repair", "quarantine"].includes(state.pendingAction?.kind);
+  const pendingAction = repeatedLegacyContractReview
+    ? { kind: "validation" }
+    : state.pendingAction?.kind === "quarantine" && !state.pendingAction.quarantineClass
+      ? { ...state.pendingAction, quarantineClass: "product-correction-exhausted" }
+      : state.pendingAction;
   return {
     ...state,
-    schemaVersion: 4,
-    pendingAction: repeatedLegacyContractReview ? { kind: "validation" } : state.pendingAction,
+    schemaVersion: 5,
+    pendingAction,
     targetedRepairCount: state.targetedRepairCount ?? 0,
+    agentTimeoutCount: state.agentTimeoutCount ?? 0,
+    agentTimeoutOccurrences: state.agentTimeoutOccurrences ?? [],
+    agentAttempt: state.agentAttempt ?? null,
+    lastAgentTimeout: state.lastAgentTimeout ?? null,
     quarantines: state.quarantines ?? [],
   };
 }
@@ -166,6 +221,7 @@ export function isTransientInfrastructureFailure(error) {
 }
 
 export function isTransientAgentFailure(error) {
+  if (error instanceof Error && error.name === "AgentProcessTimeoutError") return false;
   const message = error instanceof Error ? error.message : String(error);
   return /(fetch failed|ETIMEDOUT|timed out|ECONN(?:RESET|REFUSED)|ENETUNREACH|EAI_AGAIN|socket hang up|connection (?:reset|refused)|network is unreachable|temporary failure|provider.*(?:429|5\d\d)|rate limit|bad gateway|gateway timeout)/i.test(message);
 }

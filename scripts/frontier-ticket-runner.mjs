@@ -1,10 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
+import { AgentProcessTimeoutError, appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import { failureFingerprint, recordFailureFingerprint } from "./frontier-failure-evidence.mjs";
 import {
   actionProgressed,
+  agentTimeoutTransition,
   failureEvidenceMatches,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
@@ -19,6 +21,55 @@ import {
 import { referencedParentNumber } from "./frontier-issue-contract.mjs";
 import { editingAgentPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
+
+function quarantineCommonRecord(issue, state) {
+  return {
+    issue: issue.number,
+    title: issue.title,
+    branch: state.branch,
+    worktree: state.worktree,
+    pullRequest: state.pullRequest ?? null,
+    remediationUsed: state.remediationUsed ?? false,
+    diagnosticEscalations: state.diagnosticEscalations ?? 0,
+    designEscalations: state.designEscalations ?? 0,
+    contractReviews: state.contractReviews ?? 0,
+    targetedRepairCount: state.targetedRepairCount ?? 0,
+    agentTimeoutCount: state.agentTimeoutCount ?? 0,
+    quarantinedAt: state.quarantineStartedAt ?? state.quarantinedAt ?? new Date().toISOString(),
+  };
+}
+
+export function quarantineIssueRecord(issue, state) {
+  const common = quarantineCommonRecord(issue, state);
+  if (state.pendingAction?.quarantineClass === "agent-infrastructure-timeout") {
+    return {
+      ...common,
+      class: "agent-infrastructure-timeout",
+      reason: `agent infrastructure timed out twice; final action was ${state.pendingAction.timeoutAction}`,
+      timeoutAction: state.pendingAction.timeoutAction,
+      timeoutEvidence: state.pendingAction.timeoutEvidence,
+      timeoutLog: state.pendingAction.timeoutLog,
+      timeoutOccurrences: state.agentTimeoutOccurrences ?? [],
+    };
+  }
+  return {
+    ...common,
+    class: "product-correction-exhausted",
+    reason: `targeted repair budget exhausted at fingerprint ${state.currentFailureFingerprint}`,
+    failureFingerprint: state.currentFailureFingerprint,
+    previousFailureFingerprint: state.previousFailureFingerprint ?? null,
+    failureRepeatCount: state.failureRepeatCount ?? 0,
+    failureEvidencePath: state.failureEvidencePath,
+    failureEvidenceIdentity: state.failureEvidenceIdentity,
+  };
+}
+
+export function quarantineIssueComment(marker, record) {
+  if (record.class === "agent-infrastructure-timeout") {
+    return `${marker}\nFrontier automation quarantined this open ticket because agent infrastructure timed out twice.\n\nClass: \`agent-infrastructure-timeout\`\nFinal timed-out action: \`${record.timeoutAction}\`\nTimeout evidence: ${record.timeoutEvidence}\nAgent log: \`${record.timeoutLog}\`\nPreserved branch: \`${record.branch}\`\nPreserved worktree: \`${record.worktree}\`\n\nNo product validation or review finding was manufactured. These timeouts consumed no additional product correction budget. This issue was not closed or merged.`;
+  }
+  return `${marker}\nFrontier automation quarantined this open ticket after its targeted repair budget was exhausted.\n\nClass: \`product-correction-exhausted\`\nFinal fingerprint: \`${record.failureFingerprint}\`\nReason: ${record.reason}\nPreserved branch: \`${record.branch}\`\nPreserved worktree: \`${record.worktree}\`\nFailure evidence: \`${record.failureEvidencePath}\`\n\nThis issue was not closed or merged.`;
+}
 
 export function createTicketRunner({
   repositoryRoot,
@@ -195,26 +246,7 @@ export function createTicketRunner({
 
   function quarantineIssue(issue, paths, state) {
     const marker = `<!-- mdlm-frontier-quarantine:${state.parentIssue}:${issue.number} -->`;
-    const reason = `targeted repair budget exhausted at fingerprint ${state.currentFailureFingerprint}`;
-    const record = {
-      issue: issue.number,
-      title: issue.title,
-      reason,
-      failureFingerprint: state.currentFailureFingerprint,
-      previousFailureFingerprint: state.previousFailureFingerprint ?? null,
-      failureRepeatCount: state.failureRepeatCount ?? 0,
-      failureEvidencePath: state.failureEvidencePath,
-      failureEvidenceIdentity: state.failureEvidenceIdentity,
-      branch: state.branch,
-      worktree: state.worktree,
-      pullRequest: state.pullRequest ?? null,
-      remediationUsed: state.remediationUsed ?? false,
-      diagnosticEscalations: state.diagnosticEscalations ?? 0,
-      designEscalations: state.designEscalations ?? 0,
-      contractReviews: state.contractReviews ?? 0,
-      targetedRepairCount: state.targetedRepairCount ?? 0,
-      quarantinedAt: state.quarantineStartedAt ?? new Date().toISOString(),
-    };
+    const record = quarantineIssueRecord(issue, state);
     state = writeState(paths, state, {
       phase: "quarantining",
       pendingAction: { ...state.pendingAction, kind: "quarantine" },
@@ -222,8 +254,7 @@ export function createTicketRunner({
     });
     const live = commandJson("gh", ["issue", "view", String(issue.number), "--json", "comments,assignees"]);
     if (!live.comments?.some((comment) => String(comment.body ?? "").includes(marker))) {
-      const comment = `${marker}\nFrontier automation quarantined this open ticket after exhausting its bounded targeted repairs.\n\nFinal fingerprint: \`${record.failureFingerprint}\`\nReason: ${reason}\nPreserved branch: \`${record.branch}\`\nPreserved worktree: \`${record.worktree}\`\nFailure evidence: \`${record.failureEvidencePath}\`\n\nThis issue was not closed or merged.`;
-      commandOutput("gh", ["issue", "comment", String(issue.number), "--body", comment]);
+      commandOutput("gh", ["issue", "comment", String(issue.number), "--body", quarantineIssueComment(marker, record)]);
     }
     const login = viewerLogin();
     if (live.assignees?.some((assignee) => assignee.login === login)) {
@@ -232,12 +263,12 @@ export function createTicketRunner({
     const durableRecord = appendQuarantineRecord(paths, record);
     const quarantines = [...(state.quarantines ?? []).filter((candidate) => candidate.issue !== issue.number), durableRecord]
       .sort((left, right) => left.issue - right.issue);
-    log(`Quarantined #${issue.number}; preserved ${record.branch} at ${record.worktree}`);
+    log(`Quarantined #${issue.number} as ${record.class}; preserved ${record.branch} at ${record.worktree}`);
     return writeState(paths, state, {
       ...betweenTicketsPatch(),
       quarantines,
       phase: "between-tickets",
-      message: `Quarantined #${issue.number}; preserved its branch/worktree and continuing fixed scope`,
+      message: `Quarantined #${issue.number} as ${record.class}; preserved its branch/worktree and continuing fixed scope`,
     });
   }
 
@@ -252,6 +283,45 @@ export function createTicketRunner({
     commandOutput("git", ["fetch", "origin", base]);
     commandOutput("git", ["worktree", "add", "-b", branch, worktree, `origin/${base}`]);
     return { worktree, branch, resumed: false };
+  }
+
+  function beginAgentAttempt(paths, state, actionKind) {
+    const existing = state.agentAttempt;
+    const existingOccurrence = existing
+      ? JSON.stringify([existing.actionKind, existing.attemptStartIdentity])
+      : null;
+    const canResumeExisting = existing?.actionKind === actionKind
+      && !(state.agentTimeoutOccurrences ?? []).includes(existingOccurrence);
+    const agentAttempt = canResumeExisting
+      ? existing
+      : {
+          actionKind,
+          attemptStartIdentity: randomUUID(),
+          startedAt: new Date().toISOString(),
+        };
+    return writeState(paths, state, { agentAttempt });
+  }
+
+  function persistAgentTimeout(paths, state, error) {
+    const transitioned = agentTimeoutTransition(state, {
+      actionKind: error.actionKind,
+      attemptStartIdentity: error.attemptStartIdentity,
+      evidence: error.evidence,
+      logPath: error.logPath,
+    });
+    if (transitioned === state) return state;
+    const quarantining = transitioned.pendingAction?.kind === "quarantine";
+    return writeState(paths, state, {
+      ...transitioned,
+      phase: quarantining ? "quarantining" : "retrying-agent-timeout",
+      quarantineStartedAt: quarantining
+        ? transitioned.quarantineStartedAt ?? new Date().toISOString()
+        : transitioned.quarantineStartedAt ?? null,
+      message: quarantining
+        ? `Agent infrastructure timed out twice for #${state.currentIssue}; quarantining preserved work`
+        : `Agent infrastructure timeout 1/2 for #${state.currentIssue}; retrying the same ${error.actionKind} action once`,
+      lastError: error.message,
+    });
   }
 
   function executeAgentAction(issue, prepared, issueLog, paths, state, action, transition = {}) {
@@ -283,11 +353,23 @@ export function createTicketRunner({
       failureFingerprint: action.failureFingerprint,
       failureRepeated: action.failureRepeated,
     });
-    agentRunner.runImplementation(prepared.worktree, prompt, issueLog, `${action.resumed ? "resumed " : ""}${description}`);
+    state = beginAgentAttempt(paths, state, action.kind);
+    try {
+      agentRunner.runImplementation(
+        prepared.worktree,
+        prompt,
+        issueLog,
+        `${action.resumed ? "resumed " : ""}${description}`,
+        state.agentAttempt,
+      );
+    } catch (error) {
+      if (error instanceof AgentProcessTimeoutError) persistAgentTimeout(paths, state, error);
+      throw error;
+    }
     const after = actionSnapshot(issue, prepared.worktree);
     const noProgressHead = actionProgressed(before, after) ? null : after.head;
     if (noProgressHead) appendAgentLog(issueLog, "no-op editing pass", "The agent changed neither repository bytes nor issue comments; any validation and review already cached at this SHA will be reused.\n");
-    return writeState(paths, state, { pendingAction: { kind: "validation" }, noProgressHead });
+    return writeState(paths, state, { pendingAction: { kind: "validation" }, agentAttempt: null, noProgressHead });
   }
 
   function inspectPullRequestChecks(prNumber, worktree, logPath) {
@@ -427,6 +509,10 @@ export function createTicketRunner({
       designEscalations: 0,
       contractReviews: 0,
       targetedRepairCount: 0,
+      agentTimeoutCount: 0,
+      agentTimeoutOccurrences: [],
+      agentAttempt: null,
+      lastAgentTimeout: null,
       currentFailureFingerprint: null,
       previousFailureFingerprint: null,
       failureRepeatCount: 0,
@@ -550,6 +636,10 @@ export function createTicketRunner({
       designEscalations,
       contractReviews,
       targetedRepairCount,
+      agentTimeoutCount: continuingIssue ? state.agentTimeoutCount ?? 0 : 0,
+      agentTimeoutOccurrences: continuingIssue ? state.agentTimeoutOccurrences ?? [] : [],
+      agentAttempt: continuingIssue ? state.agentAttempt ?? null : null,
+      lastAgentTimeout: continuingIssue ? state.lastAgentTimeout ?? null : null,
       currentFailureFingerprint: continuingIssue ? state.currentFailureFingerprint ?? null : null,
       previousFailureFingerprint: continuingIssue ? state.previousFailureFingerprint ?? null : null,
       failureRepeatCount: continuingIssue ? state.failureRepeatCount ?? 0 : 0,
@@ -678,7 +768,14 @@ export function createTicketRunner({
         log(`Reusing exact independent review for unchanged #${issue.number}`);
       } else if (commandsPass) {
         state = writeState(paths, state, { phase: "reviewing", pendingAction: { kind: "review" } });
-        review = agentRunner.review(prepared.worktree, issueLog, evidence);
+        state = beginAgentAttempt(paths, state, "review");
+        try {
+          review = agentRunner.review(prepared.worktree, issueLog, evidence, state.agentAttempt);
+        } catch (error) {
+          if (error instanceof AgentProcessTimeoutError) persistAgentTimeout(paths, state, error);
+          throw error;
+        }
+        state = writeState(paths, state, { agentAttempt: null });
         if (!review.retry) {
           reviewedHead = headBeforeValidation;
           reviewedEvidenceFingerprint = review.evidenceFingerprint;
@@ -735,5 +832,10 @@ export function createTicketRunner({
     });
   }
 
-  return { processIssue, reconcileCurrentIssue, scheduleExternalProductFailure };
+  return {
+    processIssue,
+    reconcileCurrentIssue,
+    recordAgentTimeout: persistAgentTimeout,
+    scheduleExternalProductFailure,
+  };
 }

@@ -17,6 +17,17 @@ import { sleep } from "./frontier-time.mjs";
 export const frontierModel = "openai-codex/gpt-5.6-sol";
 export const frontierThinkingLevel = "high";
 
+export class AgentProcessTimeoutError extends Error {
+  constructor({ actionKind, attemptStartIdentity, evidence, logPath }) {
+    super(`Pi ${actionKind} attempt ${attemptStartIdentity} exceeded its process timeout; inspect ${logPath}`);
+    this.name = "AgentProcessTimeoutError";
+    this.actionKind = actionKind;
+    this.attemptStartIdentity = attemptStartIdentity;
+    this.evidence = evidence;
+    this.logPath = logPath;
+  }
+}
+
 export function piAgentArguments(prompt, { readOnly = false } = {}) {
   return [
     "-p",
@@ -66,15 +77,28 @@ export function createAgentRunner({
   repositoryRoot,
   maximumInfrastructureAttempts,
   complexityBudget,
+  runAgentProcess = runInProcessGroup,
 }) {
-  function runImplementation(worktree, prompt, logPath, heading) {
+  function processTimeout(result, { actionKind, attemptStartIdentity, logPath, output }) {
+    if (!result.timedOut && result.status !== 124) return;
+    const evidence = String(output || result.stderr || "FRONTIER_PROCESS_TIMEOUT")
+      .split(/\r?\n/)
+      .findLast((line) => line.includes("FRONTIER_PROCESS_TIMEOUT"))
+      ?? `FRONTIER_PROCESS_TIMEOUT: Pi ${actionKind} process group terminated`;
+    throw new AgentProcessTimeoutError({ actionKind, attemptStartIdentity, evidence, logPath });
+  }
+
+  function runImplementation(worktree, prompt, logPath, heading, {
+    actionKind = "implementation",
+    attemptStartIdentity = "unidentified-attempt",
+  } = {}) {
     for (let attempt = 1; attempt <= maximumInfrastructureAttempts; attempt += 1) {
       const descriptor = openSync(logPath, "a");
       appendAgentLog(logPath, `${heading} (provider attempt ${attempt}/${maximumInfrastructureAttempts})`);
       const attemptLogOffset = readFileSync(logPath, "utf8").length;
       let result;
       try {
-        result = runInProcessGroup("pi", piAgentArguments(prompt), {
+        result = runAgentProcess("pi", piAgentArguments(prompt), {
           cwd: worktree,
           stdio: ["ignore", descriptor, descriptor],
           timeout: Number(process.env.MDLM_FRONTIER_AGENT_TIMEOUT_MS ?? 2 * 60 * 60_000),
@@ -82,8 +106,9 @@ export function createAgentRunner({
       } finally {
         closeSync(descriptor);
       }
-      if (!result.error && result.status === 0) return;
       const attemptOutput = readFileSync(logPath, "utf8").slice(attemptLogOffset);
+      processTimeout(result, { actionKind, attemptStartIdentity, logPath, output: attemptOutput });
+      if (!result.error && result.status === 0) return;
       const failure = new Error(result.error?.message ?? `pi exited ${result.status}: ${attemptOutput}`);
       if (!isTransientAgentFailure(failure) || attempt === maximumInfrastructureAttempts) {
         throw new Error(`pi exited ${result.status ?? "before startup"}; inspect ${logPath}`);
@@ -140,16 +165,20 @@ export function createAgentRunner({
     return { path: evidencePath, fingerprint: createHash("sha256").update(content).digest("hex") };
   }
 
-  function runReadOnlyReviewer(worktree, prompt, logPath) {
+  function runReadOnlyReviewer(worktree, prompt, logPath, {
+    actionKind = "review",
+    attemptStartIdentity = "unidentified-attempt",
+  } = {}) {
     let lastOutput = "";
     for (let attempt = 1; attempt <= maximumInfrastructureAttempts; attempt += 1) {
       let result;
       try {
-        result = runInProcessGroup("pi", piAgentArguments(prompt, { readOnly: true }), {
+        result = runAgentProcess("pi", piAgentArguments(prompt, { readOnly: true }), {
           cwd: worktree,
           timeout: Number(process.env.MDLM_FRONTIER_AGENT_TIMEOUT_MS ?? 2 * 60 * 60_000),
         });
       } catch (error) {
+        if (error instanceof AgentProcessTimeoutError) throw error;
         const output = error instanceof Error ? error.message : String(error);
         lastOutput = output;
         appendAgentLog(logPath, `independent read-only code review ${attempt}/${maximumInfrastructureAttempts}`, output);
@@ -161,6 +190,7 @@ export function createAgentRunner({
       const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
       lastOutput = output;
       appendAgentLog(logPath, `independent read-only code review ${attempt}/${maximumInfrastructureAttempts}`, output);
+      processTimeout(result, { actionKind, attemptStartIdentity, logPath, output });
       if (result.status === 0 && reviewerVerdict(output)) return { valid: true, output };
       const transient = isTransientAgentFailure(new Error(output));
       const malformed = result.status === 0;
@@ -175,10 +205,10 @@ export function createAgentRunner({
     return writeReviewEvidence(issue, worktree, logPath, baseBranch);
   }
 
-  function review(worktree, logPath, evidence) {
+  function review(worktree, logPath, evidence, attempt = {}) {
     const before = baseCommandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
     const prompt = independentReviewerPrompt(evidence.path);
-    const result = runReadOnlyReviewer(worktree, prompt, logPath);
+    const result = runReadOnlyReviewer(worktree, prompt, logPath, attempt);
     const after = baseCommandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
     const dirty = baseCommandOutput("git", ["status", "--porcelain"], { cwd: worktree });
     if (before !== after || dirty) throw new Error("Independent reviewer modified the branch; refusing to merge");
@@ -195,5 +225,5 @@ export function createAgentRunner({
     };
   }
 
-  return { complexityReasons, review, reviewEvidence, runImplementation, validate };
+  return { complexityReasons, review, reviewEvidence, runImplementation, runReadOnlyReviewer, validate };
 }

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { commandResult } from "./frontier-command.mjs";
 import {
+  AgentProcessTimeoutError,
+  createAgentRunner,
   formatIssueReviewEvidence,
   frontierModel,
   frontierThinkingLevel,
@@ -17,6 +19,7 @@ import {
 import { failureFingerprint, recordFailureFingerprint } from "./frontier-failure-evidence.mjs";
 import {
   actionProgressed,
+  agentTimeoutTransition,
   complexityReasonsFromStats,
   failureBaseState,
   failureEvidenceMatches,
@@ -57,6 +60,7 @@ import {
 import { createMaintenanceController, maintenanceBoundaryIsSafe } from "./frontier-maintenance.mjs";
 import { runInProcessGroup } from "./frontier-process-group.mjs";
 import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompts.mjs";
+import { createTicketRunner, quarantineIssueComment, quarantineIssueRecord } from "./frontier-ticket-runner.mjs";
 import { sleep } from "./frontier-time.mjs";
 
 function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
@@ -321,6 +325,330 @@ test("timed-out process groups terminate both child and long-lived grandchild", 
   }
 });
 
+test("editing and read-only Pi timeouts are typed at the agent-runner boundary", () => {
+  const root = mkdtempSync(join(tmpdir(), "mdlm-agent-timeout-"));
+  const logPath = join(root, "issue.log");
+  const timedOutResult = {
+    error: undefined,
+    status: 124,
+    signal: null,
+    timedOut: true,
+    stdout: "",
+    stderr: "FRONTIER_PROCESS_TIMEOUT: process group terminated",
+  };
+  const runner = createAgentRunner({
+    repositoryRoot: root,
+    maximumInfrastructureAttempts: 4,
+    complexityBudget: {
+      maximumChangedFiles: 24,
+      maximumChangedLines: 1_800,
+      maximumLifecycleModules: 12,
+    },
+    runAgentProcess: () => timedOutResult,
+  });
+  try {
+    assert.throws(
+      () => runner.runImplementation(root, "edit", logPath, "implementation", {
+        actionKind: "implementation",
+        attemptStartIdentity: "edit-attempt-1",
+      }),
+      (error) => error instanceof AgentProcessTimeoutError
+        && error.actionKind === "implementation"
+        && error.attemptStartIdentity === "edit-attempt-1",
+    );
+    assert.throws(
+      () => runner.runReadOnlyReviewer(root, "review", logPath, {
+        actionKind: "review",
+        attemptStartIdentity: "review-attempt-1",
+      }),
+      (error) => error instanceof AgentProcessTimeoutError
+        && error.actionKind === "review"
+        && error.attemptStartIdentity === "review-attempt-1",
+    );
+    const statusOnlyRunner = createAgentRunner({
+      repositoryRoot: root,
+      maximumInfrastructureAttempts: 4,
+      complexityBudget: {
+        maximumChangedFiles: 24,
+        maximumChangedLines: 1_800,
+        maximumLifecycleModules: 12,
+      },
+      runAgentProcess: () => ({ ...timedOutResult, timedOut: false }),
+    });
+    assert.throws(
+      () => statusOnlyRunner.runReadOnlyReviewer(root, "review", logPath, {
+        actionKind: "review",
+        attemptStartIdentity: "review-attempt-status-124",
+      }),
+      AgentProcessTimeoutError,
+    );
+    const thrownTimeout = new AgentProcessTimeoutError({
+      actionKind: "review",
+      attemptStartIdentity: "review-attempt-2",
+      evidence: "FRONTIER_PROCESS_TIMEOUT",
+      logPath,
+    });
+    const throwingRunner = createAgentRunner({
+      repositoryRoot: root,
+      maximumInfrastructureAttempts: 4,
+      complexityBudget: {
+        maximumChangedFiles: 24,
+        maximumChangedLines: 1_800,
+        maximumLifecycleModules: 12,
+      },
+      runAgentProcess: () => { throw thrownTimeout; },
+    });
+    assert.throws(
+      () => throwingRunner.runReadOnlyReviewer(root, "review", logPath, {
+        actionKind: "review",
+        attemptStartIdentity: "review-attempt-2",
+      }),
+      (error) => error === thrownTimeout,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("typed agent process timeout is not a provider transient", () => {
+  assert.equal(isTransientAgentFailure(new AgentProcessTimeoutError({
+    actionKind: "review",
+    attemptStartIdentity: "review-attempt-1",
+    evidence: "timed out",
+    logPath: "/tmp/issue.log",
+  })), false);
+});
+
+test("first agent timeout durably retries the same action without consuming product correction", () => {
+  const state = {
+    pendingAction: { kind: "review" },
+    commandsValidatedHead: "validated-head",
+    remediationUsed: false,
+    diagnosticEscalations: 0,
+    designEscalations: 0,
+    contractReviews: 0,
+    targetedRepairCount: 0,
+    currentFailureFingerprint: null,
+    failureEvidencePath: null,
+  };
+  const transition = agentTimeoutTransition(state, {
+    actionKind: "review",
+    attemptStartIdentity: "review-attempt-1",
+    evidence: "FRONTIER_PROCESS_TIMEOUT after 100ms",
+    logPath: "/tmp/issue-101.log",
+  });
+  assert.equal(transition.agentTimeoutCount, 1);
+  assert.deepEqual(transition.pendingAction, { kind: "review" });
+  assert.equal(transition.commandsValidatedHead, "validated-head");
+  assert.equal(transition.remediationUsed, false);
+  assert.equal(transition.diagnosticEscalations, 0);
+  assert.equal(transition.designEscalations, 0);
+  assert.equal(transition.contractReviews, 0);
+  assert.equal(transition.targetedRepairCount, 0);
+  assert.equal(transition.currentFailureFingerprint, null);
+  assert.equal(transition.failureEvidencePath, null);
+});
+
+test("editing and reviewer actions each get one fresh timeout retry before infrastructure quarantine", () => {
+  for (const actionKind of ["implementation", "review"]) {
+    const productState = {
+      pendingAction: { kind: actionKind },
+      commandsValidatedHead: actionKind === "review" ? "validated-head" : null,
+      remediationUsed: true,
+      diagnosticEscalations: 1,
+      designEscalations: 1,
+      contractReviews: 1,
+      targetedRepairCount: 2,
+      currentFailureFingerprint: "existing-product-fingerprint",
+      failureEvidencePath: "/tmp/existing-product-failure.md",
+    };
+    const first = agentTimeoutTransition(productState, {
+      actionKind,
+      attemptStartIdentity: `${actionKind}-attempt-1`,
+      evidence: "first timeout",
+      logPath: "/tmp/issue.log",
+    });
+    assert.deepEqual(first.pendingAction, { kind: actionKind });
+    assert.equal(first.agentTimeoutCount, 1);
+    assert.equal(first.commandsValidatedHead, productState.commandsValidatedHead);
+    assert.equal(first.targetedRepairCount, 2);
+    assert.equal(first.currentFailureFingerprint, "existing-product-fingerprint");
+
+    const second = agentTimeoutTransition(first, {
+      actionKind,
+      attemptStartIdentity: `${actionKind}-attempt-2`,
+      evidence: "second timeout",
+      logPath: "/tmp/issue.log",
+    });
+    assert.equal(second.agentTimeoutCount, 2);
+    assert.equal(second.pendingAction.quarantineClass, "agent-infrastructure-timeout");
+    assert.equal(second.pendingAction.timeoutAction, actionKind);
+    assert.equal(second.targetedRepairCount, 2);
+    assert.equal(second.currentFailureFingerprint, "existing-product-fingerprint");
+  }
+});
+
+test("second ticket-wide agent timeout schedules infrastructure quarantine without product evidence", () => {
+  const first = agentTimeoutTransition({
+    pendingAction: { kind: "implementation" },
+    agentTimeoutCount: 0,
+    agentTimeoutOccurrences: [],
+    remediationUsed: false,
+    diagnosticEscalations: 0,
+    designEscalations: 0,
+    contractReviews: 0,
+    targetedRepairCount: 0,
+  }, {
+    actionKind: "implementation",
+    attemptStartIdentity: "edit-attempt-1",
+    evidence: "first timeout",
+    logPath: "/tmp/issue-101.log",
+  });
+  const second = agentTimeoutTransition({ ...first, pendingAction: { kind: "review" } }, {
+    actionKind: "review",
+    attemptStartIdentity: "review-attempt-2",
+    evidence: "second timeout",
+    logPath: "/tmp/issue-101.log",
+  });
+  assert.equal(second.agentTimeoutCount, 2);
+  assert.deepEqual(second.pendingAction, {
+    kind: "quarantine",
+    quarantineClass: "agent-infrastructure-timeout",
+    timeoutAction: "review",
+    timeoutEvidence: "second timeout",
+    timeoutLog: "/tmp/issue-101.log",
+  });
+  assert.equal(second.targetedRepairCount, 0);
+  assert.equal(second.currentFailureFingerprint, undefined);
+  assert.equal(second.failureEvidencePath, undefined);
+});
+
+test("editing timeout occurrence survives status persistence before control returns", () => {
+  const root = mkdtempSync(join(tmpdir(), "mdlm-timeout-state-"));
+  const statePath = join(root, "status.json");
+  let durableState = {
+    parentIssue: 83,
+    currentIssue: 101,
+    branch: "agent/issue-101",
+    worktree: root,
+    issueLog: join(root, "issue-101.log"),
+    pendingAction: { kind: "implementation" },
+    agentTimeoutCount: 0,
+    agentTimeoutOccurrences: [],
+    remediationUsed: false,
+    diagnosticEscalations: 0,
+    designEscalations: 0,
+    contractReviews: 0,
+    targetedRepairCount: 0,
+  };
+  const writeState = (_paths, current, patch) => {
+    durableState = { ...current, ...patch };
+    writeFileSync(statePath, JSON.stringify(durableState));
+    return durableState;
+  };
+  const runner = createTicketRunner({
+    repositoryRoot: root,
+    writeState,
+    log: () => {},
+    defaultBranch: () => "main",
+    maximumDiagnosticEscalations: 1,
+    maximumDesignEscalations: 1,
+    maximumAgentInfrastructureAttempts: 4,
+    complexityBudget: { maximumChangedFiles: 24, maximumChangedLines: 1_800, maximumLifecycleModules: 12 },
+  });
+  try {
+    const timeout = new AgentProcessTimeoutError({
+      actionKind: "implementation",
+      attemptStartIdentity: "durable-edit-attempt",
+      evidence: "FRONTIER_PROCESS_TIMEOUT",
+      logPath: durableState.issueLog,
+    });
+    runner.recordAgentTimeout({ root, state: statePath }, durableState, timeout);
+    const persisted = JSON.parse(readFileSync(statePath, "utf8"));
+    assert.equal(persisted.agentTimeoutCount, 1);
+    assert.deepEqual(persisted.pendingAction, { kind: "implementation" });
+    assert.equal(persisted.targetedRepairCount, 0);
+    assert.equal(persisted.currentFailureFingerprint, undefined);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("recorded agent timeout occurrence is idempotent across crash resume", () => {
+  const once = agentTimeoutTransition({ pendingAction: { kind: "implementation" } }, {
+    actionKind: "implementation",
+    attemptStartIdentity: "durable-attempt",
+    evidence: "timeout",
+    logPath: "/tmp/issue.log",
+  });
+  const replayed = agentTimeoutTransition(once, {
+    actionKind: "implementation",
+    attemptStartIdentity: "durable-attempt",
+    evidence: "timeout",
+    logPath: "/tmp/issue.log",
+  });
+  assert.strictEqual(replayed, once);
+  assert.equal(replayed.agentTimeoutCount, 1);
+});
+
+test("quarantine records distinguish product exhaustion from agent infrastructure timeout", () => {
+  const issue = { number: 101, title: "Deploy validated controller" };
+  const common = {
+    branch: "agent/issue-101",
+    worktree: "/tmp/issue-101",
+    remediationUsed: false,
+    diagnosticEscalations: 0,
+    designEscalations: 0,
+    contractReviews: 0,
+    targetedRepairCount: 0,
+    agentTimeoutCount: 2,
+    currentFailureFingerprint: "earlier-real-product-fingerprint",
+    failureEvidencePath: "/tmp/earlier-real-product-failure.md",
+    quarantinedAt: "2026-08-12T10:00:00.000Z",
+  };
+  const infrastructure = quarantineIssueRecord(issue, {
+    ...common,
+    pendingAction: {
+      kind: "quarantine",
+      quarantineClass: "agent-infrastructure-timeout",
+      timeoutAction: "review",
+      timeoutEvidence: "FRONTIER_PROCESS_TIMEOUT",
+      timeoutLog: "/tmp/issue-101.log",
+    },
+  });
+  assert.equal(infrastructure.class, "agent-infrastructure-timeout");
+  assert.equal(infrastructure.timeoutAction, "review");
+  assert.equal(infrastructure.timeoutEvidence, "FRONTIER_PROCESS_TIMEOUT");
+  assert.equal(infrastructure.timeoutLog, "/tmp/issue-101.log");
+  assert.equal("failureFingerprint" in infrastructure, false);
+  assert.match(quarantineIssueComment("<!-- marker -->", infrastructure), /agent infrastructure timed out/i);
+  assert.doesNotMatch(quarantineIssueComment("<!-- marker -->", infrastructure), /targeted repair budget exhausted/i);
+
+  const product = quarantineIssueRecord(issue, {
+    ...common,
+    pendingAction: { kind: "quarantine", quarantineClass: "product-correction-exhausted" },
+    currentFailureFingerprint: "product-fingerprint",
+    previousFailureFingerprint: "previous-product-fingerprint",
+    failureRepeatCount: 3,
+    failureEvidencePath: "/tmp/product-failure.md",
+    failureEvidenceIdentity: "command:abc",
+  });
+  assert.equal(product.class, "product-correction-exhausted");
+  assert.equal(product.failureFingerprint, "product-fingerprint");
+  assert.match(quarantineIssueComment("<!-- marker -->", product), /targeted repair budget was exhausted/i);
+});
+
+test("state migration never infers a missing validated head from review or publication state", () => {
+  const migrated = migrateFrontierState({
+    schemaVersion: 4,
+    pendingAction: { kind: "review" },
+    commandsValidatedHead: "known-command-head",
+    reviewedHead: "known-review-head",
+    pullRequest: 101,
+  });
+  assert.equal(migrated.validatedHead, undefined);
+});
+
 test("independent validation checks the committed ticket range", () => {
   assert.deepEqual(validationCommands("main")[1], ["git", ["diff", "--check", "origin/main...HEAD"]]);
 });
@@ -447,10 +775,14 @@ test("safe reload does not resume a legacy repeated broad contract-review cycle"
     pendingAction: { kind: "contract-review" },
     contractReviews: 5,
   }), {
-    schemaVersion: 4,
+    schemaVersion: 5,
     pendingAction: { kind: "validation" },
     contractReviews: 5,
     targetedRepairCount: 0,
+    agentTimeoutCount: 0,
+    agentTimeoutOccurrences: [],
+    agentAttempt: null,
+    lastAgentTimeout: null,
     quarantines: [],
   });
   assert.deepEqual(migrateFrontierState({
@@ -480,6 +812,7 @@ test("targeted repair cap produces quarantine instead of another editing action"
   assert.equal(quarantined.targetedRepairCount, 3);
   assert.deepEqual(quarantined.pendingAction, {
     kind: "quarantine",
+    quarantineClass: "product-correction-exhausted",
     evidencePath: "/tmp/failure.md",
     failureFingerprint: "final-fingerprint",
     failureRepeated: true,
