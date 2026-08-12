@@ -31,6 +31,16 @@ const ids = {
   gateDecision: "DEC-1010000000",
   gateDecisionContext: "BSL-1010000006",
   gateDecisionReview: "REV-1010000003",
+  productReviewContext: "BSL-1010000007",
+  unaffectedReviewContext: "BSL-1010000008",
+  strategyReviewContext: "BSL-1010000009",
+  affectedEvidenceReviewContext: "BSL-1010000010",
+  unaffectedEvidenceReviewContext: "BSL-1010000011",
+  productReview: "REV-1010000004",
+  unaffectedReview: "REV-1010000005",
+  strategyReview: "REV-1010000006",
+  affectedEvidenceReview: "REV-1010000007",
+  unaffectedEvidenceReview: "REV-1010000008",
 };
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
@@ -129,19 +139,6 @@ batching: coherent-batch
   phase0.order = 8;
   await fs.writeFile(phase0Path, stringify(phase0));
 
-  const reviewSelectorPath = path.join(packageRoot, "selectors/review-required-revisions.yaml");
-  const reviewSelector = parse(await fs.readFile(reviewSelectorPath, "utf8"));
-  reviewSelector.query.where = `policy("review-applicability@1", {subject: subject}).required == true
-&& state(subject, "disposition") == "active"
-&& none("newer-revisions-for@1", {subject: subject})
-&& (
-  phase.id != "phase-7-change-control"
-  || subject.identity.type == "CHG"
-  || (subject.identity.type == "DEC" && subject.payload.kind == "change-approval")
-  || subject.provenance.scenario in ["revise-requirement-under-change@2", "create-stakeholder-change-candidate@1", "revise-stakeholder-change-after-review@1"]
-)`;
-  await fs.writeFile(reviewSelectorPath, stringify(reviewSelector));
-
   const profilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
   profile.terminal_outcomes.profile_boundary.condition = `phase.id == "phase-7-change-control"
@@ -186,8 +183,17 @@ describe("accepted STK change control through the public operator process", () =
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-stk-change-"));
     repository = path.join(parent, "repository");
     await fs.mkdir(repository);
-    // Install the focused test package through setup only; all lifecycle work below uses mdlm.
+    // Setup adds only seed/phase-boundary fixtures; production Selector behavior stays bundled.
     const packageRoot = await focusedChangePackage(parent);
+    for (const selector of [
+      "review-required-revisions.yaml",
+      "implemented-changes-impacting-revision.yaml",
+      "traceability-affected-change-contexts.yaml",
+      "review-context-contains-member.yaml",
+    ]) {
+      expect(await fs.readFile(path.join(packageRoot, "selectors", selector), "utf8"))
+        .toBe(await fs.readFile(path.join(bundledPackage, "selectors", selector), "utf8"));
+    }
     const reqExecutable = path.join(projectRoot, "dist/req-entry.js");
     const selected = spawnSync(process.execPath, [reqExecutable, "init", "--process", packageRoot, "--json"], {
       cwd: repository,
@@ -357,6 +363,55 @@ describe("accepted STK change control through the public operator process", () =
         { type: "reviews", target: revision(ids.accepted) },
         { type: "contextualizes", target: revision(ids.acceptedReviewContext) },
       ], ids.acceptedReview),
+    ]);
+    await executeSeed([
+      ...[
+        ["product", ids.productReviewContext, ids.product],
+        ["unaffected", ids.unaffectedReviewContext, ids.unaffected],
+        ["strategy", ids.strategyReviewContext, ids.strategy],
+        ["affected-evidence", ids.affectedEvidenceReviewContext, ids.affectedEvidence],
+        ["unaffected-evidence", ids.unaffectedEvidenceReviewContext, ids.unaffectedEvidence],
+      ].map(([name, contextId, subjectId]) => output(
+        `${name}-review-context`,
+        "data",
+        "BSL",
+        {
+          title: `Review Context for ${revision(subjectId!)}`,
+          kind: "review-context",
+          role: "review-context",
+          scope: revision(subjectId!),
+          group: "DEFAULT",
+          definition_members: [revision(subjectId!)],
+          evidence: [],
+        },
+        [],
+        contextId,
+      )),
+    ]);
+    await executeSeed([
+      ...[
+        ["product", ids.productReview, ids.product, ids.productReviewContext],
+        ["unaffected", ids.unaffectedReview, ids.unaffected, ids.unaffectedReviewContext],
+        ["strategy", ids.strategyReview, ids.strategy, ids.strategyReviewContext],
+        ["affected-evidence", ids.affectedEvidenceReview, ids.affectedEvidence, ids.affectedEvidenceReviewContext],
+        ["unaffected-evidence", ids.unaffectedEvidenceReview, ids.unaffectedEvidence, ids.unaffectedEvidenceReviewContext],
+      ].map(([name, reviewId, subjectId, contextId]) => output(
+        `${name}-review`,
+        "data",
+        "REV",
+        {
+          title: `Passing Review of ${revision(subjectId!)}`,
+          review_kind: "contextual",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+          findings: [],
+          outcome: "pass",
+        },
+        [
+          { type: "reviews", target: revision(subjectId!) },
+          { type: "contextualizes", target: revision(contextId!) },
+        ],
+        reviewId,
+      )),
     ]);
     await executeSeed([
       output("intent-candidate", "data", "BSL", {
@@ -932,7 +987,7 @@ describe("accepted STK change control through the public operator process", () =
     expect(prepare(next).scenario.reference).toBe("create-review-context@1");
   }, 300_000);
 
-  it("requires same-lineage replacement, preserves unaffected exact evidence, and closes with fresh Review and candidate evidence", async () => {
+  it("uses bundled Review selectors to replace accepted STK evidence and close without historical Review loops", async () => {
     await seed();
     const { change, packet } = publishChangeAndReview();
     publishDisposition(packet, change, "approve");
@@ -1075,9 +1130,9 @@ describe("accepted STK change control through the public operator process", () =
     ]);
 
     const terminal = nextOutcome();
-    expect(terminal.outcome).toBe("profile-boundary-reached");
+    expect(terminal.outcome, JSON.stringify(terminal)).toBe("profile-boundary-reached");
     expect(git(repository, "grep", revision(ids.unaffectedEvidence), "--", ".lifecycle/data").status).toBe(0);
     const acceptedHistory = mdlm(repository, ["show", revision(ids.accepted), "--json"]);
     expect(JSON.parse(acceptedHistory.stdout).projections.states.maturity).toBe("accepted");
-  }, 240_000);
+  }, 600_000);
 });

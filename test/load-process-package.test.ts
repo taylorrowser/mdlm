@@ -136,6 +136,26 @@ describe("loadProcessPackage", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
+  it("validates Review Context membership contracts for DEC and CHG callers", async () => {
+    const result = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+
+    expect(result.ok, result.diagnostics.map((item) => item.message).join("\n")).toBe(
+      true,
+    );
+    if (!result.ok) return;
+
+    expect(result.package.selectors["review-context-contains-member"]?.parameters)
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: "required_member",
+          types: expect.arrayContaining(["DEC", "CHG"]),
+        }),
+      ]));
+    expect(result.diagnostics).toEqual([]);
+  });
+
   it("compiles package-authored terminal outcome conditions", async () => {
     const result = await loadProcessPackage(
       path.join(process.cwd(), ".lifecycle/process"),
