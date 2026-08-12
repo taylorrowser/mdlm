@@ -138,7 +138,7 @@ describe("req schema", () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout).schema).toEqual(expect.objectContaining({
-      definition: "SNP@5",
+      definition: "SNP@4",
       kernelCapabilityBindings: [{
         reference: "exact-baseline@1",
         binding: { type: "SNP" },
