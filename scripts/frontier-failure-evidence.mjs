@@ -1,17 +1,28 @@
 import { createHash } from "node:crypto";
 
 const ansiPattern = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
-const inlineDurationPattern = /\s+\(?\d+(?:\.\d+)?(?:ms|s)\)?\s*$/i;
-const vitestStatusPrefixPattern = /^\s*(?:(?:FAIL|PASS)\b|[✓✔×✕✖❯])/u;
 const tapStatusPrefixPattern = /^\s*(?:not )?ok\b/i;
+const tapRunnerDurationSuffixPattern = /\s+\(\d+(?:\.\d+)?(?:ms|s)\)\s*$/i;
+const vitestFailureIdentityPattern = /^\s*FAIL\s+.+?\s+>\s+(.+?)\s*$/;
+const vitestFailureSummaryPattern = /^(\s*[×✕✖]\s+)(.*?)(\s+\d+(?:\.\d+)?(?:ms|s))\s*$/iu;
 
-function stripRunnerStatusTiming(line) {
-  if (!vitestStatusPrefixPattern.test(line) && !tapStatusPrefixPattern.test(line)) return line;
-  return line.replace(inlineDurationPattern, "");
+function vitestFailureIdentities(lines) {
+  return new Set(lines.flatMap((line) => {
+    const match = line.match(vitestFailureIdentityPattern);
+    return match ? [match[1]] : [];
+  }));
+}
+
+function stripStructuralRunnerTiming(line, detailedVitestFailures) {
+  if (tapStatusPrefixPattern.test(line)) return line.replace(tapRunnerDurationSuffixPattern, "");
+
+  const summary = line.match(vitestFailureSummaryPattern);
+  if (!summary || !detailedVitestFailures.has(summary[2])) return line;
+  return `${summary[1]}${summary[2]}`;
 }
 
 export function normalizeFailureEvidence({ commandIdentity, output }) {
-  const normalizedOutput = String(output ?? "")
+  const lines = String(output ?? "")
     .replace(ansiPattern, "")
     .replace(/\r\n?/g, "\n")
     .replace(/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/g, "<timestamp>")
@@ -19,8 +30,10 @@ export function normalizeFailureEvidence({ commandIdentity, output }) {
     .replace(/^\s*(?:Duration|Start at|(?:ℹ\s+)?duration_ms)\b[^\n]*$/gim, "")
     .replace(/(?:\/private)?\/(?:tmp|var\/folders)\/[^\s:]+(?=\/(?:src|test|scripts)\/)/g, "<temp-root>")
     .replace(/\b(mdlm-[A-Za-z0-9_-]*?)[A-Za-z0-9]{6,}\b/g, "$1<run>")
-    .split("\n")
-    .map(stripRunnerStatusTiming)
+    .split("\n");
+  const detailedVitestFailures = vitestFailureIdentities(lines);
+  const normalizedOutput = lines
+    .map((line) => stripStructuralRunnerTiming(line, detailedVitestFailures))
     .map((line) => line.trimEnd())
     .filter((line) => line.trim() !== "")
     .join("\n");

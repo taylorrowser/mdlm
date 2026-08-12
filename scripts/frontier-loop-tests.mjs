@@ -863,26 +863,55 @@ test("targeted repair cap produces quarantine instead of another editing action"
   });
 });
 
-test("stable semantic failure fingerprints ignore runtime noise and track repetition", () => {
-  const firstOutput = "\u001b[31mFAIL test/example.test.ts > rejects stale input 12746ms\u001b[0m\n2026-08-12T01:02:03.000Z AssertionError: expected timeout 5ms but received 10ms\n at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7\nDuration 27m 3.2s";
-  const secondOutput = "FAIL test/example.test.ts > rejects stale input 376.58s\n2027-01-01T04:05:06.000Z AssertionError: expected timeout 5ms but received 10ms\n at /tmp/mdlm-run-z9/test/example.test.ts:44:7\nDuration 12.8s";
+test("Vitest failure fingerprints normalize only matched summary runner durations", () => {
+  const firstOutput = "\u001b[31m× waits 500ms 12746ms\u001b[0m\nFAIL test/example.test.ts > waits 500ms\n2026-08-12T01:02:03.000Z AssertionError: expected true to be false\n at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7\nDuration 27m 3.2s";
+  const secondOutput = "× waits 500ms 376.58ms\nFAIL test/example.test.ts > waits 500ms\n2027-01-01T04:05:06.000Z AssertionError: expected true to be false\n at /tmp/mdlm-run-z9/test/example.test.ts:44:7\nDuration 12.8s";
   const fingerprint = failureFingerprint({ commandIdentity: "npm test", output: firstOutput });
+
   assert.equal(failureFingerprint({ commandIdentity: "npm test", output: secondOutput }), fingerprint);
-  assert.notEqual(failureFingerprint({ commandIdentity: "npm test", output: secondOutput.replace("received 10ms", "received 11ms") }), fingerprint);
-
-  const firstTapOutput = "not ok 1 - rejects stale input (0.49325ms)\n  AssertionError: expected timeout 5ms but received 10ms\n    at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7";
-  const secondTapOutput = "not ok 1 - rejects stale input (892.75ms)\n  AssertionError: expected timeout 5ms but received 10ms\n    at /tmp/mdlm-run-z9/test/example.test.ts:44:7";
-  const tapFingerprint = failureFingerprint({ commandIdentity: "node --test", output: firstTapOutput });
-  assert.equal(failureFingerprint({ commandIdentity: "node --test", output: secondTapOutput }), tapFingerprint);
   assert.notEqual(
-    failureFingerprint({ commandIdentity: "node --test", output: secondTapOutput.replace("expected timeout 5ms", "expected timeout 6ms") }),
-    tapFingerprint,
+    failureFingerprint({ commandIdentity: "npm test", output: secondOutput.replaceAll("waits 500ms", "waits 600ms") }),
+    fingerprint,
   );
   assert.notEqual(
-    failureFingerprint({ commandIdentity: "npm test", output: "AssertionError: expected timeout 5ms but received 10ms" }),
-    failureFingerprint({ commandIdentity: "npm test", output: "AssertionError: expected timeout 500ms but received 10ms" }),
+    failureFingerprint({ commandIdentity: "npm test", output: "FAIL test/example.test.ts > waits 500ms\nAssertionError: expected true to be false" }),
+    failureFingerprint({ commandIdentity: "npm test", output: "FAIL test/example.test.ts > waits 600ms\nAssertionError: expected true to be false" }),
   );
+  assert.notEqual(
+    failureFingerprint({ commandIdentity: "npm test", output: "× waits 500ms 12746ms\nAssertionError: expected true to be false" }),
+    failureFingerprint({ commandIdentity: "npm test", output: "× waits 500ms 376.58ms\nAssertionError: expected true to be false" }),
+  );
+});
 
+test("Node TAP failure fingerprints strip only final parenthesized runner durations", () => {
+  const firstOutput = "ok 1 - setup (0.125ms)\nnot ok 2 - waits 500ms (0.49325ms)\n  AssertionError: expected true to be false\n    at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7";
+  const secondOutput = "ok 1 - setup (42.75ms)\nnot ok 2 - waits 500ms (892.75ms)\n  AssertionError: expected true to be false\n    at /tmp/mdlm-run-z9/test/example.test.ts:44:7";
+  const fingerprint = failureFingerprint({ commandIdentity: "node --test", output: firstOutput });
+
+  assert.equal(failureFingerprint({ commandIdentity: "node --test", output: secondOutput }), fingerprint);
+  assert.notEqual(
+    failureFingerprint({ commandIdentity: "node --test", output: secondOutput.replace("waits 500ms", "waits 600ms") }),
+    fingerprint,
+  );
+});
+
+test("failure fingerprints preserve command, assertion, and normalized path identity", () => {
+  const evidence = {
+    commandIdentity: "npm test",
+    output: "FAIL test/example.test.ts > rejects stale input\nAssertionError: expected timeout 5ms but received 10ms\n at /tmp/mdlm-run-a1/test/example.test.ts:44:7",
+  };
+  const fingerprint = failureFingerprint(evidence);
+
+  assert.notEqual(failureFingerprint({ ...evidence, commandIdentity: "npm run test:unit" }), fingerprint);
+  assert.notEqual(failureFingerprint({ ...evidence, output: evidence.output.replace("received 10ms", "received 11ms") }), fingerprint);
+  assert.notEqual(failureFingerprint({ ...evidence, output: evidence.output.replaceAll("example.test.ts", "other.test.ts") }), fingerprint);
+});
+
+test("failure fingerprint repetition tracks the same normalized failure", () => {
+  const fingerprint = failureFingerprint({
+    commandIdentity: "node --test",
+    output: "not ok 1 - rejects stale input (0.49325ms)\nAssertionError: expected true to be false",
+  });
   const first = recordFailureFingerprint({}, fingerprint);
   assert.deepEqual(first, {
     previousFailureFingerprint: null,
