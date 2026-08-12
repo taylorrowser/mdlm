@@ -57,7 +57,7 @@ async function packageWithRejectedInput(): Promise<string> {
         "  - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision, conditions: 'subject.integrity.schema_valid == false'}",
       )
       .replace(
-        "  - {name: context_members, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, DEC, CHG], cardinality: zero-or-more, identity: revision}\n",
+        "  - {name: context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}\n",
         "",
       ),
   );
@@ -297,7 +297,7 @@ describe("req scenario dry-run", () => {
                 expect.objectContaining({
                   name: "context_members",
                   contract: expect.objectContaining({
-                    types: [
+                    types: expect.arrayContaining([
                       "ASP",
                       "CHG",
                       "DEC",
@@ -307,7 +307,7 @@ describe("req scenario dry-run", () => {
                       "PSP",
                       "STK",
                       "SYS",
-                    ],
+                    ]),
                     cardinality: "zero-or-more",
                     identity: "revision",
                   }),

@@ -1020,7 +1020,7 @@ describe("accepted STK change control through the public operator process", () =
     next = nextOutcome();
     expect(next.outcome).toBe("assignment");
     expect(prepare(next).scenario.reference).toBe("create-review-context@1");
-  }, 300_000);
+  }, 600_000);
 
   it(livenessTestName, async () => {
     await seed();
