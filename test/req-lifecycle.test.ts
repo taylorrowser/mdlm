@@ -78,7 +78,7 @@ describe("req lifecycle status and next work", () => {
       command: "phase.status",
       phaseStatus: expect.objectContaining({
         id: "phase-2-system-definition",
-        version: 7,
+        version: 8,
         entry: expect.objectContaining({ satisfied: false }),
         candidateSelection: expect.objectContaining({ entities: [] }),
         obligations: {
