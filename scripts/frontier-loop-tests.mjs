@@ -14,21 +14,28 @@ import {
   validationCommands,
   validationCommandWasInterrupted,
 } from "./frontier-agent-runner.mjs";
+import { failureFingerprint, recordFailureFingerprint } from "./frontier-failure-evidence.mjs";
 import {
   actionProgressed,
   complexityReasonsFromStats,
-  contractReviewRecoveryState,
   failureBaseState,
+  failureEvidenceMatches,
   isPublicationRetryFailure,
   isRemoteValidationFailure,
   isTransientAgentFailure,
   isTransientInfrastructureFailure,
+  mergedPullRequestMatchesValidatedHead,
+  migrateFrontierState,
   panesAreRunning,
   parsePullRequestNumber,
+  publicationReconciliationAllowed,
   reviewHasComplexityVerdict,
+  reviewedVerdictAt,
   reviewerVerdict,
   reviewRequestsSimplification,
   resumesAtValidation,
+  scheduleFailureAction,
+  supervisorRecognizesTerminalPhase,
   validatedHeadMatches,
   validationFailureAction,
   validationHasVerdict,
@@ -39,13 +46,16 @@ import {
   bodyReferencesParent,
   findFrontier,
   findReadyItem,
+  fixedIdentitiesAreClosed,
   normalizeNativeBlockers,
   priorityIssueSnapshot,
   referencedParentNumber,
+  selectFixedScopeCandidate,
   selectOlderReadyBacklog,
   selectSnapshottedIssues,
 } from "./frontier-issue-contract.mjs";
 import { createMaintenanceController, maintenanceBoundaryIsSafe } from "./frontier-maintenance.mjs";
+import { runInProcessGroup } from "./frontier-process-group.mjs";
 import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
 
@@ -73,6 +83,12 @@ test("frontier is absent when every remaining issue is assigned or blocked", () 
   assert.equal(findFrontier(issues), undefined);
 });
 
+test("completion requires every fixed identity to be observed closed", () => {
+  assert.equal(fixedIdentitiesAreClosed([84, 85], [issue(84, { state: "CLOSED" }), issue(85, { state: "CLOSED" })]), true);
+  assert.equal(fixedIdentitiesAreClosed([84, 85], [issue(84, { state: "CLOSED" })]), false);
+  assert.equal(fixedIdentitiesAreClosed([84], [issue(84)]), false);
+});
+
 test("the priority-map snapshot cannot absorb future children", () => {
   const initial = [
     { number: 84, body: "## Parent\n\n#83" },
@@ -98,6 +114,32 @@ test("older backlog selection is separate and cannot absorb future work", () => 
   const selected = selectOlderReadyBacklog(83, summaries, [{ number: 80 }]);
   assert.deepEqual(selected.map((candidate) => candidate.number), [70]);
   assert.equal(findReadyItem([issue(71), issue(70)])?.number, 70);
+});
+
+test("quarantined tickets are never reserved but remain open dependency blockers", () => {
+  const issues = [
+    issue(84),
+    issue(85, { blockedBy: [{ number: 84, state: "OPEN" }] }),
+    issue(86),
+  ];
+  assert.equal(findReadyItem(issues, { excludedIssueNumbers: [84] })?.number, 86);
+  assert.equal(findReadyItem(issues.slice(0, 2), { excludedIssueNumbers: [84] }), undefined);
+});
+
+test("a blocked priority map may fall through to independently ready snapshotted backlog", () => {
+  const priority = [issue(84, { blockedBy: [{ number: 83, state: "OPEN" }] })];
+  const backlog = [issue(70), issue(71)];
+  assert.deepEqual(selectFixedScopeCandidate(priority, backlog), {
+    issue: backlog[0],
+    scope: "older ready backlog",
+  });
+});
+
+test("fixed-scope selection preserves priority and serial order while excluding quarantines", () => {
+  const priority = [issue(86), issue(84), issue(85)];
+  const backlog = [issue(70)];
+  assert.equal(selectFixedScopeCandidate(priority, backlog).issue.number, 84);
+  assert.equal(selectFixedScopeCandidate(priority, backlog, { excludedIssueNumbers: [84] }).issue.number, 85);
 });
 
 test("native blocker collections accept the installed and array JSON shapes", () => {
@@ -154,12 +196,19 @@ test("agent prompts reserve full validation for the orchestrator and preserve tr
   const issue = { number: 86, title: "Prepare Assignment" };
   const implementation = editingAgentPrompt("implementation", { issue });
   const simplification = editingAgentPrompt("simplification", { issue, reasonLog: "/tmp/issue.log" });
+  const targetedRepair = editingAgentPrompt("targeted-repair", {
+    issue,
+    evidencePath: "/tmp/latest-failure.md",
+    failureFingerprint: "abc123",
+    failureRepeated: true,
+  });
   const editingPrompts = [
     implementation,
     editingAgentPrompt("remediation", { issue, reasonLog: "/tmp/issue.log" }),
     editingAgentPrompt("diagnosis", { issue, reasonLog: "/tmp/issue.log" }),
     simplification,
     editingAgentPrompt("contract-review", { issue, reasonLog: "/tmp/issue.log" }),
+    targetedRepair,
   ];
   const reviewer = independentReviewerPrompt("/tmp/evidence.md");
   for (const prompt of editingPrompts) {
@@ -171,6 +220,12 @@ test("agent prompts reserve full validation for the orchestrator and preserve tr
     assert.match(prompt, /deferred sibling work remains deferred/);
   }
   assert.match(simplification, /without pausing for stakeholder confirmation/);
+  assert.match(targetedRepair, /diagnosing-bugs/);
+  assert.match(targetedRepair, /latest-failure\.md/);
+  assert.match(targetedRepair, /smallest root-cause repair/);
+  assert.match(targetedRepair, /focused tests and typecheck only/);
+  assert.match(targetedRepair, /must not alter the issue contract or broadly redesign/);
+  assert.doesNotMatch(targetedRepair, /issue\.log/);
   assert.match(reviewer, /active child acceptance criteria as the current delivery boundary/);
   assert.match(reviewer, /explicitly deferred sibling work/);
   assert.match(reviewer, /delivery-biased gate/);
@@ -249,6 +304,23 @@ test("child commands have a finite timeout", () => {
   );
 });
 
+test("timed-out process groups terminate both child and long-lived grandchild", () => {
+  const source = `
+    const { spawn } = require("node:child_process");
+    const grandchild = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+    process.stdout.write(JSON.stringify({ child: process.pid, grandchild: grandchild.pid }) + "\\n");
+    setInterval(() => {}, 1000);
+  `;
+  const result = runInProcessGroup(process.execPath, ["-e", source], { timeout: 100, terminationGrace: 100 });
+  assert.equal(result.timedOut, true);
+  assert.equal(result.status, 124);
+  assert.match(result.stderr, /FRONTIER_PROCESS_TIMEOUT/);
+  const identities = JSON.parse(result.stdout.trim().split("\n")[0]);
+  for (const pid of [identities.child, identities.grandchild]) {
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+  }
+});
+
 test("independent validation checks the committed ticket range", () => {
   assert.deepEqual(validationCommands("main")[1], ["git", ["diff", "--check", "origin/main...HEAD"]]);
 });
@@ -289,34 +361,161 @@ test("a tmux session is running only while at least one pane is live", () => {
   assert.equal(panesAreRunning([]), false);
 });
 
-test("validation rotates through remediation, diagnosis, design, and contract review", () => {
+test("validation rotates through remediation, diagnosis, design, one contract review, and targeted repair", () => {
   const base = {
-    maximumDiagnosticEscalations: 2,
-    maximumDesignEscalations: 2,
+    maximumDiagnosticEscalations: 1,
+    maximumDesignEscalations: 1,
   };
-  assert.equal(validationFailureAction({ ...base, remediationUsed: false, diagnosticEscalations: 0, designEscalations: 0 }), "remediate");
-  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 0, designEscalations: 0 }), "diagnose");
-  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 2, designEscalations: 0 }), "simplify");
-  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 2, designEscalations: 2 }), "contract-review");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: false, diagnosticEscalations: 0, designEscalations: 0, contractReviews: 0, targetedRepairCount: 0 }), "remediate");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 0, designEscalations: 0, contractReviews: 0, targetedRepairCount: 0 }), "diagnose");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 1, designEscalations: 0, contractReviews: 0, targetedRepairCount: 0 }), "simplify");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 1, designEscalations: 1, contractReviews: 0, targetedRepairCount: 0 }), "contract-review");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 1, designEscalations: 1, contractReviews: 1, targetedRepairCount: 0 }), "targeted-repair");
+  assert.equal(validationFailureAction({ ...base, remediationUsed: true, diagnosticEscalations: 1, designEscalations: 1, contractReviews: 1, targetedRepairCount: 3 }), "quarantine");
 });
 
-test("contract review preserves the ticket-wide correction budget", () => {
-  assert.deepEqual(
-    contractReviewRecoveryState({
-      remediationUsed: true,
-      diagnosticEscalations: 1,
-      designEscalations: 1,
-      contractReviews: 2,
-      complexityReviewedHead: "reviewed-head",
-    }),
-    {
-      remediationUsed: true,
-      diagnosticEscalations: 1,
-      designEscalations: 1,
-      contractReviews: 3,
-      complexityReviewedHead: "reviewed-head",
-    },
+test("failure action scheduling persists the first contract review then targeted repairs without replenishment", () => {
+  const exhausted = {
+    remediationUsed: true,
+    diagnosticEscalations: 1,
+    designEscalations: 1,
+    contractReviews: 0,
+    targetedRepairCount: 0,
+    failureEvidencePath: "/tmp/failure.md",
+    currentFailureFingerprint: "abc",
+    failureRepeatCount: 0,
+    pendingAction: null,
+  };
+  const contract = scheduleFailureAction(exhausted);
+  assert.equal(contract.contractReviews, 1);
+  assert.deepEqual(contract.pendingAction, { kind: "contract-review" });
+
+  const targeted = scheduleFailureAction({ ...contract, pendingAction: null });
+  assert.equal(targeted.contractReviews, 1);
+  assert.equal(targeted.targetedRepairCount, 1);
+  assert.deepEqual(targeted.pendingAction, {
+    kind: "targeted-repair",
+    evidencePath: "/tmp/failure.md",
+    failureFingerprint: "abc",
+    failureRepeated: false,
+  });
+});
+
+test("unchanged exact reviews reuse their persisted verdict independently of later remote evidence", () => {
+  const state = {
+    reviewedHead: "abc",
+    reviewedEvidenceFingerprint: "review-evidence",
+    reviewedPassed: true,
+    reviewedSimplify: false,
+    failureEvidenceIdentity: "remote:abc:12",
+  };
+  assert.deepEqual(reviewedVerdictAt(state, "abc", "review-evidence"), { passed: true, simplify: false });
+  assert.equal(reviewedVerdictAt(state, "def", "review-evidence"), null);
+});
+
+test("failure caches are reusable only when durable evidence matches the exact signal identity", () => {
+  const state = { failureEvidencePath: "/tmp/new-artifact.md", failureEvidenceIdentity: "command:abc" };
+  assert.equal(failureEvidenceMatches(state, "command:abc"), true);
+  assert.equal(failureEvidenceMatches(state, "command:def"), false);
+  assert.equal(failureEvidenceMatches({ failureEvidenceIdentity: "command:abc" }, "command:abc"), false);
+});
+
+test("pending quarantine bypasses successful-publication reconciliation", () => {
+  assert.equal(publicationReconciliationAllowed({ pendingAction: { kind: "quarantine" } }), false);
+  assert.equal(publicationReconciliationAllowed({ pendingAction: { kind: "review" } }), true);
+});
+
+test("crash resume neither replenishes nor double-consumes a scheduled action", () => {
+  const scheduled = scheduleFailureAction({
+    remediationUsed: true,
+    diagnosticEscalations: 1,
+    designEscalations: 1,
+    contractReviews: 1,
+    targetedRepairCount: 1,
+    failureEvidencePath: "/tmp/failure.md",
+    currentFailureFingerprint: "abc",
+    failureRepeatCount: 2,
+    pendingAction: null,
+  });
+  assert.equal(scheduled.targetedRepairCount, 2);
+  assert.strictEqual(scheduleFailureAction(scheduled), scheduled);
+});
+
+test("safe reload does not resume a legacy repeated broad contract-review cycle", () => {
+  assert.deepEqual(migrateFrontierState({
+    schemaVersion: 3,
+    pendingAction: { kind: "contract-review" },
+    contractReviews: 5,
+  }), {
+    schemaVersion: 4,
+    pendingAction: { kind: "validation" },
+    contractReviews: 5,
+    targetedRepairCount: 0,
+    quarantines: [],
+  });
+  assert.deepEqual(migrateFrontierState({
+    schemaVersion: 3,
+    pendingAction: null,
+    contractReviews: 5,
+  }).pendingAction, { kind: "validation" });
+  assert.deepEqual(migrateFrontierState({
+    schemaVersion: 3,
+    pendingAction: { kind: "contract-review" },
+    contractReviews: 1,
+  }).pendingAction, { kind: "contract-review" });
+});
+
+test("targeted repair cap produces quarantine instead of another editing action", () => {
+  const quarantined = scheduleFailureAction({
+    remediationUsed: true,
+    diagnosticEscalations: 1,
+    designEscalations: 1,
+    contractReviews: 1,
+    targetedRepairCount: 3,
+    failureEvidencePath: "/tmp/failure.md",
+    currentFailureFingerprint: "final-fingerprint",
+    failureRepeatCount: 3,
+    pendingAction: null,
+  });
+  assert.equal(quarantined.targetedRepairCount, 3);
+  assert.deepEqual(quarantined.pendingAction, {
+    kind: "quarantine",
+    evidencePath: "/tmp/failure.md",
+    failureFingerprint: "final-fingerprint",
+    failureRepeated: true,
+  });
+});
+
+test("stable semantic failure fingerprints ignore runtime noise and track repetition", () => {
+  const firstOutput = "\u001b[31mFAIL test/example.test.ts > rejects stale input\u001b[0m\n2026-08-12T01:02:03.000Z AssertionError: expected 2 to equal 1\n at /private/tmp/mdlm-run-a1/test/example.test.ts:44:7\nDuration 27m 3.2s";
+  const secondOutput = "FAIL test/example.test.ts > rejects stale input\n2027-01-01T04:05:06.000Z AssertionError: expected 2 to equal 1\n at /tmp/mdlm-run-z9/test/example.test.ts:44:7\nDuration 12.8s";
+  const fingerprint = failureFingerprint({ commandIdentity: "npm test", output: firstOutput });
+  assert.equal(failureFingerprint({ commandIdentity: "npm test", output: secondOutput }), fingerprint);
+  assert.notEqual(failureFingerprint({ commandIdentity: "npm test", output: secondOutput.replace("expected 2", "expected 3") }), fingerprint);
+  assert.notEqual(
+    failureFingerprint({ commandIdentity: "npm test", output: "AssertionError: expected timeout 5ms but received 10ms" }),
+    failureFingerprint({ commandIdentity: "npm test", output: "AssertionError: expected timeout 500ms but received 10ms" }),
   );
+
+  const first = recordFailureFingerprint({}, fingerprint);
+  assert.deepEqual(first, {
+    previousFailureFingerprint: null,
+    currentFailureFingerprint: fingerprint,
+    failureRepeatCount: 0,
+    failureRepeated: false,
+  });
+  assert.deepEqual(recordFailureFingerprint(first, fingerprint), {
+    previousFailureFingerprint: fingerprint,
+    currentFailureFingerprint: fingerprint,
+    failureRepeatCount: 1,
+    failureRepeated: true,
+  });
+});
+
+test("supervisor recognizes completion and process dead end as terminal", () => {
+  assert.equal(supervisorRecognizesTerminalPhase("complete"), true);
+  assert.equal(supervisorRecognizesTerminalPhase("process-dead-end"), true);
+  assert.equal(supervisorRecognizesTerminalPhase("failed"), false);
 });
 
 test("complexity budget reports every crossed threshold", () => {
@@ -354,6 +553,12 @@ test("transient infrastructure and Pi provider failures are classified narrowly"
   assert.equal(isTransientAgentFailure(new Error("TypeError: fetch failed caused by ECONNRESET")), true);
   assert.equal(isTransientAgentFailure(new Error("spawnSync pi ETIMEDOUT")), true);
   assert.equal(isTransientAgentFailure(new Error("tests failed with assertion error")), false);
+});
+
+test("merged publication recovery requires the PR head to equal the validated head", () => {
+  assert.equal(mergedPullRequestMatchesValidatedHead({ validatedHead: "abc123" }, { state: "MERGED", headRefOid: "abc123" }), true);
+  assert.equal(mergedPullRequestMatchesValidatedHead({ validatedHead: "abc123" }, { state: "MERGED", headRefOid: "def456" }), false);
+  assert.equal(mergedPullRequestMatchesValidatedHead({}, { state: "MERGED", headRefOid: "abc123" }), false);
 });
 
 test("a validated branch can resume publication only at the identical commit", () => {

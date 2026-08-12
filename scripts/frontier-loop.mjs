@@ -14,21 +14,21 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
 import {
-  contractReviewRecoveryState,
   failureBaseState,
   isPublicationRetryFailure,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
+  migrateFrontierState,
   panesAreRunning,
-  validationFailureAction,
+  supervisorRecognizesTerminalPhase,
 } from "./frontier-loop-core.mjs";
 import {
   bodyBlockedByNumbers,
   bodyReferencesParent,
-  findFrontier,
-  findReadyItem,
+  fixedIdentitiesAreClosed,
   normalizeNativeBlockers,
   priorityIssueSnapshot,
+  selectFixedScopeCandidate,
   selectOlderReadyBacklog,
   selectSnapshottedIssues,
 } from "./frontier-issue-contract.mjs";
@@ -38,7 +38,6 @@ import { sleep } from "./frontier-time.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const defaultParent = 83;
-const defaultPollSeconds = 60;
 const maximumDiagnosticEscalations = 1;
 const maximumDesignEscalations = 1;
 const maximumAgentInfrastructureAttempts = 4;
@@ -106,6 +105,7 @@ function loopPaths(parent) {
     state: join(root, "status.json"),
     stop: join(root, "STOP"),
     runnerLog: join(root, "runner.log"),
+    quarantineRecords: join(root, "quarantines.json"),
     worktrees: join(root, "worktrees"),
   };
 }
@@ -174,20 +174,21 @@ function readyBacklog(parent, summaries, children, issueNumbers = null) {
   return selected.map((issue) => issueDetails(issue, issueStates));
 }
 
-function deliveryPlan(parent, priorityIssueNumbers = null, backlogIssueNumbers = null) {
+function deliveryPlan(parent, priorityIssueNumbers = null, backlogIssueNumbers = null, quarantines = []) {
   const summaries = allIssueSummaries();
   const children = parentIssues(parent, summaries, priorityIssueNumbers);
-  const primaryOpen = children.filter((issue) => issue.state === "OPEN");
   const backlog = readyBacklog(parent, summaries, children, backlogIssueNumbers);
-  const pool = primaryOpen.length > 0 ? children : backlog;
+  const excludedIssueNumbers = quarantines.map((record) => record.issue);
+  const selected = selectFixedScopeCandidate(children, backlog, { excludedIssueNumbers });
+  const pool = [...children, ...backlog];
   return {
     children,
-    primaryOpen,
     backlog,
     pool,
     open: pool.filter((issue) => issue.state === "OPEN"),
-    next: primaryOpen.length > 0 ? findFrontier(pool) : findReadyItem(pool),
-    scope: primaryOpen.length > 0 ? "priority-map frontier" : "older ready backlog",
+    next: selected.issue,
+    allClosed: fixedIdentitiesAreClosed(priorityIssueNumbers ?? children.map((issue) => issue.number), children)
+      && fixedIdentitiesAreClosed(backlogIssueNumbers ?? backlog.map((issue) => issue.number), backlog),
   };
 }
 
@@ -254,14 +255,24 @@ function runLoop(parent) {
   mkdirSync(paths.worktrees, { recursive: true });
   const maintenance = createMaintenanceController(paths.root);
   let state = readState(paths) ?? writeState(paths, {}, {
-    schemaVersion: 3,
+    schemaVersion: 4,
     parentIssue: parent,
     session: sessionName(parent),
     phase: "starting",
     message: "Starting frontier loop",
     startedAt: isoNow(),
     currentIssue: null,
+    quarantines: [],
   });
+  const migrated = migrateFrontierState(state);
+  if (migrated !== state) {
+    state = writeState(paths, state, {
+      ...migrated,
+      message: migrated.pendingAction?.kind === "validation" && state.pendingAction?.kind === "contract-review"
+        ? "Migrated repeated legacy contract review to exact validation before finite targeted repair"
+        : state.message,
+    });
+  }
   try {
     if (maintenance.acknowledgeReload(state.phase === "supervisor-reloading")) {
       state = writeState(paths, state, {
@@ -286,7 +297,7 @@ function runLoop(parent) {
     }
     while (!stopped(paths)) {
       try {
-        const plan = deliveryPlan(parent, state.priorityIssueNumbers, state.backlogIssueNumbers);
+        const plan = deliveryPlan(parent, state.priorityIssueNumbers, state.backlogIssueNumbers, state.quarantines ?? []);
         state = ticketRunner.reconcileCurrentIssue(plan, paths, state);
         let issue;
         let completed = false;
@@ -295,11 +306,22 @@ function runLoop(parent) {
             issue = plan.pool.find((candidate) => candidate.number === state.currentIssue && candidate.state === "OPEN");
           }
           issue ??= plan.next;
-          if (!issue && plan.primaryOpen.length === 0 && plan.backlog.every((candidate) => candidate.state === "CLOSED")) {
+          if (!issue && plan.allClosed) {
             state = writeState(paths, state, {
               phase: "complete",
-              message: `All ${plan.children.length} priority-map tickets and all older ready backlog tickets are closed`,
+              message: `All ${plan.children.length} priority-map tickets and all ${plan.backlog.length} snapshotted backlog tickets are closed`,
               completedAt: isoNow(),
+              lastError: null,
+            });
+            completed = true;
+            return undefined;
+          }
+          if (!issue && plan.open.length > 0) {
+            const identities = plan.open.map((candidate) => `#${candidate.number}`).join(", ");
+            state = writeState(paths, state, {
+              phase: "process-dead-end",
+              message: `No fixed-scope ticket is runnable; open quarantined, assigned, or blocked tickets remain: ${identities}`,
+              deadEndAt: isoNow(),
               lastError: null,
             });
             completed = true;
@@ -335,58 +357,19 @@ function runLoop(parent) {
           return;
         }
         if (!issue) {
-          state = writeState(paths, state, { phase: "waiting", message: `${plan.open.length} ${plan.scope} tickets remain, but no unassigned item is available` });
-          log(`${state.message}; polling again in ${defaultPollSeconds}s`);
-          sleep(defaultPollSeconds * 1_000);
-          continue;
+          state = writeState(paths, state, { phase: "process-dead-end", message: "No fixed-scope ticket is runnable and the scope is not complete" });
+          log(state.message);
+          return;
         }
         state = ticketRunner.processIssue(issue, paths, state);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (isRemoteValidationFailure(error) && !stopped(paths)) {
           state = failureBaseState(state, readState(paths));
-          let remediationUsed = state.remediationUsed ?? false;
-          let diagnosticEscalations = state.diagnosticEscalations ?? 0;
-          let designEscalations = state.designEscalations ?? 0;
-          let contractReviews = state.contractReviews ?? 0;
-          const action = validationFailureAction({
-            remediationUsed,
-            diagnosticEscalations,
-            maximumDiagnosticEscalations,
-            designEscalations,
-            maximumDesignEscalations,
-          });
-          let pendingAction;
-          if (action === "remediate") {
-            remediationUsed = true;
-            pendingAction = { kind: "remediation" };
-          } else if (action === "diagnose") {
-            diagnosticEscalations += 1;
-            pendingAction = { kind: "diagnosis" };
-          } else if (action === "simplify") {
-            designEscalations += 1;
-            pendingAction = { kind: "simplification", reasons: [message] };
-          } else {
-            ({ remediationUsed, diagnosticEscalations, designEscalations, contractReviews } = contractReviewRecoveryState({
-              remediationUsed,
-              diagnosticEscalations,
-              designEscalations,
-              contractReviews,
-              complexityReviewedHead: state.complexityReviewedHead,
-            }));
-            pendingAction = { kind: "contract-review" };
-          }
+          if (!error.productFailureScheduled) state = ticketRunner.scheduleExternalProductFailure(paths, state, error);
           state = writeState(paths, state, {
-            phase: "failed",
-            remediationUsed,
-            diagnosticEscalations,
-            designEscalations,
-            contractReviews,
-            complexityReviewedHead: state.complexityReviewedHead,
-            pendingAction,
-            message: `Remote validation failed; scheduling ${pendingAction.kind}`,
-            validatedHead: null,
             lastError: message,
+            message: `${state.message}; source was an observed failing remote check`,
           });
           log(`${state.message}: ${message}`);
           continue;
@@ -436,7 +419,7 @@ function supervise(parent) {
       stdio: "inherit",
     });
     let state = readState(paths);
-    if (stopped(paths) || state?.phase === "complete") return;
+    if (stopped(paths) || supervisorRecognizesTerminalPhase(state?.phase)) return;
     if (state?.phase === "maintenance-ready") {
       const maintenance = createMaintenanceController(paths.root);
       while (!stopped(paths)) {
@@ -534,11 +517,17 @@ function status(parent) {
     if (state.branch) process.stdout.write(`Branch:        ${state.branch}\n`);
     if (state.worktree) process.stdout.write(`Worktree:      ${state.worktree}\n`);
     if (state.issueLog) process.stdout.write(`Issue log:     ${state.issueLog}\n`);
-    if (state.diagnosticEscalations || state.designEscalations || state.contractReviews) {
-      process.stdout.write(`Escalations:   diagnostic=${state.diagnosticEscalations ?? 0}, design=${state.designEscalations ?? 0}, contract=${state.contractReviews ?? 0}\n`);
-    }
+    process.stdout.write(`Corrections:   remediation=${state.remediationUsed ? 1 : 0}/1, diagnosis=${state.diagnosticEscalations ?? 0}/1, simplification=${state.designEscalations ?? 0}/1, contract-review=${state.contractReviews ?? 0}/1, targeted-repair=${state.targetedRepairCount ?? 0}/3\n`);
+    if (state.currentFailureFingerprint) process.stdout.write(`Failure:       ${state.currentFailureFingerprint} (repeats ${state.failureRepeatCount ?? 0})\n`);
+    if (state.failureEvidencePath) process.stdout.write(`Evidence:      ${state.failureEvidencePath}\n`);
     if (state.supervisorRestarts) process.stdout.write(`Restarts:      ${state.supervisorRestarts}\n`);
     if (state.lastError) process.stdout.write(`Last error:    ${state.lastError}\n`);
+    for (const quarantine of state.quarantines ?? []) {
+      process.stdout.write(`Quarantine:    #${quarantine.issue} fingerprint=${quarantine.failureFingerprint}, repeats=${quarantine.failureRepeatCount ?? 0}\n`);
+      process.stdout.write(`  Corrections: remediation=${quarantine.remediationUsed ? 1 : 0}/1, diagnosis=${quarantine.diagnosticEscalations ?? 0}/1, simplification=${quarantine.designEscalations ?? 0}/1, contract-review=${quarantine.contractReviews ?? 0}/1, targeted-repair=${quarantine.targetedRepairCount ?? 0}/3\n`);
+      process.stdout.write(`  Preserved:   ${quarantine.branch} at ${quarantine.worktree}\n`);
+      process.stdout.write(`  Evidence:    ${quarantine.failureEvidencePath}\n`);
+    }
     if (createMaintenanceController(paths.root).requested() && state.phase !== "maintenance-ready") process.stdout.write("Maintenance:   requested; drains after the current ticket\n");
     process.stdout.write(`Updated:       ${state.updatedAt} (${age(state.updatedAt)} ago)\n`);
     if (state.issueLog && existsSync(state.issueLog)) process.stdout.write(`Log activity:  ${statSync(state.issueLog).mtime.toISOString()} (${age(statSync(state.issueLog).mtime)} ago)\n`);
@@ -546,7 +535,7 @@ function status(parent) {
     process.stdout.write("Phase:         never started\n");
   }
   try {
-    const plan = deliveryPlan(parent, state?.priorityIssueNumbers ?? null, state?.backlogIssueNumbers ?? null);
+    const plan = deliveryPlan(parent, state?.priorityIssueNumbers ?? null, state?.backlogIssueNumbers ?? null, state?.quarantines ?? []);
     const closed = plan.children.filter((issue) => issue.state === "CLOSED").length;
     process.stdout.write(`Priority map:  ${closed}/${plan.children.length} tickets closed\n`);
     const backlogOpen = plan.backlog.filter((issue) => issue.state === "OPEN").length;
@@ -570,8 +559,9 @@ function watch(parent) {
 function health(parent) {
   const paths = loopPaths(parent);
   const state = readState(paths);
-  const healthy = state?.phase === "complete" || tmuxAlive(parent);
-  process.stdout.write(`${healthy ? "healthy" : "unhealthy"}: ${state?.phase ?? "never-started"}\n`);
+  const processDeadEnd = state?.phase === "process-dead-end";
+  const healthy = !processDeadEnd && (state?.phase === "complete" || tmuxAlive(parent));
+  process.stdout.write(`${healthy ? "healthy" : "unhealthy"}: ${state?.phase ?? "never-started"}${processDeadEnd ? " (operator action required; supervisor will not restart)" : ""}\n`);
   if (!healthy) process.exitCode = 1;
 }
 

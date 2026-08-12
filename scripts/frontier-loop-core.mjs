@@ -45,27 +45,110 @@ export function validationFailureAction({
   maximumDiagnosticEscalations,
   designEscalations,
   maximumDesignEscalations,
+  contractReviews = 0,
+  targetedRepairCount = 0,
 }) {
   if (!remediationUsed) return "remediate";
   if (diagnosticEscalations < maximumDiagnosticEscalations) return "diagnose";
   if (designEscalations < maximumDesignEscalations) return "simplify";
-  return "contract-review";
+  if (contractReviews < 1) return "contract-review";
+  if (targetedRepairCount < 3) return "targeted-repair";
+  return "quarantine";
 }
 
-export function contractReviewRecoveryState({
-  remediationUsed,
-  diagnosticEscalations,
-  designEscalations,
-  contractReviews,
-  complexityReviewedHead,
-}) {
-  return {
-    remediationUsed,
-    diagnosticEscalations,
-    designEscalations,
-    contractReviews: contractReviews + 1,
-    complexityReviewedHead,
+const scheduledFailureActions = new Set([
+  "remediation",
+  "diagnosis",
+  "simplification",
+  "contract-review",
+  "targeted-repair",
+  "quarantine",
+]);
+
+export function scheduleFailureAction(state, {
+  maximumDiagnosticEscalations = 1,
+  maximumDesignEscalations = 1,
+} = {}) {
+  if (scheduledFailureActions.has(state.pendingAction?.kind)) return state;
+  const action = validationFailureAction({
+    ...state,
+    maximumDiagnosticEscalations,
+    maximumDesignEscalations,
+  });
+  if (action === "remediate") {
+    return { ...state, remediationUsed: true, pendingAction: { kind: "remediation" } };
+  }
+  if (action === "diagnose") {
+    return {
+      ...state,
+      diagnosticEscalations: (state.diagnosticEscalations ?? 0) + 1,
+      pendingAction: { kind: "diagnosis" },
+    };
+  }
+  if (action === "simplify") {
+    return {
+      ...state,
+      designEscalations: (state.designEscalations ?? 0) + 1,
+      pendingAction: { kind: "simplification" },
+    };
+  }
+  if (action === "contract-review") {
+    return {
+      ...state,
+      contractReviews: (state.contractReviews ?? 0) + 1,
+      pendingAction: { kind: "contract-review" },
+    };
+  }
+  const evidence = {
+    evidencePath: state.failureEvidencePath,
+    failureFingerprint: state.currentFailureFingerprint,
+    failureRepeated: (state.failureRepeatCount ?? 0) > 0,
   };
+  if (action === "targeted-repair") {
+    return {
+      ...state,
+      targetedRepairCount: (state.targetedRepairCount ?? 0) + 1,
+      pendingAction: { kind: "targeted-repair", ...evidence },
+    };
+  }
+  return { ...state, pendingAction: { kind: "quarantine", ...evidence } };
+}
+
+export function migrateFrontierState(state) {
+  if ((state.schemaVersion ?? 0) >= 4) return state;
+  const repeatedLegacyContractReview = (state.contractReviews ?? 0) > 1
+    && !["validation", "failed-validation", "review", "targeted-repair", "quarantine"].includes(state.pendingAction?.kind);
+  return {
+    ...state,
+    schemaVersion: 4,
+    pendingAction: repeatedLegacyContractReview ? { kind: "validation" } : state.pendingAction,
+    targetedRepairCount: state.targetedRepairCount ?? 0,
+    quarantines: state.quarantines ?? [],
+  };
+}
+
+export function failureEvidenceMatches(state, identity) {
+  return Boolean(state.failureEvidencePath) && state.failureEvidenceIdentity === identity;
+}
+
+export function reviewedVerdictAt(state, head, evidenceFingerprint) {
+  if (state.reviewedHead !== head || state.reviewedEvidenceFingerprint !== evidenceFingerprint) return null;
+  if (typeof state.reviewedPassed !== "boolean" || typeof state.reviewedSimplify !== "boolean") return null;
+  return { passed: state.reviewedPassed, simplify: state.reviewedSimplify };
+}
+
+export function publicationReconciliationAllowed(state) {
+  return state.pendingAction?.kind !== "quarantine";
+}
+
+export function mergedPullRequestMatchesValidatedHead(state, pullRequest) {
+  return pullRequest?.state === "MERGED"
+    && typeof state.validatedHead === "string"
+    && pullRequest.headRefOid === state.validatedHead;
+}
+
+export function supervisorRecognizesTerminalPhase(phase) {
+  return phase === "complete" || phase === "process-dead-end";
 }
 
 export function isPublicationRetryFailure(error) {

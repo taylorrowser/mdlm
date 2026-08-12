@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, closeSync, openSync, readFileSync, writeFileSync } from "node:fs";
-import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
+import { commandOutput as baseCommandOutput } from "./frontier-command.mjs";
 import {
   complexityReasonsFromStats,
   isTransientAgentFailure,
@@ -10,6 +10,7 @@ import {
   validationPassed,
 } from "./frontier-loop-core.mjs";
 import { referencedParentNumber } from "./frontier-issue-contract.mjs";
+import { runInProcessGroup } from "./frontier-process-group.mjs";
 import { independentReviewerPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
 
@@ -71,13 +72,16 @@ export function createAgentRunner({
       const descriptor = openSync(logPath, "a");
       appendAgentLog(logPath, `${heading} (provider attempt ${attempt}/${maximumInfrastructureAttempts})`);
       const attemptLogOffset = readFileSync(logPath, "utf8").length;
-      const result = spawnSync("pi", piAgentArguments(prompt), {
-        cwd: worktree,
-        env: process.env,
-        stdio: ["ignore", descriptor, descriptor],
-        timeout: Number(process.env.MDLM_FRONTIER_AGENT_TIMEOUT_MS ?? 2 * 60 * 60_000),
-      });
-      closeSync(descriptor);
+      let result;
+      try {
+        result = runInProcessGroup("pi", piAgentArguments(prompt), {
+          cwd: worktree,
+          stdio: ["ignore", descriptor, descriptor],
+          timeout: Number(process.env.MDLM_FRONTIER_AGENT_TIMEOUT_MS ?? 2 * 60 * 60_000),
+        });
+      } finally {
+        closeSync(descriptor);
+      }
       if (!result.error && result.status === 0) return;
       const attemptOutput = readFileSync(logPath, "utf8").slice(attemptLogOffset);
       const failure = new Error(result.error?.message ?? `pi exited ${result.status}: ${attemptOutput}`);
@@ -90,27 +94,27 @@ export function createAgentRunner({
   }
 
   function validate(worktree, logPath, baseBranch) {
-    const descriptor = openSync(logPath, "a");
     appendAgentLog(logPath, "independent command validation");
     for (const [command, args] of validationCommands(baseBranch)) {
+      const commandIdentity = [command, ...args].map((part) => JSON.stringify(part)).join(" ");
       const result = spawnSync(command, args, {
         cwd: worktree,
         env: process.env,
-        stdio: ["ignore", descriptor, descriptor],
+        encoding: "utf8",
+        maxBuffer: 50 * 1024 * 1024,
         timeout: Number(process.env.MDLM_FRONTIER_VALIDATION_TIMEOUT_MS ?? 30 * 60_000),
       });
+      const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
+      appendAgentLog(logPath, `validation command ${commandIdentity}`, output);
       if (result.error || validationCommandWasInterrupted(result)) {
-        closeSync(descriptor);
         const detail = result.error?.message ?? `terminated by ${result.signal ?? "an unknown signal"}`;
         throw new Error(`Validation command ${command} failed to complete: ${detail}`);
       }
       if (result.status !== 0) {
-        closeSync(descriptor);
-        return false;
+        return { passed: false, failure: { commandIdentity, output } };
       }
     }
-    closeSync(descriptor);
-    return true;
+    return { passed: true, failure: null };
   }
 
   function complexityReasons(worktree, baseBranch) {
@@ -141,7 +145,10 @@ export function createAgentRunner({
     for (let attempt = 1; attempt <= maximumInfrastructureAttempts; attempt += 1) {
       let result;
       try {
-        result = baseCommandResult("pi", piAgentArguments(prompt, { readOnly: true }), { cwd: worktree });
+        result = runInProcessGroup("pi", piAgentArguments(prompt, { readOnly: true }), {
+          cwd: worktree,
+          timeout: Number(process.env.MDLM_FRONTIER_AGENT_TIMEOUT_MS ?? 2 * 60 * 60_000),
+        });
       } catch (error) {
         const output = error instanceof Error ? error.message : String(error);
         lastOutput = output;
@@ -175,11 +182,16 @@ export function createAgentRunner({
     const after = baseCommandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
     const dirty = baseCommandOutput("git", ["status", "--porcelain"], { cwd: worktree });
     if (before !== after || dirty) throw new Error("Independent reviewer modified the branch; refusing to merge");
+    const passed = result.valid && validationPassed(result.output);
+    const simplify = result.valid && reviewRequestsSimplification(result.output);
     return {
       retry: !result.valid,
-      passed: result.valid && validationPassed(result.output),
-      simplify: result.valid && reviewRequestsSimplification(result.output),
+      passed,
+      simplify,
       evidenceFingerprint: evidence.fingerprint,
+      failure: result.valid && (!passed || simplify)
+        ? { commandIdentity: "pi independent-read-only-review", output: result.output }
+        : null,
     };
   }
 

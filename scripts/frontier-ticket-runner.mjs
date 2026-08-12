@@ -1,16 +1,20 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { appendAgentLog, createAgentRunner } from "./frontier-agent-runner.mjs";
 import { commandOutput as baseCommandOutput, commandResult as baseCommandResult } from "./frontier-command.mjs";
+import { failureFingerprint, recordFailureFingerprint } from "./frontier-failure-evidence.mjs";
 import {
   actionProgressed,
-  contractReviewRecoveryState,
+  failureEvidenceMatches,
   isRemoteValidationFailure,
   isTransientInfrastructureFailure,
+  mergedPullRequestMatchesValidatedHead,
   parsePullRequestNumber,
+  publicationReconciliationAllowed,
   resumesAtValidation,
+  reviewedVerdictAt,
+  scheduleFailureAction,
   validatedHeadMatches,
-  validationFailureAction,
 } from "./frontier-loop-core.mjs";
 import { referencedParentNumber } from "./frontier-issue-contract.mjs";
 import { editingAgentPrompt } from "./frontier-prompts.mjs";
@@ -106,6 +110,137 @@ export function createTicketRunner({
     }
   }
 
+  function atomicWrite(path, content) {
+    const temporary = `${path}.tmp-${process.pid}`;
+    writeFileSync(temporary, content.endsWith("\n") ? content : `${content}\n`, { mode: 0o600 });
+    renameSync(temporary, path);
+  }
+
+  function persistFailureEvidence(issueNumber, paths, state, failure, evidenceIdentity) {
+    let fingerprintState;
+    let content;
+    if (failure) {
+      const fingerprint = failureFingerprint(failure);
+      fingerprintState = recordFailureFingerprint(state, fingerprint);
+      content = [
+        `COMMAND: ${failure.commandIdentity}`,
+        `FINGERPRINT: ${fingerprint}`,
+        `REPEATED: ${fingerprintState.failureRepeated ? "yes" : "no"}`,
+        "",
+        "EXACT OUTPUT:",
+        String(failure.output ?? ""),
+      ].join("\n");
+    } else {
+      if (!state.currentFailureFingerprint || !state.failureEvidencePath) fail(`Cannot repeat a failure for #${issueNumber} without durable evidence`);
+      fingerprintState = recordFailureFingerprint(state, state.currentFailureFingerprint);
+      content = readFileSync(state.failureEvidencePath, "utf8")
+        .replace(/^REPEATED: (?:yes|no)$/m, `REPEATED: ${fingerprintState.failureRepeated ? "yes" : "no"}`);
+    }
+    const evidencePath = join(
+      paths.root,
+      `issue-${issueNumber}.failure-${fingerprintState.currentFailureFingerprint}-${fingerprintState.failureRepeatCount}.md`,
+    );
+    atomicWrite(evidencePath, content);
+    return {
+      ...fingerprintState,
+      failureEvidencePath: evidencePath,
+      failureEvidenceIdentity: evidenceIdentity ?? state.failureEvidenceIdentity,
+    };
+  }
+
+  function scheduleProductFailure(issueNumber, paths, state, failure, {
+    forceSimplification = false,
+    reasons = [],
+    evidenceIdentity,
+  } = {}) {
+    const failureState = { ...state, ...persistFailureEvidence(issueNumber, paths, state, failure, evidenceIdentity) };
+    let scheduled;
+    if (forceSimplification && (failureState.designEscalations ?? 0) < maximumDesignEscalations) {
+      scheduled = {
+        ...failureState,
+        designEscalations: (failureState.designEscalations ?? 0) + 1,
+        pendingAction: { kind: "simplification", reasons },
+      };
+    } else {
+      scheduled = scheduleFailureAction(failureState, {
+        maximumDiagnosticEscalations,
+        maximumDesignEscalations,
+      });
+    }
+    const action = scheduled.pendingAction?.kind ?? "unknown correction";
+    return writeState(paths, state, {
+      ...scheduled,
+      phase: action === "quarantine" ? "quarantining" : "failed",
+      quarantineStartedAt: action === "quarantine" ? scheduled.quarantineStartedAt ?? new Date().toISOString() : scheduled.quarantineStartedAt ?? null,
+      message: action === "quarantine"
+        ? `Targeted repair budget exhausted for #${issueNumber}; quarantining preserved work`
+        : `Recorded product failure for #${issueNumber}; scheduled ${action}`,
+      validatedHead: null,
+    });
+  }
+
+  function quarantineRecords(paths) {
+    const recordPath = paths.quarantineRecords ?? join(paths.root, "quarantines.json");
+    if (!existsSync(recordPath)) return [];
+    return JSON.parse(readFileSync(recordPath, "utf8"));
+  }
+
+  function appendQuarantineRecord(paths, record) {
+    const recordPath = paths.quarantineRecords ?? join(paths.root, "quarantines.json");
+    const records = quarantineRecords(paths);
+    if (!records.some((candidate) => candidate.issue === record.issue)) records.push(record);
+    atomicWrite(recordPath, JSON.stringify(records, null, 2));
+    return records.find((candidate) => candidate.issue === record.issue) ?? record;
+  }
+
+  function quarantineIssue(issue, paths, state) {
+    const marker = `<!-- mdlm-frontier-quarantine:${state.parentIssue}:${issue.number} -->`;
+    const reason = `targeted repair budget exhausted at fingerprint ${state.currentFailureFingerprint}`;
+    const record = {
+      issue: issue.number,
+      title: issue.title,
+      reason,
+      failureFingerprint: state.currentFailureFingerprint,
+      previousFailureFingerprint: state.previousFailureFingerprint ?? null,
+      failureRepeatCount: state.failureRepeatCount ?? 0,
+      failureEvidencePath: state.failureEvidencePath,
+      failureEvidenceIdentity: state.failureEvidenceIdentity,
+      branch: state.branch,
+      worktree: state.worktree,
+      pullRequest: state.pullRequest ?? null,
+      remediationUsed: state.remediationUsed ?? false,
+      diagnosticEscalations: state.diagnosticEscalations ?? 0,
+      designEscalations: state.designEscalations ?? 0,
+      contractReviews: state.contractReviews ?? 0,
+      targetedRepairCount: state.targetedRepairCount ?? 0,
+      quarantinedAt: state.quarantineStartedAt ?? new Date().toISOString(),
+    };
+    state = writeState(paths, state, {
+      phase: "quarantining",
+      pendingAction: { ...state.pendingAction, kind: "quarantine" },
+      message: `Quarantining #${issue.number}; branch and worktree will be preserved`,
+    });
+    const live = commandJson("gh", ["issue", "view", String(issue.number), "--json", "comments,assignees"]);
+    if (!live.comments?.some((comment) => String(comment.body ?? "").includes(marker))) {
+      const comment = `${marker}\nFrontier automation quarantined this open ticket after exhausting its bounded targeted repairs.\n\nFinal fingerprint: \`${record.failureFingerprint}\`\nReason: ${reason}\nPreserved branch: \`${record.branch}\`\nPreserved worktree: \`${record.worktree}\`\nFailure evidence: \`${record.failureEvidencePath}\`\n\nThis issue was not closed or merged.`;
+      commandOutput("gh", ["issue", "comment", String(issue.number), "--body", comment]);
+    }
+    const login = viewerLogin();
+    if (live.assignees?.some((assignee) => assignee.login === login)) {
+      commandOutput("gh", ["issue", "edit", String(issue.number), "--remove-assignee", login]);
+    }
+    const durableRecord = appendQuarantineRecord(paths, record);
+    const quarantines = [...(state.quarantines ?? []).filter((candidate) => candidate.issue !== issue.number), durableRecord]
+      .sort((left, right) => left.issue - right.issue);
+    log(`Quarantined #${issue.number}; preserved ${record.branch} at ${record.worktree}`);
+    return writeState(paths, state, {
+      ...betweenTicketsPatch(),
+      quarantines,
+      phase: "between-tickets",
+      message: `Quarantined #${issue.number}; preserved its branch/worktree and continuing fixed scope`,
+    });
+  }
+
   function prepareWorktree(issue, paths, resumeState) {
     if (resumeState?.currentIssue === issue.number && resumeState.worktree && existsSync(resumeState.worktree)) {
       return { worktree: resumeState.worktree, branch: resumeState.branch, resumed: true };
@@ -126,6 +261,7 @@ export function createTicketRunner({
       diagnosis: "independent diagnosis",
       simplification: "design simplification",
       "contract-review": "autonomous contract review",
+      "targeted-repair": "targeted repair",
     };
     const description = descriptions[action.kind];
     if (!description) fail(`Unknown pending agent action: ${action.kind}`);
@@ -143,12 +279,15 @@ export function createTicketRunner({
       resumed: action.kind === "implementation" && (prepared.resumed || action.resumed),
       reasonLog: issueLog,
       reasons: action.reasons ?? [],
+      evidencePath: action.evidencePath,
+      failureFingerprint: action.failureFingerprint,
+      failureRepeated: action.failureRepeated,
     });
     agentRunner.runImplementation(prepared.worktree, prompt, issueLog, `${action.resumed ? "resumed " : ""}${description}`);
     const after = actionSnapshot(issue, prepared.worktree);
     const noProgressHead = actionProgressed(before, after) ? null : after.head;
     if (noProgressHead) appendAgentLog(issueLog, "no-op editing pass", "The agent changed neither repository bytes nor issue comments; any validation and review already cached at this SHA will be reused.\n");
-    return writeState(paths, state, { pendingAction: null, noProgressHead });
+    return writeState(paths, state, { pendingAction: { kind: "validation" }, noProgressHead });
   }
 
   function inspectPullRequestChecks(prNumber, worktree, logPath) {
@@ -177,7 +316,6 @@ export function createTicketRunner({
     const output = [watched.stdout, watched.stderr].filter(Boolean).join("\n");
     appendAgentLog(logPath, "remote checks", output);
     if (watched.status !== 0) {
-      if (isTransientInfrastructureFailure(new Error(output))) throw new Error(output);
       const latest = commandResult("gh", ["pr", "checks", String(prNumber), "--json", "name,state,bucket"], { cwd: worktree });
       let latestChecks = [];
       try {
@@ -185,8 +323,17 @@ export function createTicketRunner({
       } catch {
         latestChecks = [];
       }
-      if (latestChecks.some((check) => check.bucket === "fail")) fail(`Remote checks failed for PR #${prNumber}; inspect ${logPath}`);
-      throw new Error(`Remote check command failed without a failing check bucket for PR #${prNumber}: ${[latest.stdout, latest.stderr, output].filter(Boolean).join("\n")}`);
+      if (latestChecks.some((check) => check.bucket === "fail")) {
+        const failure = new Error(`Remote checks failed for PR #${prNumber}; inspect ${logPath}`);
+        failure.failureEvidence = {
+          commandIdentity: `gh pr checks ${prNumber} --json name,state,bucket`,
+          output: [latest.stdout, latest.stderr].filter(Boolean).join("\n"),
+        };
+        throw failure;
+      }
+      const combined = [latest.stdout, latest.stderr, output].filter(Boolean).join("\n");
+      if (isTransientInfrastructureFailure(new Error(combined))) throw new Error(combined);
+      throw new Error(`Remote check command failed without a failing check bucket for PR #${prNumber}: ${combined}`);
     }
   }
 
@@ -248,6 +395,9 @@ export function createTicketRunner({
     const prNumber = pullRequest.number;
     onPullRequest(prNumber);
     appendAgentLog(logPath, "pull request", `${pullRequest.url}\n`);
+    if (pullRequest.state === "MERGED" && pullRequestHead(prNumber, worktree) !== validatedHead) {
+      fail(`Merged PR #${prNumber} head does not match validated commit ${validatedHead}; preserving local work`);
+    }
     if (pullRequest.state !== "MERGED") {
       if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} does not point at validated commit ${validatedHead}`);
       waitForPullRequestChecks(prNumber, worktree, logPath);
@@ -276,12 +426,21 @@ export function createTicketRunner({
       diagnosticEscalations: 0,
       designEscalations: 0,
       contractReviews: 0,
+      targetedRepairCount: 0,
+      currentFailureFingerprint: null,
+      previousFailureFingerprint: null,
+      failureRepeatCount: 0,
+      failureEvidencePath: null,
+      failureEvidenceIdentity: null,
+      quarantineStartedAt: null,
       complexityReviewedHead: null,
       commandsInFlightHead: null,
       commandsAttemptedHead: null,
       commandsValidatedHead: null,
       reviewedHead: null,
       reviewedEvidenceFingerprint: null,
+      reviewedPassed: null,
+      reviewedSimplify: null,
       pendingAction: null,
       validatedHead: null,
       noProgressHead: null,
@@ -294,17 +453,28 @@ export function createTicketRunner({
     if (!validatedHeadMatches(state, head)) fail(`Validated branch changed before publication for #${issue.number}`);
     state = writeState(paths, state, { phase: "merging", message: `Publishing and merging #${issue.number}` });
     log(state.message);
-    const prNumber = publishAndMerge(
-      issue,
-      prepared.worktree,
-      prepared.branch,
-      issueLog,
-      head,
-      state.pullRequest,
-      (pullRequest) => {
-        state = writeState(paths, state, { pullRequest });
-      },
-    );
+    let prNumber;
+    try {
+      prNumber = publishAndMerge(
+        issue,
+        prepared.worktree,
+        prepared.branch,
+        issueLog,
+        head,
+        state.pullRequest,
+        (pullRequest) => {
+          state = writeState(paths, state, { pullRequest });
+        },
+      );
+    } catch (error) {
+      if (isRemoteValidationFailure(error)) {
+        state = scheduleProductFailure(issue.number, paths, state, error.failureEvidence, {
+          evidenceIdentity: `remote:${state.validatedHead ?? "unknown"}:${state.pullRequest ?? "unknown"}`,
+        });
+        error.productFailureScheduled = true;
+      }
+      throw error;
+    }
     state = writeState(paths, state, { pullRequest: prNumber, message: `Merged #${issue.number} in PR #${prNumber}` });
     log(state.message);
     removeWorktree(prepared.worktree, prepared.branch);
@@ -312,19 +482,22 @@ export function createTicketRunner({
   }
 
   function reconcileCurrentIssue(plan, paths, state) {
-    if (!state.currentIssue) return state;
+    if (!state.currentIssue || !publicationReconciliationAllowed(state)) return state;
     const current = [...plan.children, ...plan.backlog].find((issue) => issue.number === state.currentIssue);
     const cwd = state.worktree && existsSync(state.worktree) ? state.worktree : repositoryRoot;
     let merged = [];
     if (state.pullRequest) {
-      const detail = commandJson("gh", ["pr", "view", String(state.pullRequest), "--json", "number,state"], { cwd });
+      const detail = commandJson("gh", ["pr", "view", String(state.pullRequest), "--json", "number,state,headRefOid"], { cwd });
       if (detail?.state === "MERGED") merged = [detail];
     } else if (state.branch) {
-      merged = commandJson("gh", ["pr", "list", "--head", state.branch, "--state", "merged", "--json", "number"], { cwd }) ?? [];
+      merged = commandJson("gh", ["pr", "list", "--head", state.branch, "--state", "merged", "--json", "number,state,headRefOid"], { cwd }) ?? [];
     }
     if (merged.length === 0) {
       if (current?.state === "CLOSED") fail(`Issue #${state.currentIssue} closed without a confirmed merged PR; preserving its branch and worktree`);
       return state;
+    }
+    if (!mergedPullRequestMatchesValidatedHead(state, merged[0])) {
+      fail(`Merged PR #${merged[0].number} head does not match the validated head for #${state.currentIssue}; preserving its branch and worktree`);
     }
     const prNumber = merged[0].number;
     if (current?.state === "OPEN") {
@@ -351,12 +524,15 @@ export function createTicketRunner({
     let diagnosticEscalations = continuingIssue ? state.diagnosticEscalations ?? 0 : 0;
     let designEscalations = continuingIssue ? state.designEscalations ?? 0 : 0;
     let contractReviews = continuingIssue ? state.contractReviews ?? 0 : 0;
+    let targetedRepairCount = continuingIssue ? state.targetedRepairCount ?? 0 : 0;
     let complexityReviewedHead = continuingIssue ? state.complexityReviewedHead ?? null : null;
     let commandsInFlightHead = continuingIssue ? state.commandsInFlightHead ?? null : null;
     let commandsAttemptedHead = continuingIssue ? state.commandsAttemptedHead ?? null : null;
     let commandsValidatedHead = continuingIssue ? state.commandsValidatedHead ?? null : null;
     let reviewedHead = continuingIssue ? state.reviewedHead ?? null : null;
     let reviewedEvidenceFingerprint = continuingIssue ? state.reviewedEvidenceFingerprint ?? null : null;
+    let reviewedPassed = continuingIssue ? state.reviewedPassed ?? null : null;
+    let reviewedSimplify = continuingIssue ? state.reviewedSimplify ?? null : null;
     state = writeState(paths, state, {
       phase: resumeValidated ? "merging" : pendingAction?.kind ?? (prepared.resumed ? "resuming" : "implementing"),
       message: resumeValidated
@@ -373,15 +549,25 @@ export function createTicketRunner({
       diagnosticEscalations,
       designEscalations,
       contractReviews,
+      targetedRepairCount,
+      currentFailureFingerprint: continuingIssue ? state.currentFailureFingerprint ?? null : null,
+      previousFailureFingerprint: continuingIssue ? state.previousFailureFingerprint ?? null : null,
+      failureRepeatCount: continuingIssue ? state.failureRepeatCount ?? 0 : 0,
+      failureEvidencePath: continuingIssue ? state.failureEvidencePath ?? null : null,
+      failureEvidenceIdentity: continuingIssue ? state.failureEvidenceIdentity ?? null : null,
+      quarantineStartedAt: continuingIssue ? state.quarantineStartedAt ?? null : null,
       complexityReviewedHead,
       commandsInFlightHead,
       commandsAttemptedHead,
       commandsValidatedHead,
       reviewedHead,
       reviewedEvidenceFingerprint,
+      reviewedPassed,
+      reviewedSimplify,
       validatedHead: resumeValidated ? currentHead : null,
       lastError: null,
     });
+    if (pendingAction?.kind === "quarantine") return quarantineIssue(issue, paths, state);
     const login = viewerLogin();
     if (!issue.assignees.some((assignee) => assignee.login === login)) {
       commandOutput("gh", ["issue", "edit", String(issue.number), "--add-assignee", "@me"]);
@@ -419,18 +605,24 @@ export function createTicketRunner({
         diagnosticEscalations,
         designEscalations,
         contractReviews,
+        targetedRepairCount,
         complexityReviewedHead,
         commandsInFlightHead,
         commandsAttemptedHead,
         commandsValidatedHead,
-        message: `Validating #${issue.number} (remediation ${remediationUsed ? "used" : "available"}, diagnostics ${diagnosticEscalations}/${maximumDiagnosticEscalations}, simplifications ${designEscalations}/${maximumDesignEscalations}, contract reviews ${contractReviews})`,
+        message: `Validating #${issue.number} (remediation ${remediationUsed ? "used" : "available"}, diagnostics ${diagnosticEscalations}/${maximumDiagnosticEscalations}, simplifications ${designEscalations}/${maximumDesignEscalations}, contract review ${contractReviews}/1, targeted repairs ${targetedRepairCount}/3)`,
       });
       log(state.message);
       const commitCount = Number(commandOutput("git", ["rev-list", "--count", `origin/${defaultBranch()}..HEAD`], { cwd: prepared.worktree }));
       const clean = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
       let commandsPass = commitCount > 0 && clean && commandsValidatedHead === headBeforeValidation;
-      const cachedFailedValidation = commandsAttemptedHead === headBeforeValidation
-        && commandsValidatedHead !== headBeforeValidation;
+      let latestFailure = null;
+      const commandFailureIdentity = `command:${headBeforeValidation}`;
+      const cachedFailedValidation = commitCount > 0
+        && clean
+        && commandsAttemptedHead === headBeforeValidation
+        && commandsValidatedHead !== headBeforeValidation
+        && failureEvidenceMatches(state, commandFailureIdentity);
       if (!commandsPass && commitCount > 0 && clean && !cachedFailedValidation) {
         commandsInFlightHead = headBeforeValidation;
         commandsValidatedHead = null;
@@ -440,7 +632,9 @@ export function createTicketRunner({
           commandsInFlightHead,
           commandsValidatedHead,
         });
-        commandsPass = agentRunner.validate(prepared.worktree, issueLog, defaultBranch());
+        const validation = agentRunner.validate(prepared.worktree, issueLog, defaultBranch());
+        commandsPass = validation.passed;
+        latestFailure = validation.failure;
         const headAfterCommands = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
         const cleanAfterCommands = commandOutput("git", ["status", "--porcelain"], { cwd: prepared.worktree }) === "";
         if (commandsPass && (headAfterCommands !== headBeforeValidation || !cleanAfterCommands)) {
@@ -458,37 +652,49 @@ export function createTicketRunner({
       }
       if (cachedFailedValidation) {
         state = writeState(paths, state, { noProgressHead: null });
-        log(`Reusing failed command validation already recorded at ${headBeforeValidation}; advancing the correction ladder for #${issue.number}`);
+        log(`Reusing exact failed command evidence already recorded at ${headBeforeValidation}; advancing the bounded correction ladder for #${issue.number}`);
       }
-      let review = { retry: false, passed: false, simplify: false };
+      if (!commandsPass && !latestFailure && !cachedFailedValidation) {
+        latestFailure = {
+          commandIdentity: "frontier committed-tip validation precondition",
+          output: commitCount === 0
+            ? "The ticket branch has no commit beyond the base branch."
+            : "The ticket worktree is dirty; authoritative validation requires committed bytes.",
+        };
+      }
+      let review = { retry: false, passed: false, simplify: false, failure: null };
       const evidence = commandsPass
         ? agentRunner.reviewEvidence(issue, prepared.worktree, issueLog, defaultBranch())
         : null;
+      const reviewFailureIdentity = evidence ? `review:${headBeforeValidation}:${evidence.fingerprint}` : null;
+      const cachedReviewVerdict = evidence ? reviewedVerdictAt(state, headBeforeValidation, evidence.fingerprint) : null;
       const unchangedActionAlreadyReviewed = commandsPass
         && state.noProgressHead === headBeforeValidation
         && commandsValidatedHead === headBeforeValidation
-        && reviewedHead === headBeforeValidation
-        && reviewedEvidenceFingerprint === evidence.fingerprint;
+        && cachedReviewVerdict;
       if (unchangedActionAlreadyReviewed) {
+        review = { retry: false, ...cachedReviewVerdict, failure: null };
         state = writeState(paths, state, { noProgressHead: null });
-        log(`Skipping unchanged validation and review for #${issue.number}; advancing the correction ladder`);
+        log(`Reusing exact independent review for unchanged #${issue.number}`);
       } else if (commandsPass) {
         state = writeState(paths, state, { phase: "reviewing", pendingAction: { kind: "review" } });
         review = agentRunner.review(prepared.worktree, issueLog, evidence);
         if (!review.retry) {
           reviewedHead = headBeforeValidation;
           reviewedEvidenceFingerprint = review.evidenceFingerprint;
-          state = writeState(paths, state, { reviewedHead, reviewedEvidenceFingerprint });
+          reviewedPassed = review.passed;
+          reviewedSimplify = review.simplify;
+          state = writeState(paths, state, { reviewedHead, reviewedEvidenceFingerprint, reviewedPassed, reviewedSimplify });
         }
       }
       if (commandsPass && review.retry) {
         state = writeState(paths, state, {
           phase: "retrying-review",
           pendingAction: { kind: "review" },
-          message: `Reviewer/provider did not return a valid verdict for #${issue.number}; returning control to the supervisor without changing product code`,
+          message: `Reviewer/provider did not return a valid verdict for #${issue.number}; returning control to the supervisor without consuming a product correction`,
         });
         log(state.message);
-        fail(`Independent reviewer exhausted its bounded attempts for #${issue.number}`);
+        fail(`Independent reviewer exhausted its bounded infrastructure attempts for #${issue.number}`);
       }
       if (commandsPass && review.passed && !review.simplify) {
         const validatedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
@@ -496,52 +702,38 @@ export function createTicketRunner({
         return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
       }
 
-      let action = validationFailureAction({
-        remediationUsed,
-        diagnosticEscalations,
-        maximumDiagnosticEscalations,
-        designEscalations,
-        maximumDesignEscalations,
+      latestFailure ??= review.failure;
+      state = scheduleProductFailure(issue.number, paths, state, latestFailure, {
+        forceSimplification: review.simplify,
+        reasons: complexityReasons.length > 0 ? complexityReasons : ["independent reviewer requested protected-architecture simplification"],
+        evidenceIdentity: commandsPass ? reviewFailureIdentity : commandFailureIdentity,
       });
-      if (review.simplify && designEscalations < maximumDesignEscalations) action = "simplify";
-
-      if (action === "remediate") {
-        remediationUsed = true;
-        state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "remediation" }, { remediationUsed });
-        continue;
-      }
-
-      if (action === "diagnose") {
-        diagnosticEscalations += 1;
-        state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "diagnosis" }, { diagnosticEscalations });
-        continue;
-      }
-
-      if (action === "simplify") {
-        designEscalations += 1;
-        state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "simplification", reasons: complexityReasons }, { designEscalations });
+      remediationUsed = state.remediationUsed ?? false;
+      diagnosticEscalations = state.diagnosticEscalations ?? 0;
+      designEscalations = state.designEscalations ?? 0;
+      contractReviews = state.contractReviews ?? 0;
+      targetedRepairCount = state.targetedRepairCount ?? 0;
+      if (state.pendingAction?.kind === "quarantine") return quarantineIssue(issue, paths, state);
+      const scheduledAction = state.pendingAction;
+      state = executeAgentAction(issue, prepared, issueLog, paths, state, scheduledAction);
+      if (scheduledAction.kind === "simplification") {
         complexityReviewedHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
         state = writeState(paths, state, { complexityReviewedHead });
-        continue;
       }
-
-      ({ remediationUsed, diagnosticEscalations, designEscalations, contractReviews, complexityReviewedHead } = contractReviewRecoveryState({
-        remediationUsed,
-        diagnosticEscalations,
-        designEscalations,
-        contractReviews,
-        complexityReviewedHead,
-      }));
-      state = executeAgentAction(issue, prepared, issueLog, paths, state, { kind: "contract-review" }, {
-        remediationUsed,
-        diagnosticEscalations,
-        designEscalations,
-        contractReviews,
-        complexityReviewedHead,
-      });
     }
   }
 
 
-  return { processIssue, reconcileCurrentIssue };
+  function scheduleExternalProductFailure(paths, state, error) {
+    if (!state.currentIssue) fail("Cannot schedule an external product failure without an active ticket");
+    const failure = error?.failureEvidence ?? {
+      commandIdentity: "remote validation",
+      output: error instanceof Error ? error.message : String(error),
+    };
+    return scheduleProductFailure(state.currentIssue, paths, state, failure, {
+      evidenceIdentity: `remote:${state.validatedHead ?? "unknown"}:${state.pullRequest ?? "unknown"}`,
+    });
+  }
+
+  return { processIssue, reconcileCurrentIssue, scheduleExternalProductFailure };
 }
