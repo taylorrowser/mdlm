@@ -12,7 +12,7 @@ The frontier loop is a deterministic, serial controller around probabilistic cod
 - One detached tmux supervisor keeps one runner alive.
 - The runner reserves one dependency-safe ticket at a time.
 - Each editing action receives a fresh GPT-5.6 Sol/high Pi process in an isolated worktree.
-- Editing agents run focused checks and typecheck; the runner alone owns the authoritative full suite and independent review.
+- Editing agents run focused checks and typecheck; the runner alone owns the bounded authoritative fast suite and independent review.
 - Every Pi editing action and every editing/review attempt start are recorded durably before Pi starts, and validation/publication records exact commit identity.
 - The normal publication path pushes and merges only the exact commit that passed commands and independent review.
 - Failures advance through a finite, cumulative ticket-wide ladder: one contract review, three targeted repairs, then quarantine.
@@ -48,7 +48,7 @@ flowchart LR
   C --> WT[One isolated ticket worktree]
   C --> E[Fresh editing Pi\nGPT-5.6 Sol / high]
   E --> WT
-  WT --> V[Authoritative commands\ninstall + diff check + typecheck + full suite]
+  WT --> V[Authoritative commands\ninstall + diff check + typecheck + fast suite]
   V --> R[Read-only independent Pi review\nStandards + Spec + complexity]
   GH --> R
   WT --> R
@@ -232,7 +232,9 @@ For each changed committed tip, the runner—not the editor—runs:
 1. `npm ci --ignore-scripts`;
 2. `git diff --check origin/<base>...HEAD`;
 3. `npm run typecheck`; and
-4. `npm test`.
+4. `npm test` (the classified fast evaluator/package and representative compiled-CLI suite plus controller tests).
+
+Complete multi-transaction lifecycle journeys are retained under `npm run test:journeys`. They run explicitly when their process area changes or before release, rather than making every ticket wait for exhaustive repository reconstruction.
 
 Validation is accepted only when:
 
@@ -605,7 +607,8 @@ A timed-out Pi left Vitest/MDLM descendants alive. Killing only the direct proce
 
 ### During validation
 
-- Run the full suite once at a clean committed tip.
+- Run the authoritative fast suite once at a clean committed tip.
+- Run affected complete journeys explicitly when a ticket changes their process area; run all journeys before release.
 - Never run independent review before commands pass.
 - Give review complete issue/parent evidence and the exact diff.
 - Require explicit machine-readable verdicts.
@@ -637,7 +640,8 @@ A timed-out Pi left Vitest/MDLM descendants alive. Killing only the direct proce
 | --- | --- | --- |
 | Fresh log activity and active Pi/test process | Work is progressing. | Wait; avoid competing suites or manual edits. |
 | Long Pi action but new commits or focused tests appear | Broad action is still productive. | Monitor through its bounded phase. |
-| Full suite active once at final tip | Expected authoritative validation. | Do not launch another suite. |
+| Fast suite active once at final tip | Expected authoritative validation. | Do not launch another suite. |
+| Explicit affected journey active | Expected scoped lifecycle evidence. | Do not launch the same journey again. |
 | Timeout-only failures across process-heavy tests | Likely contention/performance issue. | Let diagnosis reproduce narrowly; inspect worker concurrency. |
 | Repeated review of unchanged SHA/evidence | Cache or no-op bug. | Fix orchestrator; do not ask product agent to rewrite code. |
 | Reviewer demands deferred sibling work | Evidence/scope problem. | Check exact child and sibling contracts; clarify staging audibly. |
@@ -660,7 +664,7 @@ The current system is intentionally small, but it is not finished infrastructure
 5. **Health proves supervision, not progress, except at a dead end.** A live tmux session can contain a stalled non-Pi external process; activity age remains a second signal. `process-dead-end` is explicitly nonzero.
 6. **Emergency stop is broader than Pi timeout.** The dedicated runner cleans every timed-out Pi process group, but an immediate tmux stop while unrelated Git/npm commands are active is not a general repository-wide process reaper.
 7. **An unrelated deterministic controller defect can still restart indefinitely.** The supervisor intentionally retries unexpected exits, which can hide a persistent non-agent defect; explicit agent timeouts and `process-dead-end` are bounded paths the supervisor does not turn into infinite retry batches.
-8. **The full suite remains expensive and process-heavy.** Worker limits improve stability at some wall-clock cost; test architecture should continue moving toward faster compiled-CLI seams.
+8. **Complete lifecycle journeys are expensive and process-heavy.** They remain explicit release/affected-area evidence, while normal authoritative validation uses the classified fast suite. `scripts/verify-test-suites.mjs` prevents tests from disappearing between tiers.
 9. **Synchronous orchestration limits heartbeat visibility.** The process-group module hides asynchronous TERM/KILL handling behind a small synchronous interface, preserving serial control but not exposing fine-grained progress.
 10. **Worktree creation is not atomically recorded.** A crash after `git worktree add` but before status persistence leaves an unrecognized directory that blocks automatic resume until an operator reconciles it.
 11. **External merge races remain observable failures.** Already-merged recovery verifies the merged PR head against `validatedHead`; a mismatched external merge is preserved for operator inspection rather than reconciled as success.
@@ -674,7 +678,7 @@ Future changes should preserve these properties:
 1. **Deterministic controller, probabilistic workers.** Agents edit and judge; code owns irreversible transitions.
 2. **Persist before side effect.** Every Pi action has a durable typed intent; extend the same transaction boundary to worktree creation, where a crash window remains.
 3. **Exact identity everywhere.** Commits, evidence, PR heads, and merge state are compared explicitly, including already-merged recovery.
-4. **One owner per expensive operation.** Especially full validation, independent review, publication, and cleanup.
+4. **One owner per expensive operation.** Especially authoritative validation, affected journey evidence, independent review, publication, and cleanup.
 5. **Fixed authority, live evidence.** Scope cannot drift, but blockers and contracts can.
 6. **Serial publication.** No concurrent ticket can race the canonical repository state.
 7. **Bounded correction and agent execution with terminal successors.** No product mode can replenish its budget; contract review leads to targeted repair and product quarantine. A Pi action gets one fresh timeout retry, then infrastructure quarantine. An unadvanceable fixed scope leads to `process-dead-end`.

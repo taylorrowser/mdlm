@@ -61,11 +61,16 @@ async function launchFromStandardInput() {
     resolveChild();
   });
 
+  let timeoutHandle;
+  const timeoutReached = new Promise((resolve) => {
+    timeoutHandle = setTimeout(() => resolve("timeout"), timeout);
+  });
   const timerResult = await Promise.race([
     childClosed.then(() => "closed"),
-    delay(timeout).then(() => "timeout"),
+    timeoutReached,
   ]);
   if (timerResult === "closed") {
+    clearTimeout(timeoutHandle);
     if (child.pid) await terminateRemainingGroup(child.pid, terminationGrace);
     if (childOutcome.startupError) process.stderr.write(`FRONTIER_PROCESS_START_FAILED: ${childOutcome.startupError}\n`);
     process.exitCode = childOutcome.status ?? 1;

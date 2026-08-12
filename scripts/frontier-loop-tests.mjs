@@ -222,7 +222,8 @@ test("agent prompts reserve full validation for the orchestrator and preserve tr
   const reviewer = independentReviewerPrompt("/tmp/evidence.md");
   for (const prompt of editingPrompts) {
     assert.match(prompt, /^\/skill:implement/);
-    assert.match(prompt, /do not run the full suite/);
+    assert.match(prompt, /do not run `npm test`, journey suites/);
+    assert.match(prompt, /authoritative fast-suite run/);
     assert.match(prompt, /do not invoke code review or another Pi agent/);
     assert.match(prompt, /overrides the implementation skill's default completion procedure/);
     assert.doesNotMatch(prompt, /Invoke code review/);
@@ -311,6 +312,18 @@ test("child commands have a finite timeout", () => {
     () => commandResult(process.execPath, ["-e", "setTimeout(() => {}, 10000)"], { timeout: 10, maximumAttempts: 1 }),
     /ETIMEDOUT|timed out/i,
   );
+});
+
+test("successful process groups return without waiting for their timeout", () => {
+  const startedAt = performance.now();
+  const result = runInProcessGroup(process.execPath, ["-e", "process.exit(0)"], {
+    timeout: 1_000,
+    terminationGrace: 100,
+  });
+  const elapsed = performance.now() - startedAt;
+  assert.equal(result.timedOut, false);
+  assert.equal(result.status, 0);
+  assert.ok(elapsed < 500, `successful child waited ${elapsed.toFixed(0)}ms for its timeout`);
 });
 
 test("timed-out process groups terminate both child and long-lived grandchild", () => {
