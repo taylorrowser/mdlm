@@ -10,13 +10,10 @@ column three names the package Selector/Obligation, participation, and Resolver;
 column four gives the next Operator Outcome or validation disposition; and column
 five gives the correction budget plus evidence reuse or invalidation. “Invalid
 proposal” is an explicit nonpublication disposition, not an Operator Outcome.
-The versioned proof index in
-[`phase-hardening-coverage.yaml`](phase-hardening-coverage.yaml) binds every
-distinct row—not merely its containing section—to one exact package-fixture or
-compiled public-process test and parameterized case where applicable.
-`test/phase-hardening-matrix.test.ts` checks that the index remains complete and
-that every row-level reference resolves to a registered executable test. Neither
-artifact is read at runtime.
+The executable-evidence section names the public route tests and focused package
+fixtures that cover these rows. `test/phase-hardening-matrix.test.ts` verifies
+that every package reference in the matrix resolves and that runtime modules do
+not consume this specification artifact.
 
 ## Foundation and product simplification
 
@@ -242,7 +239,9 @@ omitted-versus-empty-token evidence, ordered duplicate tokens, and deterministic
 exact-byte rejection. `test/mdlm-phase-1-assurance-correction.test.ts` drives
 multi-Review VAI correction, changed-binding atomic rejection, immutable prior
 RUN/RES evidence, fresh Review Context and independent Review, and exact fresh-run
-selection through the public operator seam. `test/evaluate-bootstrap-participation.test.ts` covers exact simplification
-blockers, immediate stakeholder-owned candidate attention with preserved budget,
-candidate exhaustion through the same interface, Question Decision correction,
-accepted-intent progression, and package-owned participation.
+selection through the public operator seam. `test/mdlm-pilot-assessment.test.ts`
+proves bounded PAS and Expansion Decision correction and every declared terminal
+outcome. `test/evaluate-bootstrap-participation.test.ts` covers exact
+simplification blockers, immediate stakeholder-owned candidate attention with
+preserved budget, candidate exhaustion through the same interface, Question
+Decision correction, accepted-intent progression, and package-owned participation.

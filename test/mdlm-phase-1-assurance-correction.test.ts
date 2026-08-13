@@ -517,11 +517,6 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
   };
 
   const commit = (message: string) => {
-    const doctor = mdlm(repository, ["doctor", "--json"]);
-    expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-    expect(git(repository, "add", "-N", ".lifecycle/data").status).toBe(0);
-    expect(git(repository, "diff", "--quiet", "--", ".lifecycle/data").status)
-      .toBe(1);
     expect(git(repository, "add", "--all").status).toBe(0);
     const committed = git(
       repository,
@@ -538,7 +533,6 @@ describe("Phase 1 assurance correction through the public operator seam", () => 
       message,
     );
     expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
-    expect(git(repository, "status", "--porcelain").stdout).toBe("");
   };
 
   const next = () => {

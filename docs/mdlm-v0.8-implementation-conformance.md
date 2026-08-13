@@ -166,16 +166,13 @@ and every unaffected accepted definition/evidence item remains reusable. Failed 
 disposition, STK, and candidate Reviews route to causal same-lineage Correction and
 fresh independent Review instead of stranding Phase 7. Draft STK correction remains the ordinary Phase 0 route. Issue #102 extends the same package-owned accepted boundary to one shared SYS consumed by two exact DWP lineages: exact links expose both consumers and dependent context, Review, candidate/gate, and verification evidence; draft replacement reevaluates each consumer without CHG; accepted replacement requires attended reviewed CHG authority and serial fresh consumer coverage before selective candidate and closure. The lifecycle-neutral
 operator contract exposes package-bound attended inputs without counting
-Assignment transport attempts as lifecycle failures. Issue #103 integrates those tracer bullets into one reusable proof boundary. The
-Phase-hardening matrix now has a versioned executable-coverage index, its public
-process anchor proves doctor/diff/ordinary-commit discipline and exact subsequent
-Assignment state from `mdlm init`; every compiled route applies the same
-transaction discipline before its next Assignment; and the clean-pilot audit maps every required
-failure, attention, change, shared-impact, and explicit-terminal observation to
-registered executable evidence. The matrix remains test/specification data and is
-not consulted by runtime evaluation. The implemented routes and deferred
-hardening breadth are recorded in
-[`phase-hardening-matrix.md`](phase-hardening-matrix.md), with the clean proof in
+Assignment transport attempts as lifecycle failures. Issue #103 integrates those
+tracer bullets at the compiled public seam. Its clean-pilot anchor proves
+init/doctor/diff/ordinary-commit discipline and exact subsequent Assignment state;
+the reusable hardening matrix names the package definitions and executable route
+evidence without becoming runtime process state. The implemented routes and
+deferred breadth are recorded in
+[`phase-hardening-matrix.md`](phase-hardening-matrix.md), with the pilot audit in
 [`clean-pilot-103.md`](clean-pilot-103.md).
 
 ## Demonstrated invariants

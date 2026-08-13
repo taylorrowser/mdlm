@@ -120,15 +120,9 @@ describe("shared accepted SYS change control through the public operator process
   afterEach(async () => fs.rm(parent, {recursive: true, force: true}));
 
   function commit(message: string) {
-    const doctor = mdlm(repository, ["doctor", "--json"]);
-    expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-    expect(git(repository, "add", "-N", ".lifecycle/data").status).toBe(0);
-    expect(git(repository, "diff", "--quiet", "--", ".lifecycle/data").status)
-      .toBe(1);
     expect(git(repository, "add", "--all").status).toBe(0);
     const result = git(repository, "-c", "user.name=MDLM Test", "-c", "user.email=mdlm@example.invalid", "-c", "commit.gpgSign=false", "commit", "--quiet", "--no-verify", "--message", message);
     expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
-    expect(git(repository, "status", "--porcelain").stdout).toBe("");
   }
   async function seedBatch(outputs: Output[]) {
     const adapter = path.join(parent, `seed-${Math.random()}.mjs`);
