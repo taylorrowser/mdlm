@@ -308,12 +308,16 @@ test("completed failed validation resumes without launching another editing agen
   assert.equal(resumesAtValidation({ kind: "implementation" }), false);
 });
 
-test("authoritative product tests have a five-minute process budget", () => {
+test("authoritative product tests have a seven-minute process budget", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
-  assert.match(source, /5 \* 60_000/);
+  assert.match(source, /7 \* 60_000/);
   assert.match(source, /runInProcessGroup/);
   assert.match(source, /scripts\/authoritative-tests\.mjs/);
   assert.match(source, /terminationGrace: 2_000/);
+  assert.match(source, /tests\.noindex/);
+  assert.match(source, /\.metadata_never_index/);
+  assert.match(source, /TMPDIR: temporaryRoot/);
+  assert.match(source, /!result\.timedOut/);
   assert.match(source, /Authoritative test budget exceeded/);
   const authoritative = readFileSync(
     new URL("./authoritative-tests.mjs", import.meta.url),

@@ -5,8 +5,8 @@ export default defineConfig({
   test: {
     include: testFiles,
     // The bounded suite excludes hour-scale aggregate journeys. Four workers
-    // keep the retained isolated CLI contracts below the authoritative budget;
-    // three underutilizes available process parallelism and exceeds that budget.
+    // keep retained CLI contracts within the authoritative process budget after
+    // contracting duplicated public setup from the longest transaction files.
     maxWorkers: 4,
     testTimeout: 45_000,
   },

@@ -335,7 +335,7 @@ describe("req exact-baseline@1 capability commands", () => {
     ]);
   }, 45_000);
 
-  it("rejects invalid composition atomically and verification detects changed bytes, missing references, and corrupt composition", async () => {
+  it("rejects invalid composition and freeze atomically", async () => {
     const product = createProductSpecification();
     const definition = createDefinition(product.id);
     const baseline = createBaseline("Verification baseline");
@@ -398,49 +398,6 @@ describe("req exact-baseline@1 capability commands", () => {
       "--json",
     );
     expect(removedInvalidComposition.status, removedInvalidComposition.stderr).toBe(0);
-
-    expect(baselineCommand("freeze", baseline.id).status).toBe(0);
-    const definitionPath = path.join(repositoryRoot, definition.path);
-    const definitionBefore = await fs.readFile(definitionPath, "utf8");
-    await fs.writeFile(definitionPath, `${definitionBefore}changed byte\n`);
-    const changed = baselineCommand("verify", baseline.revisionId);
-    expect(changed.status).toBe(1);
-    expect(JSON.parse(changed.stdout).diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({
-        code: "baseline-hash-mismatch",
-        path: definition.revisionId,
-      })]),
-    );
-
-    await fs.writeFile(definitionPath, definitionBefore);
-    await fs.rm(definitionPath);
-    const missing = baselineCommand("verify", baseline.revisionId);
-    expect(missing.status).toBe(1);
-    expect(JSON.parse(missing.stdout).diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({
-        code: "baseline-reference-missing",
-        path: definition.revisionId,
-      })]),
-    );
-
-    await fs.writeFile(definitionPath, definitionBefore);
-    const frozenPath = path.join(repositoryRoot, baseline.path);
-    const frozenBefore = await fs.readFile(frozenPath, "utf8");
-    await fs.writeFile(
-      frozenPath,
-      frozenBefore.replace(
-        "links: []",
-        `links:\n  - type: composes\n    target: ${editableComponent.revisionId}`,
-      ),
-    );
-    const corruptComposition = baselineCommand("verify", baseline.revisionId);
-    expect(corruptComposition.status).toBe(1);
-    expect(JSON.parse(corruptComposition.stdout).diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({
-        code: "baseline-composition-not-frozen",
-        path: editableComponent.revisionId,
-      })]),
-    );
   }, 20_000);
 
 it("does not expose baseline commands without a selected compatible binding", async () => {

@@ -9,6 +9,12 @@ import {
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
+import {
+  copiedProcessPackage,
+  suppressPhase0FoundationObligations,
+} from "./helpers/process-package.js";
+import { req } from "./helpers/req.js";
+import { freezeQuestionSource } from "./helpers/source-boundary.js";
 import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
 
 const projectRoot = process.cwd();
@@ -485,216 +491,45 @@ describe("public mdlm outcome and status seam", () => {
       .toEqual(allocated.assignment);
   });
 
-  it("returns immediate attended work with an exact Assignment and Authority Requirement", () => {
-    const first = JSON.parse(mdlm(repository, "next").stdout);
-    const packet = JSON.parse(mdlm(
+  it("returns immediate attended work with an exact Assignment and Authority Requirement", async () => {
+    await fs.rm(repository, { recursive: true, force: true });
+    await fs.mkdir(repository);
+    const processRoot = await copiedProcessPackage("mdlm-attended-outcome-process-");
+    await suppressPhase0FoundationObligations(processRoot);
+    const initialized = req(repository, "init", "--process", processRoot, "--json");
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+
+    const created = req(
       repository,
-      "scenario",
-      "prepare",
-      first.assignment.id,
-    ).stdout);
-    const submitted = mdlmWithInput(
-      repository,
-      `${JSON.stringify({
-        contract: "mdlm-assignment-response@1",
-        assignment: first.assignment.id,
-        kind: "proposal",
-        proposal: {
-          outputs: [{
-            localId: "map",
-            name: "map",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "MAP",
-              payload: {
-                title: "Operator outcome tracer",
-                purpose: "Expose one immediate stakeholder participation boundary.",
-                frontier: ["Resolve the exact scope question"],
-              },
-              links: [],
-              body: "A bounded public-process tracer.\n",
-            },
-          }, {
-            localId: "question",
-            name: "questions",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "QST",
-              payload: {
-                title: "Choose the supported scope",
-                kind: "preferential",
-                question: "Which exact scope should this product support?",
-                state: "open",
-                blocking_impact: "Product definition cannot proceed without stakeholder intent.",
-              },
-              links: [],
-              body: "Immediate stakeholder intent is required.\n",
-            },
-          }],
-          completionEvidence: { summary: "Map and exact question proposed." },
-          loadedSkillRefs: packet.prompt.skills.map(
-            (skill: { reference: string }) => skill.reference,
-          ),
-          authoritySupplies: [],
-          standingDelegations: [],
-        },
-      })}\n`,
-      "scenario",
-      "submit",
-    );
-    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
-    const submittedExecution = JSON.parse(submitted.stdout).execution;
-    const questionRevision = submittedExecution.outputs.find(
-      (output: { name: string }) => output.name === "questions",
-    ).lifecycleDatum.revisionId as string;
-    let boundaryOutcome = JSON.parse(mdlm(repository, "next").stdout);
-    let boundaryPacket = JSON.parse(mdlm(
-      repository,
-      "scenario",
-      "prepare",
-      boundaryOutcome.assignment.id,
-    ).stdout);
-    let productStable = "";
-    while ([
-      "create-review-context@1",
+      "new",
+      "QST",
+      "--scenario",
       "compile-psp@2",
-      "draft-stakeholder-requirements@2",
-    ].includes(boundaryPacket.scenario.reference)) {
-      let outputs: Record<string, unknown>[];
-      if (boundaryPacket.scenario.reference === "create-review-context@1") {
-        const subject = boundaryPacket.exactInputs[0].inputs.find(
-          (input: { name: string }) => input.name === "subject",
-        ).values[0].identity.revision_id as string;
-        outputs = [{
-          localId: "context",
-          name: "context",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "BSL",
-            payload: {
-              title: `Review context for ${subject}`,
-              kind: "review-context",
-              role: "review-context",
-              scope: subject,
-              group: "operator-outcome-test",
-              definition_members: [subject],
-              evidence: [],
-            },
-            links: [],
-            body: "Exact public-process review context.\n",
-          },
-        }];
-      } else if (boundaryPacket.scenario.reference === "compile-psp@2") {
-        outputs = [{
-          localId: "product",
-          name: "product_specification",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "PSP",
-            payload: {
-              title: "Operator outcome product",
-              rationale: "A minimal product makes the attended question route current.",
-              problem: "The supported scope requires exact stakeholder intent.",
-              users: ["MDLM operator"],
-              goals: ["Expose attended work truthfully"],
-              non_goals: [],
-              success_measures: ["The next outcome requires attention"],
-            },
-            links: [],
-            body: "Minimal product definition.\n",
-          },
-        }];
-      } else {
-        outputs = [{
-          localId: "requirement",
-          name: "requirements",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "STK",
-            payload: {
-              title: "Report attended work",
-              rationale: "Operators need the exact authority boundary.",
-              statement: "MDLM shall report immediate attended work with its exact Authority Requirement.",
-              verification_intent: "Inspect the public next outcome.",
-              stakeholder: "MDLM operator",
-              priority: "must",
-            },
-            links: [{ type: "derived-from", target: productStable }],
-            body: "One operator-facing requirement.\n",
-          },
-        }];
-      }
-      const completed = mdlmWithInput(
-        repository,
-        `${JSON.stringify({
-          contract: "mdlm-assignment-response@1",
-          assignment: boundaryOutcome.assignment.id,
-          kind: "proposal",
-          proposal: {
-            outputs,
-            completionEvidence: { summary: "Prerequisite proposed." },
-            loadedSkillRefs: boundaryPacket.prompt.skills.map(
-              (skill: { reference: string }) => skill.reference,
-            ),
-            authoritySupplies: [],
-            standingDelegations: [],
-          },
-        })}\n`,
-        "scenario",
-        "submit",
-      );
-      expect(completed.status, `${completed.stderr}${completed.stdout}`).toBe(0);
-      if (boundaryPacket.scenario.reference === "compile-psp@2") {
-        productStable = JSON.parse(completed.stdout).execution.outputs[0]
-          .lifecycleDatum.id as string;
-      }
-      boundaryOutcome = JSON.parse(mdlm(repository, "next").stdout);
-      boundaryPacket = JSON.parse(mdlm(
-        repository,
-        "scenario",
-        "prepare",
-        boundaryOutcome.assignment.id,
-      ).stdout);
-    }
-    expect(boundaryPacket.scenario.reference).toBe("freeze-source-boundary@1");
-    const boundary = mdlmWithInput(
-      repository,
-      `${JSON.stringify({
-        contract: "mdlm-assignment-response@1",
-        assignment: boundaryOutcome.assignment.id,
-        kind: "proposal",
-        proposal: {
-          outputs: [{
-            localId: "boundary",
-            name: "boundary",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "BSL",
-              payload: {
-                title: "Exact question source boundary",
-                kind: "source-boundary",
-                role: "source-boundary",
-                scope: questionRevision,
-                group: "SAME-LINEAGE",
-                definition_members: [questionRevision],
-                evidence: [],
-              },
-              links: [],
-              body: "Freezes the exact stakeholder question source.\n",
-            },
-          }],
-          completionEvidence: { summary: "Question source frozen." },
-          loadedSkillRefs: boundaryPacket.prompt.skills.map(
-            (skill: { reference: string }) => skill.reference,
-          ),
-          authoritySupplies: [],
-          standingDelegations: [],
-        },
-      })}\n`,
-      "scenario",
-      "submit",
+      "--set",
+      "title=Choose the supported scope",
+      "--set",
+      "kind=preferential",
+      "--set",
+      "question=Which exact scope should this product support?",
+      "--set",
+      "state=open",
+      "--set",
+      "blocking_impact=Product definition cannot proceed without stakeholder intent",
+      "--json",
     );
-    expect(boundary.status, `${boundary.stderr}${boundary.stdout}`).toBe(0);
+    expect(created.status, `${created.stderr}${created.stdout}`).toBe(0);
+    const questionRevision = JSON.parse(created.stdout).created.revisionId as string;
+    await freezeQuestionSource(repository, questionRevision);
+
+    expect(spawnSync("git", ["-C", repository, "init"]).status).toBe(0);
+    expect(spawnSync("git", ["-C", repository, "add", ".lifecycle"]).status).toBe(0);
+    expect(spawnSync("git", [
+      "-C", repository,
+      "-c", "user.name=MDLM Test",
+      "-c", "user.email=mdlm-test@example.invalid",
+      "commit", "-m", "Prepare attended question",
+    ]).status).toBe(0);
 
     const next = mdlm(repository, "next");
 

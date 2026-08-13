@@ -474,16 +474,14 @@ it("uses only an applicable exact standing delegation to authorize Review execut
       id: string;
       revisionId: string;
     };
-    for (const member of [target.revisionId, delegationDatum.revisionId]) {
-      expect(req(
-        repositoryRoot,
-        "baseline",
-        "add",
-        contextDatum.id,
-        member,
-        "--json",
-      ).status).toBe(0);
-    }
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      contextDatum.id,
+      delegationDatum.revisionId,
+      "--json",
+    ).status).toBe(0);
     expect(req(
       repositoryRoot,
       "baseline",
@@ -585,16 +583,14 @@ it("uses only an applicable exact standing delegation to authorize Review execut
       id: string;
       revisionId: string;
     };
-    for (const member of [target.revisionId, delegationDatum.revisionId]) {
-      expect(req(
-        repositoryRoot,
-        "baseline",
-        "add",
-        targetContext.id,
-        member,
-        "--json",
-      ).status).toBe(0);
-    }
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      targetContext.id,
+      target.revisionId,
+      "--json",
+    ).status).toBe(0);
     expect(req(
       repositoryRoot,
       "baseline",

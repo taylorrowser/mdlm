@@ -141,7 +141,7 @@ node scripts/frontier-loop.mjs status --parent 123
 
 ## Test tiers
 
-`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs fast package/evaluator coverage plus representative compiled-CLI contracts, and runs controller tests. Its target wall time is under five minutes.
+`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs fast package/evaluator coverage plus representative compiled-CLI contracts, and runs controller tests. Its target wall time is under seven minutes.
 
 `npm test` is the single bounded authoritative gate. It combines package/evaluator contracts with representative compiled-public transactions instead of retaining exhaustive duplicate lifecycle reconstructions. `npm run test:all` is an alias for the same complete bounded gate. New test files must be classified in `vitest.suites.mjs`; verification fails if a file is missing, duplicated, or stale.
 

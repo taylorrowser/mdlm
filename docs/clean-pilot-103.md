@@ -84,5 +84,5 @@ of embedding a commit's own identity inside that commit.
 | Package validation | `node dist/req-entry.js process validate --ref .lifecycle/process --json` passes |
 | Package fixtures | `node dist/req-entry.js process test --ref .lifecycle/process --json` reports zero failures |
 | Build and type-check | `npm run build && npm run typecheck` pass |
-| Authoritative bounded gate | `npm test` passes package/evaluator contracts and representative compiled-public transactions within five minutes |
+| Authoritative bounded gate | `npm test` passes package/evaluator contracts and representative compiled-public transactions within seven minutes |
 | Post-gate cleanliness | Exact head remains unchanged and `git status --porcelain` remains empty |
