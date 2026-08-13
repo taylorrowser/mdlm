@@ -11,15 +11,19 @@ function mdlm(repository: string, arguments_: string[], input?: string) {
     cwd: repository,
     encoding: "utf8",
     maxBuffer: 10 * 1024 * 1024,
+    timeout: 10_000,
     ...(input === undefined ? {} : { input }),
   });
 }
 
 function git(repository: string, ...arguments_: string[]) {
-  return spawnSync("git", ["-C", repository, ...arguments_], { encoding: "utf8" });
+  return spawnSync("git", ["-C", repository, ...arguments_], {
+    encoding: "utf8",
+    timeout: 10_000,
+  });
 }
 
-describe("zero-to-assessment onboarding public process", () => {
+describe("clean onboarding transaction contract", () => {
   const roots: string[] = [];
 
   afterEach(async () => {
@@ -28,7 +32,7 @@ describe("zero-to-assessment onboarding public process", () => {
     ));
   });
 
-  it("starts clean, publishes only through an Assignment, and binds later work to the committed state", async () => {
+  it("publishes the first transaction and binds later work to the committed state", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-zero-to-assessment-"));
     roots.push(root);
     const repository = path.join(root, "repository");
