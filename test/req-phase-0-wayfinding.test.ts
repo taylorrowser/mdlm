@@ -259,6 +259,7 @@ describe("req Phase 0 wayfinding slice", () => {
       dispatchable: true,
       actionableResolver: "revise-foundation-after-review@5",
     }));
+    expect(correction.participation ?? []).toEqual([]);
     expect(JSON.parse(looseEnds.stdout).looseEnds.items.some((item: any) =>
       item.subject === product.revisionId &&
       ["review-context-required", "passing-review-required"].includes(

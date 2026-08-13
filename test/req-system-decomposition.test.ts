@@ -1317,6 +1317,14 @@ describe("req system decomposition slice", () => {
       status: "ready",
       dispatchable: true,
       actionableResolver: "revise-phase-2-candidate-after-review@1",
+      participation: [expect.objectContaining({
+        policy: "phase-2-correction-participation@1",
+        authorityRequirement: {
+          mode: "autonomous",
+          authority: "package-evidence",
+          delegationAllowed: false,
+        },
+      })],
     }));
     const priorLevelCandidate = levelCandidate;
     const candidateCorrectionExecution = await execute(

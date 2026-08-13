@@ -18,6 +18,12 @@ type MatrixRoute = {
   budget: string;
   disposition: string;
   reuse: string;
+  transport?: {
+    lifecyclePublication: "none";
+    leaseDisposition: "active" | "exhausted";
+    orchestrationAction: "correct-response" | "stop";
+    automaticReplacement: false;
+  };
 };
 type MatrixRow = {
   id: string;
@@ -44,6 +50,7 @@ const participationModes = new Set([
   "attended-immediate",
   "attended-checkpoint",
   "attended-delegable",
+  "assignment-transport",
 ]);
 
 async function definitionReferences(kind: DefinitionKind): Promise<Set<string>> {
@@ -207,6 +214,100 @@ describe("Phase-hardening matrix", () => {
     }
   });
 
+  it("binds correction routes to their executable participation semantics", async () => {
+    const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
+
+    expect(matrix.rows.find((row) => row.id === "phase-0-foundation-correction")?.routes[0])
+      .toMatchObject({
+        route: "initial failure",
+        participation: { mode: "autonomous", policies: [], authority: "kernel-autonomous" },
+        resolvers: ["revise-foundation-after-review@5"],
+        next: ["assignment"],
+      });
+    expect(matrix.rows.find((row) => row.id === "phase-2-candidate-gate-acceptance")
+      ?.routes.find((route) => route.route === "reviewed rejection"))
+      .toMatchObject({
+        participation: {
+          mode: "autonomous",
+          policies: ["phase-2-correction-participation@1"],
+          authority: "package-evidence",
+        },
+        resolvers: ["revise-phase-2-candidate-after-review@1"],
+        next: ["assignment"],
+      });
+  });
+
+  it("enumerates both malformed Assignment Response transitions without package execution", async () => {
+    const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
+    const row = matrix.rows.find((candidate) => candidate.id === "assignment-response-transport");
+    const phases = [
+      "phase-0-wayfinding@4",
+      "phase-1-product-assurance@5",
+      "phase-2-system-definition@8",
+      "phase-2-pilot-assessment@3",
+    ];
+
+    expect(row?.phases).toEqual(phases);
+    expect(row?.routes).toEqual([
+      expect.objectContaining({
+        route: "first malformed response",
+        selectors: [],
+        obligations: [],
+        participation: {
+          mode: "assignment-transport",
+          policies: [],
+          authority: "response-contract",
+        },
+        resolvers: [],
+        next: ["assignment"],
+        executable: expect.objectContaining({
+          file: "test/mdlm-assignment.test.ts",
+          test: "preserves the same Assignment for one malformed-response correction that can publish",
+          assertions: expect.arrayContaining([
+            "correction-required",
+            "correct-response",
+            "automaticReplacement: false",
+            "malformedResponseCorrection: 0",
+          ]),
+        }),
+        transport: {
+          lifecyclePublication: "none",
+          leaseDisposition: "active",
+          orchestrationAction: "correct-response",
+          automaticReplacement: false,
+        },
+      }),
+      expect.objectContaining({
+        route: "second malformed response",
+        selectors: [],
+        obligations: [],
+        participation: {
+          mode: "assignment-transport",
+          policies: [],
+          authority: "response-contract",
+        },
+        resolvers: [],
+        next: ["assignment"],
+        executable: expect.objectContaining({
+          file: "test/mdlm-assignment.test.ts",
+          test: "exhausts the Assignment on a second malformed response and reports the terminal disposition",
+          assertions: expect.arrayContaining([
+            "exhausted",
+            'action: "stop"',
+            "automaticReplacement: false",
+            "malformedResponses).toHaveLength(2)",
+          ]),
+        }),
+        transport: {
+          lifecyclePublication: "none",
+          leaseDisposition: "exhausted",
+          orchestrationAction: "stop",
+          automaticReplacement: false,
+        },
+      }),
+    ]);
+  });
+
   it("binds every Phase 2 Review-correction route to its behavioral assertion", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     const row = matrix.rows.find((candidate) =>
@@ -269,12 +370,21 @@ describe("Phase-hardening matrix", () => {
         expect(route.route, `${label}: exact route`).toEqual(expect.any(String));
         expect(route.evidence.facts, `${label}: evidence facts`).not.toBe("");
         expect(route.evidence.links, `${label}: evidence links`).not.toBe("");
-        expect(route.selectors.length, `${label}: Selectors`).toBeGreaterThan(0);
-        expect(route.obligations.length, `${label}: Obligations`).toBeGreaterThan(0);
+        const assignmentTransport = route.participation.mode === "assignment-transport";
+        if (assignmentTransport) {
+          expect(route.selectors, `${label}: no Selector runs before contract acceptance`).toEqual([]);
+          expect(route.obligations, `${label}: no Obligation is reevaluated before contract acceptance`).toEqual([]);
+          expect(route.participation.policies, `${label}: no package participation runs`).toEqual([]);
+          expect(route.resolvers, `${label}: no Resolver runs`).toEqual([]);
+          expect(route.transport, `${label}: exact transport disposition`).toBeDefined();
+        } else {
+          expect(route.selectors.length, `${label}: Selectors`).toBeGreaterThan(0);
+          expect(route.obligations.length, `${label}: Obligations`).toBeGreaterThan(0);
+          expect(route.resolvers, `${label}: exact Resolver`).toHaveLength(1);
+        }
         expect(participationModes, `${label}: exact participation mode`)
           .toContain(route.participation.mode);
         expect(route.participation.authority, `${label}: participation authority`).not.toBe("");
-        expect(route.resolvers, `${label}: exact Resolver`).toHaveLength(1);
         expect(route.next, `${label}: exact next outcome`).toHaveLength(1);
         for (const outcome of route.next) {
           expect(operatorOutcomes, `${label}: ${outcome} is an Operator Outcome`).toContain(outcome);

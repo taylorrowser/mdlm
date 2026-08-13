@@ -51,7 +51,11 @@ The registered route evidence includes attended Product Wayfinding and one
 Consolidation Group, fresh package-delegated independent Review, lifecycle
 Correction and escalation, reviewed gate rejection and return, shared accepted
 SYS impact across two exact consumers, formal change behavior, pilot-assessment
-Correction, and all declared terminal outcomes.
+Correction, and all declared terminal outcomes. The cross-cutting Assignment
+transport rows separately prove first-malformed correction and second-malformed
+exhaustion. Those rows intentionally name no package Selector, Obligation,
+participation Policy, or Resolver because response-contract rejection occurs
+before Scenario execution and publishes no Lifecycle Data.
 
 ## Declared stops and deferred work
 
@@ -66,20 +70,19 @@ contraction remain deferred; issue #104 owns the latter. Legacy `req`, custom
 package setup, adapter execution, and direct fixture setup that remain in older
 focused tests are not represented as fresh-pilot operation.
 
-## Repair validation
+## Exact-head clean-checkout quality gate
 
-The narrow repair was checked with these repository commands:
+The final evidence table is populated only after the repair is committed. The
+validation checkout must be detached at that exact commit, start clean, and remain
+clean after every read-only gate. This prevents a working-tree test result from
+being represented as exact publication evidence.
 
-| Gate | Command | Result |
+| Gate | Command | Exact-head result |
 | --- | --- | --- |
-| Matrix and Phase 2 route evidence | `npx vitest run --config vitest.fast.config.ts test/phase-hardening-matrix.test.ts test/evaluate-system-decomposition.test.ts` | 2 files, 15 tests passed |
-| Package loading | `npx vitest run --config vitest.fast.config.ts test/load-process-package.test.ts` | 1 file, 40 tests passed |
-| Package validation | `node dist/req-entry.js process validate --ref .lifecycle/process --json` | compilation, references, and capability bindings passed |
-| Package fixtures | `node dist/req-entry.js process test --ref .lifecycle/process --json` | 0 failed |
-| Build | `npm run build` | passed |
-| Type-check | `npm run typecheck` | passed |
-
-The authoritative fast-suite and complete-suite results are intentionally not
-claimed here: the frontier orchestrator owns those clean-tip gates and must reject
-the committed tip unless they pass. This packet records only checks actually run
-for the repair.
+| Clean checkout identity | `git rev-parse HEAD && git status --porcelain` | Pending final committed head |
+| Package validation | `node dist/req-entry.js process validate --ref .lifecycle/process --json` | Pending final committed head |
+| Package fixtures | `node dist/req-entry.js process test --ref .lifecycle/process --json` | Pending final committed head |
+| Build and type-check | `npm run build && npm run typecheck` | Pending final committed head |
+| Authoritative fast gate | `npm test` | Pending final committed head |
+| Exhaustive journey gate | `npm run test:journeys` | Pending final committed head |
+| Post-gate cleanliness | `git status --porcelain` | Pending final committed head |

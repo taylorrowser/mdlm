@@ -2,6 +2,71 @@ contract: mdlm-phase-hardening-matrix@1
 scope: Reachable positive and negative outcome classes in the bundled Phase 0-2, pilot-assessment, and bounded change profile.
 semantics: Every route is a complete proof record. Grouping is presentation-only and never supplies inherited participation, next-outcome, budget, disposition, or evidence-reuse semantics.
 rows:
+  - id: assignment-response-transport
+    phases:
+      - phase-0-wayfinding@4
+      - phase-1-product-assurance@5
+      - phase-2-system-definition@8
+      - phase-2-pilot-assessment@3
+    routes:
+      - route: first malformed response
+        executable:
+          file: test/mdlm-assignment.test.ts
+          test: preserves the same Assignment for one malformed-response correction that can publish
+          assertions:
+            - correction-required
+            - correct-response
+            - 'automaticReplacement: false'
+            - 'malformedResponseCorrection: 0'
+        evidence:
+          facts: The exact Assignment lease records the first malformed response digest and diagnostics while retaining the same Assignment identity.
+          links: No Lifecycle Data or lifecycle link is accepted because Assignment Response validation precedes Scenario execution and publication.
+        selectors: []
+        obligations: []
+        participation:
+          mode: assignment-transport
+          policies: []
+          authority: response-contract
+        resolvers: []
+        next:
+          - assignment
+        budget: The one malformed-response correction is lease-local transport state and consumes no package-authored lifecycle Correction cycle.
+        disposition: The response returns correction-required, publishes no Lifecycle Data, keeps the lease active with zero corrections remaining, and permits only a corrected response for the same Assignment.
+        reuse: The exact Assignment and all clean-head package evidence remain reusable; the malformed bytes and diagnostics remain ignored operational lease evidence only.
+        transport:
+          lifecyclePublication: none
+          leaseDisposition: active
+          orchestrationAction: correct-response
+          automaticReplacement: false
+      - route: second malformed response
+        executable:
+          file: test/mdlm-assignment.test.ts
+          test: exhausts the Assignment on a second malformed response and reports the terminal disposition
+          assertions:
+            - exhausted
+            - 'action: "stop"'
+            - 'automaticReplacement: false'
+            - 'malformedResponses).toHaveLength(2)'
+        evidence:
+          facts: The same exact Assignment lease records both malformed response attempts and changes its disposition to exhausted.
+          links: No Lifecycle Data or lifecycle link is accepted; the exhausted lease remains ignored operational state rather than lifecycle evidence.
+        selectors: []
+        obligations: []
+        participation:
+          mode: assignment-transport
+          policies: []
+          authority: response-contract
+        resolvers: []
+        next:
+          - assignment
+        budget: The second malformed response exhausts only the lease-local transport allowance and consumes no package-authored lifecycle Correction cycle.
+        disposition: The response returns exhausted and stop, publishes no Lifecycle Data, makes that Assignment unavailable, and allocates no replacement until a later deliberate mdlm next reevaluates unchanged lifecycle state.
+        reuse: All clean-head package evidence remains reusable; the exhausted Assignment identity is never reused and a later deliberate next allocates a fresh identity.
+        transport:
+          lifecyclePublication: none
+          leaseDisposition: exhausted
+          orchestrationAction: stop
+          automaticReplacement: false
   - id: phase-0-foundation-publication
     phases:
       - phase-0-wayfinding@4
@@ -210,10 +275,9 @@ rows:
         obligations:
           - foundation-review-correction-required@5
         participation:
-          mode: package-delegated
-          policies:
-            - contextual-review-participation@1
-          authority: independent-reviewer
+          mode: autonomous
+          policies: []
+          authority: kernel-autonomous
         resolvers:
           - revise-foundation-after-review@5
         next:
@@ -2004,10 +2068,10 @@ rows:
         obligations:
           - phase-2-candidate-correction-required@1
         participation:
-          mode: package-delegated
+          mode: autonomous
           policies:
-            - contextual-review-participation@1
-          authority: independent-reviewer
+            - phase-2-correction-participation@1
+          authority: package-evidence
         resolvers:
           - revise-phase-2-candidate-after-review@1
         next:
