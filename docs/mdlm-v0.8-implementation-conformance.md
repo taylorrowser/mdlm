@@ -171,9 +171,9 @@ tracer bullets through a compositional proof at the compiled public seam. Its
 fresh-repository transaction proves init/doctor/diff/ordinary-commit discipline
 and exact subsequent Assignment state; the structured hardening matrix groups
 only routes with the same package seam, participation, budget, disposition, and
-reuse rule, then binds every row to exact package definitions and registered
-executable evidence without becoming runtime process state. The implemented
-routes and deferred breadth are recorded in
+reuse rule, then binds every row to exact package definitions and every named
+route to registered executable evidence without becoming runtime process state.
+The implemented routes and deferred breadth are recorded in
 [`phase-hardening-matrix.yaml`](phase-hardening-matrix.yaml), with the proof shape
 and explicit clarification in [`clean-pilot-103.md`](clean-pilot-103.md).
 

@@ -39,7 +39,7 @@ Correction budget, disposition, and evidence-reuse rule. Every row names exact:
 - Selectors, Obligations, participation Policies, and Resolver Scenarios;
 - next Operator Outcomes, budgets, and dispositions;
 - evidence reuse/invalidation; and
-- a registered executable fixture or compiled-public-seam test.
+- each named route's registered executable fixture or compiled-public-seam test.
 
 The registered route evidence includes attended Product Wayfinding and one
 Consolidation Group, fresh package-delegated independent Review, lifecycle

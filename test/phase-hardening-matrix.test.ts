@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 type DefinitionKind = "obligations" | "phases" | "policies" | "scenarios" | "selectors";
+type ExecutableEvidence = { file: string; test: string };
+type MatrixRoute = { route: string; executable: ExecutableEvidence };
 type MatrixRow = {
   id: string;
   phases: string[];
-  routes: string[];
+  routes: MatrixRoute[];
   evidence: { facts: string; links: string };
   selectors: string[];
   obligations: string[];
@@ -18,13 +20,20 @@ type MatrixRow = {
   budget: string;
   disposition: string;
   reuse: string;
-  executable: { file: string; test: string };
 };
 
 type Matrix = { contract: string; rows: MatrixRow[] };
 
 const projectRoot = process.cwd();
 const matrixPath = path.join(projectRoot, "docs/phase-hardening-matrix.yaml");
+const operatorOutcomes = new Set([
+  "assignment",
+  "attention-required",
+  "profile-boundary-reached",
+  "lifecycle-complete",
+  "process-dead-end",
+  "invalid",
+]);
 
 async function definitionReferences(kind: DefinitionKind): Promise<Set<string>> {
   const references = new Set<string>();
@@ -64,6 +73,15 @@ function registeredTests(source: string, file: string): Set<string> {
 }
 
 describe("Phase-hardening matrix", () => {
+  it("uses only the declared Operator Outcome vocabulary", async () => {
+    const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
+    for (const row of matrix.rows) {
+      for (const outcome of row.next) {
+        expect(operatorOutcomes, `${row.id}: ${outcome} is an Operator Outcome`).toContain(outcome);
+      }
+    }
+  });
+
   it("gives every outcome class exact package fields and registered executable evidence", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     expect(matrix.contract).toBe("mdlm-phase-hardening-matrix@1");
@@ -82,6 +100,8 @@ describe("Phase-hardening matrix", () => {
     for (const row of matrix.rows) {
       const label = row.id;
       expect(row.routes.length, `${label}: routes`).toBeGreaterThan(0);
+      expect(new Set(row.routes.map((route) => route.route)).size, `${label}: unique routes`)
+        .toBe(row.routes.length);
       expect(row.evidence.facts, `${label}: evidence facts`).not.toBe("");
       expect(row.evidence.links, `${label}: evidence links`).not.toBe("");
       expect(row.selectors.length, `${label}: Selectors`).toBeGreaterThan(0);
@@ -90,6 +110,9 @@ describe("Phase-hardening matrix", () => {
       expect(row.participation.authority, `${label}: participation authority`).not.toBe("");
       expect(row.resolvers.length, `${label}: Resolvers`).toBeGreaterThan(0);
       expect(row.next.length, `${label}: next outcomes`).toBeGreaterThan(0);
+      for (const outcome of row.next) {
+        expect(operatorOutcomes, `${label}: ${outcome} is an Operator Outcome`).toContain(outcome);
+      }
       expect(row.next, `${label}: expected route must stay live`).not.toContain("process-dead-end");
       expect(row.budget, `${label}: budget`).not.toBe("");
       expect(row.disposition, `${label}: disposition`).not.toBe("");
@@ -101,15 +124,21 @@ describe("Phase-hardening matrix", () => {
       for (const reference of row.participation.policies) expect(definitions.policies, `${label}: ${reference}`).toContain(reference);
       for (const reference of row.resolvers) expect(definitions.scenarios, `${label}: ${reference}`).toContain(reference);
 
-      const evidencePath = path.join(projectRoot, row.executable.file);
-      if (!testsByFile.has(row.executable.file)) {
-        testsByFile.set(
-          row.executable.file,
-          registeredTests(await fs.readFile(evidencePath, "utf8"), row.executable.file),
-        );
+      for (const route of row.routes) {
+        expect(route.route, `${label}: exact route`).toEqual(expect.any(String));
+        expect(route.executable?.file, `${label}/${route.route}: evidence file`).toEqual(expect.any(String));
+        expect(route.executable?.test, `${label}/${route.route}: evidence test`).toEqual(expect.any(String));
+
+        const evidencePath = path.join(projectRoot, route.executable.file);
+        if (!testsByFile.has(route.executable.file)) {
+          testsByFile.set(
+            route.executable.file,
+            registeredTests(await fs.readFile(evidencePath, "utf8"), route.executable.file),
+          );
+        }
+        expect(testsByFile.get(route.executable.file), `${label}/${route.route}: ${route.executable.test}`)
+          .toContain(route.executable.test);
       }
-      expect(testsByFile.get(row.executable.file), `${label}: ${row.executable.test}`)
-        .toContain(row.executable.test);
     }
   });
 
