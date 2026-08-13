@@ -22,6 +22,7 @@ export const fastTests = [
   "test/req-process-expression.test.ts",
   "test/req-scenario-dry-run.test.ts",
   "test/req-schema.test.ts",
+  "test/selector-memoization.test.ts",
 ];
 
 export const journeyTests = [

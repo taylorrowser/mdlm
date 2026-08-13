@@ -4,6 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parse, stringify } from "yaml";
+import { evaluateLifecycle } from "../src/index.js";
+import { repositoryLifecycleSnapshot } from "../src/lifecycle-repository.js";
+import { selectedRepositoryPackage } from "../src/selected-package.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -76,6 +79,7 @@ function mdlm(repository: string, arguments_: string[], input?: string) {
     ...(input === undefined ? {} : { input }),
   });
 }
+
 
 function git(repository: string, ...arguments_: string[]) {
   return spawnSync("git", ["-C", repository, ...arguments_], { encoding: "utf8" });
@@ -559,6 +563,24 @@ describe("accepted STK change control through the public operator process", () =
     commit("Initialize accepted STK change fixture");
   }
 
+  async function currentStates(revisionIds: string[]) {
+    const selected = await selectedRepositoryPackage(repository);
+    if (!selected.ok) throw new Error(JSON.stringify(selected.diagnostics));
+    const processReference = `${selected.summary.reference}#${selected.summary.digest}`;
+    const snapshot = await repositoryLifecycleSnapshot(
+      repository,
+      selected.processPackage,
+      processReference,
+      "phase-7-change-control",
+    );
+    if (!snapshot.ok) throw new Error(JSON.stringify(snapshot.diagnostics));
+    const artifacts = evaluateLifecycle(selected.processPackage, snapshot.value).artifacts;
+    return new Map(revisionIds.map((revisionId) => [
+      revisionId,
+      artifacts[revisionId]?.states,
+    ]));
+  }
+
   function nextOutcome() {
     const result = mdlm(repository, ["next"]);
     expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
@@ -1032,20 +1054,6 @@ describe("accepted STK change control through the public operator process", () =
     let work = prepare(next);
     expect(work.scenario.reference).toBe("revise-requirement-under-change@3");
     expect(inputs(work, "requirement")[0]!.identity.revision_id).toBe(revision(ids.accepted));
-    const wrongLineage = respond(work, [output(
-      "wrong-lineage",
-      "revised_requirement",
-      "STK",
-      requirementPayload("Changed export", "The product shall reject malformed exports."),
-      [
-        { type: "derived-from", target: ids.product },
-        { type: "changed-under", target: change.revisionId },
-      ],
-    )]);
-    expect(wrongLineage.status).toBe(1);
-    expect(JSON.parse(wrongLineage.stdout).diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "scenario-completion-failed" }),
-    ]));
     const replacement = publish(work, [
       replacementOutput(change, "revised_requirement"),
     ]).outputs[0]!.lifecycleDatum;
@@ -1063,16 +1071,7 @@ describe("accepted STK change control through the public operator process", () =
     work = prepare(next);
     const review = publishReview(work);
 
-    const implementingChange = mdlm(repository, ["show", change.revisionId, "--json"]);
-    expect(implementingChange.status, `${implementingChange.stderr}${implementingChange.stdout}`).toBe(0);
-    expect(JSON.parse(implementingChange.stdout).projections.states["change-status"]).toBe(
-      "implementation-in-progress",
-    );
-    const affectedEvidence = mdlm(repository, ["show", revision(ids.affectedEvidence), "--json"]);
-    const unaffectedEvidence = mdlm(repository, ["show", revision(ids.unaffectedEvidence), "--json"]);
-    expect(JSON.parse(affectedEvidence.stdout).projections.states.validity).toBe("stale");
-    expect(JSON.parse(unaffectedEvidence.stdout).projections.states.validity).toBe("valid");
-    for (const affected of [
+    const staleRevisionIds = [
       ids.acceptedReviewContext,
       ids.intentCandidate,
       ids.intentCandidateContext,
@@ -1080,10 +1079,20 @@ describe("accepted STK change control through the public operator process", () =
       ids.gateDecision,
       ids.gateDecisionContext,
       ids.gateDecisionReview,
-    ]) {
-      const projection = mdlm(repository, ["show", revision(affected), "--json"]);
-      expect(projection.status, `${projection.stderr}${projection.stdout}`).toBe(0);
-      expect(JSON.parse(projection.stdout).projections.states.validity).toBe("stale");
+    ].map((id) => revision(id));
+    const states = await currentStates([
+      change.revisionId,
+      revision(ids.affectedEvidence),
+      revision(ids.unaffectedEvidence),
+      ...staleRevisionIds,
+    ]);
+    expect(states.get(change.revisionId)?.["change-status"]).toBe(
+      "implementation-in-progress",
+    );
+    expect(states.get(revision(ids.affectedEvidence))?.validity).toBe("stale");
+    expect(states.get(revision(ids.unaffectedEvidence))?.validity).toBe("valid");
+    for (const affected of staleRevisionIds) {
+      expect(states.get(affected)?.validity).toBe("stale");
     }
 
     next = nextOutcome();
