@@ -1,36 +1,20 @@
-import { spawn } from "node:child_process";
+import { runInProcessGroup } from "./frontier-process-group.mjs";
 
 const budgetMs = Number(process.env.MDLM_TEST_BUDGET_MS ?? 5 * 60_000);
-const child = spawn(
+const result = runInProcessGroup(
   process.execPath,
   ["./node_modules/vitest/vitest.mjs", "run", "--config", "vitest.fast.config.ts"],
-  { stdio: "inherit", detached: process.platform !== "win32" },
+  {
+    cwd: process.cwd(),
+    timeout: budgetMs,
+    terminationGrace: 2_000,
+    stdio: ["ignore", "inherit", "inherit"],
+  },
 );
 
-const timeout = setTimeout(() => {
+if (result.timedOut) {
   process.stderr.write(
     `Authoritative test budget exceeded ${budgetMs}ms; terminate redundant reconstruction or move route permutations to package/evaluator seams.\n`,
   );
-  if (process.platform !== "win32" && child.pid) {
-    try {
-      process.kill(-child.pid, "SIGTERM");
-    } catch {
-      child.kill("SIGTERM");
-    }
-  } else {
-    child.kill("SIGTERM");
-  }
-}, budgetMs);
-
-timeout.unref();
-
-child.once("error", (error) => {
-  clearTimeout(timeout);
-  throw error;
-});
-
-child.once("exit", (code, signal) => {
-  clearTimeout(timeout);
-  if (signal) process.exitCode = 1;
-  else process.exitCode = code ?? 1;
-});
+}
+process.exitCode = result.status ?? 1;

@@ -1,11 +1,12 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { loadProcessPackage } from "../src/index.js";
 
 type DefinitionKind = "obligations" | "phases" | "policies" | "scenarios" | "selectors";
-type ExecutableEvidence = { file: string; claim: string; assertions?: string[] };
+type ExecutableEvidence = { file: string; test: string; assertions?: string[] };
 type MatrixRoute = {
   route: string;
   executable: ExecutableEvidence;
@@ -69,6 +70,62 @@ async function definitionReferences(kind: DefinitionKind): Promise<Set<string>> 
   return references;
 }
 
+type RegisteredTest = { assertionCount: number; source: string };
+
+function registeredTests(source: string, file: string): Map<string, RegisteredTest> {
+  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const bindings = new Map<string, ts.Node>();
+  const collectBindings = (node: ts.Node) => {
+    if (ts.isFunctionDeclaration(node) && node.name) bindings.set(node.name.text, node);
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      bindings.set(node.name.text, node.initializer);
+    }
+    ts.forEachChild(node, collectBindings);
+  };
+  collectBindings(ast);
+  const expandedBehavior = (roots: readonly ts.Node[]) => {
+    let assertionCount = 0;
+    const sources: string[] = [];
+    const visitedBindings = new Set<string>();
+    const inspect = (candidate: ts.Node) => {
+      if (ts.isCallExpression(candidate) && candidate.expression.getText(ast) === "expect") {
+        assertionCount += 1;
+      }
+      if (
+        ts.isIdentifier(candidate) && bindings.has(candidate.text) &&
+        !visitedBindings.has(candidate.text)
+      ) {
+        visitedBindings.add(candidate.text);
+        const binding = bindings.get(candidate.text)!;
+        sources.push(binding.getText(ast));
+        inspect(binding);
+      }
+      ts.forEachChild(candidate, inspect);
+    };
+    for (const root of roots) {
+      sources.push(root.getText(ast));
+      inspect(root);
+    }
+    return { assertionCount, source: sources.join("\n") };
+  };
+  const tests = new Map<string, RegisteredTest>();
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && node.arguments.length > 0) {
+      let callee = node.expression;
+      if (ts.isCallExpression(callee)) callee = callee.expression;
+      if (/^(it|test)(\.each)?$/.test(callee.getText(ast))) {
+        const title = node.arguments[0];
+        if (title && (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))) {
+          tests.set(title.text, expandedBehavior(node.arguments));
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return tests;
+}
+
 describe("Phase-hardening matrix", () => {
   it("uses only the declared Operator Outcome vocabulary", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
@@ -110,7 +167,7 @@ describe("Phase-hardening matrix", () => {
           route: "source boundary before attended resolution",
           executable: {
             file: "test/operator-outcome.test.ts",
-            claim: "returns immediate attended work with an exact Assignment and Authority Requirement",
+            test: "returns immediate attended work with an exact Assignment and Authority Requirement",
           },
           next: ["attention-required"],
         }],
@@ -122,8 +179,8 @@ describe("Phase-hardening matrix", () => {
           ...common,
           route: "source boundary before autonomous resolution",
           executable: {
-            file: "test/evaluate-bootstrap-participation.test.ts",
-            claim: "preserves repeated source boundaries through charting and prototype resolution",
+            file: "test/phase-hardening-domain-contracts.test.ts",
+            test: "proves Phase 0 foundation, question, Review, correction, and gate routes semantically",
           },
           next: ["assignment"],
         }],
@@ -199,7 +256,7 @@ describe("Phase-hardening matrix", () => {
         next: ["assignment"],
         executable: expect.objectContaining({
           file: "test/mdlm-assignment.test.ts",
-          claim: "preserves the same Assignment for one malformed-response correction that can publish",
+          test: "preserves the same Assignment for one malformed-response correction that can publish",
           assertions: expect.arrayContaining([
             "correction-required",
             "correct-response",
@@ -227,7 +284,7 @@ describe("Phase-hardening matrix", () => {
         next: ["assignment"],
         executable: expect.objectContaining({
           file: "test/mdlm-assignment.test.ts",
-          claim: "exhausts the Assignment on a second malformed response and reports the terminal disposition",
+          test: "exhausts the Assignment on a second malformed response and reports the terminal disposition",
           assertions: expect.arrayContaining([
             "exhausted",
             'action: "stop"',
@@ -264,12 +321,14 @@ describe("Phase-hardening matrix", () => {
     expect(new Set(correctionRoutes.map((route) => route.route))).toEqual(expectedRoutes);
 
     for (const route of correctionRoutes) {
-      expect(route.executable.file).toBe("test/evaluate-system-decomposition.test.ts");
-      expect(route.executable.assertions).toEqual(expect.arrayContaining([
-        "phase-2-review-correction-required",
-        "revise-phase-2-subject-after-review@1",
-        "phase-2-correction-participation@1",
-      ]));
+      expect(route.executable).toEqual({
+        file: "test/phase-hardening-domain-contracts.test.ts",
+        test: "proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically",
+        assertions: [`phase-2-review-correction-and-ambiguity::${route.route}`],
+      });
+      expect(route.obligations).toEqual(["phase-2-review-correction-required@1"]);
+      expect(route.resolvers).toEqual(["revise-phase-2-subject-after-review@1"]);
+      expect(route.participation.policies).toContain("phase-2-correction-participation@1");
       expect(route.next).toEqual(["assignment"]);
     }
   });
@@ -287,6 +346,7 @@ describe("Phase-hardening matrix", () => {
         .matchAll(/"(test\/[^"]+\.test\.ts)"/g)]
         .map((match) => match[1]!),
     );
+    const testsByFile = new Map<string, Map<string, RegisteredTest>>();
     const definitions = {
       obligations: await definitionReferences("obligations"),
       phases: await definitionReferences("phases"),
@@ -360,10 +420,23 @@ describe("Phase-hardening matrix", () => {
         }
 
         expect(route.executable?.file, `${label}: evidence file`).toEqual(expect.any(String));
-        expect(route.executable?.claim, `${label}: evidence claim`).toEqual(expect.any(String));
+        expect(route.executable?.test, `${label}: evidence test`).toEqual(expect.any(String));
         expect(testFiles, `${label}: retained authoritative evidence`).toContain(route.executable.file);
-        expect(await fs.readFile(path.join(projectRoot, route.executable.file), "utf8"),
-          `${label}: executable assertions`).toContain("expect(");
+        if (!testsByFile.has(route.executable.file)) {
+          testsByFile.set(
+            route.executable.file,
+            registeredTests(
+              await fs.readFile(path.join(projectRoot, route.executable.file), "utf8"),
+              route.executable.file,
+            ),
+          );
+        }
+        const registered = testsByFile.get(route.executable.file)?.get(route.executable.test);
+        expect(registered, `${label}: ${route.executable.test}`).toBeDefined();
+        expect(registered?.assertionCount, `${label}: behavioral assertions`).toBeGreaterThan(0);
+        for (const assertion of route.executable.assertions ?? []) {
+          expect(registered?.source, `${label}: assertion '${assertion}'`).toContain(assertion);
+        }
       }
     }
   });

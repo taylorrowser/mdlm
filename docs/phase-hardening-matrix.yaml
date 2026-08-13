@@ -12,7 +12,7 @@ rows:
       - route: first malformed response
         executable:
           file: test/mdlm-assignment.test.ts
-          claim: preserves the same Assignment for one malformed-response correction that can publish
+          test: preserves the same Assignment for one malformed-response correction that can publish
           assertions:
             - correction-required
             - correct-response
@@ -41,7 +41,7 @@ rows:
       - route: second malformed response
         executable:
           file: test/mdlm-assignment.test.ts
-          claim: exhausts the Assignment on a second malformed response and reports the terminal disposition
+          test: exhausts the Assignment on a second malformed response and reports the terminal disposition
           assertions:
             - exhausted
             - 'action: "stop"'
@@ -74,7 +74,10 @@ rows:
       - route: greenfield MAP
         executable:
           file: test/mdlm-clean-pilot-contract.test.ts
-          claim: binds each subsequent Assignment to the doctor-checked ordinary Git commit
+          test: binds each subsequent Assignment to the doctor-checked ordinary Git commit
+          assertions:
+            - establish-initial-wayfinding-map@1
+            - assignment-stale
         evidence:
           facts: One fresh repository with no MAP and one newly published current MAP Revision.
           links: The initial MAP has no required incoming lifecycle link; its exact Revision becomes the foundation member.
@@ -95,8 +98,10 @@ rows:
         reuse: The exact MAP Revision is retained for later Review Context and candidate membership.
       - route: PSP
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-publication::PSP
         evidence:
           facts: One current MAP and one newly published PSP Revision.
           links: The PSP is compiled from the exact current wayfinding foundation selected by the package.
@@ -117,8 +122,10 @@ rows:
         reuse: The current MAP remains reusable; the exact PSP requires its own fresh Review Context and Review.
       - route: STK
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-publication::STK
         evidence:
           facts: One current reviewed PSP and the newly published STK Revision.
           links: The STK derived-from link names the exact governing PSP Stable Datum.
@@ -139,8 +146,10 @@ rows:
         reuse: Reviewed MAP and PSP evidence remains reusable; the new STK receives fresh context and Review.
       - route: candidate creation
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-publication::candidate creation
         evidence:
           facts: The complete current passing MAP, PSP, and STK definition set and one frozen intent candidate.
           links: Candidate definition membership names every exact current foundation Revision.
@@ -161,8 +170,10 @@ rows:
         reuse: Exact passing member Reviews are reused as candidate evidence while their subjects remain unchanged.
       - route: accepted intent
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-publication::accepted intent
         evidence:
           facts: One exact passing intent candidate, reviewed approving gate DEC, and newly published accepted baseline.
           links: The accepted baseline promotes the exact candidate and retains its exact gate and Review evidence.
@@ -191,8 +202,10 @@ rows:
     routes:
       - route: fresh Review Context
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - contextual-review::fresh Review Context
         evidence:
           facts: One exact substantive subject and the minimum complete frozen Review Context.
           links: Baseline definition membership contains the exact subject and every package-selected context member.
@@ -213,8 +226,10 @@ rows:
         reuse: The exact context is reusable only for its unchanged subject and context dependencies.
       - route: passing independent Review
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - contextual-review::passing independent Review
         evidence:
           facts: One exact subject, its complete frozen Review Context, and one passing REV.
           links: The REV reviews the exact subject and contextualizes the exact Review Context.
@@ -236,8 +251,10 @@ rows:
         reuse: The passing REV remains reusable only while subject and context dependencies remain current.
       - route: failed independent Review
         executable:
-          file: test/mdlm-assignment.test.ts
-          claim: publishes a contract-valid unfavorable independent judgment unchanged
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - contextual-review::failed independent Review
         evidence:
           facts: One exact subject, its complete frozen Review Context, and one failed REV with all Findings.
           links: The REV reviews the exact subject and contextualizes the exact Review Context.
@@ -263,8 +280,10 @@ rows:
     routes:
       - route: initial failure
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a failed foundation Review to a replacement Revision and fresh Review work
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-correction::initial failure
         evidence:
           facts: "initial failure: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -287,8 +306,10 @@ rows:
         reuse: Failed Revisions and Reviews remain immutable; unrelated exact evidence is reused; replacement context and Review are fresh.
       - route: first replacement
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: preserves both autonomous foundation cycles after an attended correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-correction::first replacement
         evidence:
           facts: "first replacement: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -311,8 +332,10 @@ rows:
         reuse: Failed Revisions and Reviews remain immutable; unrelated exact evidence is reused; replacement context and Review are fresh.
       - route: second replacement
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: preserves both autonomous foundation cycles after an attended correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-correction::second replacement
         evidence:
           facts: "second replacement: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -335,8 +358,10 @@ rows:
         reuse: Failed Revisions and Reviews remain immutable; unrelated exact evidence is reused; replacement context and Review are fresh.
       - route: stakeholder-owned failure
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: preserves both autonomous foundation cycles after an attended correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-correction::stakeholder-owned failure
         evidence:
           facts: One failed foundation REV whose structured correction_authority is stakeholder and its exact subject lineage.
           links: The Review reviews the exact stakeholder-owned subject; an attended replacement must be justified by exact DEC authority.
@@ -359,8 +384,10 @@ rows:
         reuse: Failed evidence remains immutable; the attended replacement later receives fresh context and Review.
       - route: post-attended fresh cycles
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: preserves both autonomous foundation cycles after an attended correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-foundation-correction::post-attended fresh cycles
         evidence:
           facts: "post-attended fresh cycles: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -387,8 +414,10 @@ rows:
     routes:
       - route: pass
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-simplification-correction::pass
         evidence:
           facts: "pass: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "pass: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -413,8 +442,10 @@ rows:
         reuse: "pass: Unchanged members and Reviews remain reusable; changed member/candidate evidence is rebuilt."
       - route: member failure
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes blocking candidate simplification findings to the exact member correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-simplification-correction::member failure
         evidence:
           facts: "member failure: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "member failure: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -438,8 +469,10 @@ rows:
         reuse: "member failure: Unchanged members and Reviews remain reusable; changed member/candidate evidence is rebuilt."
       - route: candidate failure
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: escalates an exhausted candidate lineage through the same correction interface
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-simplification-correction::candidate failure
         evidence:
           facts: "candidate failure: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "candidate failure: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -463,8 +496,10 @@ rows:
         reuse: "candidate failure: Unchanged members and Reviews remain reusable; changed member/candidate evidence is rebuilt."
       - route: stakeholder-owned failure
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: attends stakeholder-owned candidate simplification without consuming its autonomous budget
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-simplification-correction::stakeholder-owned failure
         evidence:
           facts: "stakeholder-owned failure: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "stakeholder-owned failure: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -489,8 +524,10 @@ rows:
         reuse: "stakeholder-owned failure: Unchanged members and Reviews remain reusable; changed member/candidate evidence is rebuilt."
       - route: malformed blocker
         executable:
-          file: test/resolve-type.test.ts
-          claim: binds Phase 0 simplification failure to one exact structured target
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-simplification-correction::malformed blocker
         evidence:
           facts: "malformed blocker: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "malformed blocker: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -515,8 +552,10 @@ rows:
         reuse: "malformed blocker: Unchanged members and Reviews remain reusable; changed member/candidate evidence is rebuilt."
       - route: exhausted candidate
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: escalates an exhausted candidate lineage through the same correction interface
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-simplification-correction::exhausted candidate
         evidence:
           facts: "exhausted candidate: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "exhausted candidate: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -548,7 +587,10 @@ rows:
       - route: source boundary before attended resolution
         executable:
           file: test/operator-outcome.test.ts
-          claim: returns immediate attended work with an exact Assignment and Authority Requirement
+          test: returns immediate attended work with an exact Assignment and Authority Requirement
+          assertions:
+            - attention-required
+            - 'timing: "immediate"'
         evidence:
           facts: "source boundary before attended resolution: One current open QST Revision and one kernel-finalized source-boundary BSL containing exactly that Revision."
           links: "source boundary before attended resolution: Exact baseline definition membership freezes the source QST; source-boundary evidence membership is empty."
@@ -577,8 +619,10 @@ rows:
     routes:
       - route: source boundary before autonomous resolution
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: preserves repeated source boundaries through charting and prototype resolution
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - autonomous-question-source-boundary::source boundary before autonomous resolution
         evidence:
           facts: "source boundary before autonomous resolution: One current open empirical QST Revision and one kernel-finalized source-boundary BSL containing exactly that Revision."
           links: "source boundary before autonomous resolution: Exact baseline definition membership freezes the source QST; source-boundary evidence membership is empty."
@@ -607,8 +651,10 @@ rows:
     routes:
       - route: immediate blocking
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: requires exact stakeholder authority and blocks the gate on an immediate question
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - question-immediate-attention::immediate blocking
         evidence:
           facts: "immediate blocking: One source-bounded open preferential QST whose exact target cannot proceed without stakeholder intent."
           links: "immediate blocking: The QST blocks the exact candidate or Lifecycle Datum controlled by the answer."
@@ -638,7 +684,10 @@ rows:
       - route: consolidated checkpoint
         executable:
           file: test/operator-outcome.test.ts
-          claim: projects one complete checkpoint conversation and the first exact Assignment
+          test: projects one complete checkpoint conversation and the first exact Assignment
+          assertions:
+            - checkpointConversation
+            - serial-with-reevaluation
         evidence:
           facts: "consolidated checkpoint: Every compatible source-bounded open preferential QST in one declared Consolidation Group at its ready checkpoint."
           links: "consolidated checkpoint: Each QST retains its exact declared lifecycle links while the package groups only presentation."
@@ -668,7 +717,10 @@ rows:
       - route: empirical answer
         executable:
           file: test/req-command-alias.test.ts
-          claim: binds typed arguments to the same validated Scenario request as direct invocation
+          test: binds typed arguments to the same validated Scenario request as direct invocation
+          assertions:
+            - resolve-question@2
+            - "contractValid: true"
         evidence:
           facts: "empirical answer: One source-bounded open empirical QST with available exact evidence and one same-lineage answered Revision."
           links: "empirical answer: The answer preserves the QST Stable Datum lineage; no consequential DEC is required for an empirical answer."
@@ -697,8 +749,10 @@ rows:
     routes:
       - route: prototype answer
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: preserves repeated source boundaries through charting and prototype resolution
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - prototype-question-answer::prototype answer
         evidence:
           facts: "prototype answer: One source-bounded prototype QST plus exact ART, bounded DEC finding, and same-lineage answered QST Revision."
           links: "prototype answer: ART derives from the exact QST; DEC resolves that QST and justifies the exact prototype ART."
@@ -728,7 +782,10 @@ rows:
       - route: unavailable evidence
         executable:
           file: test/mdlm-assignment.test.ts
-          claim: accepts every typed inability, abandons the Assignment without publication, and requires a deliberate fresh next
+          test: accepts every typed inability, abandons the Assignment without publication, and requires a deliberate fresh next
+          assertions:
+            - insufficient-declared-inputs
+            - 'disposition: "abandoned"'
         evidence:
           facts: "unavailable evidence: One source-bounded open empirical QST and one typed Assignment Response reporting unavailable evidence."
           links: "unavailable evidence: No Lifecycle Datum or link is published by inability; the QST and source boundary remain exact."
@@ -757,8 +814,10 @@ rows:
     routes:
       - route: defer
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: keeps deferred question work unsatisfied until its exact scoped DEC passes Review
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - question-deferral::defer
         evidence:
           facts: "defer: One source-bounded QST, same-lineage deferred Revision with reactivation condition, exact deferral DEC, and fresh REV."
           links: "defer: The DEC resolves both the exact source and deferred QST Revisions; its Review binds exact context."
@@ -788,8 +847,10 @@ rows:
     routes:
       - route: cancel
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: keeps cancelled question work unsatisfied until its exact scoped DEC passes Review
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - question-cancellation::cancel
         evidence:
           facts: "cancel: One source-bounded QST, same-lineage cancelled Revision, exact cancellation DEC, and fresh REV."
           links: "cancel: The DEC resolves both the exact source and cancelled QST Revisions; its Review binds exact context."
@@ -819,8 +880,10 @@ rows:
     routes:
       - route: preferential answer
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a failed Question Decision through exact attended correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - preferential-question-answer::preferential answer
         evidence:
           facts: "preferential answer: One source-bounded preferential QST, same-lineage answered Revision, exact scope DEC, and policy-required REV."
           links: "preferential answer: The DEC resolves both exact QST Revisions and its effective scope names the answered Revision."
@@ -849,8 +912,10 @@ rows:
     routes:
       - route: failed Question Decision Review
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a failed Question Decision through exact attended correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - consequential-decision-correction::failed Question Decision Review
         evidence:
           facts: "failed Question Decision Review: Exact attended DEC, immutable failed REV, and same-lineage replacement DEC."
           links: "failed Question Decision Review: Replacement cites every failed Review and preserves the exact justified or resolved scope."
@@ -874,8 +939,10 @@ rows:
         reuse: "failed Question Decision Review: Decision lineage and unaffected subject evidence remain; failed judgment and replacement history are immutable."
       - route: failed gate Decision Review
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a failed gate Decision Review through exact attended correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - consequential-decision-correction::failed gate Decision Review
         evidence:
           facts: "failed gate Decision Review: Exact attended DEC, immutable failed REV, and same-lineage replacement DEC."
           links: "failed gate Decision Review: Replacement cites every failed Review and preserves the exact justified or resolved scope."
@@ -899,8 +966,10 @@ rows:
         reuse: "failed gate Decision Review: Decision lineage and unaffected subject evidence remain; failed judgment and replacement history are immutable."
       - route: failed change disposition Review
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: routes a failed attended disposition Review back to renewed attended judgment
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - consequential-decision-correction::failed change disposition Review
         evidence:
           facts: "failed change disposition Review: Exact attended DEC, immutable failed REV, and same-lineage replacement DEC."
           links: "failed change disposition Review: Replacement cites every failed Review and preserves the exact justified or resolved scope."
@@ -928,8 +997,10 @@ rows:
     routes:
       - route: approval
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-gate-rejection-return::approval
         evidence:
           facts: "approval: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "approval: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -954,8 +1025,10 @@ rows:
         reuse: "approval: Rejection and unaffected candidate evidence remain immutable; implicated evidence is replaced and rereviewed."
       - route: reviewed rejection
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a reviewed gate rejection to its exact implicated member
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-gate-rejection-return::reviewed rejection
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "reviewed rejection: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -979,8 +1052,10 @@ rows:
         reuse: "reviewed rejection: Rejection and unaffected candidate evidence remain immutable; implicated evidence is replaced and rereviewed."
       - route: member correction
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a reviewed gate rejection to its exact implicated member
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-gate-rejection-return::member correction
         evidence:
           facts: "member correction: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "member correction: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -1004,8 +1079,10 @@ rows:
         reuse: "member correction: Rejection and unaffected candidate evidence remain immutable; implicated evidence is replaced and rereviewed."
       - route: candidate correction
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a candidate-level Phase 0 rejection to causal candidate replacement
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-gate-rejection-return::candidate correction
         evidence:
           facts: "candidate correction: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "candidate correction: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -1029,8 +1106,10 @@ rows:
         reuse: "candidate correction: Rejection and unaffected candidate evidence remain immutable; implicated evidence is replaced and rereviewed."
       - route: same-gate return
         executable:
-          file: test/evaluate-phase.test.ts
-          claim: blocks duplicate sign-off, completes after review, and reevaluates a changed exact candidate without rewriting prior evidence
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 0 foundation, question, Review, correction, and gate routes semantically
+          assertions:
+            - phase-0-gate-rejection-return::same-gate return
         evidence:
           facts: "same-gate return: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "same-gate return: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -1059,8 +1138,10 @@ rows:
     routes:
       - route: VSP creation
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::VSP creation
         evidence:
           facts: One accepted product requirement lacking a current Phase 1 VSP and one newly published strategy.
           links: The VSP governs the exact requirement Stable Datum and exact accepted Revision.
@@ -1081,8 +1162,10 @@ rows:
         reuse: Accepted requirement evidence remains reusable; the new VSP requires fresh Review.
       - route: ENV qualification
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::ENV qualification
         evidence:
           facts: One exact reviewed VSP profile and one complete ENV qualification chain.
           links: ENV realizes the exact VSP; qualification evidence binds that ENV and profile.
@@ -1103,8 +1186,10 @@ rows:
         reuse: The reviewed VSP remains reusable; exact ENV qualification is reused while dependencies remain current.
       - route: pilot VER
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::pilot VER
         evidence:
           facts: One exact accepted requirement, reviewed VSP, qualified ENV, and source-independent pilot VER.
           links: The VER verifies the requirement and is governed by the exact VSP Revision.
@@ -1123,35 +1208,37 @@ rows:
         budget: No lifecycle Correction cycle is consumed.
         disposition: Valid VER publication yields fresh Review and implementation work; malformed evidence writes nothing.
         reuse: Exact VSP, ENV, and requirement evidence remains reusable while unchanged.
-      - route: pass
+      - route: passing independent Review
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::passing independent Review
         evidence:
-          facts: The current VSP, ENV qualification, pilot VER, and their required passing Reviews.
-          links: Every passing REV targets its exact subject and complete Review Context.
+          facts: One exact current Phase 1 subject, its complete frozen Review Context, and one passing independent REV.
+          links: The passing REV reviews the exact subject and contextualizes its exact Review Context.
         selectors:
-          - current-phase-1-verification-strategies@1
-          - complete-environment-assurance-for-strategy@1
-          - current-pilot-verification-activities@1
+          - passing-reviews-for@1
         obligations:
-          - pilot-verification-activity-required@2
+          - passing-review-required@2
         participation:
           mode: package-delegated
           policies:
             - contextual-review-participation@1
           authority: independent-reviewer
         resolvers:
-          - write-verification-activity@1
+          - review-datum-in-context@2
         next:
           - assignment
         budget: No lifecycle Correction cycle is consumed.
-        disposition: Passing evidence satisfies the exact assurance obligation and yields the next unfinished Assignment.
-        reuse: All exact passing assurance evidence remains reusable while dependencies are unchanged.
+        disposition: The contract-valid independent judgment publishes unchanged and reevaluation yields downstream assurance work.
+        reuse: The subject, Review Context, and passing REV remain reusable only while their exact dependencies remain current.
       - route: first and second correction
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: bounds VSP correction before projecting attended escalation
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::first and second correction
         evidence:
           facts: One failed VSP REV and its first or second same-lineage replacement cycle with fresh Review.
           links: The replacement cites every applicable failed REV through corrects-review and preserves governs bindings.
@@ -1172,8 +1259,10 @@ rows:
         reuse: Failed history is retained; exact unaffected requirement evidence remains reusable.
       - route: stakeholder-owned failure
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: preserves the ENV correction budget while rebuilding qualification before attention
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::stakeholder-owned failure
         evidence:
           facts: One failed ENV Review marked stakeholder-owned, with its exact VSP and qualification context.
           links: The failed REV reviews the ENV; attended correction preserves exact realizes and qualification bindings.
@@ -1195,8 +1284,10 @@ rows:
         reuse: The prior ENV and failed Review remain immutable; VSP evidence is reused; qualification is rebuilt after replacement.
       - route: malformed replacement
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: bounds VSP correction before projecting attended escalation
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::malformed replacement
         evidence:
           facts: One exact failed VSP and one contract-invalid proposed replacement.
           links: The rejected proposal omits or mismatches required corrects-review causal links.
@@ -1217,8 +1308,10 @@ rows:
         reuse: All Lifecycle Data is byte-for-byte unchanged and reusable because malformed transport publishes nothing.
       - route: multiple VSP boundary
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: reports multiple applicable VSPs as a public Profile Boundary
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::multiple VSP boundary
         evidence:
           facts: Multiple simultaneously applicable VSPs at a package-declared single-valued boundary.
           links: Each competing VSPs item retains its exact requirement or strategy binding.
@@ -1239,8 +1332,10 @@ rows:
         reuse: All competing exact evidence remains immutable; no unsupported selection or replacement is fabricated.
       - route: multiple ENV boundary
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: reports multiple applicable ENVs as a public Profile Boundary
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::multiple ENV boundary
         evidence:
           facts: Multiple simultaneously applicable ENVs at a package-declared single-valued boundary.
           links: Each competing ENVs item retains its exact requirement or strategy binding.
@@ -1261,8 +1356,10 @@ rows:
         reuse: All competing exact evidence remains immutable; no unsupported selection or replacement is fabricated.
       - route: multiple pilot target boundary
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: reports multiple applicable pilot targets as a public Profile Boundary
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-assurance::multiple pilot target boundary
         evidence:
           facts: Multiple simultaneously applicable pilot targets at a package-declared single-valued boundary.
           links: Each competing pilot targets item retains its exact requirement or strategy binding.
@@ -1287,8 +1384,10 @@ rows:
     routes:
       - route: target registration
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-public-command-evidence::target registration
         evidence:
           facts: "target registration: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "target registration: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1309,8 +1408,10 @@ rows:
         reuse: The ART remains reusable while its exact requirement and repository reference are unchanged.
       - route: source-independent VAI
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-public-command-evidence::source-independent VAI
         evidence:
           facts: "source-independent VAI: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "source-independent VAI: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1332,8 +1433,10 @@ rows:
         reuse: Exact VER, ENV, and ART inputs remain reusable; the VAI is newly reviewed.
       - route: run
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-public-command-evidence::run
         evidence:
           facts: "run: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "run: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1354,8 +1457,10 @@ rows:
         reuse: RUN/RES is immutable and reusable only for its exact VAI and execution target.
       - route: malformed command matrix
         executable:
-          file: test/phase-1-route-contracts.test.ts
-          claim: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-public-command-evidence::malformed command matrix
         evidence:
           facts: "malformed command matrix: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "malformed command matrix: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1376,8 +1481,10 @@ rows:
         reuse: No Lifecycle Data changes; exact requirement and target evidence remains reusable.
       - route: VAI correction
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: corrects failed pilot VAI procedures without reusing prior run evidence
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-public-command-evidence::VAI correction
         evidence:
           facts: "VAI correction: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "VAI correction: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1399,8 +1506,10 @@ rows:
         reuse: Prior RUN/RES remains immutable but cannot satisfy the replacement VAI; unchanged VER/ENV/ART is reused.
       - route: timeout aggregation
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: corrects failed pilot VAI procedures without reusing prior run evidence
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 1 assurance execution, correction, and boundary routes semantically
+          assertions:
+            - phase-1-public-command-evidence::timeout aggregation
         evidence:
           facts: "timeout aggregation: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "timeout aggregation: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1425,8 +1534,10 @@ rows:
     routes:
       - route: DWP plan
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-definition-and-simplification::DWP plan
         evidence:
           facts: "DWP plan: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "DWP plan: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1449,8 +1560,10 @@ rows:
         reuse: "DWP plan: Exact member Reviews remain reusable while members do not change."
       - route: SYS outputs
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-definition-and-simplification::SYS outputs
         evidence:
           facts: "SYS outputs: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "SYS outputs: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1473,8 +1586,10 @@ rows:
         reuse: "SYS outputs: Exact member Reviews remain reusable while members do not change."
       - route: ASP
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-definition-and-simplification::ASP
         evidence:
           facts: "ASP: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "ASP: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1497,8 +1612,10 @@ rows:
         reuse: "ASP: Exact member Reviews remain reusable while members do not change."
       - route: plural ICSP
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: keeps multiple valid Phase 2 interfaces actionable for decomposition planning
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-definition-and-simplification::plural ICSP
         evidence:
           facts: "plural ICSP: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "plural ICSP: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1521,8 +1638,10 @@ rows:
         reuse: "plural ICSP: Exact member Reviews remain reusable while members do not change."
       - route: earliest complete context
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-definition-and-simplification::earliest complete context
         evidence:
           facts: "earliest complete context: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "earliest complete context: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1545,8 +1664,10 @@ rows:
         reuse: "earliest complete context: Exact member Reviews remain reusable while members do not change."
       - route: requirement simplification pass
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-definition-and-simplification::requirement simplification pass
         evidence:
           facts: One complete exact SYS definition set and its passing independent requirement-simplification Review.
           links: The Review contextualizes the earliest complete definition context and reviews that exact set.
@@ -1570,8 +1691,10 @@ rows:
         reuse: "two simplification passes: Exact member Reviews remain reusable while members do not change."
       - route: architecture/interface simplification pass
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-definition-and-simplification::architecture/interface simplification pass
         evidence:
           facts: One exact ASP with all current ICSPs and its passing independent architecture/interface-simplification Review.
           links: The Review contextualizes the earliest complete architecture/interface context and reviews that exact set.
@@ -1599,8 +1722,10 @@ rows:
     routes:
       - route: one SYS with several Findings
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: keeps several Findings on one SYS subject and rejects cross-subject correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-simplification-correction::one SYS with several Findings
         evidence:
           facts: "one SYS with several Findings: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "one SYS with several Findings: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1624,8 +1749,10 @@ rows:
         reuse: "one SYS with several Findings: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: exact consistency set
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-simplification-correction::exact consistency set
         evidence:
           facts: "exact consistency set: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "exact consistency set: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1649,8 +1776,10 @@ rows:
         reuse: "exact consistency set: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: scope reduction
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-simplification-correction::scope reduction
         evidence:
           facts: "scope reduction: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "scope reduction: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1674,8 +1803,10 @@ rows:
         reuse: "scope reduction: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: complete removal inability
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-simplification-correction::complete removal inability
         evidence:
           facts: "complete removal inability: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "complete removal inability: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1699,8 +1830,10 @@ rows:
         reuse: "complete removal inability: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: malformed blocker
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: keeps several Findings on one SYS subject and rejects cross-subject correction
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-simplification-correction::malformed blocker
         evidence:
           facts: "malformed blocker: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "malformed blocker: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1728,12 +1861,10 @@ rows:
     routes:
       - route: SYS
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: derives exact correction work for the $route route
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
           assertions:
-            - phase-2-review-correction-required
-            - revise-phase-2-subject-after-review@1
-            - phase-2-correction-participation@1
+            - phase-2-review-correction-and-ambiguity::SYS
         evidence:
           facts: One current exact SYS Revision and its valid failed Review with all primary blocking Findings.
           links: The Review reviews that exact SYS Revision; its Correction replacement must cite the Review through corrects-review.
@@ -1755,12 +1886,10 @@ rows:
         reuse: The failed subject and Review remain immutable; unaffected Phase 2 definition evidence is reusable; the replacement requires fresh context and Review.
       - route: ASP
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: derives exact correction work for the $route route
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
           assertions:
-            - phase-2-review-correction-required
-            - revise-phase-2-subject-after-review@1
-            - phase-2-correction-participation@1
+            - phase-2-review-correction-and-ambiguity::ASP
         evidence:
           facts: One current exact ASP Revision and its valid failed Review with all primary blocking Findings.
           links: The Review reviews that exact ASP Revision; its Correction replacement must cite the Review through corrects-review.
@@ -1782,12 +1911,10 @@ rows:
         reuse: The failed subject and Review remain immutable; unaffected Phase 2 definition evidence is reusable; the replacement requires fresh context and Review.
       - route: ICSP
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: derives exact correction work for the $route route
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
           assertions:
-            - phase-2-review-correction-required
-            - revise-phase-2-subject-after-review@1
-            - phase-2-correction-participation@1
+            - phase-2-review-correction-and-ambiguity::ICSP
         evidence:
           facts: One current exact ICSP Revision and its valid failed Review with all primary blocking Findings.
           links: The Review reviews that exact ICSP Revision; its Correction replacement must cite the Review through corrects-review.
@@ -1809,12 +1936,10 @@ rows:
         reuse: The failed subject and Review remain immutable; unaffected Phase 2 definition evidence is reusable; the replacement requires fresh context and Review.
       - route: planning DWP
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: derives exact correction work for the $route route
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
           assertions:
-            - phase-2-review-correction-required
-            - revise-phase-2-subject-after-review@1
-            - phase-2-correction-participation@1
+            - phase-2-review-correction-and-ambiguity::planning DWP
         evidence:
           facts: One current exact planning DWP Revision and its valid failed Review with all primary blocking Findings.
           links: The Review reviews that exact planning DWP Revision; its Correction replacement must cite the Review through corrects-review.
@@ -1836,12 +1961,10 @@ rows:
         reuse: The failed subject and Review remain immutable; unaffected Phase 2 definition evidence is reusable; the replacement requires fresh context and Review.
       - route: completion DWP
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: derives exact correction work for the $route route
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
           assertions:
-            - phase-2-review-correction-required
-            - revise-phase-2-subject-after-review@1
-            - phase-2-correction-participation@1
+            - phase-2-review-correction-and-ambiguity::completion DWP
         evidence:
           facts: One current exact completion DWP Revision and its valid failed Review with all primary blocking Findings.
           links: The Review reviews that exact completion DWP Revision; its Correction replacement must cite the Review through corrects-review.
@@ -1863,12 +1986,10 @@ rows:
         reuse: The failed subject and Review remain immutable; unaffected Phase 2 definition evidence is reusable; the replacement requires fresh context and Review.
       - route: collateral Finding
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: derives exact correction work for a collateral Finding target
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
           assertions:
-            - phase-2-review-correction-required
-            - revise-phase-2-subject-after-review@1
-            - phase-2-correction-participation@1
+            - phase-2-review-correction-and-ambiguity::collateral Finding
         evidence:
           facts: One valid Review with a structured collateral Finding against one current exact Phase 2 subject.
           links: The Review reviews its primary subject and flags the exact collateral target; its target Correction must cite that Review through corrects-review.
@@ -1890,8 +2011,10 @@ rows:
         reuse: The primary Review remains immutable; unaffected definition evidence is reusable; the collateral target replacement requires fresh context and Review.
       - route: single-valued ambiguity
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: projects attended exact disposition instead of choosing ambiguous Phase 2 architecture
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-review-correction-and-ambiguity::single-valued ambiguity
         evidence:
           facts: "single-valued ambiguity: Exact failed subject Review or competing current single-valued Revisions with complete context."
           links: "single-valued ambiguity: Correction cites every failed REV; ambiguity DEC justifies the exact selected/cancelled subject."
@@ -1914,13 +2037,10 @@ rows:
         reuse: "single-valued ambiguity: Unaffected definition and Review evidence remains reusable; corrected or cancelled exact subject evidence reevaluates."
       - route: exhausted correction
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: derives attended Phase 2 correction after two autonomous replacements
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
           assertions:
-            - phase-2-review-correction-required
-            - revise-phase-2-subject-after-review@1
-            - phase-2-correction-participation@1
-            - 'mode: "attended"'
+            - phase-2-review-correction-and-ambiguity::exhausted correction
         evidence:
           facts: One current Phase 2 subject after two evidence-backed autonomous replacements and a third valid failed Review.
           links: Each replacement cites its causal failed REV; the current failed REV reviews the exact current Revision.
@@ -1946,8 +2066,10 @@ rows:
     routes:
       - route: DWP completion
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::DWP completion
         evidence:
           facts: "DWP completion: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "DWP completion: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -1972,8 +2094,10 @@ rows:
         reuse: "DWP completion: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: group candidate
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::group candidate
         evidence:
           facts: "group candidate: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "group candidate: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -1998,8 +2122,10 @@ rows:
         reuse: "group candidate: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: level candidate
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::level candidate
         evidence:
           facts: "level candidate: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "level candidate: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2024,8 +2150,10 @@ rows:
         reuse: "level candidate: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: candidate Review correction
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::candidate Review correction
         evidence:
           facts: "candidate Review correction: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "candidate Review correction: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2051,8 +2179,10 @@ rows:
         reuse: "candidate Review correction: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: reviewed rejection
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::reviewed rejection
         evidence:
           facts: "reviewed rejection: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "reviewed rejection: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2078,8 +2208,10 @@ rows:
         reuse: "reviewed rejection: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: gate return
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::gate return
         evidence:
           facts: "gate return: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "gate return: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2105,8 +2237,10 @@ rows:
         reuse: "gate return: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: exact acceptance
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::exact acceptance
         evidence:
           facts: "exact acceptance: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "exact acceptance: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2131,8 +2265,10 @@ rows:
         reuse: "exact acceptance: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: progression
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::progression
         evidence:
           facts: "progression: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "progression: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2157,8 +2293,10 @@ rows:
         reuse: "progression: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: exhausted candidate correction
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: escalates a third reviewed Phase 2 candidate rejection
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically
+          assertions:
+            - phase-2-candidate-gate-acceptance::exhausted candidate correction
         evidence:
           facts: "exhausted candidate correction: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "exhausted candidate correction: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2189,8 +2327,10 @@ rows:
     routes:
       - route: draft correction
         executable:
-          file: test/evaluate-bootstrap-participation.test.ts
-          claim: routes a failed foundation Review to a replacement Revision and fresh Review work
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::draft correction
         evidence:
           facts: "draft correction: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "draft correction: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2215,8 +2355,10 @@ rows:
         reuse: "draft correction: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: exact accepted boundary
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: atomically rejects impact outside the exact accepted baseline
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::exact accepted boundary
         evidence:
           facts: "exact accepted boundary: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "exact accepted boundary: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2241,8 +2383,10 @@ rows:
         reuse: "exact accepted boundary: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: impact
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: atomically rejects impact outside the exact accepted baseline
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::impact
         evidence:
           facts: "impact: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "impact: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2267,8 +2411,10 @@ rows:
         reuse: "impact: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: CHG correction
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: routes a failed Change Request Review through same-lineage Correction and fresh Review
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::CHG correction
         evidence:
           facts: "CHG correction: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "CHG correction: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2294,8 +2440,10 @@ rows:
         reuse: "CHG correction: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: approve
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::approve
         evidence:
           facts: "approve: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "approve: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2321,8 +2469,10 @@ rows:
         reuse: "approve: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: reject
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: closes an exact reviewed %s disposition without replacing accepted history
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::reject
         evidence:
           facts: "reject: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "reject: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2348,8 +2498,10 @@ rows:
         reuse: "reject: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: defer
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: closes an exact reviewed %s disposition without replacing accepted history
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::defer
         evidence:
           facts: "defer: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "defer: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2375,8 +2527,10 @@ rows:
         reuse: "defer: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: cancel
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: closes an exact reviewed %s disposition without replacing accepted history
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::cancel
         evidence:
           facts: "cancel: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "cancel: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2402,8 +2556,10 @@ rows:
         reuse: "cancel: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: replacement
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::replacement
         evidence:
           facts: "replacement: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "replacement: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2428,8 +2584,10 @@ rows:
         reuse: "replacement: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: candidate
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::candidate
         evidence:
           facts: "candidate: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "candidate: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2454,8 +2612,10 @@ rows:
         reuse: "candidate: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: closure
         executable:
-          file: test/evaluate-review-flow.test.ts
-          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - accepted-stakeholder-change::closure
         evidence:
           facts: "closure: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "closure: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2485,8 +2645,10 @@ rows:
     routes:
       - route: two exact consumers
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: exposes both exact consumers and preserves unrelated evidence after same-lineage replacement
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::two exact consumers
         evidence:
           facts: "two exact consumers: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "two exact consumers: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2510,8 +2672,10 @@ rows:
         reuse: "two exact consumers: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: draft replacement
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: reevaluates both draft consumers serially without Change Request ceremony
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::draft replacement
         evidence:
           facts: "draft replacement: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "draft replacement: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2535,8 +2699,10 @@ rows:
         reuse: "draft replacement: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: serial draft reevaluation
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: reevaluates both draft consumers serially without Change Request ceremony
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::serial draft reevaluation
         evidence:
           facts: "serial draft reevaluation: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "serial draft reevaluation: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2560,8 +2726,10 @@ rows:
         reuse: "serial draft reevaluation: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: accepted impact
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::accepted impact
         evidence:
           facts: "accepted impact: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "accepted impact: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2585,8 +2753,10 @@ rows:
         reuse: "accepted impact: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: approved replacement
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::approved replacement
         evidence:
           facts: "approved replacement: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "approved replacement: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2610,8 +2780,10 @@ rows:
         reuse: "approved replacement: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: serial accepted reevaluation
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::serial accepted reevaluation
         evidence:
           facts: "serial accepted reevaluation: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "serial accepted reevaluation: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2635,8 +2807,10 @@ rows:
         reuse: "serial accepted reevaluation: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: selective candidate
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::selective candidate
         evidence:
           facts: "selective candidate: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "selective candidate: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2660,8 +2834,10 @@ rows:
         reuse: "selective candidate: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: closure
         executable:
-          file: test/evaluate-shared-system-change.test.ts
-          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves accepted change and shared-consumer closure routes with selective reuse
+          assertions:
+            - shared-system-change::closure
         evidence:
           facts: "closure: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "closure: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2689,8 +2865,10 @@ rows:
     routes:
       - route: observation
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::observation
         evidence:
           facts: "observation: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "observation: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2714,8 +2892,10 @@ rows:
         reuse: "observation: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: assessment context
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::assessment context
         evidence:
           facts: "assessment context: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "assessment context: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2739,8 +2919,10 @@ rows:
         reuse: "assessment context: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: PAS
         executable:
-          file: test/evaluate-system-decomposition.test.ts
-          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::PAS
         evidence:
           facts: "PAS: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "PAS: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2762,36 +2944,37 @@ rows:
         budget: "PAS: Two autonomous PAS replacement-and-Review cycles before attended escalation."
         disposition: PAS yields assignment. No expansion result applies until the current PAS passes fresh independent Review.
         reuse: "PAS: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
-      - route: passing Review
+      - route: passing independent Review
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::passing independent Review
         evidence:
-          facts: "passing Review: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
-          links: "passing Review: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
+          facts: One current PAS, its exact frozen assessment Review Context, and one passing independent REV.
+          links: The passing REV reviews the exact PAS and contextualizes the exact assessment Review Context.
         selectors:
-          - complete-pilot-observations@1
-          - complete-pilot-assessment-contexts@1
-          - failed-current-pilot-assessments@1
-          - corrected-pilot-assessments-for@1
+          - passing-reviews-for@1
         obligations:
-          - pilot-assessment-required@1
+          - passing-review-required@2
         participation:
           mode: package-delegated
           policies:
             - contextual-review-participation@1
           authority: independent-reviewer
         resolvers:
-          - assess-phase-0-2-pilot@1
+          - review-datum-in-context@2
         next:
           - attention-required
-        budget: "passing Review: Two autonomous PAS replacement-and-Review cycles before attended escalation."
-        disposition: passing Review yields attention-required. No expansion result applies until the current PAS passes fresh independent Review.
-        reuse: "passing Review: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
+        budget: No PAS Correction cycle is consumed.
+        disposition: The passing Review makes the current PAS applicable and yields attended Expansion Decision work.
+        reuse: Exact observations, context, PAS, and passing REV remain reusable while their dependencies remain current.
       - route: first correction
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::first correction
         evidence:
           facts: "first correction: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "first correction: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2815,8 +2998,10 @@ rows:
         reuse: "first correction: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: second correction
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::second correction
         evidence:
           facts: "second correction: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "second correction: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2840,8 +3025,10 @@ rows:
         reuse: "second correction: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: stakeholder-owned failure
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::stakeholder-owned failure
         evidence:
           facts: "stakeholder-owned failure: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "stakeholder-owned failure: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2866,8 +3053,10 @@ rows:
         reuse: "stakeholder-owned failure: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: exhausted correction
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - pilot-assessment::exhausted correction
         evidence:
           facts: "exhausted correction: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "exhausted correction: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2897,8 +3086,10 @@ rows:
     routes:
       - route: Decision awaiting Review
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - expansion-decision-and-terminal-outcomes::Decision awaiting Review
         evidence:
           facts: One current passing PAS and newly published attended Expansion DEC without its required Review.
           links: The DEC justifies the exact PAS and names its recommendation scope.
@@ -2920,8 +3111,10 @@ rows:
         reuse: PAS and its Review remain reusable; the DEC awaits fresh context and Review.
       - route: failed Decision Review
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: corrects a failed Expansion Decision Review before the result becomes applicable
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - expansion-decision-and-terminal-outcomes::failed Decision Review
         evidence:
           facts: One exact Expansion DEC and its immutable failed REV with all blocking Findings.
           links: The failed REV reviews the DEC; attended replacement must cite it through corrects-review.
@@ -2942,8 +3135,10 @@ rows:
         reuse: PAS/context remain reusable; failed Decision and Review history remain immutable.
       - route: proceed
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - expansion-decision-and-terminal-outcomes::proceed
         evidence:
           facts: One passing PAS plus an exact reviewed Expansion DEC whose decision is proceed.
           links: The DEC justifies the exact PAS and relies on its passing Review; the DEC itself has fresh passing Review evidence.
@@ -2964,8 +3159,10 @@ rows:
         reuse: PAS, context, and both exact Reviews remain immutable; omitted Phase 3–6 output is never fabricated.
       - route: change
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - expansion-decision-and-terminal-outcomes::change
         evidence:
           facts: One passing PAS plus an exact reviewed Expansion DEC whose decision is change.
           links: The DEC justifies the exact PAS and relies on its passing Review; the DEC itself has fresh passing Review evidence.
@@ -2986,8 +3183,10 @@ rows:
         reuse: PAS, context, and both exact Reviews remain immutable; omitted Phase 3–6 output is never fabricated.
       - route: stop
         executable:
-          file: test/req-pilot-assessment.test.ts
-          claim: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/phase-hardening-domain-contracts.test.ts
+          test: proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence
+          assertions:
+            - expansion-decision-and-terminal-outcomes::stop
         evidence:
           facts: One passing PAS plus an exact reviewed Expansion DEC whose decision is stop.
           links: The DEC justifies the exact PAS and relies on its passing Review; the DEC itself has fresh passing Review evidence.

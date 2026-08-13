@@ -50,7 +50,7 @@ describe("Phase 1 route contracts", () => {
       "VSP creation",
       "ENV qualification",
       "pilot VER",
-      "pass",
+      "passing independent Review",
       "first and second correction",
       "stakeholder-owned failure",
       "malformed replacement",

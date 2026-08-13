@@ -311,7 +311,8 @@ test("completed failed validation resumes without launching another editing agen
 test("authoritative product tests have a five-minute process budget", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
   assert.match(source, /5 \* 60_000/);
-  assert.match(source, /process\.kill\(-child\.pid, "SIGTERM"\)/);
+  assert.match(source, /runInProcessGroup/);
+  assert.match(source, /terminationGrace: 2_000/);
   assert.match(source, /Authoritative test budget exceeded/);
 });
 
