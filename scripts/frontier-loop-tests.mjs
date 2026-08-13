@@ -312,8 +312,17 @@ test("authoritative product tests have a five-minute process budget", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
   assert.match(source, /5 \* 60_000/);
   assert.match(source, /runInProcessGroup/);
+  assert.match(source, /scripts\/authoritative-tests\.mjs/);
   assert.match(source, /terminationGrace: 2_000/);
   assert.match(source, /Authoritative test budget exceeded/);
+  const authoritative = readFileSync(
+    new URL("./authoritative-tests.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(authoritative, /tsconfig\.build\.json/);
+  assert.match(authoritative, /verify-test-suites\.mjs/);
+  assert.match(authoritative, /vitest\.fast\.config\.ts/);
+  assert.match(authoritative, /frontier-loop-tests\.mjs/);
 });
 
 test("child commands have a finite timeout", () => {

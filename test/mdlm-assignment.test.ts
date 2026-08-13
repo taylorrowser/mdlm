@@ -55,6 +55,53 @@ async function directoryBytes(root: string): Promise<string> {
   return JSON.stringify(content);
 }
 
+function wayfindingResponse(assignment: string, loadedSkillRefs: string[]) {
+  return {
+    contract: "mdlm-assignment-response@1",
+    assignment,
+    kind: "proposal",
+    proposal: {
+      outputs: [{
+        localId: "map",
+        name: "map",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "MAP",
+          payload: {
+            title: "Initial product wayfinding",
+            purpose: "Bound the first product-intent conversation.",
+            frontier: ["$proposal.question.revision_id"],
+          },
+          links: [],
+          body: "One exact initial decision frontier.\n",
+        },
+      }, {
+        localId: "question",
+        name: "questions",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "QST",
+          payload: {
+            title: "Clarify the intended product outcome",
+            kind: "preferential",
+            question: "Which exact product outcome should this repository pursue?",
+            state: "open",
+            blocking_impact: "Product intent cannot advance without this answer.",
+          },
+          links: [],
+          body: "One exact stakeholder question.\n",
+        },
+      }],
+      completionEvidence: {
+        summary: "The initial decision frontier is explicit.",
+      },
+      loadedSkillRefs,
+      authoritySupplies: [],
+      standingDelegations: [],
+    },
+  };
+}
+
 describe("MDLM Assignment leasing and preparation", () => {
   let parent: string;
   let repository: string;
@@ -631,7 +678,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     await expect(fs.stat(marker)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
+  it("rejects malformed Assignment Responses atomically", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     let assignment = next.assignment.id as string;
     const packet = JSON.parse(mdlm(
@@ -643,50 +690,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     const loadedSkillRefs = packet.prompt.skills.map(
       (skill: { reference: string }) => skill.reference,
     );
-    const response = {
-      contract: "mdlm-assignment-response@1",
-      assignment,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "map",
-          name: "map",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "MAP",
-            payload: {
-              title: "Initial product wayfinding",
-              purpose: "Bound the first product-intent conversation.",
-              frontier: ["$proposal.question.revision_id"],
-            },
-            links: [],
-            body: "One exact initial decision frontier.\n",
-          },
-        }, {
-          localId: "question",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "QST",
-            payload: {
-              title: "Clarify the intended product outcome",
-              kind: "preferential",
-              question: "Which exact product outcome should this repository pursue?",
-              state: "open",
-              blocking_impact: "Product intent cannot advance without this answer.",
-            },
-            links: [],
-            body: "One exact stakeholder question.\n",
-          },
-        }],
-        completionEvidence: {
-          summary: "The initial decision frontier is explicit.",
-        },
-        loadedSkillRefs,
-        authoritySupplies: [],
-        standingDelegations: [],
-      },
-    };
+    const response = wayfindingResponse(assignment, loadedSkillRefs);
     const responsePath = path.join(parent, "response.json");
     const before = git(repository, "diff", "--binary", "HEAD").stdout;
     const rejectionCases = [
@@ -822,6 +826,22 @@ describe("MDLM Assignment leasing and preparation", () => {
       retryAvailability: { malformedResponseCorrection: 1 },
       malformedResponses: [],
     }));
+  }, 40_000);
+
+  it("atomically publishes one Assignment Response from stdin and rejects replay", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout);
+    const loadedSkillRefs = packet.prompt.skills.map(
+      (skill: { reference: string }) => skill.reference,
+    );
+    const response = wayfindingResponse(assignment, loadedSkillRefs);
+    const responsePath = path.join(parent, "response.json");
 
     const submitted = mdlmWithInput(
       repository,

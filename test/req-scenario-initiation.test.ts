@@ -362,4 +362,138 @@ describe("req scenario explicit initiation", () => {
     await expect(fs.stat(configured.capture)).rejects.toMatchObject({ code: "ENOENT" });
     expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(before);
   });
+
+it("rejects simultaneous explicit and Obligation authorization", () => {
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "dry-run",
+      "chart-wayfinding-map@1",
+      "--initiate",
+      "--obligation",
+      "fabricated-instance",
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-authorization-ambiguous" }),
+    ]);
+  });
+
+it.each([
+    ["missing mandatory output", "scenario-output-cardinality-invalid"],
+    ["invalid cardinality", "scenario-output-cardinality-invalid"],
+    ["invalid payload", "scenario-output-schema-invalid"],
+  ])("publishes nothing for %s", async (failure, diagnosticCode) => {
+    const valid = coherentWayfindingOutputs();
+    const response = failure === "missing mandatory output"
+      ? { ...valid, outputs: valid.outputs.filter((output) => output.name !== "map") }
+      : failure === "invalid cardinality"
+        ? { ...valid, outputs: [...valid.outputs, valid.outputs[0]] }
+        : {
+            ...valid,
+            outputs: valid.outputs.map((output) => output.name === "map"
+              ? { ...output, lifecycleDatum: { ...output.lifecycleDatum, payload: {} } }
+              : output),
+          };
+    const configured = await adapter(response, `${failure.replaceAll(" ", "-")}.mjs`);
+    const before = await treeDigest(path.join(repositoryRoot, ".lifecycle"));
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "chart-wayfinding-map@1",
+      "--initiate",
+      "--adapter",
+      configured.path,
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: diagnosticCode })]),
+    );
+    expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(before);
+    await expect(fs.stat(path.join(
+      repositoryRoot,
+      ".lifecycle/data/.transactions",
+    ))).rejects.toMatchObject({ code: "ENOENT" });
+  }, 15_000);
+
+it.each([
+    ["bad required links", "scenario-output-required-link-missing"],
+    ["failed completion", "scenario-completion-failed"],
+  ])("publishes nothing for %s", async (failure, diagnosticCode) => {
+    const question = createEmpiricalQuestion();
+    const outputs = [
+      {
+        name: "prototype",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "ART",
+          payload: {
+            title: "Bounded prototype evidence",
+            kind: failure === "failed completion" ? "implementation" : "prototype",
+            repository_ref: "git:5aa48c450047a414586a599b5083f638a7434414",
+            supported_behavior: ["Celsius and Fahrenheit conversion"],
+            unsupported_behavior: ["Kelvin conversion"],
+          },
+          links: failure === "bad required links"
+            ? []
+            : [{ type: "derived-from", target: question.revisionId }],
+          body: "Exact prototype evidence.\n",
+        },
+      },
+      {
+        name: "finding",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Prototype finding",
+            rationale: "The bounded prototype behavior was exercised.",
+            kind: "decision",
+            decision: "Kelvin remains intentionally unsupported.",
+            alternatives: ["Expand the bounded prototype"],
+            effective_scope: "temperature converter prototype pilot",
+          },
+          links: [
+            { type: "resolves", target: question.revisionId },
+            { type: "resolves", target: `${question.id}-r00002` },
+          ],
+          body: "Bounded empirical finding.\n",
+        },
+      },
+    ];
+    const configured = await adapter(
+      { outputs, completionEvidence: { summary: failure } },
+      `${failure.replaceAll(" ", "-")}.mjs`,
+    );
+    const before = await treeDigest(path.join(repositoryRoot, ".lifecycle"));
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "build-exploratory-prototype@1",
+      "--initiate",
+      "--adapter",
+      configured.path,
+      "--input",
+      `question=${question.revisionId}`,
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: diagnosticCode })]),
+    );
+    expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(before);
+    await expect(fs.stat(path.join(
+      repositoryRoot,
+      ".lifecycle/data/.transactions",
+    ))).rejects.toMatchObject({ code: "ENOENT" });
+  }, 15_000);
 });

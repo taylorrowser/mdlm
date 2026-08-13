@@ -1,0 +1,4441 @@
+{
+  "processRef": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+  "phaseId": "phase-2-system-definition",
+  "records": [
+    {
+      "datum": {
+        "id": "BSL-87JNF60P9J",
+        "revision": 1,
+        "revision_id": "BSL-87JNF60P9J-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Exact DWP completion context",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DWP-0REPRTPMN0-r00002",
+          "group": "DEFAULT",
+          "definition_members": [
+            "DWP-0REPRTPMN0-r00002",
+            "SYS-0EXPRTREQ0-r00001",
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001"
+          ],
+          "evidence": [
+            "REV-0REQSMP100-r00001",
+            "REV-0ARCSMP100-r00001"
+          ],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:39:41.672Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00002": "sha256:b4b2d9a385fd9f8cf077bd6f2e365a94a12f9a4fcd47526d6a6bc93a332f45e8",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "REV-0ARCSMP100-r00001": "sha256:407c6aa184ebca3c049e5baaa70e1c452a02d6d08e756a5c95d3a9499e16e1cd",
+              "REV-0REQSMP100-r00001": "sha256:4ccb565868f22028e1c9a6f1ad3c5b40b69f334ef4b336833301e8b33932091f",
+              "SYS-0EXPRTREQ0-r00001": "sha256:601b450b2f678b8d40af0571dad272611ac97ae3648091173dcd9197f57e777e"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-87JNF60P9J-r00001": [],
+              "DWP-0REPRTPMN0-r00002": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "REV-0ARCSMP100-r00001",
+                "REV-0REQSMP100-r00001",
+                "STK-HJGTM8026G-r00001",
+                "SYS-0EXPRTREQ0-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "REV-0ARCSMP100-r00001": [
+                "BSL-FMKW2W7Z71-r00001",
+                "BSL-FMKW2W7Z71-r00001"
+              ],
+              "REV-0REQSMP100-r00001": [
+                "BSL-FMKW2W7Z71-r00001",
+                "BSL-FMKW2W7Z71-r00001"
+              ],
+              "SYS-0EXPRTREQ0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "REV@5",
+                "SYS@3",
+                "complete-decomposition-work-package@2",
+                "contextual-review-participation@1",
+                "create-review-context@1",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "execute-decomposition-work-package@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/complete-decomposition-work-package.md@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/execute-decomposition-work-package.md@1",
+                "prompts/simplify-architecture-and-interfaces.md@1",
+                "prompts/simplify-requirement-set.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "simplify-architecture-and-interfaces@2",
+                "simplify-requirement-set@2",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/contextual-artifact-review.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/dwp-completion.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/requirement-writing.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to DWP-0REPRTPMN0-r00002.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-FDPW1Q0678",
+        "revision": 1,
+        "revision_id": "REV-FDPW1Q0678-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review DEC-4XHR9MW60V-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DEC-4XHR9MW60V-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-GMYXH5RCF2-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-R6SFPZ4R31",
+        "revision": 1,
+        "revision_id": "BSL-R6SFPZ4R31-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Exact decomposition definition set",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "SYS-0EXPRTREQ0-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "SYS-0EXPRTREQ0-r00001",
+            "DWP-0REPRTPMN0-r00001",
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:39:15.038Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00001": "sha256:019a8a089784c9b7d00e48dc647c6098bbe8f585ed9d098846cf33f42af703b3",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "SYS-0EXPRTREQ0-r00001": "sha256:601b450b2f678b8d40af0571dad272611ac97ae3648091173dcd9197f57e777e"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-R6SFPZ4R31-r00001": [],
+              "DWP-0REPRTPMN0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "SYS-0EXPRTREQ0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "SYS@3",
+                "create-review-context@1",
+                "define-decomposition-work-package@2",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "execute-decomposition-work-package@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-decomposition-work-package.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/execute-decomposition-work-package.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/dwp-planning.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/requirement-writing.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to SYS-0EXPRTREQ0-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-644WYDVV0N",
+        "revision": 1,
+        "revision_id": "BSL-644WYDVV0N-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Intent candidate Review Context",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "BSL-JMRAPW12J7-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "BSL-JMRAPW12J7-r00001",
+            "PSP-1RMPKHY17B-r00001",
+            "STK-HJGTM8026G-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:05.468Z",
+            "member_hashes": {
+              "BSL-JMRAPW12J7-r00001": "sha256:65e51f3faeac45936102af71fb88b8734941e6680da49393e62e38b723fa1939",
+              "PSP-1RMPKHY17B-r00001": "sha256:098f340f9ff2cf654e9fca964a7a1c75633ae108583e66ea37af4d527c8a0806",
+              "STK-HJGTM8026G-r00001": "sha256:8b7c0edf17585bcf99840311a65d08ab1a832a0280f6e4930308165a7a296cbc"
+            },
+            "resolved_links": {
+              "BSL-644WYDVV0N-r00001": [],
+              "BSL-JMRAPW12J7-r00001": [],
+              "PSP-1RMPKHY17B-r00001": [],
+              "STK-HJGTM8026G-r00001": [
+                "PSP-1RMPKHY17B-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "PSP@4",
+                "STK@4",
+                "compile-psp@2",
+                "create-candidate-baseline@1",
+                "create-review-context@1",
+                "draft-stakeholder-requirements@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/compile-psp.md@2",
+                "prompts/create-candidate-baseline.md@1",
+                "prompts/create-review-context.md@1",
+                "prompts/draft-stakeholder-requirements.md@2",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to BSL-JMRAPW12J7-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-9ZSD97TFZ4",
+        "revision": 1,
+        "revision_id": "BSL-9ZSD97TFZ4-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "SYS level review",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "BSL-2YPGCAM8D1-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "BSL-2YPGCAM8D1-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:40:27.296Z",
+            "member_hashes": {
+              "BSL-2YPGCAM8D1-r00001": "sha256:4fcbd0ace4f03d81e0722c382225d4ffefdc864e24cff7626dd1bd8539d6f2d6"
+            },
+            "resolved_links": {
+              "BSL-2YPGCAM8D1-r00001": [
+                "BSL-EGN9C34JE9-r00001"
+              ],
+              "BSL-9ZSD97TFZ4-r00001": []
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "create-review-context@1",
+                "create-system-level-candidate@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/create-system-level-candidate.md@1",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to BSL-2YPGCAM8D1-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-82E07592B1",
+        "revision": 1,
+        "revision_id": "BSL-82E07592B1-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Exact source boundary",
+          "kind": "source-boundary",
+          "role": "source-boundary",
+          "scope": "QST-3RYPAB0KQZ-r00001",
+          "group": "SAME-LINEAGE",
+          "definition_members": [
+            "QST-3RYPAB0KQZ-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:39:02.465Z",
+            "member_hashes": {
+              "QST-3RYPAB0KQZ-r00001": "sha256:8d172061a6bd151aae0fcd0e31bc9e11e67a7055e6a9d03111728746dfda1f34"
+            },
+            "resolved_links": {
+              "BSL-82E07592B1-r00001": [],
+              "QST-3RYPAB0KQZ-r00001": [
+                "DWP-0REPRTPMN0-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "QST@4",
+                "define-decomposition-work-package@2",
+                "freeze-source-boundary@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/define-decomposition-work-package.md@1",
+                "prompts/freeze-source-boundary.md@1",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "freeze-source-boundary@1",
+          "prompt_ref": "prompts/freeze-source-boundary.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Freezes exactly the editable source Revision.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-Q1ENGN6SBZ",
+        "revision": 1,
+        "revision_id": "REV-Q1ENGN6SBZ-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review ASP-0REPRTARCH-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "ASP-0REPRTARCH-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-JSV7Y7WK9G-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-C7WMFBXPJ2",
+        "revision": 1,
+        "revision_id": "REV-C7WMFBXPJ2-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review ICSP-0REPRT1CSP-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "ICSP-0REPRT1CSP-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-8FCRE7AAWX-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-XJ6TMQ6C58",
+        "revision": 1,
+        "revision_id": "REV-XJ6TMQ6C58-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review PSP-1RMPKHY17B-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "PSP-1RMPKHY17B-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-01025JFAAB-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-EGN9C34JE9",
+        "revision": 1,
+        "revision_id": "BSL-EGN9C34JE9-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "SYS DEFAULT group candidate",
+          "kind": "group-candidate",
+          "role": "candidate",
+          "scope": "DWP-0REPRTPMN0-r00003",
+          "group": "DEFAULT",
+          "definition_members": [
+            "ASP-0REPRTARCH-r00001",
+            "DWP-0REPRTPMN0-r00003",
+            "ICSP-0REPRT1CSP-r00001",
+            "SYS-0EXPRTREQ0-r00001"
+          ],
+          "evidence": [
+            "REV-0REQSMP100-r00001",
+            "REV-0ARCSMP100-r00001"
+          ],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:40:07.721Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00003": "sha256:b6ee20fadac0904ae31f8c1fcc5caa0df54794382e9e48bca5595d84c8340311",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "REV-0ARCSMP100-r00001": "sha256:407c6aa184ebca3c049e5baaa70e1c452a02d6d08e756a5c95d3a9499e16e1cd",
+              "REV-0REQSMP100-r00001": "sha256:4ccb565868f22028e1c9a6f1ad3c5b40b69f334ef4b336833301e8b33932091f",
+              "SYS-0EXPRTREQ0-r00001": "sha256:601b450b2f678b8d40af0571dad272611ac97ae3648091173dcd9197f57e777e"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-EGN9C34JE9-r00001": [],
+              "DWP-0REPRTPMN0-r00003": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "REV-0ARCSMP100-r00001",
+                "REV-0REQSMP100-r00001",
+                "REV-JZ3KPNKGPC-r00001",
+                "STK-HJGTM8026G-r00001",
+                "SYS-0EXPRTREQ0-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "REV-0ARCSMP100-r00001": [
+                "BSL-FMKW2W7Z71-r00001",
+                "BSL-FMKW2W7Z71-r00001"
+              ],
+              "REV-0REQSMP100-r00001": [
+                "BSL-FMKW2W7Z71-r00001",
+                "BSL-FMKW2W7Z71-r00001"
+              ],
+              "SYS-0EXPRTREQ0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "REV@5",
+                "SYS@3",
+                "contextual-review-participation@1",
+                "create-decomposition-group-candidate@1",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "execute-decomposition-work-package@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "phase-2-correction-participation@1",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-decomposition-group-candidate.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/execute-decomposition-work-package.md@1",
+                "prompts/revise-phase-2-subject-after-review.md@1",
+                "prompts/simplify-architecture-and-interfaces.md@1",
+                "prompts/simplify-requirement-set.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "revise-phase-2-subject-after-review@1",
+                "simplify-architecture-and-interfaces@2",
+                "simplify-requirement-set@2",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/contextual-artifact-review.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/requirement-writing.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-decomposition-group-candidate@1",
+          "prompt_ref": "prompts/create-decomposition-group-candidate.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact reviewed decomposition group candidate.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "ASP-0REPRTARCH",
+        "revision": 1,
+        "revision_id": "ASP-0REPRTARCH-r00001",
+        "type": "ASP",
+        "payload": {
+          "title": "Report export system architecture",
+          "rationale": "One producer and one boundary keep the slice minimal",
+          "level": "system",
+          "elements": [
+            {
+              "id": "AEL-0REPRTCR00",
+              "alias": "REPORT_CORE",
+              "title": "Report core",
+              "responsibilities": [
+                "prepare one completed report for export"
+              ]
+            },
+            {
+              "id": "AEL-0EXPRTAP00",
+              "alias": "EXPORT_API",
+              "title": "Export boundary",
+              "responsibilities": [
+                "expose the controlled report contract"
+              ]
+            }
+          ],
+          "interactions": [
+            "Report core sends one completed report to the export boundary"
+          ],
+          "constraints": [
+            "The boundary exposes no private implementation detail"
+          ],
+          "nominated_risks": [
+            "schema drift"
+          ]
+        },
+        "links": [
+          {
+            "type": "governs",
+            "target": "STK-HJGTM8026G-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "define-system-architecture@2",
+          "prompt_ref": "prompts/define-system-architecture.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/architecture-specification.md@1",
+            "skills/architecture-elements.md@1",
+            "skills/scope-challenge.md@1",
+            "skills/clarification-protocol.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "One minimal system architecture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-73YCARCP4H",
+        "revision": 1,
+        "revision_id": "BSL-73YCARCP4H-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Accepted stakeholder requirement Review Context",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "STK-HJGTM8026G-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "STK-HJGTM8026G-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:37:58.420Z",
+            "member_hashes": {
+              "STK-HJGTM8026G-r00001": "sha256:8b7c0edf17585bcf99840311a65d08ab1a832a0280f6e4930308165a7a296cbc"
+            },
+            "resolved_links": {
+              "BSL-73YCARCP4H-r00001": [],
+              "STK-HJGTM8026G-r00001": [
+                "PSP-1RMPKHY17B-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "STK@4",
+                "create-review-context@1",
+                "draft-stakeholder-requirements@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/draft-stakeholder-requirements.md@2",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to STK-HJGTM8026G-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-CNHERCQM2T",
+        "revision": 1,
+        "revision_id": "REV-CNHERCQM2T-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review STK-HJGTM8026G-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "STK-HJGTM8026G-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-73YCARCP4H-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DEC-PQWF0D12N2",
+        "revision": 1,
+        "revision_id": "DEC-PQWF0D12N2-r00001",
+        "type": "DEC",
+        "payload": {
+          "title": "Reject exact SYS candidate",
+          "rationale": "The candidate needs a clearer bounded presentation",
+          "kind": "gate-signoff",
+          "gate_outcome": "reject",
+          "gate_rejection": {
+            "findings": [
+              {
+                "id": "G-099",
+                "summary": "Clarify the exact candidate without changing its reviewed definition."
+              }
+            ]
+          },
+          "decision": "Return this exact SYS candidate to the same gate",
+          "alternatives": [
+            "approve without clarification"
+          ],
+          "effective_scope": "BSL-2YPGCAM8D1-r00001"
+        },
+        "links": [
+          {
+            "type": "justifies",
+            "target": "BSL-2YPGCAM8D1-r00001"
+          },
+          {
+            "type": "blocks",
+            "target": "BSL-2YPGCAM8D1-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "record-gate-signoff@3",
+          "prompt_ref": "prompts/record-gate-signoff.md@3",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/gate-protocol.md@1",
+            "skills/baseline-model.md@1",
+            "skills/clarification-protocol.md@1"
+          ],
+          "policy_refs": [
+            "gate-signoff-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Reviewed rejection returns the exact candidate for correction.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-R0Y0ZHHQM8",
+        "revision": 1,
+        "revision_id": "REV-R0Y0ZHHQM8-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review DEC-PQWF0D12N2-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DEC-PQWF0D12N2-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-JAMA4K07X6-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DWP-0REPRTPMN0",
+        "revision": 3,
+        "revision_id": "DWP-0REPRTPMN0-r00003",
+        "type": "DWP",
+        "payload": {
+          "title": "Clarified complete report export decomposition",
+          "rationale": "Exact reviewed outputs account for the bounded parent slice",
+          "stage": "completion",
+          "architecture_element": "AEL-0EXPRTAP00",
+          "target_child_type": "SYS",
+          "behavioral_slice": "Public report export behavior and malformed-request discrimination",
+          "expected_coverage": [
+            "successful export",
+            "invalid request rejection"
+          ],
+          "exclusions": [
+            "report rendering internals"
+          ],
+          "dependencies": [],
+          "required_review_policy": "review-applicability@1",
+          "parent_coverage_status": "complete",
+          "deferred_questions": [],
+          "cross_group_dependencies": [],
+          "output_reviews_complete": true,
+          "simplification_disposition": "retained"
+        },
+        "links": [
+          {
+            "type": "decomposes",
+            "target": "STK-HJGTM8026G-r00001"
+          },
+          {
+            "type": "derived-from",
+            "target": "DWP-0REPRTPMN0-r00001"
+          },
+          {
+            "type": "allocated-to",
+            "target": "ASP-0REPRTARCH-r00001"
+          },
+          {
+            "type": "governed-by",
+            "target": "ICSP-0REPRT1CSP-r00001"
+          },
+          {
+            "type": "verified-under",
+            "target": "VSP-KBQHB74Z6S-r00001"
+          },
+          {
+            "type": "produces",
+            "target": "SYS-0EXPRTREQ0-r00001"
+          },
+          {
+            "type": "justifies",
+            "target": "REV-0REQSMP100-r00001"
+          },
+          {
+            "type": "justifies",
+            "target": "REV-0ARCSMP100-r00001"
+          },
+          {
+            "type": "corrects-review",
+            "target": "REV-JZ3KPNKGPC-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "revise-phase-2-subject-after-review@1",
+          "prompt_ref": "prompts/revise-phase-2-subject-after-review.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1"
+          ],
+          "policy_refs": [
+            "phase-2-correction-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Clarified exact account preserves every canonical dependency.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-28KF2AX1JY",
+        "revision": 1,
+        "revision_id": "BSL-28KF2AX1JY-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "SYS group review",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "BSL-EGN9C34JE9-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "BSL-EGN9C34JE9-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:40:11.476Z",
+            "member_hashes": {
+              "BSL-EGN9C34JE9-r00001": "sha256:012d3e1e5b150046598dcc4aa466a0418c9f1f86aae01549e23f0956d8ec381c"
+            },
+            "resolved_links": {
+              "BSL-28KF2AX1JY-r00001": [],
+              "BSL-EGN9C34JE9-r00001": []
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "create-decomposition-group-candidate@1",
+                "create-review-context@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-decomposition-group-candidate.md@1",
+                "prompts/create-review-context.md@1",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to BSL-EGN9C34JE9-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DEC-BBGX9XBW7B",
+        "revision": 1,
+        "revision_id": "DEC-BBGX9XBW7B-r00001",
+        "type": "DEC",
+        "payload": {
+          "title": "Confirm public rejection behavior",
+          "rationale": "Malformed-request discrimination is required for the controlled boundary",
+          "kind": "decision",
+          "decision": "Reject malformed requests at the public boundary",
+          "alternatives": [
+            "accept malformed requests"
+          ],
+          "effective_scope": "Exact report export DWP"
+        },
+        "links": [
+          {
+            "type": "resolves",
+            "target": "QST-3RYPAB0KQZ-r00001"
+          },
+          {
+            "type": "resolves",
+            "target": "QST-3RYPAB0KQZ-r00002"
+          }
+        ],
+        "created_by": {
+          "scenario": "resolve-question@2",
+          "prompt_ref": "prompts/resolve-question.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/clarification-protocol.md@1",
+            "skills/traceability.md@1"
+          ],
+          "policy_refs": [
+            "question-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "The public boundary must discriminate malformed requests.\n"
+      },
+      "storage": {
+        "editable": true,
+        "frozen": false
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "QST-3RYPAB0KQZ",
+        "revision": 2,
+        "revision_id": "QST-3RYPAB0KQZ-r00002",
+        "type": "QST",
+        "payload": {
+          "title": "Confirm malformed-request scope",
+          "kind": "empirical",
+          "question": "Must malformed requests be rejected at the public boundary?",
+          "state": "answered",
+          "blocking_impact": "Resolved for this exact DWP"
+        },
+        "links": [
+          {
+            "type": "blocks",
+            "target": "DWP-0REPRTPMN0"
+          }
+        ],
+        "created_by": {
+          "scenario": "resolve-question@2",
+          "prompt_ref": "prompts/resolve-question.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/clarification-protocol.md@1",
+            "skills/traceability.md@1"
+          ],
+          "policy_refs": [
+            "question-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Answered by exact Decision evidence.\n"
+      },
+      "storage": {
+        "editable": true,
+        "frozen": false
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-NKHHYMX1X2",
+        "revision": 1,
+        "revision_id": "BSL-NKHHYMX1X2-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Corrected DWP completion context",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DWP-0REPRTPMN0-r00003",
+          "group": "DEFAULT",
+          "definition_members": [
+            "DWP-0REPRTPMN0-r00003",
+            "SYS-0EXPRTREQ0-r00001",
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001"
+          ],
+          "evidence": [
+            "REV-0REQSMP100-r00001",
+            "REV-0ARCSMP100-r00001"
+          ],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:39:53.975Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00003": "sha256:b6ee20fadac0904ae31f8c1fcc5caa0df54794382e9e48bca5595d84c8340311",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "REV-0ARCSMP100-r00001": "sha256:407c6aa184ebca3c049e5baaa70e1c452a02d6d08e756a5c95d3a9499e16e1cd",
+              "REV-0REQSMP100-r00001": "sha256:4ccb565868f22028e1c9a6f1ad3c5b40b69f334ef4b336833301e8b33932091f",
+              "SYS-0EXPRTREQ0-r00001": "sha256:601b450b2f678b8d40af0571dad272611ac97ae3648091173dcd9197f57e777e"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-NKHHYMX1X2-r00001": [],
+              "DWP-0REPRTPMN0-r00003": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "REV-0ARCSMP100-r00001",
+                "REV-0REQSMP100-r00001",
+                "REV-JZ3KPNKGPC-r00001",
+                "STK-HJGTM8026G-r00001",
+                "SYS-0EXPRTREQ0-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "REV-0ARCSMP100-r00001": [
+                "BSL-FMKW2W7Z71-r00001",
+                "BSL-FMKW2W7Z71-r00001"
+              ],
+              "REV-0REQSMP100-r00001": [
+                "BSL-FMKW2W7Z71-r00001",
+                "BSL-FMKW2W7Z71-r00001"
+              ],
+              "SYS-0EXPRTREQ0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "REV@5",
+                "SYS@3",
+                "contextual-review-participation@1",
+                "create-review-context@1",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "execute-decomposition-work-package@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "phase-2-correction-participation@1",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/execute-decomposition-work-package.md@1",
+                "prompts/revise-phase-2-subject-after-review.md@1",
+                "prompts/simplify-architecture-and-interfaces.md@1",
+                "prompts/simplify-requirement-set.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "revise-phase-2-subject-after-review@1",
+                "simplify-architecture-and-interfaces@2",
+                "simplify-requirement-set@2",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/contextual-artifact-review.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/requirement-writing.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to DWP-0REPRTPMN0-r00003.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "ICSP-0REPRT1CSP",
+        "revision": 1,
+        "revision_id": "ICSP-0REPRT1CSP-r00001",
+        "type": "ICSP",
+        "payload": {
+          "title": "Report export boundary",
+          "rationale": "A normative black-box contract separates responsibility",
+          "architecture_revision": "ASP-0REPRTARCH-r00001",
+          "boundary": {
+            "from_element": "AEL-0REPRTCR00",
+            "to_element": "AEL-0EXPRTAP00"
+          },
+          "operations": [
+            "POST /exports"
+          ],
+          "schemas": [
+            "report-export-request@1",
+            "report-export-response@1"
+          ],
+          "units": [],
+          "timing": [
+            "respond within the declared request window"
+          ],
+          "errors": [
+            "malformed requests return invalid-request"
+          ],
+          "security": [
+            "authorized report authors only"
+          ],
+          "ordering": [
+            "validate before export"
+          ],
+          "compatibility": [
+            "version 1 readers accept version 1 responses"
+          ],
+          "interface_version": "1.0.0"
+        },
+        "links": [
+          {
+            "type": "defines-interface-for",
+            "target": "ASP-0REPRTARCH-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "define-interface-control-specification@2",
+          "prompt_ref": "prompts/define-interface-control-specification.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/interface-control-specification.md@1",
+            "skills/boundary-definition.md@1",
+            "skills/clarification-protocol.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "One exact black-box interface contract.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-8FCRE7AAWX",
+        "revision": 1,
+        "revision_id": "BSL-8FCRE7AAWX-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Exact decomposition planning context for ICSP-0REPRT1CSP-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "ICSP-0REPRT1CSP-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "VSP-KBQHB74Z6S-r00001",
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "DWP-0REPRTPMN0-r00001",
+            "QST-3RYPAB0KQZ-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:42.910Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00001": "sha256:019a8a089784c9b7d00e48dc647c6098bbe8f585ed9d098846cf33f42af703b3",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "QST-3RYPAB0KQZ-r00001": "sha256:8d172061a6bd151aae0fcd0e31bc9e11e67a7055e6a9d03111728746dfda1f34",
+              "VSP-KBQHB74Z6S-r00001": "sha256:1a36c5a8fc2c9d2360cdbdc699a1c39a4491f40464ae436f7741976e8a498cc9"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-8FCRE7AAWX-r00001": [],
+              "DWP-0REPRTPMN0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "QST-3RYPAB0KQZ-r00001": [
+                "DWP-0REPRTPMN0-r00001"
+              ],
+              "VSP-KBQHB74Z6S-r00001": [
+                "STK-HJGTM8026G-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "QST@4",
+                "VSP@1",
+                "create-review-context@1",
+                "define-decomposition-work-package@2",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "define-verification-strategy@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-decomposition-work-package.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/define-verification-strategy.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/dwp-planning.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to ICSP-0REPRT1CSP-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-66ED254F5V",
+        "revision": 1,
+        "revision_id": "REV-66ED254F5V-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review BSL-2YPGCAM8D1-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "BSL-2YPGCAM8D1-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-9ZSD97TFZ4-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-0ARCSMP100",
+        "revision": 1,
+        "revision_id": "REV-0ARCSMP100-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "simplification-architecture-interfaces simplification",
+          "review_kind": "simplification-architecture-interfaces",
+          "decomposition_plan_revision": "DWP-0REPRTPMN0-r00001",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "BSL-FMKW2W7Z71-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-FMKW2W7Z71-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "simplify-architecture-and-interfaces@2",
+          "prompt_ref": "prompts/simplify-architecture-and-interfaces.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/scope-challenge.md@1",
+            "skills/architecture-specification.md@1",
+            "skills/interface-control-specification.md@1",
+            "skills/contextual-artifact-review.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "The exact set is minimal for its accepted scope.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-GMYXH5RCF2",
+        "revision": 1,
+        "revision_id": "BSL-GMYXH5RCF2-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Intent decision Review Context",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DEC-4XHR9MW60V-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "DEC-4XHR9MW60V-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:11.915Z",
+            "member_hashes": {
+              "DEC-4XHR9MW60V-r00001": "sha256:14f39e41fc1e754e49bbb00d6b797308198eb3eda0ddc107a7765f25c0b31a83"
+            },
+            "resolved_links": {
+              "BSL-GMYXH5RCF2-r00001": [],
+              "DEC-4XHR9MW60V-r00001": [
+                "BSL-JMRAPW12J7-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "DEC@6",
+                "create-review-context@1",
+                "gate-signoff-participation@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/record-gate-signoff.md@3",
+                "rationale-bearing@1",
+                "record-gate-signoff@3",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/gate-protocol.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to DEC-4XHR9MW60V-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-61T420FHN5",
+        "revision": 1,
+        "revision_id": "REV-61T420FHN5-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review SYS-0EXPRTREQ0-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "SYS-0EXPRTREQ0-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-R6SFPZ4R31-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "SYS-0EXPRTREQ0",
+        "revision": 1,
+        "revision_id": "SYS-0EXPRTREQ0-r00001",
+        "type": "SYS",
+        "payload": {
+          "title": "Export one completed report",
+          "rationale": "The exact stakeholder commitment requires one public system behavior",
+          "statement": "The system shall export one completed report through the controlled public boundary.",
+          "verification_intent": "Observe a valid export and rejection of a malformed request.",
+          "architecture_allocation": {
+            "architecture_revision": "ASP-0REPRTARCH-r00001",
+            "element": "AEL-0EXPRTAP00"
+          }
+        },
+        "links": [
+          {
+            "type": "derived-from",
+            "target": "STK-HJGTM8026G-r00001"
+          },
+          {
+            "type": "decomposes",
+            "target": "DWP-0REPRTPMN0-r00001"
+          },
+          {
+            "type": "allocated-to",
+            "target": "ASP-0REPRTARCH-r00001"
+          },
+          {
+            "type": "governed-by",
+            "target": "ICSP-0REPRT1CSP-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "execute-decomposition-work-package@2",
+          "prompt_ref": "prompts/execute-decomposition-work-package.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/decomposition.md@1",
+            "skills/requirement-writing.md@1",
+            "skills/coverage-analysis.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "One minimal solution-independent system requirement.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DEC-4XHR9MW60V",
+        "revision": 1,
+        "revision_id": "DEC-4XHR9MW60V-r00001",
+        "type": "DEC",
+        "payload": {
+          "title": "Authorize system definition",
+          "rationale": "The exact stakeholder slice is bounded",
+          "kind": "gate-signoff",
+          "gate_outcome": "approve",
+          "decision": "Proceed to one bounded system decomposition",
+          "alternatives": [
+            "defer system definition"
+          ],
+          "effective_scope": "BSL-JMRAPW12J7-r00001"
+        },
+        "links": [
+          {
+            "type": "justifies",
+            "target": "BSL-JMRAPW12J7-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "record-gate-signoff@3",
+          "prompt_ref": "prompts/record-gate-signoff.md@3",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/gate-protocol.md@1",
+            "skills/baseline-model.md@1",
+            "skills/clarification-protocol.md@1"
+          ],
+          "policy_refs": [
+            "gate-signoff-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Stakeholder authorized the exact intent candidate.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-Y9G5JXXW2C",
+        "revision": 1,
+        "revision_id": "BSL-Y9G5JXXW2C-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Exact decomposition planning context for VSP-KBQHB74Z6S-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "VSP-KBQHB74Z6S-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "VSP-KBQHB74Z6S-r00001",
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "DWP-0REPRTPMN0-r00001",
+            "QST-3RYPAB0KQZ-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:37.745Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00001": "sha256:019a8a089784c9b7d00e48dc647c6098bbe8f585ed9d098846cf33f42af703b3",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "QST-3RYPAB0KQZ-r00001": "sha256:8d172061a6bd151aae0fcd0e31bc9e11e67a7055e6a9d03111728746dfda1f34",
+              "VSP-KBQHB74Z6S-r00001": "sha256:1a36c5a8fc2c9d2360cdbdc699a1c39a4491f40464ae436f7741976e8a498cc9"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-Y9G5JXXW2C-r00001": [],
+              "DWP-0REPRTPMN0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "QST-3RYPAB0KQZ-r00001": [
+                "DWP-0REPRTPMN0-r00001"
+              ],
+              "VSP-KBQHB74Z6S-r00001": [
+                "STK-HJGTM8026G-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "QST@4",
+                "VSP@1",
+                "create-review-context@1",
+                "define-decomposition-work-package@2",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "define-verification-strategy@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-decomposition-work-package.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/define-verification-strategy.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/dwp-planning.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to VSP-KBQHB74Z6S-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DWP-0REPRTPMN0",
+        "revision": 2,
+        "revision_id": "DWP-0REPRTPMN0-r00002",
+        "type": "DWP",
+        "payload": {
+          "title": "Complete report export decomposition",
+          "rationale": "Exact reviewed outputs account for the bounded parent slice",
+          "stage": "completion",
+          "architecture_element": "AEL-0EXPRTAP00",
+          "target_child_type": "SYS",
+          "behavioral_slice": "Public report export behavior and malformed-request discrimination",
+          "expected_coverage": [
+            "successful export",
+            "invalid request rejection"
+          ],
+          "exclusions": [
+            "report rendering internals"
+          ],
+          "dependencies": [],
+          "required_review_policy": "review-applicability@1",
+          "parent_coverage_status": "complete",
+          "deferred_questions": [],
+          "cross_group_dependencies": [],
+          "output_reviews_complete": true,
+          "simplification_disposition": "retained"
+        },
+        "links": [
+          {
+            "type": "decomposes",
+            "target": "STK-HJGTM8026G-r00001"
+          },
+          {
+            "type": "derived-from",
+            "target": "DWP-0REPRTPMN0-r00001"
+          },
+          {
+            "type": "allocated-to",
+            "target": "ASP-0REPRTARCH-r00001"
+          },
+          {
+            "type": "governed-by",
+            "target": "ICSP-0REPRT1CSP-r00001"
+          },
+          {
+            "type": "verified-under",
+            "target": "VSP-KBQHB74Z6S-r00001"
+          },
+          {
+            "type": "produces",
+            "target": "SYS-0EXPRTREQ0-r00001"
+          },
+          {
+            "type": "justifies",
+            "target": "REV-0REQSMP100-r00001"
+          },
+          {
+            "type": "justifies",
+            "target": "REV-0ARCSMP100-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "complete-decomposition-work-package@2",
+          "prompt_ref": "prompts/complete-decomposition-work-package.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/dwp-completion.md@1",
+            "skills/coverage-analysis.md@1",
+            "skills/traceability.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "All exact parent coverage and simplification evidence is accounted for.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-2YPGCAM8D1",
+        "revision": 1,
+        "revision_id": "BSL-2YPGCAM8D1-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "SYS level candidate",
+          "kind": "level-candidate",
+          "role": "candidate",
+          "scope": "BSL-EGN9C34JE9-r00001",
+          "group": "SYSTEM",
+          "definition_members": [
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "VSP-KBQHB74Z6S-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:40:23.098Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "BSL-EGN9C34JE9-r00001": "sha256:012d3e1e5b150046598dcc4aa466a0418c9f1f86aae01549e23f0956d8ec381c",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "VSP-KBQHB74Z6S-r00001": "sha256:1a36c5a8fc2c9d2360cdbdc699a1c39a4491f40464ae436f7741976e8a498cc9"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-2YPGCAM8D1-r00001": [
+                "BSL-EGN9C34JE9-r00001"
+              ],
+              "BSL-EGN9C34JE9-r00001": [],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "VSP-KBQHB74Z6S-r00001": [
+                "STK-HJGTM8026G-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "ICSP@2",
+                "VSP@1",
+                "create-decomposition-group-candidate@1",
+                "create-system-level-candidate@1",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "define-verification-strategy@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-decomposition-group-candidate.md@1",
+                "prompts/create-system-level-candidate.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/define-verification-strategy.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/scope-challenge.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [
+          {
+            "type": "composes",
+            "target": "BSL-EGN9C34JE9-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "create-system-level-candidate@1",
+          "prompt_ref": "prompts/create-system-level-candidate.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact composed system-level candidate.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DWP-0REPRTPMN0",
+        "revision": 1,
+        "revision_id": "DWP-0REPRTPMN0-r00001",
+        "type": "DWP",
+        "payload": {
+          "title": "Decompose report export intent",
+          "rationale": "One exact work package bounds parent coverage",
+          "stage": "planning",
+          "architecture_element": "AEL-0EXPRTAP00",
+          "target_child_type": "SYS",
+          "behavioral_slice": "Public report export behavior and malformed-request discrimination",
+          "expected_coverage": [
+            "successful export",
+            "invalid request rejection"
+          ],
+          "exclusions": [
+            "report rendering internals"
+          ],
+          "dependencies": [],
+          "required_review_policy": "review-applicability@1"
+        },
+        "links": [
+          {
+            "type": "decomposes",
+            "target": "STK-HJGTM8026G-r00001"
+          },
+          {
+            "type": "allocated-to",
+            "target": "ASP-0REPRTARCH-r00001"
+          },
+          {
+            "type": "governed-by",
+            "target": "ICSP-0REPRT1CSP-r00001"
+          },
+          {
+            "type": "verified-under",
+            "target": "VSP-KBQHB74Z6S-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "define-decomposition-work-package@2",
+          "prompt_ref": "prompts/define-decomposition-work-package.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/dwp-planning.md@1",
+            "skills/decomposition.md@1",
+            "skills/coverage-analysis.md@1",
+            "skills/traceability.md@1",
+            "skills/clarification-protocol.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "One bounded decomposition plan.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-2YPGCAM8D1",
+        "revision": 2,
+        "revision_id": "BSL-2YPGCAM8D1-r00002",
+        "type": "BSL",
+        "payload": {
+          "title": "Clarified SYS level candidate",
+          "kind": "level-candidate",
+          "role": "candidate",
+          "scope": "BSL-EGN9C34JE9-r00001",
+          "group": "SYSTEM",
+          "definition_members": [
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "VSP-KBQHB74Z6S-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:40:46.690Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "BSL-EGN9C34JE9-r00001": "sha256:012d3e1e5b150046598dcc4aa466a0418c9f1f86aae01549e23f0956d8ec381c",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "VSP-KBQHB74Z6S-r00001": "sha256:1a36c5a8fc2c9d2360cdbdc699a1c39a4491f40464ae436f7741976e8a498cc9"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-2YPGCAM8D1-r00002": [
+                "BSL-2YPGCAM8D1-r00001",
+                "BSL-EGN9C34JE9-r00001",
+                "DEC-PQWF0D12N2-r00001"
+              ],
+              "BSL-EGN9C34JE9-r00001": [],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "VSP-KBQHB74Z6S-r00001": [
+                "STK-HJGTM8026G-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "ICSP@2",
+                "VSP@1",
+                "create-decomposition-group-candidate@1",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "define-verification-strategy@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "phase-2-correction-participation@1",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-decomposition-group-candidate.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/define-verification-strategy.md@1",
+                "prompts/revise-phase-2-candidate-after-review.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "revise-phase-2-candidate-after-review@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/contextual-artifact-review.md@1",
+                "skills/gate-protocol.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [
+          {
+            "type": "composes",
+            "target": "BSL-EGN9C34JE9-r00001"
+          },
+          {
+            "type": "supersedes",
+            "target": "BSL-2YPGCAM8D1-r00001"
+          },
+          {
+            "type": "corrects-gate-rejection",
+            "target": "DEC-PQWF0D12N2-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "revise-phase-2-candidate-after-review@1",
+          "prompt_ref": "prompts/revise-phase-2-candidate-after-review.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/baseline-model.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/gate-protocol.md@1"
+          ],
+          "policy_refs": [
+            "phase-2-correction-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Clarified candidate preserves every exact member and composition.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-F14GRW3HTF",
+        "revision": 1,
+        "revision_id": "REV-F14GRW3HTF-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review BSL-2YPGCAM8D1-r00002",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "BSL-2YPGCAM8D1-r00002"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-E25E6RD171-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-A8S7MK45TQ",
+        "revision": 1,
+        "revision_id": "BSL-A8S7MK45TQ-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Exact decomposition planning context for DWP-0REPRTPMN0-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DWP-0REPRTPMN0-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "VSP-KBQHB74Z6S-r00001",
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "DWP-0REPRTPMN0-r00001",
+            "QST-3RYPAB0KQZ-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:45.534Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00001": "sha256:019a8a089784c9b7d00e48dc647c6098bbe8f585ed9d098846cf33f42af703b3",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "QST-3RYPAB0KQZ-r00001": "sha256:8d172061a6bd151aae0fcd0e31bc9e11e67a7055e6a9d03111728746dfda1f34",
+              "VSP-KBQHB74Z6S-r00001": "sha256:1a36c5a8fc2c9d2360cdbdc699a1c39a4491f40464ae436f7741976e8a498cc9"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-A8S7MK45TQ-r00001": [],
+              "DWP-0REPRTPMN0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "QST-3RYPAB0KQZ-r00001": [
+                "DWP-0REPRTPMN0-r00001"
+              ],
+              "VSP-KBQHB74Z6S-r00001": [
+                "STK-HJGTM8026G-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "QST@4",
+                "VSP@1",
+                "create-review-context@1",
+                "define-decomposition-work-package@2",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "define-verification-strategy@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-decomposition-work-package.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/define-verification-strategy.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/dwp-planning.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to DWP-0REPRTPMN0-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-0REQSMP100",
+        "revision": 1,
+        "revision_id": "REV-0REQSMP100-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "simplification-requirements simplification",
+          "review_kind": "simplification-requirements",
+          "decomposition_plan_revision": "DWP-0REPRTPMN0-r00001",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "BSL-FMKW2W7Z71-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-FMKW2W7Z71-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "simplify-requirement-set@2",
+          "prompt_ref": "prompts/simplify-requirement-set.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/scope-challenge.md@1",
+            "skills/coverage-analysis.md@1",
+            "skills/contextual-artifact-review.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "The exact set is minimal for its accepted scope.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DEC-0Y97CFVCGX",
+        "revision": 1,
+        "revision_id": "DEC-0Y97CFVCGX-r00001",
+        "type": "DEC",
+        "payload": {
+          "title": "Authorize exact SYS candidate",
+          "rationale": "The composed exact candidate is reviewed and unblocked",
+          "kind": "gate-signoff",
+          "gate_outcome": "approve",
+          "decision": "Approve this exact SYS level candidate",
+          "alternatives": [
+            "return the candidate for revision"
+          ],
+          "effective_scope": "BSL-2YPGCAM8D1-r00002"
+        },
+        "links": [
+          {
+            "type": "justifies",
+            "target": "BSL-2YPGCAM8D1-r00002"
+          }
+        ],
+        "created_by": {
+          "scenario": "record-gate-signoff@3",
+          "prompt_ref": "prompts/record-gate-signoff.md@3",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/gate-protocol.md@1",
+            "skills/baseline-model.md@1",
+            "skills/clarification-protocol.md@1"
+          ],
+          "policy_refs": [
+            "gate-signoff-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Stakeholder authority approved the exact system candidate.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-EFXYWYJQ9S",
+        "revision": 1,
+        "revision_id": "REV-EFXYWYJQ9S-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review DWP-0REPRTPMN0-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DWP-0REPRTPMN0-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-A8S7MK45TQ-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-KNYA2N7XRA",
+        "revision": 1,
+        "revision_id": "REV-KNYA2N7XRA-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review corrected exact DWP completion",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DWP-0REPRTPMN0-r00003"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-NKHHYMX1X2-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-FMKW2W7Z71",
+        "revision": 1,
+        "revision_id": "BSL-FMKW2W7Z71-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Earliest exact Phase 2 definition set",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DWP-0REPRTPMN0-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "ASP-0REPRTARCH-r00001",
+            "DWP-0REPRTPMN0-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "SYS-0EXPRTREQ0-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:39:20.828Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00001": "sha256:019a8a089784c9b7d00e48dc647c6098bbe8f585ed9d098846cf33f42af703b3",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "SYS-0EXPRTREQ0-r00001": "sha256:601b450b2f678b8d40af0571dad272611ac97ae3648091173dcd9197f57e777e"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-FMKW2W7Z71-r00001": [],
+              "DWP-0REPRTPMN0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "SYS-0EXPRTREQ0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "DWP-0REPRTPMN0-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "SYS@3",
+                "create-review-context@1",
+                "define-decomposition-work-package@2",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "execute-decomposition-work-package@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-decomposition-work-package.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/execute-decomposition-work-package.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/dwp-planning.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/requirement-writing.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to DWP-0REPRTPMN0-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-Y5YHJV9AQ7",
+        "revision": 1,
+        "revision_id": "BSL-Y5YHJV9AQ7-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "SYS gate decision review",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DEC-0Y97CFVCGX-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "DEC-0Y97CFVCGX-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:41:03.128Z",
+            "member_hashes": {
+              "DEC-0Y97CFVCGX-r00001": "sha256:d23c67b757e2b4b0f43269f78e64bcc88f31e4b39da6bdfd6688b92e3b0e5b3d"
+            },
+            "resolved_links": {
+              "BSL-Y5YHJV9AQ7-r00001": [],
+              "DEC-0Y97CFVCGX-r00001": [
+                "BSL-2YPGCAM8D1-r00002"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "DEC@6",
+                "create-review-context@1",
+                "gate-signoff-participation@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/record-gate-signoff.md@3",
+                "rationale-bearing@1",
+                "record-gate-signoff@3",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/gate-protocol.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to DEC-0Y97CFVCGX-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-JZ3KPNKGPC",
+        "revision": 1,
+        "revision_id": "REV-JZ3KPNKGPC-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Failed exact DWP completion Review",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [
+            {
+              "id": "F-099",
+              "target": "DWP-0REPRTPMN0-r00002",
+              "relationship": "primary",
+              "severity": "blocking",
+              "summary": "Clarify that every exact output remains canonically accounted for."
+            }
+          ],
+          "outcome": "fail"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DWP-0REPRTPMN0-r00002"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-87JNF60P9J-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "The exact account needs one local clarification.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-CFJF0340XA",
+        "revision": 1,
+        "revision_id": "REV-CFJF0340XA-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review VSP-KBQHB74Z6S-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "VSP-KBQHB74Z6S-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-Y9G5JXXW2C-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-FQDR5G2BRT",
+        "revision": 1,
+        "revision_id": "REV-FQDR5G2BRT-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review DEC-0Y97CFVCGX-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DEC-0Y97CFVCGX-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-Y5YHJV9AQ7-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-7Q7PPSWA2R",
+        "revision": 1,
+        "revision_id": "REV-7Q7PPSWA2R-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Simplify exact intent candidate",
+          "review_kind": "simplification-product-definition",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "BSL-JMRAPW12J7-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-644WYDVV0N-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-E25E6RD171",
+        "revision": 1,
+        "revision_id": "BSL-E25E6RD171-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Replacement SYS level review",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "BSL-2YPGCAM8D1-r00002",
+          "group": "DEFAULT",
+          "definition_members": [
+            "BSL-2YPGCAM8D1-r00002"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:40:51.321Z",
+            "member_hashes": {
+              "BSL-2YPGCAM8D1-r00002": "sha256:246155d4a4b48017d9d44fdc5be2eb9b1e9540ef0430615f3ffa017cbc96cf1f"
+            },
+            "resolved_links": {
+              "BSL-2YPGCAM8D1-r00002": [
+                "BSL-2YPGCAM8D1-r00001",
+                "BSL-EGN9C34JE9-r00001",
+                "DEC-PQWF0D12N2-r00001"
+              ],
+              "BSL-E25E6RD171-r00001": []
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "create-review-context@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "phase-2-correction-participation@1",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/revise-phase-2-candidate-after-review.md@1",
+                "review-applicability@1",
+                "revise-phase-2-candidate-after-review@1",
+                "skills/baseline-model.md@1",
+                "skills/contextual-artifact-review.md@1",
+                "skills/gate-protocol.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to BSL-2YPGCAM8D1-r00002.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-01025JFAAB",
+        "revision": 1,
+        "revision_id": "BSL-01025JFAAB-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Product specification Review Context",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "PSP-1RMPKHY17B-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "PSP-1RMPKHY17B-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:37:54.450Z",
+            "member_hashes": {
+              "PSP-1RMPKHY17B-r00001": "sha256:098f340f9ff2cf654e9fca964a7a1c75633ae108583e66ea37af4d527c8a0806"
+            },
+            "resolved_links": {
+              "BSL-01025JFAAB-r00001": [],
+              "PSP-1RMPKHY17B-r00001": []
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "PSP@4",
+                "compile-psp@2",
+                "create-review-context@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/compile-psp.md@2",
+                "prompts/create-review-context.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to PSP-1RMPKHY17B-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-JSV7Y7WK9G",
+        "revision": 1,
+        "revision_id": "BSL-JSV7Y7WK9G-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Exact decomposition planning context for ASP-0REPRTARCH-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "ASP-0REPRTARCH-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "VSP-KBQHB74Z6S-r00001",
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "DWP-0REPRTPMN0-r00001",
+            "QST-3RYPAB0KQZ-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:40.340Z",
+            "member_hashes": {
+              "ASP-0REPRTARCH-r00001": "sha256:c3dcea120ef010ff29c41f51260a6ffb49808fccbc6145a01e1c7e3d73ea89b5",
+              "DWP-0REPRTPMN0-r00001": "sha256:019a8a089784c9b7d00e48dc647c6098bbe8f585ed9d098846cf33f42af703b3",
+              "ICSP-0REPRT1CSP-r00001": "sha256:a003effade8d2a92396a8b258d9c4044ade51b892b3967fbc9ba2450132770b2",
+              "QST-3RYPAB0KQZ-r00001": "sha256:8d172061a6bd151aae0fcd0e31bc9e11e67a7055e6a9d03111728746dfda1f34",
+              "VSP-KBQHB74Z6S-r00001": "sha256:1a36c5a8fc2c9d2360cdbdc699a1c39a4491f40464ae436f7741976e8a498cc9"
+            },
+            "resolved_links": {
+              "ASP-0REPRTARCH-r00001": [
+                "STK-HJGTM8026G-r00001"
+              ],
+              "BSL-JSV7Y7WK9G-r00001": [],
+              "DWP-0REPRTPMN0-r00001": [
+                "ASP-0REPRTARCH-r00001",
+                "ICSP-0REPRT1CSP-r00001",
+                "STK-HJGTM8026G-r00001",
+                "VSP-KBQHB74Z6S-r00001"
+              ],
+              "ICSP-0REPRT1CSP-r00001": [
+                "ASP-0REPRTARCH-r00001"
+              ],
+              "QST-3RYPAB0KQZ-r00001": [
+                "DWP-0REPRTPMN0-r00001"
+              ],
+              "VSP-KBQHB74Z6S-r00001": [
+                "STK-HJGTM8026G-r00001",
+                "STK-HJGTM8026G-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "ASP@2",
+                "BSL@4",
+                "DWP@3",
+                "ICSP@2",
+                "QST@4",
+                "VSP@1",
+                "create-review-context@1",
+                "define-decomposition-work-package@2",
+                "define-interface-control-specification@2",
+                "define-system-architecture@2",
+                "define-verification-strategy@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/define-decomposition-work-package.md@1",
+                "prompts/define-interface-control-specification.md@1",
+                "prompts/define-system-architecture.md@1",
+                "prompts/define-verification-strategy.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/architecture-elements.md@1",
+                "skills/architecture-specification.md@1",
+                "skills/baseline-model.md@1",
+                "skills/boundary-definition.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/coverage-analysis.md@1",
+                "skills/decomposition.md@1",
+                "skills/dwp-planning.md@1",
+                "skills/interface-control-specification.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to ASP-0REPRTARCH-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-MVV0VXMENX",
+        "revision": 1,
+        "revision_id": "REV-MVV0VXMENX-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Review BSL-EGN9C34JE9-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "BSL-EGN9C34JE9-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-28KF2AX1JY-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Independent contextual Review passed.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-JAMA4K07X6",
+        "revision": 1,
+        "revision_id": "BSL-JAMA4K07X6-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "SYS rejection Review Context",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DEC-PQWF0D12N2-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "DEC-PQWF0D12N2-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:40:38.237Z",
+            "member_hashes": {
+              "DEC-PQWF0D12N2-r00001": "sha256:3e29c1b827ca4f57b80386ba40275b25353da9eb5b5e42fc34b44990b143985e"
+            },
+            "resolved_links": {
+              "BSL-JAMA4K07X6-r00001": [],
+              "DEC-PQWF0D12N2-r00001": [
+                "BSL-2YPGCAM8D1-r00001",
+                "BSL-2YPGCAM8D1-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "DEC@6",
+                "create-review-context@1",
+                "gate-signoff-participation@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/create-review-context.md@1",
+                "prompts/record-gate-signoff.md@3",
+                "rationale-bearing@1",
+                "record-gate-signoff@3",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/gate-protocol.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact Review Context scoped to DEC-PQWF0D12N2-r00001.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-JMRAPW12J7",
+        "revision": 1,
+        "revision_id": "BSL-JMRAPW12J7-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Approved intent",
+          "kind": "intent-level-candidate",
+          "role": "candidate",
+          "scope": "Approved intent",
+          "group": "DEFAULT",
+          "definition_members": [
+            "PSP-1RMPKHY17B-r00001",
+            "STK-HJGTM8026G-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:03.396Z",
+            "member_hashes": {
+              "PSP-1RMPKHY17B-r00001": "sha256:098f340f9ff2cf654e9fca964a7a1c75633ae108583e66ea37af4d527c8a0806",
+              "STK-HJGTM8026G-r00001": "sha256:8b7c0edf17585bcf99840311a65d08ab1a832a0280f6e4930308165a7a296cbc"
+            },
+            "resolved_links": {
+              "BSL-JMRAPW12J7-r00001": [],
+              "PSP-1RMPKHY17B-r00001": [],
+              "STK-HJGTM8026G-r00001": [
+                "PSP-1RMPKHY17B-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "PSP@4",
+                "STK@4",
+                "compile-psp@2",
+                "create-candidate-baseline@1",
+                "draft-stakeholder-requirements@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/compile-psp.md@2",
+                "prompts/create-candidate-baseline.md@1",
+                "prompts/draft-stakeholder-requirements.md@2",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-candidate-baseline@1",
+          "prompt_ref": "prompts/create-candidate-baseline.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": ""
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": false
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-Q96SBGK0BX",
+        "revision": 1,
+        "revision_id": "BSL-Q96SBGK0BX-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Accepted intent",
+          "kind": "intent-approved",
+          "role": "accepted",
+          "scope": "Accepted intent",
+          "group": "DEFAULT",
+          "definition_members": [
+            "PSP-1RMPKHY17B-r00001",
+            "STK-HJGTM8026G-r00001"
+          ],
+          "evidence": [
+            "DEC-4XHR9MW60V-r00001",
+            "REV-7Q7PPSWA2R-r00001",
+            "REV-FDPW1Q0678-r00001"
+          ],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:38:20.433Z",
+            "member_hashes": {
+              "DEC-4XHR9MW60V-r00001": "sha256:14f39e41fc1e754e49bbb00d6b797308198eb3eda0ddc107a7765f25c0b31a83",
+              "PSP-1RMPKHY17B-r00001": "sha256:098f340f9ff2cf654e9fca964a7a1c75633ae108583e66ea37af4d527c8a0806",
+              "REV-7Q7PPSWA2R-r00001": "sha256:06380434e111838268c87d958994944650a17c96cb49a75478ff125e9f338135",
+              "REV-FDPW1Q0678-r00001": "sha256:7dd77c7465232f0412b9ae22c2ae746cb7e46b04f3d0763f13e6dd6e446f933e",
+              "STK-HJGTM8026G-r00001": "sha256:8b7c0edf17585bcf99840311a65d08ab1a832a0280f6e4930308165a7a296cbc"
+            },
+            "resolved_links": {
+              "BSL-Q96SBGK0BX-r00001": [
+                "BSL-JMRAPW12J7-r00001"
+              ],
+              "DEC-4XHR9MW60V-r00001": [
+                "BSL-JMRAPW12J7-r00001"
+              ],
+              "PSP-1RMPKHY17B-r00001": [],
+              "REV-7Q7PPSWA2R-r00001": [
+                "BSL-644WYDVV0N-r00001",
+                "BSL-JMRAPW12J7-r00001"
+              ],
+              "REV-FDPW1Q0678-r00001": [
+                "BSL-GMYXH5RCF2-r00001",
+                "DEC-4XHR9MW60V-r00001"
+              ],
+              "STK-HJGTM8026G-r00001": [
+                "PSP-1RMPKHY17B-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+              "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
+              "asset_refs": [
+                "BSL@4",
+                "DEC@6",
+                "PSP@4",
+                "REV@5",
+                "STK@4",
+                "compile-psp@2",
+                "contextual-review-participation@1",
+                "create-candidate-baseline@1",
+                "draft-stakeholder-requirements@2",
+                "gate-signoff-participation@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/compile-psp.md@2",
+                "prompts/create-candidate-baseline.md@1",
+                "prompts/draft-stakeholder-requirements.md@2",
+                "prompts/record-gate-signoff.md@3",
+                "prompts/review-datum-in-context.md@2",
+                "rationale-bearing@1",
+                "record-gate-signoff@3",
+                "requirement@2",
+                "review-applicability@1",
+                "review-datum-in-context@2",
+                "skills/baseline-model.md@1",
+                "skills/clarification-protocol.md@1",
+                "skills/contextual-artifact-review.md@1",
+                "skills/gate-protocol.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/scope-challenge.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [
+          {
+            "type": "promotes",
+            "target": "BSL-JMRAPW12J7-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "create-candidate-baseline@1",
+          "prompt_ref": "prompts/create-candidate-baseline.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": ""
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": false
+      }
+    },
+    {
+      "datum": {
+        "id": "PSP-1RMPKHY17B",
+        "revision": 1,
+        "revision_id": "PSP-1RMPKHY17B-r00001",
+        "type": "PSP",
+        "payload": {
+          "title": "Portable report",
+          "rationale": "One bounded export validates the decomposition tracer",
+          "problem": "Completed reports cannot leave the product",
+          "users": [
+            "report author"
+          ],
+          "goals": [
+            "export one completed report"
+          ],
+          "non_goals": [
+            "general integration platform"
+          ],
+          "success_measures": [
+            "one report crosses the public boundary"
+          ]
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "compile-psp@2",
+          "prompt_ref": "prompts/compile-psp.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": ""
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": false
+      }
+    },
+    {
+      "datum": {
+        "id": "QST-3RYPAB0KQZ",
+        "revision": 1,
+        "revision_id": "QST-3RYPAB0KQZ-r00001",
+        "type": "QST",
+        "payload": {
+          "title": "Confirm malformed-request scope",
+          "kind": "empirical",
+          "evidence_available": true,
+          "question": "Must malformed requests be rejected at the public boundary?",
+          "state": "open",
+          "blocking_impact": "The DWP cannot execute until the boundary behavior is confirmed"
+        },
+        "links": [
+          {
+            "type": "blocks",
+            "target": "DWP-0REPRTPMN0"
+          }
+        ],
+        "created_by": {
+          "scenario": "define-decomposition-work-package@2",
+          "prompt_ref": "prompts/define-decomposition-work-package.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": ""
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": false
+      }
+    },
+    {
+      "datum": {
+        "id": "STK-HJGTM8026G",
+        "revision": 1,
+        "revision_id": "STK-HJGTM8026G-r00001",
+        "type": "STK",
+        "payload": {
+          "title": "Export a completed report",
+          "rationale": "Report authors need a portable result",
+          "statement": "The product shall export one completed report through a public boundary.",
+          "verification_intent": "Observe one exact export and malformed-request rejection.",
+          "stakeholder": "report author",
+          "priority": "must"
+        },
+        "links": [
+          {
+            "type": "derived-from",
+            "target": "PSP-1RMPKHY17B"
+          }
+        ],
+        "created_by": {
+          "scenario": "draft-stakeholder-requirements@2",
+          "prompt_ref": "prompts/draft-stakeholder-requirements.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": ""
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": false
+      }
+    },
+    {
+      "datum": {
+        "id": "VSP-KBQHB74Z6S",
+        "revision": 1,
+        "revision_id": "VSP-KBQHB74Z6S-r00001",
+        "type": "VSP",
+        "payload": {
+          "title": "System export strategy",
+          "rationale": "The system boundary needs observable independent evidence",
+          "level": "system",
+          "permitted_methods": [
+            "demonstration",
+            "test"
+          ],
+          "independence": {
+            "boundary": "black-box",
+            "prohibited_inputs": [
+              "product source code",
+              "product unit tests",
+              "private implementation details",
+              "uncontrolled implementation shortcuts"
+            ]
+          },
+          "evidence_policy": "Retain exact requests and visible responses",
+          "assessment_policy": "Require success and malformed-request discrimination",
+          "environment_profile": {
+            "id": "system-boundary",
+            "purpose": "Exercise the controlled report boundary",
+            "capabilities": {
+              "controllability": [
+                "report fixture"
+              ],
+              "observability": [
+                "response schema",
+                "error code"
+              ],
+              "external_services": [],
+              "timing": "deterministic request window"
+            }
+          }
+        },
+        "links": [
+          {
+            "type": "governs",
+            "target": "STK-HJGTM8026G"
+          },
+          {
+            "type": "governs-revision",
+            "target": "STK-HJGTM8026G-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "define-verification-strategy@1",
+          "prompt_ref": "prompts/define-verification-strategy.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": ""
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": false
+      }
+    }
+  ],
+  "dependencyComparisons": []
+}

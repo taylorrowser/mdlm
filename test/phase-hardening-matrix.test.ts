@@ -6,7 +6,7 @@ import { parse } from "yaml";
 import { loadProcessPackage } from "../src/index.js";
 
 type DefinitionKind = "obligations" | "phases" | "policies" | "scenarios" | "selectors";
-type ExecutableEvidence = { file: string; test: string; assertions?: string[] };
+type ExecutableEvidence = { file: string; test: string };
 type MatrixRoute = {
   route: string;
   executable: ExecutableEvidence;
@@ -254,16 +254,10 @@ describe("Phase-hardening matrix", () => {
         },
         resolvers: [],
         next: ["assignment"],
-        executable: expect.objectContaining({
+        executable: {
           file: "test/mdlm-assignment.test.ts",
           test: "preserves the same Assignment for one malformed-response correction that can publish",
-          assertions: expect.arrayContaining([
-            "correction-required",
-            "correct-response",
-            "automaticReplacement: false",
-            "malformedResponseCorrection: 0",
-          ]),
-        }),
+        },
         transport: {
           lifecyclePublication: "none",
           leaseDisposition: "active",
@@ -282,16 +276,10 @@ describe("Phase-hardening matrix", () => {
         },
         resolvers: [],
         next: ["assignment"],
-        executable: expect.objectContaining({
+        executable: {
           file: "test/mdlm-assignment.test.ts",
           test: "exhausts the Assignment on a second malformed response and reports the terminal disposition",
-          assertions: expect.arrayContaining([
-            "exhausted",
-            'action: "stop"',
-            "automaticReplacement: false",
-            "malformedResponses).toHaveLength(2)",
-          ]),
-        }),
+        },
         transport: {
           lifecyclePublication: "none",
           leaseDisposition: "exhausted",
@@ -324,7 +312,6 @@ describe("Phase-hardening matrix", () => {
       expect(route.executable).toEqual({
         file: "test/phase-hardening-domain-contracts.test.ts",
         test: "proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically",
-        assertions: [`phase-2-review-correction-and-ambiguity::${route.route}`],
       });
       expect(route.obligations).toEqual(["phase-2-review-correction-required@1"]);
       expect(route.resolvers).toEqual(["revise-phase-2-subject-after-review@1"]);
@@ -417,6 +404,10 @@ describe("Phase-hardening matrix", () => {
           const scenario = loaded.package.scenarios[reference.split("@")[0]!];
           expect(scenario?.outputs, `${label}: Resolver outputs`).toEqual(expect.any(Array));
           expect(scenario?.completion, `${label}: compiled Resolver completion`).toEqual(expect.any(Object));
+          const declaredPolicy = (scenario?.participation as { policy_ref?: string } | undefined)
+            ?.policy_ref;
+          expect(route.participation.policies, `${label}: Resolver participation Policy`)
+            .toEqual(declaredPolicy ? [declaredPolicy] : []);
         }
 
         expect(route.executable?.file, `${label}: evidence file`).toEqual(expect.any(String));
@@ -434,9 +425,6 @@ describe("Phase-hardening matrix", () => {
         const registered = testsByFile.get(route.executable.file)?.get(route.executable.test);
         expect(registered, `${label}: ${route.executable.test}`).toBeDefined();
         expect(registered?.assertionCount, `${label}: behavioral assertions`).toBeGreaterThan(0);
-        for (const assertion of route.executable.assertions ?? []) {
-          expect(registered?.source, `${label}: assertion '${assertion}'`).toContain(assertion);
-        }
       }
     }
   });

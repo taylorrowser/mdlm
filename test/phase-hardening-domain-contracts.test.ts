@@ -1,8 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import formatsPlugin from "ajv-formats";
 import { beforeAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { evaluateLifecycle, loadProcessPackage, type ProcessPackage } from "../src/index.js";
+import { evaluateLifecycle, loadProcessPackage, resolveType, type ProcessPackage } from "../src/index.js";
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
@@ -18,132 +20,6 @@ type Route = {
   reuse: string;
 };
 type Matrix = { rows: Array<{ id: string; routes: Route[] }> };
-
-const phase0Contracts = [
-  "phase-0-foundation-publication::greenfield MAP|S=phase-0-foundation-members@1|O=initial-wayfinding-map-required@1|M=autonomous|P=|A=kernel-autonomous|R=establish-initial-wayfinding-map@1|N=assignment",
-  "phase-0-foundation-publication::PSP|S=phase-0-foundation-members@1|O=product-specification-required@1|M=autonomous|P=|A=kernel-autonomous|R=compile-psp@2|N=assignment",
-  "phase-0-foundation-publication::STK|S=phase-0-foundation-members@1|O=stakeholder-requirements-required@1|M=autonomous|P=|A=kernel-autonomous|R=draft-stakeholder-requirements@2|N=assignment",
-  "phase-0-foundation-publication::candidate creation|S=complete-phase-0-intent-candidates@1|O=intent-candidate-required@2|M=autonomous|P=|A=kernel-autonomous|R=create-phase-0-intent-candidate@1|N=assignment",
-  "phase-0-foundation-publication::accepted intent|S=phase-0-intent-approvals-for@1|O=intent-approval-required@1|M=autonomous|P=|A=kernel-autonomous|R=accept-phase-0-intent@1|N=assignment",
-  "contextual-review::fresh Review Context|S=valid-review-contexts-for@1|O=review-context-required@2|M=autonomous|P=|A=kernel-autonomous|R=create-review-context@1|N=assignment",
-  "contextual-review::passing independent Review|S=passing-reviews-for@1|O=passing-review-required@2|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=review-datum-in-context@2|N=assignment",
-  "contextual-review::failed independent Review|S=failing-reviews-for@1|O=passing-review-required@2|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=review-datum-in-context@2|N=assignment",
-  "phase-0-foundation-correction::initial failure|S=foundation-review-failures-at-stage@1,foundation-correction-history@1,failed-phase-0-foundation-revisions@2|O=foundation-review-correction-required@5|M=autonomous|P=|A=kernel-autonomous|R=revise-foundation-after-review@5|N=assignment",
-  "phase-0-foundation-correction::first replacement|S=foundation-review-failures-at-stage@1,foundation-correction-history@1,failed-phase-0-foundation-revisions@2|O=foundation-review-correction-required@5|M=autonomous|P=|A=kernel-autonomous|R=revise-foundation-after-review@5|N=assignment",
-  "phase-0-foundation-correction::second replacement|S=foundation-review-failures-at-stage@1,foundation-correction-history@1,failed-phase-0-foundation-revisions@2|O=foundation-review-correction-required@5|M=autonomous|P=|A=kernel-autonomous|R=revise-foundation-after-review@5|N=assignment",
-  "phase-0-foundation-correction::stakeholder-owned failure|S=foundation-review-failures-at-stage@1,foundation-correction-history@1,failed-phase-0-foundation-revisions@2|O=foundation-review-escalation-required@2|M=attended|P=|A=stakeholder|R=escalate-foundation-review-correction@2|N=attention-required",
-  "phase-0-foundation-correction::post-attended fresh cycles|S=foundation-review-failures-at-stage@1,foundation-correction-history@1,failed-phase-0-foundation-revisions@2|O=foundation-review-correction-required@5|M=autonomous|P=|A=kernel-autonomous|R=revise-foundation-after-review@5|N=assignment",
-  "phase-0-simplification-correction::pass|S=valid-product-simplification-reviews@1,product-simplification-blockers-for-candidate@1,invalid-product-simplification-blockers-for-review@1,failed-intent-candidates@1|O=passing-review-required@2|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=review-datum-in-context@2|N=attention-required",
-  "phase-0-simplification-correction::member failure|S=valid-product-simplification-reviews@1,product-simplification-blockers-for-candidate@1,invalid-product-simplification-blockers-for-review@1,failed-intent-candidates@1|O=foundation-review-correction-required@5|M=autonomous|P=|A=kernel-autonomous|R=revise-foundation-after-review@5|N=assignment",
-  "phase-0-simplification-correction::candidate failure|S=valid-product-simplification-reviews@1,product-simplification-blockers-for-candidate@1,invalid-product-simplification-blockers-for-review@1,failed-intent-candidates@1|O=intent-candidate-review-correction-required@3|M=autonomous|P=|A=kernel-autonomous|R=revise-intent-candidate-after-review@3|N=assignment",
-  "phase-0-simplification-correction::stakeholder-owned failure|S=valid-product-simplification-reviews@1,product-simplification-blockers-for-candidate@1,invalid-product-simplification-blockers-for-review@1,failed-intent-candidates@1|O=intent-candidate-review-correction-required@3|M=attended|P=intent-candidate-correction-participation@1|A=stakeholder|R=revise-intent-candidate-after-review@3|N=attention-required",
-  "phase-0-simplification-correction::malformed blocker|S=valid-product-simplification-reviews@1,product-simplification-blockers-for-candidate@1,invalid-product-simplification-blockers-for-review@1,failed-intent-candidates@1|O=passing-review-required@2|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=review-datum-in-context@2|N=assignment",
-  "phase-0-simplification-correction::exhausted candidate|S=valid-product-simplification-reviews@1,product-simplification-blockers-for-candidate@1,invalid-product-simplification-blockers-for-review@1,failed-intent-candidates@1|O=intent-candidate-review-correction-required@3|M=attended|P=intent-candidate-correction-participation@1|A=stakeholder|R=revise-intent-candidate-after-review@3|N=attention-required",
-  "autonomous-question-source-boundary::source boundary before autonomous resolution|S=current-open-question-sources@1,source-boundaries-for@1,source-boundary-evidence@1|O=source-boundary-required@1|M=autonomous|P=|A=kernel-autonomous|R=freeze-source-boundary@1|N=assignment",
-  "question-immediate-attention::immediate blocking|S=general-open-questions@1,blocked-targets-for-question@1,open-blocking-questions@1|O=open-question-resolution@3|M=attended-immediate|P=question-participation@1|A=stakeholder|R=resolve-question@2|N=attention-required",
-  "prototype-question-answer::prototype answer|S=prototype-bound-open-questions@1,source-boundaries-for@1|O=prototype-question-resolution@1|M=autonomous|P=question-participation@1|A=evidence-authority|R=resolve-question-with-prototype@2|N=assignment",
-  "question-deferral::defer|S=general-open-questions@1,question-disposition-decisions-for@1,applicable-question-dispositions-for@1|O=open-question-resolution@3|M=attended-immediate|P=question-participation@1|A=stakeholder|R=resolve-question@2|N=assignment",
-  "question-cancellation::cancel|S=general-open-questions@1,question-disposition-decisions-for@1,applicable-question-dispositions-for@1|O=open-question-resolution@3|M=attended-immediate|P=question-participation@1|A=stakeholder|R=resolve-question@2|N=assignment",
-  "preferential-question-answer::preferential answer|S=general-open-questions@1,question-answer-decisions-for@1,applicable-question-answers-for@1|O=open-question-resolution@3|M=attended-immediate|P=question-participation@1|A=stakeholder|R=resolve-question@2|N=assignment",
-  "consequential-decision-correction::failed Question Decision Review|S=failed-question-decisions@1,failed-gate-signoff-decisions@1,failed-change-dispositions@1|O=question-decision-review-correction-required@1|M=attended|P=consequential-decision-participation@1|A=stakeholder|R=revise-question-decision-after-review@1|N=attention-required",
-  "consequential-decision-correction::failed gate Decision Review|S=failed-question-decisions@1,failed-gate-signoff-decisions@1,failed-change-dispositions@1|O=gate-signoff-review-correction-required@2|M=attended|P=consequential-decision-participation@1|A=stakeholder|R=revise-gate-signoff-after-review@2|N=attention-required",
-  "consequential-decision-correction::failed change disposition Review|S=failed-question-decisions@1,failed-gate-signoff-decisions@1,failed-change-dispositions@1|O=change-disposition-review-correction-required@1|M=attended|P=consequential-decision-participation@1|A=stakeholder|R=revise-change-disposition-after-review@1|N=attention-required",
-  "phase-0-gate-rejection-return::approval|S=applicable-gate-signoffs-for@1,reviewed-gate-rejections-for-subject@1,gate-rejection-corrections-for-subject@1,complete-superseding-intent-candidates-for@1|O=candidate-gate-signoff@3|M=attended|P=gate-signoff-participation@1|A=stakeholder|R=record-gate-signoff@3|N=assignment",
-  "phase-0-gate-rejection-return::reviewed rejection|S=applicable-gate-signoffs-for@1,reviewed-gate-rejections-for-subject@1,gate-rejection-corrections-for-subject@1,complete-superseding-intent-candidates-for@1|O=candidate-gate-signoff@3|M=autonomous|P=|A=kernel-autonomous|R=record-gate-signoff@3|N=assignment",
-  "phase-0-gate-rejection-return::member correction|S=applicable-gate-signoffs-for@1,reviewed-gate-rejections-for-subject@1,gate-rejection-corrections-for-subject@1,complete-superseding-intent-candidates-for@1|O=foundation-review-correction-required@5|M=autonomous|P=|A=kernel-autonomous|R=revise-foundation-after-review@5|N=assignment",
-  "phase-0-gate-rejection-return::candidate correction|S=applicable-gate-signoffs-for@1,reviewed-gate-rejections-for-subject@1,gate-rejection-corrections-for-subject@1,complete-superseding-intent-candidates-for@1|O=intent-candidate-review-correction-required@3|M=autonomous|P=|A=kernel-autonomous|R=revise-intent-candidate-after-review@3|N=assignment",
-  "phase-0-gate-rejection-return::same-gate return|S=applicable-gate-signoffs-for@1,reviewed-gate-rejections-for-subject@1,gate-rejection-corrections-for-subject@1,complete-superseding-intent-candidates-for@1|O=candidate-gate-signoff@3|M=attended|P=gate-signoff-participation@1|A=stakeholder|R=record-gate-signoff@3|N=attention-required",
-] as const;
-
-const phase1Contracts = [
-  "phase-1-assurance::VSP creation|S=current-phase-1-verification-strategies@1|O=verification-strategy-required@1|M=autonomous|P=|A=kernel-autonomous|R=define-verification-strategy@1|N=assignment",
-  "phase-1-assurance::ENV qualification|S=complete-environment-assurance-for-strategy@1|O=environment-assurance-required@2|M=autonomous|P=|A=kernel-autonomous|R=realize-verification-environment@1|N=assignment",
-  "phase-1-assurance::pilot VER|S=current-pilot-verification-activities@1|O=pilot-verification-activity-required@2|M=autonomous|P=|A=kernel-autonomous|R=write-verification-activity@1|N=assignment",
-  "phase-1-assurance::passing independent Review|S=passing-reviews-for@1|O=passing-review-required@2|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=review-datum-in-context@2|N=assignment",
-  "phase-1-assurance::first and second correction|S=corrected-phase-1-assurance-reviews-for@1|O=verification-strategy-review-correction-required@2|M=autonomous|P=|A=kernel-autonomous|R=revise-verification-strategy-after-review@2|N=assignment",
-  "phase-1-assurance::stakeholder-owned failure|S=corrected-phase-1-assurance-reviews-for@1|O=environment-review-correction-required@2|M=attended|P=phase-1-assurance-correction-participation@1|A=stakeholder|R=revise-environment-assurance-after-review@2|N=attention-required",
-  "phase-1-assurance::malformed replacement|S=corrected-phase-1-assurance-reviews-for@1|O=verification-strategy-review-correction-required@2|M=autonomous|P=|A=kernel-autonomous|R=revise-verification-strategy-after-review@2|N=assignment",
-  "phase-1-assurance::multiple VSP boundary|S=current-phase-1-verification-strategies@1|O=verification-strategy-required@1|M=autonomous|P=|A=kernel-autonomous|R=define-verification-strategy@1|N=profile-boundary-reached",
-  "phase-1-assurance::multiple ENV boundary|S=complete-environment-assurance-for-strategy@1|O=environment-assurance-required@2|M=autonomous|P=|A=kernel-autonomous|R=realize-verification-environment@1|N=profile-boundary-reached",
-  "phase-1-assurance::multiple pilot target boundary|S=current-pilot-verification-activities@1|O=pilot-verification-activity-required@2|M=autonomous|P=|A=kernel-autonomous|R=write-verification-activity@1|N=profile-boundary-reached",
-  "phase-1-public-command-evidence::target registration|S=current-pilot-targets-for-requirement@1|O=pilot-target-required@1|M=autonomous|P=|A=kernel-autonomous|R=register-pilot-target@1|N=assignment",
-  "phase-1-public-command-evidence::source-independent VAI|S=complete-pilot-implementations-for-activity@1|O=pilot-verification-implementation-required@1|M=package-delegated|P=verification-implementation-participation@1|A=independent-verification-implementer|R=implement-verification-activity@1|N=assignment",
-  "phase-1-public-command-evidence::run|S=completed-runs-for-implementation@1|O=verification-run-required@1|M=autonomous|P=|A=kernel-autonomous|R=execute-verification-run@1|N=assignment",
-  "phase-1-public-command-evidence::malformed command matrix|S=current-pilot-targets-for-requirement@1|O=pilot-target-required@1|M=autonomous|P=|A=kernel-autonomous|R=register-pilot-target@1|N=assignment",
-  "phase-1-public-command-evidence::VAI correction|S=corrected-pilot-verification-implementation-revisions-for@1|O=pilot-vai-review-correction-required@1|M=autonomous|P=phase-1-assurance-correction-participation@1|A=package-evidence|R=revise-pilot-vai-after-review@1|N=assignment",
-  "phase-1-public-command-evidence::timeout aggregation|S=completed-runs-for-implementation@1|O=verification-run-required@1|M=autonomous|P=|A=kernel-autonomous|R=execute-verification-run@1|N=assignment",
-] as const;
-
-const phase2Contracts = [
-  "phase-2-definition-and-simplification::DWP plan|S=phase-2-definition-members-for-plan@1,review-context-members-for@1,valid-phase-2-simplification-review@1|O=decomposition-planning-required@1|M=autonomous|P=|A=kernel-autonomous|R=define-decomposition-work-package@2|N=assignment",
-  "phase-2-definition-and-simplification::SYS outputs|S=phase-2-definition-members-for-plan@1,review-context-members-for@1,valid-phase-2-simplification-review@1|O=decomposition-execution-required@1|M=autonomous|P=|A=kernel-autonomous|R=execute-decomposition-work-package@2|N=assignment",
-  "phase-2-definition-and-simplification::ASP|S=phase-2-definition-members-for-plan@1,review-context-members-for@1,valid-phase-2-simplification-review@1|O=system-architecture-required@1|M=autonomous|P=|A=kernel-autonomous|R=define-system-architecture@2|N=assignment",
-  "phase-2-definition-and-simplification::plural ICSP|S=phase-2-definition-members-for-plan@1,review-context-members-for@1,valid-phase-2-simplification-review@1|O=interface-control-specification-required@1|M=autonomous|P=|A=kernel-autonomous|R=define-interface-control-specification@2|N=assignment",
-  "phase-2-definition-and-simplification::earliest complete context|S=phase-2-definition-members-for-plan@1,review-context-members-for@1,valid-phase-2-simplification-review@1|O=decomposition-simplification-required@1|M=autonomous|P=|A=kernel-autonomous|R=simplify-requirement-set@2|N=assignment",
-  "phase-2-definition-and-simplification::requirement simplification pass|S=phase-2-definition-members-for-plan@1,review-context-members-for@1,valid-phase-2-simplification-review@1|O=decomposition-simplification-required@1|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=simplify-requirement-set@2|N=assignment",
-  "phase-2-definition-and-simplification::architecture/interface simplification pass|S=phase-2-definition-members-for-plan@1,review-context-members-for@1,valid-phase-2-simplification-review@1|O=architecture-interface-simplification-required@1|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=simplify-architecture-and-interfaces@2|N=assignment",
-  "phase-2-simplification-correction::one SYS with several Findings|S=failed-phase-2-simplification-reviews-by-scope@1,phase-2-simplification-blockers-for-review@1,phase-2-removed-outputs-for-review@1|O=phase-2-simplification-correction-required@1|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=revise-phase-2-subject-after-simplification@1|N=assignment",
-  "phase-2-simplification-correction::exact consistency set|S=failed-phase-2-simplification-reviews-by-scope@1,phase-2-simplification-blockers-for-review@1,phase-2-removed-outputs-for-review@1|O=phase-2-definition-consistency-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-definition-set-after-simplification@1|N=assignment",
-  "phase-2-simplification-correction::scope reduction|S=failed-phase-2-simplification-reviews-by-scope@1,phase-2-simplification-blockers-for-review@1,phase-2-removed-outputs-for-review@1|O=phase-2-definition-consistency-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-definition-set-after-simplification@1|N=assignment",
-  "phase-2-simplification-correction::complete removal inability|S=failed-phase-2-simplification-reviews-by-scope@1,phase-2-simplification-blockers-for-review@1,phase-2-removed-outputs-for-review@1|O=phase-2-definition-consistency-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-definition-set-after-simplification@1|N=assignment",
-  "phase-2-simplification-correction::malformed blocker|S=failed-phase-2-simplification-reviews-by-scope@1,phase-2-simplification-blockers-for-review@1,phase-2-removed-outputs-for-review@1|O=phase-2-simplification-correction-required@1|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=revise-phase-2-subject-after-simplification@1|N=assignment",
-  "phase-2-review-correction-and-ambiguity::SYS|S=phase-2-correctable-subjects@1|O=phase-2-review-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-subject-after-review@1|N=assignment",
-  "phase-2-review-correction-and-ambiguity::ASP|S=phase-2-correctable-subjects@1|O=phase-2-review-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-subject-after-review@1|N=assignment",
-  "phase-2-review-correction-and-ambiguity::ICSP|S=phase-2-correctable-subjects@1|O=phase-2-review-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-subject-after-review@1|N=assignment",
-  "phase-2-review-correction-and-ambiguity::planning DWP|S=phase-2-correctable-subjects@1|O=phase-2-review-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-subject-after-review@1|N=assignment",
-  "phase-2-review-correction-and-ambiguity::completion DWP|S=phase-2-correctable-subjects@1|O=phase-2-review-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-subject-after-review@1|N=assignment",
-  "phase-2-review-correction-and-ambiguity::collateral Finding|S=phase-2-review-flags-subject@1|O=phase-2-review-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-subject-after-review@1|N=assignment",
-  "phase-2-review-correction-and-ambiguity::single-valued ambiguity|S=ambiguous-phase-2-subjects@1,phase-2-ambiguity-decisions-for@1|O=phase-2-ambiguity-resolution-required@1|M=attended|P=consequential-decision-participation@1|A=stakeholder|R=resolve-phase-2-ambiguity@1|N=attention-required",
-  "phase-2-review-correction-and-ambiguity::exhausted correction|S=phase-2-correctable-subjects@1|O=phase-2-review-correction-required@1|M=attended|P=phase-2-correction-participation@1|A=stakeholder|R=revise-phase-2-subject-after-review@1|N=attention-required",
-  "phase-2-candidate-gate-acceptance::DWP completion|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=decomposition-completion-required@1|M=autonomous|P=|A=kernel-autonomous|R=complete-decomposition-work-package@2|N=assignment",
-  "phase-2-candidate-gate-acceptance::group candidate|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=decomposition-group-candidate-required@1|M=autonomous|P=|A=kernel-autonomous|R=create-decomposition-group-candidate@1|N=assignment",
-  "phase-2-candidate-gate-acceptance::level candidate|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=system-level-candidate-required@1|M=autonomous|P=|A=kernel-autonomous|R=create-system-level-candidate@1|N=assignment",
-  "phase-2-candidate-gate-acceptance::candidate Review correction|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=phase-2-candidate-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-candidate-after-review@1|N=assignment",
-  "phase-2-candidate-gate-acceptance::reviewed rejection|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=phase-2-candidate-correction-required@1|M=autonomous|P=phase-2-correction-participation@1|A=package-evidence|R=revise-phase-2-candidate-after-review@1|N=assignment",
-  "phase-2-candidate-gate-acceptance::gate return|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=candidate-gate-signoff@3|M=attended-immediate|P=gate-signoff-participation@1|A=stakeholder|R=record-gate-signoff@3|N=attention-required",
-  "phase-2-candidate-gate-acceptance::exact acceptance|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=system-acceptance-required@1|M=autonomous|P=|A=kernel-autonomous|R=accept-phase-2-system@1|N=assignment",
-  "phase-2-candidate-gate-acceptance::progression|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=system-acceptance-required@1|M=autonomous|P=|A=kernel-autonomous|R=accept-phase-2-system@1|N=assignment",
-  "phase-2-candidate-gate-acceptance::exhausted candidate correction|S=valid-decomposition-completions-for-plan@1,complete-phase-2-group-candidates@1,complete-phase-2-level-candidates@1,applicable-gate-signoffs-for@1,system-acceptance-evidence-for-candidate@1|O=phase-2-candidate-correction-required@1|M=attended-immediate|P=phase-2-correction-participation@1|A=stakeholder|R=revise-phase-2-candidate-after-review@1|N=attention-required",
-] as const;
-
-const pilotContracts = [
-  "pilot-assessment::observation|S=complete-pilot-observations@1,complete-pilot-assessment-contexts@1,failed-current-pilot-assessments@1,corrected-pilot-assessments-for@1|O=pilot-observation-required@1|M=autonomous|P=|A=kernel-autonomous|R=record-pilot-observation@2|N=assignment",
-  "pilot-assessment::assessment context|S=complete-pilot-observations@1,complete-pilot-assessment-contexts@1,failed-current-pilot-assessments@1,corrected-pilot-assessments-for@1|O=pilot-assessment-context-required@1|M=autonomous|P=|A=kernel-autonomous|R=prepare-pilot-assessment-context@1|N=assignment",
-  "pilot-assessment::PAS|S=complete-pilot-observations@1,complete-pilot-assessment-contexts@1,failed-current-pilot-assessments@1,corrected-pilot-assessments-for@1|O=pilot-assessment-required@1|M=autonomous|P=|A=kernel-autonomous|R=assess-phase-0-2-pilot@1|N=assignment",
-  "pilot-assessment::passing independent Review|S=passing-reviews-for@1|O=passing-review-required@2|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=review-datum-in-context@2|N=attention-required",
-  "pilot-assessment::first correction|S=complete-pilot-observations@1,complete-pilot-assessment-contexts@1,failed-current-pilot-assessments@1,corrected-pilot-assessments-for@1|O=pilot-assessment-review-correction-required@1|M=autonomous|P=|A=kernel-autonomous|R=revise-pilot-assessment-after-review@2|N=assignment",
-  "pilot-assessment::second correction|S=complete-pilot-observations@1,complete-pilot-assessment-contexts@1,failed-current-pilot-assessments@1,corrected-pilot-assessments-for@1|O=pilot-assessment-review-correction-required@1|M=autonomous|P=|A=kernel-autonomous|R=revise-pilot-assessment-after-review@2|N=assignment",
-  "pilot-assessment::stakeholder-owned failure|S=complete-pilot-observations@1,complete-pilot-assessment-contexts@1,failed-current-pilot-assessments@1,corrected-pilot-assessments-for@1|O=pilot-assessment-review-correction-required@1|M=attended|P=pilot-assessment-correction-participation@1|A=stakeholder|R=revise-pilot-assessment-after-review@2|N=attention-required",
-  "pilot-assessment::exhausted correction|S=complete-pilot-observations@1,complete-pilot-assessment-contexts@1,failed-current-pilot-assessments@1,corrected-pilot-assessments-for@1|O=pilot-assessment-review-correction-required@1|M=attended|P=pilot-assessment-correction-participation@1|A=stakeholder|R=revise-pilot-assessment-after-review@2|N=attention-required",
-  "expansion-decision-and-terminal-outcomes::Decision awaiting Review|S=recorded-pilot-expansion-decisions-for@1|O=passing-review-required@2|M=package-delegated|P=contextual-review-participation@1|A=independent-reviewer|R=review-datum-in-context@2|N=assignment",
-  "expansion-decision-and-terminal-outcomes::failed Decision Review|S=recorded-pilot-expansion-decisions-for@1|O=pilot-expansion-decision-review-correction-required@1|M=attended|P=|A=stakeholder|R=revise-pilot-expansion-decision-after-review@1|N=attention-required",
-  "expansion-decision-and-terminal-outcomes::proceed|S=pilot-expansion-decisions-for@1|O=pilot-expansion-decision-required@1|M=attended|P=|A=stakeholder|R=decide-pilot-expansion@2|N=profile-boundary-reached",
-  "expansion-decision-and-terminal-outcomes::change|S=pilot-expansion-decisions-for@1|O=pilot-expansion-decision-required@1|M=attended|P=|A=stakeholder|R=decide-pilot-expansion@2|N=assignment",
-  "expansion-decision-and-terminal-outcomes::stop|S=pilot-expansion-decisions-for@1|O=pilot-expansion-decision-required@1|M=attended|P=|A=stakeholder|R=decide-pilot-expansion@2|N=lifecycle-complete",
-] as const;
-
-const changeContracts = [
-  "accepted-stakeholder-change::draft correction|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=foundation-review-correction-required@5|M=autonomous|P=|A=kernel-autonomous|R=revise-foundation-after-review@5|N=assignment",
-  "accepted-stakeholder-change::exact accepted boundary|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-impact-required@1|M=autonomous|P=|A=kernel-autonomous|R=analyze-change-impact@2|N=assignment",
-  "accepted-stakeholder-change::impact|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-impact-required@1|M=autonomous|P=|A=kernel-autonomous|R=analyze-change-impact@2|N=assignment",
-  "accepted-stakeholder-change::CHG correction|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=stakeholder-change-review-correction-required@2|M=autonomous|P=stakeholder-change-correction-participation@2|A=package-evidence|R=revise-stakeholder-change-after-review@2|N=assignment",
-  "accepted-stakeholder-change::approve|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-approval-required@2|M=attended-immediate|P=consequential-decision-participation@1|A=stakeholder|R=approve-change-request@3|N=assignment",
-  "accepted-stakeholder-change::reject|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-approval-required@2|M=attended-immediate|P=consequential-decision-participation@1|A=stakeholder|R=approve-change-request@3|N=profile-boundary-reached",
-  "accepted-stakeholder-change::defer|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-approval-required@2|M=attended-immediate|P=consequential-decision-participation@1|A=stakeholder|R=approve-change-request@3|N=profile-boundary-reached",
-  "accepted-stakeholder-change::cancel|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-approval-required@2|M=attended-immediate|P=consequential-decision-participation@1|A=stakeholder|R=approve-change-request@3|N=profile-boundary-reached",
-  "accepted-stakeholder-change::replacement|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-revision-required@2|M=autonomous|P=|A=kernel-autonomous|R=revise-requirement-under-change@3|N=assignment",
-  "accepted-stakeholder-change::candidate|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=stakeholder-change-candidate-required@1|M=autonomous|P=|A=kernel-autonomous|R=create-stakeholder-change-candidate@1|N=assignment",
-  "accepted-stakeholder-change::closure|S=accepted-intent-baselines-for-change@1,valid-stakeholder-change-impact@2,terminal-change-disposition-decisions-for@1,revised-requirements-for-change@3,stakeholder-change-closure-evidence-for@1|O=change-closure-required@2|M=autonomous|P=|A=kernel-autonomous|R=close-change-request@4|N=profile-boundary-reached",
-  "shared-system-change::two exact consumers|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=shared-system-consumer-reevaluation-required@1|M=autonomous|P=|A=kernel-autonomous|R=reevaluate-shared-system-consumer@1|N=assignment",
-  "shared-system-change::draft replacement|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=change-revision-required@2|M=autonomous|P=|A=kernel-autonomous|R=revise-requirement-under-change@3|N=assignment",
-  "shared-system-change::serial draft reevaluation|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=shared-system-consumer-reevaluation-required@1|M=autonomous|P=|A=kernel-autonomous|R=reevaluate-shared-system-consumer@1|N=assignment",
-  "shared-system-change::accepted impact|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=change-impact-required@1|M=autonomous|P=|A=kernel-autonomous|R=analyze-change-impact@2|N=attention-required",
-  "shared-system-change::approved replacement|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=change-revision-required@2|M=autonomous|P=|A=kernel-autonomous|R=revise-requirement-under-change@3|N=assignment",
-  "shared-system-change::serial accepted reevaluation|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=shared-system-consumer-reevaluation-required@1|M=autonomous|P=|A=kernel-autonomous|R=reevaluate-shared-system-consumer@1|N=assignment",
-  "shared-system-change::selective candidate|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=stakeholder-change-candidate-required@1|M=autonomous|P=|A=kernel-autonomous|R=create-stakeholder-change-candidate@1|N=assignment",
-  "shared-system-change::closure|S=system-requirements-consumed-by@1,shared-system-consumers-for-change@1,outdated-shared-system-consumers@2,shared-system-change-contexts@1|O=change-closure-required@2|M=autonomous|P=|A=kernel-autonomous|R=close-change-request@4|N=profile-boundary-reached",
-] as const;
-
 
 const processRef = "mdlm-bootstrap@0.59.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
@@ -187,13 +63,6 @@ describe("Phase-hardening domain route contracts", () => {
 
   const selectedRows = (ids: string[]) => matrix.rows.filter((row) => ids.includes(row.id));
   const routes = (ids: string[]) => selectedRows(ids).flatMap((row) => row.routes);
-  const routeContracts = (ids: string[]) => selectedRows(ids).flatMap((row) =>
-    row.routes.map((route) =>
-      `${row.id}::${route.route}|S=${route.selectors.join(",")}|O=${route.obligations.join(",")}` +
-      `|M=${route.participation.mode}|P=${route.participation.policies.join(",")}` +
-      `|A=${route.participation.authority}|R=${route.resolvers.join(",")}|N=${route.next.join(",")}`
-    )
-  );
 
   function expectCompleteRoutes(domainRoutes: Route[], expectedNames: string[]) {
     expect(domainRoutes.map((route) => route.route)).toEqual(expectedNames);
@@ -246,7 +115,6 @@ describe("Phase-hardening domain route contracts", () => {
       "phase-0-gate-rejection-return",
     ];
     const domainRoutes = routes(phaseIds);
-    expect(routeContracts(phaseIds)).toEqual(phase0Contracts);
     expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
     expect(domainRoutes.find((route) => route.route === "initial failure")).toMatchObject({
       participation: { mode: "autonomous", policies: [], authority: "kernel-autonomous" },
@@ -256,27 +124,163 @@ describe("Phase-hardening domain route contracts", () => {
   });
 
   it("proves Phase 1 assurance execution, correction, and boundary routes semantically", () => {
+    const psp = record("PSP", "PSP-HARDENP100", {
+      title: "Phase 1 product", rationale: "Exercise package assurance.", problem: "Malformed input must be rejected.",
+      users: ["operator"], goals: ["exact assurance"], non_goals: [], success_measures: ["discriminating evidence"],
+    }, [], "compile-psp@2");
+    const stk = record("STK", "STK-HARDENP100", {
+      ...requirement("Reject malformed commands"), stakeholder: "operator", priority: "must",
+    }, [{ type: "derived-from", target: psp.datum.id }], "draft-stakeholder-requirements@2");
+    const baseSnapshot = { processRef, phaseId: "phase-1-product-assurance", records: [psp, stk], dependencyComparisons: [] };
+    expect(evaluateLifecycle(processPackage, baseSnapshot).looseEnds.find((item) =>
+      item.obligation === "verification-strategy-required"
+    )).toEqual(expect.objectContaining({
+      status: "ready", dispatchable: true, actionableResolver: "define-verification-strategy@1",
+    }));
+
+    const capabilities = { controllability: ["invoke command"], observability: ["capture bytes"], external_services: [], timing: "bounded" };
+    const strategy = record("VSP", "VSP-HARDENP100", {
+      title: "Public command strategy", rationale: "Exercise the exact command boundary.", level: "stakeholder",
+      permitted_methods: ["demonstration"],
+      independence: { boundary: "black-box", prohibited_inputs: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"] },
+      evidence_policy: "Retain exact observations.", assessment_policy: "Require discrimination.",
+      environment_profile: { id: "public-command", purpose: "Exercise commands.", capabilities },
+    }, [{ type: "governs", target: stk.datum.id }, { type: "governs-revision", target: stk.datum.revision_id }], "define-verification-strategy@1");
+    const strategyReview = record("REV", "REV-HARDENP100", {
+      title: "Passing strategy Review", review_kind: "contextual", rubric_ref: "policies/rubrics/bootstrap-review.md@1", findings: [], outcome: "pass",
+    }, [{ type: "reviews", target: strategy.datum.revision_id }], "review-datum-in-context@2");
+    const planned = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview] });
+    expect(planned.looseEnds).toEqual(expect.arrayContaining([
+      expect.objectContaining({ obligation: "environment-assurance-required", actionableResolver: "realize-verification-environment@1" }),
+      expect.objectContaining({ obligation: "pilot-verification-activity-required", actionableResolver: "write-verification-activity@1" }),
+    ]));
+
+    const activity = record("VER", "VER-HARDENP100", {
+      title: "Pilot command activity", rationale: "Discriminate malformed input.", kind: "pilot", method: "demonstration", assessment_mode: "witnessed",
+      claim: { kind: "pilot", scope: "verification-design", formal_evidence_eligible: false },
+      acceptance_criteria: ["success and rejection differ"], evidence_requirements: ["exact bytes"],
+      expected_success_activity: "Invoke valid input.", expected_discrimination_activity: "Invoke malformed input.",
+    }, [
+      { type: "verifies", target: stk.datum.id }, { type: "verifies-revision", target: stk.datum.revision_id },
+      { type: "governed-by", target: strategy.datum.revision_id },
+    ], "write-verification-activity@1");
+    const targetPayload = {
+      title: "Exact command target", kind: "prototype", repository_ref: `git:${"b".repeat(40)}`,
+      supported_behavior: ["valid input"], unsupported_behavior: ["malformed input"],
+      public_interface: {
+        repository_locator: "file:///fixture", working_directory: "fresh-temporary-directory",
+        command: [
+          { literal: "node" }, { checkout_path: "bin/fixture.mjs" },
+          { parameter: { name: "input", encoding: "exact UTF-8", case_tokens: {
+            normal: { value: "ok" }, "raw-malformed": { raw: { encoding: "utf-8", value: "" } },
+            "omitted-argument": { omitted: true }, "extra-argument": { value: "ok" },
+          } } },
+          { extra_argument: { raw: { encoding: "utf-8", value: "extra" } } },
+        ],
+        argument_cases: [
+          { id: "normal", kind: "normal", expected_observation: { classification: "success", exit_status: 0, stdout: { encoding: "base64", bytes: "b2sK" }, stderr: { encoding: "base64", bytes: "" } } },
+          { id: "raw-malformed", kind: "raw-malformed", expected_observation: { classification: "automatic-rejection", exit_status: 2, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "ZXJyb3IK" } } },
+          { id: "omitted", kind: "omitted-argument", expected_observation: { classification: "automatic-rejection", exit_status: 2, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "cmVxdWlyZWQK" } } },
+          { id: "extra", kind: "extra-argument", expected_observation: { classification: "automatic-rejection", exit_status: 2, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "ZXh0cmEK" } } },
+        ],
+      },
+    };
+    const target = record("ART", "ART-HARDENP100", targetPayload, [{ type: "derived-from", target: stk.datum.revision_id }], "register-pilot-target@1");
+    const targetWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview, activity] });
+    expect(targetWork.looseEnds.find((item) => item.obligation === "pilot-target-required")).toEqual(expect.objectContaining({
+      status: "ready", actionableResolver: "register-pilot-target@1",
+    }));
+
+    const environment = record("ENV", "ENV-HARDENP100", {
+      title: "Qualified environment", rationale: "Reproduce exact commands.",
+      strategy_revision: strategy.datum.revision_id, profile_id: "public-command", capabilities,
+      reproducibility: { environment_ref: "container:phase-1", configuration_digest: `sha256:${"d".repeat(64)}`, reconstruction: "Restore the exact fixture." },
+    }, [{ type: "realizes", target: strategy.datum.revision_id }], "realize-verification-environment@1");
+    expect(evaluateScenarioParticipation(
+      processPackage,
+      { ...baseSnapshot, records: [psp, stk, strategy, strategyReview, activity, environment, target] },
+      "implement-verification-activity@1",
+      [{ activity: activity.datum.revision_id, environment: environment.datum.revision_id, execution_target: target.datum.revision_id }],
+    )).toEqual([expect.objectContaining({
+      authorityRequirement: expect.objectContaining({ mode: "delegated", authority: "independent-verification-implementer" }),
+      attentionSchedule: expect.objectContaining({ timing: "none" }),
+    })]);
+
+    const implementation = record("VAI", "VAI-HARDENP100", {
+      title: "Source-blind pilot", rationale: "Retain bounded execution semantics.", kind: "pilot",
+      implementation_ref: `git:${"c".repeat(40)}`, independence_mode: "source-blind",
+      authoring_input_refs: [activity.datum.revision_id, target.datum.revision_id],
+      prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
+      activity_bindings: [activity.datum.revision_id], target_behavior: { supported: ["valid input"], intentionally_unsupported: ["malformed input"] },
+      execution_procedure: {
+        deadlines_ms: { checkout: 30000, environment_check: 20000, product_case: 5000 }, deadline_scope: "infrastructure-safety-only",
+        timeout: { termination: "process-group-sigterm-then-sigkill", force_after_ms: 1000, reaping: "all-descendants", capture_partial_raw_observation: true },
+        cleanup: "guaranteed", aggregation: "continue-through-all-cases",
+      },
+    }, [
+      { type: "realizes", target: activity.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: target.datum.revision_id },
+    ], "implement-verification-activity@1");
+    const runWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview, activity, environment, target, implementation] });
+    expect(runWork.looseEnds.find((item) =>
+      item.obligation === "verification-run-required" && item.subject === implementation.datum.revision_id
+    )).toEqual(expect.objectContaining({ eventualResolver: "execute-verification-run@1" }));
+
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    formatsPlugin.default(ajv);
+    const art = resolveType(processPackage, "ART");
+    const vai = resolveType(processPackage, "VAI");
+    expect(art.ok && ajv.compile(art.type.payloadSchema)(targetPayload)).toBe(true);
+    expect(vai.ok && ajv.compile(vai.type.payloadSchema)(implementation.datum.payload)).toBe(true);
+    const malformedImplementation = structuredClone(implementation.datum.payload) as Record<string, any>;
+    malformedImplementation.execution_procedure.timeout.reaping = "child-only";
+    expect(vai.ok && ajv.compile(vai.type.payloadSchema)(malformedImplementation)).toBe(false);
+    expect((implementation.datum.payload.execution_procedure as Record<string, unknown>)).toMatchObject({
+      timeout: { termination: "process-group-sigterm-then-sigkill", reaping: "all-descendants", capture_partial_raw_observation: true },
+      cleanup: "guaranteed", aggregation: "continue-through-all-cases",
+    });
+
+    const failedImplementationReview = record("REV", "REV-HARDENVAI1", {
+      title: "Failed VAI Review", review_kind: "contextual", rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{ id: "F-001", target: implementation.datum.revision_id, relationship: "primary", severity: "blocking", summary: "Preserve process cleanup." }],
+      outcome: "fail",
+    }, [{ type: "reviews", target: implementation.datum.revision_id }], "review-datum-in-context@2");
+    const correctionSnapshot = {
+      ...baseSnapshot,
+      records: [psp, stk, strategy, strategyReview, activity, environment, target, implementation, failedImplementationReview],
+    };
+    expect(evaluateLifecycle(processPackage, correctionSnapshot).looseEnds.find((item) =>
+      item.obligation === "pilot-vai-review-correction-required" && item.subject === implementation.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      eventualResolver: "revise-pilot-vai-after-review@1",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({ mode: "autonomous", authority: "package-evidence" }),
+      })],
+    }));
+
+    const competingStrategy = record("VSP", "VSP-HARDENP101", { ...strategy.datum.payload, title: "Competing strategy" }, [
+      { type: "governs", target: stk.datum.id }, { type: "governs-revision", target: stk.datum.revision_id },
+    ], "define-verification-strategy@1");
+    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, competingStrategy] }).terminalOutcome)
+      .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
+    const competingEnvironment = record("ENV", "ENV-HARDENP101", { ...environment.datum.payload, title: "Competing environment" }, [
+      { type: "realizes", target: strategy.datum.revision_id },
+    ], "realize-verification-environment@1");
+    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, environment, competingEnvironment] }).terminalOutcome)
+      .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
+    const competingTarget = record("ART", "ART-HARDENP101", { ...targetPayload, title: "Competing target", repository_ref: `git:${"e".repeat(40)}` }, [
+      { type: "derived-from", target: stk.datum.revision_id },
+    ], "register-pilot-target@1");
+    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, activity, target, competingTarget] }).terminalOutcome)
+      .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
+
     const phaseIds = ["phase-1-assurance", "phase-1-public-command-evidence"];
     const domainRoutes = routes(phaseIds);
-    expect(routeContracts(phaseIds)).toEqual(phase1Contracts);
-    expectCompleteRoutes(domainRoutes, [
-      "VSP creation", "ENV qualification", "pilot VER", "passing independent Review",
-      "first and second correction", "stakeholder-owned failure", "malformed replacement",
-      "multiple VSP boundary", "multiple ENV boundary", "multiple pilot target boundary",
-      "target registration", "source-independent VAI", "run", "malformed command matrix",
-      "VAI correction", "timeout aggregation",
-    ]);
-    const correction = domainRoutes.find((route) => route.route === "first and second correction")!;
-    expect(correction).toMatchObject({
-      participation: { mode: "autonomous", authority: "kernel-autonomous" },
-      resolvers: ["revise-verification-strategy-after-review@2"],
-      next: ["assignment"],
-    });
-    expect(domainRoutes.filter((route) => route.route.startsWith("multiple "))
-      .every((route) => route.next[0] === "profile-boundary-reached")).toBe(true);
+    expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
   });
 
-  it("proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically", () => {
+  it("proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically", async () => {
     const phaseIds = [
       "phase-2-definition-and-simplification",
       "phase-2-simplification-correction",
@@ -284,9 +288,38 @@ describe("Phase-hardening domain route contracts", () => {
       "phase-2-candidate-gate-acceptance",
     ];
     const domainRoutes = routes(phaseIds);
-    expect(routeContracts(phaseIds)).toEqual(phase2Contracts);
     expect(domainRoutes).toHaveLength(29);
     expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
+    const transitions = [
+      ["phase2-completion-ready.json", "decomposition-completion-required", "complete-decomposition-work-package@2"],
+      ["phase2-group-ready.json", "decomposition-group-candidate-required", "create-decomposition-group-candidate@1"],
+      ["phase2-level-ready.json", "system-level-candidate-required", "create-system-level-candidate@1"],
+      ["phase2-acceptance-ready.json", "system-acceptance-required", "accept-phase-2-system@1"],
+    ] as const;
+    for (const [fixture, obligation, resolver] of transitions) {
+      const snapshot = JSON.parse(await fs.readFile(
+        path.join(process.cwd(), "test/fixtures/phase-hardening", fixture),
+        "utf8",
+      ));
+      const evaluation = evaluateLifecycle(processPackage, snapshot);
+      expect(evaluation.looseEnds.find((item) => item.obligation === obligation), fixture)
+        .toEqual(expect.objectContaining({
+          status: "ready",
+          dispatchable: true,
+          actionableResolver: resolver,
+        }));
+    }
+    const completeSnapshot = JSON.parse(await fs.readFile(
+      path.join(process.cwd(), "test/fixtures/phase-hardening/phase2-progression-complete.json"),
+      "utf8",
+    ));
+    const complete = evaluateLifecycle(processPackage, completeSnapshot);
+    expect(complete.phase?.progression).toEqual(expect.objectContaining({
+      nextPhase: "phase-2-pilot-assessment",
+      ready: true,
+      authorized: true,
+      complete: true,
+    }));
     expect(domainRoutes.find((route) => route.route === "SYS")).toMatchObject({
       obligations: ["phase-2-review-correction-required@1"],
       participation: {
@@ -317,14 +350,24 @@ describe("Phase-hardening domain route contracts", () => {
   });
 
   it("proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence", () => {
-    const assessment = record("PAS", "PAS-HARDEN0001", {
+    const assessmentPayload = (recommendation: "proceed" | "change" | "stop") => ({
       title: "Pilot assessment",
       rationale: "Measure exact pilot evidence.",
-      process_ref: processRef,
-      result: "proceed",
-      findings: [],
-      recommendation: "proceed",
-    }, [], "assess-phase-0-2-pilot@1");
+      pilot_scope: "phase-0-through-2",
+      measurements: {
+        review: { contexts: 1, completed_reviews: 1, findings: 0, quality_improved: true, volume_assessment: "acceptable" },
+        agent_effort: { tracer_issues: 1, implementation_commits: 1, implementation_commit_refs: [`git:${"a".repeat(40)}`], effort_assessment: "acceptable" },
+        evidence_reuse: { eligible: 1, reused: 1, stale: 0, explanation_checks: 1, explanations_correct: true },
+        loose_ends: { sampled: 1, actionable: 1, useful: true, assessment: "Exact work remained actionable." },
+        gate_ceremony: { gates: 1, signoffs: 1, decision_reviews: 1, proportionate: true },
+        environment_profiles: { profiles_assessed: 1, sufficient: true },
+        verification_discrimination: { supported_successes: 1, unsupported_rejections: 1, discriminates: true },
+        scope_reduction: { proposed_items: 2, removed_items: 1, retained_items: 1, demonstrated: true },
+      },
+      recommendation,
+      limitations: [],
+    });
+    const assessment = record("PAS", "PAS-HARDEN0001", assessmentPayload("proceed"), [{ type: "measures", target: "BSL-HARDENPAS1-r00001" }], "assess-phase-0-2-pilot@1");
     const failedReview = (subject: ReturnType<typeof record>, id: string) => record("REV", id, {
       title: `Failed ${subject.datum.revision_id}`,
       review_kind: "contextual",
@@ -341,6 +384,35 @@ describe("Phase-hardening domain route contracts", () => {
       { type: "corrects-review", target: secondFailure.datum.revision_id },
     ], "revise-pilot-assessment-after-review@2", 3);
     const thirdFailure = failedReview(third, "REV-HARDEN0003");
+    const firstSnapshot = {
+      processRef,
+      phaseId: "phase-2-pilot-assessment",
+      records: [assessment, firstFailure],
+      dependencyComparisons: [],
+    };
+    expect(evaluateScenarioParticipation(
+      processPackage,
+      firstSnapshot,
+      "revise-pilot-assessment-after-review@2",
+      [{ assessment: assessment.datum.revision_id }],
+    )).toEqual([expect.objectContaining({
+      authorityRequirement: expect.objectContaining({ mode: "autonomous", authority: "package-evidence" }),
+      attentionSchedule: expect.objectContaining({ timing: "none" }),
+    })]);
+    const secondSnapshot = {
+      processRef,
+      phaseId: "phase-2-pilot-assessment",
+      records: [assessment, firstFailure, second, secondFailure],
+      dependencyComparisons: [],
+    };
+    expect(evaluateScenarioParticipation(
+      processPackage,
+      secondSnapshot,
+      "revise-pilot-assessment-after-review@2",
+      [{ assessment: second.datum.revision_id }],
+    )).toEqual([expect.objectContaining({
+      authorityRequirement: expect.objectContaining({ mode: "autonomous", authority: "package-evidence" }),
+    })]);
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-2-pilot-assessment",
@@ -373,14 +445,104 @@ describe("Phase-hardening domain route contracts", () => {
     ]);
     const phaseIds = ["pilot-assessment", "expansion-decision-and-terminal-outcomes"];
     const domainRoutes = routes(phaseIds);
-    expect(routeContracts(phaseIds)).toEqual(pilotContracts);
     expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
     expect(domainRoutes.find((route) => route.route === "proceed")?.next).toEqual(["profile-boundary-reached"]);
     expect(domainRoutes.find((route) => route.route === "change")?.next).toEqual(["assignment"]);
     expect(domainRoutes.find((route) => route.route === "stop")?.next).toEqual(["lifecycle-complete"]);
+
+    const passingReview = (subject: ReturnType<typeof record>, id: string) => record("REV", id, {
+      title: `Passing ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [],
+      outcome: "pass",
+    }, [{ type: "reviews", target: subject.datum.revision_id }], "review-datum-in-context@2");
+    for (const recommendation of ["proceed", "change", "stop"] as const) {
+      const currentAssessment = record(
+        "PAS",
+        `PAS-HARDEN${recommendation.toUpperCase()}`,
+        assessmentPayload(recommendation),
+        [{ type: "measures", target: "BSL-HARDENPAS1-r00001" }],
+        "assess-phase-0-2-pilot@1",
+      );
+      const assessmentReview = passingReview(currentAssessment, `REV-HARDEN${recommendation.toUpperCase()}A`);
+      const beforeDecision = evaluateLifecycle(processPackage, {
+        processRef,
+        phaseId: "phase-2-pilot-assessment",
+        records: [currentAssessment, assessmentReview],
+        dependencyComparisons: [],
+      });
+      expect(beforeDecision.looseEnds.find((item) =>
+        item.obligation === "pilot-expansion-decision-required"
+      )).toEqual(expect.objectContaining({
+        status: "ready",
+        actionableResolver: "decide-pilot-expansion@2",
+        participation: [expect.objectContaining({
+          authorityRequirement: expect.objectContaining({ mode: "attended", authority: "stakeholder" }),
+        })],
+      }));
+      const decision = record("DEC", `DEC-HARDEN${recommendation.toUpperCase()}`, {
+        title: `${recommendation} Decision`,
+        rationale: "Adopt the exact reviewed recommendation.",
+        kind: "pilot-expansion",
+        decision: recommendation,
+        alternatives: ["proceed", "change", "stop"].filter((item) => item !== recommendation),
+        effective_scope: "Phase 3–6 Example Process Package expansion",
+      }, [
+        { type: "justifies", target: currentAssessment.datum.revision_id },
+        { type: "relies-on-review", target: assessmentReview.datum.revision_id },
+      ], "decide-pilot-expansion@2");
+      const decisionReview = passingReview(decision, `REV-HARDEN${recommendation.toUpperCase()}D`);
+      const resultingPhase = recommendation === "change"
+        ? "phase-7-change-control"
+        : "phase-2-pilot-assessment";
+      const terminal = evaluateLifecycle(processPackage, {
+        processRef,
+        phaseId: resultingPhase,
+        records: [currentAssessment, assessmentReview, decision, decisionReview],
+        dependencyComparisons: [],
+      });
+      if (recommendation === "stop") {
+        expect(terminal.terminalOutcome?.outcome).toBe("lifecycle-complete");
+      } else {
+        expect(terminal.terminalOutcome?.outcome).toBe("profile-boundary-reached");
+      }
+    }
+
+    const reviewedAssessment = record("PAS", "PAS-HARDENDEC1", assessmentPayload("change"), [
+      { type: "measures", target: "BSL-HARDENPAS1-r00001" },
+    ], "assess-phase-0-2-pilot@1");
+    const reviewedAssessmentReview = passingReview(reviewedAssessment, "REV-HARDENDECA");
+    const failedDecision = record("DEC", "DEC-HARDENFAIL", {
+      title: "Failed expansion Decision",
+      rationale: "Exercise renewed judgment.",
+      kind: "pilot-expansion",
+      decision: "change",
+      alternatives: ["proceed", "stop"],
+      effective_scope: "Phase 3–6 Example Process Package expansion",
+    }, [
+      { type: "justifies", target: reviewedAssessment.datum.revision_id },
+      { type: "relies-on-review", target: reviewedAssessmentReview.datum.revision_id },
+    ], "decide-pilot-expansion@2");
+    const failedDecisionReview = failedReview(failedDecision, "REV-HARDENDECF");
+    const failedDecisionEvaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-2-pilot-assessment",
+      records: [reviewedAssessment, reviewedAssessmentReview, failedDecision, failedDecisionReview],
+      dependencyComparisons: [],
+    });
+    expect(failedDecisionEvaluation.looseEnds.find((item) =>
+      item.obligation === "pilot-expansion-decision-review-correction-required"
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      actionableResolver: "revise-pilot-expansion-decision-after-review@1",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({ mode: "attended", authority: "stakeholder" }),
+      })],
+    }));
   });
 
-  it("proves accepted change and shared-consumer closure routes with selective reuse", () => {
+  it("proves accepted change and shared-consumer closure routes with selective reuse", async () => {
     const system = record("SYS", "SYS-HARDEN0001", requirement("Shared export"));
     const other = record("SYS", "SYS-HARDEN0002", requirement("Unrelated title"));
     const consumerPayload = { title: "Consumer", rationale: "Exact coverage.", stage: "completion", architecture_element: "AEL-HARDEN001", target_child_type: "SYS", behavioral_slice: "shared", expected_coverage: ["shared"], exclusions: [], dependencies: [], required_review_policy: "review-applicability@1", parent_coverage_status: "complete", deferred_questions: [], cross_group_dependencies: [], output_reviews_complete: true, simplification_disposition: "retained" };
@@ -398,9 +560,110 @@ describe("Phase-hardening domain route contracts", () => {
     ]);
     expect(evaluation.artifacts[affected.datum.revision_id]?.states.validity).toBe("stale");
     expect(evaluation.artifacts[unrelated.datum.revision_id]?.states.validity).toBe("valid");
+    const sharedTransitions = [
+      ["shared-consumer-a-ready.json", "shared-system-consumer-reevaluation-required", "reevaluate-shared-system-consumer@1", "DWP-1020000001-r00001"],
+      ["shared-consumer-b-ready.json", "shared-system-consumer-reevaluation-required", "reevaluate-shared-system-consumer@1", "DWP-1020000002-r00001"],
+      ["shared-candidate-ready.json", "stakeholder-change-candidate-required", "create-stakeholder-change-candidate@1", undefined],
+      ["shared-closure-ready.json", "change-closure-required", "close-change-request@4", undefined],
+    ] as const;
+    for (const [fixture, obligation, resolver, subject] of sharedTransitions) {
+      const snapshot = JSON.parse(await fs.readFile(
+        path.join(process.cwd(), "test/fixtures/phase-hardening", fixture),
+        "utf8",
+      ));
+      const transition = evaluateLifecycle(processPackage, snapshot);
+      expect(transition.looseEnds.find((item) =>
+        item.obligation === obligation && (subject === undefined || item.subject === subject)
+      ), fixture).toEqual(expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: resolver,
+      }));
+    }
+    const closedSharedSnapshot = JSON.parse(await fs.readFile(
+      path.join(process.cwd(), "test/fixtures/phase-hardening/shared-closed.json"),
+      "utf8",
+    ));
+    const sharedRecords = closedSharedSnapshot.records as Array<{ datum: { id: string; revision_id: string; type: string; payload: Record<string, unknown> } }>;
+    expect(sharedRecords.filter((item) => item.datum.type === "DWP" && [
+      "DWP-1020000001", "DWP-1020000002",
+    ].includes(item.datum.id)).map((item) => item.datum.revision_id).sort()).toEqual([
+      "DWP-1020000001-r00001", "DWP-1020000001-r00002",
+      "DWP-1020000002-r00001", "DWP-1020000002-r00002",
+    ]);
+    expect(sharedRecords.find((item) =>
+      item.datum.type === "BSL" && item.datum.payload.title === "Selective shared SYS replacement candidate"
+    )?.datum.payload.definition_members).toEqual([
+      "SYS-1020000001-r00002",
+      "DWP-1020000001-r00002",
+      "DWP-1020000002-r00002",
+      "SYS-1020000002-r00001",
+    ]);
+
+    const transitions = [
+      ["change-impact-ready.json", "change-impact-required", "analyze-change-impact@2"],
+      ["change-approval-ready.json", "change-approval-required", "approve-change-request@3"],
+      ["change-replacement-ready.json", "change-revision-required", "revise-requirement-under-change@3"],
+      ["change-candidate-ready.json", "stakeholder-change-candidate-required", "create-stakeholder-change-candidate@1"],
+      ["change-closure-ready.json", "change-closure-required", "close-change-request@4"],
+    ] as const;
+    for (const [fixture, obligation, resolver] of transitions) {
+      const snapshot = JSON.parse(await fs.readFile(
+        path.join(process.cwd(), "test/fixtures/phase-hardening", fixture),
+        "utf8",
+      ));
+      const transition = evaluateLifecycle(processPackage, snapshot);
+      expect(transition.looseEnds.find((item) => item.obligation === obligation), fixture)
+        .toEqual(expect.objectContaining({
+          status: "ready",
+          dispatchable: true,
+          actionableResolver: resolver,
+        }));
+    }
+    const closedSnapshot = JSON.parse(await fs.readFile(
+      path.join(process.cwd(), "test/fixtures/phase-hardening/change-closed.json"),
+      "utf8",
+    ));
+    const pilotAssessment = record("PAS", "PAS-HARDENCHG1", {
+      title: "Reviewed change assessment", rationale: "Enter bounded change control.",
+      pilot_scope: "phase-0-through-2", measurements: {}, recommendation: "change", limitations: [],
+    }, [{ type: "measures", target: "BSL-HARDENCHG1-r00001" }], "assess-phase-0-2-pilot@1");
+    const pilotAssessmentReview = record("REV", "REV-HARDENCHGA", {
+      title: "Passing assessment Review", review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1", findings: [], outcome: "pass",
+    }, [{ type: "reviews", target: pilotAssessment.datum.revision_id }], "review-datum-in-context@2");
+    const expansionDecision = record("DEC", "DEC-HARDENCHG1", {
+      title: "Enter change control", rationale: "Adopt the reviewed recommendation.",
+      kind: "pilot-expansion", decision: "change", alternatives: ["proceed", "stop"],
+      effective_scope: "Phase 3–6 Example Process Package expansion",
+    }, [
+      { type: "justifies", target: pilotAssessment.datum.revision_id },
+      { type: "relies-on-review", target: pilotAssessmentReview.datum.revision_id },
+    ], "decide-pilot-expansion@2");
+    const expansionDecisionReview = record("REV", "REV-HARDENCHGD", {
+      title: "Passing expansion Review", review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1", findings: [], outcome: "pass",
+    }, [{ type: "reviews", target: expansionDecision.datum.revision_id }], "review-datum-in-context@2");
+    closedSnapshot.records.push(
+      pilotAssessment,
+      pilotAssessmentReview,
+      expansionDecision,
+      expansionDecisionReview,
+    );
+    const closed = evaluateLifecycle(processPackage, closedSnapshot);
+    expect(closed.terminalOutcome).toEqual(expect.objectContaining({
+      outcome: "profile-boundary-reached",
+    }));
+    expect(closed.looseEnds.filter((item) => [
+      "change-impact-required",
+      "change-approval-required",
+      "change-revision-required",
+      "stakeholder-change-candidate-required",
+      "change-closure-required",
+    ].includes(item.obligation))).toEqual([]);
+
     const phaseIds = ["accepted-stakeholder-change", "shared-system-change"];
     const domainRoutes = routes(phaseIds);
-    expect(routeContracts(phaseIds)).toEqual(changeContracts);
     expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
     expect(domainRoutes.find((route) => route.route === "closure")?.resolvers).toEqual(["close-change-request@4"]);
     expect(domainRoutes.find((route) => route.route === "closure")?.next).toEqual(["profile-boundary-reached"]);

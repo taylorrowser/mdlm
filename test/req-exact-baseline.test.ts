@@ -442,4 +442,40 @@ describe("req exact-baseline@1 capability commands", () => {
       })]),
     );
   }, 20_000);
+
+it("does not expose baseline commands without a selected compatible binding", async () => {
+    const emptyRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-no-baseline-"));
+    try {
+      const scaffolded = req(emptyRoot, "process", "init", "plain-process", "--json");
+      expect(scaffolded.status, scaffolded.stderr).toBe(0);
+      const initialized = req(
+        emptyRoot,
+        "init",
+        "--process",
+        path.join(emptyRoot, "plain-process"),
+        "--json",
+      );
+      expect(initialized.status, initialized.stderr).toBe(0);
+      const unavailable = req(
+        emptyRoot,
+        "baseline",
+        "create",
+        "--type",
+        "SNP",
+        "--json",
+      );
+      expect(unavailable.status).toBe(1);
+      expect(JSON.parse(unavailable.stdout)).toEqual(expect.objectContaining({
+        ok: false,
+        command: "baseline.create",
+        diagnostics: [{
+          code: "kernel-capability-unavailable",
+          path: "exact-baseline@1",
+          message: "Selected Process Package does not bind Kernel Capability exact-baseline@1",
+        }],
+      }));
+    } finally {
+      await fs.rm(emptyRoot, { recursive: true, force: true });
+    }
+  });
 });

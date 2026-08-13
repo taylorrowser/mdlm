@@ -10,8 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prototype": "npm run build --silent && node dist/prototype.js",
-    "pretest": "npm run build --silent && node scripts/verify-test-suites.mjs",
-    "test": "node scripts/run-bounded-tests.mjs && node --test scripts/frontier-loop-tests.mjs",
+    "test": "node scripts/run-bounded-tests.mjs",
     "test:all": "npm test",
     "test:watch": "vitest --config vitest.fast.config.ts",
     "typecheck": "tsc --noEmit",

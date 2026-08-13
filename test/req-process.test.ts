@@ -478,4 +478,233 @@ describe("req process package commands", () => {
     await expect(fs.readFile(selectionPath, "utf8")).resolves.toBe(selectionBefore);
     await expect(fs.readFile(descriptorPath, "utf8")).resolves.toBe(descriptorBefore);
   }, 25_000);
+
+it("rejects invalid exact baselines before publishing migration files", async () => {
+    const previousPackage = path.join(repositoryRoot, "previous-baseline-process");
+    const targetPackage = path.join(repositoryRoot, "target-baseline-process");
+    await fs.cp(bootstrapPackage, previousPackage, { recursive: true });
+    await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
+    for (const [packageRoot, version] of [
+      [previousPackage, "0.40.0"],
+      [targetPackage, "0.59.0"],
+    ] as const) {
+      const manifestPath = path.join(packageRoot, "manifest.yaml");
+      await fs.writeFile(
+        manifestPath,
+        (await fs.readFile(manifestPath, "utf8")).replace(
+          "version: 0.59.0",
+          `version: ${version}`,
+        ),
+      );
+    }
+    expect(
+      req(repositoryRoot, "init", "--process", previousPackage, "--json").status,
+    ).toBe(0);
+    const created = req(
+      repositoryRoot,
+      "new",
+      "PSP",
+      "--scenario",
+      "compile-psp@2",
+      "--set",
+      "title=Baseline member",
+      "--set",
+      "rationale=Migration verifies frozen evidence",
+      "--set",
+      "problem=Baseline bytes may drift",
+      "--set",
+      'users=["lifecycle author"]',
+      "--set",
+      'goals=["detect baseline drift"]',
+      "--set",
+      "non_goals=[]",
+      "--set",
+      'success_measures=["migration is rejected"]',
+      "--json",
+    );
+    expect(created.status, created.stderr).toBe(0);
+    const definition = JSON.parse(created.stdout).created;
+    const baselineCreated = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Migration boundary",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      `scope=${definition.revisionId}`,
+      "--set",
+      "group=DEFAULT",
+      "--json",
+    );
+    expect(baselineCreated.status, baselineCreated.stderr).toBe(0);
+    const baseline = JSON.parse(baselineCreated.stdout).created;
+    expect(
+      req(
+        repositoryRoot,
+        "baseline",
+        "add",
+        baseline.id,
+        definition.revisionId,
+        "--json",
+      ).status,
+    ).toBe(0);
+    expect(
+      req(repositoryRoot, "baseline", "freeze", baseline.id, "--json").status,
+    ).toBe(0);
+    await fs.appendFile(path.join(repositoryRoot, definition.path), "changed byte\n");
+    expect(
+      req(repositoryRoot, "process", "install", targetPackage, "--json").status,
+    ).toBe(0);
+    const selectionPath = path.join(repositoryRoot, ".lifecycle/process-selection.json");
+    const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
+    const [selectionBefore, descriptorBefore] = await Promise.all([
+      fs.readFile(selectionPath, "utf8"),
+      fs.readFile(descriptorPath, "utf8"),
+    ]);
+
+    const result = req(
+      repositoryRoot,
+      "process",
+      "migrate",
+      "mdlm-bootstrap@0.59.0",
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "baseline-hash-mismatch" }),
+    );
+    await expect(fs.readFile(selectionPath, "utf8")).resolves.toBe(selectionBefore);
+    await expect(fs.readFile(descriptorPath, "utf8")).resolves.toBe(descriptorBefore);
+  }, 30_000);
+
+it("leaves both exact contract files unchanged when migration cannot publish", async () => {
+    const previousPackage = path.join(repositoryRoot, "previous-write-process");
+    await fs.cp(bootstrapPackage, previousPackage, { recursive: true });
+    const manifestPath = path.join(previousPackage, "manifest.yaml");
+    await fs.writeFile(
+      manifestPath,
+      (await fs.readFile(manifestPath, "utf8")).replace(
+        "version: 0.59.0",
+        "version: 0.40.0",
+      ),
+    );
+    expect(
+      req(repositoryRoot, "init", "--process", previousPackage, "--json").status,
+    ).toBe(0);
+    expect(
+      req(
+        repositoryRoot,
+        "process",
+        "install",
+        bootstrapPackage,
+        "--json",
+      ).status,
+    ).toBe(0);
+    const lifecycleRoot = path.join(repositoryRoot, ".lifecycle");
+    const selectionPath = path.join(lifecycleRoot, "process-selection.json");
+    const descriptorPath = path.join(lifecycleRoot, "repository.json");
+    const [selectionBefore, descriptorBefore] = await Promise.all([
+      fs.readFile(selectionPath, "utf8"),
+      fs.readFile(descriptorPath, "utf8"),
+    ]);
+
+    await fs.chmod(lifecycleRoot, 0o555);
+    let result;
+    try {
+      result = req(
+        repositoryRoot,
+        "process",
+        "migrate",
+        "mdlm-bootstrap@0.59.0",
+        "--json",
+      );
+    } finally {
+      await fs.chmod(lifecycleRoot, 0o755);
+    }
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "process-migration-write-failed" }),
+    );
+    await expect(fs.readFile(selectionPath, "utf8")).resolves.toBe(selectionBefore);
+    await expect(fs.readFile(descriptorPath, "utf8")).resolves.toBe(descriptorBefore);
+    expect(
+      (await fs.readdir(lifecycleRoot)).filter((name) =>
+        name.endsWith(".tmp") || name.endsWith(".backup")
+      ),
+    ).toEqual([]);
+  }, 20_000);
+
+it("does not publish migration files when the installed target no longer validates", async () => {
+    const previousPackage = path.join(repositoryRoot, "previous-valid-process");
+    const targetPackage = path.join(repositoryRoot, "target-corrupt-process");
+    await fs.cp(bootstrapPackage, previousPackage, { recursive: true });
+    await fs.cp(bootstrapPackage, targetPackage, { recursive: true });
+    for (const [packageRoot, version] of [
+      [previousPackage, "0.40.0"],
+      [targetPackage, "0.59.0"],
+    ] as const) {
+      const manifestPath = path.join(packageRoot, "manifest.yaml");
+      await fs.writeFile(
+        manifestPath,
+        (await fs.readFile(manifestPath, "utf8")).replace(
+          "version: 0.59.0",
+          `version: ${version}`,
+        ),
+      );
+    }
+    expect(
+      req(repositoryRoot, "init", "--process", previousPackage, "--json").status,
+    ).toBe(0);
+    expect(
+      req(
+        repositoryRoot,
+        "process",
+        "install",
+        targetPackage,
+        "--json",
+      ).status,
+    ).toBe(0);
+    const installedObligation = path.join(
+      repositoryRoot,
+      ".lifecycle/packages/mdlm-bootstrap@0.59.0/obligations/review-context-required.yaml",
+    );
+    await fs.writeFile(
+      installedObligation,
+      (await fs.readFile(installedObligation, "utf8")).replace(
+        'satisfied_when: \'exists("valid-review-contexts-for@1", {subject: subject})\'',
+        "satisfied_when: 'subject.payload.title ? true'",
+      ),
+    );
+    const selectionPath = path.join(repositoryRoot, ".lifecycle/process-selection.json");
+    const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
+    const [selectionBefore, descriptorBefore] = await Promise.all([
+      fs.readFile(selectionPath, "utf8"),
+      fs.readFile(descriptorPath, "utf8"),
+    ]);
+
+    const result = req(
+      repositoryRoot,
+      "process",
+      "migrate",
+      "mdlm-bootstrap@0.59.0",
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toContainEqual(
+      expect.objectContaining({ code: "expression-syntax" }),
+    );
+    await expect(fs.readFile(selectionPath, "utf8")).resolves.toBe(selectionBefore);
+    await expect(fs.readFile(descriptorPath, "utf8")).resolves.toBe(descriptorBefore);
+  }, 20_000);
 });

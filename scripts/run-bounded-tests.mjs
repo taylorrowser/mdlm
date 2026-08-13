@@ -3,7 +3,7 @@ import { runInProcessGroup } from "./frontier-process-group.mjs";
 const budgetMs = Number(process.env.MDLM_TEST_BUDGET_MS ?? 5 * 60_000);
 const result = runInProcessGroup(
   process.execPath,
-  ["./node_modules/vitest/vitest.mjs", "run", "--config", "vitest.fast.config.ts"],
+  ["scripts/authoritative-tests.mjs"],
   {
     cwd: process.cwd(),
     timeout: budgetMs,

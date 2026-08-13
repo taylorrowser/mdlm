@@ -1,0 +1,2513 @@
+{
+  "processRef": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+  "phaseId": "phase-7-change-control",
+  "records": [
+    {
+      "datum": {
+        "id": "BSL-1010000004",
+        "revision": 1,
+        "revision_id": "BSL-1010000004-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Reviewed intent candidate promoted by accepted intent",
+          "kind": "intent-level-candidate",
+          "role": "candidate",
+          "scope": "DEFAULT",
+          "group": "DEFAULT",
+          "definition_members": [
+            "PSP-1010000000-r00001",
+            "STK-1010000001-r00001",
+            "STK-1010000002-r00001"
+          ],
+          "evidence": [
+            "REV-1010000001-r00001"
+          ],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:14.179Z",
+            "member_hashes": {
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5",
+              "REV-1010000001-r00001": "sha256:e31bc9fab6fead50b370f7663ffb6c7489971a4dfdc68ea86f9f488ae664a95e",
+              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
+              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7"
+            },
+            "resolved_links": {
+              "BSL-1010000004-r00001": [],
+              "PSP-1010000000-r00001": [],
+              "REV-1010000001-r00001": [
+                "BSL-1010000003-r00001",
+                "STK-1010000001-r00001"
+              ],
+              "STK-1010000001-r00001": [
+                "PSP-1010000000-r00001"
+              ],
+              "STK-1010000002-r00001": [
+                "PSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "PSP@4",
+                "REV@5",
+                "STK@4",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-QH2GXMXJ0N",
+        "revision": 1,
+        "revision_id": "REV-QH2GXMXJ0N-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of DEC-G7GAHE6SEX-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DEC-G7GAHE6SEX-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-WWE4MKE4QY-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000000",
+        "revision": 1,
+        "revision_id": "BSL-1010000000-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Authorized accepted intent",
+          "kind": "intent-approved",
+          "role": "accepted",
+          "scope": "DEFAULT",
+          "group": "DEFAULT",
+          "definition_members": [
+            "PSP-1010000000-r00001",
+            "STK-1010000001-r00001",
+            "STK-1010000002-r00001"
+          ],
+          "evidence": [
+            "VER-1010000001-r00001",
+            "VER-1010000002-r00001",
+            "BSL-1010000003-r00001",
+            "REV-1010000001-r00001",
+            "BSL-1010000004-r00001",
+            "REV-1010000002-r00001",
+            "DEC-1010000000-r00001",
+            "REV-1010000003-r00001"
+          ],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:21.085Z",
+            "member_hashes": {
+              "BSL-1010000003-r00001": "sha256:cf2cb7a3b6753e18ec6ea5ef7943267172d89f73fe85fe315412b92ad6e3c91d",
+              "BSL-1010000004-r00001": "sha256:3bd2995bee62845ed3eb72cf6fb344f32b3eed5ddc67dd9abf908ae90d1efc04",
+              "DEC-1010000000-r00001": "sha256:a47a5efb9c95c99942214f59f24525a6cd5c607b43011766802bb220ab086e7a",
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5",
+              "REV-1010000001-r00001": "sha256:e31bc9fab6fead50b370f7663ffb6c7489971a4dfdc68ea86f9f488ae664a95e",
+              "REV-1010000002-r00001": "sha256:c5d17d2659d1fdc79f45f612d7447c9a2c1f39fd0b76ad52b4151b45d61188fd",
+              "REV-1010000003-r00001": "sha256:7c87d215cfb95a9264dbfe7269bba8d6d9e8e3b04acb5cfe76f086ec419c88b1",
+              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
+              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7",
+              "VER-1010000001-r00001": "sha256:46a32e4f875505ab967174ea13be0890d5648d163bbe4100499dc4819ce119a4",
+              "VER-1010000002-r00001": "sha256:164f6def8284a11b7717ea1d82034306660a3390bfc004576e49ecc6fb9fbf20"
+            },
+            "resolved_links": {
+              "BSL-1010000000-r00001": [
+                "BSL-1010000004-r00001"
+              ],
+              "BSL-1010000003-r00001": [],
+              "BSL-1010000004-r00001": [],
+              "DEC-1010000000-r00001": [
+                "BSL-1010000004-r00001"
+              ],
+              "PSP-1010000000-r00001": [],
+              "REV-1010000001-r00001": [
+                "BSL-1010000003-r00001",
+                "STK-1010000001-r00001"
+              ],
+              "REV-1010000002-r00001": [
+                "BSL-1010000004-r00001",
+                "BSL-1010000005-r00001"
+              ],
+              "REV-1010000003-r00001": [
+                "BSL-1010000006-r00001",
+                "DEC-1010000000-r00001"
+              ],
+              "STK-1010000001-r00001": [
+                "PSP-1010000000-r00001"
+              ],
+              "STK-1010000002-r00001": [
+                "PSP-1010000000-r00001"
+              ],
+              "VER-1010000001-r00001": [
+                "STK-1010000001-r00001",
+                "STK-1010000001-r00001",
+                "VSP-1010000000-r00001"
+              ],
+              "VER-1010000002-r00001": [
+                "STK-1010000002-r00001",
+                "STK-1010000002-r00001",
+                "VSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "DEC@6",
+                "PSP@4",
+                "REV@5",
+                "STK@4",
+                "VER@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [
+          {
+            "type": "promotes",
+            "target": "BSL-1010000004-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000001",
+        "revision": 1,
+        "revision_id": "BSL-1010000001-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Frozen exact change source",
+          "kind": "source-boundary",
+          "role": "source-boundary",
+          "scope": "PRB-1010000000-r00001",
+          "group": "DEFAULT",
+          "definition_members": [],
+          "evidence": [
+            "ART-1010000000-r00001",
+            "PRB-1010000000-r00001"
+          ],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:21.343Z",
+            "member_hashes": {
+              "ART-1010000000-r00001": "sha256:f0fac17fa87e755d856d87abc479032b3bdc70b1f849342d274fa80f3824f851",
+              "PRB-1010000000-r00001": "sha256:4d96c02dbb0be1267b7247f237d0bd2a8214946a75ed81fe534a5507ccb120b0"
+            },
+            "resolved_links": {
+              "ART-1010000000-r00001": [],
+              "BSL-1010000001-r00001": [],
+              "PRB-1010000000-r00001": [
+                "ART-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "ART@1",
+                "BSL@4",
+                "PRB@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "STK-1010000001",
+        "revision": 2,
+        "revision_id": "STK-1010000001-r00002",
+        "type": "STK",
+        "payload": {
+          "title": "Validate report exports",
+          "rationale": "The exact stakeholder commitment is independently traceable.",
+          "statement": "The product shall export valid completed reports and reject malformed exports observably.",
+          "verification_intent": "Observe the exact stakeholder-visible behavior.",
+          "stakeholder": "report author",
+          "priority": "must"
+        },
+        "links": [
+          {
+            "type": "derived-from",
+            "target": "PSP-1010000000"
+          },
+          {
+            "type": "changed-under",
+            "target": "CHG-YSYT05KE22-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "revise-requirement-under-change@3",
+          "prompt_ref": "prompts/revise-requirement-under-change.md@3",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/requirement-writing.md@1",
+            "skills/traceability.md@1",
+            "skills/change-control.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact STK stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1BZGFF90QE",
+        "revision": 1,
+        "revision_id": "REV-1BZGFF90QE-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of STK-1010000001-r00002",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "STK-1010000001-r00002"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-3DZH8QFSS7-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DEC-1010000000",
+        "revision": 1,
+        "revision_id": "DEC-1010000000-r00001",
+        "type": "DEC",
+        "payload": {
+          "title": "Approve accepted intent candidate",
+          "rationale": "The exact reviewed intent candidate is authorized.",
+          "kind": "gate-signoff",
+          "decision": "Approve the exact intent candidate.",
+          "alternatives": [
+            "reject"
+          ],
+          "effective_scope": "BSL-1010000004-r00001",
+          "gate_outcome": "approve"
+        },
+        "links": [
+          {
+            "type": "justifies",
+            "target": "BSL-1010000004-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact DEC stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000002",
+        "revision": 1,
+        "revision_id": "REV-1010000002-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing simplification Review of accepted intent candidate",
+          "review_kind": "simplification-product-definition",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "BSL-1010000004-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000005-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "ART-1010000000",
+        "revision": 1,
+        "revision_id": "ART-1010000000-r00001",
+        "type": "ART",
+        "payload": {
+          "title": "Accepted export observation",
+          "kind": "prototype",
+          "repository_ref": "git:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "supported_behavior": [
+            "valid export"
+          ],
+          "unsupported_behavior": [
+            "malformed export"
+          ]
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact ART stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "PRB-1010000000",
+        "revision": 1,
+        "revision_id": "PRB-1010000000-r00001",
+        "type": "PRB",
+        "payload": {
+          "title": "Accepted export intent needs a bounded change",
+          "rationale": "The immutable observation conflicts with accepted stakeholder intent.",
+          "condition": "A malformed report export is accepted.",
+          "severity": "major",
+          "disposition": "open",
+          "evidence_refs": [
+            "ART-1010000000-r00001"
+          ]
+        },
+        "links": [
+          {
+            "type": "reports",
+            "target": "ART-1010000000-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact PRB stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "PSP-1010000000",
+        "revision": 1,
+        "revision_id": "PSP-1010000000-r00001",
+        "type": "PSP",
+        "payload": {
+          "title": "Portable report",
+          "rationale": "Report authors need portable exact outcomes.",
+          "problem": "A completed report cannot be used outside the product.",
+          "users": [
+            "report author"
+          ],
+          "goals": [
+            "export a completed report"
+          ],
+          "non_goals": [
+            "general integration platform"
+          ],
+          "success_measures": [
+            "one report exports exactly"
+          ]
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact PSP stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "STK-1010000001",
+        "revision": 1,
+        "revision_id": "STK-1010000001-r00001",
+        "type": "STK",
+        "payload": {
+          "title": "Export a completed report",
+          "rationale": "The exact stakeholder commitment is independently traceable.",
+          "statement": "The product shall export a completed report.",
+          "verification_intent": "Observe the exact stakeholder-visible behavior.",
+          "stakeholder": "report author",
+          "priority": "must"
+        },
+        "links": [
+          {
+            "type": "derived-from",
+            "target": "PSP-1010000000"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact STK stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "STK-1010000002",
+        "revision": 1,
+        "revision_id": "STK-1010000002-r00001",
+        "type": "STK",
+        "payload": {
+          "title": "Retain the authored title",
+          "rationale": "The exact stakeholder commitment is independently traceable.",
+          "statement": "The product shall retain the authored report title.",
+          "verification_intent": "Observe the exact stakeholder-visible behavior.",
+          "stakeholder": "report author",
+          "priority": "must"
+        },
+        "links": [
+          {
+            "type": "derived-from",
+            "target": "PSP-1010000000"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact STK stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "STK-1010000003",
+        "revision": 1,
+        "revision_id": "STK-1010000003-r00001",
+        "type": "STK",
+        "payload": {
+          "title": "Preview a completed report",
+          "rationale": "The exact stakeholder commitment is independently traceable.",
+          "statement": "The product shall preview a completed report.",
+          "verification_intent": "Observe the exact stakeholder-visible behavior.",
+          "stakeholder": "report author",
+          "priority": "must"
+        },
+        "links": [
+          {
+            "type": "derived-from",
+            "target": "PSP-1010000000"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact STK stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "VER-1010000001",
+        "revision": 1,
+        "revision_id": "VER-1010000001-r00001",
+        "type": "VER",
+        "payload": {
+          "title": "Export evidence",
+          "rationale": "The exact public behavior needs independent evidence.",
+          "kind": "pilot",
+          "method": "test",
+          "assessment_mode": "automatic",
+          "claim": {
+            "kind": "pilot",
+            "scope": "verification-design",
+            "formal_evidence_eligible": false
+          },
+          "acceptance_criteria": [
+            "the public behavior is observed"
+          ],
+          "evidence_requirements": [
+            "exact public observation"
+          ],
+          "expected_success_activity": "Exercise the supported behavior.",
+          "expected_discrimination_activity": "Exercise the unsupported behavior."
+        },
+        "links": [
+          {
+            "type": "governed-by",
+            "target": "VSP-1010000000-r00001"
+          },
+          {
+            "type": "verifies",
+            "target": "STK-1010000001"
+          },
+          {
+            "type": "verifies-revision",
+            "target": "STK-1010000001-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact VER stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "VER-1010000002",
+        "revision": 1,
+        "revision_id": "VER-1010000002-r00001",
+        "type": "VER",
+        "payload": {
+          "title": "Title evidence",
+          "rationale": "The exact public behavior needs independent evidence.",
+          "kind": "pilot",
+          "method": "test",
+          "assessment_mode": "automatic",
+          "claim": {
+            "kind": "pilot",
+            "scope": "verification-design",
+            "formal_evidence_eligible": false
+          },
+          "acceptance_criteria": [
+            "the public behavior is observed"
+          ],
+          "evidence_requirements": [
+            "exact public observation"
+          ],
+          "expected_success_activity": "Exercise the supported behavior.",
+          "expected_discrimination_activity": "Exercise the unsupported behavior."
+        },
+        "links": [
+          {
+            "type": "governed-by",
+            "target": "VSP-1010000000-r00001"
+          },
+          {
+            "type": "verifies",
+            "target": "STK-1010000002"
+          },
+          {
+            "type": "verifies-revision",
+            "target": "STK-1010000002-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact VER stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "VSP-1010000000",
+        "revision": 1,
+        "revision_id": "VSP-1010000000-r00001",
+        "type": "VSP",
+        "payload": {
+          "title": "Accepted intent strategy",
+          "rationale": "The accepted exact commitments need controlled public evidence.",
+          "level": "stakeholder",
+          "permitted_methods": [
+            "test"
+          ],
+          "independence": {
+            "boundary": "black-box",
+            "prohibited_inputs": [
+              "product source code",
+              "product unit tests",
+              "private implementation details",
+              "uncontrolled implementation shortcuts"
+            ]
+          },
+          "evidence_policy": "Retain exact observations.",
+          "assessment_policy": "Require independent assessment.",
+          "environment_profile": {
+            "id": "public",
+            "purpose": "Exercise the public behavior.",
+            "capabilities": {
+              "controllability": [
+                "public request"
+              ],
+              "observability": [
+                "public result"
+              ],
+              "external_services": [],
+              "timing": "bounded"
+            }
+          }
+        },
+        "links": [
+          {
+            "type": "governs",
+            "target": "STK-1010000001"
+          },
+          {
+            "type": "governs-revision",
+            "target": "STK-1010000001-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact VSP stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000005",
+        "revision": 1,
+        "revision_id": "BSL-1010000005-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for accepted intent candidate",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "BSL-1010000004-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "BSL-1010000004-r00001",
+            "PSP-1010000000-r00001",
+            "STK-1010000001-r00001",
+            "STK-1010000002-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:15.525Z",
+            "member_hashes": {
+              "BSL-1010000004-r00001": "sha256:3bd2995bee62845ed3eb72cf6fb344f32b3eed5ddc67dd9abf908ae90d1efc04",
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5",
+              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
+              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7"
+            },
+            "resolved_links": {
+              "BSL-1010000004-r00001": [],
+              "BSL-1010000005-r00001": [],
+              "PSP-1010000000-r00001": [],
+              "STK-1010000001-r00001": [
+                "PSP-1010000000-r00001"
+              ],
+              "STK-1010000002-r00001": [
+                "PSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "PSP@4",
+                "STK@4",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "CHG-YSYT05KE22",
+        "revision": 1,
+        "revision_id": "CHG-YSYT05KE22-r00001",
+        "type": "CHG",
+        "payload": {
+          "title": "Reject malformed report exports",
+          "rationale": "Change only the exact accepted export commitment and traced evidence.",
+          "scope": "One accepted stakeholder requirement and its exact dependent evidence.",
+          "planned_changes": [
+            "Reject malformed exports observably."
+          ],
+          "implementation_order": "requirements -> context -> reviews -> baselines -> verification",
+          "closure_criteria": [
+            "The replacement STK has fresh reviewed candidate evidence."
+          ]
+        },
+        "links": [
+          {
+            "type": "derived-from",
+            "target": "PRB-1010000000-r00001"
+          },
+          {
+            "type": "impacts",
+            "target": "STK-1010000001-r00001"
+          },
+          {
+            "type": "impacts",
+            "target": "BSL-1010000000-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "analyze-change-impact@2",
+          "prompt_ref": "prompts/analyze-change-impact.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact CHG stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-ZF8MZCDNHY",
+        "revision": 1,
+        "revision_id": "BSL-ZF8MZCDNHY-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for CHG-YSYT05KE22-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "CHG-YSYT05KE22-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "CHG-YSYT05KE22-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:58.944Z",
+            "member_hashes": {
+              "CHG-YSYT05KE22-r00001": "sha256:ef51760a80ea6f51809375652a1ad96a1a60114c273bab78c8f4c1f9ea14418c"
+            },
+            "resolved_links": {
+              "BSL-ZF8MZCDNHY-r00001": [],
+              "CHG-YSYT05KE22-r00001": [
+                "BSL-1010000000-r00001",
+                "PRB-1010000000-r00001",
+                "STK-1010000001-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "CHG@3",
+                "analyze-change-impact@2",
+                "create-review-context@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/analyze-change-impact.md@2",
+                "prompts/create-review-context.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-WWE4MKE4QY",
+        "revision": 1,
+        "revision_id": "BSL-WWE4MKE4QY-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for DEC-G7GAHE6SEX-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DEC-G7GAHE6SEX-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "DEC-G7GAHE6SEX-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:57:50.632Z",
+            "member_hashes": {
+              "DEC-G7GAHE6SEX-r00001": "sha256:48fc89383829d96d3fcba65684c2a7904c02421de8b448dc0bc85881c3ee5a6a"
+            },
+            "resolved_links": {
+              "BSL-WWE4MKE4QY-r00001": [],
+              "DEC-G7GAHE6SEX-r00001": [
+                "CHG-YSYT05KE22-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "DEC@6",
+                "approve-change-request@3",
+                "consequential-decision-participation@1",
+                "create-review-context@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/approve-change-request.md@3",
+                "prompts/create-review-context.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "skills/baseline-model.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-3DZH8QFSS7",
+        "revision": 1,
+        "revision_id": "BSL-3DZH8QFSS7-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for STK-1010000001-r00002",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "STK-1010000001-r00002",
+          "group": "DEFAULT",
+          "definition_members": [
+            "STK-1010000001-r00002",
+            "CHG-YSYT05KE22-r00001",
+            "DEC-G7GAHE6SEX-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:58:58.332Z",
+            "member_hashes": {
+              "CHG-YSYT05KE22-r00001": "sha256:ef51760a80ea6f51809375652a1ad96a1a60114c273bab78c8f4c1f9ea14418c",
+              "DEC-G7GAHE6SEX-r00001": "sha256:48fc89383829d96d3fcba65684c2a7904c02421de8b448dc0bc85881c3ee5a6a",
+              "STK-1010000001-r00002": "sha256:f2827d0086d4206b1573595c6d375bcef592bff02dda16d29be466481845168a"
+            },
+            "resolved_links": {
+              "BSL-3DZH8QFSS7-r00001": [],
+              "CHG-YSYT05KE22-r00001": [
+                "BSL-1010000000-r00001",
+                "PRB-1010000000-r00001",
+                "STK-1010000001-r00001"
+              ],
+              "DEC-G7GAHE6SEX-r00001": [
+                "CHG-YSYT05KE22-r00001"
+              ],
+              "STK-1010000001-r00002": [
+                "CHG-YSYT05KE22-r00001",
+                "PSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "CHG@3",
+                "DEC@6",
+                "STK@4",
+                "analyze-change-impact@2",
+                "approve-change-request@3",
+                "consequential-decision-participation@1",
+                "create-review-context@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/analyze-change-impact.md@2",
+                "prompts/approve-change-request.md@3",
+                "prompts/create-review-context.md@1",
+                "prompts/revise-requirement-under-change.md@3",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "revise-requirement-under-change@3",
+                "skills/baseline-model.md@1",
+                "skills/change-control.md@1",
+                "skills/lifecycle-data.md@1",
+                "skills/requirement-writing.md@1",
+                "skills/traceability.md@1",
+                "titled-datum@1",
+                "waiver-applicability@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "create-review-context@1",
+          "prompt_ref": "prompts/create-review-context.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/traceability.md@1",
+            "skills/baseline-model.md@1"
+          ],
+          "policy_refs": [
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000007",
+        "revision": 1,
+        "revision_id": "BSL-1010000007-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for PSP-1010000000-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "PSP-1010000000-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "PSP-1010000000-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:11.321Z",
+            "member_hashes": {
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
+            },
+            "resolved_links": {
+              "BSL-1010000007-r00001": [],
+              "PSP-1010000000-r00001": []
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "PSP@4",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000008",
+        "revision": 1,
+        "revision_id": "BSL-1010000008-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for STK-1010000002-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "STK-1010000002-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "STK-1010000002-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:11.441Z",
+            "member_hashes": {
+              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7"
+            },
+            "resolved_links": {
+              "BSL-1010000008-r00001": [],
+              "STK-1010000002-r00001": [
+                "PSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "STK@4",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000009",
+        "revision": 1,
+        "revision_id": "BSL-1010000009-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for VSP-1010000000-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "VSP-1010000000-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "VSP-1010000000-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:11.553Z",
+            "member_hashes": {
+              "VSP-1010000000-r00001": "sha256:47658dcbdb3177ced85b49eb9ae627e6aaf65e75adf94b4d8e244015d7d80d7c"
+            },
+            "resolved_links": {
+              "BSL-1010000009-r00001": [],
+              "VSP-1010000000-r00001": [
+                "STK-1010000001-r00001",
+                "STK-1010000001-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "VSP@1",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000010",
+        "revision": 1,
+        "revision_id": "BSL-1010000010-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for VER-1010000001-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "VER-1010000001-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "VER-1010000001-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:11.664Z",
+            "member_hashes": {
+              "VER-1010000001-r00001": "sha256:46a32e4f875505ab967174ea13be0890d5648d163bbe4100499dc4819ce119a4"
+            },
+            "resolved_links": {
+              "BSL-1010000010-r00001": [],
+              "VER-1010000001-r00001": [
+                "STK-1010000001-r00001",
+                "STK-1010000001-r00001",
+                "VSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "VER@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000011",
+        "revision": 1,
+        "revision_id": "BSL-1010000011-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for VER-1010000002-r00001",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "VER-1010000002-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "VER-1010000002-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:11.778Z",
+            "member_hashes": {
+              "VER-1010000002-r00001": "sha256:164f6def8284a11b7717ea1d82034306660a3390bfc004576e49ecc6fb9fbf20"
+            },
+            "resolved_links": {
+              "BSL-1010000011-r00001": [],
+              "VER-1010000002-r00001": [
+                "STK-1010000002-r00001",
+                "STK-1010000002-r00001",
+                "VSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "VER@2",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "DEC-G7GAHE6SEX",
+        "revision": 1,
+        "revision_id": "DEC-G7GAHE6SEX-r00001",
+        "type": "DEC",
+        "payload": {
+          "title": "approve exact Change Request",
+          "rationale": "Apply one explicit attended disposition to the exact reviewed impact.",
+          "kind": "change-approval",
+          "change_disposition": "approve",
+          "decision": "approve the exact bounded Change Request.",
+          "alternatives": [
+            "reject",
+            "defer",
+            "cancel"
+          ],
+          "effective_scope": "CHG-YSYT05KE22-r00001"
+        },
+        "links": [
+          {
+            "type": "justifies",
+            "target": "CHG-YSYT05KE22-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "approve-change-request@3",
+          "prompt_ref": "prompts/approve-change-request.md@3",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "consequential-decision-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact DEC stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000002",
+        "revision": 1,
+        "revision_id": "BSL-1010000002-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for individually passing unaccepted intent",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "STK-1010000003-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "STK-1010000003-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:10.138Z",
+            "member_hashes": {
+              "STK-1010000003-r00001": "sha256:5d29097ad9214e32b29c1477b3180b457c0fe19853e7cb029a236f376357f16d"
+            },
+            "resolved_links": {
+              "BSL-1010000002-r00001": [],
+              "STK-1010000003-r00001": [
+                "PSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "STK@4",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000003",
+        "revision": 1,
+        "revision_id": "BSL-1010000003-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for accepted stakeholder requirement",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "STK-1010000001-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "STK-1010000001-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:10.225Z",
+            "member_hashes": {
+              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c"
+            },
+            "resolved_links": {
+              "BSL-1010000003-r00001": [],
+              "STK-1010000001-r00001": [
+                "PSP-1010000000-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "STK@4",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "requirement@2",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000000",
+        "revision": 1,
+        "revision_id": "REV-1010000000-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of unaccepted stakeholder requirement",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "STK-1010000003-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000002-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000001",
+        "revision": 1,
+        "revision_id": "REV-1010000001-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of accepted stakeholder requirement",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "STK-1010000001-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000003-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-C4PG9BPTGZ",
+        "revision": 1,
+        "revision_id": "REV-C4PG9BPTGZ-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of CHG-YSYT05KE22-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "CHG-YSYT05KE22-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-ZF8MZCDNHY-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "review-datum-in-context@2",
+          "prompt_ref": "prompts/review-datum-in-context.md@2",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [
+            "skills/lifecycle-data.md@1",
+            "skills/contextual-artifact-review.md@1",
+            "skills/traceability.md@1",
+            "skills/scope-challenge.md@1"
+          ],
+          "policy_refs": [
+            "contextual-review-participation@1",
+            "review-applicability@1",
+            "waiver-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000004",
+        "revision": 1,
+        "revision_id": "REV-1010000004-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of PSP-1010000000-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "PSP-1010000000-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000007-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000005",
+        "revision": 1,
+        "revision_id": "REV-1010000005-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of STK-1010000002-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "STK-1010000002-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000008-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000006",
+        "revision": 1,
+        "revision_id": "REV-1010000006-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of VSP-1010000000-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "VSP-1010000000-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000009-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000007",
+        "revision": 1,
+        "revision_id": "REV-1010000007-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of VER-1010000001-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "VER-1010000001-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000010-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000008",
+        "revision": 1,
+        "revision_id": "REV-1010000008-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of VER-1010000002-r00001",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "VER-1010000002-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000011-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "BSL-1010000006",
+        "revision": 1,
+        "revision_id": "BSL-1010000006-r00001",
+        "type": "BSL",
+        "payload": {
+          "title": "Review Context for accepted intent gate Decision",
+          "kind": "review-context",
+          "role": "review-context",
+          "scope": "DEC-1010000000-r00001",
+          "group": "DEFAULT",
+          "definition_members": [
+            "DEC-1010000000-r00001"
+          ],
+          "evidence": [],
+          "snapshot": {
+            "frozen_at": "2026-08-13T17:56:18.196Z",
+            "member_hashes": {
+              "DEC-1010000000-r00001": "sha256:a47a5efb9c95c99942214f59f24525a6cd5c607b43011766802bb220ab086e7a"
+            },
+            "resolved_links": {
+              "BSL-1010000006-r00001": [],
+              "DEC-1010000000-r00001": [
+                "BSL-1010000004-r00001"
+              ]
+            },
+            "process_provenance": {
+              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
+              "asset_refs": [
+                "BSL@4",
+                "DEC@6",
+                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
+                "json-schema-draft:2020-12",
+                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+                "meta-schema@3",
+                "primitives/kernel-v1.yaml@1",
+                "prompts/seed-accepted-stakeholder-change.md@1",
+                "rationale-bearing@1",
+                "review-applicability@1",
+                "seed-accepted-stakeholder-change@1",
+                "titled-datum@1"
+              ]
+            }
+          }
+        },
+        "links": [],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact BSL stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    },
+    {
+      "datum": {
+        "id": "REV-1010000003",
+        "revision": 1,
+        "revision_id": "REV-1010000003-r00001",
+        "type": "REV",
+        "payload": {
+          "title": "Passing Review of accepted intent gate Decision",
+          "review_kind": "contextual",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "findings": [],
+          "outcome": "pass"
+        },
+        "links": [
+          {
+            "type": "reviews",
+            "target": "DEC-1010000000-r00001"
+          },
+          {
+            "type": "contextualizes",
+            "target": "BSL-1010000006-r00001"
+          }
+        ],
+        "created_by": {
+          "scenario": "seed-accepted-stakeholder-change@1",
+          "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
+          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "loaded_skill_refs": [],
+          "policy_refs": [
+            "review-applicability@1"
+          ]
+        },
+        "body": "Exact REV stakeholder-change fixture.\n"
+      },
+      "storage": {
+        "editable": false,
+        "frozen": true
+      },
+      "integrity": {
+        "parseable": true,
+        "schema_valid": true,
+        "identity_valid": true,
+        "references_valid": true,
+        "hash_valid": true,
+        "scenario_execution_valid": true
+      }
+    }
+  ],
+  "dependencyComparisons": []
+}
