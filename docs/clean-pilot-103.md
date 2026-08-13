@@ -72,17 +72,18 @@ focused tests are not represented as fresh-pilot operation.
 
 ## Exact-head clean-checkout quality gate
 
-The final evidence table is populated only after the repair is committed. The
-validation checkout must be detached at that exact commit, start clean, and remain
-clean after every read-only gate. This prevents a working-tree test result from
-being represented as exact publication evidence.
+The publication gate uses a detached checkout at the exact proposed PR head. It
+must start clean and remain clean after every read-only gate. The immutable head,
+command output, durations, and post-gate status are retained in the issue #103
+validation evidence outside the checkout, avoiding the impossible circular claim
+of embedding a commit's own identity inside that commit.
 
-| Gate | Command | Exact-head result |
-| --- | --- | --- |
-| Clean checkout identity | `git rev-parse HEAD && git status --porcelain` | Pending final committed head |
-| Package validation | `node dist/req-entry.js process validate --ref .lifecycle/process --json` | Pending final committed head |
-| Package fixtures | `node dist/req-entry.js process test --ref .lifecycle/process --json` | Pending final committed head |
-| Build and type-check | `npm run build && npm run typecheck` | Pending final committed head |
-| Authoritative fast gate | `npm test` | Pending final committed head |
-| Exhaustive journey gate | `npm run test:journeys` | Pending final committed head |
-| Post-gate cleanliness | `git status --porcelain` | Pending final committed head |
+| Gate | Required publication evidence |
+| --- | --- |
+| Clean checkout identity | Exact proposed PR head and empty `git status --porcelain` before validation |
+| Package validation | `node dist/req-entry.js process validate --ref .lifecycle/process --json` passes |
+| Package fixtures | `node dist/req-entry.js process test --ref .lifecycle/process --json` reports zero failures |
+| Build and type-check | `npm run build && npm run typecheck` pass |
+| Authoritative fast gate | `npm test` passes |
+| Exhaustive journey gate | `npm run test:journeys` passes under unchanged journey timeout contracts |
+| Post-gate cleanliness | Exact head remains unchanged and `git status --porcelain` remains empty |
