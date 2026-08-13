@@ -1,0 +1,224 @@
+contract: mdlm-phase-hardening-coverage@1
+matrix: docs/phase-hardening-matrix.md
+publicProcessSeam: mdlm init -> mdlm next -> mdlm scenario prepare -> mdlm scenario submit
+sections:
+  - section: Foundation and product simplification
+    evidence:
+      - test/mdlm-review-correction.test.ts
+      - test/evaluate-bootstrap-participation.test.ts
+    routes:
+      - Greenfield foundation
+      - Foundation Review passes
+      - Initial foundation Review fails
+      - First correction fails or passes
+      - Second correction fails or passes
+      - Stakeholder-owned foundation failure
+      - Failure after attended foundation correction
+      - Candidate creation
+      - Product simplification passes
+      - Product simplification fails on a member
+      - Product simplification fails on candidate
+      - Stakeholder-owned candidate simplification failure
+      - Simplification pass carries a blocker
+      - Simplification fail omits a blocker
+      - Simplification blocker is out of scope or mismatched
+      - Corrected member set
+      - Candidate first or second correction passes
+      - Candidate first correction fails
+      - Candidate second correction fails
+  - section: Questions and Decision Review
+    evidence:
+      - test/mdlm-assignment.test.ts
+      - test/evaluate-bootstrap-participation.test.ts
+      - test/req-prototype-question-routing.test.ts
+    routes:
+      - Blocking preferential Question
+      - Nonblocking preferential Question
+      - Empirical evidence available
+      - Prototype-bound empirical Question
+      - Empirical evidence unavailable
+      - Formal deferral
+      - Cancellation / unsupported disposition
+      - Preferential answer
+      - Question Decision Review fails
+      - Question Decision failure continues
+  - section: Gate, acceptance, and progression
+    evidence:
+      - test/mdlm-review-correction.test.ts
+      - test/evaluate-bootstrap-participation.test.ts
+    routes:
+      - Gate approval recorded
+      - Gate Decision Review fails
+      - Gate Decision failures continue
+      - Reviewed gate rejection
+      - Rejected member correction
+      - Rejection after exhausted member correction
+      - Replacement after rejection
+      - Same-gate return
+      - Stop, defer, or cancel gate work
+      - Accepted intent
+      - Phase progression
+  - section: Phase 1 strategy and assurance correction
+    evidence:
+      - test/mdlm-phase-1-assurance-correction.test.ts
+    routes:
+      - VSP authored
+      - Initial VSP Review fails
+      - Corrected VSP fails or passes
+      - VSP second correction fails
+      - Initial ENV Review fails
+      - Corrected ENV assurance
+      - ENV first or second replacement fails
+      - Initial pilot VER Review fails
+      - Corrected pilot VER fails or passes
+      - Pilot VER second correction fails
+      - Stakeholder-owned assurance finding
+      - Missing causal Review link or changed boundary
+  - section: Phase 1 VAI procedure correction and command evidence
+    evidence:
+      - test/mdlm-phase-1-assurance-correction.test.ts
+      - test/req-product-assurance-pilot.test.ts
+    routes:
+      - Exact public command boundary
+      - Incomplete or ambiguous command evidence
+      - Initial VAI Review fails
+      - Corrected VAI procedure
+      - Incomplete correction or changed binding
+      - Corrected VAI first or second Review fails
+      - Timeout during corrected execution
+  - section: Phase 2 earliest evidence-bearing simplification
+    evidence:
+      - test/mdlm-phase-2-simplification.test.ts
+    routes:
+      - Earliest exact definition set
+      - Simplification passes
+      - Subject simplification fails with several findings
+      - Subject correction publishes
+      - Declared definition consistency fails
+      - Coherent definition correction publishes
+      - Observed scope reduction
+      - Every SYS output challenged
+      - Corrected definition set resumes
+      - Invalid simplification blocker contract
+  - section: Phase 2 remaining failure, candidate, and gate routes
+    evidence:
+      - test/mdlm-phase-2-simplification.test.ts
+      - test/req-system-decomposition.test.ts
+      - test/evaluate-bootstrap-participation.test.ts
+    routes:
+      - Ordinary SYS/ASP/ICSP/planning-DWP Review fails
+      - Completion-DWP Review fails
+      - Collateral Phase 2 Finding
+      - First or second corrected subject fails
+      - Stakeholder-owned Phase 2 finding
+      - Ambiguous single-valued architecture/strategy/plan cardinality
+      - Incomplete DWP account
+      - Group candidate Review fails
+      - Level candidate Review fails
+      - Reviewed Phase 2 rejection
+      - Approval awaits Decision Review
+      - Exact system acceptance
+      - Reviewed progression
+  - section: Accepted STK change control
+    evidence:
+      - test/mdlm-stakeholder-change-control.test.ts
+      - test/evaluate-shared-system-change.test.ts
+    routes:
+      - Draft STK defect
+      - Accepted identity boundary
+      - Reviewed exact impact
+      - CHG Review fails
+      - Approve disposition
+      - Reject disposition
+      - Defer disposition
+      - Cancel disposition
+      - Disposition Review fails
+      - Approved STK replacement
+      - Replacement STK Review fails
+      - Selective replacement candidate
+      - Candidate Review fails
+      - Exact closure
+  - section: Shared accepted SYS change control
+    evidence:
+      - test/mdlm-shared-system-change-control.test.ts
+      - test/evaluate-shared-system-change.test.ts
+    routes:
+      - Two exact consumers
+      - Draft SYS replacement
+      - Accepted shared SYS impact
+      - Approved SYS replacement
+      - Serial consumer update
+      - Selective candidate and closure
+  - section: Pilot assessment and explicit outcomes
+    evidence:
+      - test/mdlm-pilot-assessment.test.ts
+      - test/req-pilot-assessment.test.ts
+    routes:
+      - Complete pilot evidence
+      - Initial PAS Review fails
+      - First or second PAS replacement fails
+      - PAS correction passes
+      - PAS correction budget exhausted or stakeholder-owned
+      - Expansion Decision awaits Review
+      - Expansion Decision Review fails
+      - Reviewed proceed
+      - Reviewed change
+      - Reviewed stop
+  - section: Phase 1 evidence availability and supported boundary
+    evidence:
+      - test/mdlm-phase-1-assurance-correction.test.ts
+      - test/req-product-assurance-pilot.test.ts
+      - test/operator-outcome.test.ts
+    routes:
+      - No pilot target yet
+      - Intentionally unsupported target behavior
+      - Empirical evidence unavailable
+      - Multiple applicable VSPs, ENVs, or pilot targets
+      - Missing or incomplete target boundary
+  - section: Transport and liveness invariants
+    evidence:
+      - test/mdlm-assignment.test.ts
+      - test/operator-outcome.test.ts
+      - test/mdlm-clean-pilot-contract.test.ts
+    routes:
+      - Malformed Assignment Response
+      - Typed inability
+      - Ordinary publication
+      - Every expected unfinished Phase 0 state
+      - Every supported unfinished Phase 2 state
+cleanPilot:
+  report: docs/clean-pilot-103.md
+  executableEvidence:
+    - test/mdlm-clean-pilot-contract.test.ts
+    - test/mdlm-assignment.test.ts
+    - test/operator-outcome.test.ts
+    - test/mdlm-review-correction.test.ts
+    - test/mdlm-phase-1-assurance-correction.test.ts
+    - test/mdlm-phase-2-simplification.test.ts
+    - test/mdlm-shared-system-change-control.test.ts
+    - test/mdlm-stakeholder-change-control.test.ts
+    - test/mdlm-pilot-assessment.test.ts
+  requiredObservations:
+    attended-product-wayfinding:
+      - test/mdlm-review-correction.test.ts
+    fresh-delegated-review:
+      - test/mdlm-review-correction.test.ts
+      - test/mdlm-phase-1-assurance-correction.test.ts
+    lifecycle-correction:
+      - test/mdlm-review-correction.test.ts
+    correction-escalation:
+      - test/mdlm-review-correction.test.ts
+      - test/mdlm-phase-1-assurance-correction.test.ts
+    consolidated-checkpoint:
+      - test/operator-outcome.test.ts
+    gate-rejection-return:
+      - test/mdlm-review-correction.test.ts
+    shared-requirement-impact:
+      - test/mdlm-shared-system-change-control.test.ts
+    formal-change:
+      - test/mdlm-stakeholder-change-control.test.ts
+      - test/mdlm-shared-system-change-control.test.ts
+    doctor-commit-clean-state:
+      - test/mdlm-clean-pilot-contract.test.ts
+    explicit-terminal-outcome:
+      - test/mdlm-pilot-assessment.test.ts

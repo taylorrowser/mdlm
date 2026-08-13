@@ -5,6 +5,18 @@ Phase 0, Phase 1 assurance/implementation, complete implemented Phase 2
 system definition, and pilot assessment. It describes Example Process Package
 behavior, not kernel semantics.
 
+For each row, column two names the exact durable evidence and source-owned links;
+column three names the package Selector/Obligation, participation, and Resolver;
+column four gives the next Operator Outcome or validation disposition; and column
+five gives the correction budget plus evidence reuse or invalidation. “Invalid
+proposal” is an explicit nonpublication disposition, not an Operator Outcome.
+The versioned proof index in
+[`phase-hardening-coverage.yaml`](phase-hardening-coverage.yaml) binds every section
+and therefore every distinct row to package-fixture or compiled public-process
+evidence. `test/phase-hardening-matrix.test.ts` checks that the index remains
+complete and points only to registered executable tests. Neither artifact is read
+at runtime.
+
 ## Foundation and product simplification
 
 | Route | Exact evidence and links | Selector / Obligation; participation and Resolver | Next Operator Outcome | Budget; evidence replaced or reused |
@@ -188,6 +200,12 @@ behavior, not kernel semantics.
 | Every supported unfinished Phase 2 state | **Assignment** or **Attention Required** | Exact correction, ambiguity disposition, completion, candidate, gate, or acceptance work prevents accidental Process Dead End |
 
 ## Executable evidence
+
+`test/mdlm-clean-pilot-contract.test.ts` starts at `mdlm init`, publishes through
+the new operator loop, runs doctor, inspects the Lifecycle Data diff, makes an
+ordinary Git commit, proves a clean tracked tree, and verifies that the subsequent
+Assignment is exact to that commit. The complete proof ledger and explicit stop
+results are recorded in [`clean-pilot-103.md`](clean-pilot-103.md).
 
 `test/mdlm-review-correction.test.ts` drives the compiled `mdlm` executable from
 `mdlm init` through ordinary Git commits, failed Review correction, candidate-
