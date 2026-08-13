@@ -100,36 +100,175 @@ rows:
     disposition: Malformed, mismatched, or out-of-scope blockers reject atomically; passing evidence returns to the gate.
     reuse: Unchanged members and Reviews remain reusable; changed member/candidate evidence is rebuilt.
 
-  - id: question-resolution
-    phases: [phase-0-wayfinding@4]
+  - id: attended-question-source-boundary
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
+      - route: "source boundary before attended resolution"
+        executable: {file: test/operator-outcome.test.ts, test: "returns immediate attended work with an exact Assignment and Authority Requirement"}
+    evidence:
+      facts: One current open QST Revision and one kernel-finalized source-boundary BSL containing exactly that Revision.
+      links: Exact baseline definition membership freezes the source QST; source-boundary evidence membership is empty.
+    selectors: [current-open-question-sources@1, source-boundaries-for@1, source-boundary-evidence@1]
+    obligations: [source-boundary-required@1]
+    participation: {mode: autonomous, policies: [], authority: kernel-autonomous}
+    resolvers: [freeze-source-boundary@1]
+    next: [attention-required]
+    budget: Source freezing consumes no lifecycle Correction or question-disposition budget.
+    disposition: Atomic publication freezes the exact source before its attended resolver becomes current; malformed publication writes nothing.
+    reuse: The exact source boundary remains reusable only for that QST Revision; a later open Revision requires a new boundary.
+
+  - id: autonomous-question-source-boundary
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
+      - route: "source boundary before autonomous resolution"
+        executable: {file: test/req-prototype-question-routing.test.ts, test: "preserves repeated source boundaries through charting and prototype resolution"}
+    evidence:
+      facts: One current open empirical QST Revision and one kernel-finalized source-boundary BSL containing exactly that Revision.
+      links: Exact baseline definition membership freezes the source QST; source-boundary evidence membership is empty.
+    selectors: [current-open-question-sources@1, source-boundaries-for@1, source-boundary-evidence@1]
+    obligations: [source-boundary-required@1]
+    participation: {mode: autonomous, policies: [], authority: kernel-autonomous}
+    resolvers: [freeze-source-boundary@1]
+    next: [assignment]
+    budget: Source freezing consumes no lifecycle Correction or question-disposition budget.
+    disposition: Atomic publication freezes the exact source before its autonomous resolver becomes current; malformed publication writes nothing.
+    reuse: The exact source boundary remains reusable only for that QST Revision; a later open Revision requires a new boundary.
+
+  - id: question-immediate-attention
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
     routes:
       - route: "immediate blocking"
         executable: {file: test/evaluate-bootstrap-participation.test.ts, test: "requires exact stakeholder authority and blocks the gate on an immediate question"}
+    evidence:
+      facts: One source-bounded open preferential QST whose exact target cannot proceed without stakeholder intent.
+      links: The QST blocks the exact candidate or Lifecycle Datum controlled by the answer.
+    selectors: [general-open-questions@1, blocked-targets-for-question@1, open-blocking-questions@1]
+    obligations: [open-question-resolution@3]
+    participation: {mode: attended-immediate, policies: [question-participation@1], authority: stakeholder}
+    resolvers: [resolve-question@2]
+    next: [attention-required]
+    budget: Immediate attention consumes no lifecycle Correction or disposition budget.
+    disposition: The QST remains open and its exact target blocked until one attended Assignment publishes a valid resolution.
+    reuse: The frozen QST source remains immutable; no raw stakeholder conversation is retained.
+
+  - id: question-checkpoint-attention
+    phases: [phase-0-wayfinding@4, phase-2-system-definition@8]
+    routes:
       - route: "consolidated checkpoint"
         executable: {file: test/operator-outcome.test.ts, test: "projects one complete checkpoint conversation and the first exact Assignment"}
+    evidence:
+      facts: Every compatible source-bounded open preferential QST in one declared Consolidation Group at its ready checkpoint.
+      links: Each QST retains its exact declared lifecycle links while the package groups only presentation.
+    selectors: [open-questions@1, general-open-questions@1]
+    obligations: [open-question-resolution@3]
+    participation: {mode: attended-checkpoint, policies: [question-participation@1], authority: stakeholder}
+    resolvers: [resolve-question@2]
+    next: [attention-required]
+    budget: Consolidated presentation consumes no lifecycle Correction or disposition budget.
+    disposition: One conversation publishes nothing; the first still-applicable QST receives one exact serial Assignment.
+    reuse: Raw conversation is ephemeral; each normalized QST result is reevaluated before the next Assignment.
+
+  - id: empirical-question-answer
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
       - route: "empirical answer"
         executable: {file: test/req-command-alias.test.ts, test: "binds typed arguments to the same validated Scenario request as direct invocation"}
+    evidence:
+      facts: One source-bounded open empirical QST with available exact evidence and one same-lineage answered Revision.
+      links: The answer preserves the QST Stable Datum lineage; no consequential DEC is required for an empirical answer.
+    selectors: [general-open-questions@1, source-boundaries-for@1]
+    obligations: [open-question-resolution@3]
+    participation: {mode: autonomous, policies: [question-participation@1], authority: evidence-authority}
+    resolvers: [resolve-question@2]
+    next: [assignment]
+    budget: Empirical resolution consumes no lifecycle Correction or disposition budget.
+    disposition: A valid answered Revision closes the exact empirical Question; malformed publication writes nothing.
+    reuse: The frozen source and cited evidence remain immutable; downstream work reevaluates against the answered Revision.
+
+  - id: prototype-question-answer
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
       - route: "prototype answer"
         executable: {file: test/req-prototype-question-routing.test.ts, test: "preserves repeated source boundaries through charting and prototype resolution"}
+    evidence:
+      facts: One source-bounded prototype QST plus exact ART, bounded DEC finding, and same-lineage answered QST Revision.
+      links: ART derives from the exact QST; DEC resolves that QST and justifies the exact prototype ART.
+    selectors: [prototype-bound-open-questions@1, source-boundaries-for@1]
+    obligations: [prototype-question-resolution@1]
+    participation: {mode: autonomous, policies: [question-participation@1], authority: evidence-authority}
+    resolvers: [resolve-question-with-prototype@2]
+    next: [assignment]
+    budget: Prototype resolution consumes no lifecycle Correction or question-disposition budget.
+    disposition: Only one of the two predeclared bounded findings may answer the QST; invalid output publishes nothing.
+    reuse: Prototype evidence is retained for its exact repository reference; a later open QST Revision needs a fresh source boundary.
+
+  - id: question-inability
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
       - route: "unavailable evidence"
         executable: {file: test/mdlm-assignment.test.ts, test: "accepts every typed inability, abandons the Assignment without publication, and requires a deliberate fresh next"}
+    evidence:
+      facts: One source-bounded open empirical QST and one typed Assignment Response reporting unavailable evidence.
+      links: No Lifecycle Datum or link is published by inability; the QST and source boundary remain exact.
+    selectors: [general-open-questions@1, source-boundaries-for@1]
+    obligations: [open-question-resolution@3]
+    participation: {mode: attended-delegable, policies: [question-participation@1], authority: evidence-provider}
+    resolvers: [resolve-question@2]
+    next: [attention-required]
+    budget: Inability consumes the Assignment lease but no lifecycle Correction or disposition budget.
+    disposition: The Assignment is abandoned without publication; a deliberate fresh next exposes the still-open Question.
+    reuse: All exact Lifecycle Data is unchanged and reusable because inability is not lifecycle evidence.
+
+  - id: question-deferral
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
       - route: "defer"
         executable: {file: test/evaluate-bootstrap-participation.test.ts, test: "keeps deferred question work unsatisfied until its exact scoped DEC passes Review"}
+    evidence:
+      facts: One source-bounded QST, same-lineage deferred Revision with reactivation condition, exact deferral DEC, and fresh REV.
+      links: The DEC resolves both the exact source and deferred QST Revisions; its Review binds exact context.
+    selectors: [general-open-questions@1, question-disposition-decisions-for@1, applicable-question-dispositions-for@1]
+    obligations: [open-question-resolution@3, passing-review-required@2]
+    participation: {mode: attended-immediate, policies: [question-participation@1], authority: stakeholder}
+    resolvers: [resolve-question@2]
+    next: [assignment]
+    budget: Initial deferral consumes no Correction cycle; a failed Decision Review requires renewed attended correction.
+    disposition: Deferral applies only after the exact scoped DEC passes Review and retains its reactivation condition.
+    reuse: QST and Decision history remain immutable; unrelated evidence is reused until reactivation.
+
+  - id: question-cancellation
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
       - route: "cancel"
         executable: {file: test/evaluate-bootstrap-participation.test.ts, test: "keeps cancelled question work unsatisfied until its exact scoped DEC passes Review"}
+    evidence:
+      facts: One source-bounded QST, same-lineage cancelled Revision, exact cancellation DEC, and fresh REV.
+      links: The DEC resolves both the exact source and cancelled QST Revisions; its Review binds exact context.
+    selectors: [general-open-questions@1, question-disposition-decisions-for@1, applicable-question-dispositions-for@1]
+    obligations: [open-question-resolution@3, passing-review-required@2]
+    participation: {mode: attended-immediate, policies: [question-participation@1], authority: stakeholder}
+    resolvers: [resolve-question@2]
+    next: [assignment]
+    budget: Initial cancellation consumes no Correction cycle; a failed Decision Review requires renewed attended correction.
+    disposition: Cancellation applies only after the exact scoped DEC passes Review and closes that Question route explicitly.
+    reuse: QST and Decision history remain immutable; unrelated exact evidence remains reusable.
+
+  - id: preferential-question-answer
+    phases: [phase-0-wayfinding@4, phase-1-product-assurance@5, phase-2-system-definition@8]
+    routes:
       - route: "preferential answer"
         executable: {file: test/evaluate-bootstrap-participation.test.ts, test: "routes a failed Question Decision through exact attended correction"}
     evidence:
-      facts: Frozen QST source plus exact QST replacement and, for consequential disposition, reviewed DEC.
-      links: DEC resolves the exact source and replacement; prototype evidence binds the exact Question.
-    selectors: [open-questions@1, general-open-questions@1, prototype-bound-open-questions@1, applicable-question-answers-for@1, applicable-question-dispositions-for@1]
-    obligations: [open-question-resolution@3, prototype-question-resolution@1, passing-review-required@2]
-    participation: {mode: policy-selected, policies: [question-participation@1, contextual-review-participation@1], authority: kernel-autonomous, evidence-provider, or stakeholder}
-    resolvers: [resolve-question@2, resolve-question-with-prototype@2, review-datum-in-context@2]
-    next: [assignment, attention-required]
-    budget: Scheduling consumes no disposition or Correction budget; Decision correction remains separately bounded.
-    disposition: Answer, reviewed deferral, and reviewed cancellation close explicitly; inability publishes nothing.
-    reuse: Raw conversation is ephemeral; normalized exact QST/DEC/REV evidence is retained and later Questions are reevaluated serially.
+      facts: One source-bounded preferential QST, same-lineage answered Revision, exact scope DEC, and policy-required REV.
+      links: The DEC resolves both exact QST Revisions and its effective scope names the answered Revision.
+    selectors: [general-open-questions@1, question-answer-decisions-for@1, applicable-question-answers-for@1]
+    obligations: [open-question-resolution@3, passing-review-required@2]
+    participation: {mode: attended-immediate, policies: [question-participation@1], authority: stakeholder}
+    resolvers: [resolve-question@2]
+    next: [assignment]
+    budget: Initial preferential resolution consumes no Correction cycle; failed Decision Review correction is attended.
+    disposition: The answer becomes applicable only after its exact scope DEC passes Review; failed judgment stays live.
+    reuse: QST and Decision history remain immutable; unrelated exact evidence remains reusable.
 
   - id: consequential-decision-correction
     phases: [phase-0-wayfinding@4, phase-7-change-control@4]

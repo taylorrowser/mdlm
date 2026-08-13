@@ -82,6 +82,71 @@ describe("Phase-hardening matrix", () => {
     }
   });
 
+  it("enumerates source-boundary publication with each exact successor outcome", async () => {
+    const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
+    const common = {
+      phases: [
+        "phase-0-wayfinding@4",
+        "phase-1-product-assurance@5",
+        "phase-2-system-definition@8",
+      ],
+      selectors: [
+        "current-open-question-sources@1",
+        "source-boundaries-for@1",
+        "source-boundary-evidence@1",
+      ],
+      obligations: ["source-boundary-required@1"],
+      participation: { mode: "autonomous", policies: [], authority: "kernel-autonomous" },
+      resolvers: ["freeze-source-boundary@1"],
+    };
+
+    expect(matrix.rows.find((row) => row.id === "attended-question-source-boundary"))
+      .toMatchObject({
+        ...common,
+        routes: [{
+          route: "source boundary before attended resolution",
+          executable: {
+            file: "test/operator-outcome.test.ts",
+            test: "returns immediate attended work with an exact Assignment and Authority Requirement",
+          },
+        }],
+        next: ["attention-required"],
+      });
+    expect(matrix.rows.find((row) => row.id === "autonomous-question-source-boundary"))
+      .toMatchObject({
+        ...common,
+        routes: [{
+          route: "source boundary before autonomous resolution",
+          executable: {
+            file: "test/req-prototype-question-routing.test.ts",
+            test: "preserves repeated source boundaries through charting and prototype resolution",
+          },
+        }],
+        next: ["assignment"],
+      });
+  });
+
+  it("keeps participation-incompatible question routes in distinct rows", async () => {
+    const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
+    const expectedRoutes = new Map([
+      ["question-immediate-attention", "immediate blocking"],
+      ["question-checkpoint-attention", "consolidated checkpoint"],
+      ["empirical-question-answer", "empirical answer"],
+      ["prototype-question-answer", "prototype answer"],
+      ["question-inability", "unavailable evidence"],
+      ["question-deferral", "defer"],
+      ["question-cancellation", "cancel"],
+      ["preferential-question-answer", "preferential answer"],
+    ]);
+
+    expect(matrix.rows.some((row) => row.id === "question-resolution")).toBe(false);
+    for (const [rowId, route] of expectedRoutes) {
+      expect(matrix.rows.find((row) => row.id === rowId)?.routes, rowId).toEqual([
+        expect.objectContaining({ route }),
+      ]);
+    }
+  });
+
   it("gives every outcome class exact package fields and registered executable evidence", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     expect(matrix.contract).toBe("mdlm-phase-hardening-matrix@1");
