@@ -1,6 +1,7 @@
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  evaluateLifecycle,
   loadProcessPackage,
   type ExactTypedEntity,
   type LifecycleRecord,
@@ -148,5 +149,159 @@ describe("exact DWP parent Revision matching", () => {
       completionParent: revision(ids.parent, 2),
       outputParent: revision(ids.parent, 2),
     }), argumentsValue)).toEqual([]);
+  });
+
+  it.each([
+    { route: "SYS", type: "SYS", id: "SYS-0CORRECT01", revisionNumber: 1, payload: {} },
+    { route: "ASP", type: "ASP", id: "ASP-0CORRECT01", revisionNumber: 1, payload: {} },
+    { route: "ICSP", type: "ICSP", id: "ICSP-0CORRECT1", revisionNumber: 1, payload: {} },
+    {
+      route: "planning DWP",
+      type: "DWP",
+      id: "DWP-0CORPLAN01",
+      revisionNumber: 1,
+      payload: { stage: "planning" },
+    },
+    {
+      route: "completion DWP",
+      type: "DWP",
+      id: "DWP-0CORCOMP01",
+      revisionNumber: 2,
+      payload: { stage: "completion" },
+    },
+  ])("derives exact correction work for the $route route", ({
+    type,
+    id,
+    revisionNumber,
+    payload,
+  }) => {
+    const subject = record(type, id, payload, revisionNumber);
+    const review = record("REV", "REV-0CORRECT1", {
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{
+        id: "F-001",
+        target: subject.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "The exact Phase 2 subject requires local correction.",
+      }],
+      outcome: "fail",
+    }, 1, [{ type: "reviews", target: subject.datum.revision_id }]);
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-2-system-definition",
+      records: [subject, review],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.looseEnds.find((item) =>
+      item.obligation === "phase-2-review-correction-required" &&
+      item.subject === subject.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-phase-2-subject-after-review@1",
+      participation: [expect.objectContaining({
+        policy: "phase-2-correction-participation@1",
+        authorityRequirement: expect.objectContaining({ mode: "autonomous" }),
+        attentionSchedule: expect.objectContaining({ timing: "none" }),
+      })],
+    }));
+  });
+
+  it("derives attended Phase 2 correction after two autonomous replacements", () => {
+    const stableId = "SYS-0COREXHA01";
+    const first = record("SYS", stableId, {}, 1);
+    const firstReview = record("REV", "REV-0COREXHA01", {
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{ id: "F-001", target: first.datum.revision_id, relationship: "primary", severity: "blocking", summary: "First failure." }],
+      outcome: "fail",
+    }, 1, [{ type: "reviews", target: first.datum.revision_id }]);
+    const second = record("SYS", stableId, {}, 2, [
+      { type: "corrects-review", target: firstReview.datum.revision_id },
+    ]);
+    const secondReview = record("REV", "REV-0COREXHA02", {
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{ id: "F-002", target: second.datum.revision_id, relationship: "primary", severity: "blocking", summary: "Second failure." }],
+      outcome: "fail",
+    }, 1, [{ type: "reviews", target: second.datum.revision_id }]);
+    const third = record("SYS", stableId, {}, 3, [
+      { type: "corrects-review", target: secondReview.datum.revision_id },
+    ]);
+    const thirdReview = record("REV", "REV-0COREXHA03", {
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{ id: "F-003", target: third.datum.revision_id, relationship: "primary", severity: "blocking", summary: "Third failure." }],
+      outcome: "fail",
+    }, 1, [{ type: "reviews", target: third.datum.revision_id }]);
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-2-system-definition",
+      records: [first, firstReview, second, secondReview, third, thirdReview],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.looseEnds.find((item) =>
+      item.obligation === "phase-2-review-correction-required" &&
+      item.subject === third.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-phase-2-subject-after-review@1",
+      participation: [expect.objectContaining({
+        policy: "phase-2-correction-participation@1",
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+        attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+      })],
+    }));
+  });
+
+  it("derives exact correction work for a collateral Finding target", () => {
+    const primary = record("SYS", "SYS-0CORPRIM01", {}, 1);
+    const collateral = record("ICSP", "ICSP-0CORCOLL1", {}, 1);
+    const review = record("REV", "REV-0CORCOLL01", {
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      findings: [{
+        id: "F-001",
+        target: collateral.datum.revision_id,
+        relationship: "collateral",
+        severity: "blocking",
+        summary: "The exact collateral interface requires local correction.",
+      }],
+      outcome: "pass",
+    }, 1, [
+      { type: "reviews", target: primary.datum.revision_id },
+      { type: "flags", target: collateral.datum.revision_id },
+    ]);
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-2-system-definition",
+      records: [primary, collateral, review],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.looseEnds.find((item) =>
+      item.obligation === "phase-2-review-correction-required" &&
+      item.subject === collateral.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-phase-2-subject-after-review@1",
+      participation: [expect.objectContaining({
+        policy: "phase-2-correction-participation@1",
+        authorityRequirement: expect.objectContaining({ mode: "autonomous" }),
+        attentionSchedule: expect.objectContaining({ timing: "none" }),
+      })],
+    }));
   });
 });
