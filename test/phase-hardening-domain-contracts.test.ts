@@ -3,23 +3,10 @@ import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { beforeAll, describe, expect, it } from "vitest";
-import { parse } from "yaml";
 import { evaluateLifecycle, loadProcessPackage, resolveType, type ProcessPackage } from "../src/index.js";
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
-type Route = {
-  route: string;
-  selectors: string[];
-  obligations: string[];
-  participation: { mode: string; policies: string[]; authority: string };
-  resolvers: string[];
-  next: string[];
-  budget: string;
-  disposition: string;
-  reuse: string;
-};
-type Matrix = { rows: Array<{ id: string; routes: Route[] }> };
 
 const processRef = "mdlm-bootstrap@0.59.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
@@ -52,33 +39,15 @@ function requirement(title: string) {
 
 describe("Phase-hardening domain route contracts", () => {
   let processPackage: ProcessPackage;
-  let matrix: Matrix;
 
   beforeAll(async () => {
     const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
     processPackage = loaded.package;
-    matrix = parse(await fs.readFile("docs/phase-hardening-matrix.yaml", "utf8")) as Matrix;
   });
 
-  const selectedRows = (ids: string[]) => matrix.rows.filter((row) => ids.includes(row.id));
-  const routes = (ids: string[]) => selectedRows(ids).flatMap((row) => row.routes);
 
-  function expectCompleteRoutes(domainRoutes: Route[], expectedNames: string[]) {
-    expect(domainRoutes.map((route) => route.route)).toEqual(expectedNames);
-    for (const route of domainRoutes) {
-      expect(route.selectors.length, route.route).toBeGreaterThan(0);
-      expect(route.obligations.length, route.route).toBeGreaterThan(0);
-      expect(route.resolvers, route.route).toHaveLength(1);
-      expect(route.next, route.route).toHaveLength(1);
-      expect(route.next, route.route).not.toContain("process-dead-end");
-      expect(route.budget, route.route).not.toBe("");
-      expect(route.disposition, route.route).not.toBe("");
-      expect(route.reuse, route.route).not.toBe("");
-    }
-  }
-
-  it("proves Phase 0 foundation, question, Review, correction, and gate routes semantically", () => {
+  it("derives exact Phase 0 Review work from a published product specification", () => {
     const product = record("PSP", "PSP-HARDEN0001", {
       title: "Bounded product",
       rationale: "Discover exact Review work.",
@@ -107,23 +76,9 @@ describe("Phase-hardening domain route contracts", () => {
       status: "blocked",
       actionableResolver: "create-review-context@1",
     }));
-    const phaseIds = [
-      "phase-0-foundation-publication", "contextual-review", "phase-0-foundation-correction",
-      "phase-0-simplification-correction", "autonomous-question-source-boundary",
-      "question-immediate-attention", "prototype-question-answer", "question-deferral",
-      "question-cancellation", "preferential-question-answer", "consequential-decision-correction",
-      "phase-0-gate-rejection-return",
-    ];
-    const domainRoutes = routes(phaseIds);
-    expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
-    expect(domainRoutes.find((route) => route.route === "initial failure")).toMatchObject({
-      participation: { mode: "autonomous", policies: [], authority: "kernel-autonomous" },
-      resolvers: ["revise-foundation-after-review@5"],
-      next: ["assignment"],
-    });
   });
 
-  it("proves Phase 1 assurance execution, correction, and boundary routes semantically", () => {
+  it("derives Phase 1 work, delegated VAI execution, correction, and multiplicity boundaries", () => {
     const psp = record("PSP", "PSP-HARDENP100", {
       title: "Phase 1 product", rationale: "Exercise package assurance.", problem: "Malformed input must be rejected.",
       users: ["operator"], goals: ["exact assurance"], non_goals: [], success_measures: ["discriminating evidence"],
@@ -275,21 +230,9 @@ describe("Phase-hardening domain route contracts", () => {
     expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, activity, target, competingTarget] }).terminalOutcome)
       .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
 
-    const phaseIds = ["phase-1-assurance", "phase-1-public-command-evidence"];
-    const domainRoutes = routes(phaseIds);
-    expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
   });
 
-  it("proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically", async () => {
-    const phaseIds = [
-      "phase-2-definition-and-simplification",
-      "phase-2-simplification-correction",
-      "phase-2-review-correction-and-ambiguity",
-      "phase-2-candidate-gate-acceptance",
-    ];
-    const domainRoutes = routes(phaseIds);
-    expect(domainRoutes).toHaveLength(29);
-    expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
+  it("evaluates exact Phase 2 completion, candidate, acceptance, and progression snapshots", async () => {
     const transitions = [
       ["phase2-completion-ready.json", "decomposition-completion-required", "complete-decomposition-work-package@2"],
       ["phase2-group-ready.json", "decomposition-group-candidate-required", "create-decomposition-group-candidate@1"],
@@ -320,36 +263,9 @@ describe("Phase-hardening domain route contracts", () => {
       authorized: true,
       complete: true,
     }));
-    expect(domainRoutes.find((route) => route.route === "SYS")).toMatchObject({
-      obligations: ["phase-2-review-correction-required@1"],
-      participation: {
-        mode: "autonomous",
-        policies: ["phase-2-correction-participation@1"],
-        authority: "package-evidence",
-      },
-      resolvers: ["revise-phase-2-subject-after-review@1"],
-      next: ["assignment"],
-    });
-    expect(domainRoutes.find((route) => route.route === "reviewed rejection")).toMatchObject({
-      participation: {
-        mode: "autonomous",
-        policies: ["phase-2-correction-participation@1"],
-        authority: "package-evidence",
-      },
-      resolvers: ["revise-phase-2-candidate-after-review@1"],
-      next: ["assignment"],
-    });
-    expect(domainRoutes.find((route) => route.route === "exact acceptance")).toMatchObject({
-      obligations: ["system-acceptance-required@1"],
-      resolvers: ["accept-phase-2-system@1"],
-      next: ["assignment"],
-    });
-    expect(domainRoutes.find((route) => route.route === "progression")?.next).toEqual([
-      "assignment",
-    ]);
   });
 
-  it("proves PAS correction and reviewed terminal outcomes from exact lifecycle evidence", () => {
+  it("evaluates PAS correction authority and reviewed expansion outcomes", () => {
     const assessmentPayload = (recommendation: "proceed" | "change" | "stop") => ({
       title: "Pilot assessment",
       rationale: "Measure exact pilot evidence.",
@@ -443,12 +359,6 @@ describe("Phase-hardening domain route contracts", () => {
         attentionSchedule: expect.objectContaining({ timing: "immediate" }),
       }),
     ]);
-    const phaseIds = ["pilot-assessment", "expansion-decision-and-terminal-outcomes"];
-    const domainRoutes = routes(phaseIds);
-    expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
-    expect(domainRoutes.find((route) => route.route === "proceed")?.next).toEqual(["profile-boundary-reached"]);
-    expect(domainRoutes.find((route) => route.route === "change")?.next).toEqual(["assignment"]);
-    expect(domainRoutes.find((route) => route.route === "stop")?.next).toEqual(["lifecycle-complete"]);
 
     const passingReview = (subject: ReturnType<typeof record>, id: string) => record("REV", id, {
       title: `Passing ${subject.datum.revision_id}`,
@@ -542,7 +452,7 @@ describe("Phase-hardening domain route contracts", () => {
     }));
   });
 
-  it("proves accepted change and shared-consumer closure routes with selective reuse", async () => {
+  it("evaluates accepted change and shared-consumer transitions with selective reuse", async () => {
     const system = record("SYS", "SYS-HARDEN0001", requirement("Shared export"));
     const other = record("SYS", "SYS-HARDEN0002", requirement("Unrelated title"));
     const consumerPayload = { title: "Consumer", rationale: "Exact coverage.", stage: "completion", architecture_element: "AEL-HARDEN001", target_child_type: "SYS", behavioral_slice: "shared", expected_coverage: ["shared"], exclusions: [], dependencies: [], required_review_policy: "review-applicability@1", parent_coverage_status: "complete", deferred_questions: [], cross_group_dependencies: [], output_reviews_complete: true, simplification_disposition: "retained" };
@@ -662,10 +572,5 @@ describe("Phase-hardening domain route contracts", () => {
       "change-closure-required",
     ].includes(item.obligation))).toEqual([]);
 
-    const phaseIds = ["accepted-stakeholder-change", "shared-system-change"];
-    const domainRoutes = routes(phaseIds);
-    expectCompleteRoutes(domainRoutes, domainRoutes.map((route) => route.route));
-    expect(domainRoutes.find((route) => route.route === "closure")?.resolvers).toEqual(["close-change-request@4"]);
-    expect(domainRoutes.find((route) => route.route === "closure")?.next).toEqual(["profile-boundary-reached"]);
   });
 });

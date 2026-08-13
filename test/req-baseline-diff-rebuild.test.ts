@@ -330,6 +330,61 @@ describe("req baseline differences and repository projection rebuilding", () => 
       processDrift: 1,
     });
   }, 60_000);
+  it("lets package-authored reassessment rules treat informational process drift as Staleness", async () => {
+    await fs.rm(repositoryRoot, { recursive: true, force: true });
+    await fs.mkdir(repositoryRoot);
+    const selectorPath = path.join(
+      processRoot,
+      "selectors/staleness-relevant-dependency-changes-for.yaml",
+    );
+    await fs.writeFile(
+      selectorPath,
+      (await fs.readFile(selectorPath, "utf8")).replace(
+        '"evidence-target-change", "review-context-change"]',
+        '"evidence-target-change", "review-context-change",\n    "process-provenance-change"]',
+      ),
+    );
+    const initialized = req(
+      repositoryRoot,
+      "init",
+      "--process",
+      processRoot,
+      "--json",
+    );
+    expect(initialized.status, initialized.stderr).toBe(0);
+
+    const before = createBaseline("Process drift");
+    const after = createBaseline("Process drift");
+    expect(baseline("freeze", before.id).status).toBe(0);
+    expect(baseline("freeze", after.id).status).toBe(0);
+    const beforePath = path.join(repositoryRoot, before.path);
+    await fs.writeFile(
+      beforePath,
+      (await fs.readFile(beforePath, "utf8")).replace(
+        /process_ref: mdlm-bootstrap@0\.59\.0#sha256:[a-f0-9]{64}/,
+        `process_ref: historical-process@1.0.0#sha256:${"b".repeat(64)}`,
+      ),
+    );
+
+    const compared = baseline("diff", before.revisionId, after.revisionId);
+    expect(compared.status, compared.stderr).toBe(0);
+    const diff = JSON.parse(compared.stdout).baselineDiff;
+    expect(diff.processDrift).toEqual([
+      expect.objectContaining({ kind: "process-provenance-change" }),
+    ]);
+    expect(diff.subjects).toEqual([
+      expect.objectContaining({
+        subjectRevision: after.revisionId,
+        states: expect.objectContaining({ validity: "stale" }),
+        stateExplanations: expect.objectContaining({
+          validity: expect.stringContaining("process-provenance-change"),
+        }),
+        changes: [expect.objectContaining({
+          kind: "process-provenance-change",
+        })],
+      }),
+    ]);
+  }, 15_000);
 
   it("rebuilds disposable indexes and reports, and doctor fails before changing them when durable integrity fails", async () => {
     const product = createPsp("Doctor target");

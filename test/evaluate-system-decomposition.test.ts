@@ -151,30 +151,12 @@ describe("exact DWP parent Revision matching", () => {
     }), argumentsValue)).toEqual([]);
   });
 
-  it.each([
-    { route: "SYS", type: "SYS", id: "SYS-0CORRECT01", revisionNumber: 1, payload: {} },
-    { route: "ASP", type: "ASP", id: "ASP-0CORRECT01", revisionNumber: 1, payload: {} },
-    { route: "ICSP", type: "ICSP", id: "ICSP-0CORRECT1", revisionNumber: 1, payload: {} },
-    {
-      route: "planning DWP",
-      type: "DWP",
-      id: "DWP-0CORPLAN01",
-      revisionNumber: 1,
-      payload: { stage: "planning" },
-    },
-    {
-      route: "completion DWP",
-      type: "DWP",
-      id: "DWP-0CORCOMP01",
-      revisionNumber: 2,
-      payload: { stage: "completion" },
-    },
-  ])("derives exact correction work for the $route route", ({
-    type,
-    id,
-    revisionNumber,
-    payload,
-  }) => {
+  function expectExactCorrectionWork(
+    type: string,
+    id: string,
+    revisionNumber: number,
+    payload: Record<string, unknown>,
+  ) {
     const subject = record(type, id, payload, revisionNumber);
     const review = record("REV", "REV-0CORRECT1", {
       review_kind: "contextual",
@@ -209,6 +191,26 @@ describe("exact DWP parent Revision matching", () => {
         attentionSchedule: expect.objectContaining({ timing: "none" }),
       })],
     }));
+  }
+
+  it("derives exact correction work for a failed SYS Review", () => {
+    expectExactCorrectionWork("SYS", "SYS-0CORRECT01", 1, {});
+  });
+
+  it("derives exact correction work for a failed ASP Review", () => {
+    expectExactCorrectionWork("ASP", "ASP-0CORRECT01", 1, {});
+  });
+
+  it("derives exact correction work for a failed ICSP Review", () => {
+    expectExactCorrectionWork("ICSP", "ICSP-0CORRECT1", 1, {});
+  });
+
+  it("derives exact correction work for a failed planning DWP Review", () => {
+    expectExactCorrectionWork("DWP", "DWP-0CORPLAN01", 1, { stage: "planning" });
+  });
+
+  it("derives exact correction work for a failed completion DWP Review", () => {
+    expectExactCorrectionWork("DWP", "DWP-0CORCOMP01", 2, { stage: "completion" });
   });
 
   it("derives attended Phase 2 correction after two autonomous replacements", () => {

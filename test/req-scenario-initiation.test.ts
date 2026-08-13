@@ -226,6 +226,49 @@ describe("req scenario explicit initiation", () => {
       );
     }
   });
+  it("returns exact checks for explicitly supplied lifecycle inputs", () => {
+    const question = createEmpiricalQuestion();
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "dry-run",
+      "build-exploratory-prototype@1",
+      "--initiate",
+      "--input",
+      `question=${question.revisionId}`,
+      "--json",
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout).scenarioDryRun.invocations).toEqual([{
+      inputs: [{
+        name: "question",
+        contract: {
+          types: ["QST"],
+          cardinality: "one",
+          identity: "revision",
+        },
+        values: [expect.objectContaining({
+          identity: expect.objectContaining({
+            revision_id: question.revisionId,
+            type: "QST",
+          }),
+        })],
+        checks: [
+          expect.objectContaining({ check: "resolution", passed: true }),
+          expect.objectContaining({ check: "cardinality", passed: true }),
+          expect.objectContaining({ check: "identity", passed: true }),
+          expect.objectContaining({ check: "type", passed: true }),
+          expect.objectContaining({
+            check: "condition",
+            passed: true,
+            expected: 'question.payload.kind == "empirical"',
+          }),
+        ],
+      }],
+    }]);
+  });
 
   it("atomically publishes one coherent authored batch with explicit-initiation provenance", async () => {
     const prepared = req(

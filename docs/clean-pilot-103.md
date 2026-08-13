@@ -41,11 +41,13 @@ rows only for presentation. Every route independently carries its exact:
 - registered executable fixture or compiled-public-seam test.
 
 `test/phase-hardening-matrix.test.ts` validates each route directly rather than
-inheriting these fields from its row. It parses registered tests, requires real
-behavioral assertions (including assertions reached through local helpers), and
-binds the SYS, ASP, ICSP, planning-DWP, completion-DWP, and collateral-Finding
-Correction routes to dedicated package-evaluation assertions instead of a broad
-happy-path title.
+inheriting these fields from its row. Its static registration check requires a
+globally unique literal test identity, a direct assertion or explicitly named
+`expect…` assertion helper, and no matrix-derived evidence; it deliberately does not pretend AST token inspection
+can establish route semantics. The authoritative suite executes those tests, and
+the mappings bind SYS, ASP, ICSP, planning-DWP, completion-DWP, and
+collateral-Finding Correction routes to dedicated package-evaluation assertions
+instead of a broad happy-path title.
 
 The registered route evidence includes attended Product Wayfinding and one
 Consolidation Group, fresh package-delegated independent Review, lifecycle
@@ -62,7 +64,7 @@ before Scenario execution and publishes no Lifecycle Data.
 The package evidence proves these exact successful stops:
 
 - reviewed `proceed` → **Profile Boundary Reached**;
-- reviewed `change` → bounded Phase 7 work, then **Profile Boundary Reached**;
+- reviewed `change` without explicit CHG work → **Profile Boundary Reached**; accepted-change routes separately prove bounded Phase 7 Assignments;
 - reviewed `stop` → **Lifecycle Complete**.
 
 None uses a null item or Process Dead End. Phase 3–6 expansion and public-interface

@@ -74,49 +74,48 @@ type RegisteredTest = { assertionCount: number; source: string };
 
 function registeredTests(source: string, file: string): Map<string, RegisteredTest> {
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
-  const bindings = new Map<string, ts.Node>();
-  const collectBindings = (node: ts.Node) => {
-    if (ts.isFunctionDeclaration(node) && node.name) bindings.set(node.name.text, node);
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      bindings.set(node.name.text, node.initializer);
+  const assertionHelpers = new Map<string, ts.FunctionDeclaration>();
+  const collectAssertionHelpers = (node: ts.Node) => {
+    if (
+      ts.isFunctionDeclaration(node) && node.name &&
+      /^expect[A-Z]/.test(node.name.text)
+    ) {
+      assertionHelpers.set(node.name.text, node);
     }
-    ts.forEachChild(node, collectBindings);
+    ts.forEachChild(node, collectAssertionHelpers);
   };
-  collectBindings(ast);
-  const expandedBehavior = (roots: readonly ts.Node[]) => {
+  collectAssertionHelpers(ast);
+  const directBehavior = (roots: readonly ts.Node[]) => {
     let assertionCount = 0;
-    const sources: string[] = [];
-    const visitedBindings = new Set<string>();
+    const sources = roots.map((root) => root.getText(ast));
+    const visitedHelpers = new Set<string>();
     const inspect = (candidate: ts.Node) => {
       if (ts.isCallExpression(candidate) && candidate.expression.getText(ast) === "expect") {
         assertionCount += 1;
       }
       if (
-        ts.isIdentifier(candidate) && bindings.has(candidate.text) &&
-        !visitedBindings.has(candidate.text)
+        ts.isCallExpression(candidate) && ts.isIdentifier(candidate.expression) &&
+        assertionHelpers.has(candidate.expression.text) &&
+        !visitedHelpers.has(candidate.expression.text)
       ) {
-        visitedBindings.add(candidate.text);
-        const binding = bindings.get(candidate.text)!;
-        sources.push(binding.getText(ast));
-        inspect(binding);
+        visitedHelpers.add(candidate.expression.text);
+        const helper = assertionHelpers.get(candidate.expression.text)!;
+        sources.push(helper.getText(ast));
+        inspect(helper);
       }
       ts.forEachChild(candidate, inspect);
     };
-    for (const root of roots) {
-      sources.push(root.getText(ast));
-      inspect(root);
-    }
+    for (const root of roots) inspect(root);
     return { assertionCount, source: sources.join("\n") };
   };
   const tests = new Map<string, RegisteredTest>();
   const visit = (node: ts.Node) => {
     if (ts.isCallExpression(node) && node.arguments.length > 0) {
-      let callee = node.expression;
-      if (ts.isCallExpression(callee)) callee = callee.expression;
-      if (/^(it|test)(\.each)?$/.test(callee.getText(ast))) {
+      const callee = node.expression;
+      if (/^(it|test)$/.test(callee.getText(ast))) {
         const title = node.arguments[0];
         if (title && (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))) {
-          tests.set(title.text, expandedBehavior(node.arguments));
+          tests.set(title.text, directBehavior(node.arguments));
         }
       }
     }
@@ -166,8 +165,8 @@ describe("Phase-hardening matrix", () => {
           ...common,
           route: "source boundary before attended resolution",
           executable: {
-            file: "test/operator-outcome.test.ts",
-            test: "returns immediate attended work with an exact Assignment and Authority Requirement",
+            file: "test/req-scenario-participation.test.ts",
+            test: "projects autonomous, delegated, immediate, and checkpoint participation consistently",
           },
           next: ["attention-required"],
         }],
@@ -179,8 +178,8 @@ describe("Phase-hardening matrix", () => {
           ...common,
           route: "source boundary before autonomous resolution",
           executable: {
-            file: "test/phase-hardening-domain-contracts.test.ts",
-            test: "proves Phase 0 foundation, question, Review, correction, and gate routes semantically",
+            file: "test/req-scenario-dry-run.test.ts",
+            test: "derives a side-effect-free dry-run from durable repository truth",
           },
           next: ["assignment"],
         }],
@@ -308,10 +307,18 @@ describe("Phase-hardening matrix", () => {
     );
     expect(new Set(correctionRoutes.map((route) => route.route))).toEqual(expectedRoutes);
 
+    const exactTests = new Map([
+      ["SYS", "derives exact correction work for a failed SYS Review"],
+      ["ASP", "derives exact correction work for a failed ASP Review"],
+      ["ICSP", "derives exact correction work for a failed ICSP Review"],
+      ["planning DWP", "derives exact correction work for a failed planning DWP Review"],
+      ["completion DWP", "derives exact correction work for a failed completion DWP Review"],
+      ["collateral Finding", "derives exact correction work for a collateral Finding target"],
+    ]);
     for (const route of correctionRoutes) {
       expect(route.executable).toEqual({
-        file: "test/phase-hardening-domain-contracts.test.ts",
-        test: "proves Phase 2 completion, correction, candidate, acceptance, and progression routes semantically",
+        file: "test/evaluate-system-decomposition.test.ts",
+        test: exactTests.get(route.route),
       });
       expect(route.obligations).toEqual(["phase-2-review-correction-required@1"]);
       expect(route.resolvers).toEqual(["revise-phase-2-subject-after-review@1"]);
@@ -334,6 +341,7 @@ describe("Phase-hardening matrix", () => {
         .map((match) => match[1]!),
     );
     const testsByFile = new Map<string, Map<string, RegisteredTest>>();
+    const claimedEvidence = new Map<string, string>();
     const definitions = {
       obligations: await definitionReferences("obligations"),
       phases: await definitionReferences("phases"),
@@ -412,6 +420,13 @@ describe("Phase-hardening matrix", () => {
 
         expect(route.executable?.file, `${label}: evidence file`).toEqual(expect.any(String));
         expect(route.executable?.test, `${label}: evidence test`).toEqual(expect.any(String));
+        expect(route.executable.test, `${label}: literal non-parameterized identity`).not.toContain("$");
+        expect(route.executable.file, `${label}: matrix verifier cannot prove its own routes`)
+          .not.toBe("test/phase-hardening-matrix.test.ts");
+        const evidenceIdentity = `${route.executable.file}\u0000${route.executable.test}`;
+        expect(claimedEvidence.get(evidenceIdentity), `${label}: evidence identity already proves another route`)
+          .toBeUndefined();
+        claimedEvidence.set(evidenceIdentity, label);
         expect(testFiles, `${label}: retained authoritative evidence`).toContain(route.executable.file);
         if (!testsByFile.has(route.executable.file)) {
           testsByFile.set(
@@ -425,6 +440,8 @@ describe("Phase-hardening matrix", () => {
         const registered = testsByFile.get(route.executable.file)?.get(route.executable.test);
         expect(registered, `${label}: ${route.executable.test}`).toBeDefined();
         expect(registered?.assertionCount, `${label}: behavioral assertions`).toBeGreaterThan(0);
+        expect(registered?.source, `${label}: evidence must not derive from matrix metadata`)
+          .not.toMatch(/phase-hardening-matrix|MatrixRoute|route\.route/);
       }
     }
   });

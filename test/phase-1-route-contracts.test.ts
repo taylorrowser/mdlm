@@ -51,7 +51,13 @@ describe("Phase 1 route contracts", () => {
       "ENV qualification",
       "pilot VER",
       "passing independent Review",
-      "first and second correction",
+      "first VSP correction",
+      "second VSP correction",
+      "exhausted VSP correction",
+      "ordinary ENV correction",
+      "exhausted ENV correction",
+      "ordinary pilot VER correction",
+      "exhausted pilot VER correction",
       "stakeholder-owned failure",
       "malformed replacement",
       "multiple VSP boundary",
@@ -98,7 +104,7 @@ describe("Phase 1 route contracts", () => {
 
     const profile = processPackage.profiles.bootstrap as Record<string, unknown>;
     expect(JSON.stringify(profile.terminal_outcomes)).toContain("phase-1");
-    const boundaryRoutes = routes.filter((route) => route.route.startsWith("multiple ")); 
+    const boundaryRoutes = routes.filter((route) => route.route.startsWith("multiple "));
     expect(boundaryRoutes.map((route) => route.route)).toEqual([
       "multiple VSP boundary",
       "multiple ENV boundary",
