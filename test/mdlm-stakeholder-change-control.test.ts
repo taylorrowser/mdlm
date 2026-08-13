@@ -241,6 +241,11 @@ describe("accepted STK change control through the public operator process", () =
   });
 
   function commit(message: string) {
+    const doctor = mdlm(repository, ["doctor", "--json"]);
+    expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+    expect(git(repository, "add", "-N", ".lifecycle/data").status).toBe(0);
+    expect(git(repository, "diff", "--quiet", "--", ".lifecycle/data").status)
+      .toBe(1);
     expect(git(repository, "add", "--all").status).toBe(0);
     const committed = git(
       repository,
@@ -257,6 +262,7 @@ describe("accepted STK change control through the public operator process", () =
       message,
     );
     expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
+    expect(git(repository, "status", "--porcelain").stdout).toBe("");
   }
 
   async function seed() {
@@ -891,7 +897,7 @@ describe("accepted STK change control through the public operator process", () =
       expect(accepted.status, `${accepted.stderr}${accepted.stdout}`).toBe(0);
       expect(JSON.parse(accepted.stdout).projections.states.maturity).toBe("accepted");
     },
-    90_000,
+    150_000,
   );
 
   it("routes a failed attended disposition Review back to renewed attended judgment", async () => {

@@ -904,6 +904,71 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toBe(false);
   });
 
+  it("keeps cancelled question work unsatisfied until its exact scoped DEC passes Review", () => {
+    const source = question(
+      "QST-8ZT5KQ3P9X",
+      "Should unsupported work be cancelled",
+      "empirical",
+      { resolutionDisposition: "cancel" },
+    );
+    const cancelled = structuredClone(source);
+    cancelled.datum.revision = 2;
+    cancelled.datum.revision_id = `${source.datum.id}-r00002`;
+    cancelled.datum.payload.state = "cancelled";
+    const decision = lifecycleDatum("DEC", "DEC-8ZT5KQ3P9X", {
+      title: "Cancel one exact unsupported question",
+      rationale: "The stakeholder explicitly ended this unsupported route.",
+      kind: "cancellation",
+      decision: "Cancel the unsupported work.",
+      alternatives: ["Defer with a reactivation condition"],
+      effective_scope: cancelled.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [
+        { type: "resolves", target: source.datum.revision_id },
+        { type: "resolves", target: cancelled.datum.revision_id },
+      ],
+      scenario: "resolve-question@2",
+    });
+    const beforeReview = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [source, cancelled, decision],
+      dependencyComparisons: [],
+    });
+    expect(beforeReview.obligations.find((item) =>
+      item.obligation === "open-question-resolution" &&
+      item.subject === cancelled.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "blocked",
+      blockedBy: [expect.stringContaining(`:${decision.datum.revision_id}:`)],
+    }));
+
+    const review = lifecycleDatum("REV", "REV-8ZT5KQ3P9X", {
+      title: "Cancellation review",
+      review_kind: "independent",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      summary: "The cancellation is explicit and exact.",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      links: [{ type: "reviews", target: decision.datum.revision_id }],
+      scenario: "review-datum-in-context@2",
+    });
+    const afterReview = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records: [source, cancelled, decision, review],
+      dependencyComparisons: [],
+    });
+    expect(afterReview.obligations.some((item) =>
+      item.obligation === "open-question-resolution" &&
+      item.subject === cancelled.datum.revision_id
+    )).toBe(false);
+  });
+
   it("requires exact stakeholder authority and blocks the gate on an immediate question", () => {
     const fixture = reviewedGateFixture(processRef);
     const blocker = question(

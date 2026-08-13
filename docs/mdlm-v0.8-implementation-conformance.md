@@ -169,7 +169,8 @@ operator contract exposes package-bound attended inputs without counting
 Assignment transport attempts as lifecycle failures. Issue #103 integrates those tracer bullets into one reusable proof boundary. The
 Phase-hardening matrix now has a versioned executable-coverage index, its public
 process anchor proves doctor/diff/ordinary-commit discipline and exact subsequent
-Assignment state from `mdlm init`, and the clean-pilot audit maps every required
+Assignment state from `mdlm init`; every compiled route applies the same
+transaction discipline before its next Assignment; and the clean-pilot audit maps every required
 failure, attention, change, shared-impact, and explicit-terminal observation to
 registered executable evidence. The matrix remains test/specification data and is
 not consulted by runtime evaluation. The implemented routes and deferred

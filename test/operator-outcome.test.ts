@@ -132,6 +132,26 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
     "submit",
   );
   expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+  const doctor = mdlm(repository, "doctor", "--json");
+  expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+  expect(spawnSync("git", ["-C", repository, "add", "-N", ".lifecycle/data"]).status)
+    .toBe(0);
+  expect(spawnSync(
+    "git",
+    ["-C", repository, "diff", "--quiet", "--", ".lifecycle/data"],
+  ).status).toBe(1);
+  expect(spawnSync("git", ["-C", repository, "add", "--all"]).status).toBe(0);
+  const committed = spawnSync("git", [
+    "-C", repository,
+    "-c", "user.name=MDLM Test",
+    "-c", "user.email=mdlm-test@example.invalid",
+    "-c", "commit.gpgSign=false",
+    "commit", "--quiet", "--no-verify", "-m", "Publish checkpoint questions",
+  ], { encoding: "utf8" });
+  expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
+  expect(spawnSync("git", ["-C", repository, "status", "--porcelain"], {
+    encoding: "utf8",
+  }).stdout).toBe("");
 }
 
 function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {

@@ -1,10 +1,13 @@
 # Issue #103 clean-pilot proof
 
 This is the durable audit record for the complete implemented-profile proof. The
-pilot evidence is executable rather than a checked-in Lifecycle Data repository:
-each public-process journey creates a new temporary repository, publishes through
-`mdlm scenario submit`, and is discarded after its exact assertions. This prevents
-a pilot repository or transcript from becoming runtime workflow state.
+pilot is one serial executable ledger across its route modules. The greenfield
+anchor creates the repository with `mdlm init`; every retained route then uses the
+same public `mdlm next` → `mdlm scenario prepare` → `mdlm scenario submit` process
+contract. Route modules may reconstruct an exact committed prefix to keep the fast
+suite bounded, but they do not constitute alternate pilots or alternate evidence
+seams. Together they are the repeatable executable transcript for one declared
+run, not runtime workflow state.
 
 ## Operator contract
 
@@ -16,11 +19,13 @@ It proves the serial root loop starts with `mdlm init`, uses only `mdlm next`,
 checks the tracked tree is clean, and then proves the next Assignment lease names
 that exact committed `HEAD`.
 
-The route journeys linked below use the same compiled `mdlm` process seam. Focused
-package fixtures are retained only where a negative route needs exact prior
-Lifecycle Data; they are evidence fixtures, not a second operator or runtime
-state. Prototype-era adapter and direct-mutation paths are not part of the clean
-operator anchor. Their final removal remains issue #104.
+Every compiled-route publication listed below now applies that same
+**doctor → Lifecycle Data diff → ordinary Git commit → clean tracked tree**
+discipline before asking for the subsequent exact Assignment. Focused package
+fixtures remain only for narrow negative routes and exact-prefix reconstruction;
+they are matrix evidence, not a publication interface or termination mechanism.
+Prototype-era adapter and direct-mutation setup code is not counted as pilot
+operation. Its final removal remains issue #104.
 
 ## Observed hardening routes
 
@@ -40,10 +45,11 @@ operator anchor. Their final removal remains issue #104.
 
 [`phase-hardening-matrix.md`](phase-hardening-matrix.md) is the human review
 artifact. [`phase-hardening-coverage.yaml`](phase-hardening-coverage.yaml) is its
-versioned proof index. `test/phase-hardening-matrix.test.ts` requires every matrix
-section—including transport and liveness invariants—to name registered fixture or
-public executable evidence, and requires every clean-pilot observation above to be
-represented in that evidence set.
+versioned row-level proof index. `test/phase-hardening-matrix.test.ts` requires
+every distinct row—including transport and liveness invariants—to name one exact
+registered test and parameterized case where applicable; a section-wide source
+file is not accepted as evidence for all of its rows. It also requires every
+clean-pilot observation above to be represented in that evidence set.
 
 The matrix remains specification and test metadata only. The evaluator, Operator
 Outcome classifier, Assignment lease, and Process Package never read it.

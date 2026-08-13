@@ -66,6 +66,11 @@ describe("failed STK Review correction through the public operator process", () 
     { route: "stakeholder-owned candidate simplification preserves its autonomous budget", replacementReviews: ["pass"] as const, candidateStakeholderOwned: true },
   ])("$route", async ({ replacementReviews, stakeholderOwned = false, gateRejection = false, candidateStakeholderOwned = false }) => {
     const commit = (message: string) => {
+      const doctor = invokeMdlm(repository, ["doctor", "--json"]);
+      expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+      expect(git(repository, "add", "-N", ".lifecycle/data").status).toBe(0);
+      expect(git(repository, "diff", "--quiet", "--", ".lifecycle/data").status)
+        .toBe(1);
       expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
       const committed = git(
         repository,
@@ -78,6 +83,7 @@ describe("failed STK Review correction through the public operator process", () 
         message,
       );
       expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
+      expect(git(repository, "status", "--porcelain").stdout).toBe("");
     };
     const nextOutcome = () => {
       const next = invokeMdlm(repository, ["next"]);

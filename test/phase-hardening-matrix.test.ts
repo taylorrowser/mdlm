@@ -3,14 +3,20 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
+type RouteEvidence = {
+  kind: "public-executable-test" | "package-fixture";
+  file: string;
+  test: string;
+  case?: string;
+};
+
 type CoverageSection = {
   section: string;
-  routes: string[];
-  evidence: string[];
+  routes: Array<{ route: string; evidence: RouteEvidence }>;
 };
 
 type CoverageManifest = {
-  contract: "mdlm-phase-hardening-coverage@1";
+  contract: "mdlm-phase-hardening-coverage@2";
   matrix: string;
   publicProcessSeam: string;
   sections: CoverageSection[];
@@ -26,8 +32,16 @@ const matrixPath = path.join(projectRoot, "docs/phase-hardening-matrix.md");
 const coveragePath = path.join(projectRoot, "docs/phase-hardening-coverage.yaml");
 const suitesPath = path.join(projectRoot, "vitest.suites.mjs");
 
-function matrixRoutes(markdown: string) {
-  const routes = new Map<string, string[]>();
+type MatrixRow = {
+  route: string;
+  evidence: string;
+  processRoute: string;
+  outcome: string;
+  reuse: string;
+};
+
+function matrixRows(markdown: string) {
+  const routes = new Map<string, MatrixRow[]>();
   let section: string | undefined;
   for (const line of markdown.split("\n")) {
     if (line.startsWith("## ")) {
@@ -39,7 +53,13 @@ function matrixRoutes(markdown: string) {
     if (cells[0] === "Route" || cells[0] === "Expected result") continue;
     if (cells.length >= 3) {
       const sectionRoutes = routes.get(section) ?? [];
-      sectionRoutes.push(cells[0]!);
+      sectionRoutes.push({
+        route: cells[0]!,
+        evidence: cells[1]!,
+        processRoute: cells[2]!,
+        outcome: cells[3]!,
+        reuse: cells[4]!,
+      });
       routes.set(section, sectionRoutes);
     }
   }
@@ -54,26 +74,45 @@ describe("reusable Phase-hardening proof matrix", () => {
       fs.readFile(suitesPath, "utf8"),
     ]);
     const manifest = parse(source) as CoverageManifest;
-    expect(manifest.contract).toBe("mdlm-phase-hardening-coverage@1");
+    expect(manifest.contract).toBe("mdlm-phase-hardening-coverage@2");
     expect(manifest.matrix).toBe("docs/phase-hardening-matrix.md");
     expect(manifest.publicProcessSeam).toBe(
       "mdlm init -> mdlm next -> mdlm scenario prepare -> mdlm scenario submit",
     );
 
-    const routes = matrixRoutes(markdown);
+    const routes = matrixRows(markdown);
     const coverage = new Map(manifest.sections.map((entry) => [entry.section, entry]));
     expect([...coverage.keys()].sort()).toEqual([...routes.keys()].sort());
 
-    for (const [section, sectionRoutes] of routes) {
-      expect(sectionRoutes.length, section).toBeGreaterThan(0);
-      expect(coverage.get(section)!.routes, section).toEqual(sectionRoutes);
+    for (const [section, sectionRows] of routes) {
+      expect(sectionRows.length, section).toBeGreaterThan(0);
+      const sectionRoutes = sectionRows.map(({ route }) => route);
+      const routeEvidence = coverage.get(section)!.routes;
+      expect(routeEvidence.map(({ route }) => route), section).toEqual(sectionRoutes);
       expect(new Set(sectionRoutes).size, section).toBe(sectionRoutes.length);
-      const evidence = coverage.get(section)!.evidence;
-      expect(evidence.length, section).toBeGreaterThan(0);
-      for (const testPath of evidence) {
-        expect(suites, `${section}: ${testPath}`).toContain(`"${testPath}"`);
-        const testSource = await fs.readFile(path.join(projectRoot, testPath), "utf8");
-        expect(testSource, testPath).toMatch(/\b(?:it|test)(?:\.each)?\s*\(/);
+      for (const row of sectionRows) {
+        expect(row.evidence, `${section}: ${row.route}: evidence`).not.toBe("");
+        if (section !== "Transport and liveness invariants") {
+          expect(row.processRoute, `${section}: ${row.route}: exact package reference`)
+            .toMatch(/`[^`]+@[1-9][0-9]*`/);
+          expect(row.outcome, `${section}: ${row.route}: next outcome`).not.toBe("");
+          expect(row.reuse, `${section}: ${row.route}: budget/reuse`).not.toBe("");
+        }
+      }
+      for (const { route, evidence } of routeEvidence) {
+        expect(evidence.kind, `${section}: ${route}`).toMatch(
+          /^(?:public-executable-test|package-fixture)$/,
+        );
+        expect(suites, `${section}: ${route}: ${evidence.file}`)
+          .toContain(`"${evidence.file}"`);
+        const testSource = await fs.readFile(
+          path.join(projectRoot, evidence.file),
+          "utf8",
+        );
+        expect(testSource, `${route}: test '${evidence.test}'`).toContain(evidence.test);
+        if (evidence.case) {
+          expect(testSource, `${route}: case '${evidence.case}'`).toContain(evidence.case);
+        }
       }
     }
   });
