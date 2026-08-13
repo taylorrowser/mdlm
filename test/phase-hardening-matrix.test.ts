@@ -1,104 +1,125 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
+type DefinitionKind = "obligations" | "phases" | "policies" | "scenarios" | "selectors";
 type MatrixRow = {
-  section: string;
-  route: string;
-  evidence: string;
-  processRoute: string;
-  outcome: string;
+  id: string;
+  phases: string[];
+  routes: string[];
+  evidence: { facts: string; links: string };
+  selectors: string[];
+  obligations: string[];
+  participation: { mode: string; policies: string[]; authority: string };
+  resolvers: string[];
+  next: string[];
+  budget: string;
+  disposition: string;
   reuse: string;
+  executable: { file: string; test: string };
 };
 
-const projectRoot = process.cwd();
-const matrixPath = path.join(projectRoot, "docs/phase-hardening-matrix.md");
+type Matrix = { contract: string; rows: MatrixRow[] };
 
-function rows(markdown: string): MatrixRow[] {
-  const result: MatrixRow[] = [];
-  let section: string | undefined;
-  for (const line of markdown.split("\n")) {
-    if (line.startsWith("## ")) {
-      section = line.slice(3);
-      continue;
-    }
-    if (!section || !line.startsWith("| ") || line.startsWith("| ---")) continue;
-    const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
-    if (cells[0] === "Route" || cells[0] === "Expected result") continue;
-    if (cells.length === 5) {
-      result.push({
-        section,
-        route: cells[0]!,
-        evidence: cells[1]!,
-        processRoute: cells[2]!,
-        outcome: cells[3]!,
-        reuse: cells[4]!,
-      });
+const projectRoot = process.cwd();
+const matrixPath = path.join(projectRoot, "docs/phase-hardening-matrix.yaml");
+
+async function definitionReferences(kind: DefinitionKind): Promise<Set<string>> {
+  const references = new Set<string>();
+  const root = path.join(projectRoot, ".lifecycle/process", kind);
+  for (const file of await fs.readdir(root)) {
+    if (!file.endsWith(".yaml")) continue;
+    const definition = parse(await fs.readFile(path.join(root, file), "utf8")) as {
+      id?: string;
+      version?: number;
+    };
+    if (definition.id && definition.version) {
+      references.add(`${definition.id}@${definition.version}`);
     }
   }
-  return result;
+  return references;
 }
 
-describe("Phase-hardening matrix", () => {
-  it("names exact package definitions for every implemented route", async () => {
-    const markdown = await fs.readFile(matrixPath, "utf8");
-    const matrixRows = rows(markdown);
-    expect(matrixRows.length).toBeGreaterThan(0);
-
-    const definitions = new Set<string>();
-    for (const directory of [
-      "obligations",
-      "phases",
-      "policies",
-      "profiles",
-      "scenarios",
-      "selectors",
-      "states",
-    ]) {
-      const root = path.join(projectRoot, ".lifecycle/process", directory);
-      for (const file of await fs.readdir(root)) {
-        if (!file.endsWith(".yaml")) continue;
-        const definition = parse(await fs.readFile(path.join(root, file), "utf8")) as {
-          id?: string;
-          version?: number;
-        };
-        if (definition.id && definition.version) {
-          definitions.add(`${definition.id}@${definition.version}`);
+function registeredTests(source: string, file: string): Set<string> {
+  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const names = new Set<string>();
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && node.arguments.length > 0) {
+      let callee = node.expression;
+      if (ts.isCallExpression(callee)) callee = callee.expression;
+      const text = callee.getText(ast);
+      if (/^(it|test)(\.each)?$/.test(text)) {
+        const title = node.arguments[0];
+        if (title && (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))) {
+          names.add(title.text);
         }
       }
     }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return names;
+}
 
-    for (const row of matrixRows) {
-      expect(row.evidence, `${row.section}: ${row.route}: evidence`).not.toBe("");
-      expect(row.outcome, `${row.section}: ${row.route}: outcome`).not.toBe("");
-      expect(row.reuse, `${row.section}: ${row.route}: reuse`).not.toBe("");
-      if (row.section === "Transport and liveness invariants") continue;
+describe("Phase-hardening matrix", () => {
+  it("gives every outcome class exact package fields and registered executable evidence", async () => {
+    const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
+    expect(matrix.contract).toBe("mdlm-phase-hardening-matrix@1");
+    expect(matrix.rows.length).toBeGreaterThan(0);
+    expect(new Set(matrix.rows.map((row) => row.id)).size).toBe(matrix.rows.length);
 
-      const references = [...row.processRoute.matchAll(
-        /`([a-z][a-z0-9-]*@[1-9][0-9]*)`/g,
-      )].map((match) => match[1]!);
-      expect(references.length, `${row.section}: ${row.route}`).toBeGreaterThan(0);
-      for (const reference of references) {
-        expect(definitions, `${row.section}: ${row.route}: ${reference}`)
-          .toContain(reference);
+    const definitions = {
+      obligations: await definitionReferences("obligations"),
+      phases: await definitionReferences("phases"),
+      policies: await definitionReferences("policies"),
+      scenarios: await definitionReferences("scenarios"),
+      selectors: await definitionReferences("selectors"),
+    };
+    const testsByFile = new Map<string, Set<string>>();
+
+    for (const row of matrix.rows) {
+      const label = row.id;
+      expect(row.routes.length, `${label}: routes`).toBeGreaterThan(0);
+      expect(row.evidence.facts, `${label}: evidence facts`).not.toBe("");
+      expect(row.evidence.links, `${label}: evidence links`).not.toBe("");
+      expect(row.selectors.length, `${label}: Selectors`).toBeGreaterThan(0);
+      expect(row.obligations.length, `${label}: Obligations`).toBeGreaterThan(0);
+      expect(row.participation.mode, `${label}: participation mode`).not.toBe("");
+      expect(row.participation.authority, `${label}: participation authority`).not.toBe("");
+      expect(row.resolvers.length, `${label}: Resolvers`).toBeGreaterThan(0);
+      expect(row.next.length, `${label}: next outcomes`).toBeGreaterThan(0);
+      expect(row.next, `${label}: expected route must stay live`).not.toContain("process-dead-end");
+      expect(row.budget, `${label}: budget`).not.toBe("");
+      expect(row.disposition, `${label}: disposition`).not.toBe("");
+      expect(row.reuse, `${label}: reuse/invalidation`).not.toBe("");
+
+      for (const reference of row.phases) expect(definitions.phases, `${label}: ${reference}`).toContain(reference);
+      for (const reference of row.selectors) expect(definitions.selectors, `${label}: ${reference}`).toContain(reference);
+      for (const reference of row.obligations) expect(definitions.obligations, `${label}: ${reference}`).toContain(reference);
+      for (const reference of row.participation.policies) expect(definitions.policies, `${label}: ${reference}`).toContain(reference);
+      for (const reference of row.resolvers) expect(definitions.scenarios, `${label}: ${reference}`).toContain(reference);
+
+      const evidencePath = path.join(projectRoot, row.executable.file);
+      if (!testsByFile.has(row.executable.file)) {
+        testsByFile.set(
+          row.executable.file,
+          registeredTests(await fs.readFile(evidencePath, "utf8"), row.executable.file),
+        );
       }
+      expect(testsByFile.get(row.executable.file), `${label}: ${row.executable.test}`)
+        .toContain(row.executable.test);
     }
   });
 
-  it("keeps executable evidence at the public seam without runtime consumers", async () => {
-    const markdown = await fs.readFile(matrixPath, "utf8");
-    expect(markdown).toContain("## Executable evidence");
-    expect(markdown).toContain("`test/mdlm-review-correction.test.ts`");
-    expect(markdown).toContain("`test/mdlm-phase-1-assurance-correction.test.ts`");
-    expect(markdown).toContain("`test/mdlm-phase-2-simplification.test.ts`");
-    expect(markdown).toContain("`test/mdlm-pilot-assessment.test.ts`");
-
-    const runtimeReferences = await Promise.all(
-      (await fs.readdir(path.join(projectRoot, "src")))
+  it("remains a specification artifact with no runtime consumer", async () => {
+    const sourceRoot = path.join(projectRoot, "src");
+    const runtime = await Promise.all(
+      (await fs.readdir(sourceRoot, { recursive: true }))
         .filter((file) => file.endsWith(".ts"))
-        .map((file) => fs.readFile(path.join(projectRoot, "src", file), "utf8")),
+        .map((file) => fs.readFile(path.join(sourceRoot, file), "utf8")),
     );
-    expect(runtimeReferences.join("\n")).not.toContain("phase-hardening-matrix");
+    expect(runtime.join("\n")).not.toContain("phase-hardening-matrix");
   });
 });

@@ -167,13 +167,15 @@ disposition, STK, and candidate Reviews route to causal same-lineage Correction 
 fresh independent Review instead of stranding Phase 7. Draft STK correction remains the ordinary Phase 0 route. Issue #102 extends the same package-owned accepted boundary to one shared SYS consumed by two exact DWP lineages: exact links expose both consumers and dependent context, Review, candidate/gate, and verification evidence; draft replacement reevaluates each consumer without CHG; accepted replacement requires attended reviewed CHG authority and serial fresh consumer coverage before selective candidate and closure. The lifecycle-neutral
 operator contract exposes package-bound attended inputs without counting
 Assignment transport attempts as lifecycle failures. Issue #103 integrates those
-tracer bullets at the compiled public seam. Its clean-pilot anchor proves
-init/doctor/diff/ordinary-commit discipline and exact subsequent Assignment state;
-the reusable hardening matrix names the package definitions and executable route
-evidence without becoming runtime process state. The implemented routes and
-deferred breadth are recorded in
-[`phase-hardening-matrix.md`](phase-hardening-matrix.md), with the pilot audit in
-[`clean-pilot-103.md`](clean-pilot-103.md).
+tracer bullets through a compositional proof at the compiled public seam. Its
+fresh-repository transaction proves init/doctor/diff/ordinary-commit discipline
+and exact subsequent Assignment state; the structured hardening matrix groups
+only routes with the same package seam, participation, budget, disposition, and
+reuse rule, then binds every row to exact package definitions and registered
+executable evidence without becoming runtime process state. The implemented
+routes and deferred breadth are recorded in
+[`phase-hardening-matrix.yaml`](phase-hardening-matrix.yaml), with the proof shape
+and explicit clarification in [`clean-pilot-103.md`](clean-pilot-103.md).
 
 ## Demonstrated invariants
 

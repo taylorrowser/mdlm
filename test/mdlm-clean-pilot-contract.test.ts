@@ -96,15 +96,33 @@ describe("clean pilot public-process contract", () => {
     expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
 
-    const committedHead = git(repository, "rev-parse", "HEAD").stdout.trim();
+    expect(git(repository, "rev-parse", "HEAD").stdout.trim()).toMatch(/^[0-9a-f]{40}$/);
     const subsequent = mdlm(repository, ["next"]);
     expect(subsequent.status, `${subsequent.stderr}${subsequent.stdout}`).toBe(0);
     const subsequentOutcome = JSON.parse(subsequent.stdout);
     expect(subsequentOutcome.outcome).toBe("assignment");
-    const lease = JSON.parse(await fs.readFile(
-      path.join(repository, ".lifecycle/work/active-assignment.json"),
-      "utf8",
-    ));
-    expect(lease.repository.head).toBe(committedHead);
+
+    const subsequentPacket = mdlm(repository, [
+      "scenario",
+      "prepare",
+      subsequentOutcome.assignment.id,
+    ]);
+    expect(
+      subsequentPacket.status,
+      `${subsequentPacket.stderr}${subsequentPacket.stdout}`,
+    ).toBe(0);
+
+    // This adversarial edit is not pilot progress. It proves through the public
+    // interface that the allocated Assignment is exact to the clean commit.
+    await fs.appendFile(path.join(repository, ".gitignore"), "# tracked drift\n");
+    const stale = mdlm(repository, [
+      "scenario",
+      "prepare",
+      subsequentOutcome.assignment.id,
+    ]);
+    expect(stale.status).toBe(1);
+    expect(JSON.parse(stale.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "assignment-stale" }),
+    ]);
   }, 30_000);
 });
