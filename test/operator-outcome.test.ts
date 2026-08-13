@@ -60,13 +60,6 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
   const phase = parse(await fs.readFile(phasePath, "utf8"));
   phase.attention_checkpoints[0].readiness = "true";
   await fs.writeFile(phasePath, stringify(phase));
-  const obligationPath = path.join(
-    packageRoot,
-    "obligations/open-question-resolution.yaml",
-  );
-  const obligation = parse(await fs.readFile(obligationPath, "utf8"));
-  obligation.status_rules[0].when = "false";
-  await fs.writeFile(obligationPath, stringify(obligation));
   await recordInstalledPackageChange(repository, packageRoot);
 
   const first = JSON.parse(mdlm(repository, "next").stdout);
@@ -152,6 +145,147 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
   expect(spawnSync("git", ["-C", repository, "status", "--porcelain"], {
     encoding: "utf8",
   }).stdout).toBe("");
+
+  const publish = (outcome: Record<string, any>, outputs: Record<string, any>[]) => {
+    const prepared = mdlm(repository, "scenario", "prepare", outcome.assignment.id);
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    const packet = JSON.parse(prepared.stdout);
+    const result = mdlmWithInput(repository, `${JSON.stringify({
+      contract: "mdlm-assignment-response@1",
+      assignment: packet.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs,
+        completionEvidence: { summary: "Prepared the checkpoint source boundary." },
+        loadedSkillRefs: packet.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: packet.authority.requirements
+          .map((requirement: { authorityRequirement: { authority: string } }) =>
+            requirement.authorityRequirement.authority
+          ),
+        standingDelegations: [],
+      },
+    })}\n`, "scenario", "submit");
+    expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+    expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+    expect(spawnSync("git", ["-C", repository, "add", "--all"]).status).toBe(0);
+    const committed = spawnSync("git", [
+      "-C", repository,
+      "-c", "user.name=MDLM Test",
+      "-c", "user.email=mdlm-test@example.invalid",
+      "-c", "commit.gpgSign=false",
+      "commit", "--quiet", "--no-verify", "-m", `Publish ${packet.scenario.reference}`,
+    ], { encoding: "utf8" });
+    expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
+    return { packet, execution: JSON.parse(result.stdout).execution };
+  };
+
+  let productStable = "";
+  let frozenQuestions = 0;
+  while (frozenQuestions < 1) {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const prepared = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      next.assignment.id,
+    ).stdout);
+    const scenario = prepared.scenario.reference as string;
+    if (scenario === "create-review-context@1") {
+      const subject = prepared.exactInputs[0].inputs.find(
+        (input: { name: string }) => input.name === "subject",
+      ).values[0].identity.revision_id as string;
+      const members = prepared.exactInputs[0].inputs.find(
+        (input: { name: string }) => input.name === "context_members",
+      ).values.map((value: any) => value.identity.revision_id) as string[];
+      publish(next, [{
+        localId: `context-${subject}`,
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: `Review Context for ${subject}`,
+            kind: "review-context",
+            role: "review-context",
+            scope: subject,
+            group: "DEFAULT",
+            definition_members: [subject, ...members],
+            evidence: [],
+          },
+          links: [],
+          body: "Exact checkpoint preparation context.\n",
+        },
+      }]);
+    } else if (scenario === "compile-psp@2") {
+      const completed = publish(next, [{
+        localId: "product",
+        name: "product_specification",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "PSP",
+          payload: {
+            title: "Checkpoint conversation product",
+            rationale: "A minimal definition permits normal checkpoint activation.",
+            problem: "Two compatible choices need one stakeholder conversation.",
+            users: ["MDLM operator"],
+            goals: ["Normalize compatible conclusions serially"],
+            non_goals: [],
+            success_measures: ["Each conclusion publishes through its exact Assignment"],
+          },
+          links: [],
+          body: "Minimal checkpoint product definition.\n",
+        },
+      }]);
+      productStable = completed.execution.outputs[0].lifecycleDatum.id;
+    } else if (scenario === "draft-stakeholder-requirements@2") {
+      publish(next, [{
+        localId: "requirement",
+        name: "requirements",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "STK",
+          payload: {
+            title: "Resolve compatible checkpoint choices",
+            rationale: "The operator needs exact normalized conclusions.",
+            statement: "MDLM shall publish each compatible checkpoint conclusion serially.",
+            verification_intent: "Conduct one conversation and reevaluate after each publication.",
+            stakeholder: "MDLM operator",
+            priority: "must",
+          },
+          links: [{ type: "derived-from", target: productStable }],
+          body: "One bounded stakeholder requirement.\n",
+        },
+      }]);
+    } else {
+      expect(scenario).toBe("freeze-source-boundary@1");
+      const source = prepared.exactInputs[0].inputs.find(
+        (input: { name: string }) => input.name === "source",
+      ).values[0].identity.revision_id as string;
+      publish(next, [{
+        localId: `boundary-${frozenQuestions}`,
+        name: "boundary",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: `Source boundary for ${source}`,
+            kind: "source-boundary",
+            role: "source-boundary",
+            scope: source,
+            group: "SAME-LINEAGE",
+            definition_members: [source],
+            evidence: [],
+          },
+          links: [],
+          body: "Freeze the exact checkpoint question before resolution.\n",
+        },
+      }]);
+      frozenQuestions += 1;
+    }
+  }
+
 }
 
 function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {
@@ -734,7 +868,7 @@ describe("public mdlm outcome and status seam", () => {
     }));
   }, 30_000);
 
-  it("projects one complete checkpoint conversation and the first exact Assignment", async () => {
+  it("conducts one complete checkpoint conversation and serially publishes its conclusions", async () => {
     await publishCheckpointQuestions(repository);
 
     const next = mdlm(repository, "next");
@@ -804,10 +938,253 @@ describe("public mdlm outcome and status seam", () => {
     const packet = JSON.parse(prepared.stdout);
     expect(packet.checkpointConversation).toEqual(outcome.checkpointConversation);
     expect(packet.exactInputs).toHaveLength(1);
-    expect(packet.exactInputs[0].inputs[0].values[0].identity.revision_id)
-      .toBe(revisions[0]);
+    const firstQuestion = packet.exactInputs[0].inputs[0].values[0];
+    expect(firstQuestion.identity.revision_id).toBe(revisions[0]);
     expect(JSON.stringify(packet)).not.toContain("rawTranscript");
-  });
+
+    const answer = (
+      resolutionPacket: Record<string, any>,
+      question: Record<string, any>,
+    ) => ({
+      contract: "mdlm-assignment-response@1",
+      assignment: resolutionPacket.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "answer",
+          name: "updated_question",
+          invocation: 0,
+          lifecycleDatum: {
+            id: question.identity.id,
+            type: "QST",
+            payload: { ...question.data.payload, state: "answered" },
+            links: question.data.links,
+            body: "Normalized conclusion from the consolidated conversation.\n",
+          },
+        }, {
+          localId: "decision",
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: `Resolve ${question.data.payload.title}`,
+              rationale: "The consolidated conversation supplied exact stakeholder intent.",
+              kind: "scope",
+              decision: "Retain the smallest compatible public boundary.",
+              alternatives: ["Retain a broader boundary"],
+              effective_scope: "$proposal.answer.revision_id",
+            },
+            links: [
+              { type: "resolves", target: question.identity.revision_id },
+              { type: "resolves", target: "$proposal.answer.revision_id" },
+            ],
+            body: "Normalized scope conclusion; the raw conversation is not stored.\n",
+          },
+        }],
+        completionEvidence: {
+          summary: "Published one exact normalized conclusion from the checkpoint conversation.",
+        },
+        loadedSkillRefs: resolutionPacket.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: ["stakeholder"],
+        standingDelegations: [],
+      },
+    });
+    const commitConclusion = (message: string) => {
+      expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+      expect(spawnSync("git", ["-C", repository, "add", "--all"]).status).toBe(0);
+      const committed = spawnSync("git", [
+        "-C", repository,
+        "-c", "user.name=MDLM Test",
+        "-c", "user.email=mdlm-test@example.invalid",
+        "-c", "commit.gpgSign=false",
+        "commit", "--quiet", "--no-verify", "-m", message,
+      ], { encoding: "utf8" });
+      expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
+      expect(spawnSync("git", ["-C", repository, "status", "--porcelain"], {
+        encoding: "utf8",
+      }).stdout).toBe("");
+    };
+    const submitted = mdlmWithInput(
+      repository,
+      `${JSON.stringify(answer(packet, firstQuestion))}\n`,
+      "scenario",
+      "submit",
+    );
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    commitConclusion("Publish first checkpoint conclusion");
+
+    const submitPrepared = (
+      preparedPacket: Record<string, any>,
+      outputs: Record<string, any>[],
+      authorities: string[],
+      message: string,
+    ) => {
+      const result = mdlmWithInput(repository, `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment: preparedPacket.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs,
+          completionEvidence: { summary: message },
+          loadedSkillRefs: preparedPacket.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: authorities,
+          standingDelegations: [],
+        },
+      })}\n`, "scenario", "submit");
+      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+      commitConclusion(message);
+    };
+
+    let reevaluatedOutcome = JSON.parse(mdlm(repository, "next").stdout);
+    expect(JSON.stringify(reevaluatedOutcome)).not.toContain(revisions[0]);
+    let boundaryPacket: Record<string, any>;
+    while (true) {
+      const result = mdlm(
+        repository,
+        "scenario",
+        "prepare",
+        reevaluatedOutcome.assignment.id,
+      );
+      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+      const currentPacket = JSON.parse(result.stdout);
+      if (currentPacket.scenario.reference === "freeze-source-boundary@1") {
+        boundaryPacket = currentPacket;
+        break;
+      }
+      if (currentPacket.scenario.reference === "create-review-context@1") {
+        const subject = currentPacket.exactInputs[0].inputs.find(
+          (input: { name: string }) => input.name === "subject",
+        ).values[0].identity.revision_id;
+        const members = currentPacket.exactInputs[0].inputs.find(
+          (input: { name: string }) => input.name === "context_members",
+        ).values.map((value: any) => value.identity.revision_id);
+        submitPrepared(currentPacket, [{
+          localId: `context-${subject}`,
+          name: "context",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: `Review Context for ${subject}`,
+              kind: "review-context",
+              role: "review-context",
+              scope: subject,
+              group: "DEFAULT",
+              definition_members: [subject, ...members],
+              evidence: [],
+            },
+            links: [],
+            body: "Review the first normalized checkpoint Decision.\n",
+          },
+        }], [], "Freeze first checkpoint Decision context");
+      } else {
+        expect(currentPacket.scenario.reference).toBe("review-datum-in-context@2");
+        const subject = currentPacket.exactInputs[0].inputs.find(
+          (input: { name: string }) => input.name === "subject",
+        ).values[0].identity.revision_id;
+        const context = currentPacket.exactInputs[0].inputs.find(
+          (input: { name: string }) => input.name === "review_context",
+        ).values[0].identity.revision_id;
+        submitPrepared(currentPacket, [{
+          localId: `review-${subject}`,
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: `Passing Review of ${subject}`,
+              review_kind: "contextual",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [],
+              outcome: "pass",
+            },
+            links: [
+              { type: "reviews", target: subject },
+              { type: "contextualizes", target: context },
+            ],
+            body: "The normalized conclusion preserves exact stakeholder intent.\n",
+          },
+        }], ["independent-reviewer"], "Review first checkpoint Decision");
+      }
+      reevaluatedOutcome = JSON.parse(mdlm(repository, "next").stdout);
+      expect(JSON.stringify(reevaluatedOutcome)).not.toContain(revisions[0]);
+    }
+    const secondQuestion = boundaryPacket.exactInputs[0].inputs.find(
+      (input: { name: string }) => input.name === "source",
+    ).values[0];
+    const boundarySubmitted = mdlmWithInput(repository, `${JSON.stringify({
+      contract: "mdlm-assignment-response@1",
+      assignment: boundaryPacket.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "second-boundary",
+          name: "boundary",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: `Source boundary for ${secondQuestion.identity.revision_id}`,
+              kind: "source-boundary",
+              role: "source-boundary",
+              scope: secondQuestion.identity.revision_id,
+              group: "SAME-LINEAGE",
+              definition_members: [secondQuestion.identity.revision_id],
+              evidence: [],
+            },
+            links: [],
+            body: "Freeze the reevaluated second checkpoint question.\n",
+          },
+        }],
+        completionEvidence: { summary: "Prepared the second exact conclusion." },
+        loadedSkillRefs: boundaryPacket.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    })}\n`, "scenario", "submit");
+    expect(boundarySubmitted.status, `${boundarySubmitted.stderr}${boundarySubmitted.stdout}`)
+      .toBe(0);
+    commitConclusion("Freeze second checkpoint source");
+
+    const second = JSON.parse(mdlm(repository, "next").stdout);
+    expect(second).toEqual(expect.objectContaining({
+      outcome: "attention-required",
+      checkpointConversation: expect.objectContaining({
+        items: expect.arrayContaining([expect.objectContaining({
+          exactSubject: expect.objectContaining({
+            identity: expect.objectContaining({
+              revisionId: secondQuestion.identity.revision_id,
+            }),
+          }),
+        })]),
+      }),
+    }));
+    const secondPrepared = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      second.assignment.id,
+    ).stdout);
+    const secondSubmitted = mdlmWithInput(
+      repository,
+      `${JSON.stringify(answer(secondPrepared, secondQuestion))}\n`,
+      "scenario",
+      "submit",
+    );
+    expect(secondSubmitted.status, `${secondSubmitted.stderr}${secondSubmitted.stdout}`)
+      .toBe(0);
+    commitConclusion("Publish second checkpoint conclusion");
+    const afterConversation = JSON.parse(mdlm(repository, "next").stdout);
+    expect(afterConversation.outcome).toBe("assignment");
+    expect(afterConversation.outcome).not.toBe("process-dead-end");
+  }, 90_000);
 
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(

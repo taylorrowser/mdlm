@@ -129,7 +129,7 @@ sections:
         evidence:
           kind: public-executable-test
           file: test/operator-outcome.test.ts
-          test: projects one complete checkpoint conversation and the first exact Assignment
+          test: conducts one complete checkpoint conversation and serially publishes its conclusions
       - route: Empirical evidence available
         evidence:
           kind: package-fixture
@@ -256,37 +256,37 @@ sections:
         evidence:
           kind: public-executable-test
           file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          test: preserves the ENV correction budget while rebuilding qualification before attention
       - route: Corrected ENV assurance
         evidence:
           kind: public-executable-test
           file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          test: preserves the ENV correction budget while rebuilding qualification before attention
       - route: ENV first or second replacement fails
         evidence:
           kind: public-executable-test
           file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          test: preserves the ENV correction budget while rebuilding qualification before attention
       - route: Initial pilot VER Review fails
         evidence:
           kind: public-executable-test
           file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          test: projects pilot VER correction and exhausted-budget attention without replacing ENV evidence
       - route: Corrected pilot VER fails or passes
         evidence:
           kind: public-executable-test
           file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          test: projects pilot VER correction and exhausted-budget attention without replacing ENV evidence
       - route: Pilot VER second correction fails
         evidence:
           kind: public-executable-test
           file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          test: projects pilot VER correction and exhausted-budget attention without replacing ENV evidence
       - route: Stakeholder-owned assurance finding
         evidence:
           kind: public-executable-test
           file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          test: preserves the ENV correction budget while rebuilding qualification before attention
       - route: Missing causal Review link or changed boundary
         evidence:
           kind: public-executable-test

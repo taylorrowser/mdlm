@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import ts from "typescript";
 import { parse } from "yaml";
 
 type RouteEvidence = {
@@ -39,6 +40,74 @@ type MatrixRow = {
   outcome: string;
   reuse: string;
 };
+
+function registeredTests(file: string, source: string) {
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const registrations: Array<{ title: string; cases: Set<string> }> = [];
+  const stringConstants = new Map<string, string>();
+  const collectConstants = (node: ts.Node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      (ts.isStringLiteral(node.initializer) ||
+        ts.isNoSubstitutionTemplateLiteral(node.initializer))
+    ) {
+      stringConstants.set(node.name.text, node.initializer.text);
+    }
+    ts.forEachChild(node, collectConstants);
+  };
+  collectConstants(sourceFile);
+  const literal = (node: ts.Node | undefined) => {
+    if (!node) return undefined;
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      return node.text;
+    }
+    return ts.isIdentifier(node) ? stringConstants.get(node.text) : undefined;
+  };
+  const tableCases = (node: ts.Node | undefined) => {
+    const cases = new Set<string>();
+    const visit = (candidate: ts.Node) => {
+      const value = literal(candidate);
+      if (value !== undefined) cases.add(value);
+      ts.forEachChild(candidate, visit);
+    };
+    if (node) visit(node);
+    return cases;
+  };
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node)) {
+      const title = literal(node.arguments[0]);
+      if (
+        title &&
+        ts.isCallExpression(node.expression) &&
+        ts.isPropertyAccessExpression(node.expression.expression) &&
+        ["it", "test"].includes(node.expression.expression.expression.getText(sourceFile)) &&
+        node.expression.expression.name.text === "each"
+      ) {
+        registrations.push({
+          title,
+          cases: tableCases(node.expression.arguments[0]),
+        });
+      } else if (
+        title &&
+        ts.isIdentifier(node.expression) &&
+        ["it", "test"].includes(node.expression.text)
+      ) {
+        registrations.push({ title, cases: new Set() });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return registrations;
+}
 
 function matrixRows(markdown: string) {
   const routes = new Map<string, MatrixRow[]>();
@@ -80,6 +149,29 @@ describe("reusable Phase-hardening proof matrix", () => {
       "mdlm init -> mdlm next -> mdlm scenario prepare -> mdlm scenario submit",
     );
 
+    const definitionReferences = new Set<string>();
+    for (const directory of [
+      "obligations",
+      "phases",
+      "policies",
+      "profiles",
+      "scenarios",
+      "selectors",
+      "states",
+    ]) {
+      const root = path.join(projectRoot, ".lifecycle/process", directory);
+      for (const file of await fs.readdir(root)) {
+        if (!file.endsWith(".yaml")) continue;
+        const definition = parse(await fs.readFile(path.join(root, file), "utf8")) as {
+          id?: string;
+          version?: number;
+        };
+        if (definition.id && definition.version) {
+          definitionReferences.add(`${definition.id}@${definition.version}`);
+        }
+      }
+    }
+
     const routes = matrixRows(markdown);
     const coverage = new Map(manifest.sections.map((entry) => [entry.section, entry]));
     expect([...coverage.keys()].sort()).toEqual([...routes.keys()].sort());
@@ -93,8 +185,19 @@ describe("reusable Phase-hardening proof matrix", () => {
       for (const row of sectionRows) {
         expect(row.evidence, `${section}: ${row.route}: evidence`).not.toBe("");
         if (section !== "Transport and liveness invariants") {
-          expect(row.processRoute, `${section}: ${row.route}: exact package reference`)
-            .toMatch(/`[^`]+@[1-9][0-9]*`/);
+          const references = [...row.processRoute.matchAll(
+            /`([a-z][a-z0-9-]*@[1-9][0-9]*)`/g,
+          )].map((match) => match[1]!);
+          expect(
+            references.length,
+            `${section}: ${row.route}: exact package reference`,
+          ).toBeGreaterThan(0);
+          for (const reference of references) {
+            expect(
+              definitionReferences,
+              `${section}: ${row.route}: ${reference}`,
+            ).toContain(reference);
+          }
           expect(row.outcome, `${section}: ${row.route}: next outcome`).not.toBe("");
           expect(row.reuse, `${section}: ${row.route}: budget/reuse`).not.toBe("");
         }
@@ -109,9 +212,23 @@ describe("reusable Phase-hardening proof matrix", () => {
           path.join(projectRoot, evidence.file),
           "utf8",
         );
-        expect(testSource, `${route}: test '${evidence.test}'`).toContain(evidence.test);
+        const registration = registeredTests(evidence.file, testSource).find(
+          ({ title }) => title === evidence.test,
+        );
+        expect(
+          registration,
+          `${route}: executable test declaration '${evidence.test}'`,
+        ).toBeDefined();
         if (evidence.case) {
-          expect(testSource, `${route}: case '${evidence.case}'`).toContain(evidence.case);
+          expect(
+            registration!.cases,
+            `${route}: parameterized case '${evidence.case}'`,
+          ).toContain(evidence.case);
+        } else {
+          expect(
+            registration!.cases.size,
+            `${route}: parameterized evidence requires an exact case`,
+          ).toBe(0);
         }
       }
     }
