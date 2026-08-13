@@ -120,6 +120,7 @@ Aliases; harnesses return structured proposals or typed inability through
 - Canonical domain language: `CONTEXT.md`
 - Accepted process overview: `docs/mdlm-process-overview-v0.8.md`
 - v0.8 implementation conformance: `docs/mdlm-v0.8-implementation-conformance.md`
+- Zero-to-assessment pilot report: `docs/zero-to-assessment-pilot.md`
 - Experimental package reference: `docs/mdlm-process-package-reference-v0.2.md`
 - Generic pi operator loop: `docs/mdlm-pi-operator.md`
 - Implementation choices and observations: `docs/prototype-decision-log.md`
