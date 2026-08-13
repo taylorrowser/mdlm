@@ -14,6 +14,7 @@ export const fastTests = [
   "test/textual-expression.test.ts",
   "test/mdlm-command-application.test.ts",
   "test/mdlm-init.test.ts",
+  "test/mdlm-zero-to-assessment-onboarding.test.ts",
   "test/operator-outcome.test.ts",
   "test/req-lifecycle.test.ts",
   "test/req-process-expression.test.ts",

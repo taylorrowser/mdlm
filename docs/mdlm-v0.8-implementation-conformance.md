@@ -52,6 +52,7 @@ the accepted overview and the reviewed pilot Decision.
 | Accepted STK and shared-SYS boundaries, attended exact Change Request dispositions, serial consumer coverage replacement, selective reuse, and closure | 54, 57–58, 68–75 | #47, #101–#102 | `test/mdlm-stakeholder-change-control.test.ts`, `test/mdlm-shared-system-change-control.test.ts`, `test/evaluate-shared-system-change.test.ts`, `test/mdlm-review-correction.test.ts` |
 | Durable pilot measurements, bounded PAS/Decision correction, independently reviewed expansion Decision, and explicit outcomes | 56–60 | #48, #68, #100 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts`, `test/mdlm-pilot-assessment.test.ts` |
 | Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
+| Clean zero-to-assessment onboarding and observed friction | 57–60 | #70 | `test/mdlm-zero-to-assessment-onboarding.test.ts`, [`zero-to-assessment-pilot.md`](zero-to-assessment-pilot.md) |
 
 The full suite supplies overlapping regression coverage rather than treating this
 table as one test per requirement.
@@ -238,7 +239,11 @@ deferred hardening breadth are recorded in
 
 ## Pilot outcome and remaining limits
 
-The final pilot assessment records useful exact Loose Ends, correct selective
+The separate [zero-to-assessment pilot report](zero-to-assessment-pilot.md)
+records the clean repository's observed interaction counts, delegated Reviews,
+Correction loops, attention-consolidation opportunity, and remaining friction,
+then composes its immutable observations with the repaired public Phase 0–2 and
+assessment seams. The final pilot assessment records useful exact Loose Ends, correct selective
 reuse and Staleness explanations, sufficient environment profiles, and successful
 discrimination between supported and unsupported behavior. It also records high
 Review/gate ceremony and no demonstrated scope removal. The exact expansion
