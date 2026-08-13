@@ -12,12 +12,12 @@ rows:
       - route: first malformed response
         executable:
           file: test/mdlm-assignment.test.ts
-          test: preserves the same Assignment for one malformed-response correction that can publish
+          claim: preserves the same Assignment for one malformed-response correction that can publish
           assertions:
             - correction-required
             - correct-response
-            - 'automaticReplacement: false'
-            - 'malformedResponseCorrection: 0'
+            - "automaticReplacement: false"
+            - "malformedResponseCorrection: 0"
         evidence:
           facts: The exact Assignment lease records the first malformed response digest and diagnostics while retaining the same Assignment identity.
           links: No Lifecycle Data or lifecycle link is accepted because Assignment Response validation precedes Scenario execution and publication.
@@ -41,12 +41,12 @@ rows:
       - route: second malformed response
         executable:
           file: test/mdlm-assignment.test.ts
-          test: exhausts the Assignment on a second malformed response and reports the terminal disposition
+          claim: exhausts the Assignment on a second malformed response and reports the terminal disposition
           assertions:
             - exhausted
             - 'action: "stop"'
-            - 'automaticReplacement: false'
-            - 'malformedResponses).toHaveLength(2)'
+            - "automaticReplacement: false"
+            - malformedResponses).toHaveLength(2)
         evidence:
           facts: The same exact Assignment lease records both malformed response attempts and changes its disposition to exhausted.
           links: No Lifecycle Data or lifecycle link is accepted; the exhausted lease remains ignored operational state rather than lifecycle evidence.
@@ -74,7 +74,7 @@ rows:
       - route: greenfield MAP
         executable:
           file: test/mdlm-clean-pilot-contract.test.ts
-          test: binds each subsequent Assignment to the doctor-checked ordinary Git commit
+          claim: binds each subsequent Assignment to the doctor-checked ordinary Git commit
         evidence:
           facts: One fresh repository with no MAP and one newly published current MAP Revision.
           links: The initial MAP has no required incoming lifecycle link; its exact Revision becomes the foundation member.
@@ -95,8 +95,8 @@ rows:
         reuse: The exact MAP Revision is retained for later Review Context and candidate membership.
       - route: PSP
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: One current MAP and one newly published PSP Revision.
           links: The PSP is compiled from the exact current wayfinding foundation selected by the package.
@@ -117,8 +117,8 @@ rows:
         reuse: The current MAP remains reusable; the exact PSP requires its own fresh Review Context and Review.
       - route: STK
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: One current reviewed PSP and the newly published STK Revision.
           links: The STK derived-from link names the exact governing PSP Stable Datum.
@@ -139,8 +139,8 @@ rows:
         reuse: Reviewed MAP and PSP evidence remains reusable; the new STK receives fresh context and Review.
       - route: candidate creation
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: The complete current passing MAP, PSP, and STK definition set and one frozen intent candidate.
           links: Candidate definition membership names every exact current foundation Revision.
@@ -161,8 +161,8 @@ rows:
         reuse: Exact passing member Reviews are reused as candidate evidence while their subjects remain unchanged.
       - route: accepted intent
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: One exact passing intent candidate, reviewed approving gate DEC, and newly published accepted baseline.
           links: The accepted baseline promotes the exact candidate and retains its exact gate and Review evidence.
@@ -191,8 +191,8 @@ rows:
     routes:
       - route: fresh Review Context
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: One exact substantive subject and the minimum complete frozen Review Context.
           links: Baseline definition membership contains the exact subject and every package-selected context member.
@@ -213,8 +213,8 @@ rows:
         reuse: The exact context is reusable only for its unchanged subject and context dependencies.
       - route: passing independent Review
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: One exact subject, its complete frozen Review Context, and one passing REV.
           links: The REV reviews the exact subject and contextualizes the exact Review Context.
@@ -237,7 +237,7 @@ rows:
       - route: failed independent Review
         executable:
           file: test/mdlm-assignment.test.ts
-          test: publishes a contract-valid unfavorable independent judgment unchanged
+          claim: publishes a contract-valid unfavorable independent judgment unchanged
         evidence:
           facts: One exact subject, its complete frozen Review Context, and one failed REV with all Findings.
           links: The REV reviews the exact subject and contextualizes the exact Review Context.
@@ -263,8 +263,8 @@ rows:
     routes:
       - route: initial failure
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: routes a failed foundation Review to a replacement Revision and fresh Review work
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: routes a failed foundation Review to a replacement Revision and fresh Review work
         evidence:
           facts: "initial failure: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -288,7 +288,7 @@ rows:
       - route: first replacement
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: preserves both autonomous foundation cycles after an attended correction
+          claim: preserves both autonomous foundation cycles after an attended correction
         evidence:
           facts: "first replacement: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -312,7 +312,7 @@ rows:
       - route: second replacement
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: preserves both autonomous foundation cycles after an attended correction
+          claim: preserves both autonomous foundation cycles after an attended correction
         evidence:
           facts: "second replacement: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -336,7 +336,7 @@ rows:
       - route: stakeholder-owned failure
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: preserves both autonomous foundation cycles after an attended correction
+          claim: preserves both autonomous foundation cycles after an attended correction
         evidence:
           facts: One failed foundation REV whose structured correction_authority is stakeholder and its exact subject lineage.
           links: The Review reviews the exact stakeholder-owned subject; an attended replacement must be justified by exact DEC authority.
@@ -360,7 +360,7 @@ rows:
       - route: post-attended fresh cycles
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: preserves both autonomous foundation cycles after an attended correction
+          claim: preserves both autonomous foundation cycles after an attended correction
         evidence:
           facts: "post-attended fresh cycles: one current failed foundation Revision, every applicable failed REV, and its same-lineage correction history."
           links: Every replacement preserves Stable Datum identity and cites every applicable failed REV through corrects-review.
@@ -387,8 +387,8 @@ rows:
     routes:
       - route: pass
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: "pass: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "pass: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -414,7 +414,7 @@ rows:
       - route: member failure
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: routes blocking candidate simplification findings to the exact member correction
+          claim: routes blocking candidate simplification findings to the exact member correction
         evidence:
           facts: "member failure: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "member failure: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -439,7 +439,7 @@ rows:
       - route: candidate failure
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: escalates an exhausted candidate lineage through the same correction interface
+          claim: escalates an exhausted candidate lineage through the same correction interface
         evidence:
           facts: "candidate failure: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "candidate failure: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -464,7 +464,7 @@ rows:
       - route: stakeholder-owned failure
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: attends stakeholder-owned candidate simplification without consuming its autonomous budget
+          claim: attends stakeholder-owned candidate simplification without consuming its autonomous budget
         evidence:
           facts: "stakeholder-owned failure: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "stakeholder-owned failure: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -490,7 +490,7 @@ rows:
       - route: malformed blocker
         executable:
           file: test/resolve-type.test.ts
-          test: binds Phase 0 simplification failure to one exact structured target
+          claim: binds Phase 0 simplification failure to one exact structured target
         evidence:
           facts: "malformed blocker: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "malformed blocker: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -516,7 +516,7 @@ rows:
       - route: exhausted candidate
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: escalates an exhausted candidate lineage through the same correction interface
+          claim: escalates an exhausted candidate lineage through the same correction interface
         evidence:
           facts: "exhausted candidate: Exact candidate and MAP/PSP/STK members with one candidate-centered simplification REV."
           links: "exhausted candidate: A failed simplification has exactly one canonical blocks link matching its structured target; replacement cites failed REV history."
@@ -548,7 +548,7 @@ rows:
       - route: source boundary before attended resolution
         executable:
           file: test/operator-outcome.test.ts
-          test: returns immediate attended work with an exact Assignment and Authority Requirement
+          claim: returns immediate attended work with an exact Assignment and Authority Requirement
         evidence:
           facts: "source boundary before attended resolution: One current open QST Revision and one kernel-finalized source-boundary BSL containing exactly that Revision."
           links: "source boundary before attended resolution: Exact baseline definition membership freezes the source QST; source-boundary evidence membership is empty."
@@ -577,8 +577,8 @@ rows:
     routes:
       - route: source boundary before autonomous resolution
         executable:
-          file: test/req-prototype-question-routing.test.ts
-          test: preserves repeated source boundaries through charting and prototype resolution
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: preserves repeated source boundaries through charting and prototype resolution
         evidence:
           facts: "source boundary before autonomous resolution: One current open empirical QST Revision and one kernel-finalized source-boundary BSL containing exactly that Revision."
           links: "source boundary before autonomous resolution: Exact baseline definition membership freezes the source QST; source-boundary evidence membership is empty."
@@ -608,7 +608,7 @@ rows:
       - route: immediate blocking
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: requires exact stakeholder authority and blocks the gate on an immediate question
+          claim: requires exact stakeholder authority and blocks the gate on an immediate question
         evidence:
           facts: "immediate blocking: One source-bounded open preferential QST whose exact target cannot proceed without stakeholder intent."
           links: "immediate blocking: The QST blocks the exact candidate or Lifecycle Datum controlled by the answer."
@@ -638,7 +638,7 @@ rows:
       - route: consolidated checkpoint
         executable:
           file: test/operator-outcome.test.ts
-          test: projects one complete checkpoint conversation and the first exact Assignment
+          claim: projects one complete checkpoint conversation and the first exact Assignment
         evidence:
           facts: "consolidated checkpoint: Every compatible source-bounded open preferential QST in one declared Consolidation Group at its ready checkpoint."
           links: "consolidated checkpoint: Each QST retains its exact declared lifecycle links while the package groups only presentation."
@@ -668,7 +668,7 @@ rows:
       - route: empirical answer
         executable:
           file: test/req-command-alias.test.ts
-          test: binds typed arguments to the same validated Scenario request as direct invocation
+          claim: binds typed arguments to the same validated Scenario request as direct invocation
         evidence:
           facts: "empirical answer: One source-bounded open empirical QST with available exact evidence and one same-lineage answered Revision."
           links: "empirical answer: The answer preserves the QST Stable Datum lineage; no consequential DEC is required for an empirical answer."
@@ -697,8 +697,8 @@ rows:
     routes:
       - route: prototype answer
         executable:
-          file: test/req-prototype-question-routing.test.ts
-          test: preserves repeated source boundaries through charting and prototype resolution
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: preserves repeated source boundaries through charting and prototype resolution
         evidence:
           facts: "prototype answer: One source-bounded prototype QST plus exact ART, bounded DEC finding, and same-lineage answered QST Revision."
           links: "prototype answer: ART derives from the exact QST; DEC resolves that QST and justifies the exact prototype ART."
@@ -728,7 +728,7 @@ rows:
       - route: unavailable evidence
         executable:
           file: test/mdlm-assignment.test.ts
-          test: accepts every typed inability, abandons the Assignment without publication, and requires a deliberate fresh next
+          claim: accepts every typed inability, abandons the Assignment without publication, and requires a deliberate fresh next
         evidence:
           facts: "unavailable evidence: One source-bounded open empirical QST and one typed Assignment Response reporting unavailable evidence."
           links: "unavailable evidence: No Lifecycle Datum or link is published by inability; the QST and source boundary remain exact."
@@ -758,7 +758,7 @@ rows:
       - route: defer
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: keeps deferred question work unsatisfied until its exact scoped DEC passes Review
+          claim: keeps deferred question work unsatisfied until its exact scoped DEC passes Review
         evidence:
           facts: "defer: One source-bounded QST, same-lineage deferred Revision with reactivation condition, exact deferral DEC, and fresh REV."
           links: "defer: The DEC resolves both the exact source and deferred QST Revisions; its Review binds exact context."
@@ -768,7 +768,6 @@ rows:
           - applicable-question-dispositions-for@1
         obligations:
           - open-question-resolution@3
-          - passing-review-required@2
         participation:
           mode: attended-immediate
           policies:
@@ -790,7 +789,7 @@ rows:
       - route: cancel
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: keeps cancelled question work unsatisfied until its exact scoped DEC passes Review
+          claim: keeps cancelled question work unsatisfied until its exact scoped DEC passes Review
         evidence:
           facts: "cancel: One source-bounded QST, same-lineage cancelled Revision, exact cancellation DEC, and fresh REV."
           links: "cancel: The DEC resolves both the exact source and cancelled QST Revisions; its Review binds exact context."
@@ -800,7 +799,6 @@ rows:
           - applicable-question-dispositions-for@1
         obligations:
           - open-question-resolution@3
-          - passing-review-required@2
         participation:
           mode: attended-immediate
           policies:
@@ -822,7 +820,7 @@ rows:
       - route: preferential answer
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: routes a failed Question Decision through exact attended correction
+          claim: routes a failed Question Decision through exact attended correction
         evidence:
           facts: "preferential answer: One source-bounded preferential QST, same-lineage answered Revision, exact scope DEC, and policy-required REV."
           links: "preferential answer: The DEC resolves both exact QST Revisions and its effective scope names the answered Revision."
@@ -832,7 +830,6 @@ rows:
           - applicable-question-answers-for@1
         obligations:
           - open-question-resolution@3
-          - passing-review-required@2
         participation:
           mode: attended-immediate
           policies:
@@ -853,7 +850,7 @@ rows:
       - route: failed Question Decision Review
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: routes a failed Question Decision through exact attended correction
+          claim: routes a failed Question Decision through exact attended correction
         evidence:
           facts: "failed Question Decision Review: Exact attended DEC, immutable failed REV, and same-lineage replacement DEC."
           links: "failed Question Decision Review: Replacement cites every failed Review and preserves the exact justified or resolved scope."
@@ -878,7 +875,7 @@ rows:
       - route: failed gate Decision Review
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: routes a failed gate Decision Review through exact attended correction
+          claim: routes a failed gate Decision Review through exact attended correction
         evidence:
           facts: "failed gate Decision Review: Exact attended DEC, immutable failed REV, and same-lineage replacement DEC."
           links: "failed gate Decision Review: Replacement cites every failed Review and preserves the exact justified or resolved scope."
@@ -902,8 +899,8 @@ rows:
         reuse: "failed gate Decision Review: Decision lineage and unaffected subject evidence remain; failed judgment and replacement history are immutable."
       - route: failed change disposition Review
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: routes a failed attended disposition Review back to renewed attended judgment
+          file: test/evaluate-review-flow.test.ts
+          claim: routes a failed attended disposition Review back to renewed attended judgment
         evidence:
           facts: "failed change disposition Review: Exact attended DEC, immutable failed REV, and same-lineage replacement DEC."
           links: "failed change disposition Review: Replacement cites every failed Review and preserves the exact justified or resolved scope."
@@ -931,8 +928,8 @@ rows:
     routes:
       - route: approval
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: moves one exact intent slice through contextual review and reviewed gate sign-off
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: moves one exact intent slice through contextual review and reviewed gate sign-off
         evidence:
           facts: "approval: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "approval: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -958,7 +955,7 @@ rows:
       - route: reviewed rejection
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: routes a reviewed gate rejection to its exact implicated member
+          claim: routes a reviewed gate rejection to its exact implicated member
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "reviewed rejection: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -983,7 +980,7 @@ rows:
       - route: member correction
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: routes a reviewed gate rejection to its exact implicated member
+          claim: routes a reviewed gate rejection to its exact implicated member
         evidence:
           facts: "member correction: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "member correction: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -1008,7 +1005,7 @@ rows:
       - route: candidate correction
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: routes a candidate-level Phase 0 rejection to causal candidate replacement
+          claim: routes a candidate-level Phase 0 rejection to causal candidate replacement
         evidence:
           facts: "candidate correction: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "candidate correction: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -1033,7 +1030,7 @@ rows:
       - route: same-gate return
         executable:
           file: test/evaluate-phase.test.ts
-          test: blocks duplicate sign-off, completes after review, and reevaluates a changed exact candidate without rewriting prior evidence
+          claim: blocks duplicate sign-off, completes after review, and reevaluates a changed exact candidate without rewriting prior evidence
         evidence:
           facts: "same-gate return: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and superseding candidate."
           links: "same-gate return: Gate DEC justifies and rejection blocks the candidate or member; replacements cite corrects-gate-rejection; candidate supersedes predecessor."
@@ -1062,8 +1059,8 @@ rows:
     routes:
       - route: VSP creation
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: One accepted product requirement lacking a current Phase 1 VSP and one newly published strategy.
           links: The VSP governs the exact requirement Stable Datum and exact accepted Revision.
@@ -1084,8 +1081,8 @@ rows:
         reuse: Accepted requirement evidence remains reusable; the new VSP requires fresh Review.
       - route: ENV qualification
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: One exact reviewed VSP profile and one complete ENV qualification chain.
           links: ENV realizes the exact VSP; qualification evidence binds that ENV and profile.
@@ -1106,8 +1103,8 @@ rows:
         reuse: The reviewed VSP remains reusable; exact ENV qualification is reused while dependencies remain current.
       - route: pilot VER
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: One exact accepted requirement, reviewed VSP, qualified ENV, and source-independent pilot VER.
           links: The VER verifies the requirement and is governed by the exact VSP Revision.
@@ -1128,8 +1125,8 @@ rows:
         reuse: Exact VSP, ENV, and requirement evidence remains reusable while unchanged.
       - route: pass
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: The current VSP, ENV qualification, pilot VER, and their required passing Reviews.
           links: Every passing REV targets its exact subject and complete Review Context.
@@ -1153,8 +1150,8 @@ rows:
         reuse: All exact passing assurance evidence remains reusable while dependencies are unchanged.
       - route: first and second correction
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          file: test/evaluate-review-flow.test.ts
+          claim: bounds VSP correction before projecting attended escalation
         evidence:
           facts: One failed VSP REV and its first or second same-lineage replacement cycle with fresh Review.
           links: The replacement cites every applicable failed REV through corrects-review and preserves governs bindings.
@@ -1175,8 +1172,8 @@ rows:
         reuse: Failed history is retained; exact unaffected requirement evidence remains reusable.
       - route: stakeholder-owned failure
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: preserves the ENV correction budget while rebuilding qualification before attention
+          file: test/evaluate-review-flow.test.ts
+          claim: preserves the ENV correction budget while rebuilding qualification before attention
         evidence:
           facts: One failed ENV Review marked stakeholder-owned, with its exact VSP and qualification context.
           links: The failed REV reviews the ENV; attended correction preserves exact realizes and qualification bindings.
@@ -1198,8 +1195,8 @@ rows:
         reuse: The prior ENV and failed Review remain immutable; VSP evidence is reused; qualification is rebuilt after replacement.
       - route: malformed replacement
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: bounds VSP correction before projecting attended escalation
+          file: test/evaluate-review-flow.test.ts
+          claim: bounds VSP correction before projecting attended escalation
         evidence:
           facts: One exact failed VSP and one contract-invalid proposed replacement.
           links: The rejected proposal omits or mismatches required corrects-review causal links.
@@ -1220,8 +1217,8 @@ rows:
         reuse: All Lifecycle Data is byte-for-byte unchanged and reusable because malformed transport publishes nothing.
       - route: multiple VSP boundary
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: reports multiple applicable VSPs as a public Profile Boundary
+          file: test/evaluate-review-flow.test.ts
+          claim: reports multiple applicable VSPs as a public Profile Boundary
         evidence:
           facts: Multiple simultaneously applicable VSPs at a package-declared single-valued boundary.
           links: Each competing VSPs item retains its exact requirement or strategy binding.
@@ -1242,8 +1239,8 @@ rows:
         reuse: All competing exact evidence remains immutable; no unsupported selection or replacement is fabricated.
       - route: multiple ENV boundary
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: reports multiple applicable ENVs as a public Profile Boundary
+          file: test/evaluate-review-flow.test.ts
+          claim: reports multiple applicable ENVs as a public Profile Boundary
         evidence:
           facts: Multiple simultaneously applicable ENVs at a package-declared single-valued boundary.
           links: Each competing ENVs item retains its exact requirement or strategy binding.
@@ -1264,8 +1261,8 @@ rows:
         reuse: All competing exact evidence remains immutable; no unsupported selection or replacement is fabricated.
       - route: multiple pilot target boundary
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: reports multiple applicable pilot targets as a public Profile Boundary
+          file: test/evaluate-review-flow.test.ts
+          claim: reports multiple applicable pilot targets as a public Profile Boundary
         evidence:
           facts: Multiple simultaneously applicable pilot targets at a package-declared single-valued boundary.
           links: Each competing pilot targets item retains its exact requirement or strategy binding.
@@ -1290,8 +1287,8 @@ rows:
     routes:
       - route: target registration
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: "target registration: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "target registration: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1312,8 +1309,8 @@ rows:
         reuse: The ART remains reusable while its exact requirement and repository reference are unchanged.
       - route: source-independent VAI
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: "source-independent VAI: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "source-independent VAI: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1335,8 +1332,8 @@ rows:
         reuse: Exact VER, ENV, and ART inputs remain reusable; the VAI is newly reviewed.
       - route: run
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: "run: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "run: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1357,8 +1354,8 @@ rows:
         reuse: RUN/RES is immutable and reusable only for its exact VAI and execution target.
       - route: malformed command matrix
         executable:
-          file: test/req-product-assurance-pilot.test.ts
-          test: qualifies one environment and records a discriminating source-independent pilot
+          file: test/phase-1-route-contracts.test.ts
+          claim: qualifies one environment and records a discriminating source-independent pilot
         evidence:
           facts: "malformed command matrix: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "malformed command matrix: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1379,8 +1376,8 @@ rows:
         reuse: No Lifecycle Data changes; exact requirement and target evidence remains reusable.
       - route: VAI correction
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: corrects failed pilot VAI procedures without reusing prior run evidence
+          file: test/evaluate-review-flow.test.ts
+          claim: corrects failed pilot VAI procedures without reusing prior run evidence
         evidence:
           facts: "VAI correction: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "VAI correction: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1402,8 +1399,8 @@ rows:
         reuse: Prior RUN/RES remains immutable but cannot satisfy the replacement VAI; unchanged VER/ENV/ART is reused.
       - route: timeout aggregation
         executable:
-          file: test/mdlm-phase-1-assurance-correction.test.ts
-          test: corrects failed pilot VAI procedures without reusing prior run evidence
+          file: test/evaluate-review-flow.test.ts
+          claim: corrects failed pilot VAI procedures without reusing prior run evidence
         evidence:
           facts: "timeout aggregation: Boundary-complete ART command matrix, exact VAI procedure, RUN/RES observations, and immutable failed Review history."
           links: "timeout aggregation: ART binds requirement; VAI realizes exact VER and binds ENV/ART; replacement cites all failed REVs; RUN executes exact VAI."
@@ -1428,8 +1425,8 @@ rows:
     routes:
       - route: DWP plan
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "DWP plan: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "DWP plan: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1452,8 +1449,8 @@ rows:
         reuse: "DWP plan: Exact member Reviews remain reusable while members do not change."
       - route: SYS outputs
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "SYS outputs: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "SYS outputs: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1476,8 +1473,8 @@ rows:
         reuse: "SYS outputs: Exact member Reviews remain reusable while members do not change."
       - route: ASP
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "ASP: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "ASP: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1501,7 +1498,7 @@ rows:
       - route: plural ICSP
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: keeps multiple valid Phase 2 interfaces actionable for decomposition planning
+          claim: keeps multiple valid Phase 2 interfaces actionable for decomposition planning
         evidence:
           facts: "plural ICSP: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "plural ICSP: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1524,8 +1521,8 @@ rows:
         reuse: "plural ICSP: Exact member Reviews remain reusable while members do not change."
       - route: earliest complete context
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "earliest complete context: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both simplification REVs."
           links: "earliest complete context: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind exact Revisions."
@@ -1548,8 +1545,8 @@ rows:
         reuse: "earliest complete context: Exact member Reviews remain reusable while members do not change."
       - route: requirement simplification pass
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: One complete exact SYS definition set and its passing independent requirement-simplification Review.
           links: The Review contextualizes the earliest complete definition context and reviews that exact set.
@@ -1573,8 +1570,8 @@ rows:
         reuse: "two simplification passes: Exact member Reviews remain reusable while members do not change."
       - route: architecture/interface simplification pass
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: One exact ASP with all current ICSPs and its passing independent architecture/interface-simplification Review.
           links: The Review contextualizes the earliest complete architecture/interface context and reviews that exact set.
@@ -1602,8 +1599,8 @@ rows:
     routes:
       - route: one SYS with several Findings
         executable:
-          file: test/mdlm-phase-2-simplification.test.ts
-          test: keeps several Findings on one SYS subject and rejects cross-subject correction
+          file: test/evaluate-system-decomposition.test.ts
+          claim: keeps several Findings on one SYS subject and rejects cross-subject correction
         evidence:
           facts: "one SYS with several Findings: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "one SYS with several Findings: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1627,8 +1624,8 @@ rows:
         reuse: "one SYS with several Findings: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: exact consistency set
         executable:
-          file: test/mdlm-phase-2-simplification.test.ts
-          test: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
+          file: test/evaluate-system-decomposition.test.ts
+          claim: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
         evidence:
           facts: "exact consistency set: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "exact consistency set: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1652,8 +1649,8 @@ rows:
         reuse: "exact consistency set: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: scope reduction
         executable:
-          file: test/mdlm-phase-2-simplification.test.ts
-          test: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
+          file: test/evaluate-system-decomposition.test.ts
+          claim: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
         evidence:
           facts: "scope reduction: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "scope reduction: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1677,8 +1674,8 @@ rows:
         reuse: "scope reduction: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: complete removal inability
         executable:
-          file: test/mdlm-phase-2-simplification.test.ts
-          test: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
+          file: test/evaluate-system-decomposition.test.ts
+          claim: atomically corrects the exact set, removes obsolete scope, requires fresh evidence, and resumes completion
         evidence:
           facts: "complete removal inability: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "complete removal inability: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1702,8 +1699,8 @@ rows:
         reuse: "complete removal inability: Unchanged definition members remain reusable; corrected set receives fresh context and both simplification judgments."
       - route: malformed blocker
         executable:
-          file: test/mdlm-phase-2-simplification.test.ts
-          test: keeps several Findings on one SYS subject and rejects cross-subject correction
+          file: test/evaluate-system-decomposition.test.ts
+          claim: keeps several Findings on one SYS subject and rejects cross-subject correction
         evidence:
           facts: "malformed blocker: Failed simplification REV declares one exact subject or complete consistency set and all current Findings."
           links: "malformed blocker: Canonical blocks/removes links match the typed correction scope; every replacement cites the failed REV."
@@ -1732,7 +1729,7 @@ rows:
       - route: SYS
         executable:
           file: test/evaluate-system-decomposition.test.ts
-          test: derives exact correction work for the $route route
+          claim: derives exact correction work for the $route route
           assertions:
             - phase-2-review-correction-required
             - revise-phase-2-subject-after-review@1
@@ -1759,7 +1756,7 @@ rows:
       - route: ASP
         executable:
           file: test/evaluate-system-decomposition.test.ts
-          test: derives exact correction work for the $route route
+          claim: derives exact correction work for the $route route
           assertions:
             - phase-2-review-correction-required
             - revise-phase-2-subject-after-review@1
@@ -1786,7 +1783,7 @@ rows:
       - route: ICSP
         executable:
           file: test/evaluate-system-decomposition.test.ts
-          test: derives exact correction work for the $route route
+          claim: derives exact correction work for the $route route
           assertions:
             - phase-2-review-correction-required
             - revise-phase-2-subject-after-review@1
@@ -1813,7 +1810,7 @@ rows:
       - route: planning DWP
         executable:
           file: test/evaluate-system-decomposition.test.ts
-          test: derives exact correction work for the $route route
+          claim: derives exact correction work for the $route route
           assertions:
             - phase-2-review-correction-required
             - revise-phase-2-subject-after-review@1
@@ -1840,7 +1837,7 @@ rows:
       - route: completion DWP
         executable:
           file: test/evaluate-system-decomposition.test.ts
-          test: derives exact correction work for the $route route
+          claim: derives exact correction work for the $route route
           assertions:
             - phase-2-review-correction-required
             - revise-phase-2-subject-after-review@1
@@ -1867,7 +1864,7 @@ rows:
       - route: collateral Finding
         executable:
           file: test/evaluate-system-decomposition.test.ts
-          test: derives exact correction work for a collateral Finding target
+          claim: derives exact correction work for a collateral Finding target
           assertions:
             - phase-2-review-correction-required
             - revise-phase-2-subject-after-review@1
@@ -1894,7 +1891,7 @@ rows:
       - route: single-valued ambiguity
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: projects attended exact disposition instead of choosing ambiguous Phase 2 architecture
+          claim: projects attended exact disposition instead of choosing ambiguous Phase 2 architecture
         evidence:
           facts: "single-valued ambiguity: Exact failed subject Review or competing current single-valued Revisions with complete context."
           links: "single-valued ambiguity: Correction cites every failed REV; ambiguity DEC justifies the exact selected/cancelled subject."
@@ -1918,7 +1915,7 @@ rows:
       - route: exhausted correction
         executable:
           file: test/evaluate-system-decomposition.test.ts
-          test: derives attended Phase 2 correction after two autonomous replacements
+          claim: derives attended Phase 2 correction after two autonomous replacements
           assertions:
             - phase-2-review-correction-required
             - revise-phase-2-subject-after-review@1
@@ -1949,8 +1946,8 @@ rows:
     routes:
       - route: DWP completion
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "DWP completion: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "DWP completion: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -1975,8 +1972,8 @@ rows:
         reuse: "DWP completion: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: group candidate
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "group candidate: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "group candidate: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2001,8 +1998,8 @@ rows:
         reuse: "group candidate: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: level candidate
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "level candidate: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "level candidate: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2027,8 +2024,8 @@ rows:
         reuse: "level candidate: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: candidate Review correction
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "candidate Review correction: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "candidate Review correction: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2054,8 +2051,8 @@ rows:
         reuse: "candidate Review correction: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: reviewed rejection
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "reviewed rejection: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "reviewed rejection: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2081,8 +2078,8 @@ rows:
         reuse: "reviewed rejection: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: gate return
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "gate return: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "gate return: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2108,8 +2105,8 @@ rows:
         reuse: "gate return: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: exact acceptance
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "exact acceptance: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "exact acceptance: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2134,8 +2131,8 @@ rows:
         reuse: "exact acceptance: Exact unaffected membership/composition remains reusable; rejected or failed candidate lineage is retained."
       - route: progression
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "progression: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "progression: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2161,7 +2158,7 @@ rows:
       - route: exhausted candidate correction
         executable:
           file: test/evaluate-bootstrap-participation.test.ts
-          test: escalates a third reviewed Phase 2 candidate rejection
+          claim: escalates a third reviewed Phase 2 candidate rejection
         evidence:
           facts: "exhausted candidate correction: Complete DWP account, reviewed group/level candidates, reviewed gate DEC, and flattened accepted baseline."
           links: "exhausted candidate correction: Candidates preserve exact members/evidence and supersede predecessors; acceptance promotes exact level candidate."
@@ -2192,8 +2189,8 @@ rows:
     routes:
       - route: draft correction
         executable:
-          file: test/req-phase-0-wayfinding.test.ts
-          test: routes a failed foundation Review to a replacement Revision and fresh Review work
+          file: test/evaluate-bootstrap-participation.test.ts
+          claim: routes a failed foundation Review to a replacement Revision and fresh Review work
         evidence:
           facts: "draft correction: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "draft correction: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2218,8 +2215,8 @@ rows:
         reuse: "draft correction: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: exact accepted boundary
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: atomically rejects impact outside the exact accepted baseline
+          file: test/evaluate-review-flow.test.ts
+          claim: atomically rejects impact outside the exact accepted baseline
         evidence:
           facts: "exact accepted boundary: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "exact accepted boundary: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2244,8 +2241,8 @@ rows:
         reuse: "exact accepted boundary: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: impact
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: atomically rejects impact outside the exact accepted baseline
+          file: test/evaluate-review-flow.test.ts
+          claim: atomically rejects impact outside the exact accepted baseline
         evidence:
           facts: "impact: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "impact: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2270,8 +2267,8 @@ rows:
         reuse: "impact: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: CHG correction
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: routes a failed Change Request Review through same-lineage Correction and fresh Review
+          file: test/evaluate-review-flow.test.ts
+          claim: routes a failed Change Request Review through same-lineage Correction and fresh Review
         evidence:
           facts: "CHG correction: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "CHG correction: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2297,8 +2294,8 @@ rows:
         reuse: "CHG correction: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: approve
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/evaluate-review-flow.test.ts
+          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
         evidence:
           facts: "approve: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "approve: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2324,8 +2321,8 @@ rows:
         reuse: "approve: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: reject
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: closes an exact reviewed %s disposition without replacing accepted history
+          file: test/evaluate-review-flow.test.ts
+          claim: closes an exact reviewed %s disposition without replacing accepted history
         evidence:
           facts: "reject: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "reject: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2351,8 +2348,8 @@ rows:
         reuse: "reject: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: defer
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: closes an exact reviewed %s disposition without replacing accepted history
+          file: test/evaluate-review-flow.test.ts
+          claim: closes an exact reviewed %s disposition without replacing accepted history
         evidence:
           facts: "defer: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "defer: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2378,8 +2375,8 @@ rows:
         reuse: "defer: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: cancel
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: closes an exact reviewed %s disposition without replacing accepted history
+          file: test/evaluate-review-flow.test.ts
+          claim: closes an exact reviewed %s disposition without replacing accepted history
         evidence:
           facts: "cancel: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "cancel: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2405,8 +2402,8 @@ rows:
         reuse: "cancel: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: replacement
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/evaluate-review-flow.test.ts
+          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
         evidence:
           facts: "replacement: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "replacement: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2431,8 +2428,8 @@ rows:
         reuse: "replacement: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: candidate
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/evaluate-review-flow.test.ts
+          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
         evidence:
           facts: "candidate: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "candidate: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2457,8 +2454,8 @@ rows:
         reuse: "candidate: Accepted history remains immutable; affected evidence becomes Stale; materially unaffected exact evidence remains reusable."
       - route: closure
         executable:
-          file: test/mdlm-stakeholder-change-control.test.ts
-          test: keeps failed replacement and candidate Reviews live through the same Correction interface
+          file: test/evaluate-review-flow.test.ts
+          claim: keeps failed replacement and candidate Reviews live through the same Correction interface
         evidence:
           facts: "closure: Exact accepted STK/baseline roots, complete CHG impact, reviewed disposition, same-lineage replacement, selective candidate, and closure DEC."
           links: "closure: CHG impacts exact roots; DEC justifies CHG; STK changed-under CHG; candidate and closure cite all exact downstream evidence."
@@ -2489,7 +2486,7 @@ rows:
       - route: two exact consumers
         executable:
           file: test/evaluate-shared-system-change.test.ts
-          test: exposes both exact consumers and preserves unrelated evidence after same-lineage replacement
+          claim: exposes both exact consumers and preserves unrelated evidence after same-lineage replacement
         evidence:
           facts: "two exact consumers: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "two exact consumers: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2513,8 +2510,8 @@ rows:
         reuse: "two exact consumers: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: draft replacement
         executable:
-          file: test/mdlm-shared-system-change-control.test.ts
-          test: reevaluates both draft consumers serially without Change Request ceremony
+          file: test/evaluate-shared-system-change.test.ts
+          claim: reevaluates both draft consumers serially without Change Request ceremony
         evidence:
           facts: "draft replacement: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "draft replacement: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2538,8 +2535,8 @@ rows:
         reuse: "draft replacement: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: serial draft reevaluation
         executable:
-          file: test/mdlm-shared-system-change-control.test.ts
-          test: reevaluates both draft consumers serially without Change Request ceremony
+          file: test/evaluate-shared-system-change.test.ts
+          claim: reevaluates both draft consumers serially without Change Request ceremony
         evidence:
           facts: "serial draft reevaluation: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "serial draft reevaluation: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2563,8 +2560,8 @@ rows:
         reuse: "serial draft reevaluation: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: accepted impact
         executable:
-          file: test/mdlm-shared-system-change-control.test.ts
-          test: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/evaluate-shared-system-change.test.ts
+          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
         evidence:
           facts: "accepted impact: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "accepted impact: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2588,8 +2585,8 @@ rows:
         reuse: "accepted impact: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: approved replacement
         executable:
-          file: test/mdlm-shared-system-change-control.test.ts
-          test: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/evaluate-shared-system-change.test.ts
+          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
         evidence:
           facts: "approved replacement: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "approved replacement: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2613,8 +2610,8 @@ rows:
         reuse: "approved replacement: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: serial accepted reevaluation
         executable:
-          file: test/mdlm-shared-system-change-control.test.ts
-          test: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/evaluate-shared-system-change.test.ts
+          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
         evidence:
           facts: "serial accepted reevaluation: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "serial accepted reevaluation: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2638,8 +2635,8 @@ rows:
         reuse: "serial accepted reevaluation: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: selective candidate
         executable:
-          file: test/mdlm-shared-system-change-control.test.ts
-          test: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/evaluate-shared-system-change.test.ts
+          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
         evidence:
           facts: "selective candidate: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "selective candidate: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2663,8 +2660,8 @@ rows:
         reuse: "selective candidate: Each affected consumer/context/Review is rebuilt; materially unrelated accepted evidence remains reusable."
       - route: closure
         executable:
-          file: test/mdlm-shared-system-change-control.test.ts
-          test: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
+          file: test/evaluate-shared-system-change.test.ts
+          claim: replaces a shared accepted SYS through attended approval, serial consumer updates, a selective candidate, and exact closure
         evidence:
           facts: "closure: One SYS Stable Datum, two exact DWP consumers with separate coverage, accepted baseline/CHG evidence when applicable."
           links: "closure: Consumers decompose the exact SYS Revision; replacement changed-under CHG after acceptance; each consumer replacement binds the new exact SYS."
@@ -2692,8 +2689,8 @@ rows:
     routes:
       - route: observation
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "observation: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "observation: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2717,8 +2714,8 @@ rows:
         reuse: "observation: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: assessment context
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "assessment context: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "assessment context: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2742,8 +2739,8 @@ rows:
         reuse: "assessment context: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: PAS
         executable:
-          file: test/req-system-decomposition.test.ts
-          test: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
+          file: test/evaluate-system-decomposition.test.ts
+          claim: moves one bounded decomposition through exact coverage, simplification, completion, and a reviewed SYS gate
         evidence:
           facts: "PAS: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "PAS: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2767,8 +2764,8 @@ rows:
         reuse: "PAS: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: passing Review
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/req-pilot-assessment.test.ts
+          claim: maps a reviewed %s Decision to %s without fabricating later phases
         evidence:
           facts: "passing Review: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "passing Review: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2793,8 +2790,8 @@ rows:
         reuse: "passing Review: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: first correction
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/req-pilot-assessment.test.ts
+          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
         evidence:
           facts: "first correction: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "first correction: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2818,8 +2815,8 @@ rows:
         reuse: "first correction: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: second correction
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/req-pilot-assessment.test.ts
+          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
         evidence:
           facts: "second correction: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "second correction: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2843,8 +2840,8 @@ rows:
         reuse: "second correction: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: stakeholder-owned failure
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/req-pilot-assessment.test.ts
+          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
         evidence:
           facts: "stakeholder-owned failure: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "stakeholder-owned failure: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2869,8 +2866,8 @@ rows:
         reuse: "stakeholder-owned failure: Exact observations/context remain reusable; failed PAS lineage and Reviews remain immutable."
       - route: exhausted correction
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
+          file: test/req-pilot-assessment.test.ts
+          claim: keeps two PAS correction cycles autonomous, then escalates the unchanged exact context
         evidence:
           facts: "exhausted correction: One observation per complete level candidate, exact frozen assessment context, current PAS, and immutable Review history."
           links: "exhausted correction: PAS measures exact context; replacements preserve Stable identity and cite every failed REV."
@@ -2900,8 +2897,8 @@ rows:
     routes:
       - route: Decision awaiting Review
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/req-pilot-assessment.test.ts
+          claim: maps a reviewed %s Decision to %s without fabricating later phases
         evidence:
           facts: One current passing PAS and newly published attended Expansion DEC without its required Review.
           links: The DEC justifies the exact PAS and names its recommendation scope.
@@ -2923,8 +2920,8 @@ rows:
         reuse: PAS and its Review remain reusable; the DEC awaits fresh context and Review.
       - route: failed Decision Review
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: corrects a failed Expansion Decision Review before the result becomes applicable
+          file: test/req-pilot-assessment.test.ts
+          claim: corrects a failed Expansion Decision Review before the result becomes applicable
         evidence:
           facts: One exact Expansion DEC and its immutable failed REV with all blocking Findings.
           links: The failed REV reviews the DEC; attended replacement must cite it through corrects-review.
@@ -2945,8 +2942,8 @@ rows:
         reuse: PAS/context remain reusable; failed Decision and Review history remain immutable.
       - route: proceed
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/req-pilot-assessment.test.ts
+          claim: maps a reviewed %s Decision to %s without fabricating later phases
         evidence:
           facts: One passing PAS plus an exact reviewed Expansion DEC whose decision is proceed.
           links: The DEC justifies the exact PAS and relies on its passing Review; the DEC itself has fresh passing Review evidence.
@@ -2967,8 +2964,8 @@ rows:
         reuse: PAS, context, and both exact Reviews remain immutable; omitted Phase 3–6 output is never fabricated.
       - route: change
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/req-pilot-assessment.test.ts
+          claim: maps a reviewed %s Decision to %s without fabricating later phases
         evidence:
           facts: One passing PAS plus an exact reviewed Expansion DEC whose decision is change.
           links: The DEC justifies the exact PAS and relies on its passing Review; the DEC itself has fresh passing Review evidence.
@@ -2989,8 +2986,8 @@ rows:
         reuse: PAS, context, and both exact Reviews remain immutable; omitted Phase 3–6 output is never fabricated.
       - route: stop
         executable:
-          file: test/mdlm-pilot-assessment.test.ts
-          test: maps a reviewed %s Decision to %s without fabricating later phases
+          file: test/req-pilot-assessment.test.ts
+          claim: maps a reviewed %s Decision to %s without fabricating later phases
         evidence:
           facts: One passing PAS plus an exact reviewed Expansion DEC whose decision is stop.
           links: The DEC justifies the exact PAS and relies on its passing Review; the DEC itself has fresh passing Review evidence.

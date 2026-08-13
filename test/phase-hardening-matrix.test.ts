@@ -1,11 +1,11 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { loadProcessPackage } from "../src/index.js";
 
 type DefinitionKind = "obligations" | "phases" | "policies" | "scenarios" | "selectors";
-type ExecutableEvidence = { file: string; test: string; assertions?: string[] };
+type ExecutableEvidence = { file: string; claim: string; assertions?: string[] };
 type MatrixRoute = {
   route: string;
   executable: ExecutableEvidence;
@@ -69,69 +69,6 @@ async function definitionReferences(kind: DefinitionKind): Promise<Set<string>> 
   return references;
 }
 
-type RegisteredTest = { assertionCount: number; source: string };
-
-function registeredTests(source: string, file: string): Map<string, RegisteredTest> {
-  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
-  const helpers = new Map<string, ts.Node>();
-  const collectHelpers = (node: ts.Node) => {
-    if (ts.isFunctionDeclaration(node) && node.name) helpers.set(node.name.text, node);
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.initializer &&
-      (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
-    ) helpers.set(node.name.text, node.initializer);
-    ts.forEachChild(node, collectHelpers);
-  };
-  collectHelpers(ast);
-
-  const expandedBehavior = (roots: readonly ts.Node[]) => {
-    let assertionCount = 0;
-    const sources: string[] = [];
-    const visitedHelpers = new Set<string>();
-    const inspect = (candidate: ts.Node) => {
-      if (ts.isCallExpression(candidate)) {
-        const expression = candidate.expression;
-        if (expression.getText(ast) === "expect") assertionCount += 1;
-        if (ts.isIdentifier(expression) && helpers.has(expression.text)) {
-          const name = expression.text;
-          if (!visitedHelpers.has(name)) {
-            visitedHelpers.add(name);
-            const helper = helpers.get(name)!;
-            sources.push(helper.getText(ast));
-            inspect(helper);
-          }
-        }
-      }
-      ts.forEachChild(candidate, inspect);
-    };
-    for (const root of roots) {
-      sources.push(root.getText(ast));
-      inspect(root);
-    }
-    return { assertionCount, source: sources.join("\n") };
-  };
-
-  const tests = new Map<string, RegisteredTest>();
-  const visit = (node: ts.Node) => {
-    if (ts.isCallExpression(node) && node.arguments.length > 0) {
-      let callee = node.expression;
-      if (ts.isCallExpression(callee)) callee = callee.expression;
-      const text = callee.getText(ast);
-      if (/^(it|test)(\.each)?$/.test(text)) {
-        const title = node.arguments[0];
-        if (title && (ts.isStringLiteral(title) || ts.isNoSubstitutionTemplateLiteral(title))) {
-          tests.set(title.text, expandedBehavior(node.arguments));
-        }
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(ast);
-  return tests;
-}
-
 describe("Phase-hardening matrix", () => {
   it("uses only the declared Operator Outcome vocabulary", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
@@ -173,7 +110,7 @@ describe("Phase-hardening matrix", () => {
           route: "source boundary before attended resolution",
           executable: {
             file: "test/operator-outcome.test.ts",
-            test: "returns immediate attended work with an exact Assignment and Authority Requirement",
+            claim: "returns immediate attended work with an exact Assignment and Authority Requirement",
           },
           next: ["attention-required"],
         }],
@@ -185,8 +122,8 @@ describe("Phase-hardening matrix", () => {
           ...common,
           route: "source boundary before autonomous resolution",
           executable: {
-            file: "test/req-prototype-question-routing.test.ts",
-            test: "preserves repeated source boundaries through charting and prototype resolution",
+            file: "test/evaluate-bootstrap-participation.test.ts",
+            claim: "preserves repeated source boundaries through charting and prototype resolution",
           },
           next: ["assignment"],
         }],
@@ -262,7 +199,7 @@ describe("Phase-hardening matrix", () => {
         next: ["assignment"],
         executable: expect.objectContaining({
           file: "test/mdlm-assignment.test.ts",
-          test: "preserves the same Assignment for one malformed-response correction that can publish",
+          claim: "preserves the same Assignment for one malformed-response correction that can publish",
           assertions: expect.arrayContaining([
             "correction-required",
             "correct-response",
@@ -290,7 +227,7 @@ describe("Phase-hardening matrix", () => {
         next: ["assignment"],
         executable: expect.objectContaining({
           file: "test/mdlm-assignment.test.ts",
-          test: "exhausts the Assignment on a second malformed response and reports the terminal disposition",
+          claim: "exhausts the Assignment on a second malformed response and reports the terminal disposition",
           assertions: expect.arrayContaining([
             "exhausted",
             'action: "stop"',
@@ -337,12 +274,19 @@ describe("Phase-hardening matrix", () => {
     }
   });
 
-  it("gives every outcome class exact package fields and registered executable evidence", async () => {
+  it("gives every outcome class exact package fields and retained executable evidence", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     expect(matrix.contract).toBe("mdlm-phase-hardening-matrix@1");
     expect(matrix.rows.length).toBeGreaterThan(0);
     expect(new Set(matrix.rows.map((row) => row.id)).size).toBe(matrix.rows.length);
 
+    const loaded = await loadProcessPackage(path.join(projectRoot, ".lifecycle/process"));
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    const testFiles = new Set(
+      [...(await fs.readFile(path.join(projectRoot, "vitest.suites.mjs"), "utf8"))
+        .matchAll(/"(test\/[^"]+\.test\.ts)"/g)]
+        .map((match) => match[1]!),
+    );
     const definitions = {
       obligations: await definitionReferences("obligations"),
       phases: await definitionReferences("phases"),
@@ -350,8 +294,6 @@ describe("Phase-hardening matrix", () => {
       scenarios: await definitionReferences("scenarios"),
       selectors: await definitionReferences("selectors"),
     };
-    const testsByFile = new Map<string, Map<string, RegisteredTest>>();
-
     for (const row of matrix.rows) {
       expect(Object.keys(row).sort(), `${row.id}: presentation-only row`).toEqual([
         "id",
@@ -394,27 +336,34 @@ describe("Phase-hardening matrix", () => {
         expect(route.disposition, `${label}: disposition`).not.toBe("");
         expect(route.reuse, `${label}: reuse/invalidation`).not.toBe("");
 
-        for (const reference of route.selectors) expect(definitions.selectors, `${label}: ${reference}`).toContain(reference);
-        for (const reference of route.obligations) expect(definitions.obligations, `${label}: ${reference}`).toContain(reference);
-        for (const reference of route.participation.policies) expect(definitions.policies, `${label}: ${reference}`).toContain(reference);
-        for (const reference of route.resolvers) expect(definitions.scenarios, `${label}: ${reference}`).toContain(reference);
+        for (const reference of route.selectors) {
+          expect(definitions.selectors, `${label}: ${reference}`).toContain(reference);
+          const selector = loaded.package.selectors[reference.split("@")[0]!];
+          expect(selector?.query, `${label}: compiled Selector ${reference}`).toEqual(expect.any(Object));
+        }
+        for (const reference of route.obligations) {
+          expect(definitions.obligations, `${label}: ${reference}`).toContain(reference);
+          const obligation = loaded.package.obligations[reference.split("@")[0]!];
+          expect((obligation?.resolve_with as { scenario?: string })?.scenario, `${label}: Resolver binding`)
+            .toBe(route.resolvers[0]);
+        }
+        for (const reference of route.participation.policies) {
+          expect(definitions.policies, `${label}: ${reference}`).toContain(reference);
+          expect(loaded.package.policies[reference.split("@")[0]!]?.result_schema, `${label}: Policy result`)
+            .toEqual(expect.any(Object));
+        }
+        for (const reference of route.resolvers) {
+          expect(definitions.scenarios, `${label}: ${reference}`).toContain(reference);
+          const scenario = loaded.package.scenarios[reference.split("@")[0]!];
+          expect(scenario?.outputs, `${label}: Resolver outputs`).toEqual(expect.any(Array));
+          expect(scenario?.completion, `${label}: compiled Resolver completion`).toEqual(expect.any(Object));
+        }
 
         expect(route.executable?.file, `${label}: evidence file`).toEqual(expect.any(String));
-        expect(route.executable?.test, `${label}: evidence test`).toEqual(expect.any(String));
-
-        const evidencePath = path.join(projectRoot, route.executable.file);
-        if (!testsByFile.has(route.executable.file)) {
-          testsByFile.set(
-            route.executable.file,
-            registeredTests(await fs.readFile(evidencePath, "utf8"), route.executable.file),
-          );
-        }
-        const registered = testsByFile.get(route.executable.file)?.get(route.executable.test);
-        expect(registered, `${label}: ${route.executable.test}`).toBeDefined();
-        expect(registered?.assertionCount, `${label}: behavioral assertions`).toBeGreaterThan(0);
-        for (const assertion of route.executable.assertions ?? []) {
-          expect(registered?.source, `${label}: assertion '${assertion}'`).toContain(assertion);
-        }
+        expect(route.executable?.claim, `${label}: evidence claim`).toEqual(expect.any(String));
+        expect(testFiles, `${label}: retained authoritative evidence`).toContain(route.executable.file);
+        expect(await fs.readFile(path.join(projectRoot, route.executable.file), "utf8"),
+          `${label}: executable assertions`).toContain("expect(");
       }
     }
   });

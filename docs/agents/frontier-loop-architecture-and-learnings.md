@@ -234,7 +234,7 @@ For each changed committed tip, the runner—not the editor—runs:
 3. `npm run typecheck`; and
 4. `npm test` (the classified fast evaluator/package and representative compiled-CLI suite plus controller tests).
 
-Complete multi-transaction lifecycle journeys are retained under `npm run test:journeys`. They run explicitly when their process area changes or before release, rather than making every ticket wait for exhaustive repository reconstruction.
+Representative multi-transaction lifecycle contracts run inside the single bounded `npm test` gate. Repeated repository reconstructions are replaced by package/evaluator contracts instead of being retained as a separate exhaustive suite.
 
 Validation is accepted only when:
 
@@ -608,7 +608,7 @@ A timed-out Pi left Vitest/MDLM descendants alive. Killing only the direct proce
 ### During validation
 
 - Run the authoritative fast suite once at a clean committed tip.
-- Run affected complete journeys explicitly when a ticket changes their process area; run all journeys before release.
+- Keep one representative compiled-public transaction per major kernel boundary and prove route permutations at package/evaluator seams; run the single bounded gate before publication.
 - Never run independent review before commands pass.
 - Give review complete issue/parent evidence and the exact diff.
 - Require explicit machine-readable verdicts.
@@ -664,7 +664,7 @@ The current system is intentionally small, but it is not finished infrastructure
 5. **Health proves supervision, not progress, except at a dead end.** A live tmux session can contain a stalled non-Pi external process; activity age remains a second signal. `process-dead-end` is explicitly nonzero.
 6. **Emergency stop is broader than Pi timeout.** The dedicated runner cleans every timed-out Pi process group, but an immediate tmux stop while unrelated Git/npm commands are active is not a general repository-wide process reaper.
 7. **An unrelated deterministic controller defect can still restart indefinitely.** The supervisor intentionally retries unexpected exits, which can hide a persistent non-agent defect; explicit agent timeouts and `process-dead-end` are bounded paths the supervisor does not turn into infinite retry batches.
-8. **Complete lifecycle journeys are expensive and process-heavy.** They remain explicit release/affected-area evidence, while normal authoritative validation uses the classified fast suite. `scripts/verify-test-suites.mjs` prevents tests from disappearing between tiers.
+8. **Complete lifecycle journeys are expensive and process-heavy.** Retain only representative public transactions and move route permutations to package/evaluator seams. `scripts/verify-test-suites.mjs` prevents tests from disappearing from the single bounded suite.
 9. **Synchronous orchestration limits heartbeat visibility.** The process-group module hides asynchronous TERM/KILL handling behind a small synchronous interface, preserving serial control but not exposing fine-grained progress.
 10. **Worktree creation is not atomically recorded.** A crash after `git worktree add` but before status persistence leaves an unrecognized directory that blocks automatic resume until an operator reconciles it.
 11. **External merge races remain observable failures.** Already-merged recovery verifies the merged PR head against `validatedHead`; a mismatched external merge is preserved for operator inspection rather than reconciled as success.

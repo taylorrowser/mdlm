@@ -223,7 +223,7 @@ test("agent prompts reserve full validation for the orchestrator and preserve tr
   const reviewer = independentReviewerPrompt("/tmp/evidence.md");
   for (const prompt of editingPrompts) {
     assert.match(prompt, /^\/skill:implement/);
-    assert.match(prompt, /do not run npm test or journey suites/);
+    assert.match(prompt, /do not run npm test/);
     assert.match(prompt, /authoritative fast-suite run/);
     assert.match(prompt, /do not invoke code review or another Pi agent/);
     assert.match(prompt, /overrides the implementation skill's default completion procedure/);
@@ -306,6 +306,13 @@ test("completed failed validation resumes without launching another editing agen
   assert.equal(resumesAtValidation({ kind: "validation" }), true);
   assert.equal(resumesAtValidation({ kind: "review" }), true);
   assert.equal(resumesAtValidation({ kind: "implementation" }), false);
+});
+
+test("authoritative product tests have a five-minute process budget", () => {
+  const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
+  assert.match(source, /5 \* 60_000/);
+  assert.match(source, /process\.kill\(-child\.pid, "SIGTERM"\)/);
+  assert.match(source, /Authoritative test budget exceeded/);
 });
 
 test("child commands have a finite timeout", () => {
