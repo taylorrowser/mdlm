@@ -1,7 +1,4 @@
-import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { stringify } from "yaml";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
@@ -12,7 +9,6 @@ import {
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
-import { req } from "./helpers/req.js";
 
 const processRef = "mdlm-bootstrap@0.59.0#sha256:test";
 
@@ -2214,55 +2210,34 @@ describe("bootstrap Scenario participation Policies", () => {
     }));
   });
 
-  it("rejects implied approval before gate sign-off reaches the adapter", async () => {
+  it("rejects implied approval before gate sign-off Assignment preparation", async () => {
     const snapshotProcessRef = "git:participation";
     const fixture = reviewedGateFixture(snapshotProcessRef);
-    const temporaryRoot = await fs.mkdtemp(
-      path.join(os.tmpdir(), "mdlm-bootstrap-participation-"),
+    const snapshot = {
+      processRef: snapshotProcessRef,
+      phaseId: "phase-0-wayfinding",
+      records: [
+        fixture.candidate,
+        fixture.candidateContext,
+        fixture.candidateReview,
+      ],
+      dependencyComparisons: [],
+    };
+    const obligation =
+      `candidate-gate-signoff@3:${fixture.candidate.datum.revision_id}:${snapshotProcessRef}`;
+
+    const attempted = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "record-gate-signoff@3",
+      obligation,
+      [{ name: "implied approval", value: "yes" }],
     );
-    try {
-      const initialized = req(
-        temporaryRoot,
-        "init",
-        "--process",
-        path.join(process.cwd(), ".lifecycle/process"),
-        "--json",
-      );
-      expect(initialized.status, initialized.stderr).toBe(0);
-      const snapshotPath = path.join(temporaryRoot, "gate-snapshot.yaml");
-      await fs.writeFile(snapshotPath, stringify({
-        processRef: snapshotProcessRef,
-        phaseId: "phase-0-wayfinding",
-        records: [
-          fixture.candidate,
-          fixture.candidateContext,
-          fixture.candidateReview,
-        ],
-        dependencyComparisons: [],
-      }));
-      const obligation =
-        `candidate-gate-signoff@3:${fixture.candidate.datum.revision_id}:${snapshotProcessRef}`;
 
-      const attempted = req(
-        temporaryRoot,
-        "scenario",
-        "dry-run",
-        "record-gate-signoff@3",
-        "--obligation",
-        obligation,
-        "--snapshot",
-        snapshotPath,
-        "--input",
-        "implied approval=yes",
-        "--json",
-      );
-
-      expect(attempted.status).toBe(1);
-      expect(JSON.parse(attempted.stdout).diagnostics).toEqual([
-        expect.objectContaining({ code: "prohibited-scenario-input" }),
-      ]);
-    } finally {
-      await fs.rm(temporaryRoot, { recursive: true, force: true });
-    }
+    expect(attempted.ok).toBe(false);
+    if (attempted.ok) return;
+    expect(attempted.diagnostics).toEqual([
+      expect.objectContaining({ code: "prohibited-scenario-input" }),
+    ]);
   });
 });

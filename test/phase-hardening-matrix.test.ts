@@ -165,8 +165,8 @@ describe("Phase-hardening matrix", () => {
           ...common,
           route: "source boundary before attended resolution",
           executable: {
-            file: "test/req-scenario-participation.test.ts",
-            test: "projects autonomous, delegated, immediate, and checkpoint participation consistently",
+            file: "test/evaluate-bootstrap-participation.test.ts",
+            test: "derives Review delegation and Question authority from exact Scenario inputs",
           },
           next: ["attention-required"],
         }],
@@ -178,8 +178,8 @@ describe("Phase-hardening matrix", () => {
           ...common,
           route: "source boundary before autonomous resolution",
           executable: {
-            file: "test/req-scenario-dry-run.test.ts",
-            test: "derives a side-effect-free dry-run from durable repository truth",
+            file: "test/evaluate-bootstrap-participation.test.ts",
+            test: "requires exact stakeholder authority and blocks the gate on an immediate question",
           },
           next: ["assignment"],
         }],

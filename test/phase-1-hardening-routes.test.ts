@@ -22,9 +22,16 @@ import {
   publishScenarioMutation,
   readRepositoryData,
 } from "../src/lifecycle-repository.js";
-import { selectedPackage } from "../src/selected-package.js";
+import {
+  directoryDigest,
+  inputRevision,
+  prepareNextAssignment,
+  submitAssignment,
+  type ProposedOutput,
+} from "./helpers/assignment-submission.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
-import { req } from "./helpers/req.js";
+import { mdlm, selectProcessPackageFixture } from "./helpers/mdlm.js";
+import { copiedProcessPackage } from "./helpers/process-package.js";
 
 const processRef = "mdlm-bootstrap@0.59.0#sha256:phase-1-route-evidence";
 const revision = (id: string, number = 1) =>
@@ -1415,72 +1422,52 @@ describe("Phase 1 hardening route evidence", () => {
 
   it("executes and repository-validates exact RUN and RES outputs through the package Scenario", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-run-"));
+    const processRoot = await copiedProcessPackage("mdlm-phase1-run-process-");
     try {
-      const initialized = req(
-        repository,
-        "--json",
-        "init",
-        "--process",
-        processPackage.root,
+      const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+      const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
+      await fs.writeFile(
+        phase0Path,
+        (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
       );
-      expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-      const selected = await selectedPackage(repository);
-      if (!selected.ok) throw new Error(JSON.stringify(selected.diagnostics));
-      const repositoryProcessRef = `${selected.summary.reference}#${selected.summary.digest}`;
+      let phase1 = await fs.readFile(phase1Path, "utf8");
+      phase1 = phase1.replace("order: 1", "order: 0").replace(
+        /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+        "scenarios:\n  - execute-verification-run@1\nobligations:\n  - verification-run-required@1\noutputs:",
+      );
+      await fs.writeFile(phase1Path, phase1);
+      const obligationsRoot = path.join(processRoot, "obligations");
+      for (const entry of await fs.readdir(obligationsRoot)) {
+        if (entry === "verification-run-required.yaml" || !entry.endsWith(".yaml")) {
+          continue;
+        }
+        const obligationPath = path.join(obligationsRoot, entry);
+        const source = await fs.readFile(obligationPath, "utf8");
+        await fs.writeFile(
+          obligationPath,
+          source
+            .replace(
+              "phases: [phase-1-product-assurance]",
+              "phases: [phase-7-change-control]",
+            )
+            .replace("phase-1-product-assurance, ", "")
+            .replace(", phase-1-product-assurance", ""),
+        );
+      }
+      const profilePath = path.join(processRoot, "profiles/bootstrap.yaml");
+      const profile = await fs.readFile(profilePath, "utf8");
+      await fs.writeFile(
+        profilePath,
+        profile.replace(
+          /  profile_boundary:\n    condition: >-[\s\S]*?\n    explanation:/,
+          `  profile_boundary:\n    condition: >-\n      exists("verification-implementations-requiring-run@1", {})\n      && every("verification-implementations-requiring-run@1", {}, implementation =>\n        exists("completed-runs-for-implementation@1",\n          {implementation: implementation}))\n    explanation:`,
+        ),
+      );
+      await selectProcessPackageFixture(repository, processRoot);
+      const loadedFixture = await loadProcessPackage(processRoot);
+      if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
+      const fixturePackage = loadedFixture.package;
 
-      const commandRoot = path.join(repository, "bin");
-      const commandPath = path.join(commandRoot, "public-command.mjs");
-      await fs.mkdir(commandRoot, { recursive: true });
-      await fs.writeFile(commandPath, `
-const args = process.argv.slice(2);
-if (args.length === 0) { process.stderr.write("required\\n"); process.exit(2); }
-if (args.length > 1) { process.stderr.write("extra\\n"); process.exit(2); }
-if (args[0] === "") { process.stderr.write("malformed\\n"); process.exit(2); }
-process.stdout.write("ok\\n");
-`);
-      const commandCases = [
-        ["normal", ["ok"]],
-        ["raw-malformed", [""]],
-        ["omitted-argument", []],
-        ["extra-argument", ["ok", "extra"]],
-      ] as const;
-      const observations = commandCases.map(([name, arguments_]) => {
-        const observed = spawnSync(process.execPath, [commandPath, ...arguments_], {
-          encoding: "utf8",
-        });
-        return {
-          name,
-          status: observed.status,
-          stdout: observed.stdout,
-          stderr: observed.stderr,
-        };
-      });
-      expect(observations).toEqual([
-        { name: "normal", status: 0, stdout: "ok\n", stderr: "" },
-        { name: "raw-malformed", status: 2, stdout: "", stderr: "malformed\n" },
-        { name: "omitted-argument", status: 2, stdout: "", stderr: "required\n" },
-        { name: "extra-argument", status: 2, stdout: "", stderr: "extra\n" },
-      ]);
-
-      const currentStrategy = strategy(1);
-      const strategyReview = passingReview(currentStrategy, "REV-0HARDRUN0");
-      const currentEnvironment = environment();
-      const qualification = qualificationEvidence(currentStrategy, currentEnvironment);
-      const environmentReview = passingReview(currentEnvironment, "REV-0HARDRUN1", {
-        definitions: [currentEnvironment, currentStrategy],
-        evidence: [
-          qualification.activity,
-          qualification.implementation,
-          qualification.run,
-          qualification.result,
-        ],
-      });
-      const activity = pilotActivity();
-      const activityReview = passingReview(activity, "REV-0HARDRUN2");
-      const exactTarget = target();
-      const implementation = pilotImplementation();
-      const authorization = implementationAuthorization(implementation, "DEC-0HARDRUN01");
-      const implementationReview = passingReview(implementation, "REV-0HARDRUN3");
       const repositoryProduct = record("PSP", "PSP-0HARDENP10", {
         title: "Phase 1 product",
         rationale: "Bound exact public assurance.",
@@ -1501,166 +1488,166 @@ process.stdout.write("ok\\n");
         scenario: "draft-stakeholder-requirements@2",
         links: [{ type: "derived-from", target: repositoryProduct.datum.id }],
       });
-      const sourceRecords = [
+      const currentStrategy = strategy(1);
+      const currentEnvironment = environment();
+      const qualification = qualificationEvidence(currentStrategy, currentEnvironment);
+      const sourceRecords = repositorySafeRecords([
         repositoryProduct,
         repositoryRequirement,
         currentStrategy,
-        ...strategyReview,
         currentEnvironment,
         qualification.activity,
         qualification.implementation,
-        qualification.run,
-        qualification.result,
-        ...environmentReview,
-        activity,
-        ...activityReview,
-        exactTarget,
-        implementation,
-        authorization,
-        ...implementationReview,
-      ];
-      const storedRecords = repositorySafeRecords(sourceRecords);
-      const stored = (source: LifecycleRecord) =>
-        storedRecords[sourceRecords.indexOf(source)]!;
+      ]);
       const seeded = await publishScenarioMutation(
         repository,
-        processPackage,
+        fixturePackage,
         [],
-        storedRecords.map((item) => item.datum),
-        "phase-1-run-seed",
-        { contract: "phase-1-run-seed@1" },
-        storedRecords
-          .filter((item) => item.datum.type === "BSL")
-          .map((item) => ({ capability: "exact-baseline@1" as const, datum: item.datum })),
+        sourceRecords.map((item) => item.datum),
+        "phase-1-run-fixture",
+        { contract: "phase-1-run-fixture@1" },
       );
       expect(seeded.ok, JSON.stringify(seeded.diagnostics)).toBe(true);
 
-      const evaluation = evaluateLifecycle(processPackage, {
-        processRef: repositoryProcessRef,
-        phaseId: "phase-1-product-assurance",
-        records: storedRecords,
-        dependencyComparisons: [],
+      const prepared = prepareNextAssignment(repository);
+      expect({
+        scenario: prepared.packet.scenario.reference,
+        phase: prepared.outcome.phase,
+        obligation: prepared.packet.obligation?.definition,
+        enabledObligations: fixturePackage.phases["phase-1-product-assurance"]?.obligations,
+      }).toEqual({
+        scenario: "execute-verification-run@1",
+        phase: "phase-1-product-assurance@5",
+        obligation: "verification-run-required@1",
+        enabledObligations: ["verification-run-required@1"],
       });
-      const runObligation = evaluation.obligations.find((item) =>
-        item.obligation === "verification-run-required" &&
-        item.subject === stored(implementation).datum.revision_id
-      );
-      expect(runObligation).toEqual(expect.objectContaining({
-        status: "ready",
-        actionableResolver: "execute-verification-run@1",
-      }));
-      if (!runObligation) throw new Error("missing exact verification run Obligation");
+      const implementation = inputRevision(prepared, "implementation");
+      const activity = inputRevision(prepared, "activity");
+      const environmentRevision = inputRevision(prepared, "environment");
+      const executionTarget = inputRevision(prepared, "execution_target");
+      expect(executionTarget).toBe(environmentRevision);
 
-      const evidence = observations.map((item) =>
-        `case:${item.name}:exit-${item.status}:stdout-${Buffer.from(item.stdout).toString("base64")}:stderr-${Buffer.from(item.stderr).toString("base64")}`
-      );
-      const adapterPath = path.join(repository, "run-adapter.mjs");
-      const response = {
-        outputs: [{
-          name: "run",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "RUN",
-            payload: {
-              title: "Observed public command run",
-              kind: "pilot",
-              started_at: "2026-01-01T00:01:00.000Z",
-              completed_at: "2026-01-01T00:01:01.000Z",
-              execution_state: "completed",
-              execution_target: {
-                kind: "prototype",
-                ref: stored(exactTarget).datum.revision_id,
-              },
-              runner_ref: "runner:phase-1-public-command",
-              configuration_refs: [stored(currentEnvironment).datum.revision_id],
-              activities_expected: commandCases.map(([name]) => name),
-              activities_invoked: observations.map((item) => item.name),
-              evidence_locations: evidence,
-            },
-            links: [
-              { type: "executes", target: stored(implementation).datum.revision_id },
-              { type: "uses", target: stored(currentEnvironment).datum.revision_id },
-              { type: "targets", target: stored(exactTarget).datum.revision_id },
-              { type: "produces", target: "RES-9999999999-r00001" },
-            ],
-            body: "Observed all exact public command cases.\n",
+      const evidence = [
+        "case:normal:exit-0:stdout-b2sK:stderr-",
+        "case:raw-malformed:exit-2:stdout-:stderr-bWFsZm9ybWVkCg==",
+        "case:omitted-argument:exit-2:stdout-:stderr-cmVxdWlyZWQK",
+        "case:extra-argument:exit-2:stdout-:stderr-ZXh0cmEK",
+      ];
+      const outputs: ProposedOutput[] = [{
+        localId: "run",
+        name: "run",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "RUN",
+          payload: {
+            title: "Observed exact qualification command run",
+            kind: "qualification",
+            started_at: "2026-01-01T00:01:00.000Z",
+            completed_at: "2026-01-01T00:01:01.000Z",
+            execution_state: "completed",
+            execution_target: { kind: "environment", ref: executionTarget },
+            runner_ref: "runner:phase-1-public-command",
+            configuration_refs: [environmentRevision],
+            activities_expected: [activity],
+            activities_invoked: [activity],
+            evidence_locations: evidence,
           },
-        }, {
-          name: "result",
-          invocation: 0,
-          lifecycleDatum: {
-            id: "RES-9999999999",
-            type: "RES",
-            payload: {
-              title: "Observed public command result",
-              claim: {
-                kind: "pilot",
-                scope: "verification-design",
-                outcome: "suitable",
-                formal_evidence_eligible: false,
-              },
-              assessment_state: "accepted",
-              observations: {
-                expected_success_observed: true,
-                expected_discrimination_observed: true,
-                details: "The executed normal and malformed cases produced exact distinct observations.",
-              },
-              evidence_refs: evidence,
-              assessor_ref: "runner:phase-1-public-command",
+          links: [
+            { type: "executes", target: implementation },
+            { type: "uses", target: environmentRevision },
+            { type: "targets", target: executionTarget },
+            { type: "produces", target: "$proposal.result.revision_id" },
+          ],
+          body: "Observed every exact qualification command case.\n",
+        },
+      }, {
+        localId: "result",
+        name: "result",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "RES",
+          payload: {
+            title: "Observed exact qualification result",
+            claim: {
+              kind: "qualification",
+              scope: "environment-capability",
+              outcome: "pass",
+              formal_evidence_eligible: false,
             },
-            links: [{
-              type: "assessed-in",
-              target: stored(currentEnvironment).datum.revision_id,
-            }],
-            body: "Assessed the observations from the executed cases.\n",
+            assessment_state: "accepted",
+            observations: {
+              expected_success_observed: true,
+              expected_discrimination_observed: true,
+              details: "The exact normal and malformed cases produced distinct observations.",
+            },
+            evidence_refs: evidence,
+            assessor_ref: "runner:phase-1-public-command",
           },
-        }],
-        completionEvidence: { summary: "Executed and assessed all exact cases." },
-      };
-      await fs.writeFile(
-        adapterPath,
-        `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(response))});\n`,
-        { mode: 0o755 },
-      );
-      const executed = req(
-        repository,
-        "scenario",
-        "execute",
-        "execute-verification-run@1",
-        "--obligation",
-        runObligation.id,
-        "--adapter",
-        adapterPath,
-        "--json",
-      );
+          links: [{ type: "assessed-in", target: environmentRevision }],
+          body: "Assessed the observations from every exact command case.\n",
+        },
+      }];
+      const dataRoot = path.join(repository, ".lifecycle/data");
+      const beforeInvalid = await directoryDigest(dataRoot);
+      const invalid = submitAssignment(repository, prepared, outputs.slice(0, 1));
+      expect(invalid.status).toBe(1);
+      expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-cardinality-invalid" }),
+      ]));
+      expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
+
+      const executed = submitAssignment(repository, prepared, outputs);
       expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
-      const scenarioExecution = JSON.parse(executed.stdout).execution;
-      expect(scenarioExecution.completion).toEqual(expect.objectContaining({
-        contractValid: true,
-        expressionPassed: true,
+      const execution = JSON.parse(executed.stdout).execution;
+      expect(execution).toEqual(expect.objectContaining({
+        contract: "mdlm-scenario-execution@4",
+        definition: expect.objectContaining({ scenario: "execute-verification-run@1" }),
+        completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
+        outputs: [
+          expect.objectContaining({ name: "run", lifecycleDatum: expect.objectContaining({ type: "RUN" }) }),
+          expect.objectContaining({ name: "result", lifecycleDatum: expect.objectContaining({ type: "RES" }) }),
+        ],
       }));
-      expect(scenarioExecution.outputs.map((item: { name: string }) => item.name))
-        .toEqual(["run", "result"]);
-      const repositoryData = await readRepositoryData(repository, processPackage);
-      expect(repositoryData.ok, JSON.stringify(repositoryData.diagnostics)).toBe(true);
-      if (!repositoryData.ok) return;
-      const published = repositoryData.value.map((item) => item.lifecycleDatum.datum);
-      expect(published.find((item) =>
-        item.revision_id === scenarioExecution.outputs[0].lifecycleDatum.revisionId
-      )?.payload.activities_invoked).toEqual(commandCases.map(([name]) => name));
-      expect(published.find((item) =>
-        item.revision_id === scenarioExecution.outputs[1].lifecycleDatum.revisionId
-      )?.payload.claim).toEqual(expect.objectContaining({ outcome: "suitable" }));
+      const doctor = mdlm(repository, "doctor", "--json");
+      expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+      const listed = mdlm(repository, "list", "--json");
+      expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
+      const published = JSON.parse(listed.stdout).data.map(
+        (item: { lifecycleDatum: { datum: LifecycleRecord["datum"] } }) =>
+          item.lifecycleDatum.datum,
+      ) as LifecycleRecord["datum"][];
+      const run = published.find((item) =>
+        item.revision_id === execution.outputs[0].lifecycleDatum.revisionId
+      );
+      const result = published.find((item) =>
+        item.revision_id === execution.outputs[1].lifecycleDatum.revisionId
+      );
+      expect(run?.payload.activities_invoked).toEqual([activity]);
+      expect(run?.links).toContainEqual({
+        type: "produces",
+        target: result?.revision_id,
+      });
+      expect(result?.payload.claim).toEqual(expect.objectContaining({ outcome: "pass" }));
+
+      const next = mdlm(repository, "next");
+      expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+      expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+        outcome: "profile-boundary-reached",
+        phase: "phase-1-product-assurance@5",
+        evidence: expect.objectContaining({
+          condition: expect.objectContaining({ result: true }),
+        }),
+      }));
     } finally {
       await fs.rm(repository, { recursive: true, force: true });
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 45_000);
+  }, 60_000);
 
   it("proves Phase 1 malformed command matrix rejection for every required coverage class atomically", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-malformed-target-"));
     try {
-      const initialized = req(repository, "--json", "init", "--process", processPackage.root);
-      expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+      await selectProcessPackageFixture(repository, processPackage.root);
       const before = await readRepositoryData(repository, processPackage);
       expect(before.ok, JSON.stringify(before.diagnostics)).toBe(true);
       if (!before.ok) return;

@@ -9,12 +9,6 @@ import {
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
-import {
-  copiedProcessPackage,
-  suppressPhase0FoundationObligations,
-} from "./helpers/process-package.js";
-import { req } from "./helpers/req.js";
-import { freezeQuestionSource } from "./helpers/source-boundary.js";
 import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
 
 const projectRoot = process.cwd();
@@ -491,63 +485,33 @@ describe("public mdlm outcome and status seam", () => {
       .toEqual(allocated.assignment);
   });
 
-  it("returns immediate attended work with an exact Assignment and Authority Requirement", async () => {
-    await fs.rm(repository, { recursive: true, force: true });
-    await fs.mkdir(repository);
-    const processRoot = await copiedProcessPackage("mdlm-attended-outcome-process-");
-    await suppressPhase0FoundationObligations(processRoot);
-    const initialized = req(repository, "init", "--process", processRoot, "--json");
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-    await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+  it("returns immediate attended work with an exact Assignment and Authority Requirement", () => {
+    const outcome = classifyOperatorOutcome([work({
+      authorityRequirements: [{
+        policy: "question-participation@1",
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        },
+        attentionSchedule: {
+          timing: "immediate",
+          checkpoint: null,
+          consolidationGroup: null,
+        },
+      }],
+    })]);
 
-    const created = req(
-      repository,
-      "new",
-      "QST",
-      "--scenario",
-      "compile-psp@2",
-      "--set",
-      "title=Choose the supported scope",
-      "--set",
-      "kind=preferential",
-      "--set",
-      "question=Which exact scope should this product support?",
-      "--set",
-      "state=open",
-      "--set",
-      "blocking_impact=Product definition cannot proceed without stakeholder intent",
-      "--json",
-    );
-    expect(created.status, `${created.stderr}${created.stdout}`).toBe(0);
-    const questionRevision = JSON.parse(created.stdout).created.revisionId as string;
-    await freezeQuestionSource(repository, questionRevision);
-
-    expect(spawnSync("git", ["-C", repository, "init"]).status).toBe(0);
-    expect(spawnSync("git", ["-C", repository, "add", ".lifecycle"]).status).toBe(0);
-    expect(spawnSync("git", [
-      "-C", repository,
-      "-c", "user.name=MDLM Test",
-      "-c", "user.email=mdlm-test@example.invalid",
-      "commit", "-m", "Prepare attended question",
-    ]).status).toBe(0);
-
-    const next = mdlm(repository, "next");
-
-    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
-      ok: true,
-      contract: "mdlm-next@1",
-      outcome: "attention-required",
-      assignment: { id: expect.any(String) },
+    expect(outcome).toEqual(expect.objectContaining({
+      kind: "attention-required",
       authorityRequirement: {
         mode: "attended",
         authority: "stakeholder",
         delegationAllowed: false,
       },
       attentionSchedule: expect.objectContaining({ timing: "immediate" }),
-      explanation: expect.any(String),
     }));
-  }, 30_000);
+  });
 
   it("projects one complete checkpoint conversation and the first exact Assignment", async () => {
     await publishCheckpointQuestions(repository);

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { parse, stringify } from "yaml";
+import { selectProcessPackageFixture } from "./mdlm.js";
 
 export interface TerminalOutcomeDeclaration {
   condition: string;
@@ -28,20 +28,6 @@ const definitionDirectories = [
   "templates",
   "types",
 ] as const;
-
-function run(
-  command: string,
-  arguments_: string[],
-  cwd: string,
-): ReturnType<typeof spawnSync> {
-  const result = spawnSync(command, arguments_, { cwd, encoding: "utf8" });
-  if (result.status !== 0) {
-    throw new Error(
-      `${command} ${arguments_.join(" ")} failed: ${result.stderr}${result.stdout}`,
-    );
-  }
-  return result;
-}
 
 async function writeYaml(
   root: string,
@@ -271,30 +257,6 @@ export async function terminalProcessRepository(
   const processRoot = await terminalProcessPackage(parent, terminalOutcomes);
   const repository = path.join(parent, `terminal-repository-${randomUUID()}`);
   await fs.mkdir(repository);
-  const reqExecutable = path.join(process.cwd(), "dist/req-entry.js");
-  run(
-    process.execPath,
-    [reqExecutable, "--json", "init", "--process", processRoot],
-    repository,
-  );
-  run("git", ["init", "--quiet", "--initial-branch=main", "--template="], repository);
-  run("git", ["add", "--all"], repository);
-  run(
-    "git",
-    [
-      "-c",
-      "user.name=MDLM Test",
-      "-c",
-      "user.email=mdlm-test@localhost",
-      "-c",
-      "commit.gpgSign=false",
-      "commit",
-      "--quiet",
-      "--no-verify",
-      "--message",
-      "Initialize terminal fixture repository",
-    ],
-    repository,
-  );
+  await selectProcessPackageFixture(repository, processRoot);
   return repository;
 }

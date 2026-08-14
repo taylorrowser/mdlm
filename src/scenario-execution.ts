@@ -1,5 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
+import { randomBytes, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -84,17 +83,10 @@ export interface ScenarioExecutionAuthority {
 }
 
 export interface ScenarioExecution {
-  contract: "mdlm-scenario-execution@1" | "mdlm-scenario-execution@2" | "mdlm-scenario-execution@3" | "mdlm-scenario-execution@4";
+  contract: "mdlm-scenario-execution@4";
   id: string;
   status: "completed";
-  adapter?: {
-    contract: "mdlm-agent-adapter@1" | "mdlm-agent-adapter@2" | "mdlm-agent-adapter@3";
-    executable: string;
-    digest: string;
-    requestDigest: string;
-    responseDigest: string;
-  };
-  response?: {
+  response: {
     contract: "mdlm-assignment-response@1";
     assignment: string;
     digest: string;
@@ -159,10 +151,6 @@ function versionedDefinition(
   return definition?.version === Number(match?.[2]) ? definition : undefined;
 }
 
-function sha256(value: string | Uint8Array): string {
-  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
-}
-
 function stableId(type: string): string {
   return `${type}-${[...randomBytes(10)].map((byte) => base32[byte & 31]).join("")}`;
 }
@@ -174,139 +162,6 @@ function cardinalityRange(cardinality: string): { minimum: number; maximum: numb
     case "zero-or-one": return { minimum: 0, maximum: 1 };
     default: return { minimum: 0, maximum: Number.POSITIVE_INFINITY };
   }
-}
-
-async function invokeAdapter(
-  repositoryRoot: string,
-  executable: string,
-  requestSource: string,
-): Promise<{
-  response?: unknown;
-  responseSource?: string;
-  diagnostic?: ProcessDiagnostic;
-}> {
-  return new Promise((resolve) => {
-    const child = spawn(path.resolve(repositoryRoot, executable), [], {
-      cwd: repositoryRoot,
-      stdio: ["pipe", "pipe", "pipe"],
-      shell: false,
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
-    child.stderr.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
-    child.on("error", (error) => resolve({
-      diagnostic: {
-        code: "scenario-adapter-unavailable",
-        path: executable,
-        message: `Could not invoke configured agent adapter: ${error.message}`,
-      },
-    }));
-    child.on("close", (code) => {
-      if (code !== 0) {
-        resolve({
-          diagnostic: {
-            code: "scenario-adapter-failed",
-            path: executable,
-            message: `Configured agent adapter exited with status ${code}: ${stderr.trim()}`,
-          },
-        });
-        return;
-      }
-      try {
-        resolve({ response: JSON.parse(stdout) as unknown, responseSource: stdout });
-      } catch (error) {
-        resolve({
-          diagnostic: {
-            code: "scenario-adapter-response-invalid",
-            path: executable,
-            message: `Configured agent adapter did not return one JSON value: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        });
-      }
-    });
-    child.stdin.end(requestSource);
-  });
-}
-
-function parseAdapterResponse(value: unknown):
-  | { ok: true; value: ScenarioProposal }
-  | { ok: false; diagnostics: ProcessDiagnostic[] } {
-  const response = object(value);
-  if (!response || !Array.isArray(response.outputs) ||
-      !Object.hasOwn(response, "completionEvidence")) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "scenario-adapter-response-invalid",
-        path: "adapter.response",
-        message: "Adapter response requires 'outputs' and 'completionEvidence'",
-      }],
-    };
-  }
-  const outputs: ScenarioOutputProposal[] = [];
-  const diagnostics: ProcessDiagnostic[] = [];
-  const responseKeys = Object.keys(response).filter((key) =>
-    key !== "outputs" && key !== "completionEvidence"
-  );
-  if (responseKeys.length > 0) {
-    diagnostics.push({
-      code: "scenario-adapter-response-invalid",
-      path: "adapter.response",
-      message: `Adapter response contains undeclared fields: ${responseKeys.sort().join(", ")}`,
-    });
-  }
-  response.outputs.forEach((candidate, index) => {
-    const output = object(candidate);
-    const datum = object(output?.lifecycleDatum);
-    const links = array(datum?.links);
-    const parsedLinks = links.flatMap((value) => {
-      const link = object(value);
-      return typeof link?.type === "string" && typeof link.target === "string"
-        ? [{ type: link.type, target: link.target }]
-        : [];
-    });
-    const outputKeys = output
-      ? Object.keys(output).filter((key) =>
-        key !== "name" && key !== "invocation" && key !== "lifecycleDatum"
-      )
-      : [];
-    const datumKeys = datum
-      ? Object.keys(datum).filter((key) =>
-        !["id", "type", "payload", "links", "body"].includes(key)
-      )
-      : [];
-    if (!output || outputKeys.length > 0 || typeof output.name !== "string" ||
-        !Number.isInteger(output.invocation) || Number(output.invocation) < 0 ||
-        !datum || datumKeys.length > 0 || typeof datum.type !== "string" ||
-        (datum.id !== undefined && typeof datum.id !== "string") ||
-        !object(datum.payload) || !Array.isArray(datum.links) ||
-        parsedLinks.length !== links.length || typeof datum.body !== "string") {
-      diagnostics.push({
-        code: "scenario-output-invalid",
-        path: `adapter.outputs[${index}]`,
-        message: "Adapter output must declare a name, invocation, and complete Lifecycle Datum proposal",
-      });
-      return;
-    }
-    outputs.push({
-      name: output.name,
-      invocation: Number(output.invocation),
-      lifecycleDatum: {
-        ...(typeof datum.id === "string" ? { id: datum.id } : {}),
-        type: datum.type,
-        payload: object(datum.payload)!,
-        links: parsedLinks,
-        body: datum.body,
-      },
-    });
-  });
-  return diagnostics.length > 0
-    ? { ok: false, diagnostics }
-    : {
-        ok: true,
-        value: { outputs, completionEvidence: response.completionEvidence },
-      };
 }
 
 function outputContractDiagnostics(
@@ -476,7 +331,7 @@ function remapPublicationDiagnostics(
   );
 }
 
-export type RepositoryScenarioPreparationResult =
+type RepositoryScenarioPreparationResult =
   | {
       ok: true;
       value: {
@@ -572,52 +427,16 @@ async function prepareRepositoryScenario(
     : dryRun;
 }
 
-export async function prepareRepositoryResolverScenario(
-  repositoryRoot: string,
-  processPackage: ProcessPackage,
-  packageIdentity: PackageExecutionIdentity,
-  scenarioReference: string,
-  obligationInstance: string,
-  requestedInputs: { name: string; value: string }[],
-): Promise<RepositoryScenarioPreparationResult> {
-  return prepareRepositoryScenario(
-    repositoryRoot,
-    processPackage,
-    packageIdentity,
-    scenarioReference,
-    { mode: "dispatchable-obligation", obligationInstance },
-    requestedInputs,
-  );
-}
-
-export async function prepareRepositoryExplicitScenario(
-  repositoryRoot: string,
-  processPackage: ProcessPackage,
-  packageIdentity: PackageExecutionIdentity,
-  scenarioReference: string,
-  requestedInputs: { name: string; value: string }[],
-): Promise<RepositoryScenarioPreparationResult> {
-  return prepareRepositoryScenario(
-    repositoryRoot,
-    processPackage,
-    packageIdentity,
-    scenarioReference,
-    { mode: "explicit-initiation" },
-    requestedInputs,
-  );
-}
-
-async function executeScenario(
+async function submitScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   packageIdentity: PackageExecutionIdentity,
   scenarioReference: string,
   authorizationRequest: ScenarioExecutionAuthorizationRequest,
   requestedInputs: { name: string; value: string }[],
-  adapterExecutable: string | undefined,
   suppliedAuthorities: string[],
   suppliedDelegations: string[],
-  submittedResponse?: {
+  submittedResponse: {
     assignment: string;
     digest: string;
     proposal: ScenarioProposal;
@@ -740,13 +559,9 @@ async function executeScenario(
           delegations: [...usedDelegations].sort(),
           requirements: authorityRequirements.map((requirement) => ({
             ...requirement,
-            ...(submittedResponse
-              ? {
-                  authorization: requirementAuthorizations.get(
-                    requirement.invocation,
-                  )!,
-                }
-              : {}),
+            authorization: requirementAuthorizations.get(
+              requirement.invocation,
+            )!,
           })),
         }
       : undefined;
@@ -759,26 +574,8 @@ async function executeScenario(
       reference,
     }),
   );
-  const executionContracts = submittedResponse
-    ? { execution: "mdlm-scenario-execution@4" as const }
-    : executionAuthority
-    ? {
-        adapter: "mdlm-agent-adapter@3" as const,
-        execution: "mdlm-scenario-execution@3" as const,
-      }
-    : dryRun.participation
-      ? {
-          adapter: "mdlm-agent-adapter@2" as const,
-          execution: "mdlm-scenario-execution@2" as const,
-        }
-      : {
-          adapter: "mdlm-agent-adapter@1" as const,
-          execution: "mdlm-scenario-execution@1" as const,
-        };
   const declaredSkillRefs = dryRun.prompt.skills.map((skill) => skill.reference);
-  const loadedSkillRefs = submittedResponse
-    ? submittedResponse.loadedSkillRefs
-    : declaredSkillRefs;
+  const loadedSkillRefs = submittedResponse.loadedSkillRefs;
   const exactSkillProvenance = loadedSkillRefs.length === declaredSkillRefs.length &&
     loadedSkillRefs.every((reference, index) => reference === declaredSkillRefs[index]);
   if (!exactSkillProvenance) {
@@ -794,71 +591,13 @@ async function executeScenario(
   const loadedSkills = loadedSkillRefs.map((reference) =>
     dryRun.prompt.skills.find((skill) => skill.reference === reference)!
   );
-  const adapterRequest = {
-    ...("adapter" in executionContracts
-      ? { contract: executionContracts.adapter }
-      : {}),
-    scenario: scenarioReference,
-    authorization: dryRun.authorization,
-    ...(dryRun.obligation
-      ? { obligation: dryRun.obligation.instance }
-      : {}),
-    invocations: dryRun.invocations,
-    prompt: dryRun.prompt,
-    policies: dryRun.policies,
-    ...(dryRun.participation ? { participation: dryRun.participation } : {}),
-    ...(executionAuthority ? { authority: executionAuthority } : {}),
-    prohibitedInputs: dryRun.prohibitedInputs,
-    expectedOutputs: dryRun.expectedOutputs,
-    completion: dryRun.completion,
-  };
-  let adapterDigest: string | undefined;
-  let adapterRequestSource: string | undefined;
-  let adapterResponseSource: string | undefined;
-  let parsedResponse: ReturnType<typeof parseAdapterResponse>;
-  if (submittedResponse) {
-    parsedResponse = { ok: true, value: submittedResponse.proposal };
-  } else {
-    if (!adapterExecutable) {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "scenario-adapter-unavailable",
-          message: "Scenario adapter execution requires an executable",
-        }],
-      };
-    }
-    try {
-      adapterDigest = sha256(
-        await fs.readFile(path.resolve(repositoryRoot, adapterExecutable)),
-      );
-    } catch (error) {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "scenario-adapter-unavailable",
-          path: adapterExecutable,
-          message: `Could not read configured agent adapter: ${error instanceof Error ? error.message : String(error)}`,
-        }],
-      };
-    }
-    adapterRequestSource = `${JSON.stringify(adapterRequest)}\n`;
-    const invoked = await invokeAdapter(
-      repositoryRoot,
-      adapterExecutable,
-      adapterRequestSource,
-    );
-    if (invoked.diagnostic) return { ok: false, diagnostics: [invoked.diagnostic] };
-    adapterResponseSource = invoked.responseSource;
-    parsedResponse = parseAdapterResponse(invoked.response);
-    if (!parsedResponse.ok) return parsedResponse;
-  }
+  const proposal = submittedResponse.proposal;
   if (executionAuthority && authorityEvidence) {
     const requiredInvocations = [...new Set(
       executionAuthority.requirements.map((requirement) => requirement.invocation),
     )].sort((left, right) => left - right);
     const missingEvidenceInvocations = requiredInvocations.flatMap((invocation) =>
-      parsedResponse.value.outputs.some((output) =>
+      proposal.outputs.some((output) =>
         output.invocation === invocation &&
         output.name === authorityEvidence.output &&
         output.lifecycleDatum.type === authorityEvidence.type
@@ -879,7 +618,7 @@ async function executeScenario(
   const contractDiagnostics = outputContractDiagnostics(
     scenario,
     dryRun.invocations,
-    parsedResponse.value.outputs,
+    proposal.outputs,
   );
   if (contractDiagnostics.length > 0) {
     return { ok: false, diagnostics: contractDiagnostics };
@@ -892,18 +631,16 @@ async function executeScenario(
     existingById.set(record.datum.id, lineage);
   }
   const usedIds = new Set(existingById.keys());
-  const kernelIdentityDiagnostics = submittedResponse
-    ? parsedResponse.value.outputs.flatMap(
-        (output, index) => output.lifecycleDatum.id &&
-            !existingById.has(output.lifecycleDatum.id)
-          ? [{
-              code: "scenario-output-identity-kernel-managed",
-              path: `proposal.outputs[${index}].lifecycleDatum.id`,
-              message: `New Scenario output '${output.name}' must leave Stable Datum identity for the kernel to assign`,
-            }]
-          : [],
-      )
-    : [];
+  const kernelIdentityDiagnostics = proposal.outputs.flatMap(
+    (output, index) => output.lifecycleDatum.id &&
+        !existingById.has(output.lifecycleDatum.id)
+      ? [{
+          code: "scenario-output-identity-kernel-managed",
+          path: `proposal.outputs[${index}].lifecycleDatum.id`,
+          message: `New Scenario output '${output.name}' must leave Stable Datum identity for the kernel to assign`,
+        }]
+      : [],
+  );
   if (kernelIdentityDiagnostics.length > 0) {
     return { ok: false, diagnostics: kernelIdentityDiagnostics };
   }
@@ -911,7 +648,7 @@ async function executeScenario(
     ...dryRun.policies.map((policy) => policy.reference),
     ...participationPolicyReferences,
   ])].sort();
-  const outputIdentities = parsedResponse.value.outputs.map((proposal) => {
+  const outputIdentities = proposal.outputs.map((proposal) => {
     const requestedId = proposal.lifecycleDatum.id;
     let id = requestedId;
     if (!id) {
@@ -930,20 +667,18 @@ async function executeScenario(
   });
   const localIdentities = new Map<string, typeof outputIdentities[number]>();
   const localIdentityDiagnostics: ProcessDiagnostic[] = [];
-  if (submittedResponse) {
-    parsedResponse.value.outputs.forEach((proposal, index) => {
-      if (!proposal.localId) return;
-      if (localIdentities.has(proposal.localId)) {
-        localIdentityDiagnostics.push({
-          code: "scenario-output-local-id-duplicate",
-          path: `proposal.outputs[${index}].localId`,
-          message: `Scenario Proposal output local identity '${proposal.localId}' is duplicated`,
-        });
-        return;
-      }
-      localIdentities.set(proposal.localId, outputIdentities[index]!);
-    });
-  }
+  proposal.outputs.forEach((output, index) => {
+    if (!output.localId) return;
+    if (localIdentities.has(output.localId)) {
+      localIdentityDiagnostics.push({
+        code: "scenario-output-local-id-duplicate",
+        path: `proposal.outputs[${index}].localId`,
+        message: `Scenario Proposal output local identity '${output.localId}' is duplicated`,
+      });
+      return;
+    }
+    localIdentities.set(output.localId, outputIdentities[index]!);
+  });
   if (localIdentityDiagnostics.length > 0) {
     return { ok: false, diagnostics: localIdentityDiagnostics };
   }
@@ -976,7 +711,7 @@ async function executeScenario(
         ]))
       : value;
   }
-  const outputData = parsedResponse.value.outputs.map((proposal, index) => {
+  const outputData = proposal.outputs.map((proposal, index) => {
     const identity = outputIdentities[index]!;
     const datum: DatumEnvelope = {
       id: identity.id,
@@ -1097,26 +832,14 @@ async function executeScenario(
   const executionId = randomUUID();
   const { skills: _availableSkills, ...prompt } = dryRun.prompt;
   const executionBase = {
-    contract: executionContracts.execution,
+    contract: "mdlm-scenario-execution@4" as const,
     id: executionId,
     status: "completed" as const,
-    ...(submittedResponse
-      ? {
-          response: {
-            contract: "mdlm-assignment-response@1" as const,
-            assignment: submittedResponse.assignment,
-            digest: submittedResponse.digest,
-          },
-        }
-      : {
-          adapter: {
-            contract: executionContracts.adapter!,
-            executable: adapterExecutable!,
-            digest: adapterDigest!,
-            requestDigest: sha256(adapterRequestSource!),
-            responseDigest: sha256(adapterResponseSource ?? ""),
-          },
-        }),
+    response: {
+      contract: "mdlm-assignment-response@1" as const,
+      assignment: submittedResponse.assignment,
+      digest: submittedResponse.digest,
+    },
     package: packageIdentity,
     definition: dryRun.definition,
     authorization: dryRun.authorization,
@@ -1134,7 +857,7 @@ async function executeScenario(
       expressionPassed: true as const,
       evaluations: completionEvaluations,
     },
-    completionEvidence: parsedResponse.value.completionEvidence,
+    completionEvidence: proposal.completionEvidence,
     resultingObligations,
     discoveredObligations,
   };
@@ -1173,30 +896,6 @@ async function executeScenario(
   return { ok: true, value: execution, diagnostics: [] };
 }
 
-export async function executeResolverScenario(
-  repositoryRoot: string,
-  processPackage: ProcessPackage,
-  packageIdentity: PackageExecutionIdentity,
-  scenarioReference: string,
-  obligationInstance: string,
-  requestedInputs: { name: string; value: string }[],
-  adapterExecutable: string,
-  suppliedAuthorities: string[] = [],
-  suppliedDelegations: string[] = [],
-): Promise<ScenarioExecutionResult> {
-  return executeScenario(
-    repositoryRoot,
-    processPackage,
-    packageIdentity,
-    scenarioReference,
-    { mode: "dispatchable-obligation", obligationInstance },
-    requestedInputs,
-    adapterExecutable,
-    suppliedAuthorities,
-    suppliedDelegations,
-  );
-}
-
 export interface ResolverScenarioSubmission {
   scenarioReference: string;
   obligationInstance: string;
@@ -1214,7 +913,7 @@ export async function submitResolverScenario(
   packageIdentity: PackageExecutionIdentity,
   submission: ResolverScenarioSubmission,
 ): Promise<ScenarioExecutionResult> {
-  return executeScenario(
+  return submitScenario(
     repositoryRoot,
     processPackage,
     packageIdentity,
@@ -1224,7 +923,6 @@ export async function submitResolverScenario(
       obligationInstance: submission.obligationInstance,
     },
     [],
-    undefined,
     submission.suppliedAuthorities,
     submission.suppliedDelegations,
     {
@@ -1247,14 +945,13 @@ export async function submitExplicitScenario(
   packageIdentity: PackageExecutionIdentity,
   submission: ExplicitScenarioSubmission,
 ): Promise<ScenarioExecutionResult> {
-  return executeScenario(
+  return submitScenario(
     repositoryRoot,
     processPackage,
     packageIdentity,
     submission.scenarioReference,
     { mode: "explicit-initiation" },
     submission.requestedInputs,
-    undefined,
     submission.suppliedAuthorities,
     submission.suppliedDelegations,
     {
@@ -1263,29 +960,6 @@ export async function submitExplicitScenario(
       proposal: submission.proposal,
       loadedSkillRefs: submission.loadedSkillRefs,
     },
-  );
-}
-
-export async function executeExplicitScenario(
-  repositoryRoot: string,
-  processPackage: ProcessPackage,
-  packageIdentity: PackageExecutionIdentity,
-  scenarioReference: string,
-  requestedInputs: { name: string; value: string }[],
-  adapterExecutable: string,
-  suppliedAuthorities: string[] = [],
-  suppliedDelegations: string[] = [],
-): Promise<ScenarioExecutionResult> {
-  return executeScenario(
-    repositoryRoot,
-    processPackage,
-    packageIdentity,
-    scenarioReference,
-    { mode: "explicit-initiation" },
-    requestedInputs,
-    adapterExecutable,
-    suppliedAuthorities,
-    suppliedDelegations,
   );
 }
 
@@ -1313,7 +987,26 @@ export async function readScenarioExecution(
       ),
       "utf8",
     );
-    return { ok: true, value: JSON.parse(source) as ScenarioExecution, diagnostics: [] };
+    const parsed = object(JSON.parse(source) as unknown);
+    const response = object(parsed?.response);
+    if (
+      parsed?.contract !== "mdlm-scenario-execution@4" ||
+      response?.contract !== "mdlm-assignment-response@1"
+    ) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: "unsupported-scenario-execution-contract",
+          path: executionId,
+          message: `Scenario Execution '${executionId}' is not Assignment Response-backed mdlm-scenario-execution@4`,
+        }],
+      };
+    }
+    return {
+      ok: true,
+      value: parsed as unknown as ScenarioExecution,
+      diagnostics: [],
+    };
   } catch (error) {
     return {
       ok: false,

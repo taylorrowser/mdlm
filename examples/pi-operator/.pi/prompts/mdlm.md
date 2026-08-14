@@ -1,84 +1,80 @@
 ---
-description: Run declarative MDLM work continuously to the next real authority boundary
+description: Run declarative MDLM work continuously to the next explicit Operator Outcome boundary
 ---
-Operate the selected lifecycle through the public interface. Continue the loop;
-one coherent Scenario means one atomic transaction at a time, not one assistant
-turn. Do not return merely because a transaction, Review, gate, or checkpoint was
-completed.
+Operate the selected lifecycle through the public `mdlm` interface. One coherent
+Scenario is one atomic publication transaction, not one assistant turn. Do not
+return merely because a transaction, Review, gate, checkpoint, commit, or phase
+change completed.
 
 ## Continuous loop
 
-1. Require `git status --porcelain` to be empty, then run
-   `./bin/req next --json`. A dirty starting tree is genuine ambiguity: stop
-   rather than absorb unrelated work. Never select lifecycle work from memory.
-2. Inspect the selected item's projected participation. If its attention timing
-   is `checkpoint`, that declared checkpoint is now reached: collect attention as
-   described below before execution. Otherwise continue to exact dry-run.
-3. For an ordinary Dispatchable item, use its exact `id` and
-   `actionableResolver`:
+1. Require `git status --porcelain` to be empty. A dirty starting tree is genuine
+   ambiguity: stop rather than absorb unrelated work.
+2. Run `mdlm status --json`, then `mdlm next --json`. Never choose work from
+   memory or a package-specific sequence.
+3. Interpret the exact Operator Outcome as described below.
+4. For an Assignment, run:
    ```bash
-   ./bin/req scenario dry-run '<scenario@version>' \
-     --obligation '<exact-obligation-instance>' --json
+   mdlm scenario prepare '<assignment-id>' --json
    ```
-   Treat the returned exact inputs, prompt and full skills, Policies,
-   participation, prohibited inputs, outputs, required links, and completion
-   expression as the complete instruction bundle. Use `./bin/req show` and
-   `./bin/req schema` only when that bundle requires public semantic inspection.
-4. Prepare exactly the declared transaction through the configured adapter and
-   execute the same projection:
+   Treat the prepared packet's exact inputs, prompt, complete skills, Policies,
+   participation, prohibited inputs, outputs, required links, response schema,
+   and completion conditions as the complete instruction bundle. Use only
+   read-only `mdlm` inspection when the packet names evidence that must be
+   expanded.
+5. Perform the declared work:
+   - autonomous work stays in this operating session;
+   - package-delegated independent judgment uses a fresh read-only session over
+     only the prepared packet and named inspection evidence;
+   - attended work uses the projected Authority Requirement and
+     `attentionContext.invocations` in one explicit conversation.
+6. Build one complete `mdlm-assignment-response@1`. Preserve every declared
+   output, local proposal reference, loaded skill reference, and exact authority
+   evidence required by the packet. Submit from a file or stdin:
    ```bash
-   ./bin/req scenario execute '<scenario@version>' \
-     --obligation '<exact-obligation-instance>' \
-     --adapter './bin/scenario-adapter' --json
+   mdlm scenario submit './assignment-response.json' --json
+   # or: produce_response | mdlm scenario submit - --json
    ```
-   Never imitate execution with piecemeal authoring or direct Markdown edits.
-5. After successful publication, run `./bin/req doctor --json`. If doctor passes,
-   every changed path is transaction-owned because the starting tree was clean.
-   Run `git add -A`, inspect `git diff --cached`, stop on any unexpected path or
-   content, require `git diff --cached --check` to pass, and commit non-interactively with
-   `git commit -m 'Complete atomic lifecycle transaction'`. Then immediately run
-   `./bin/req next --json` again.
+   Never publish partial content or edit Lifecycle Data directly.
+7. After successful publication, run `mdlm doctor --json`. Then:
+   ```bash
+   git status --short
+   git add -N .lifecycle/data
+   git diff -- .lifecycle/data
+   git add .lifecycle/data
+   git diff --cached --check
+   git commit -m 'Publish Scenario transaction'
+   ```
+   Stop on any unexpected path or byte.
+8. Immediately run `mdlm status --json` and `mdlm next --json` again.
 
-## Participation and attention
+## Participation
 
-- Autonomous work: execute without asking permission.
-- Package-delegated work with attention timing `none`: the Process Package has
-  already selected a separate authority; this does not require stakeholder
-  authorization merely because `standingDelegation.applicableEvidence` is empty.
-  Assemble the delegate packet only from dry-run plus public `req show` and
-  `req schema` projections. For contextual judgment, expand every exact
-  definition and evidence member named by the frozen context with `req show`.
-  Pipe the complete packet to a fresh read-only pi session using
-  `pi -p --no-session --no-tools`; require it to return the judgment and proposed
-  authority-evidence output. Do not reuse the operating session's judgment.
-  After a valid delegate response, execute with `--authorize '<projected-authority>'`.
-- Exact standing delegation: when dry-run projects an applicable reviewed
-  Revision, the operating session may instead execute through the same prepared
-  response using `--delegation '<exact-delegation-revision>'`. Standing delegation
-  remains reusable exact evidence, but it is not a prerequisite for
-  package-delegated work whose attention timing is `none`.
-- Attended or otherwise attention-bearing work: stop for the projected authority
-  unless exact applicable standing-delegation evidence is allowed and supplied.
-  Never convert nondelegable stakeholder judgment into package-delegated work.
-- Reached checkpoint attention: only when `req next` selects an item whose
-  attention timing is `checkpoint`, run `./bin/req loose-ends --json` and collect
-  all ready items with the same declared checkpoint and `consolidationGroup`. Present them
-  together, preserving each exact Obligation and Authority Requirement. This is
-  attention consolidation only; execute each authorized Scenario as its own
-  declared atomic transaction.
+Package-delegated judgment is separate from operating-session judgment. Give the
+fresh read-only delegate every exact definition and evidence item named by the
+prepared packet, then carry its proposed exact REV or DEC into the response.
+The operating harness remains responsible for canonical submission.
 
-When the user supplies requested attended authority, apply it to the pending
-Scenario with `--authorize '<projected-authority>'`, publish the required exact
-authority evidence, and Resume the loop immediately. Do not ask the user to run a
-command, restate approval, or say continue.
+For Attention Required, preserve each projected invocation and package-owned
+input. Normalize only explicit conclusions; do not infer approval from prose and
+do not store a raw transcript as Lifecycle Data unless the Scenario declares it.
+Exact applicable Standing Delegation may be used only when preparation projects
+it. Never turn nondelegable attended authority into autonomous or delegated work.
 
-## Stop boundaries
+## Explicit outcomes and stop boundaries
 
-Stop only at an attended Authority Requirement without exact applicable delegation,
-unresolved attention at the currently reached checkpoint, genuine ambiguity or
-command failure, failed doctor check, or completed profile boundary. A
-package-delegated/no-attention requirement is not a stop boundary. If `next.item` is null, run
-`./bin/req phase status --json` and `./bin/req loose-ends --json`; stop only when
-those public projections prove the completed profile boundary or identify a real
-blocker. Report the exact projection and do not invent an explicitly initiated
-Scenario or package sequence to escape a null queue.
+- **Assignment:** continue through prepare, response, submit, doctor, Git commit,
+  and reevaluation.
+- **Attention Required:** conduct the projected conversation only when the named
+  authority is present. Otherwise stop and report the exact Authority Requirement.
+- **Profile Boundary Reached:** stop successfully and report omitted profile
+  coverage; do not claim Lifecycle Complete.
+- **Lifecycle Complete:** stop successfully and report the exact terminal
+  condition.
+- **Process Dead End:** stop unsuccessfully and report the exact blockers as a
+  Package Liveness Defect. Do not invent a Scenario.
+- **Invalid:** stop unsuccessfully and report the integrity diagnostics.
+
+Also stop on typed inability, stale or exhausted Assignment, failed doctor,
+unexpected Git state, genuine ambiguity, or command failure. Report the exact
+projection and the fact that no Lifecycle Data was published when applicable.

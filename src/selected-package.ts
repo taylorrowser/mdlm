@@ -86,7 +86,7 @@ export async function selectedPackage(
       diagnostics: [{
         code: "process-package-not-selected",
         message:
-          "No Process Package is selected; run 'mdlm process use <package@version>'",
+          "No Process Package is selected; initialize a repository with 'mdlm init <destination>'",
       }],
     };
   }

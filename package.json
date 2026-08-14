@@ -4,12 +4,10 @@
   "private": true,
   "type": "module",
   "bin": {
-    "mdlm": "./dist/mdlm.js",
-    "req": "./dist/req-entry.js"
+    "mdlm": "./dist/mdlm.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prototype": "npm run build --silent && node dist/prototype.js",
     "test": "node scripts/run-bounded-tests.mjs",
     "test:all": "npm test",
     "test:watch": "vitest --config vitest.fast.config.ts",

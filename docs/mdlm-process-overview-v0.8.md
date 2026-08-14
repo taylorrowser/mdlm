@@ -1,6 +1,13 @@
 # Markdown Lifecycle Manager (`mdlm`) — Process Overview
 
-**Accepted v0.8**
+> **Historical prototype design — not supported operating instructions.** This
+> accepted v0.8 baseline preserves the design vocabulary and evidence available at
+> the time. Commands naming `req`, direct mutation, scenario dry-run/execution,
+> executable adapters, package install/use/scaffolding, or Package Command Alias
+> invocation are historical only. Use the current repository README for supported
+> operation.
+
+**Accepted v0.8 historical design baseline**
 
 > Working name. “Wayfinding” refers only to Phase 0, which aligns with the Matt Pocock wayfinder pattern.
 >

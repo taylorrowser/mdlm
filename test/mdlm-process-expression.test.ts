@@ -2,16 +2,16 @@ import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { req, selectBootstrapProcessPackage } from "./helpers/req.js";
+import { mdlm, selectBootstrapProcessPackage } from "./helpers/mdlm.js";
 
 const snapshot = path.join(process.cwd(), "examples/psp-to-sys-snapshot.yaml");
 const subjectRevision = "PSP-7K3M9Q2D8F-r00001";
 
-describe("req process expression evaluation", () => {
+describe("mdlm process expression evaluation", () => {
   let repositoryRoot: string;
 
   beforeEach(async () => {
-    repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-req-expression-"));
+    repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-expression-"));
     selectBootstrapProcessPackage(repositoryRoot);
   });
 
@@ -22,7 +22,7 @@ describe("req process expression evaluation", () => {
   it("evaluates a definition field with its actual contract and explains traversal", () => {
     const target = "review-context-required@2#satisfied_when";
     const bindings = JSON.stringify({ subject: subjectRevision });
-    const result = req(
+    const result = mdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -110,7 +110,7 @@ describe("req process expression evaluation", () => {
       diagnostics: [],
     });
 
-    const human = req(
+    const human = mdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -136,7 +136,7 @@ describe("req process expression evaluation", () => {
   });
 
   it("addresses nested expression fields without exposing compiled nodes", () => {
-    const result = req(
+    const result = mdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -167,7 +167,7 @@ describe("req process expression evaluation", () => {
   });
 
   it("rejects bindings outside the addressed field's actual contract", () => {
-    const result = req(
+    const result = mdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -192,7 +192,7 @@ describe("req process expression evaluation", () => {
   });
 
   it("rejects a supplied value that does not match the compiled binding type", () => {
-    const result = req(
+    const result = mdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -308,7 +308,7 @@ describe("req process expression evaluation", () => {
     ];
 
     for (const testCase of cases) {
-      const result = req(
+      const result = mdlm(
         repositoryRoot,
         ...testCase.arguments,
         "--snapshot",
@@ -362,7 +362,7 @@ describe("req process expression evaluation", () => {
       }
     }
 
-    const human = req(
+    const human = mdlm(
       repositoryRoot,
       "state",
       "evaluate",

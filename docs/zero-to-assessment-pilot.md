@@ -41,37 +41,38 @@ than by migrating or hand-editing that historical repository:
   correction, and escalation semantics; package loading and matrix tests retain
   definition, simplification, completion, candidate, gate, and assessment-entry
   contracts.
-- `test/req-pilot-assessment.test.ts`, `test/evaluate-phase.test.ts`, and
+- `test/mdlm-pilot-assessment.test.ts`,
+  `test/change-and-pilot-hardening-routes.test.ts`, and
   `test/operator-outcome.test.ts` cover exact PAS/Decision contracts and explicit
   Profile Boundary or Lifecycle Complete outcomes.
 - `test/evaluate-bootstrap-participation.test.ts` proves source-boundary,
-  Question, authority, and correction routing from exact lifecycle snapshots.
-- `test/req-scenario-participation.test.ts`, `test/mdlm-assignment.test.ts`, and
-  evaluator contracts prove that process-required authority publishes only as the
-  Scenario's exact REV or DEC output.
+  Question, authority, and correction routing from exact Lifecycle Data snapshots.
+- `test/mdlm-assignment.test.ts`, `test/operator-outcome.test.ts`, and evaluator
+  contracts prove that process-required authority publishes only as the Scenario's
+  exact REV or DEC output.
 
 Together these are the clarified compositional public-interface proof, not an
 imperative second implementation of the declarative Process Package. The
 historical observations remain immutable, while every repaired route is exercised
-at the established public-process seam. The broader brand-new serial complete-
-profile pilot remains the separate boundary of issue #103.
+at the established public-process seam. Issue #103 supplies the broader exact-head
+clean-pilot and phase-hardening proof; issue #104 contracts its executable and
+documentation references to `mdlm`.
 
 ## Acceptance observations
 
 | Issue #70 criterion | Evidence |
 | --- | --- |
-| Fresh installation and exact selection | `mdlm init` installs and selects `mdlm-bootstrap@0.59.0` without a package flag or descriptor edit; the onboarding test asserts the exact package and clean setup commit. |
+| Fresh initialization and exact selection | `mdlm init` records `mdlm-bootstrap@0.59.0` without a package flag or descriptor edit; the onboarding test asserts the exact package and clean setup commit. |
 | Work discovery through assessment | `mdlm next` selects the initial Product Wayfinding Assignment in the fresh transaction repository. The compiled public Phase 0, Phase 1, Phase 2, and pilot-assessment routes listed above derive every continuation from reevaluation rather than a runbook. |
-| Public operation only | Normal progress uses only `mdlm init`, `next`, `scenario prepare`, `scenario submit`, `doctor`, read-only diff, and ordinary Git. Scenario Proposals, not Markdown edits, cross the publication seam. |
+| Public operation only | Normal progress uses only `mdlm init`, `status`, `next`, `scenario prepare`, `scenario submit`, `doctor`, read-only inspection and diff, and ordinary Git. Scenario Proposals, not Markdown edits, cross the publication seam. |
 | Exact same-lineage source boundary | The package-discovered source-boundary Assignment freezes the exact source Revision before a same-lineage Question replacement. |
 | Exact authority evidence | Delegated judgments publish REV; gates, implementation authority, and Expansion Decisions publish DEC. Authority Supply permits execution but never substitutes for that evidence. |
 | Continuous autonomous operation | Autonomous and package-delegated/no-attention Assignments continue. The operator stops only for a projected attended Authority Requirement, explicit terminal outcome, stale or malformed Assignment, integrity failure, or genuine package failure. |
 | Durable assessment report | PAS is a generated package-owned Lifecycle type over one exact frozen assessment context. Its reviewed recommendation is adopted by an exact attended Expansion Decision before the declared boundary. |
 
-The issue text names the prototype `req next` surface. The later clean-interface
-decision made `mdlm next` the canonical lifecycle-neutral operation and explicitly
-dropped the old command identity; the clarified criterion follows that supported
-surface without adding a compatibility alias.
+The issue text predates the contracted command surface. This report follows
+`mdlm next` as the canonical lifecycle-neutral operation without a compatibility
+command identity.
 
 ## Observed measurements
 
