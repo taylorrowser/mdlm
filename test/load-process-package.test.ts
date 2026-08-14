@@ -106,7 +106,12 @@ describe("loadProcessPackage", () => {
         }),
       }));
     expect(result.package.scenarios["review-datum-in-context"]
-      ?.review_policy_arguments).toEqual({ subject: "subject" });
+      ?.review_policy_arguments).toEqual({
+        subject: expect.objectContaining({
+          kind: "mdlm-expression",
+          source: "subject",
+        }),
+      });
     expect(result.package.scenarios["register-pilot-target"]?.participation)
       .toBeUndefined();
     for (const scenario of [
@@ -176,8 +181,33 @@ describe("loadProcessPackage", () => {
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "review-policy-input-binding",
-      path: "scenarios.review-datum-in-context.review_policy_arguments.subject",
+      code: "expression-unknown-binding",
+      path: expect.stringContaining(
+        "review-datum-in-context.yaml#review_policy_arguments.subject",
+      ),
+    }));
+  });
+
+  it("rejects Review Policy arguments with incompatible parameter kinds", async () => {
+    const processRoot = await copiedProcessPackage();
+    const policyPath = path.join(
+      processRoot,
+      "policies/review-applicability.yaml",
+    );
+    const policy = await fs.readFile(policyPath, "utf8");
+    await fs.writeFile(
+      policyPath,
+      policy.replace("kind: revision", "kind: stable-datum"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "review-policy-argument-type",
+      path: expect.stringContaining(
+        "review-datum-in-context.yaml#review_policy_arguments.subject",
+      ),
     }));
   });
 

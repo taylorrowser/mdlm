@@ -20,7 +20,7 @@ type Packet = {
     reference: string;
     evaluations?: {
       invocation: number;
-      arguments: Record<string, string>;
+      arguments: Record<string, unknown>;
       result: Record<string, unknown>;
       assets: { reference: string; path: string; digest: string; content: string }[];
     }[];
@@ -307,7 +307,7 @@ describe("delegated Review Assignment packets", () => {
     }));
 
     const rubricReference = reviewPolicy?.evaluations?.[0]?.result.rubric_ref;
-    const reviewSubmission = submitProposal(repository, reviewPacket, [{
+    const reviewOutput = {
       localId: "review",
       name: "review",
       invocation: 0,
@@ -329,7 +329,48 @@ describe("delegated Review Assignment packets", () => {
         ],
         body: "Independent judgment: the exact map passes the supplied rubric.\n",
       },
-    }], ["independent-reviewer"]);
+    };
+    const substitutedRubricResponse = {
+      contract: "mdlm-assignment-response@1",
+      assignment: reviewPacket.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          ...reviewOutput,
+          lifecycleDatum: {
+            ...reviewOutput.lifecycleDatum,
+            payload: {
+              ...reviewOutput.lifecycleDatum.payload,
+              rubric_ref: "policies/rubrics/substituted.md@9",
+            },
+          },
+        }],
+        completionEvidence: { summary: "Tried a substituted rubric." },
+        loadedSkillRefs: reviewPacket.prompt.skills.map((skill) => skill.reference),
+        authoritySupplies: ["independent-reviewer"],
+        standingDelegations: [],
+      },
+    };
+    const rejected = mdlmWithInput(
+      repository,
+      `${JSON.stringify(substitutedRubricResponse)}\n`,
+      "scenario", "submit", "-", "--json",
+    );
+    expect(rejected.status, rejected.stderr).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toEqual(expect.objectContaining({
+      disposition: "correction-required",
+      malformedResponse: expect.objectContaining({ correctionsRemaining: 1 }),
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-completion-failed" }),
+      ]),
+    }));
+
+    const reviewSubmission = submitProposal(
+      repository,
+      reviewPacket,
+      [reviewOutput],
+      ["independent-reviewer"],
+    );
     expect(reviewSubmission.execution.outputs[0].data.payload).toEqual(
       expect.objectContaining({
         rubric_ref: "policies/rubrics/bootstrap-review.md@1",

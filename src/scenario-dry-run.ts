@@ -8,6 +8,7 @@ import {
   evaluateProcessExpression,
   evaluateResolverInputs,
   evaluateScenarioParticipation,
+  evaluateScenarioReviewPolicy,
   scenarioOutputExplanations,
   type DatumEnvelope,
   type ExactTypedEntity,
@@ -69,7 +70,7 @@ export interface ResolvedPrompt extends ResolvedProcessAsset {
 
 export interface ResolvedScenarioPolicyEvaluation {
   invocation: number;
-  arguments: Record<string, string>;
+  arguments: Record<string, unknown>;
   result: Record<string, unknown>;
   assets: ResolvedProcessAsset[];
 }
@@ -196,6 +197,12 @@ function assetFrontmatter(content: string): RecordValue | undefined {
   return match?.[1] ? object(parse(match[1])) : undefined;
 }
 
+function pathIsWithin(root: string, target: string): boolean {
+  const relative = path.relative(root, target);
+  return relative !== ".." && !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative);
+}
+
 async function resolvedAsset(
   processPackage: ProcessPackage,
   reference: string,
@@ -227,10 +234,28 @@ async function resolvedAsset(
         },
       };
     }
-    const content = await fs.readFile(
-      path.join(processPackage.root, relativePath),
-      "utf8",
-    );
+    const packageRoot = await fs.realpath(processPackage.root);
+    const unresolvedPath = path.resolve(packageRoot, relativePath);
+    if (!pathIsWithin(packageRoot, unresolvedPath)) {
+      return {
+        diagnostic: {
+          code: `${kind}-outside-package`,
+          path: relativePath,
+          message: `Resolved ${kind} '${reference}' is outside the exact Process Package root`,
+        },
+      };
+    }
+    const resolvedPath = await fs.realpath(unresolvedPath);
+    if (!pathIsWithin(packageRoot, resolvedPath)) {
+      return {
+        diagnostic: {
+          code: `${kind}-outside-package`,
+          path: relativePath,
+          message: `Resolved ${kind} '${reference}' escapes the exact Process Package root`,
+        },
+      };
+    }
+    const content = await fs.readFile(resolvedPath, "utf8");
     const frontmatter = assetFrontmatter(content);
     const expectedVersion = Number(
       reference.slice(reference.lastIndexOf("@") + 1),
@@ -511,75 +536,42 @@ async function resolveReviewPolicyEvaluations(
   processPackage: ProcessPackage,
   snapshot: LifecycleSnapshot,
   scenarioReference: string,
-  scenario: VersionedDefinition,
-  invocations: ScenarioDryRunInvocation[],
+  invocationBindings: Record<string, unknown>[],
 ): Promise<{
   evaluations: ResolvedScenarioPolicyEvaluation[];
   diagnostics: ProcessDiagnostic[];
 }> {
-  const policyReference = string(scenario.review_policy_ref) ?? "";
-  const argumentMappings = object(scenario.review_policy_arguments);
-  if (!argumentMappings) return { evaluations: [], diagnostics: [] };
+  let evaluated: ReturnType<typeof evaluateScenarioReviewPolicy>;
+  try {
+    evaluated = evaluateScenarioReviewPolicy(
+      processPackage,
+      snapshot,
+      scenarioReference,
+      invocationBindings,
+    );
+  } catch (error) {
+    return {
+      evaluations: [],
+      diagnostics: [{
+        code: "review-policy-evaluation-failed",
+        path: `${scenarioReference}#review_policy_arguments`,
+        message: error instanceof Error ? error.message : String(error),
+      }],
+    };
+  }
   const evaluations: ResolvedScenarioPolicyEvaluation[] = [];
-  for (const [invocationIndex, invocation] of invocations.entries()) {
-    const arguments_: Record<string, string> = {};
-    for (const [parameter, inputNameValue] of Object.entries(argumentMappings)) {
-      const inputName = string(inputNameValue) ?? "";
-      const value = invocation.inputs.find((input) => input.name === inputName)
-        ?.values[0];
-      if (!value) {
-        return {
-          evaluations: [],
-          diagnostics: [{
-            code: "review-policy-input-unavailable",
-            path: `${scenarioReference}#review_policy_arguments.${parameter}`,
-            message: `Could not bind review Policy argument '${parameter}' from exact Scenario input '${inputName}'`,
-          }],
-        };
-      }
-      arguments_[parameter] = value.identity.revision_id ?? value.identity.id;
-    }
-    let result: unknown;
-    try {
-      result = evaluateProcessDefinition(
-        processPackage,
-        snapshot,
-        "policy",
-        policyReference,
-        arguments_,
-      ).result;
-    } catch (error) {
-      return {
-        evaluations: [],
-        diagnostics: [{
-          code: "review-policy-evaluation-failed",
-          path: `${scenarioReference}#review_policy_arguments`,
-          message: error instanceof Error ? error.message : String(error),
-        }],
-      };
-    }
-    const resolvedResult = object(result);
-    if (!resolvedResult) {
-      return {
-        evaluations: [],
-        diagnostics: [{
-          code: "review-policy-result-invalid",
-          path: policyReference,
-          message: `Review Policy '${policyReference}' did not return its declared object result`,
-        }],
-      };
-    }
+  for (const [invocation, evaluation] of (evaluated ?? []).entries()) {
     const resolvedAssets = await resolvePolicyAssets(
       processPackage,
-      resolvedResult,
+      evaluation.result,
     );
     if (resolvedAssets.diagnostics.length > 0) {
       return { evaluations: [], diagnostics: resolvedAssets.diagnostics };
     }
     evaluations.push({
-      invocation: invocationIndex,
-      arguments: arguments_,
-      result: resolvedResult,
+      invocation,
+      arguments: evaluation.arguments,
+      result: evaluation.result,
       assets: resolvedAssets.assets,
     });
   }
@@ -954,8 +946,7 @@ async function dryRunScenario(
     processPackage,
     snapshot,
     scenarioReference,
-    scenario,
-    invocations,
+    invocationBindings,
   );
   if (reviewPolicyEvaluations.diagnostics.length > 0) {
     return { ok: false, diagnostics: reviewPolicyEvaluations.diagnostics };

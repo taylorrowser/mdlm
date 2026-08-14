@@ -307,26 +307,6 @@ function validateReferences(
             message: `Scenario '${id}' review Policy arguments must exactly match Policy '${definition.review_policy_ref}'; missing: ${missing.join(", ") || "none"}; unknown: ${unknown.join(", ") || "none"}`,
           });
         }
-        const inputs = new Map((Array.isArray(definition.inputs)
-          ? definition.inputs
-          : []).flatMap((value) => {
-            if (typeof value !== "object" || value === null) return [];
-            const input = value as Record<string, unknown>;
-            return typeof input.name === "string"
-              ? [[input.name, input] as const]
-              : [];
-          }));
-        for (const [parameter, inputNameValue] of Object.entries(reviewPolicyArguments)) {
-          const inputName = String(inputNameValue);
-          const input = inputs.get(inputName);
-          if (!input || input.cardinality !== "one") {
-            diagnostics.push({
-              code: "review-policy-input-binding",
-              path: `scenarios.${id}.review_policy_arguments.${parameter}`,
-              message: `Scenario '${id}' review Policy argument '${parameter}' must bind one declared Scenario input`,
-            });
-          }
-        }
       }
     }
     const participation = typeof definition.participation === "object" &&

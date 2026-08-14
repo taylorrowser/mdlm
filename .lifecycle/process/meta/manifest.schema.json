@@ -29,7 +29,17 @@
     },
     "compatibility": {"type": "object"},
     "catalog": {"type": "object"},
-    "assets": {"type": "object"},
+    "assets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*\\.(?:md|yaml)@[1-9][0-9]*$"
+        }
+      }
+    },
     "profiles": {"type": "object"},
     "provenance": {"type": "object"}
   }

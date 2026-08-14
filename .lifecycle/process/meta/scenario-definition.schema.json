@@ -20,7 +20,7 @@
       "type": "object",
       "minProperties": 1,
       "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
-      "additionalProperties": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+      "additionalProperties": {"$ref": "expression.schema.json"}
     },
     "participation": {"$ref": "#/$defs/participation"},
     "authority_evidence": {"$ref": "#/$defs/authorityEvidence"},

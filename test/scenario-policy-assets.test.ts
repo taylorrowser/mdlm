@@ -138,5 +138,40 @@ describe("package-authored review Policy evidence", () => {
         })],
       }],
     }));
+
+    manifest.assets.guides = ["../outside.md@1"];
+    await fs.writeFile(manifestPath, stringify(manifest));
+    const traversal = await loadProcessPackage(root);
+    expect(traversal.ok).toBe(false);
+    expect(traversal.diagnostics).toContainEqual(expect.objectContaining({
+      code: "meta-schema",
+      path: expect.stringContaining("manifest.yaml/assets/guides/0"),
+    }));
+
+    manifest.assets.guides = ["guides/item-judgment.md@3"];
+    await fs.writeFile(manifestPath, stringify(manifest));
+    const outsidePath = path.join(parent, "outside-item-judgment.md");
+    await fs.writeFile(
+      outsidePath,
+      "---\nid: item-judgment\nversion: 3\n---\n\n# Outside guide\n",
+    );
+    await fs.rm(path.join(root, "guides/item-judgment.md"));
+    await fs.symlink(outsidePath, path.join(root, "guides/item-judgment.md"));
+    const escaped = await dryRunExplicitScenario(
+      loaded.package,
+      {
+        processRef: "fixture@1#sha256:test",
+        phaseId: "phase-0-terminal",
+        records: [item],
+        dependencyComparisons: [],
+      },
+      "inspect-item@1",
+      [{ name: "item", value: item.datum.revision_id }],
+    );
+    expect(escaped.ok).toBe(false);
+    expect(escaped.diagnostics).toContainEqual(expect.objectContaining({
+      code: "policy-asset-outside-package",
+      path: "guides/item-judgment.md",
+    }));
   });
 });

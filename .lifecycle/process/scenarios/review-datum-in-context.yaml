@@ -34,6 +34,8 @@ completion: >-
   && review_context.payload.kind == "review-context"
   && review_context.storage.frozen == true
   && review.payload.outcome in ["pass", "fail", "cancelled"]
+  && review.payload.rubric_ref
+    == policy("review-applicability@1", {subject: subject}).rubric_ref
   && (
     (exists("intent-candidates-matching-subject@1", {subject: subject})
       && exists("valid-product-simplification-reviews@1", {review: review}))
