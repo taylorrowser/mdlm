@@ -403,7 +403,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       },
       malformedResponse: expect.objectContaining({
         attempt: 1,
-        correctionsRemaining: 0,
+        correctionsRemaining: 1,
         diagnostics: [expect.objectContaining({
           code: "assignment-response-invalid",
           path: "response",
@@ -412,6 +412,11 @@ describe("MDLM Assignment leasing and preparation", () => {
     }));
     expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
 
+    const status = JSON.parse(mdlm(repository, "status", "--json").stdout);
+    expect(status.currentOutcome).toEqual({
+      outcome: "assignment",
+      assignment: { allocation: "active", id: assignment },
+    });
     const retained = JSON.parse(mdlm(repository, "next").stdout);
     expect(retained.assignment).toEqual({ id: assignment });
     const lease = JSON.parse(await fs.readFile(path.join(
@@ -477,7 +482,10 @@ describe("MDLM Assignment leasing and preparation", () => {
 
     const first = mdlmWithInput(repository, "{}\n", "scenario", "submit");
     expect(first.status).toBe(1);
-    expect(JSON.parse(first.stdout).disposition).toBe("correction-required");
+    expect(JSON.parse(first.stdout)).toEqual(expect.objectContaining({
+      disposition: "correction-required",
+      malformedResponse: expect.objectContaining({ correctionsRemaining: 1 }),
+    }));
 
     const second = mdlmWithInput(repository, "{]\n", "scenario", "submit");
 
@@ -504,6 +512,11 @@ describe("MDLM Assignment leasing and preparation", () => {
     ), "utf8"));
     expect(lease.disposition).toBe("exhausted");
     expect(lease.malformedResponses).toHaveLength(2);
+    const status = JSON.parse(mdlm(repository, "status", "--json").stdout);
+    expect(status.currentOutcome).toEqual({
+      outcome: "assignment",
+      assignment: { allocation: "not-allocated" },
+    });
 
     const prepared = mdlm(repository, "scenario", "prepare", assignment);
     expect(prepared.status).toBe(1);

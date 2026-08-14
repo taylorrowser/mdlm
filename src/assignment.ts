@@ -253,7 +253,7 @@ export type AssignmentDisposition =
       };
       malformedResponse: {
         attempt: number;
-        correctionsRemaining: 0;
+        correctionsRemaining: 1;
         diagnostics: ProcessDiagnostic[];
       };
     }
@@ -1554,7 +1554,7 @@ async function recordMalformedResponse(
         },
         malformedResponse: {
           attempt: malformedResponses.length,
-          correctionsRemaining: 0,
+          correctionsRemaining: 1,
           diagnostics,
         },
       }

@@ -94,6 +94,11 @@ Interpret the returned Operator Outcome, never a remembered package sequence:
   Package Liveness Defect.
 - **Invalid:** stop unsuccessfully on integrity failure.
 
+A `correction-required` disposition with `correctionsRemaining: 1` keeps the same
+Assignment active for exactly one corrected submission. Correct the complete
+response and submit it once; a malformed correction exhausts the lease and reports
+`correctionsRemaining: 0`.
+
 Also stop on dirty initial state, stale or exhausted Assignment, typed inability,
 failed doctor, unexpected diff, genuine ambiguity, or command failure. Never
 invent Lifecycle Data or an undeclared Scenario to escape a stop.
