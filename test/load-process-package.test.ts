@@ -105,6 +105,8 @@ describe("loadProcessPackage", () => {
           scenario: "register-pilot-target@1",
         }),
       }));
+    expect(result.package.scenarios["review-datum-in-context"]
+      ?.review_policy_arguments).toEqual({ subject: "subject" });
     expect(result.package.scenarios["register-pilot-target"]?.participation)
       .toBeUndefined();
     for (const scenario of [
@@ -134,6 +136,49 @@ describe("loadProcessPackage", () => {
       expect(prompt).toContain("`justifies`");
     }
     expect(result.diagnostics).toEqual([]);
+  });
+
+  it("rejects review Policy argument mappings that do not cover the Policy", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("  subject: subject", "  other: subject"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "review-policy-arguments",
+      path: "scenarios.review-datum-in-context.review_policy_arguments",
+      message: expect.stringContaining("missing: subject; unknown: other"),
+    }));
+  });
+
+  it("rejects review Policy arguments bound to a missing Scenario input", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("  subject: subject", "  subject: absent"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "review-policy-input-binding",
+      path: "scenarios.review-datum-in-context.review_policy_arguments.subject",
+    }));
   });
 
   it("validates Review Context membership contracts for DEC and CHG callers", async () => {

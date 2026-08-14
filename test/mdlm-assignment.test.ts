@@ -211,7 +211,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(packet).toEqual(expect.objectContaining({
       ok: true,
       command: "scenario.prepare",
-      contract: "mdlm-assignment-packet@1",
+      contract: "mdlm-assignment-packet@2",
       assignment: { id: outcome.assignment.id },
       package: {
         reference: lease.package.reference,

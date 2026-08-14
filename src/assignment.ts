@@ -276,7 +276,7 @@ export type AssignmentDisposition =
     };
 
 export interface AssignmentPacket {
-  contract: "mdlm-assignment-packet@1";
+  contract: "mdlm-assignment-packet@2";
   assignment: { id: string };
   package: PackageExecutionIdentity;
   repository: RepositoryFingerprint;
@@ -1452,8 +1452,23 @@ function packet(
   lease: AssignmentLease,
 ): AssignmentPacket {
   const participation = exact.dryRun.participation ?? [];
+  const packetAssets = [
+    {
+      reference: exact.dryRun.prompt.reference,
+      path: exact.dryRun.prompt.path,
+      digest: exact.dryRun.prompt.digest,
+      content: exact.dryRun.prompt.content,
+    },
+    ...exact.dryRun.prompt.skills,
+    ...exact.dryRun.policies.flatMap((policy) =>
+      policy.evaluations?.flatMap((evaluation) => evaluation.assets) ?? []
+    ),
+  ];
+  const assets = [...new Map(
+    packetAssets.map((asset) => [asset.reference, asset]),
+  ).values()];
   return {
-    contract: "mdlm-assignment-packet@1",
+    contract: "mdlm-assignment-packet@2",
     assignment: { id: lease.id },
     package: exact.lease.package,
     repository: exact.lease.repository,
@@ -1467,15 +1482,7 @@ function packet(
       definition: { id: exact.scenario.id, version: exact.scenario.version },
     },
     prompt: exact.dryRun.prompt,
-    assets: [
-      {
-        reference: exact.dryRun.prompt.reference,
-        path: exact.dryRun.prompt.path,
-        digest: exact.dryRun.prompt.digest,
-        content: exact.dryRun.prompt.content,
-      },
-      ...exact.dryRun.prompt.skills,
-    ],
+    assets,
     exactInputs: exact.dryRun.invocations,
     allowedProjections: {
       exactLifecycleData: exactLifecycleData(exact.dryRun),

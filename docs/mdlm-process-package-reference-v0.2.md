@@ -431,6 +431,15 @@ process-specific conditions but should not duplicate those generic checks.
 Prompts choose and order skills. Execution provenance records the exact prompt,
 skills, policies, process reference, authorization mode, and inputs actually used.
 
+A Scenario with a `review_policy_ref` may declare `review_policy_arguments` as a
+mapping from each Policy parameter to one cardinality-`one` Scenario input. The
+mapping must cover the exact parameter set. Assignment preparation evaluates that
+Policy once per exact invocation and records the bound Revision IDs and result. If
+the result contains an exact versioned asset reference declared anywhere in the
+selected package's asset catalogs, preparation resolves that asset's content and
+digest into the packet. Core treats these as package-owned Policy assets; it does
+not recognize rubric names or lifecycle-type identifiers.
+
 An optional `participation` block binds every parameter of one exact versioned
 Policy to a typed `mdlm-expression@1` value over the Scenario inputs and the
 pre-execution process and Phase context. Participation arguments cannot depend on

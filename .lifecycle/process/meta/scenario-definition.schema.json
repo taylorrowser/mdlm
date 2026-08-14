@@ -16,6 +16,12 @@
     "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}, "minItems": 1},
     "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
     "review_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+    "review_policy_arguments": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+      "additionalProperties": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+    },
     "participation": {"$ref": "#/$defs/participation"},
     "authority_evidence": {"$ref": "#/$defs/authorityEvidence"},
     "standing_delegation": {"$ref": "#/$defs/standingDelegation"},

@@ -67,11 +67,19 @@ export interface ResolvedPrompt extends ResolvedProcessAsset {
   skills: ResolvedProcessAsset[];
 }
 
+export interface ResolvedScenarioPolicyEvaluation {
+  invocation: number;
+  arguments: Record<string, string>;
+  result: Record<string, unknown>;
+  assets: ResolvedProcessAsset[];
+}
+
 export interface ResolvedScenarioPolicy {
   role: "review" | "waiver";
   reference: string;
   definition: { id: string; version: number };
   result?: Record<string, unknown>;
+  evaluations?: ResolvedScenarioPolicyEvaluation[];
 }
 
 export type ScenarioAuthorization =
@@ -191,7 +199,7 @@ function assetFrontmatter(content: string): RecordValue | undefined {
 async function resolvedAsset(
   processPackage: ProcessPackage,
   reference: string,
-  kind: "prompt" | "skill",
+  kind: "prompt" | "skill" | "policy-asset",
 ): Promise<{ asset?: ResolvedProcessAsset; diagnostic?: ProcessDiagnostic }> {
   const relativePath = assetPath(reference);
   if (!relativePath) {
@@ -205,7 +213,11 @@ async function resolvedAsset(
   }
   try {
     const assetCatalog = object(processPackage.manifest.assets);
-    const declared = array(assetCatalog?.[`${kind}s`]).includes(reference);
+    const declared = kind === "policy-asset"
+      ? Object.values(assetCatalog ?? {}).some((catalog) =>
+          array(catalog).includes(reference)
+        )
+      : array(assetCatalog?.[`${kind}s`]).includes(reference);
     if (!declared) {
       return {
         diagnostic: {
@@ -253,6 +265,49 @@ async function resolvedAsset(
       },
     };
   }
+}
+
+function referencedPolicyAssets(
+  processPackage: ProcessPackage,
+  result: Record<string, unknown>,
+): string[] {
+  const catalog = object(processPackage.manifest.assets);
+  const declared = new Set(
+    Object.values(catalog ?? {}).flatMap((value) =>
+      array(value).filter((item): item is string => typeof item === "string")
+    ),
+  );
+  const references = new Set<string>();
+  const visit = (value: unknown): void => {
+    if (typeof value === "string") {
+      if (declared.has(value)) references.add(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (object(value)) Object.values(value as RecordValue).forEach(visit);
+  };
+  visit(result);
+  return [...references].sort();
+}
+
+async function resolvePolicyAssets(
+  processPackage: ProcessPackage,
+  result: Record<string, unknown>,
+): Promise<{ assets: ResolvedProcessAsset[]; diagnostics: ProcessDiagnostic[] }> {
+  const resolved = await Promise.all(
+    referencedPolicyAssets(processPackage, result).map((reference) =>
+      resolvedAsset(processPackage, reference, "policy-asset")
+    ),
+  );
+  return {
+    assets: resolved.flatMap((value) => value.asset ? [value.asset] : []),
+    diagnostics: resolved.flatMap((value) =>
+      value.diagnostic ? [value.diagnostic] : []
+    ),
+  };
 }
 
 async function resolvePrompt(
@@ -450,6 +505,85 @@ function policyProjection(
         ...(result ? { result } : {}),
       }
     : undefined;
+}
+
+async function resolveReviewPolicyEvaluations(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  scenarioReference: string,
+  scenario: VersionedDefinition,
+  invocations: ScenarioDryRunInvocation[],
+): Promise<{
+  evaluations: ResolvedScenarioPolicyEvaluation[];
+  diagnostics: ProcessDiagnostic[];
+}> {
+  const policyReference = string(scenario.review_policy_ref) ?? "";
+  const argumentMappings = object(scenario.review_policy_arguments);
+  if (!argumentMappings) return { evaluations: [], diagnostics: [] };
+  const evaluations: ResolvedScenarioPolicyEvaluation[] = [];
+  for (const [invocationIndex, invocation] of invocations.entries()) {
+    const arguments_: Record<string, string> = {};
+    for (const [parameter, inputNameValue] of Object.entries(argumentMappings)) {
+      const inputName = string(inputNameValue) ?? "";
+      const value = invocation.inputs.find((input) => input.name === inputName)
+        ?.values[0];
+      if (!value) {
+        return {
+          evaluations: [],
+          diagnostics: [{
+            code: "review-policy-input-unavailable",
+            path: `${scenarioReference}#review_policy_arguments.${parameter}`,
+            message: `Could not bind review Policy argument '${parameter}' from exact Scenario input '${inputName}'`,
+          }],
+        };
+      }
+      arguments_[parameter] = value.identity.revision_id ?? value.identity.id;
+    }
+    let result: unknown;
+    try {
+      result = evaluateProcessDefinition(
+        processPackage,
+        snapshot,
+        "policy",
+        policyReference,
+        arguments_,
+      ).result;
+    } catch (error) {
+      return {
+        evaluations: [],
+        diagnostics: [{
+          code: "review-policy-evaluation-failed",
+          path: `${scenarioReference}#review_policy_arguments`,
+          message: error instanceof Error ? error.message : String(error),
+        }],
+      };
+    }
+    const resolvedResult = object(result);
+    if (!resolvedResult) {
+      return {
+        evaluations: [],
+        diagnostics: [{
+          code: "review-policy-result-invalid",
+          path: policyReference,
+          message: `Review Policy '${policyReference}' did not return its declared object result`,
+        }],
+      };
+    }
+    const resolvedAssets = await resolvePolicyAssets(
+      processPackage,
+      resolvedResult,
+    );
+    if (resolvedAssets.diagnostics.length > 0) {
+      return { evaluations: [], diagnostics: resolvedAssets.diagnostics };
+    }
+    evaluations.push({
+      invocation: invocationIndex,
+      arguments: arguments_,
+      result: resolvedResult,
+      assets: resolvedAssets.assets,
+    });
+  }
+  return { evaluations, diagnostics: [] };
 }
 
 function requestedInputDiagnostics(
@@ -814,6 +948,21 @@ async function dryRunScenario(
           actual: true,
         });
     }
+  }
+
+  const reviewPolicyEvaluations = await resolveReviewPolicyEvaluations(
+    processPackage,
+    snapshot,
+    scenarioReference,
+    scenario,
+    invocations,
+  );
+  if (reviewPolicyEvaluations.diagnostics.length > 0) {
+    return { ok: false, diagnostics: reviewPolicyEvaluations.diagnostics };
+  }
+  const reviewPolicy = policies.find((policy) => policy.role === "review");
+  if (reviewPolicy && reviewPolicyEvaluations.evaluations.length > 0) {
+    reviewPolicy.evaluations = reviewPolicyEvaluations.evaluations;
   }
 
   if (authorizationRequest.mode === "explicit-initiation") {

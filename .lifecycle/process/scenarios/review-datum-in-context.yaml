@@ -16,6 +16,8 @@ outputs:
       - {link: contextualizes, target: {input: review_context}}
 prompt_ref: prompts/review-datum-in-context.md@2
 review_policy_ref: review-applicability@1
+review_policy_arguments:
+  subject: subject
 participation:
   policy_ref: contextual-review-participation@1
   arguments:
