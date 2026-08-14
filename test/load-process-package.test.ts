@@ -24,16 +24,17 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.59.0");
+    expect(result.package.manifest.version).toBe("0.60.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(287);
+    expect(Object.keys(result.package.selectors)).toHaveLength(288);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
       "candidate-correction-decisions-for": expect.any(Object),
       "candidate-definition-members": expect.any(Object),
       "phase-0-candidate-review-context-members": expect.any(Object),
+      "phase-0-foundation-member-reviews": expect.any(Object),
       "review-context-members-for": expect.any(Object),
       "phase-2-definition-members-for-plan": expect.any(Object),
       "valid-phase-2-simplification-review": expect.any(Object),

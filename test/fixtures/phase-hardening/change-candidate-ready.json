@@ -1354,7 +1354,8 @@
           "definition_members": [
             "STK-1010000001-r00002",
             "CHG-YSYT05KE22-r00001",
-            "DEC-G7GAHE6SEX-r00001"
+            "DEC-G7GAHE6SEX-r00001",
+            "PSP-1010000000-r00001"
           ],
           "evidence": [],
           "snapshot": {
@@ -1362,7 +1363,8 @@
             "member_hashes": {
               "CHG-YSYT05KE22-r00001": "sha256:ef51760a80ea6f51809375652a1ad96a1a60114c273bab78c8f4c1f9ea14418c",
               "DEC-G7GAHE6SEX-r00001": "sha256:48fc89383829d96d3fcba65684c2a7904c02421de8b448dc0bc85881c3ee5a6a",
-              "STK-1010000001-r00002": "sha256:f2827d0086d4206b1573595c6d375bcef592bff02dda16d29be466481845168a"
+              "STK-1010000001-r00002": "sha256:f2827d0086d4206b1573595c6d375bcef592bff02dda16d29be466481845168a",
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
             },
             "resolved_links": {
               "BSL-3DZH8QFSS7-r00001": [],
@@ -1377,7 +1379,8 @@
               "STK-1010000001-r00002": [
                 "CHG-YSYT05KE22-r00001",
                 "PSP-1010000000-r00001"
-              ]
+              ],
+              "PSP-1010000000-r00001": []
             },
             "process_provenance": {
               "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
@@ -1386,6 +1389,7 @@
                 "BSL@4",
                 "CHG@3",
                 "DEC@6",
+                "PSP@4",
                 "STK@4",
                 "analyze-change-impact@2",
                 "approve-change-request@3",
@@ -1528,25 +1532,29 @@
           "scope": "STK-1010000002-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "STK-1010000002-r00001"
+            "STK-1010000002-r00001",
+            "PSP-1010000000-r00001"
           ],
           "evidence": [],
           "snapshot": {
             "frozen_at": "2026-08-13T17:56:11.441Z",
             "member_hashes": {
-              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7"
+              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7",
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
             },
             "resolved_links": {
               "BSL-1010000008-r00001": [],
               "STK-1010000002-r00001": [
                 "PSP-1010000000-r00001"
-              ]
+              ],
+              "PSP-1010000000-r00001": []
             },
             "process_provenance": {
               "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
               "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
               "asset_refs": [
                 "BSL@4",
+                "PSP@4",
                 "STK@4",
                 "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
                 "json-schema-draft:2020-12",
@@ -1873,25 +1881,29 @@
           "scope": "STK-1010000003-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "STK-1010000003-r00001"
+            "STK-1010000003-r00001",
+            "PSP-1010000000-r00001"
           ],
           "evidence": [],
           "snapshot": {
             "frozen_at": "2026-08-13T17:56:10.138Z",
             "member_hashes": {
-              "STK-1010000003-r00001": "sha256:5d29097ad9214e32b29c1477b3180b457c0fe19853e7cb029a236f376357f16d"
+              "STK-1010000003-r00001": "sha256:5d29097ad9214e32b29c1477b3180b457c0fe19853e7cb029a236f376357f16d",
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
             },
             "resolved_links": {
               "BSL-1010000002-r00001": [],
               "STK-1010000003-r00001": [
                 "PSP-1010000000-r00001"
-              ]
+              ],
+              "PSP-1010000000-r00001": []
             },
             "process_provenance": {
               "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
               "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
               "asset_refs": [
                 "BSL@4",
+                "PSP@4",
                 "STK@4",
                 "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
                 "json-schema-draft:2020-12",
@@ -1946,25 +1958,29 @@
           "scope": "STK-1010000001-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "STK-1010000001-r00001"
+            "STK-1010000001-r00001",
+            "PSP-1010000000-r00001"
           ],
           "evidence": [],
           "snapshot": {
             "frozen_at": "2026-08-13T17:56:10.225Z",
             "member_hashes": {
-              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c"
+              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
+              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
             },
             "resolved_links": {
               "BSL-1010000003-r00001": [],
               "STK-1010000001-r00001": [
                 "PSP-1010000000-r00001"
-              ]
+              ],
+              "PSP-1010000000-r00001": []
             },
             "process_provenance": {
               "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
               "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
               "asset_refs": [
                 "BSL@4",
+                "PSP@4",
                 "STK@4",
                 "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
                 "json-schema-draft:2020-12",

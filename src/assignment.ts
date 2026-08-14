@@ -907,6 +907,59 @@ function sameAssignmentSource(
     isDeepStrictEqual(lease.repository, exact.lease.repository);
 }
 
+function sameAssignmentWork(
+  lease: AssignmentLease,
+  exact: ExactAssignment,
+): boolean {
+  const obligationMatches = lease.obligation === null && exact.lease.obligation === null ||
+    lease.obligation !== null && exact.lease.obligation !== null &&
+      lease.obligation.definition === exact.lease.obligation.definition &&
+      lease.obligation.subject === exact.lease.obligation.subject;
+  return lease.phase === exact.lease.phase &&
+    lease.scenario === exact.lease.scenario &&
+    obligationMatches &&
+    isDeepStrictEqual(lease.progression, exact.lease.progression);
+}
+
+async function changedTrackedPaths(repositoryRoot: string): Promise<Set<string>> {
+  const [staged, unstaged] = await Promise.all([
+    git(repositoryRoot, [
+      "diff", "--name-only", "-z", "--no-ext-diff", "--cached", "HEAD", "--",
+    ]),
+    git(repositoryRoot, [
+      "diff", "--name-only", "-z", "--no-ext-diff", "HEAD", "--",
+    ]),
+  ]);
+  return new Set(`${staged}${unstaged}`.split("\0").filter(Boolean));
+}
+
+async function packageMigrationRebase(
+  repositoryRoot: string,
+  lease: AssignmentLease,
+  exact: ExactAssignment,
+): Promise<AssignmentLease | undefined> {
+  if (
+    isDeepStrictEqual(lease.package, exact.lease.package) ||
+    lease.repository.head !== exact.lease.repository.head ||
+    !sameAssignmentWork(lease, exact)
+  ) return undefined;
+  const changed = await changedTrackedPaths(repositoryRoot);
+  const migrationContracts = new Set([
+    ".lifecycle/process-selection.json",
+    ".lifecycle/repository.json",
+  ]);
+  if (
+    changed.size !== migrationContracts.size ||
+    ![...changed].every((item) => migrationContracts.has(item))
+  ) return undefined;
+  return {
+    ...exact.lease,
+    id: lease.id,
+    retryAvailability: lease.retryAvailability,
+    malformedResponses: lease.malformedResponses,
+  };
+}
+
 function invalidLease(repositoryRoot: string): AssignmentResult<never> {
   return failure(
     "assignment-lease-invalid",
@@ -1747,6 +1800,15 @@ export async function prepareAssignment(
   if (!sameAssignment(lease, exact.value)) {
     if (sameAssignmentSource(lease, exact.value)) {
       return invalidLease(repositoryRoot);
+    }
+    const rebased = await packageMigrationRebase(repositoryRoot, lease, exact.value);
+    if (rebased) {
+      await writeLease(repositoryRoot, rebased);
+      return {
+        ok: true,
+        value: packet(exact.value, rebased),
+        diagnostics: [],
+      };
     }
     await fs.rm(leasePath(repositoryRoot), { force: true });
     return failure(

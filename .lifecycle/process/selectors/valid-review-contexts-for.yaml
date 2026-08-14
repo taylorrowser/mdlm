@@ -15,7 +15,9 @@ query:
     && state(context, "validity") == "valid"
     && every("review-context-members-for@1", {subject: subject}, member =>
       exists("review-context-contains-member@1",
-        {context: context, required_member: member}))
+        {context: context, required_member: member})
+      || (subject.identity.type == "STK" && member.identity.type == "PSP"
+        && context.provenance.process_ref != process.current_ref))
     && (subject.identity.type != "DWP"
       || subject.payload.stage != "planning"
       || none("decomposition-outputs-for@1", {plan: subject})

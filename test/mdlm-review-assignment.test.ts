@@ -265,7 +265,10 @@ describe("delegated Review Assignment packets", () => {
           role: "review-context",
           scope: requirementRevision,
           group: "review-packet-regression",
-          definition_members: [requirementRevision],
+          definition_members: [
+            requirementRevision,
+            exactInput(requirementContextPacket, "context_members"),
+          ],
           evidence: [],
         },
         links: [],

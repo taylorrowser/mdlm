@@ -801,8 +801,14 @@ Markdown and exact baselines under the target, and only then atomically replaces
 the selection and repository descriptor. Failure leaves both files byte-for-byte
 unchanged. Historical Datum and Scenario execution provenance is not rewritten;
 the exact authoring package remains installed so authority-evidence transactions
-continue to validate against their recorded package reference and digest. Human
-and JSON output identify both old and new exact packages. `req process show`, `validate`,
+continue to validate against their recorded package reference and digest. If the
+migration changes only those two tracked repository contracts and the current
+package still resolves the same Phase, obligation subject, and Scenario, preparing
+an already-active Assignment retains its Assignment ID while rebinding its exact
+package evidence and bounded inputs. Any concurrent tracked change or changed work
+coordinate keeps the normal stale-Assignment rejection; package migration is not a
+general rebase. Human and JSON output identify both old and new exact packages.
+`req process show`, `validate`,
 and `capabilities` use only an explicit `--ref` or recorded selection. Their JSON
 and human views share one semantic projection containing exact package and
 language versions, compilation/reference/capability validation, diagnostics,
@@ -968,12 +974,25 @@ never enter these Selectors. The versioned requirement template supplies both
 `corrects-review` and the distinct `changed-under` contract to STK and SYS without
 type-family or multiple-inheritance mechanics. Immutable failed Revision and Review
 history remains inspectable. The tracer reviews MAP, PSP, and STK separately in
-exact frozen contexts whose `scope` names the one primary subject Revision; each
-context may still include supporting parent or sibling Revisions. It then freezes
-the earliest complete evidence-bearing intent candidate. Its Review Context must
-contain the candidate and every exact MAP, PSP, and STK member, and the independent
-Assignment receives those member Revisions directly so their complete contents—not
-only IDs and hashes—are available for judgment. That candidate's required Review
+exact frozen contexts whose `scope` names the one primary subject Revision. An
+STK context must include the exact current PSP parent resolved from the STK's
+stable `derived-from` link; context authoring freezes that Revision and later
+independent Review receives its complete contents. A frozen STK context authored
+under an earlier exact Process Package remains valid history when it omitted this
+newly required member; after deliberate package migration, Review preparation
+supplies the exact PSP directly without rewriting that historical BSL. A context
+authored under the current package receives no such compatibility allowance and
+cannot be published without freezing the supplied parent. Other subjects may still
+include package-selected supporting parent or sibling Revisions. The tracer then
+freezes the earliest complete evidence-bearing intent candidate. Candidate
+authoring receives the exact current passing REV Revisions for every MAP, PSP, and
+STK member and must freeze every and only those Reviews as initial candidate
+evidence. Candidate correction receives the same complete set, preserves prior
+non-Review evidence, replaces obsolete member Reviews, and rejects unrelated Review
+evidence. Its Review Context must contain the candidate and every exact MAP, PSP,
+and STK member, and the independent Assignment receives those member Revisions
+directly so their complete contents—not only IDs and hashes—are available for
+judgment. That candidate's required Review
 is the dedicated `simplification-product-definition` judgment, so no second
 context or duplicate candidate-review ceremony is introduced. A failed
 simplification REV groups every current blocking finding for one exact target and

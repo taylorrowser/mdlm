@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.59.0
+version: 0.60.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -84,6 +84,7 @@ catalog:
     - corrected-pilot-verification-activity-revisions-for
     - phase-0-foundation-members
     - phase-0-foundation-members-missing-review
+    - phase-0-foundation-member-reviews
     - product-simplification-reviews-for
     - matching-product-simplification-review
     - product-simplification-blockers-for-review

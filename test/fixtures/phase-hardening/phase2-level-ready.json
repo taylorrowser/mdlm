@@ -899,25 +899,29 @@
           "scope": "STK-HJGTM8026G-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "STK-HJGTM8026G-r00001"
+            "STK-HJGTM8026G-r00001",
+            "PSP-1RMPKHY17B-r00001"
           ],
           "evidence": [],
           "snapshot": {
             "frozen_at": "2026-08-13T17:37:58.420Z",
             "member_hashes": {
-              "STK-HJGTM8026G-r00001": "sha256:8b7c0edf17585bcf99840311a65d08ab1a832a0280f6e4930308165a7a296cbc"
+              "STK-HJGTM8026G-r00001": "sha256:8b7c0edf17585bcf99840311a65d08ab1a832a0280f6e4930308165a7a296cbc",
+              "PSP-1RMPKHY17B-r00001": "sha256:098f340f9ff2cf654e9fca964a7a1c75633ae108583e66ea37af4d527c8a0806"
             },
             "resolved_links": {
               "BSL-73YCARCP4H-r00001": [],
               "STK-HJGTM8026G-r00001": [
                 "PSP-1RMPKHY17B-r00001"
-              ]
+              ],
+              "PSP-1RMPKHY17B-r00001": []
             },
             "process_provenance": {
               "process_ref": "mdlm-bootstrap@0.59.0#sha256:09a3f3df2533e5ffbe50e94ec45560527ac96af4e74d2fc048fe843d913f69c4",
               "manifest_hash": "sha256:1fdd09b9a4da2e2a51e0ad37b217eb8c9db3d64cb9709170ffd165e9936d50e9",
               "asset_refs": [
                 "BSL@4",
+                "PSP@4",
                 "STK@4",
                 "create-review-context@1",
                 "draft-stakeholder-requirements@2",

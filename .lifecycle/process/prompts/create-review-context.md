@@ -17,9 +17,11 @@ subject Revision and whose definition contains the subject plus the minimum
 complete context needed to judge it. Include applicable
 parents, siblings in the same authored set, governing decisions, and the
 candidate baseline when one exists. The Assignment supplies every exact `context_members` Revision mandatory beside
-the subject. For a Phase 0 candidate or an executed Phase 2 planning DWP, include
-all of them so later independent Assignments receive the complete exact set.
-Do not include unrelated artifacts merely because they are nearby.
+the subject. For an STK subject, include each supplied exact current PSP parent
+resolved from its stable `derived-from` link. For a Phase 0 candidate or an
+executed Phase 2 planning DWP, include all supplied members so later independent
+Assignments receive the complete exact set. Do not include unrelated artifacts
+merely because they are nearby.
 
 Use exact revision IDs for every member. Keep definition members separate from
 REV and DEC evidence. Resolve stable outbound links, hash exact file bytes,

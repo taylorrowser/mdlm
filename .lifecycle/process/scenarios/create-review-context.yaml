@@ -14,6 +14,10 @@ completion: >-
   execution.integrity.contract_valid == true
   && context.payload.kind == "review-context"
   && context.payload.scope == subject.identity.revision_id
+  && context_members == select("review-context-members-for@1", {subject: subject})
+  && every("review-context-members-for@1", {subject: subject}, member =>
+    exists("review-context-contains-member@1",
+      {context: context, required_member: member}))
   && context.storage.frozen == true
   && exists("valid-review-contexts-for@1", {subject: subject})
 resolves: [review-context-required]
