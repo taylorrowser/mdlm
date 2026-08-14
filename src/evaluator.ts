@@ -397,6 +397,7 @@ class LifecycleEvaluator {
   >();
   private readonly stateStack = new Set<string>();
   private readonly selectorStack = new Set<string>();
+  private readonly selectorMemo = new Map<string, Entity[]>();
   private readonly baseContext: EvaluationContext;
   private readonly exactBaselineType: string | undefined;
   private readonly dependencyChanges: DependencyChangeRecord[];
@@ -1974,8 +1975,15 @@ class LifecycleEvaluator {
     const id = referenceId(reference);
     const definition = this.processPackage.selectors[id];
     if (!definition) throw new Error(`Unknown selector '${reference}'`);
-    const recursionKey = `${id}:${Object.values(argumentsContext).map((item) => this.valueKey(item)).join(",")}`;
+    const recursionKey = `${reference}:${Object.entries(argumentsContext)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, item]) => `${name}=${this.valueKey(item)}`)
+      .join(",")}`;
     if (this.selectorStack.has(recursionKey)) throw new Error(`Selector recursion at ${recursionKey}`);
+    const collectingEvidence = this.selectorEvidence !== undefined ||
+      this.definitionEvidence !== undefined;
+    const memoized = collectingEvidence ? undefined : this.selectorMemo.get(recursionKey);
+    if (memoized) return [...memoized];
     this.selectorStack.add(recursionKey);
     try {
       const result = this.query(definition.query, {
@@ -2000,6 +2008,7 @@ class LifecycleEvaluator {
           result: exactResult,
         });
       }
+      if (!collectingEvidence) this.selectorMemo.set(recursionKey, [...result]);
       return result;
     } finally {
       this.selectorStack.delete(recursionKey);
@@ -2213,7 +2222,17 @@ class LifecycleEvaluator {
   }
 
   private valueKey(value: unknown): string {
-    if (this.isEntity(value)) return value.key;
+    if (this.isEntity(value)) return `entity:${value.key}`;
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => this.valueKey(item)).join(",")}]`;
+    }
+    const record = object(value);
+    if (record) {
+      return `{${Object.entries(record)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([name, item]) => `${JSON.stringify(name)}:${this.valueKey(item)}`)
+        .join(",")}}`;
+    }
     return JSON.stringify(value);
   }
 

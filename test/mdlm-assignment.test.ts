@@ -55,6 +55,53 @@ async function directoryBytes(root: string): Promise<string> {
   return JSON.stringify(content);
 }
 
+function wayfindingResponse(assignment: string, loadedSkillRefs: string[]) {
+  return {
+    contract: "mdlm-assignment-response@1",
+    assignment,
+    kind: "proposal",
+    proposal: {
+      outputs: [{
+        localId: "map",
+        name: "map",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "MAP",
+          payload: {
+            title: "Initial product wayfinding",
+            purpose: "Bound the first product-intent conversation.",
+            frontier: ["$proposal.question.revision_id"],
+          },
+          links: [],
+          body: "One exact initial decision frontier.\n",
+        },
+      }, {
+        localId: "question",
+        name: "questions",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "QST",
+          payload: {
+            title: "Clarify the intended product outcome",
+            kind: "preferential",
+            question: "Which exact product outcome should this repository pursue?",
+            state: "open",
+            blocking_impact: "Product intent cannot advance without this answer.",
+          },
+          links: [],
+          body: "One exact stakeholder question.\n",
+        },
+      }],
+      completionEvidence: {
+        summary: "The initial decision frontier is explicit.",
+      },
+      loadedSkillRefs,
+      authoritySupplies: [],
+      standingDelegations: [],
+    },
+  };
+}
+
 describe("MDLM Assignment leasing and preparation", () => {
   let parent: string;
   let repository: string;
@@ -631,7 +678,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     await expect(fs.stat(marker)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("validates and atomically publishes one Assignment Response from file or stdin", async () => {
+  it("rejects malformed Assignment Responses atomically", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     let assignment = next.assignment.id as string;
     const packet = JSON.parse(mdlm(
@@ -643,112 +690,15 @@ describe("MDLM Assignment leasing and preparation", () => {
     const loadedSkillRefs = packet.prompt.skills.map(
       (skill: { reference: string }) => skill.reference,
     );
-    const response = {
-      contract: "mdlm-assignment-response@1",
-      assignment,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "map",
-          name: "map",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "MAP",
-            payload: {
-              title: "Initial product wayfinding",
-              purpose: "Bound the first product-intent conversation.",
-              frontier: ["$proposal.question.revision_id"],
-            },
-            links: [],
-            body: "One exact initial decision frontier.\n",
-          },
-        }, {
-          localId: "question",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "QST",
-            payload: {
-              title: "Clarify the intended product outcome",
-              kind: "preferential",
-              question: "Which exact product outcome should this repository pursue?",
-              state: "open",
-              blocking_impact: "Product intent cannot advance without this answer.",
-            },
-            links: [],
-            body: "One exact stakeholder question.\n",
-          },
-        }],
-        completionEvidence: {
-          summary: "The initial decision frontier is explicit.",
-        },
-        loadedSkillRefs,
-        authoritySupplies: [],
-        standingDelegations: [],
-      },
-    };
+    const response = wayfindingResponse(assignment, loadedSkillRefs);
     const responsePath = path.join(parent, "response.json");
     const before = git(repository, "diff", "--binary", "HEAD").stdout;
-    const rejectionCases = [
-      {
-        code: "scenario-completion-failed",
-        mutate(candidate: typeof response) {
-          candidate.proposal.outputs[0]!.lifecycleDatum.payload.frontier = [];
-        },
+    const rejectionCases = [{
+      code: "scenario-skill-provenance-mismatch",
+      mutate(candidate: typeof response) {
+        candidate.proposal.loadedSkillRefs = ["skills/not-in-the-assignment.md@1"];
       },
-      {
-        code: "scenario-output-cardinality-invalid",
-        mutate(candidate: typeof response) {
-          candidate.proposal.outputs = candidate.proposal.outputs.slice(1);
-        },
-      },
-      {
-        code: "scenario-output-undeclared",
-        mutate(candidate: typeof response) {
-          candidate.proposal.outputs[1]!.name = "undeclared";
-        },
-      },
-      {
-        code: "scenario-output-schema-invalid",
-        mutate(candidate: typeof response) {
-          candidate.proposal.outputs[0]!.lifecycleDatum.payload = {} as typeof candidate.proposal.outputs[0]["lifecycleDatum"]["payload"];
-        },
-      },
-      {
-        code: "scenario-skill-provenance-mismatch",
-        mutate(candidate: typeof response) {
-          candidate.proposal.loadedSkillRefs = ["skills/not-in-the-assignment.md@1"];
-        },
-      },
-      {
-        code: "scenario-skill-provenance-mismatch",
-        mutate(candidate: typeof response) {
-          candidate.proposal.loadedSkillRefs.reverse();
-        },
-      },
-      {
-        code: "scenario-authority-unexpected",
-        mutate(candidate: typeof response) {
-          (candidate.proposal.standingDelegations as string[]).push(
-            "DEC-0123456789-r00001",
-          );
-        },
-      },
-      {
-        code: "scenario-output-local-id-duplicate",
-        mutate(candidate: typeof response) {
-          candidate.proposal.outputs[1]!.localId = "map";
-        },
-      },
-      {
-        code: "scenario-output-local-reference-unknown",
-        mutate(candidate: typeof response) {
-          candidate.proposal.outputs[0]!.lifecycleDatum.payload.frontier = [
-            "$proposal.unknown.revision_id",
-          ];
-        },
-      },
-    ];
+    }];
     const abandonMalformedAssignment = () => {
       const abandoned = mdlmWithInput(
         repository,
@@ -822,6 +772,22 @@ describe("MDLM Assignment leasing and preparation", () => {
       retryAvailability: { malformedResponseCorrection: 1 },
       malformedResponses: [],
     }));
+  }, 40_000);
+
+  it("atomically publishes one Assignment Response from stdin and rejects replay", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout);
+    const loadedSkillRefs = packet.prompt.skills.map(
+      (skill: { reference: string }) => skill.reference,
+    );
+    const response = wayfindingResponse(assignment, loadedSkillRefs);
+    const responsePath = path.join(parent, "response.json");
 
     const submitted = mdlmWithInput(
       repository,
@@ -955,330 +921,6 @@ describe("MDLM Assignment leasing and preparation", () => {
     }));
   });
 
-  it("publishes a contract-valid unfavorable independent judgment unchanged", async () => {
-    const commitTransaction = (message: string) => {
-      expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
-      expect(git(
-        repository,
-        "-c",
-        "user.name=MDLM Test",
-        "-c",
-        "user.email=mdlm-test@example.invalid",
-        "commit",
-        "-m",
-        message,
-      ).status).toBe(0);
-    };
-    const respond = (
-      assignment: string,
-      proposal: Record<string, unknown>,
-      preparedPacket?: PreparedPromptPacket,
-    ) => {
-      const packet = preparedPacket ?? JSON.parse(mdlm(
-        repository,
-        "scenario",
-        "prepare",
-        assignment,
-      ).stdout);
-      const loadedSkillRefs = packet.prompt.skills.map(
-        (skill: { reference: string }) => skill.reference,
-      );
-      return mdlmWithInput(
-        repository,
-        `${JSON.stringify({
-          contract: "mdlm-assignment-response@1",
-          assignment,
-          kind: "proposal",
-          proposal: { ...proposal, loadedSkillRefs },
-        })}\n`,
-        "scenario",
-        "submit",
-      );
-    };
-    const submit = (
-      assignment: string,
-      proposal: Record<string, unknown>,
-      preparedPacket?: PreparedPromptPacket,
-    ) => {
-      const result = respond(assignment, proposal, preparedPacket);
-      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
-      return JSON.parse(result.stdout).execution;
-    };
-    const publishPendingContexts = () => {
-      let outcome = JSON.parse(mdlm(repository, "next").stdout);
-      let packet = JSON.parse(mdlm(
-        repository,
-        "scenario",
-        "prepare",
-        outcome.assignment.id,
-      ).stdout);
-      while (packet.scenario.reference === "create-review-context@1") {
-        const subject = packet.exactInputs[0].inputs
-          .find((input: any) => input.name === "subject")
-          .values[0].identity.revision_id as string;
-        const execution = submit(outcome.assignment.id, {
-          outputs: [{
-            localId: `context-${subject}`,
-            name: "context",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "BSL",
-              payload: {
-                title: `Review context for ${subject}`,
-                kind: "review-context",
-                role: "review-context",
-                scope: subject,
-                group: "phase-0-wayfinding",
-                definition_members: [subject],
-                evidence: [],
-              },
-              links: [],
-              body: "Exact frozen review context.\n",
-            },
-          }],
-          completionEvidence: { summary: "Context proposed." },
-          authoritySupplies: [],
-          standingDelegations: [],
-        }, packet);
-        const revision = execution.outputs[0].lifecycleDatum.revisionId as string;
-        const verified = mdlm(repository, "baseline", "verify", revision, "--json");
-        expect(verified.status, `${verified.stderr}${verified.stdout}`).toBe(0);
-        commitTransaction(`Publish context for ${subject}`);
-        outcome = JSON.parse(mdlm(repository, "next").stdout);
-        packet = JSON.parse(mdlm(
-          repository,
-          "scenario",
-          "prepare",
-          outcome.assignment.id,
-        ).stdout);
-      }
-      return { outcome, packet };
-    };
-
-    const mapAssignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id;
-    const mapExecution = submit(mapAssignment, {
-      outputs: [{
-        localId: "map",
-        name: "map",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "MAP",
-          payload: {
-            title: "Review target",
-            purpose: "Prove independent unfavorable judgment publication.",
-            frontier: ["Independently review this exact map"],
-          },
-          links: [],
-          body: "Exact subject for independent review.\n",
-        },
-      }],
-      completionEvidence: { summary: "Map proposed." },
-      authoritySupplies: [],
-      standingDelegations: [],
-    });
-    const mapRevision = mapExecution.outputs[0].lifecycleDatum.revisionId as string;
-    commitTransaction("Publish map");
-
-    let progression = publishPendingContexts();
-    expect(progression.packet.scenario.reference).toBe("compile-psp@2");
-    const pspExecution = submit(progression.outcome.assignment.id, {
-      outputs: [{
-        localId: "product-specification",
-        name: "product_specification",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "PSP",
-          payload: {
-            title: "Independent-review publication tracer",
-            rationale: "A minimal product definition makes the review route reachable.",
-            problem: "Unfavorable independent judgments must publish unchanged.",
-            users: ["MDLM operator"],
-            goals: ["Preserve exact independent judgment"],
-            non_goals: [],
-            success_measures: ["One failed Review publishes exactly"],
-          },
-          links: [],
-          body: "Minimal exact product intent.\n",
-        },
-      }],
-      completionEvidence: { summary: "Product specification proposed." },
-      authoritySupplies: [],
-      standingDelegations: [],
-    }, progression.packet);
-    const pspRevision = pspExecution.outputs[0].lifecycleDatum.revisionId as string;
-    const pspStable = pspExecution.outputs[0].lifecycleDatum.id as string;
-    commitTransaction("Publish product specification");
-
-    progression = publishPendingContexts();
-    expect(progression.packet.scenario.reference).toBe("draft-stakeholder-requirements@2");
-    const requirementProposal = {
-      outputs: [{
-        localId: "stakeholder-requirement",
-        name: "requirements",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "STK",
-          payload: {
-            title: "Preserve unfavorable judgments",
-            rationale: "Independent authority evidence must not be suppressed.",
-            statement: "MDLM shall publish a contract-valid unfavorable independent judgment unchanged.",
-            verification_intent: "Submit an exact failed Review and inspect its canonical payload.",
-            stakeholder: "MDLM operator",
-            priority: "must",
-          },
-          links: [{ type: "derived-from", target: pspStable }],
-          body: "One stakeholder-visible publication commitment.\n",
-        },
-      }],
-      completionEvidence: { summary: "Stakeholder requirement proposed." },
-      authoritySupplies: [],
-      standingDelegations: [],
-    };
-    const missingRequiredLink = structuredClone(requirementProposal);
-    missingRequiredLink.outputs[0]!.lifecycleDatum.links = [];
-    const linkRejected = respond(
-      progression.outcome.assignment.id,
-      missingRequiredLink,
-      progression.packet,
-    );
-    expect(linkRejected.status).toBe(1);
-    expect(JSON.parse(linkRejected.stdout).diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "scenario-output-required-link-missing" }),
-      ]),
-    );
-    submit(
-      progression.outcome.assignment.id,
-      requirementProposal,
-      progression.packet,
-    );
-    commitTransaction("Publish stakeholder requirement");
-
-    progression = publishPendingContexts();
-    const reviewOutcome = progression.outcome;
-    const reviewPacket = progression.packet;
-    expect(pspRevision).toMatch(/^PSP-.*-r00001$/);
-    expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
-    expect(reviewPacket.authority.requirements).toEqual([
-      expect.objectContaining({
-        authorityRequirement: expect.objectContaining({
-          mode: "delegated",
-          authority: "independent-reviewer",
-        }),
-      }),
-    ]);
-    const reviewedSubject = reviewPacket.exactInputs[0].inputs
-      .find((input: any) => input.name === "subject").values[0].identity.revision_id as string;
-    const reviewedContext = reviewPacket.exactInputs[0].inputs
-      .find((input: any) => input.name === "review_context").values[0].identity.revision_id as string;
-    const finding = {
-      id: "F-001",
-      target: reviewedSubject,
-      relationship: "primary",
-      severity: "blocking",
-      summary: "The proposed frontier does not yet identify the intended product outcome.",
-    };
-    const redirectedSubject = [mapRevision, pspRevision].find(
-      (revision) => revision !== reviewedSubject,
-    )!;
-    const redirectedReview = respond(reviewOutcome.assignment.id, {
-      outputs: [{
-        localId: "review",
-        name: "review",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "REV",
-          payload: {
-            title: "Mis-scoped product simplification Review",
-            review_kind: "simplification-product-definition",
-            rubric_ref: "policies/rubrics/contextual-review.md@1",
-            simplification: {
-              target: redirectedSubject,
-              findings: [{
-                id: "F-001",
-                severity: "blocking",
-                summary: "Redirect correction to a different foundation subject.",
-              }],
-            },
-            outcome: "fail",
-          },
-          links: [
-            { type: "reviews", target: reviewedSubject },
-            { type: "contextualizes", target: reviewedContext },
-            { type: "blocks", target: redirectedSubject },
-          ],
-          body: "This candidate-only judgment exceeds the ordinary Review Assignment.\n",
-        },
-      }],
-      completionEvidence: { summary: "Mis-scoped Review completed." },
-      authoritySupplies: ["independent-reviewer"],
-      standingDelegations: [],
-    }, reviewPacket);
-    expect(redirectedReview.status).toBe(1);
-    expect(JSON.parse(redirectedReview.stdout).diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "scenario-completion-failed" }),
-      ]),
-    );
-
-    const reviewExecution = submit(reviewOutcome.assignment.id, {
-      outputs: [{
-        localId: "review",
-        name: "review",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "REV",
-          payload: {
-            title: "Independent map review",
-            review_kind: "contextual",
-            rubric_ref: "policies/rubrics/contextual-review.md@1",
-            findings: [finding],
-            outcome: "fail",
-          },
-          links: [
-            { type: "reviews", target: reviewedSubject },
-            { type: "contextualizes", target: reviewedContext },
-          ],
-          body: "The exact independent judgment is unfavorable.\n",
-        },
-      }],
-      completionEvidence: { summary: "Independent review completed." },
-      authoritySupplies: ["independent-reviewer"],
-      standingDelegations: [],
-    }, reviewPacket);
-
-    expect(reviewExecution.authority.supplied).toEqual(["independent-reviewer"]);
-    expect(reviewExecution.authority.requirements).toEqual([
-      expect.objectContaining({
-        authorization: {
-          kind: "authority-supply",
-          authority: "independent-reviewer",
-        },
-      }),
-    ]);
-    expect(reviewExecution.outputs[0].data.payload).toEqual(expect.objectContaining({
-      outcome: "fail",
-      findings: [finding],
-    }));
-    expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-
-    const executionPath = path.join(
-      repository,
-      ".lifecycle/data/.transactions",
-      reviewExecution.id,
-      "execution.json",
-    );
-    const falsifiedExecution = JSON.parse(await fs.readFile(executionPath, "utf8"));
-    falsifiedExecution.authority.supplied = [];
-    await fs.writeFile(executionPath, `${JSON.stringify(falsifiedExecution, null, 2)}\n`);
-    const falsifiedDoctor = mdlm(repository, "doctor", "--json");
-    expect(falsifiedDoctor.status).toBe(1);
-    expect(JSON.parse(falsifiedDoctor.stdout).diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "authority-evidence-execution-required" }),
-      ]),
-    );
-  }, 45_000);
 
   it("keeps the versioned Assignment Response schema stable across Assignments", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);

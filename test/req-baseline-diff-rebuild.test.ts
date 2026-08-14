@@ -330,7 +330,6 @@ describe("req baseline differences and repository projection rebuilding", () => 
       processDrift: 1,
     });
   }, 60_000);
-
   it("lets package-authored reassessment rules treat informational process drift as Staleness", async () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
     await fs.mkdir(repositoryRoot);

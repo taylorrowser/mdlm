@@ -9,7 +9,7 @@ For every available frontier ticket, the loop:
 1. claims the issue;
 2. creates a branch and worktree from the exact current `origin/main`;
 3. invokes `/skill:implement` in a fresh, non-persistent Pi session pinned to `openai-codex/gpt-5.6-sol` with high thinking for focused checks and type checking without nested Pi or code-review sessions;
-4. runs dependency installation, `git diff --check`, TypeScript type checking, and the bounded authoritative fast suite independently once to a completed result at each changed committed tip before review (an interrupted or unconfirmed in-flight run is retried); complete multi-transaction lifecycle journeys remain an explicit separate gate for affected process areas and releases;
+4. runs dependency installation, `git diff --check`, TypeScript type checking, and the bounded authoritative suite independently once to a completed result at each changed committed tip before review (an interrupted or unconfirmed in-flight run is retried);
 5. writes an exact issue/parent/diff evidence packet and runs a fresh `openai-codex/gpt-5.6-sol` Pi process with high thinking and only read/search tools for Standards/Spec review, module-depth assessment, and disproportionate-complexity assessment;
 6. remediates review or test findings in a fresh `/skill:implement` session;
 7. escalates repeated failures through one diagnosis, one design simplification, one auditable broad contract review, and at most three evidence-scoped targeted repairs;
@@ -141,9 +141,9 @@ node scripts/frontier-loop.mjs status --parent 123
 
 ## Test tiers
 
-`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs fast package/evaluator coverage plus representative compiled-CLI contracts, and runs controller tests. Its target wall time is under five minutes.
+`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs fast package/evaluator coverage plus representative compiled-CLI contracts, and runs controller tests. Its target wall time is under seven minutes.
 
-`npm run test:journeys` runs exhaustive command permutations and complete multi-transaction lifecycle stories with one worker. These tests are retained as high-confidence evidence but run explicitly when their process area changes or before a release, rather than on every ticket validation. `npm run test:all` runs both tiers. New test files must be classified in `vitest.suites.mjs`; the normal gate fails if a file is missing, duplicated, or stale.
+`npm test` is the single bounded authoritative gate. It combines package/evaluator contracts with representative compiled-public transactions instead of retaining exhaustive duplicate lifecycle reconstructions. `npm run test:all` is an alias for the same complete bounded gate. New test files must be classified in `vitest.suites.mjs`; verification fails if a file is missing, duplicated, or stale.
 
 Environment overrides:
 

@@ -43,15 +43,15 @@ the accepted overview and the reviewed pilot Decision.
 | Textual, typed, terminating expressions | 7–12 | #15–#20 | `test/textual-expression.test.ts`, `test/req-process-expression.test.ts` |
 | Package types, templates, links, capabilities, and graph validation | 1–6, 18–19, 23–27 | #21–#24 | `test/load-process-package.test.ts`, `test/resolve-type.test.ts`, `test/kernel-capability.test.ts` |
 | Dependency changes, States, Obligations, phases, blockers, Dispatchability, and explanations | 13–17, 35–42 | #25–#31 | `test/dependency-changes.test.ts`, `test/evaluate-*.test.ts`, `test/req-lifecycle.test.ts` |
-| Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54, #84 | `test/mdlm-command-application.test.ts`, `test/req-process.test.ts`, `test/req-process-scaffold.test.ts` |
-| Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/req-exact-baseline.test.ts`, `test/req-baseline-diff-rebuild.test.ts` |
-| Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-consequential-authorization.test.ts` |
-| Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/req-phase-0-wayfinding.test.ts` |
-| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/req-product-assurance-pilot.test.ts`, `test/mdlm-phase-1-assurance-correction.test.ts` |
-| Phase 2 decomposition, exact-set and ordinary correction, ambiguity, evidence-preserving candidates, acceptance, and reviewed gate progression | 52–53, 57–58 | #46, #98–#99 | `test/req-system-decomposition.test.ts`, `test/mdlm-phase-2-simplification.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
-| Accepted STK and shared-SYS boundaries, attended exact Change Request dispositions, serial consumer coverage replacement, selective reuse, and closure | 54, 57–58, 68–75 | #47, #101–#102 | `test/mdlm-stakeholder-change-control.test.ts`, `test/mdlm-shared-system-change-control.test.ts`, `test/evaluate-shared-system-change.test.ts`, `test/mdlm-review-correction.test.ts` |
-| Durable pilot measurements, bounded PAS/Decision correction, independently reviewed expansion Decision, and explicit outcomes | 56–60 | #48, #68, #100 | `test/req-system-decomposition.test.ts`, `test/req-pilot-assessment.test.ts`, `test/mdlm-pilot-assessment.test.ts` |
-| Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-consequential-authorization.test.ts` |
+| Explicit package installation, selection, compatible repository migration, inspection, expression evaluation, and process-neutral scaffolding | 20–22, 48–51 | #32–#35, #54, #84 | `test/mdlm-command-application.test.ts`, `test/req-process-scaffold.test.ts` |
+| Markdown-authoritative repository, revision lineage, links, exact baselines, diff, and rebuild | 28–34 | #36–#40 | `test/req-datum-repository.test.ts`, `test/req-revision-history.test.ts`, `test/req-link-graph.test.ts`, `test/dependency-changes.test.ts` |
+| Authorized preparation, typed inability, bounded malformed-response correction, atomic Scenario Proposal submission, provenance, and authority-only Scenario publication | 43–47, 57–60 | #41–#43, #71, #87, #90 | `test/req-scenario-dry-run.test.ts`, `test/mdlm-assignment.test.ts`, `test/req-scenario-participation.test.ts` |
+| Phase 0 wayfinding, discoverable foundation, correction loop, and reviewed intent gate | 52–53, 57–58 | #44, #64 | `test/evaluate-bootstrap-participation.test.ts`, `test/evaluate-review-flow.test.ts`, `test/evaluate-phase.test.ts` |
+| Discoverable Phase 1 strategy, environment qualification, exact assurance Review, autonomous same-lineage Review correction, exact malformed command evidence, bounded VAI procedure correction, separately authorized pilot implementation, and exact-target fresh pilot evidence | 55, 57–58 | #45, #65–#66, #74–#76, #97 | `test/phase-1-route-contracts.test.ts`, `test/evaluate-review-flow.test.ts` |
+| Phase 2 decomposition, exact-set and ordinary correction, ambiguity, evidence-preserving candidates, acceptance, and reviewed gate progression | 52–53, 57–58 | #46, #98–#99 | `test/evaluate-system-decomposition.test.ts`, `test/evaluate-bootstrap-participation.test.ts`, `test/phase-hardening-matrix.test.ts` |
+| Accepted STK and shared-SYS boundaries, attended exact Change Request dispositions, serial consumer coverage replacement, selective reuse, and closure | 54, 57–58, 68–75 | #47, #101–#102 | `test/evaluate-shared-system-change.test.ts`, `test/evaluate-review-flow.test.ts`, `test/phase-hardening-matrix.test.ts` |
+| Durable pilot measurements, bounded PAS/Decision correction, independently reviewed expansion Decision, and explicit outcomes | 56–60 | #48, #68, #100 | `test/req-pilot-assessment.test.ts`, `test/evaluate-phase.test.ts`, `test/operator-outcome.test.ts` |
+| Continuous package-neutral pi operation, autonomous package-delegated independence, and exact standing-delegation discovery | 57–60 | #69, #72 | `test/pi-operator-instructions.test.ts`, `test/req-scenario-participation.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
 | Fresh public onboarding transaction, compositional zero-to-assessment route proof, and observed friction | 57–60 | #70 | `test/mdlm-clean-onboarding-transaction.test.ts`, [`zero-to-assessment-pilot.md`](zero-to-assessment-pilot.md) |
 
 The full suite supplies overlapping regression coverage rather than treating this
@@ -68,15 +68,14 @@ boundaries before same-lineage question outputs, atomic compatible repository-
 contract migration between installed packages, and kernel finalization of
 capability-bound exact-baseline Scenario outputs before completion evaluation. Their executable evidence is
 `test/req-scenario-dry-run.test.ts`, `test/req-schema.test.ts`,
-`test/req-scenario-initiation.test.ts`, and
-`test/req-prototype-question-routing.test.ts`, `test/req-process.test.ts`, plus the exact-baseline publication
-coverage now exercised through `test/mdlm-assignment.test.ts`. Issues #58–#62 additionally preserve
+`test/evaluate-bootstrap-participation.test.ts`, `test/mdlm-command-application.test.ts`,
+plus the exact-baseline publication coverage now exercised through
+`test/mdlm-assignment.test.ts`. Issues #58–#62 additionally preserve
 current-Revision selection, permit exact Phase/Process Obligation subjects, project
 package-owned participation, and require explicit authority plus declared exact
 REV/DEC evidence for non-autonomous execution. Their public evidence includes
 `test/evaluate-bootstrap-participation.test.ts`,
-`test/req-scenario-participation.test.ts`, and
-`test/req-consequential-authorization.test.ts`. Issue #71 additionally derives
+`test/req-scenario-participation.test.ts`, and `test/mdlm-assignment.test.ts`. Issue #71 additionally derives
 protected authority-evidence types from package Scenario contracts, rejects their
 direct authorship, and migrates public flows to exact Scenario execution. Issues
 #72–#73 distinguish package-delegated/no-attention independence from attended
@@ -166,9 +165,17 @@ and every unaffected accepted definition/evidence item remains reusable. Failed 
 disposition, STK, and candidate Reviews route to causal same-lineage Correction and
 fresh independent Review instead of stranding Phase 7. Draft STK correction remains the ordinary Phase 0 route. Issue #102 extends the same package-owned accepted boundary to one shared SYS consumed by two exact DWP lineages: exact links expose both consumers and dependent context, Review, candidate/gate, and verification evidence; draft replacement reevaluates each consumer without CHG; accepted replacement requires attended reviewed CHG authority and serial fresh consumer coverage before selective candidate and closure. The lifecycle-neutral
 operator contract exposes package-bound attended inputs without counting
-Assignment transport attempts as lifecycle failures. The implemented routes and
-deferred hardening breadth are recorded in
-[`phase-hardening-matrix.md`](phase-hardening-matrix.md).
+Assignment transport attempts as lifecycle failures. Issue #103 integrates those
+tracer bullets through a compositional proof at the compiled public seam. Its
+fresh-repository transaction proves init/doctor/diff/ordinary-commit discipline
+and exact subsequent Assignment state; every hardening-matrix route carries its
+own package seam, participation, single next outcome, budget, disposition, reuse
+rule, and registered behavioral assertions. Matrix rows are presentation-only and
+supply no inherited route semantics, so incompatible outcomes cannot be hidden by
+grouping. The matrix remains outside runtime process state.
+The implemented routes and deferred breadth are recorded in
+[`phase-hardening-matrix.yaml`](phase-hardening-matrix.yaml), with the proof shape
+and explicit clarification in [`clean-pilot-103.md`](clean-pilot-103.md).
 
 ## Demonstrated invariants
 

@@ -226,7 +226,6 @@ describe("req scenario explicit initiation", () => {
       );
     }
   });
-
   it("returns exact checks for explicitly supplied lifecycle inputs", () => {
     const question = createEmpiricalQuestion();
 
@@ -379,7 +378,35 @@ describe("req scenario explicit initiation", () => {
     await expect(fs.stat(configured.capture)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("rejects simultaneous explicit and Obligation authorization", () => {
+  it("rejects prohibited initiation input before the adapter boundary", async () => {
+    const configured = await adapter(
+      coherentWayfindingOutputs(),
+      "prohibited-not-invoked.mjs",
+    );
+    const before = await treeDigest(path.join(repositoryRoot, ".lifecycle"));
+
+    const result = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "chart-wayfinding-map@1",
+      "--initiate",
+      "--adapter",
+      configured.path,
+      "--input",
+      "unstated stakeholder preferences=invented",
+      "--json",
+    );
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "prohibited-scenario-input" }),
+    ]);
+    await expect(fs.stat(configured.capture)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(before);
+  });
+
+it("rejects simultaneous explicit and Obligation authorization", () => {
     const result = req(
       repositoryRoot,
       "scenario",
@@ -397,7 +424,7 @@ describe("req scenario explicit initiation", () => {
     ]);
   });
 
-  it.each([
+it.each([
     ["missing mandatory output", "scenario-output-cardinality-invalid"],
     ["invalid cardinality", "scenario-output-cardinality-invalid"],
     ["invalid payload", "scenario-output-schema-invalid"],
@@ -438,35 +465,7 @@ describe("req scenario explicit initiation", () => {
     ))).rejects.toMatchObject({ code: "ENOENT" });
   }, 15_000);
 
-  it("rejects prohibited initiation input before the adapter boundary", async () => {
-    const configured = await adapter(
-      coherentWayfindingOutputs(),
-      "prohibited-not-invoked.mjs",
-    );
-    const before = await treeDigest(path.join(repositoryRoot, ".lifecycle"));
-
-    const result = req(
-      repositoryRoot,
-      "scenario",
-      "execute",
-      "chart-wayfinding-map@1",
-      "--initiate",
-      "--adapter",
-      configured.path,
-      "--input",
-      "unstated stakeholder preferences=invented",
-      "--json",
-    );
-
-    expect(result.status).toBe(1);
-    expect(JSON.parse(result.stdout).diagnostics).toEqual([
-      expect.objectContaining({ code: "prohibited-scenario-input" }),
-    ]);
-    await expect(fs.stat(configured.capture)).rejects.toMatchObject({ code: "ENOENT" });
-    expect(await treeDigest(path.join(repositoryRoot, ".lifecycle"))).toBe(before);
-  });
-
-  it.each([
+it.each([
     ["bad required links", "scenario-output-required-link-missing"],
     ["failed completion", "scenario-completion-failed"],
   ])("publishes nothing for %s", async (failure, diagnosticCode) => {

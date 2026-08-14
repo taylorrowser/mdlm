@@ -181,7 +181,7 @@ describe("req lifecycle status and next work", () => {
     expect(human.stdout).toContain("Status: blocked");
   });
 
-  it("preserves blocked and reviewed gate evidence and exact waiver evidence", async () => {
+  it("preserves blocked gate evidence", async () => {
     const gateFixture = reviewedGateFixture("git:req-lifecycle");
     const blockedGateSnapshot = await writeSnapshot(repositoryRoot, "blocked-gate", {
       processRef: "git:req-lifecycle",
@@ -210,7 +210,10 @@ describe("req lifecycle status and next work", () => {
         ],
       }),
     ]);
+  }, 10_000);
 
+  it("preserves reviewed gate evidence and progression", async () => {
+    const gateFixture = reviewedGateFixture("git:req-lifecycle");
     const acceptedIntent = acceptedIntentForReviewedGate(
       "git:req-lifecycle",
       gateFixture,
@@ -285,7 +288,9 @@ describe("req lifecycle status and next work", () => {
         }),
       }),
     );
+  }, 10_000);
 
+  it("preserves exact waiver evidence", async () => {
     const waiverSnapshot = await writeSnapshot(repositoryRoot, "waived", {
       processRef: "git:req-lifecycle",
       phaseId: "phase-0-wayfinding",

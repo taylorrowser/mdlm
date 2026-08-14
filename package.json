@@ -10,10 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prototype": "npm run build --silent && node dist/prototype.js",
-    "pretest": "npm run build --silent && node scripts/verify-test-suites.mjs",
-    "test": "vitest run --config vitest.fast.config.ts && node --test scripts/frontier-loop-tests.mjs",
-    "test:journeys": "npm run build --silent && node scripts/verify-test-suites.mjs && vitest run --config vitest.journeys.config.ts",
-    "test:all": "npm test && npm run test:journeys",
+    "test": "node scripts/run-bounded-tests.mjs",
+    "test:all": "npm test",
     "test:watch": "vitest --config vitest.fast.config.ts",
     "typecheck": "tsc --noEmit",
     "frontier:start": "node scripts/frontier-loop.mjs start",

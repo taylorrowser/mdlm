@@ -94,7 +94,6 @@ describe("exact consequential authorization", () => {
     expect(listed.status, listed.stderr).toBe(0);
     expect(JSON.parse(listed.stdout).data).toEqual([]);
   });
-
   it("lets the operating agent publish an explicitly authorized exact scope DEC", async () => {
     const created = req(
       repositoryRoot,
@@ -369,350 +368,6 @@ describe("exact consequential authorization", () => {
     );
   });
 
-  it("uses only an applicable exact standing delegation to authorize Review execution", async () => {
-    await fs.rm(repositoryRoot, { recursive: true, force: true });
-    repositoryRoot = await fs.mkdtemp(
-      path.join(os.tmpdir(), "mdlm-submit-standing-delegation-"),
-    );
-    const processRoot = await copiedProcessPackage("mdlm-submit-delegation-process-");
-    await suppressPhase0FoundationObligations(processRoot);
-    const initialized = req(repositoryRoot, "init", "--process", processRoot, "--json");
-    expect(initialized.status, initialized.stderr).toBe(0);
-    await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
-
-    const created = req(
-      repositoryRoot,
-      "new",
-      "PSP",
-      "--scenario",
-      "compile-psp@2",
-      "--set",
-      "title=Standing delegation target",
-      "--set",
-      "rationale=Exercise delegated execution",
-      "--set",
-      "problem=Reviewer authority must be exact",
-      "--set",
-      'users=["operator"]',
-      "--set",
-      'goals=["execute one delegated review"]',
-      "--set",
-      'non_goals=["authorize replacement revisions"]',
-      "--set",
-      'success_measures=["the exact delegation appears in execution provenance"]',
-      "--json",
-    );
-    expect(created.status, created.stderr).toBe(0);
-    const target = JSON.parse(created.stdout).created as {
-      id: string;
-      revisionId: string;
-    };
-    const delegationResponse = (complete: boolean) => ({
-      outputs: [{
-        name: "decision",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "DEC",
-          payload: {
-            title: "Delegate exact contextual Review",
-            rationale: "Authorize one reviewer for one target and Scenario",
-            kind: "authority-delegation",
-            decision: "Delegate this exact Review",
-            alternatives: ["Require a per-execution reviewer assertion"],
-            effective_scope: target.revisionId,
-            delegation: {
-              authority: "stakeholder",
-              delegate: "independent-reviewer",
-              scenario: "review-datum-in-context@2",
-              expires_when: "target-revised",
-              ...(complete
-                ? { reactivation_requires: "new-delegation-decision" }
-                : {}),
-            },
-          },
-          links: [{ type: "justifies", target: target.revisionId }],
-          body: "Exact standing delegation.\n",
-        },
-      }],
-      completionEvidence: { summary: "Stakeholder authorized exact delegation." },
-    });
-    const executeDelegation = async (complete: boolean, label: string) => {
-      const adapterPath = path.join(repositoryRoot, `${label}.mjs`);
-      await fs.writeFile(
-        adapterPath,
-        `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(delegationResponse(complete)))});\n`,
-        { mode: 0o755 },
-      );
-      return req(
-        repositoryRoot,
-        "scenario",
-        "execute",
-        "record-consequential-decision@1",
-        "--initiate",
-        "--authorize",
-        "stakeholder",
-        "--adapter",
-        adapterPath,
-        "--input",
-        `subject=${target.revisionId}`,
-        "--json",
-      );
-    };
-    const malformedDelegation = await executeDelegation(false, "malformed-delegation");
-    expect(malformedDelegation.status).toBe(1);
-    expect(JSON.parse(malformedDelegation.stdout).diagnostics).toEqual([
-      expect.objectContaining({ code: "scenario-output-schema-invalid" }),
-    ]);
-
-    const delegation = await executeDelegation(true, "delegation-adapter");
-    expect(delegation.status, delegation.stderr).toBe(0);
-    const delegationDatum = JSON.parse(delegation.stdout).execution.outputs[0]
-      .lifecycleDatum as { revisionId: string };
-    const context = req(
-      repositoryRoot,
-      "baseline",
-      "create",
-      "--type",
-      "BSL",
-      "--scenario",
-      "create-review-context@1",
-      "--set",
-      "title=Delegated Review context",
-      "--set",
-      "kind=review-context",
-      "--set",
-      "role=review-context",
-      "--set",
-      `scope=${delegationDatum.revisionId}`,
-      "--set",
-      "group=DEFAULT",
-      "--json",
-    );
-    expect(context.status, context.stderr).toBe(0);
-    const contextDatum = JSON.parse(context.stdout).created as {
-      id: string;
-      revisionId: string;
-    };
-    for (const member of [target.revisionId, delegationDatum.revisionId]) {
-      expect(req(
-        repositoryRoot,
-        "baseline",
-        "add",
-        contextDatum.id,
-        member,
-        "--json",
-      ).status).toBe(0);
-    }
-    expect(req(
-      repositoryRoot,
-      "baseline",
-      "freeze",
-      contextDatum.id,
-      "--json",
-    ).status).toBe(0);
-    const delegationLooseEnds = req(
-      repositoryRoot,
-      "loose-ends",
-      "--phase",
-      "phase-0-wayfinding",
-      "--json",
-    );
-    expect(
-      delegationLooseEnds.status,
-      `${delegationLooseEnds.stderr}${delegationLooseEnds.stdout}`,
-    ).toBe(0);
-    const delegationReviewWork = JSON.parse(
-      delegationLooseEnds.stdout,
-    ).looseEnds.items.find(
-      (item: { obligation: string; subject: string }) =>
-        item.obligation === "passing-review-required" &&
-        item.subject === delegationDatum.revisionId,
-    ) as { id: string };
-    const delegationReviewAdapterPath = path.join(
-      repositoryRoot,
-      "delegation-review-adapter.mjs",
-    );
-    await fs.writeFile(
-      delegationReviewAdapterPath,
-      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
-        outputs: [{
-          name: "review",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "REV",
-            payload: {
-              title: "Standing delegation Review",
-              review_kind: "contextual",
-              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-              findings: [],
-              outcome: "pass",
-            },
-            links: [
-              { type: "reviews", target: delegationDatum.revisionId },
-              { type: "contextualizes", target: contextDatum.revisionId },
-            ],
-            body: "The exact standing delegation passes Review.\\n",
-          },
-        }],
-        completionEvidence: { summary: "Independent Review passed." },
-      }))});\n`,
-      { mode: 0o755 },
-    );
-    const delegationReview = req(
-      repositoryRoot,
-      "scenario",
-      "execute",
-      "review-datum-in-context@2",
-      "--obligation",
-      delegationReviewWork.id,
-      "--authorize",
-      "independent-reviewer",
-      "--adapter",
-      delegationReviewAdapterPath,
-      "--input",
-      `subject=${delegationDatum.revisionId}`,
-      "--input",
-      `review_context=${contextDatum.revisionId}`,
-      "--json",
-    );
-    expect(
-      delegationReview.status,
-      `${delegationReview.stderr}${delegationReview.stdout}`,
-    ).toBe(0);
-    const targetContextResult = req(
-      repositoryRoot,
-      "baseline",
-      "create",
-      "--type",
-      "BSL",
-      "--scenario",
-      "create-review-context@1",
-      "--set",
-      "title=Target Review context",
-      "--set",
-      "kind=review-context",
-      "--set",
-      "role=review-context",
-      "--set",
-      `scope=${target.revisionId}`,
-      "--set",
-      "group=DEFAULT",
-      "--json",
-    );
-    expect(targetContextResult.status, targetContextResult.stderr).toBe(0);
-    const targetContext = JSON.parse(targetContextResult.stdout).created as {
-      id: string;
-      revisionId: string;
-    };
-    for (const member of [target.revisionId, delegationDatum.revisionId]) {
-      expect(req(
-        repositoryRoot,
-        "baseline",
-        "add",
-        targetContext.id,
-        member,
-        "--json",
-      ).status).toBe(0);
-    }
-    expect(req(
-      repositoryRoot,
-      "baseline",
-      "freeze",
-      targetContext.id,
-      "--json",
-    ).status).toBe(0);
-    const looseEnds = req(
-      repositoryRoot,
-      "loose-ends",
-      "--phase",
-      "phase-0-wayfinding",
-      "--json",
-    );
-    expect(looseEnds.status, looseEnds.stderr).toBe(0);
-    const reviewWork = JSON.parse(looseEnds.stdout).looseEnds.items.find(
-      (item: { obligation: string; subject: string }) =>
-        item.obligation === "passing-review-required" &&
-        item.subject === target.revisionId,
-    ) as { id: string };
-    expect(git(repositoryRoot, "init").status).toBe(0);
-    expect(git(repositoryRoot, "add", ".").status).toBe(0);
-    expect(git(
-      repositoryRoot,
-      "-c",
-      "user.name=MDLM Test",
-      "-c",
-      "user.email=mdlm-test@example.invalid",
-      "commit",
-      "-m",
-      "Prepare delegated Review",
-    ).status).toBe(0);
-    const next = mdlm(repositoryRoot, undefined, "next");
-    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-    const assignment = JSON.parse(next.stdout).assignment.id as string;
-    const prepared = mdlm(repositoryRoot, undefined, "scenario", "prepare", assignment);
-    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-    const packet = JSON.parse(prepared.stdout);
-    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
-    expect(packet.authority.standingDelegation).toEqual({
-      selector: "applicable-authority-delegations-for@1",
-      authority: "stakeholder",
-      delegate: "independent-reviewer",
-      targetInput: "subject",
-      invocations: [{
-        invocation: 0,
-        target: target.revisionId,
-        applicableEvidence: [delegationDatum.revisionId],
-      }],
-    });
-    const response = {
-      contract: "mdlm-assignment-response@1",
-      assignment,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "review",
-          name: "review",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "REV",
-            payload: {
-              title: "Delegated contextual Review",
-              review_kind: "contextual",
-              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-              findings: [],
-              outcome: "pass",
-            },
-            links: [
-              { type: "reviews", target: target.revisionId },
-              { type: "contextualizes", target: targetContext.revisionId },
-            ],
-            body: "The exact delegated Review passes.\n",
-          },
-        }],
-        completionEvidence: { summary: "Applicable standing delegation used." },
-        loadedSkillRefs: packet.prompt.skills.map(
-          (skill: { reference: string }) => skill.reference,
-        ),
-        authoritySupplies: [],
-        standingDelegations: [delegationDatum.revisionId],
-      },
-    };
-    const executed = mdlm(
-      repositoryRoot,
-      `${JSON.stringify(response)}\n`,
-      "scenario",
-      "submit",
-    );
-
-    expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
-    expect(JSON.parse(executed.stdout).execution.authority).toEqual(
-      expect.objectContaining({
-        supplied: [],
-        delegations: [delegationDatum.revisionId],
-      }),
-    );
-  }, 30_000);
-
   it("applies a standing delegation only with exact scope, validity, and passing Review", async () => {
     const target = frozenLifecycleDatum("PSP", "PSP-7K3M9Q2D8F", {
       title: "Exact delegated target",
@@ -860,5 +515,345 @@ describe("exact consequential authorization", () => {
     ]);
     expect(JSON.parse(evaluate(target.datum.revision_id).stdout).evaluation.result)
       .toEqual([]);
+  }, 30_000);
+
+it("uses only an applicable exact standing delegation to authorize Review execution", async () => {
+    await fs.rm(repositoryRoot, { recursive: true, force: true });
+    repositoryRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-submit-standing-delegation-"),
+    );
+    const processRoot = await copiedProcessPackage("mdlm-submit-delegation-process-");
+    await suppressPhase0FoundationObligations(processRoot);
+    const initialized = req(repositoryRoot, "init", "--process", processRoot, "--json");
+    expect(initialized.status, initialized.stderr).toBe(0);
+    await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+
+    const created = req(
+      repositoryRoot,
+      "new",
+      "PSP",
+      "--scenario",
+      "compile-psp@2",
+      "--set",
+      "title=Standing delegation target",
+      "--set",
+      "rationale=Exercise delegated execution",
+      "--set",
+      "problem=Reviewer authority must be exact",
+      "--set",
+      'users=["operator"]',
+      "--set",
+      'goals=["execute one delegated review"]',
+      "--set",
+      'non_goals=["authorize replacement revisions"]',
+      "--set",
+      'success_measures=["the exact delegation appears in execution provenance"]',
+      "--json",
+    );
+    expect(created.status, created.stderr).toBe(0);
+    const target = JSON.parse(created.stdout).created as {
+      id: string;
+      revisionId: string;
+    };
+    const delegationResponse = (complete: boolean) => ({
+      outputs: [{
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Delegate exact contextual Review",
+            rationale: "Authorize one reviewer for one target and Scenario",
+            kind: "authority-delegation",
+            decision: "Delegate this exact Review",
+            alternatives: ["Require a per-execution reviewer assertion"],
+            effective_scope: target.revisionId,
+            delegation: {
+              authority: "stakeholder",
+              delegate: "independent-reviewer",
+              scenario: "review-datum-in-context@2",
+              expires_when: "target-revised",
+              ...(complete
+                ? { reactivation_requires: "new-delegation-decision" }
+                : {}),
+            },
+          },
+          links: [{ type: "justifies", target: target.revisionId }],
+          body: "Exact standing delegation.\n",
+        },
+      }],
+      completionEvidence: { summary: "Stakeholder authorized exact delegation." },
+    });
+    const executeDelegation = async (complete: boolean, label: string) => {
+      const adapterPath = path.join(repositoryRoot, `${label}.mjs`);
+      await fs.writeFile(
+        adapterPath,
+        `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(delegationResponse(complete)))});\n`,
+        { mode: 0o755 },
+      );
+      return req(
+        repositoryRoot,
+        "scenario",
+        "execute",
+        "record-consequential-decision@1",
+        "--initiate",
+        "--authorize",
+        "stakeholder",
+        "--adapter",
+        adapterPath,
+        "--input",
+        `subject=${target.revisionId}`,
+        "--json",
+      );
+    };
+    const malformedDelegation = await executeDelegation(false, "malformed-delegation");
+    expect(malformedDelegation.status).toBe(1);
+    expect(JSON.parse(malformedDelegation.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "scenario-output-schema-invalid" }),
+    ]);
+
+    const delegation = await executeDelegation(true, "delegation-adapter");
+    expect(delegation.status, delegation.stderr).toBe(0);
+    const delegationDatum = JSON.parse(delegation.stdout).execution.outputs[0]
+      .lifecycleDatum as { revisionId: string };
+    const context = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Delegated Review context",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      `scope=${delegationDatum.revisionId}`,
+      "--set",
+      "group=DEFAULT",
+      "--json",
+    );
+    expect(context.status, context.stderr).toBe(0);
+    const contextDatum = JSON.parse(context.stdout).created as {
+      id: string;
+      revisionId: string;
+    };
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      contextDatum.id,
+      delegationDatum.revisionId,
+      "--json",
+    ).status).toBe(0);
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      contextDatum.id,
+      "--json",
+    ).status).toBe(0);
+    const delegationLooseEnds = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
+    );
+    expect(
+      delegationLooseEnds.status,
+      `${delegationLooseEnds.stderr}${delegationLooseEnds.stdout}`,
+    ).toBe(0);
+    const delegationReviewWork = JSON.parse(
+      delegationLooseEnds.stdout,
+    ).looseEnds.items.find(
+      (item: { obligation: string; subject: string }) =>
+        item.obligation === "passing-review-required" &&
+        item.subject === delegationDatum.revisionId,
+    ) as { id: string };
+    const delegationReviewAdapterPath = path.join(
+      repositoryRoot,
+      "delegation-review-adapter.mjs",
+    );
+    await fs.writeFile(
+      delegationReviewAdapterPath,
+      `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
+        outputs: [{
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: "Standing delegation Review",
+              review_kind: "contextual",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [],
+              outcome: "pass",
+            },
+            links: [
+              { type: "reviews", target: delegationDatum.revisionId },
+              { type: "contextualizes", target: contextDatum.revisionId },
+            ],
+            body: "The exact standing delegation passes Review.\\n",
+          },
+        }],
+        completionEvidence: { summary: "Independent Review passed." },
+      }))});\n`,
+      { mode: 0o755 },
+    );
+    const delegationReview = req(
+      repositoryRoot,
+      "scenario",
+      "execute",
+      "review-datum-in-context@2",
+      "--obligation",
+      delegationReviewWork.id,
+      "--authorize",
+      "independent-reviewer",
+      "--adapter",
+      delegationReviewAdapterPath,
+      "--input",
+      `subject=${delegationDatum.revisionId}`,
+      "--input",
+      `review_context=${contextDatum.revisionId}`,
+      "--json",
+    );
+    expect(
+      delegationReview.status,
+      `${delegationReview.stderr}${delegationReview.stdout}`,
+    ).toBe(0);
+    const targetContextResult = req(
+      repositoryRoot,
+      "baseline",
+      "create",
+      "--type",
+      "BSL",
+      "--scenario",
+      "create-review-context@1",
+      "--set",
+      "title=Target Review context",
+      "--set",
+      "kind=review-context",
+      "--set",
+      "role=review-context",
+      "--set",
+      `scope=${target.revisionId}`,
+      "--set",
+      "group=DEFAULT",
+      "--json",
+    );
+    expect(targetContextResult.status, targetContextResult.stderr).toBe(0);
+    const targetContext = JSON.parse(targetContextResult.stdout).created as {
+      id: string;
+      revisionId: string;
+    };
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "add",
+      targetContext.id,
+      target.revisionId,
+      "--json",
+    ).status).toBe(0);
+    expect(req(
+      repositoryRoot,
+      "baseline",
+      "freeze",
+      targetContext.id,
+      "--json",
+    ).status).toBe(0);
+    const looseEnds = req(
+      repositoryRoot,
+      "loose-ends",
+      "--phase",
+      "phase-0-wayfinding",
+      "--json",
+    );
+    expect(looseEnds.status, looseEnds.stderr).toBe(0);
+    const reviewWork = JSON.parse(looseEnds.stdout).looseEnds.items.find(
+      (item: { obligation: string; subject: string }) =>
+        item.obligation === "passing-review-required" &&
+        item.subject === target.revisionId,
+    ) as { id: string };
+    expect(git(repositoryRoot, "init").status).toBe(0);
+    expect(git(repositoryRoot, "add", ".").status).toBe(0);
+    expect(git(
+      repositoryRoot,
+      "-c",
+      "user.name=MDLM Test",
+      "-c",
+      "user.email=mdlm-test@example.invalid",
+      "commit",
+      "-m",
+      "Prepare delegated Review",
+    ).status).toBe(0);
+    const next = mdlm(repositoryRoot, undefined, "next");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const assignment = JSON.parse(next.stdout).assignment.id as string;
+    const prepared = mdlm(repositoryRoot, undefined, "scenario", "prepare", assignment);
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    const packet = JSON.parse(prepared.stdout);
+    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    expect(packet.authority.standingDelegation).toEqual({
+      selector: "applicable-authority-delegations-for@1",
+      authority: "stakeholder",
+      delegate: "independent-reviewer",
+      targetInput: "subject",
+      invocations: [{
+        invocation: 0,
+        target: target.revisionId,
+        applicableEvidence: [delegationDatum.revisionId],
+      }],
+    });
+    const response = {
+      contract: "mdlm-assignment-response@1",
+      assignment,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "review",
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: "Delegated contextual Review",
+              review_kind: "contextual",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+              findings: [],
+              outcome: "pass",
+            },
+            links: [
+              { type: "reviews", target: target.revisionId },
+              { type: "contextualizes", target: targetContext.revisionId },
+            ],
+            body: "The exact delegated Review passes.\n",
+          },
+        }],
+        completionEvidence: { summary: "Applicable standing delegation used." },
+        loadedSkillRefs: packet.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: [],
+        standingDelegations: [delegationDatum.revisionId],
+      },
+    };
+    const executed = mdlm(
+      repositoryRoot,
+      `${JSON.stringify(response)}\n`,
+      "scenario",
+      "submit",
+    );
+
+    expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
+    expect(JSON.parse(executed.stdout).execution.authority).toEqual(
+      expect.objectContaining({
+        supplied: [],
+        delegations: [delegationDatum.revisionId],
+      }),
+    );
   }, 30_000);
 });

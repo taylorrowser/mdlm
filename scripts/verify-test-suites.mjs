@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { relative, resolve, sep } from "node:path";
-import { fastTests, journeyTests } from "../vitest.suites.mjs";
+import { testFiles } from "../vitest.suites.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const testRoot = resolve(repositoryRoot, "test");
@@ -17,7 +17,7 @@ function discoverTests(directory) {
 }
 
 const discovered = discoverTests(testRoot).sort();
-const classified = [...fastTests, ...journeyTests].sort();
+const classified = [...testFiles].sort();
 const duplicates = classified.filter((path, index) => classified.indexOf(path) !== index);
 const missing = discovered.filter((path) => !classified.includes(path));
 const unknown = classified.filter((path) => !discovered.includes(path));
@@ -31,4 +31,4 @@ if (duplicates.length || missing.length || unknown.length) {
   throw new Error(`Test suite classification is incomplete:\n${details}`);
 }
 
-process.stdout.write(`Classified ${fastTests.length} fast and ${journeyTests.length} journey test files.\n`);
+process.stdout.write(`Classified ${testFiles.length} authoritative test files.\n`);

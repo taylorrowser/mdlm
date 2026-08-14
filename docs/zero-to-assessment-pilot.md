@@ -29,24 +29,26 @@ than by migrating or hand-editing that historical repository:
   makes an ordinary Git commit, and receives the next exact Assignment. A tracked
   change then proves that the allocated Assignment cannot cross the committed
   state boundary.
-- `test/mdlm-review-correction.test.ts` covers clean Phase 0 progression,
+- `test/mdlm-clean-pilot-contract.test.ts` retains the representative compiled
+  `mdlm` transaction; `test/evaluate-bootstrap-participation.test.ts`,
+  `test/evaluate-review-flow.test.ts`, and `test/evaluate-phase.test.ts` cover
   independent Review, Correction, gate rejection, same-gate return, exact
-  acceptance, and derived Phase progression through the compiled `mdlm` process.
-- `test/mdlm-phase-1-assurance-correction.test.ts` covers source-independent
-  assurance, exact target evidence, autonomous Correction, fresh Review, and
-  attended escalation through `next → scenario prepare → scenario submit`.
-- `test/mdlm-phase-2-simplification.test.ts` and
-  `test/req-system-decomposition.test.ts` cover the bounded Phase 2 definition,
-  simplification, completion, candidate, gate, acceptance, and assessment entry.
-- `test/mdlm-pilot-assessment.test.ts` covers exact assessment context, PAS,
-  independent Review, Correction, attended Expansion Decision, and explicit
+  acceptance, and Phase progression without reconstructing the same repository.
+- `test/phase-1-route-contracts.test.ts` binds every source-independent assurance,
+  correction, target, run, and profile-boundary route to exact compiled package
+  definitions.
+- `test/evaluate-system-decomposition.test.ts` covers exact Phase 2 parent,
+  correction, and escalation semantics; package loading and matrix tests retain
+  definition, simplification, completion, candidate, gate, and assessment-entry
+  contracts.
+- `test/req-pilot-assessment.test.ts`, `test/evaluate-phase.test.ts`, and
+  `test/operator-outcome.test.ts` cover exact PAS/Decision contracts and explicit
   Profile Boundary or Lifecycle Complete outcomes.
-- `test/req-prototype-question-routing.test.ts` proves that same-lineage Question
-  revision uses the supported `freeze-source-boundary@1` Scenario before the
-  replacement; no Lifecycle Data is hand-edited.
-- `test/req-consequential-authorization.test.ts` and the compiled journey tests
-  prove that process-required authority publishes only as the Scenario's exact REV
-  or DEC output.
+- `test/evaluate-bootstrap-participation.test.ts` proves source-boundary,
+  Question, authority, and correction routing from exact lifecycle snapshots.
+- `test/req-scenario-participation.test.ts`, `test/mdlm-assignment.test.ts`, and
+  evaluator contracts prove that process-required authority publishes only as the
+  Scenario's exact REV or DEC output.
 
 Together these are the clarified compositional public-interface proof, not an
 imperative second implementation of the declarative Process Package. The
