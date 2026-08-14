@@ -1,7 +1,4 @@
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { parse } from "yaml";
 import {
   evaluateLifecycle,
   evaluateProcessDefinition,
@@ -17,6 +14,11 @@ import {
   type ScenarioOutputExplanation,
 } from "./evaluator.js";
 import { isCompiledTextExpression } from "./expression.js";
+import {
+  markdownAssetFrontmatter,
+  promptSkillReferences,
+  readPackageMarkdownAsset,
+} from "./markdown-asset.js";
 import type {
   ProcessDiagnostic,
   ProcessPackage,
@@ -187,38 +189,24 @@ function sha256(content: string): string {
   return `sha256:${createHash("sha256").update(content).digest("hex")}`;
 }
 
-function assetPath(reference: string): string | undefined {
-  const match = /^(.*\.(?:md|yaml))@([1-9][0-9]*)$/.exec(reference);
-  return match?.[1];
-}
-
-function assetFrontmatter(content: string): RecordValue | undefined {
-  const match = /^---\n([\s\S]*?)\n---(?:\n|$)/.exec(content);
-  return match?.[1] ? object(parse(match[1])) : undefined;
-}
-
-function pathIsWithin(root: string, target: string): boolean {
-  const relative = path.relative(root, target);
-  return relative !== ".." && !relative.startsWith(`..${path.sep}`) &&
-    !path.isAbsolute(relative);
-}
-
 async function resolvedAsset(
   processPackage: ProcessPackage,
   reference: string,
   kind: "prompt" | "skill" | "policy-asset",
 ): Promise<{ asset?: ResolvedProcessAsset; diagnostic?: ProcessDiagnostic }> {
-  const relativePath = assetPath(reference);
-  if (!relativePath) {
-    return {
-      diagnostic: {
-        code: `invalid-${kind}-reference`,
-        path: reference,
-        message: `Invalid versioned ${kind} reference '${reference}'`,
-      },
-    };
-  }
   try {
+    const read = await readPackageMarkdownAsset(processPackage.root, reference);
+    if (!read.ok) {
+      return {
+        diagnostic: {
+          code: read.reason === "invalid-reference"
+            ? `invalid-${kind}-reference`
+            : `${kind}-${read.reason}`,
+          path: read.path,
+          message: read.message,
+        },
+      };
+    }
     const assetCatalog = object(processPackage.manifest.assets);
     const declared = kind === "policy-asset"
       ? Object.values(assetCatalog ?? {}).some((catalog) =>
@@ -234,58 +222,19 @@ async function resolvedAsset(
         },
       };
     }
-    const packageRoot = await fs.realpath(processPackage.root);
-    const unresolvedPath = path.resolve(packageRoot, relativePath);
-    if (!pathIsWithin(packageRoot, unresolvedPath)) {
-      return {
-        diagnostic: {
-          code: `${kind}-outside-package`,
-          path: relativePath,
-          message: `Resolved ${kind} '${reference}' is outside the exact Process Package root`,
-        },
-      };
-    }
-    const resolvedPath = await fs.realpath(unresolvedPath);
-    if (!pathIsWithin(packageRoot, resolvedPath)) {
-      return {
-        diagnostic: {
-          code: `${kind}-outside-package`,
-          path: relativePath,
-          message: `Resolved ${kind} '${reference}' escapes the exact Process Package root`,
-        },
-      };
-    }
-    const content = await fs.readFile(resolvedPath, "utf8");
-    const frontmatter = assetFrontmatter(content);
-    const expectedVersion = Number(
-      reference.slice(reference.lastIndexOf("@") + 1),
-    );
-    const expectedId = path.basename(relativePath, path.extname(relativePath));
-    if (
-      frontmatter?.version !== expectedVersion ||
-      frontmatter.id !== expectedId
-    ) {
-      return {
-        diagnostic: {
-          code: `${kind}-version-mismatch`,
-          path: relativePath,
-          message: `Resolved ${kind} '${reference}' does not declare exact identity '${expectedId}@${expectedVersion}'`,
-        },
-      };
-    }
     return {
       asset: {
         reference,
-        path: relativePath,
-        digest: sha256(content),
-        content,
+        path: read.asset.relativePath,
+        digest: sha256(read.asset.content),
+        content: read.asset.content,
       },
     };
   } catch (error) {
     return {
       diagnostic: {
         code: `${kind}-unavailable`,
-        path: relativePath,
+        path: reference,
         message: `Could not resolve ${kind} '${reference}': ${error instanceof Error ? error.message : String(error)}`,
       },
     };
@@ -343,17 +292,17 @@ async function resolvePrompt(
   if (!resolved.asset) {
     return { diagnostics: resolved.diagnostic ? [resolved.diagnostic] : [] };
   }
-  const skillReferences = [
-    ...new Set(
-      [
-        ...resolved.asset.content.matchAll(
-          /`(skills\/[a-z0-9/-]+\.md@[1-9][0-9]*)`/g,
-        ),
-      ]
-        .map((match) => match[1])
-        .filter((value): value is string => value !== undefined),
-    ),
-  ];
+  const skillDeclaration = promptSkillReferences(resolved.asset.content);
+  if (!skillDeclaration.ok) {
+    return {
+      diagnostics: [{
+        code: "prompt-skills-invalid",
+        path: resolved.asset.path,
+        message: `Prompt '${reference}' must declare an ordered unique array of exact skill references`,
+      }],
+    };
+  }
+  const skillReferences = skillDeclaration.references;
   const skills: ResolvedProcessAsset[] = [];
   const diagnostics: ProcessDiagnostic[] = [];
   for (const skillReference of skillReferences) {
@@ -1034,7 +983,7 @@ async function dryRunScenario(
   if (!resolvedPrompt.prompt) {
     return { ok: false, diagnostics: resolvedPrompt.diagnostics };
   }
-  const promptFrontmatter = assetFrontmatter(resolvedPrompt.prompt.content);
+  const promptFrontmatter = markdownAssetFrontmatter(resolvedPrompt.prompt.content);
   if (promptFrontmatter?.scenario !== scenario.id) {
     return {
       ok: false,

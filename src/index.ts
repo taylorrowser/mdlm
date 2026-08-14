@@ -9,6 +9,10 @@ import formatsPlugin from "ajv-formats";
 import { parse } from "yaml";
 import { validateDefinitionGraph } from "./definition-graph.js";
 import { compileDefinitionExpressions } from "./expression.js";
+import {
+  promptSkillReferences,
+  readPackageMarkdownAsset,
+} from "./markdown-asset.js";
 import { validatePayloadInheritance } from "./payload-inheritance.js";
 import { validateScenarioContracts } from "./scenario-contract.js";
 
@@ -478,6 +482,96 @@ function isVersionedDefinition(value: unknown): value is VersionedDefinition {
   );
 }
 
+async function validatePromptSkillDeclarations(
+  root: string,
+  manifest: unknown,
+): Promise<ProcessDiagnostic[]> {
+  if (typeof manifest !== "object" || manifest === null) return [];
+  const assets = (manifest as Record<string, unknown>).assets;
+  if (typeof assets !== "object" || assets === null) return [];
+  const catalog = assets as Record<string, unknown>;
+  const promptReferences = Array.isArray(catalog.prompts)
+    ? catalog.prompts.filter((value): value is string => typeof value === "string")
+    : [];
+  const skillReferences = Array.isArray(catalog.skills)
+    ? catalog.skills.filter((value): value is string => typeof value === "string")
+    : [];
+  const declaredSkills = new Set(skillReferences);
+  const diagnostics: ProcessDiagnostic[] = [];
+  const promptContents = new Map<string, { content: string; path: string }>();
+
+  for (const [kind, references] of [
+    ["prompt", promptReferences],
+    ["skill", skillReferences],
+  ] as const) {
+    for (const reference of references) {
+      const read = await readPackageMarkdownAsset(root, reference);
+      if (!read.ok) {
+        diagnostics.push({
+          code: `${kind}-${read.reason}`,
+          path: path.join(root, read.path),
+          message: read.message,
+        });
+      } else if (kind === "prompt") {
+        promptContents.set(reference, {
+          content: read.asset.content,
+          path: path.join(root, read.asset.relativePath),
+        });
+      }
+    }
+  }
+
+  for (const [promptReference, prompt] of promptContents) {
+    const declaration = promptSkillReferences(prompt.content);
+    if (!declaration.ok) {
+      diagnostics.push({
+        code: "prompt-skills-invalid",
+        path: prompt.path,
+        message: `Prompt '${promptReference}' must declare an ordered unique array of exact skill references`,
+      });
+      continue;
+    }
+    for (const skillReference of declaration.references) {
+      if (!declaredSkills.has(skillReference)) {
+        diagnostics.push({
+          code: "prompt-skill-not-declared",
+          path: prompt.path,
+          message: `Prompt '${promptReference}' references skill '${skillReference}' outside the manifest skill catalog`,
+        });
+      }
+    }
+  }
+  return diagnostics;
+}
+
+function validateScenarioPromptDeclarations(
+  manifest: unknown,
+  scenarios: Record<string, VersionedDefinition>,
+): ProcessDiagnostic[] {
+  const manifestRecord = typeof manifest === "object" && manifest !== null
+    ? manifest as Record<string, unknown>
+    : {};
+  const assets = typeof manifestRecord.assets === "object" &&
+      manifestRecord.assets !== null
+    ? manifestRecord.assets as Record<string, unknown>
+    : {};
+  const declaredPrompts = new Set(
+    Array.isArray(assets.prompts)
+      ? assets.prompts.filter((value): value is string => typeof value === "string")
+      : [],
+  );
+  return Object.values(scenarios).flatMap((scenario) => {
+    const promptReference = scenario.prompt_ref;
+    return typeof promptReference === "string" && !declaredPrompts.has(promptReference)
+      ? [{
+          code: "scenario-prompt-not-declared",
+          path: `scenarios.${scenario.id}.prompt_ref`,
+          message: `Scenario '${scenario.id}@${scenario.version}' references prompt '${promptReference}' outside the manifest prompt catalog`,
+        }]
+      : [];
+  });
+}
+
 async function createMetaValidators(
   metaDirectory: string,
 ): Promise<Map<string, ValidateFunction>> {
@@ -509,8 +603,18 @@ async function createMetaValidators(
   return validators;
 }
 
+export interface LoadProcessPackageOptions {
+  /**
+   * Historical authoring packages were validated by the runtime that selected
+   * them. This mode retains structural loading for immutable provenance and
+   * migration without retroactively applying newer asset-conformance rules.
+   */
+  compatibility?: "historical-authoring";
+}
+
 export async function loadProcessPackage(
   root: string,
+  options: LoadProcessPackageOptions = {},
 ): Promise<LoadProcessPackageResult> {
   const diagnostics: ProcessDiagnostic[] = [];
 
@@ -527,6 +631,8 @@ export async function loadProcessPackage(
       diagnostics.push(
         ...formatAjvErrors(manifestPath, manifestValidator?.errors),
       );
+    } else if (options.compatibility !== "historical-authoring") {
+      diagnostics.push(...await validatePromptSkillDeclarations(root, manifest));
     }
 
     const definitions = {} as Record<
@@ -644,6 +750,12 @@ export async function loadProcessPackage(
     diagnostics.push(...validateDefinitionGraph(manifest, definitions));
     diagnostics.push(...validatePayloadInheritance(definitions));
     diagnostics.push(...validateScenarioContracts(definitions));
+    if (options.compatibility !== "historical-authoring") {
+      diagnostics.push(...validateScenarioPromptDeclarations(
+        manifest,
+        definitions.scenarios,
+      ));
+    }
     if (diagnostics.length > 0) return { ok: false, diagnostics };
     if (
       typeof manifest !== "object" ||

@@ -1086,6 +1086,11 @@ describe("Phase 0 missing hardening routes", () => {
     );
     expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
     if (!prepared.ok) return;
+    expect(prepared.value.prompt.skills.map((skill) => skill.reference)).toEqual([
+      "skills/lifecycle-data.md@1",
+      "skills/clarification-protocol.md@1",
+      "skills/requirement-writing.md@1",
+    ]);
     expect(prepared.value.invocations[0]!.inputs.find((input) =>
       input.name === "lineage"
     )?.values.map((value) => value.identity.revision_id)).toEqual([
@@ -1093,6 +1098,7 @@ describe("Phase 0 missing hardening routes", () => {
       first.datum.revision_id,
       second.datum.revision_id,
     ]);
+
   });
 
   it("routes a stakeholder-owned foundation failure immediately to attended escalation without spending an autonomous cycle", () => {

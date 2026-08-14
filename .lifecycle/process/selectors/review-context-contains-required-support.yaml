@@ -1,0 +1,21 @@
+kind: selector-definition
+id: review-context-contains-required-support
+version: 1
+description: One subject Review Context containing required support in its package-defined definition or evidence role.
+parameters:
+  - {name: subject, kind: revision}
+  - {name: context, kind: revision, types: [BSL]}
+  - {name: required_support, kind: revision}
+result_kind: baseline
+query:
+  from: {relation: baseline-memberships, of: subject, emit: entity, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate == context
+    && (exists("review-context-contains-member@1",
+          {context: context, required_member: required_support})
+      || (subject.identity.type == "ENV"
+        && exists("context-contains-evidence@1",
+          {context: context, subject: required_support})))
+  distinct: true
+  order_by: [identity.revision_id]

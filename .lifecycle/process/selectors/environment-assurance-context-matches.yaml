@@ -1,7 +1,7 @@
 kind: selector-definition
 id: environment-assurance-context-matches
 version: 1
-description: One frozen Review Context containing an ENV and its exact strategy, qualification definition, RUN, and passing RES evidence.
+description: One frozen Review Context containing the exact VSP and ENV definitions plus qualification VER, VAI, RUN, and passing RES evidence.
 parameters:
   - {name: environment, kind: revision, types: [ENV]}
   - {name: context, kind: revision, types: [BSL]}
@@ -16,6 +16,13 @@ query:
     && candidate.storage.frozen == true
     && exists("context-contains-definition@1",
       {context: context, subject: environment})
+    && every("review-context-members@1", {context: context}, member =>
+      member == environment
+      || !every("strategies-for-environment@1", {environment: environment}, strategy =>
+        strategy != member))
+    && none("unexpected-environment-review-context-evidence@1",
+      {environment: environment, context: context})
+    && none("composed-baselines-for-review-context@1", {context: context})
     && count("complete-environment-assurance-for-environment@1", {environment: environment}) == 1
     && count("complete-environment-qualification-for-environment@1", {environment: environment}) == 1
     && every("strategies-for-environment@1", {environment: environment}, strategy =>

@@ -21,7 +21,7 @@ async function packageCopy(
   await fs.writeFile(
     manifestPath,
     (await fs.readFile(manifestPath, "utf8")).replace(
-      "version: 0.60.0",
+      "version: 0.61.0",
       `version: ${version}`,
     ),
   );
@@ -81,7 +81,7 @@ describe("mdlm Process Package migration", () => {
       selected: true,
       migration: {
         from: expect.objectContaining({ reference: "mdlm-bootstrap@0.40.0" }),
-        to: expect.objectContaining({ reference: "mdlm-bootstrap@0.60.0" }),
+        to: expect.objectContaining({ reference: "mdlm-bootstrap@0.61.0" }),
       },
       diagnostics: [],
     }));

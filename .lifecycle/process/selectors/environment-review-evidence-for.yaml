@@ -1,0 +1,21 @@
+kind: selector-definition
+id: environment-review-evidence-for
+version: 1
+description: Exact qualification VER, VAI, RUN, and passing RES evidence required to review one qualified ENV.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VER, VAI, RUN, RES]}
+  as: evidence
+  where: >-
+    !every("qualification-activities-for-environment@1", {environment: environment}, activity =>
+      activity != evidence)
+    || !every("qualification-implementations-for-environment@1", {environment: environment}, implementation =>
+      implementation != evidence
+      && every("completed-runs-for-implementation@1", {implementation: implementation}, run =>
+        run != evidence
+        && every("passing-qualification-results-for-run-and-environment@1",
+          {run: run, environment: environment}, result => result != evidence)))
+  distinct: true
+  order_by: [identity.revision_id]

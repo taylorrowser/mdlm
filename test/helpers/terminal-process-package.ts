@@ -207,7 +207,7 @@ export async function terminalProcessPackage(
   });
   await fs.writeFile(
     path.join(root, "prompts/record-terminal-item.md"),
-    "# Record terminal fixture item\n",
+    "---\nid: record-terminal-item\nversion: 1\nscenario: record-terminal-item\n---\n\n# Record terminal fixture item\n",
   );
   await writeYaml(root, "phases/phase-0-terminal.yaml", {
     kind: "phase-definition",

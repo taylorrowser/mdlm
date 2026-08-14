@@ -5,7 +5,7 @@ scenario: revise-stakeholder-change-after-review
 skills:
   - skills/lifecycle-data.md@1
   - skills/change-control.md@1
-  - skills/review-model.md@1
+  - skills/contextual-artifact-review.md@1
 ---
 
 # Revise accepted-STK change evidence after Review

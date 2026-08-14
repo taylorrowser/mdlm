@@ -665,7 +665,9 @@ async function exactDatumProcessPackage(
   if (cached) return cached;
   const resolution = (async () => {
     const packageRoot = path.join(root, ".lifecycle/packages", reference);
-    const loaded = await loadProcessPackage(packageRoot);
+    const loaded = await loadProcessPackage(packageRoot, {
+      compatibility: "historical-authoring",
+    });
     if (!loaded.ok) return undefined;
     const loadedReference =
       `${loaded.package.manifest.id}@${loaded.package.manifest.version}`;
