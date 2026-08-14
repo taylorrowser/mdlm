@@ -240,8 +240,8 @@ rows:
         reuse: The passing REV remains reusable only while subject and context dependencies remain current.
       - route: failed independent Review
         executable:
-          file: test/mdlm-independent-judgment.test.ts
-          test: publishes a contract-valid unfavorable independent judgment unchanged
+          file: test/evaluate-review-flow.test.ts
+          test: keeps historical failed Reviews without requiring more work on replaced Revisions
         evidence:
           facts: One exact subject, its complete frozen Review Context, and one failed REV with all Findings.
           links: The REV reviews the exact subject and contextualizes the exact Review Context.
@@ -590,8 +590,8 @@ rows:
     routes:
       - route: source boundary before attended resolution
         executable:
-          file: test/req-scenario-participation.test.ts
-          test: projects autonomous, delegated, immediate, and checkpoint participation consistently
+          file: test/evaluate-bootstrap-participation.test.ts
+          test: derives Review delegation and Question authority from exact Scenario inputs
         evidence:
           facts: "source boundary before attended resolution: One current open QST Revision and one kernel-finalized
             source-boundary BSL containing exactly that Revision."
@@ -625,8 +625,8 @@ rows:
     routes:
       - route: source boundary before autonomous resolution
         executable:
-          file: test/req-scenario-dry-run.test.ts
-          test: derives a side-effect-free dry-run from durable repository truth
+          file: test/evaluate-bootstrap-participation.test.ts
+          test: requires exact stakeholder authority and blocks the gate on an immediate question
         evidence:
           facts: "source boundary before autonomous resolution: One current open empirical QST Revision and one kernel-finalized
             source-boundary BSL containing exactly that Revision."

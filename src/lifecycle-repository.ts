@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -25,7 +25,6 @@ import {
   type ProcessDiagnostic,
   type ProcessPackage,
   type ResolvedType,
-  type VersionedDefinition,
 } from "./index.js";
 
 export interface CreatedDatum {
@@ -71,13 +70,6 @@ export interface GraphTrace {
   relation: string | null;
   nodes: GraphNode[];
   links: GraphLink[];
-}
-
-export interface LinkMutation {
-  operation: "added" | "removed";
-  sourceRevision: string;
-  type: string;
-  target: string;
 }
 
 export interface DatumProjections {
@@ -135,15 +127,8 @@ export interface KernelFinalizedScenarioOutput {
   datum: DatumEnvelope;
 }
 
-const base32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const stableIdentity = /^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
 const revisionIdentity = /^([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
-
-function randomStableId(typeId: string): string {
-  return `${typeId}-${[...randomBytes(10)]
-    .map((byte) => base32[byte & 31])
-    .join("")}`;
-}
 
 function validator(schema: Record<string, unknown>): ValidateFunction {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
@@ -375,41 +360,6 @@ function referenceParts(reference: string): [string, number] | undefined {
   return match?.[1] && match[2] ? [match[1], Number(match[2])] : undefined;
 }
 
-function resolveScenario(
-  processPackage: ProcessPackage,
-  reference: string,
-  typeId: string,
-): RepositoryResult<VersionedDefinition> {
-  const parts = referenceParts(reference);
-  const scenario = parts ? processPackage.scenarios[parts[0]] : undefined;
-  if (!parts || !scenario || scenario.version !== parts[1]) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "unknown-scenario",
-        path: "created_by.scenario",
-        message: `Unknown Scenario '${reference}'`,
-      }],
-    };
-  }
-  const declaresType = Array.isArray(scenario.outputs) && scenario.outputs.some((output) => {
-    if (typeof output !== "object" || output === null) return false;
-    const types = (output as Record<string, unknown>).types;
-    return Array.isArray(types) && types.includes(typeId);
-  });
-  if (!declaresType) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "scenario-output-type",
-        path: "created_by.scenario",
-        message: `Scenario '${reference}' does not declare lifecycle type '${typeId}' as an output`,
-      }],
-    };
-  }
-  return { ok: true, value: scenario, diagnostics: [] };
-}
-
 function targetDatum(
   lifecycleData: LifecycleRecord[],
   target: string,
@@ -610,7 +560,6 @@ function recordValue(value: unknown): Record<string, unknown> | undefined {
 function scenarioExecutionStructureValid(
   processPackage: ProcessPackage,
   execution: Record<string, unknown>,
-  adapter: Record<string, unknown> | undefined,
   authorityEvidence: Record<string, unknown> | undefined,
 ): boolean {
   const inputs = Array.isArray(execution.inputs) ? execution.inputs : [];
@@ -619,28 +568,15 @@ function scenarioExecutionStructureValid(
     ? completion.evaluations.map(recordValue)
     : [];
   const packageIdentity = recordValue(execution.package);
-  const digest = /^sha256:[a-f0-9]{64}$/;
-  const contracts = [
-    ["mdlm-scenario-execution@1", "mdlm-agent-adapter@1"],
-    ["mdlm-scenario-execution@2", "mdlm-agent-adapter@2"],
-    ["mdlm-scenario-execution@3", "mdlm-agent-adapter@3"],
-  ];
   const response = recordValue(execution.response);
-  const adapterSourceValid = contracts.some(([executionContract, adapterContract]) =>
-    execution.contract === executionContract && adapter?.contract === adapterContract
-  ) && response === undefined && typeof adapter?.executable === "string" &&
-    digest.test(String(adapter.digest)) &&
-    digest.test(String(adapter.requestDigest)) &&
-    digest.test(String(adapter.responseDigest));
-  const assignmentSourceValid =
+  const commonValid =
     execution.contract === "mdlm-scenario-execution@4" &&
-    adapter === undefined &&
+    execution.adapter === undefined &&
     response?.contract === "mdlm-assignment-response@1" &&
     typeof response.assignment === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       .test(response.assignment) &&
-    digest.test(String(response.digest));
-  const commonValid = (adapterSourceValid || assignmentSourceValid) &&
+    /^sha256:[a-f0-9]{64}$/.test(String(response.digest)) &&
     inputs.length > 0 && completion?.contractValid === true &&
     completion.expressionPassed === true && typeof completion.expression === "string" &&
     evaluations.length === inputs.length && evaluations.every(
@@ -672,6 +608,7 @@ function scenarioExecutionStructureValid(
       : [{ invocation, requirement }];
   });
   const authority = recordValue(execution.authority);
+  if (nonAutonomous.length === 0) return authority === undefined;
   const requirements = Array.isArray(authority?.requirements)
     ? authority.requirements.map(recordValue)
     : [];
@@ -693,34 +630,25 @@ function scenarioExecutionStructureValid(
     ) && delegations.every((value) =>
       /^[A-Z]{3,8}-[0-9A-Z]{10,12}-r[0-9]{5}$/.test(value)
     );
-  return nonAutonomous.length === 0
-    ? (execution.contract === "mdlm-scenario-execution@2" &&
-        adapter?.contract === "mdlm-agent-adapter@2" ||
-        execution.contract === "mdlm-scenario-execution@4") &&
-      authority === undefined
-    : (execution.contract === "mdlm-scenario-execution@3" &&
-        adapter?.contract === "mdlm-agent-adapter@3" ||
-        execution.contract === "mdlm-scenario-execution@4") &&
-      authoritySourcesValid && requirements.length === nonAutonomous.length &&
-      nonAutonomous.every(({ invocation, requirement }) =>
-        requirements.some((candidate) => {
-          const evidence = recordValue(candidate?.evidence);
-          const authorization = recordValue(candidate?.authorization);
-          const sourceValid = execution.contract !== "mdlm-scenario-execution@4" ||
-            (authorization?.kind === "authority-supply"
-              ? authorization.authority === requirement?.authority &&
-                supplied.includes(String(authorization.authority))
-              : authorization?.kind === "standing-delegation" &&
-                requirement?.delegationAllowed === true &&
-                delegations.includes(String(authorization.revision)));
-          return candidate?.invocation === invocation &&
-            candidate.mode === requirement?.mode &&
-            candidate.authority === requirement?.authority &&
-            candidate.delegationAllowed === requirement?.delegationAllowed &&
-            evidence?.output === authorityEvidence.output &&
-            evidence?.type === authorityEvidence.type && sourceValid;
-        })
-      );
+  return authoritySourcesValid && requirements.length === nonAutonomous.length &&
+    nonAutonomous.every(({ invocation, requirement }) =>
+      requirements.some((candidate) => {
+        const evidence = recordValue(candidate?.evidence);
+        const authorization = recordValue(candidate?.authorization);
+        const sourceValid = authorization?.kind === "authority-supply"
+          ? authorization.authority === requirement?.authority &&
+            supplied.includes(String(authorization.authority))
+          : authorization?.kind === "standing-delegation" &&
+            requirement?.delegationAllowed === true &&
+            delegations.includes(String(authorization.revision));
+        return candidate?.invocation === invocation &&
+          candidate.mode === requirement?.mode &&
+          candidate.authority === requirement?.authority &&
+          candidate.delegationAllowed === requirement?.delegationAllowed &&
+          evidence?.output === authorityEvidence.output &&
+          evidence?.type === authorityEvidence.type && sourceValid;
+      })
+    );
 }
 
 async function exactDatumProcessPackage(
@@ -828,14 +756,12 @@ async function scenarioExecutionProvenance(
       execution.definition !== null && !Array.isArray(execution.definition)
     ? execution.definition as Record<string, unknown>
     : undefined;
-  const adapter = recordValue(execution?.adapter);
   const packageIdentity = recordValue(execution?.package);
   const selectedPackageDigest = await processPackageDigest(processPackage.root);
   if (
     execution && scenarioExecutionStructureValid(
       processPackage,
       execution,
-      adapter,
       isAuthorityOutput ? authorityEvidence : undefined,
     ) && execution.id === transaction && execution.status === "completed" &&
     definition?.scenario === scenarioReference && declaredOutput &&
@@ -955,53 +881,6 @@ export async function repositoryLifecycleSnapshot(
     : loaded;
 }
 
-function setPayloadValue(
-  payload: Record<string, unknown>,
-  payloadPath: string,
-  value: unknown,
-): ProcessDiagnostic | undefined {
-  const parts = payloadPath.split(".");
-  if (
-    parts.some((part) => !/^[a-z][a-z0-9_]*$/.test(part) ||
-      part === "__proto__" || part === "constructor" || part === "prototype")
-  ) {
-    return {
-      code: "invalid-payload-path",
-      path: payloadPath,
-      message: `Invalid payload path '${payloadPath}'`,
-    };
-  }
-  let current = payload;
-  for (const part of parts.slice(0, -1)) {
-    const existing = current[part];
-    if (existing === undefined) current[part] = {};
-    else if (typeof existing !== "object" || existing === null || Array.isArray(existing)) {
-      return {
-        code: "invalid-payload-path",
-        path: payloadPath,
-        message: `Payload path '${payloadPath}' crosses a non-object value`,
-      };
-    }
-    current = current[part] as Record<string, unknown>;
-  }
-  const leaf = parts.at(-1);
-  if (leaf) current[leaf] = value;
-  return undefined;
-}
-
-function generatedAuthorshipDiagnostic(
-  typeId: string,
-  lifecycle: Record<string, unknown>,
-): ProcessDiagnostic | undefined {
-  return lifecycle.authorship === "generated"
-    ? {
-        code: "generated-datum-requires-scenario-execution",
-        path: `types.${typeId}.lifecycle.authorship`,
-        message: `Lifecycle type '${typeId}' is generated and may be published only through validated Scenario execution`,
-      }
-    : undefined;
-}
-
 function authorityEvidenceScenarioReferences(
   processPackage: ProcessPackage,
   typeId: string,
@@ -1015,144 +894,6 @@ function authorityEvidenceScenarioReferences(
     })
     .map(([id, scenario]) => `${id}@${scenario.version}`)
     .sort();
-}
-
-function authorityEvidenceAuthorshipDiagnostic(
-  processPackage: ProcessPackage,
-  typeId: string,
-): ProcessDiagnostic | undefined {
-  const declaringScenarios = authorityEvidenceScenarioReferences(
-    processPackage,
-    typeId,
-  );
-  return declaringScenarios.length > 0
-    ? {
-        code: "authority-evidence-requires-scenario-execution",
-        path: `types.${typeId}.lifecycle.authorship`,
-        message: `Lifecycle type '${typeId}' is declared as authority evidence by ${declaringScenarios.join(", ")} and may be published only through validated Scenario execution`,
-      }
-    : undefined;
-}
-
-export async function createDatum(
-  root: string,
-  processPackage: ProcessPackage,
-  packageReference: string,
-  packageDigest: string,
-  typeId: string,
-  scenarioReference: string | undefined,
-  fields: { path: string; value: unknown }[],
-  links: DatumEnvelope["links"],
-  body: string,
-  kernelManagedFields: { path: string; value: unknown }[] = [],
-): Promise<RepositoryResult<CreatedDatum>> {
-  const resolved = resolveType(processPackage, typeId);
-  if (!resolved.ok) return resolved;
-  const authorshipDiagnostic = authorityEvidenceAuthorshipDiagnostic(
-    processPackage,
-    typeId,
-  ) ?? generatedAuthorshipDiagnostic(typeId, resolved.type.lifecycle);
-  if (authorshipDiagnostic) {
-    return { ok: false, diagnostics: [authorshipDiagnostic] };
-  }
-  if (!scenarioReference) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "creation-scenario-required",
-        path: "created_by.scenario",
-        message: "Lifecycle Datum creation requires '--scenario <scenario@version>'",
-      }],
-    };
-  }
-  const scenarioResult = resolveScenario(processPackage, scenarioReference, typeId);
-  if (!scenarioResult.ok) return scenarioResult;
-  const loaded = await readRepositoryData(root, processPackage);
-  if (!loaded.ok) return loaded;
-  const payload: Record<string, unknown> = {};
-  for (const field of [...fields, ...kernelManagedFields]) {
-    const pathDiagnostic = setPayloadValue(payload, field.path, field.value);
-    if (pathDiagnostic) return { ok: false, diagnostics: [pathDiagnostic] };
-  }
-  for (const managedPath of resolved.type.kernelManagedPayloadPaths) {
-    if (fields.some((field) =>
-      field.path === managedPath || field.path.startsWith(`${managedPath}.`)
-    )) {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "kernel-managed-payload",
-          path: `payload.${managedPath}`,
-          message: `Payload path '${managedPath}' is managed by the kernel`,
-        }],
-      };
-    }
-  }
-  const id = randomStableId(typeId);
-  const revisionId = `${id}-r00001`;
-  const scenario = scenarioResult.value;
-  const reviewPolicy = typeof scenario.review_policy_ref === "string"
-    ? [scenario.review_policy_ref]
-    : [];
-  const datum: DatumEnvelope = {
-    id,
-    revision: 1,
-    revision_id: revisionId,
-    type: typeId,
-    payload,
-    links,
-    created_by: {
-      scenario: scenarioReference,
-      prompt_ref: String(scenario.prompt_ref),
-      process_ref: `${packageReference}#${packageDigest}`,
-      loaded_skill_refs: [],
-      policy_refs: reviewPolicy,
-    },
-    body: body.length === 0 || body.endsWith("\n") ? body : `${body}\n`,
-  };
-  const diagnostics = validateDatum(
-    processPackage,
-    datum,
-    loaded.value.map((item) => item.lifecycleDatum),
-  );
-  if (diagnostics.length > 0) return { ok: false, diagnostics };
-
-  const relativeDirectory = `.lifecycle/data/${typeId}/${id}`;
-  const finalDirectory = path.join(root, relativeDirectory);
-  const typeRoot = path.dirname(finalDirectory);
-  const temporaryDirectory = path.join(typeRoot, `.${id}.${randomUUID()}.tmp`);
-  try {
-    await fs.mkdir(typeRoot, { recursive: true });
-    await fs.mkdir(temporaryDirectory);
-    await fs.writeFile(path.join(temporaryDirectory, "r00001.md"), renderDatum(datum), {
-      flag: "wx",
-    });
-    await fs.rename(temporaryDirectory, finalDirectory);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "datum-identity-collision",
-          path: finalDirectory,
-          message: `Stable Datum '${id}' already exists`,
-        }],
-      };
-    }
-    throw error;
-  } finally {
-    await fs.rm(temporaryDirectory, { recursive: true, force: true });
-  }
-  return {
-    ok: true,
-    value: {
-      id,
-      revisionId,
-      type: typeId,
-      path: `${relativeDirectory}/r00001.md`,
-    },
-    diagnostics: [],
-  };
 }
 
 function payloadPathPresent(
@@ -1318,147 +1059,6 @@ export async function publishScenarioMutation(
   };
 }
 
-export async function reviseDatum(
-  root: string,
-  processPackage: ProcessPackage,
-  packageReference: string,
-  packageDigest: string,
-  stableId: string,
-  fromRevision: string | undefined,
-): Promise<RepositoryResult<CreatedDatum>> {
-  if (revisionIdentity.test(stableId)) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "stable-datum-required",
-        path: stableId,
-        message: `Revision creation requires a Stable Datum ID, received '${stableId}'`,
-      }],
-    };
-  }
-  const loaded = await readRepositoryData(root, processPackage);
-  if (!loaded.ok) return loaded;
-  const lineage = stableLineage(loaded.value, stableId);
-  if (lineage.length === 0) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "unknown-datum",
-        path: stableId,
-        message: `Unknown Stable Datum '${stableId}'`,
-      }],
-    };
-  }
-  const editable = lineage.find((item) => item.lifecycleDatum.storage.editable);
-  if (editable) {
-    const revisionId = editable.lifecycleDatum.datum.revision_id;
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "editable-revision-exists",
-        path: revisionId,
-        message: `Stable Datum '${stableId}' already has editable Revision '${revisionId}'. Edit or abandon '${revisionId}' before creating another draft.`,
-      }],
-    };
-  }
-  const source = fromRevision === undefined
-    ? lineage.at(-1)
-    : lineage.find((item) => item.lifecycleDatum.datum.revision_id === fromRevision);
-  if (!source) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "unknown-source-revision",
-        path: fromRevision ?? stableId,
-        message: `Revision source '${fromRevision ?? stableId}' is not in Stable Datum '${stableId}'`,
-      }],
-    };
-  }
-  const sourceDatum = source.lifecycleDatum.datum;
-  const resolved = resolveType(processPackage, sourceDatum.type);
-  if (!resolved.ok) return resolved;
-  const authorshipDiagnostic = authorityEvidenceAuthorshipDiagnostic(
-    processPackage,
-    sourceDatum.type,
-  ) ?? generatedAuthorshipDiagnostic(sourceDatum.type, resolved.type.lifecycle);
-  if (authorshipDiagnostic) {
-    return { ok: false, diagnostics: [authorshipDiagnostic] };
-  }
-  const revision = Math.max(...lineage.map((item) =>
-    item.lifecycleDatum.datum.revision
-  )) + 1;
-  const revisionId = `${stableId}-r${String(revision).padStart(5, "0")}`;
-  const datum = structuredClone(sourceDatum);
-  datum.revision = revision;
-  datum.revision_id = revisionId;
-  datum.created_by.process_ref = `${packageReference}#${packageDigest}`;
-  const lifecycleData = loaded.value.map((item) => item.lifecycleDatum);
-  const diagnostics = validateDatum(processPackage, datum, lifecycleData);
-  if (diagnostics.length > 0) return { ok: false, diagnostics };
-
-  const relativePath = `.lifecycle/data/${datum.type}/${stableId}/${revisionId.slice(-6)}.md`;
-  const finalPath = path.join(root, relativePath);
-  const temporaryPath = path.join(
-    path.dirname(finalPath),
-    `.${path.basename(finalPath)}.${randomUUID()}.tmp`,
-  );
-  try {
-    await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
-    await fs.link(temporaryPath, finalPath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "revision-collision",
-          path: revisionId,
-          message: `Exact Revision '${revisionId}' already exists; history was not rewritten or renumbered`,
-        }],
-      };
-    }
-    throw error;
-  } finally {
-    await fs.rm(temporaryPath, { force: true });
-  }
-  return {
-    ok: true,
-    value: {
-      id: stableId,
-      revisionId,
-      type: datum.type,
-      path: relativePath,
-    },
-    diagnostics: [],
-  };
-}
-
-export async function replaceRepositoryDatum(
-  root: string,
-  processPackage: ProcessPackage,
-  parsed: ParsedDatum[],
-  source: ParsedDatum,
-  datum: DatumEnvelope,
-): Promise<RepositoryResult<DatumEnvelope>> {
-  const lifecycleData = parsed.map((item) =>
-    item === source ? { ...item.lifecycleDatum, datum } : item.lifecycleDatum
-  );
-  const diagnostics = validateDatum(processPackage, datum, lifecycleData);
-  if (diagnostics.length > 0) return { ok: false, diagnostics };
-  const finalPath = path.join(root, source.relativePath);
-  const temporaryPath = path.join(
-    path.dirname(finalPath),
-    `.${path.basename(finalPath)}.${randomUUID()}.tmp`,
-  );
-  try {
-    await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
-    await fs.rename(temporaryPath, finalPath);
-  } finally {
-    await fs.rm(temporaryPath, { force: true });
-  }
-  return { ok: true, value: datum, diagnostics: [] };
-}
-
-
 function durableGraphLinks(
   processPackage: ProcessPackage,
   lifecycleData: LifecycleRecord[],
@@ -1491,97 +1091,6 @@ function durableGraphLinks(
     left.type.localeCompare(right.type) ||
     left.target.localeCompare(right.target)
   );
-}
-
-export async function mutateDatumLink(
-  root: string,
-  processPackage: ProcessPackage,
-  sourceRevision: string,
-  target: string,
-  type: string,
-  operation: "added" | "removed",
-): Promise<RepositoryResult<LinkMutation>> {
-  if (!revisionIdentity.test(sourceRevision)) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "exact-source-revision-required",
-        path: sourceRevision,
-        message: `Link mutation requires an exact source Revision ID, received '${sourceRevision}'`,
-      }],
-    };
-  }
-  const loaded = await readRepositoryData(root, processPackage);
-  if (!loaded.ok) return loaded;
-  const source = loaded.value.find((item) =>
-    item.lifecycleDatum.datum.revision_id === sourceRevision
-  );
-  if (!source) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "unknown-source-revision",
-        path: sourceRevision,
-        message: `Unknown source Revision '${sourceRevision}'`,
-      }],
-    };
-  }
-  if (source.lifecycleDatum.storage.frozen) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "frozen-revision-immutable",
-        path: sourceRevision,
-        message: `Frozen Revision '${sourceRevision}' cannot be changed`,
-      }],
-    };
-  }
-
-  const datum = structuredClone(source.lifecycleDatum.datum);
-  const matching = (link: DatumEnvelope["links"][number]) =>
-    link.type === type && link.target === target;
-  if (operation === "added") datum.links.push({ type, target });
-  else {
-    const index = datum.links.findIndex(matching);
-    if (index < 0) {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "unknown-outgoing-link-instance",
-          path: `${sourceRevision}:${type}:${target}`,
-          message: `Revision '${sourceRevision}' has no '${type}' link to '${target}'`,
-        }],
-      };
-    }
-    datum.links.splice(index, 1);
-  }
-  datum.links.sort((left, right) =>
-    left.type.localeCompare(right.type) || left.target.localeCompare(right.target)
-  );
-  const lifecycleData = loaded.value.map((item) =>
-    item === source
-      ? { ...item.lifecycleDatum, datum }
-      : item.lifecycleDatum
-  );
-  const diagnostics = validateDatum(processPackage, datum, lifecycleData);
-  if (diagnostics.length > 0) return { ok: false, diagnostics };
-
-  const finalPath = path.join(root, source.relativePath);
-  const temporaryPath = path.join(
-    path.dirname(finalPath),
-    `.${path.basename(finalPath)}.${randomUUID()}.tmp`,
-  );
-  try {
-    await fs.writeFile(temporaryPath, renderDatum(datum), { flag: "wx" });
-    await fs.rename(temporaryPath, finalPath);
-  } finally {
-    await fs.rm(temporaryPath, { force: true });
-  }
-  return {
-    ok: true,
-    value: { operation, sourceRevision, type, target },
-    diagnostics: [],
-  };
 }
 
 export async function inspectBacklinks(

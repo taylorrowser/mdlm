@@ -10,7 +10,7 @@ import {
   frozenLifecycleRecord,
   reviewedGateFixture,
 } from "./helpers/lifecycle-scenarios.js";
-import { req, selectBootstrapProcessPackage } from "./helpers/req.js";
+import { mdlm, selectBootstrapProcessPackage } from "./helpers/mdlm.js";
 
 const prototypeSnapshot = path.join(
   process.cwd(),
@@ -29,7 +29,7 @@ async function writeSnapshot(
 
 function waivedRecords(): LifecycleRecord[] {
   const subject = frozenLifecycleRecord(
-    "git:req-lifecycle",
+    "git:mdlm-lifecycle",
     "PSP",
     "PSP-7K3M9Q2D8F",
     {
@@ -44,16 +44,16 @@ function waivedRecords(): LifecycleRecord[] {
   );
   const { waiver, review } = exactContextWaiverFor(
     subject,
-    "git:req-lifecycle",
+    "git:mdlm-lifecycle",
   );
   return [subject, waiver, review];
 }
 
-describe("req lifecycle status and next work", () => {
+describe("mdlm lifecycle status and next work", () => {
   let repositoryRoot: string;
 
   beforeEach(async () => {
-    repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-req-lifecycle-"));
+    repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-lifecycle-"));
     selectBootstrapProcessPackage(repositoryRoot);
   });
 
@@ -62,7 +62,7 @@ describe("req lifecycle status and next work", () => {
   });
 
   it("shows phase entry, candidates, Obligation summary, gate evidence, and exact blockers", () => {
-    const result = req(
+    const result = mdlm(
       repositoryRoot,
       "phase",
       "status",
@@ -101,7 +101,7 @@ describe("req lifecycle status and next work", () => {
       diagnostics: [],
     }));
 
-    const human = req(
+    const human = mdlm(
       repositoryRoot,
       "phase",
       "status",
@@ -119,7 +119,7 @@ describe("req lifecycle status and next work", () => {
   });
 
   it("reports ready and blocked Loose Ends without collapsing resolver, Dispatchability, output, or waiver dimensions", () => {
-    const result = req(
+    const result = mdlm(
       repositoryRoot,
       "loose-ends",
       "--snapshot",
@@ -165,7 +165,7 @@ describe("req lifecycle status and next work", () => {
     ]));
     expect(output.looseEnds.waiverSuppressed).toEqual([]);
 
-    const human = req(
+    const human = mdlm(
       repositoryRoot,
       "loose-ends",
       "--snapshot",
@@ -182,14 +182,14 @@ describe("req lifecycle status and next work", () => {
   });
 
   it("preserves blocked gate evidence", async () => {
-    const gateFixture = reviewedGateFixture("git:req-lifecycle");
+    const gateFixture = reviewedGateFixture("git:mdlm-lifecycle");
     const blockedGateSnapshot = await writeSnapshot(repositoryRoot, "blocked-gate", {
-      processRef: "git:req-lifecycle",
+      processRef: "git:mdlm-lifecycle",
       phaseId: "phase-0-wayfinding",
       records: gateFixture.beforeSignoffReview,
       dependencyComparisons: [],
     });
-    const blockedGate = req(
+    const blockedGate = mdlm(
       repositoryRoot,
       "phase",
       "status",
@@ -206,25 +206,25 @@ describe("req lifecycle status and next work", () => {
         dispatchable: false,
         actionableResolver: "review-datum-in-context@2",
         blockedBy: [
-          "passing-review-required@2:DEC-4K3M9Q2D8F-r00001:git:req-lifecycle",
+          "passing-review-required@2:DEC-4K3M9Q2D8F-r00001:git:mdlm-lifecycle",
         ],
       }),
     ]);
   }, 10_000);
 
   it("preserves reviewed gate evidence and progression", async () => {
-    const gateFixture = reviewedGateFixture("git:req-lifecycle");
+    const gateFixture = reviewedGateFixture("git:mdlm-lifecycle");
     const acceptedIntent = acceptedIntentForReviewedGate(
-      "git:req-lifecycle",
+      "git:mdlm-lifecycle",
       gateFixture,
     );
     const gateSnapshot = await writeSnapshot(repositoryRoot, "reviewed-gate", {
-      processRef: "git:req-lifecycle",
+      processRef: "git:mdlm-lifecycle",
       phaseId: "phase-0-wayfinding",
       records: [...gateFixture.records, acceptedIntent],
       dependencyComparisons: [],
     });
-    const gate = req(
+    const gate = mdlm(
       repositoryRoot,
       "phase",
       "status",
@@ -251,7 +251,7 @@ describe("req lifecycle status and next work", () => {
         }),
       }),
     ]);
-    const humanGate = req(
+    const humanGate = mdlm(
       repositoryRoot,
       "phase",
       "status",
@@ -270,7 +270,7 @@ describe("req lifecycle status and next work", () => {
       `Progression Evidence: ${gateFixture.signoff.datum.revision_id}`,
     );
 
-    const activePhase = req(
+    const activePhase = mdlm(
       repositoryRoot,
       "phase",
       "status",
@@ -292,12 +292,12 @@ describe("req lifecycle status and next work", () => {
 
   it("preserves exact waiver evidence", async () => {
     const waiverSnapshot = await writeSnapshot(repositoryRoot, "waived", {
-      processRef: "git:req-lifecycle",
+      processRef: "git:mdlm-lifecycle",
       phaseId: "phase-0-wayfinding",
       records: waivedRecords(),
       dependencyComparisons: [],
     });
-    const waiver = req(
+    const waiver = mdlm(
       repositoryRoot,
       "loose-ends",
       "--snapshot",
@@ -307,7 +307,7 @@ describe("req lifecycle status and next work", () => {
     expect(waiver.status, waiver.stderr).toBe(0);
     expect(JSON.parse(waiver.stdout).looseEnds.waiverSuppressed).toEqual([
       expect.objectContaining({
-        id: "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:req-lifecycle",
+        id: "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:mdlm-lifecycle",
         satisfied: false,
         status: "waived",
         dispatchable: false,
@@ -325,7 +325,7 @@ describe("req lifecycle status and next work", () => {
         },
       }),
     ]);
-    const humanWaiver = req(
+    const humanWaiver = mdlm(
       repositoryRoot,
       "loose-ends",
       "--snapshot",

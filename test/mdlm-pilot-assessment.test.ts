@@ -2,17 +2,14 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { req } from "./helpers/req.js";
+import { mdlm, selectBootstrapProcessPackage } from "./helpers/mdlm.js";
 
-const examplePackage = path.join(process.cwd(), ".lifecycle/process");
-
-describe("req Phase 0–2 pilot assessment", () => {
+describe("mdlm Phase 0–2 pilot assessment", () => {
   let repositoryRoot: string;
 
   beforeEach(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pilot-assessment-"));
-    const initialized = req(repositoryRoot, "init", "--process", examplePackage, "--json");
-    expect(initialized.status, initialized.stderr).toBe(0);
+    selectBootstrapProcessPackage(repositoryRoot);
   });
 
   afterEach(async () => {
@@ -20,7 +17,7 @@ describe("req Phase 0–2 pilot assessment", () => {
   });
 
   it("supplies package-owned pilot measurement, review, and expansion-decision contracts", () => {
-    const shown = req(repositoryRoot, "process", "show", "--json");
+    const shown = mdlm(repositoryRoot, "process", "show", "--json");
 
     expect(shown.status, shown.stderr).toBe(0);
     const catalogs = JSON.parse(shown.stdout).inspection.definitionCatalogs;

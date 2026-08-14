@@ -9,47 +9,49 @@ async function read(relativePath: string): Promise<string> {
 }
 
 describe("generic pi lifecycle operator instructions", () => {
-  it("declare one continuous public-interface loop with exact stop boundaries", async () => {
+  it("declare one continuous clean-interface loop with exact stop boundaries", async () => {
     const prompt = await read(".pi/prompts/mdlm.md");
     const agentContext = await read("AGENTS.md");
     const combined = `${prompt}\n${agentContext}`;
-    const normalizedPrompt = prompt.replace(/\s+/g, " ");
+    const normalized = combined.replace(/\s+/g, " ");
 
-    expect(normalizedPrompt).toContain("./bin/req next --json");
-    expect(normalizedPrompt).toContain("scenario dry-run");
-    expect(normalizedPrompt).toContain("scenario execute");
-    expect(normalizedPrompt).toContain("./bin/req doctor --json");
-    expect(normalizedPrompt).toContain("git status --porcelain");
-    expect(normalizedPrompt).toContain("git add -A");
-    expect(normalizedPrompt).toContain("git diff --cached --check");
-    expect(normalizedPrompt).toContain("git commit -m");
-    expect(normalizedPrompt).toContain("one atomic transaction");
-    expect(normalizedPrompt).toContain("not one assistant turn");
-    expect(normalizedPrompt).toContain("standingDelegation");
-    expect(normalizedPrompt).toContain("--delegation");
-    expect(normalizedPrompt).toContain("fresh read-only pi session");
-    expect(normalizedPrompt).toContain(
-      "does not require stakeholder authorization",
+    for (const instruction of [
+      "git status --porcelain",
+      "mdlm status --json",
+      "mdlm next --json",
+      "mdlm scenario prepare",
+      "mdlm scenario submit",
+      "mdlm-assignment-response@1",
+      "mdlm doctor",
+      "git diff --cached --check",
+      "one atomic publication transaction",
+      "fresh read-only session",
+      "Attention Required",
+      "Profile Boundary Reached",
+      "Lifecycle Complete",
+      "Process Dead End",
+      "typed inability",
+      "genuine ambiguity",
+    ]) {
+      expect(normalized).toContain(instruction);
+    }
+    expect(agentContext).toContain("public `mdlm` executable");
+    expect(agentContext.replace(/\s+/g, " ")).toContain(
+      "Never inspect or edit Lifecycle Data directly",
     );
-    expect(normalizedPrompt).toContain(
-      "every exact definition and evidence member",
-    );
-    expect(normalizedPrompt).toContain(
-      "execute with `--authorize '<projected-authority>'`",
-    );
-    expect(normalizedPrompt).toContain(
-      "operating session may instead execute",
-    );
-    expect(normalizedPrompt).toContain("pi -p --no-session --no-tools");
-    expect(normalizedPrompt).toContain("currently reached checkpoint");
-    expect(normalizedPrompt).toContain("consolidationGroup");
-    expect(normalizedPrompt).toContain("./bin/req loose-ends --json");
-    expect(normalizedPrompt).toContain("attended Authority Requirement");
-    expect(normalizedPrompt).toContain("Resume the loop immediately");
-    expect(normalizedPrompt).toContain("completed profile boundary");
-    expect(normalizedPrompt).toContain("genuine ambiguity or command failure");
-    expect(agentContext).toContain("public `req` commands");
-    expect(agentContext).toContain("Never inspect raw Process Package YAML");
+    expect(agentContext).toContain("inspect raw Process Package definitions");
+
+    for (const prohibited of [
+      "./bin/req",
+      "scenario dry-run",
+      "scenario execute",
+      "--adapter",
+      "process install",
+      "process use",
+      "public `req` commands",
+    ]) {
+      expect(combined).not.toContain(prohibited);
+    }
 
     for (const packageSpecificTerm of [
       "mdlm-bootstrap",

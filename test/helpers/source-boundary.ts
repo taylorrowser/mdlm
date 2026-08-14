@@ -1,13 +1,11 @@
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { req } from "./req.js";
+import { mdlm, mdlmWithInput } from "./mdlm.js";
 
 export async function freezeQuestionSource(
   repositoryRoot: string,
   revisionId: string,
 ): Promise<Record<string, unknown>> {
-  const projected = req(
+  const projected = mdlm(
     repositoryRoot,
     "loose-ends",
     "--phase",
@@ -25,50 +23,60 @@ export async function freezeQuestionSource(
   if (!obligation || typeof obligation.id !== "string") {
     throw new Error(`No source-boundary Obligation for '${revisionId}'`);
   }
+  const next = mdlm(repositoryRoot, "next");
+  if (next.status !== 0) throw new Error(`${next.stderr}${next.stdout}`);
+  const assignment = JSON.parse(next.stdout).assignment.id as string;
+  const prepared = mdlm(repositoryRoot, "scenario", "prepare", assignment);
+  if (prepared.status !== 0) {
+    throw new Error(`${prepared.stderr}${prepared.stdout}`);
+  }
+  const packet = JSON.parse(prepared.stdout);
+  if (packet.scenario.reference !== "freeze-source-boundary@1") {
+    throw new Error(
+      `Expected freeze-source-boundary@1, received ${packet.scenario.reference}`,
+    );
+  }
   const suffix = createHash("sha256").update(revisionId).digest("hex")
     .slice(0, 10).toUpperCase();
-  const executable = path.join(repositoryRoot, `source-boundary-${suffix}.mjs`);
-  await fs.writeFile(
-    executable,
-    `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify({
-      outputs: [{
-        name: "boundary",
-        invocation: 0,
-        lifecycleDatum: {
-          id: `BSL-${suffix}`,
-          type: "BSL",
-          payload: {
-            title: "Exact source boundary",
-            kind: "source-boundary",
-            role: "source-boundary",
-            scope: revisionId,
-            group: "SAME-LINEAGE",
-            definition_members: [revisionId],
-            evidence: [],
-          },
-          links: [],
-          body: "Freezes exactly the editable source Revision.\n",
-        },
-      }],
-      completionEvidence: { summary: "Exact source Revision frozen." },
-    }))});\n`,
-    { mode: 0o755 },
-  );
-  const executed = req(
+  const submitted = mdlmWithInput(
     repositoryRoot,
+    `${JSON.stringify({
+      contract: "mdlm-assignment-response@1",
+      assignment,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "boundary",
+          name: "boundary",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Exact source boundary",
+              kind: "source-boundary",
+              role: "source-boundary",
+              scope: revisionId,
+              group: "SAME-LINEAGE",
+              definition_members: [revisionId],
+              evidence: [],
+            },
+            links: [],
+            body: "Freezes exactly the editable source Revision.\n",
+          },
+        }],
+        completionEvidence: { summary: "Exact source Revision frozen." },
+        loadedSkillRefs: packet.prompt.skills.map(
+          (skill: { reference: string }) => skill.reference,
+        ),
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    })}\n`,
     "scenario",
-    "execute",
-    "freeze-source-boundary@1",
-    "--obligation",
-    obligation.id,
-    "--adapter",
-    executable,
-    "--input",
-    `source=${revisionId}`,
-    "--json",
+    "submit",
   );
-  if (executed.status !== 0) {
-    throw new Error(`${executed.stderr}${executed.stdout}`);
+  if (submitted.status !== 0) {
+    throw new Error(`${submitted.stderr}${submitted.stdout}`);
   }
-  return JSON.parse(executed.stdout).execution;
+  return JSON.parse(submitted.stdout).execution;
 }

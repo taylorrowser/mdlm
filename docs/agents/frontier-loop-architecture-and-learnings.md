@@ -494,7 +494,7 @@ Ambient Pi configuration already selected GPT-5.6 Sol/high, but relying on ambie
 
 Reviewers naturally compared early tracer bullets to the complete parent goal. That caused them to demand final contraction, sibling behavior, and parent-wide polish too early. The prompt now makes the active child the delivery boundary while retaining parent invariants.
 
-The #87 review surfaced the useful distinction: `mdlm scenario submit` needed to become the canonical normal writer now, while the temporary `req` bridge itself remains until #104.
+The #87 review surfaced the useful staging distinction: `mdlm scenario submit` became the canonical normal writer before issue #104 completed the final public-interface contraction.
 
 **Lesson:** staged delivery needs both a binding parent invariant and an explicit “not yet” boundary. Without both, review either permits architectural drift or blocks every intermediate tracer.
 

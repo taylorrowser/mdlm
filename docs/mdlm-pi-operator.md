@@ -1,82 +1,94 @@
 # Generic pi operator loop
 
 The reusable example under [`examples/pi-operator`](../examples/pi-operator)
-turns pi into a package-neutral MDLM operator. Copy its `AGENTS.md` and `.pi`
-directory into an initialized lifecycle repository, provide conventional
-`./bin/req` and `./bin/scenario-adapter` executables, trust the project, and run
-`/mdlm`.
+turns pi into a package-neutral MDLM harness. Copy its `AGENTS.md` and `.pi`
+directory into a repository created by `mdlm init`, trust the project, and run
+`/mdlm` with the `mdlm` executable available to the harness.
 
-The template deliberately contains no Phase, lifecycle-type, Scenario, metric,
+The template contains no package-specific phase, lifecycle-type, Scenario, metric,
 or recommendation sequence. The selected Process Package remains the source of
-work and participation semantics. Normal operation uses only public `req`
-projections; it does not read raw package YAML, private MDLM source, authoritative
-Markdown directly, or disposable generated views.
+work, participation, authority, output, and completion semantics.
 
 ## Continuous operation
 
-For each transaction, the operator:
+For each transaction, the harness:
 
-1. requires a clean Git tree, then reads the one deterministic item from
-   `req next --json`;
-2. treats a selected checkpoint-scheduled item as that checkpoint being reached
-   and collects its compatible attention before execution;
-3. dry-runs its exact `actionableResolver` under its exact Obligation Instance;
-4. follows the resolved prompt, skills, inputs, Policies, participation, output
-   contract, prohibited inputs, and completion expression;
-5. executes one atomic transaction through the configured adapter;
-6. runs `req doctor --json`, stages and checks only changes made since the clean
-   boundary, commits non-interactively, and reevaluates `req next --json` without
-   returning to the stakeholder.
+1. requires `git status --porcelain` to be empty;
+2. runs `mdlm status --json` for orientation and `mdlm next --json` for one exact
+   Operator Outcome;
+3. prepares an Assignment with
+   `mdlm scenario prepare <assignment-id> --json`;
+4. follows only the prepared packet's prompt, skills, exact inputs, Policies,
+   participation, prohibited inputs, output contracts, required links, and
+   completion conditions;
+5. performs autonomous work, obtains fresh package-delegated judgment, or conducts
+   the projected attended conversation as declared by that packet;
+6. submits one complete Assignment Response with
+   `mdlm scenario submit [response-file|-] --json`;
+7. runs `mdlm doctor --json`, inspects only the transaction diff, and commits it
+   with ordinary Git; and
+8. explicitly reevaluates with `mdlm status --json` and `mdlm next --json`.
 
-“One coherent Scenario” therefore describes an atomic publication boundary, not
-an assistant-turn boundary. A successful Review, gate, commit, or Phase
-progression is not by itself a reason to pause.
+One coherent Scenario is one atomic publication boundary, not one assistant-turn
+boundary. A successful Review, gate, commit, or phase progression is not itself a
+reason to pause.
 
-If `next.item` is null, the operator uses public Phase-status and Loose-End
-projections to distinguish the implemented profile boundary from blocked,
-ambiguous, or failed work. It does not invent an explicitly initiated Scenario.
+## Harness-owned work and authority
 
-## Authority and attention
+Preparation is side-effect-free. It is the complete harness-neutral instruction
+packet for the exact leased Assignment.
 
-Participation remains independent of transaction batching:
+- Autonomous work may proceed in the operating session.
+- Package-delegated judgment uses a fresh read-only session. The delegate receives
+  only prepared and read-only inspection evidence and returns proposed exact
+  authority evidence; the operating harness remains responsible for submission.
+- Attention Required uses the exact projected Authority Requirement and
+  `attentionContext.invocations`. The harness conducts the conversation, preserves
+  each package-owned input, and normalizes explicit conclusions into the prepared
+  response shape. It does not infer approval from prose.
+- Exact reviewed Standing Delegation may be used only when the prepared packet
+  projects it as applicable. It is not a substitute for nondelegable attended
+  authority.
 
-- autonomous work continues immediately;
-- package-delegated work with no scheduled attention runs in a fresh read-only
-  delegate session without asking the stakeholder for per-execution permission;
-- attended authority without exact applicable delegation stops at the projected
-  Authority Requirement;
-- after the stakeholder supplies attended authority, the same operating session
-  runs the pending public Scenario with `--authorize` and immediately resumes the
-  loop;
-- when `req next` selects checkpoint-scheduled work, that reached checkpoint's
-  attention is collected from `req loose-ends --json` by exact checkpoint and
-  Consolidation Group, then presented together without treating
-  the items as satisfied, deferred, or one transaction.
+Raw conversation need not become Lifecycle Data. Durable authority is the exact
+REV or DEC output required by the Scenario, not chat text or a completion summary.
 
-For package-delegated work with attention timing `none`, the operator starts a
-fresh read-only pi session and uses the returned proposal in the canonical
-operating session. Reviewer packets use only dry-run and public `req show`/`req
-schema` projections and expand every exact definition and evidence member in the
-frozen context. The operating session then passes the projected delegate role
-with `--authorize`; this is the separate delegate supplying its declared
-execution authority, not stakeholder authorization or operating-session
-self-judgment.
+Read-only `mdlm show`, `schema`, `phase status`, `loose-ends`, trace, history,
+baseline, and Process Package inspection may expand evidence named by the packet.
+Do not inspect or edit authoritative Lifecycle Data or raw package definitions to
+invent missing inputs.
 
-Scenario dry-run also projects its package-declared `standingDelegation` contract
-and exact `applicableEvidence` Revision IDs. When evidence exists, the operating
-session may instead pass that exact Revision with `--delegation`. Standing
-Delegation remains necessary when attended authority is being delegated, but it
-is not a prerequisite for package-delegated/no-attention work.
+## Git boundary
+
+The clean starting tree separates the pending transaction from unrelated work.
+After successful submission and doctor:
+
+```bash
+git status --short
+git add -N .lifecycle/data
+git diff -- .lifecycle/data
+git add .lifecycle/data
+git diff --cached --check
+git commit -m "Publish Scenario transaction"
+```
+
+Stop on an unexpected path or byte. Ordinary Git history belongs to the operator;
+MDLM does not commit normal Scenario transactions.
 
 ## Stop conditions
 
-The operator stops only for:
+Interpret the returned Operator Outcome, never a remembered package sequence:
 
-- an attended Authority Requirement without exact applicable delegation;
-- unresolved attention at the currently reached checkpoint;
-- genuine ambiguity or command failure;
-- a failed doctor check; or
-- a publicly proven completed implementation-profile boundary.
+- **Assignment:** continue through prepare, response, submit, doctor, and Git.
+- **Attention Required:** conduct the projected conversation if the named authority
+  is present; otherwise stop and report the exact Authority Requirement.
+- **Profile Boundary Reached:** stop successfully at the package-declared profile
+  boundary without claiming Lifecycle Complete.
+- **Lifecycle Complete:** stop successfully at the package-declared lifecycle end.
+- **Process Dead End:** stop unsuccessfully and report the exact blockers as a
+  Package Liveness Defect.
+- **Invalid:** stop unsuccessfully on integrity failure.
 
-The stakeholder never needs to run lifecycle commands or repeat “continue” after
-supplying requested authority.
+Also stop on dirty initial state, stale or exhausted Assignment, typed inability,
+failed doctor, unexpected diff, genuine ambiguity, or command failure. Never
+invent Lifecycle Data or an undeclared Scenario to escape a stop.

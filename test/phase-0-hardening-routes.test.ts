@@ -1,11 +1,9 @@
-import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
   loadProcessPackage,
@@ -19,16 +17,19 @@ import {
   evaluateScenarioParticipation,
 } from "../src/evaluator.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
-import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import {
-  copiedProcessPackage,
-  suppressPhase0FoundationObligations,
-} from "./helpers/process-package.js";
-import { req } from "./helpers/req.js";
-import { freezeQuestionSource } from "./helpers/source-boundary.js";
+  directoryDigest,
+  inputRevision,
+  inputRevisions,
+  prepareNextAssignment,
+  submitAssignment,
+  type PreparedAssignment,
+  type ProposedOutput,
+} from "./helpers/assignment-submission.js";
+import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
+import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-const mdlmExecutable = path.join(process.cwd(), "dist/mdlm.js");
 const processRef = "mdlm-bootstrap@0.59.0#sha256:phase-0-route-evidence";
 const revisionId = (id: string, revision = 1) =>
   `${id}-r${String(revision).padStart(5, "0")}`;
@@ -259,304 +260,341 @@ function obligation(
   );
 }
 
-async function treeDigest(root: string): Promise<string> {
-  const files: string[] = [];
-  async function visit(directory: string): Promise<void> {
-    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) await visit(absolute);
-      else files.push(path.relative(root, absolute));
+function exactInput(prepared: PreparedAssignment, name: string) {
+  const input = prepared.packet.exactInputs[0].inputs.find(
+    (candidate: { name: string }) => candidate.name === name,
+  );
+  if (!input) throw new Error(`Missing exact Assignment input '${name}'`);
+  return input.values[0] as {
+    identity: { id: string; revision_id: string; type: string };
+  };
+}
+
+async function initializedRepository(prefix: string): Promise<{
+  parent: string;
+  repository: string;
+}> {
+  const parent = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  const repository = path.join(parent, "repository");
+  const initialized = mdlm(parent, "init", repository, "--json");
+  if (initialized.status !== 0) {
+    await fs.rm(parent, { recursive: true, force: true });
+    throw new Error(`${initialized.stderr}${initialized.stdout}`);
+  }
+  return { parent, repository };
+}
+
+function mapOutput(empiricalEvidenceAvailable?: boolean): ProposedOutput[] {
+  const withEmpiricalQuestion = empiricalEvidenceAvailable !== undefined;
+  return [{
+    localId: "map",
+    name: "map",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "MAP",
+      payload: {
+        title: "Exact public Phase 0 frontier",
+        purpose: "Reach each retained hardening route through compiled mdlm Assignments.",
+        frontier: withEmpiricalQuestion
+          ? ["$proposal.question.revision_id"]
+          : ["Compile the smallest sufficient product intent"],
+      },
+      links: [],
+      body: "One exact public decision frontier.\n",
+    },
+  }, ...(withEmpiricalQuestion
+    ? [{
+        localId: "question",
+        name: "questions",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "QST",
+          payload: {
+            title: "Exact empirical repository answer",
+            kind: "empirical",
+            evidence_available: empiricalEvidenceAvailable,
+            question: "Does the observed public transaction preserve exact QST lineage?",
+            state: "open",
+            blocking_impact: "The empirical route remains unproven without publication",
+          },
+          links: [],
+          body: "Available exact public evidence can answer this Question.\n",
+        },
+      } satisfies ProposedOutput]
+    : [])];
+}
+
+function reviewContextOutput(prepared: PreparedAssignment): ProposedOutput[] {
+  const subject = inputRevision(prepared, "subject");
+  const members = [subject, ...inputRevisions(prepared, "context_members")];
+  return [{
+    localId: "context",
+    name: "context",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "BSL",
+      payload: {
+        title: `Exact public Review Context for ${subject}`,
+        kind: "review-context",
+        role: "review-context",
+        scope: subject,
+        group: "phase-0-route-evidence",
+        definition_members: [...new Set(members)],
+        evidence: [],
+      },
+      links: [],
+      body: "The exact public Review context is frozen.\n",
+    },
+  }];
+}
+
+function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
+  const subject = inputRevision(prepared, "subject");
+  const context = inputRevision(prepared, "review_context");
+  return [{
+    localId: "review",
+    name: "review",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "REV",
+      payload: {
+        title: `Passing independent Review of ${subject}`,
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        findings: [],
+        outcome: "pass",
+      },
+      links: [
+        { type: "reviews", target: subject },
+        { type: "contextualizes", target: context },
+      ],
+      body: "The exact public foundation Revision passes independent Review.\n",
+    },
+  }];
+}
+
+async function advancePhase0To(
+  repository: string,
+  targetScenario: string,
+  options: { empiricalEvidenceAvailable?: boolean } = {},
+): Promise<{ prepared: PreparedAssignment; reviewRevisions: string[] }> {
+  const reviewRevisions: string[] = [];
+  for (let step = 0; step < 20; step += 1) {
+    const prepared = prepareNextAssignment(repository);
+    const scenario = prepared.packet.scenario.reference as string;
+    if (scenario === targetScenario) return { prepared, reviewRevisions };
+    let outputs: ProposedOutput[];
+    switch (scenario) {
+      case "establish-initial-wayfinding-map@1":
+        outputs = mapOutput(options.empiricalEvidenceAvailable);
+        break;
+      case "create-review-context@1":
+        outputs = reviewContextOutput(prepared);
+        break;
+      case "review-datum-in-context@2":
+        outputs = passingReviewOutput(prepared);
+        break;
+      case "compile-psp@2":
+        outputs = [{
+          localId: "product",
+          name: "product_specification",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "PSP",
+            payload: {
+              title: "Exact public product intent",
+              rationale: "Reach the exact downstream stakeholder route.",
+              problem: "The public operator needs deterministic lifecycle outcomes.",
+              users: ["operator"],
+              goals: ["publish exact lifecycle truth"],
+              non_goals: ["direct repository mutation"],
+              success_measures: ["fresh independent Review follows publication"],
+            },
+            links: [],
+            body: "One exact public product specification.\n",
+          },
+        }];
+        break;
+      case "draft-stakeholder-requirements@2": {
+        const product = exactInput(prepared, "product_specification").identity;
+        outputs = [{
+          localId: "requirement",
+          name: "requirements",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "STK",
+            payload: {
+              title: "Exact public stakeholder commitment",
+              rationale: "Bind observable behavior to the exact product intent.",
+              statement: "The product shall publish one deterministic operator outcome.",
+              verification_intent: "Observe the exact compiled public outcome.",
+              stakeholder: "operator",
+              priority: "must",
+            },
+            links: [{ type: "derived-from", target: product.id }],
+            body: "One exact stakeholder-visible commitment.\n",
+          },
+        }];
+        break;
+      }
+      case "freeze-source-boundary@1": {
+        const question = inputRevision(prepared, "source");
+        outputs = [{
+          localId: "boundary",
+          name: "boundary",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Exact empirical Question source boundary",
+              kind: "source-boundary",
+              role: "source-boundary",
+              scope: question,
+              group: "SAME-LINEAGE",
+              definition_members: [question],
+              evidence: [],
+            },
+            links: [],
+            body: "The exact empirical source Revision is frozen.\n",
+          },
+        }];
+        break;
+      }
+      default:
+        throw new Error(
+          `Unexpected ${scenario} while advancing to ${targetScenario}`,
+        );
+    }
+    const submitted = submitAssignment(repository, prepared, outputs);
+    if (submitted.status !== 0) {
+      throw new Error(`${scenario}: ${submitted.stderr}${submitted.stdout}`);
+    }
+    const execution = JSON.parse(submitted.stdout).execution;
+    if (scenario === "review-datum-in-context@2") {
+      reviewRevisions.push(execution.outputs[0].lifecycleDatum.revisionId);
     }
   }
-  await visit(root);
-  const hash = createHash("sha256");
-  for (const file of files.sort()) {
-    hash.update(file).update("\0").update(await fs.readFile(path.join(root, file)));
-  }
-  return hash.digest("hex");
-}
-
-function mdlm(repository: string, input: string | undefined, ...arguments_: string[]) {
-  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
-    cwd: repository,
-    encoding: "utf8",
-    ...(input === undefined ? {} : { input }),
-    maxBuffer: 10 * 1024 * 1024,
-  });
-}
-
-function git(repository: string, ...arguments_: string[]) {
-  return spawnSync("git", ["-C", repository, ...arguments_], { encoding: "utf8" });
-}
-
-async function adapter(root: string, name: string, response: unknown): Promise<string> {
-  const executable = path.join(root, `${name}.mjs`);
-  await fs.writeFile(
-    executable,
-    `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(response))});\n`,
-    { mode: 0o755 },
-  );
-  return executable;
+  throw new Error(`Did not reach ${targetScenario}`);
 }
 
 describe("Phase 0 missing hardening routes", () => {
   let processPackage: ProcessPackage;
-  const roots: string[] = [];
-
   beforeAll(async () => {
     const loaded = await loadProcessPackage(bootstrapPackage);
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
     processPackage = loaded.package;
   });
 
-  afterEach(async () => {
-    await Promise.all(roots.splice(0).map((root) =>
-      fs.rm(root, { recursive: true, force: true })
-    ));
-  });
-
   it("publishes PSP atomically through compile-psp@2 at the public repository seam and yields fresh PSP Review work", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase0-psp-"));
-    roots.push(root);
-    const initialized = req(root, "init", "--process", bootstrapPackage, "--json");
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-    const map = req(
-      root,
-      "new",
-      "MAP",
-      "--scenario",
-      "establish-initial-wayfinding-map@1",
-      "--set",
-      "title=Exact public PSP frontier",
-      "--set",
-      "purpose=Exercise PSP publication through one repository transaction",
-      "--set",
-      'frontier=["publish one exact product specification"]',
-      "--json",
-    );
-    expect(map.status, `${map.stderr}${map.stdout}`).toBe(0);
+    const { parent, repository } = await initializedRepository("mdlm-phase0-psp-");
+    try {
+      const { prepared } = await advancePhase0To(repository, "compile-psp@2");
+      const dataRoot = path.join(repository, ".lifecycle/data");
+      const beforeInvalid = await directoryDigest(dataRoot);
+      const invalid = submitAssignment(repository, prepared, []);
+      expect(invalid.status).toBe(1);
+      expect(JSON.parse(invalid.stdout)).toEqual(expect.objectContaining({
+        disposition: "correction-required",
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-output-cardinality-invalid" }),
+        ]),
+      }));
+      expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
-    const projected = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-    expect(projected.status, projected.stderr).toBe(0);
-    const productWork = JSON.parse(projected.stdout).looseEnds.items.find(
-      (item: { obligation: string }) => item.obligation === "product-specification-required",
-    ) as { id: string } | undefined;
-    expect(productWork).toEqual(expect.objectContaining({
-      id: expect.any(String),
-      status: "ready",
-      actionableResolver: "compile-psp@2",
-    }));
-
-    const response = (successMeasures: string[]) => ({
-      outputs: [{
+      const valid = submitAssignment(repository, prepared, [{
+        localId: "product",
         name: "product_specification",
         invocation: 0,
         lifecycleDatum: {
-          id: "PSP-1030000098",
           type: "PSP",
           payload: {
             title: "Exact publicly compiled product specification",
-            rationale: "Publish product intent through the compiled repository command.",
+            rationale: "Publish product intent through one Assignment Response.",
             problem: "The public PSP route needs literal executable evidence.",
             users: ["operator"],
             goals: ["publish one exact PSP atomically"],
             non_goals: ["direct lifecycle data mutation"],
-            success_measures: successMeasures,
+            success_measures: ["fresh PSP Review work follows publication"],
           },
           links: [],
           body: "One exact product specification published through compile-psp@2.\n",
         },
-      }],
-      completionEvidence: { summary: "The exact PSP was compiled." },
-    });
-    const dataRoot = path.join(root, ".lifecycle/data");
-    const beforeInvalid = await treeDigest(dataRoot);
-    const invalidAdapter = await adapter(root, "invalid-psp", response([]));
-    const invalid = req(
-      root,
-      "scenario",
-      "execute",
-      "compile-psp@2",
-      "--obligation",
-      productWork!.id,
-      "--adapter",
-      invalidAdapter,
-      "--json",
-    );
-    expect(invalid.status).toBe(1);
-    expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "scenario-output-schema-invalid" }),
-    ]));
-    expect(await treeDigest(dataRoot)).toBe(beforeInvalid);
-
-    const validAdapter = await adapter(
-      root,
-      "valid-psp",
-      response(["fresh PSP Review work follows publication"]),
-    );
-    const valid = req(
-      root,
-      "scenario",
-      "execute",
-      "compile-psp@2",
-      "--obligation",
-      productWork!.id,
-      "--adapter",
-      validAdapter,
-      "--json",
-    );
-    expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
-    const execution = JSON.parse(valid.stdout).execution;
-    expect(execution).toEqual(expect.objectContaining({
-      definition: expect.objectContaining({ scenario: "compile-psp@2" }),
-      completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
-      outputs: [expect.objectContaining({
-        name: "product_specification",
-        lifecycleDatum: expect.objectContaining({
-          id: "PSP-1030000098",
-          revisionId: "PSP-1030000098-r00001",
-          type: "PSP",
-        }),
-      })],
-    }));
-    const shown = req(root, "show", "PSP-1030000098-r00001", "--json");
-    expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
-    expect(JSON.parse(shown.stdout).lifecycleDatum).toMatchObject({
-      datum: {
-        revision_id: "PSP-1030000098-r00001",
+      }]);
+      expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
+      const execution = JSON.parse(valid.stdout).execution;
+      const product = execution.outputs[0].lifecycleDatum;
+      expect(execution).toEqual(expect.objectContaining({
+        contract: "mdlm-scenario-execution@4",
+        definition: expect.objectContaining({ scenario: "compile-psp@2" }),
+        completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
+      }));
+      expect(product).toEqual(expect.objectContaining({
         type: "PSP",
-        created_by: { scenario: "compile-psp@2" },
-        payload: {
-          title: "Exact publicly compiled product specification",
-          success_measures: ["fresh PSP Review work follows publication"],
-        },
-      },
-      integrity: { scenario_execution_valid: true },
-    });
-    const after = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-    expect(after.status, after.stderr).toBe(0);
-    expect(JSON.parse(after.stdout).looseEnds.items).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        obligation: "review-context-required",
-        subject: "PSP-1030000098-r00001",
-        status: "ready",
-        actionableResolver: "create-review-context@1",
-      }),
-    ]));
-  }, 30_000);
+        revision: 1,
+        revisionId: expect.stringMatching(/^PSP-.*-r00001$/),
+      }));
+      const doctor = mdlm(repository, "doctor", "--json");
+      expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+      const next = prepareNextAssignment(repository, "create-review-context@1");
+      expect(inputRevision(next, "subject")).toBe(product.revisionId);
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }, 45_000);
 
   it("publishes STK through draft-stakeholder-requirements atomically and yields fresh STK Review work", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase0-stk-"));
-    roots.push(root);
-    const initialized = req(root, "init", "--process", bootstrapPackage, "--json");
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-    const packageDigest = JSON.parse(initialized.stdout).package.digest as string;
-    const created = req(
-      root,
-      "new",
-      "PSP",
-      "--scenario",
-      "compile-psp@2",
-      "--set",
-      "title=Exact public STK route",
-      "--set",
-      "rationale=Exercise one real repository transaction",
-      "--set",
-      "problem=Stakeholder intent needs an exact commitment",
-      "--set",
-      'users=["operator"]',
-      "--set",
-      'goals=["publish one exact STK"]',
-      "--set",
-      "non_goals=[]",
-      "--set",
-      'success_measures=["fresh Review work follows"]',
-      "--json",
-    );
-    expect(created.status, `${created.stderr}${created.stdout}`).toBe(0);
-    const product = JSON.parse(created.stdout).created as {
-      id: string;
-      revisionId: string;
-    };
-    const obligationId =
-      `stakeholder-requirements-required@1:${product.revisionId}:mdlm-bootstrap@0.59.0#${packageDigest}`;
-    const response = (target: string) => ({
-      outputs: [{
+    const { parent, repository } = await initializedRepository("mdlm-phase0-stk-");
+    try {
+      const { prepared } = await advancePhase0To(
+        repository,
+        "draft-stakeholder-requirements@2",
+      );
+      const product = exactInput(prepared, "product_specification").identity;
+      const dataRoot = path.join(repository, ".lifecycle/data");
+      const beforeInvalid = await directoryDigest(dataRoot);
+      const malformed: ProposedOutput = {
+        localId: "requirement",
         name: "requirements",
         invocation: 0,
         lifecycleDatum: {
-          id: "STK-1030000099",
           type: "STK",
           payload: {
-            title: "Exact public stakeholder requirement",
-            rationale: "Bind one stakeholder-visible outcome to the governing PSP.",
-            statement: "The product shall publish one exact operator outcome.",
-            verification_intent: "Observe the exact public outcome.",
+            title: "Malformed public stakeholder commitment",
+            rationale: "Exercise atomic required-link rejection.",
+            statement: "The product shall reject this incomplete proposal.",
+            verification_intent: "Observe no publication.",
             stakeholder: "operator",
             priority: "must",
           },
-          links: [{ type: "derived-from", target }],
-          body: "One exact stakeholder-visible commitment.\n",
+          links: [],
+          body: "Missing the exact required product link.\n",
         },
-      }],
-      completionEvidence: { summary: "The exact STK was drafted." },
-    });
-    const dataRoot = path.join(root, ".lifecycle/data");
-    const beforeInvalid = await treeDigest(dataRoot);
-    const invalidAdapter = await adapter(root, "invalid-stk", response("PSP-0000000000"));
-    const invalid = req(
-      root,
-      "scenario",
-      "execute",
-      "draft-stakeholder-requirements@2",
-      "--obligation",
-      obligationId,
-      "--adapter",
-      invalidAdapter,
-      "--json",
-    );
-    expect(invalid.status).toBe(1);
-    expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "scenario-output-required-link-missing" }),
-    ]));
-    expect(await treeDigest(dataRoot)).toBe(beforeInvalid);
+      };
+      const invalid = submitAssignment(repository, prepared, [malformed]);
+      expect(invalid.status).toBe(1);
+      expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-output-required-link-missing" }),
+      ]));
+      expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
-    const validAdapter = await adapter(root, "valid-stk", response(product.id));
-    const valid = req(
-      root,
-      "scenario",
-      "execute",
-      "draft-stakeholder-requirements@2",
-      "--obligation",
-      obligationId,
-      "--adapter",
-      validAdapter,
-      "--json",
-    );
-    expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
-    const output = JSON.parse(valid.stdout);
-    const requirement = output.execution.outputs[0].lifecycleDatum;
-    expect(output.execution).toEqual(expect.objectContaining({
-      definition: expect.objectContaining({
-        scenario: "draft-stakeholder-requirements@2",
-      }),
-      completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
-    }));
-    expect(output.execution.outputs[0].data.links).toContainEqual({
-      type: "derived-from",
-      target: product.id,
-    });
-    const looseEnds = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-    expect(looseEnds.status, looseEnds.stderr).toBe(0);
-    expect(JSON.parse(looseEnds.stdout).looseEnds.items).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        obligation: "review-context-required",
-        subject: requirement.revisionId,
-        status: "ready",
-        actionableResolver: "create-review-context@1",
-      }),
-    ]));
-  }, 30_000);
+      malformed.lifecycleDatum.links = [{ type: "derived-from", target: product.id }];
+      malformed.lifecycleDatum.payload.title = "Exact public stakeholder requirement";
+      const valid = submitAssignment(repository, prepared, [malformed]);
+      expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
+      const execution = JSON.parse(valid.stdout).execution;
+      const requirement = execution.outputs[0].lifecycleDatum;
+      expect(execution.definition.scenario).toBe("draft-stakeholder-requirements@2");
+      expect(execution.outputs[0].data.links).toContainEqual({
+        type: "derived-from",
+        target: product.id,
+      });
+      expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+      const next = prepareNextAssignment(repository, "create-review-context@1");
+      expect(inputRevision(next, "subject")).toBe(requirement.revisionId);
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it("creates only a complete reviewed Phase 0 intent candidate and then yields fresh candidate Review work", () => {
     const foundation = phase0Foundation();
@@ -601,115 +639,21 @@ describe("Phase 0 missing hardening routes", () => {
   });
 
   it("publishes a complete candidate atomically through create-phase-0-intent-candidate with exact frozen membership", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase0-candidate-"));
-    roots.push(root);
-    const initialized = req(root, "init", "--process", bootstrapPackage, "--json");
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-
-    const create = (arguments_: string[]) => {
-      const result = req(root, ...arguments_, "--json");
-      expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
-      return JSON.parse(result.stdout).created as { id: string; revisionId: string };
-    };
-    const map = create([
-      "new", "MAP", "--scenario", "establish-initial-wayfinding-map@1",
-      "--set", "title=Public candidate frontier",
-      "--set", "purpose=Freeze exact reviewed Phase 0 membership",
-      "--set", 'frontier=["one exact product commitment"]',
-    ]);
-    const product = create([
-      "new", "PSP", "--scenario", "compile-psp@2",
-      "--set", "title=Public candidate product",
-      "--set", "rationale=Exercise exact candidate publication",
-      "--set", "problem=Candidate membership must be complete",
-      "--set", 'users=["operator"]',
-      "--set", 'goals=["freeze exact membership"]',
-      "--set", "non_goals=[]",
-      "--set", 'success_measures=["incomplete membership is rejected"]',
-    ]);
-    const requirement = create([
-      "new", "STK", "--scenario", "draft-stakeholder-requirements@2",
-      "--set", "title=Public candidate requirement",
-      "--set", "rationale=Retain one exact stakeholder commitment",
-      "--set", "statement=The product shall freeze complete reviewed intent.",
-      "--set", "verification_intent=Inspect exact candidate membership.",
-      "--set", "stakeholder=operator",
-      "--set", "priority=must",
-      "--link", `derived-from=${product.id}`,
-    ]);
-    const subjects = [map, product, requirement];
-    const reviews: string[] = [];
-    for (const [index, subject] of subjects.entries()) {
-      const context = create([
-        "baseline", "create", "--type", "BSL",
-        "--scenario", "create-review-context@1",
-        "--set", `title=Public candidate member context ${index + 1}`,
-        "--set", "kind=review-context",
-        "--set", "role=review-context",
-        "--set", `scope=${subject.revisionId}`,
-        "--set", "group=phase-0-wayfinding",
-      ]);
-      const added = req(root, "baseline", "add", context.id, subject.revisionId, "--json");
-      expect(added.status, `${added.stderr}${added.stdout}`).toBe(0);
-      const frozen = req(root, "baseline", "freeze", context.id, "--json");
-      expect(frozen.status, `${frozen.stderr}${frozen.stdout}`).toBe(0);
-      const projected = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-      expect(projected.status, projected.stderr).toBe(0);
-      const reviewWork = JSON.parse(projected.stdout).looseEnds.items.find(
-        (item: { obligation: string; subject: string }) =>
-          item.obligation === "passing-review-required" &&
-          item.subject === subject.revisionId,
-      ) as { id: string } | undefined;
-      expect(reviewWork).toBeDefined();
-      const reviewAdapter = await adapter(root, `candidate-member-review-${index}`, {
-        outputs: [{
-          name: "review",
-          invocation: 0,
-          lifecycleDatum: {
-            id: `REV-103000009${index}`,
-            type: "REV",
-            payload: {
-              title: `Passing public candidate member Review ${index + 1}`,
-              review_kind: "contextual",
-              rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-              findings: [],
-              outcome: "pass",
-            },
-            links: [
-              { type: "reviews", target: subject.revisionId },
-              { type: "contextualizes", target: context.revisionId },
-            ],
-            body: "The exact candidate member passes independent Review.\n",
-          },
-        }],
-        completionEvidence: { summary: "Independent member Review passed." },
-      });
-      const reviewed = req(
-        root,
-        "scenario", "execute", "review-datum-in-context@2",
-        "--obligation", reviewWork!.id,
-        "--authorize", "independent-reviewer",
-        "--adapter", reviewAdapter,
-        "--input", `subject=${subject.revisionId}`,
-        "--input", `review_context=${context.revisionId}`,
-        "--json",
+    const { parent, repository } = await initializedRepository("mdlm-phase0-candidate-");
+    try {
+      const { prepared, reviewRevisions } = await advancePhase0To(
+        repository,
+        "create-phase-0-intent-candidate@1",
       );
-      expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
-      reviews.push(JSON.parse(reviewed.stdout).execution.outputs[0].lifecycleDatum.revisionId);
-    }
-
-    const projected = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-    expect(projected.status, projected.stderr).toBe(0);
-    const candidateWork = JSON.parse(projected.stdout).looseEnds.items.find(
-      (item: { obligation: string }) => item.obligation === "intent-candidate-required",
-    ) as { id: string } | undefined;
-    expect(candidateWork).toBeDefined();
-    const candidateResponse = (members: string[]) => ({
-      outputs: [{
+      const members = inputRevisions(prepared, "definition_members");
+      expect(members.map((revision) => revision.slice(0, 3)).sort()).toEqual([
+        "MAP", "PSP", "STK",
+      ]);
+      const candidate = (definitionMembers: string[]): ProposedOutput => ({
+        localId: "candidate",
         name: "candidate",
         invocation: 0,
         lifecycleDatum: {
-          id: "BSL-1030000099",
           type: "BSL",
           payload: {
             title: "Public exact Phase 0 candidate",
@@ -717,68 +661,42 @@ describe("Phase 0 missing hardening routes", () => {
             role: "candidate",
             scope: "public-candidate-route",
             group: "DEFAULT",
-            definition_members: members,
-            evidence: reviews,
+            definition_members: definitionMembers,
+            evidence: reviewRevisions,
           },
           links: [],
           body: "The complete exact reviewed foundation is frozen.\n",
         },
-      }],
-      completionEvidence: { summary: "Exact intent candidate frozen." },
-    });
-    const dataRoot = path.join(root, ".lifecycle/data");
-    const beforeInvalid = await treeDigest(dataRoot);
-    const invalidAdapter = await adapter(
-      root,
-      "incomplete-candidate",
-      candidateResponse(subjects.slice(0, 2).map((subject) => subject.revisionId)),
-    );
-    const invalid = req(
-      root,
-      "scenario", "execute", "create-phase-0-intent-candidate@1",
-      "--obligation", candidateWork!.id,
-      "--adapter", invalidAdapter,
-      "--json",
-    );
-    expect(invalid.status).toBe(1);
-    expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "scenario-completion-failed" }),
-    ]));
-    expect(await treeDigest(dataRoot)).toBe(beforeInvalid);
+      });
+      const dataRoot = path.join(repository, ".lifecycle/data");
+      const beforeInvalid = await directoryDigest(dataRoot);
+      const invalid = submitAssignment(repository, prepared, [candidate(members.slice(0, 2))]);
+      expect(invalid.status).toBe(1);
+      expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-completion-failed" }),
+      ]));
+      expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
-    const validAdapter = await adapter(
-      root,
-      "complete-candidate",
-      candidateResponse(subjects.map((subject) => subject.revisionId)),
-    );
-    const valid = req(
-      root,
-      "scenario", "execute", "create-phase-0-intent-candidate@1",
-      "--obligation", candidateWork!.id,
-      "--adapter", validAdapter,
-      "--json",
-    );
-    expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
-    const execution = JSON.parse(valid.stdout).execution;
-    expect(execution.outputs[0].data.payload).toMatchObject({
-      definition_members: subjects.map((subject) => subject.revisionId),
-      evidence: reviews,
-    });
-    expect(execution.outputs[0].data.payload.snapshot).toEqual(expect.objectContaining({
-      member_hashes: expect.any(Object),
-      resolved_links: expect.any(Object),
-      process_provenance: expect.any(Object),
-    }));
-    const candidateRevision = execution.outputs[0].lifecycleDatum.revisionId;
-    const after = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-    expect(after.status, after.stderr).toBe(0);
-    expect(JSON.parse(after.stdout).looseEnds.items).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        obligation: "review-context-required",
-        subject: candidateRevision,
-        status: "ready",
-      }),
-    ]));
+      const valid = submitAssignment(repository, prepared, [candidate(members)]);
+      expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
+      const execution = JSON.parse(valid.stdout).execution;
+      const output = execution.outputs[0];
+      expect(execution.definition.scenario).toBe("create-phase-0-intent-candidate@1");
+      expect(output.data.payload).toMatchObject({
+        definition_members: members,
+        evidence: reviewRevisions,
+        snapshot: expect.objectContaining({
+          member_hashes: expect.any(Object),
+          resolved_links: expect.any(Object),
+          process_provenance: expect.any(Object),
+        }),
+      });
+      expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+      const next = prepareNextAssignment(repository, "create-review-context@1");
+      expect(inputRevision(next, "subject")).toBe(output.lifecycleDatum.revisionId);
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
   }, 90_000);
 
   it("routes an initial failed foundation Review to the first autonomous correction with exact evidence", async () => {
@@ -1020,59 +938,14 @@ describe("Phase 0 missing hardening routes", () => {
   });
 
   it("publishes an empirical QST answer with no DEC through resolve-question@2", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase0-empirical-answer-"));
-    roots.push(root);
-    const initialized = req(root, "init", "--process", bootstrapPackage, "--json");
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-
-    const created = req(
-      root,
-      "new",
-      "QST",
-      "--scenario",
-      "resolve-question@2",
-      "--set",
-      "title=Exact empirical repository answer",
-      "--set",
-      "kind=empirical",
-      "--set",
-      "evidence_available=true",
-      "--set",
-      "question=Does the observed public transaction preserve exact QST lineage?",
-      "--set",
-      "state=open",
-      "--set",
-      "blocking_impact=The empirical route remains unproven without publication",
-      "--json",
-    );
-    expect(created.status, `${created.stderr}${created.stdout}`).toBe(0);
-    const question = JSON.parse(created.stdout).created as {
-      id: string;
-      revisionId: string;
-    };
-    await freezeQuestionSource(root, question.revisionId);
-
-    const projected = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-    expect(projected.status, projected.stderr).toBe(0);
-    const answerWork = JSON.parse(projected.stdout).looseEnds.items.find(
-      (item: { obligation: string; subject: string }) =>
-        item.obligation === "open-question-resolution" &&
-        item.subject === question.revisionId,
-    ) as { id: string } | undefined;
-    expect(answerWork).toEqual(expect.objectContaining({
-      id: expect.any(String),
-      status: "ready",
-      actionableResolver: "resolve-question@2",
-      participation: [expect.objectContaining({
-        authorityRequirement: expect.objectContaining({
-          mode: "autonomous",
-          authority: "evidence-authority",
-        }),
-      })],
-    }));
-
-    const answerAdapter = await adapter(root, "empirical-answer-without-dec", {
-      outputs: [{
+    const { parent, repository } = await initializedRepository("mdlm-phase0-empirical-");
+    try {
+      const { prepared } = await advancePhase0To(repository, "resolve-question@2", {
+        empiricalEvidenceAvailable: true,
+      });
+      const question = exactInput(prepared, "question").identity;
+      const answered: ProposedOutput = {
+        localId: "updatedQuestion",
         name: "updated_question",
         invocation: 0,
         lifecycleDatum: {
@@ -1087,70 +960,54 @@ describe("Phase 0 missing hardening routes", () => {
             blocking_impact: "The empirical route remains unproven without publication",
           },
           links: [],
-          body: "The observed public transaction preserves exact QST lineage.\n",
+          body: "The observed compiled transaction preserves exact QST lineage.\n",
         },
-      }],
-      completionEvidence: {
-        summary: "Exact available evidence answered the empirical Question without a Decision.",
-      },
-    });
-    const answered = req(
-      root,
-      "scenario",
-      "execute",
-      "resolve-question@2",
-      "--obligation",
-      answerWork!.id,
-      "--adapter",
-      answerAdapter,
-      "--input",
-      `question=${question.revisionId}`,
-      "--json",
-    );
-    expect(answered.status, `${answered.stderr}${answered.stdout}`).toBe(0);
-    const execution = JSON.parse(answered.stdout).execution;
-    expect(execution).toEqual(expect.objectContaining({
-      definition: expect.objectContaining({ scenario: "resolve-question@2" }),
-      completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
-      outputs: [expect.objectContaining({
+      };
+      const dataRoot = path.join(repository, ".lifecycle/data");
+      const beforeInvalid = await directoryDigest(dataRoot);
+      const invalidOutput = structuredClone(answered);
+      invalidOutput.lifecycleDatum.payload.state = "open";
+      const invalid = submitAssignment(repository, prepared, [invalidOutput]);
+      expect(invalid.status).toBe(1);
+      expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-completion-failed" }),
+      ]));
+      expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
+
+      const valid = submitAssignment(repository, prepared, [answered]);
+      expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
+      const execution = JSON.parse(valid.stdout).execution;
+      expect(execution.definition.scenario).toBe("resolve-question@2");
+      expect(execution.outputs).toHaveLength(1);
+      expect(execution.outputs[0]).toEqual(expect.objectContaining({
         name: "updated_question",
         lifecycleDatum: expect.objectContaining({
           id: question.id,
+          revision: 2,
           revisionId: `${question.id}-r00002`,
           type: "QST",
         }),
-      })],
-    }));
-    expect(execution.outputs.some((output: { lifecycleDatum: { type: string } }) =>
-      output.lifecycleDatum.type === "DEC"
-    )).toBe(false);
-
-    const listed = req(root, "list", "--json");
-    expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
-    const published = JSON.parse(listed.stdout).data as Array<{
-      lifecycleDatum: { datum: LifecycleRecord["datum"] };
-    }>;
-    expect(published.find((item) => item.lifecycleDatum.datum.id === question.id)?.lifecycleDatum)
-      .toMatchObject({
-        datum: {
-          id: question.id,
-          revision: 2,
-          revision_id: `${question.id}-r00002`,
-          type: "QST",
-          payload: { kind: "empirical", state: "answered" },
-          created_by: { scenario: "resolve-question@2" },
-        },
-        integrity: { scenario_execution_valid: true },
+      }));
+      const listed = mdlm(repository, "list", "--json");
+      expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
+      const data = JSON.parse(listed.stdout).data as Array<{
+        lifecycleDatum: { datum: LifecycleRecord["datum"] };
+      }>;
+      expect(data.filter((item) => item.lifecycleDatum.datum.type === "DEC")).toEqual([]);
+      expect(data.find((item) =>
+        item.lifecycleDatum.datum.revision_id === `${question.id}-r00002`
+      )?.lifecycleDatum.datum.payload).toMatchObject({
+        kind: "empirical",
+        state: "answered",
       });
-    expect(published.filter((item) => item.lifecycleDatum.datum.type === "DEC")).toEqual([]);
-    const after = req(root, "loose-ends", "--phase", "phase-0-wayfinding", "--json");
-    expect(after.status, after.stderr).toBe(0);
-    expect(JSON.parse(after.stdout).looseEnds.items.some(
-      (item: { obligation: string; subject: string }) =>
-        item.obligation === "open-question-resolution" &&
-        [question.revisionId, `${question.id}-r00002`].includes(item.subject),
-    )).toBe(false);
-  }, 45_000);
+      expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+      const next = prepareNextAssignment(repository, "create-review-context@1");
+      expect(inputRevision(next, "subject")).toMatch(/^STK-.*-r00001$/);
+      expect(inputRevision(next, "subject")).not.toBe(question.revision_id);
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it("resolves a source-bounded prototype Question only with the exact ART bounded DEC and same-lineage answer", async () => {
     const question = record("QST", "QST-1030000001", {
@@ -1299,92 +1156,66 @@ describe("Phase 0 missing hardening routes", () => {
   });
 
   it("abandons a source-bounded unavailable-evidence Assignment without publication and requires deliberate fresh attention", async () => {
-    const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase0-inability-"));
-    roots.push(repository);
-    const processRoot = await copiedProcessPackage("mdlm-phase0-inability-process-");
-    await suppressPhase0FoundationObligations(processRoot);
-    const initialized = req(repository, "init", "--process", processRoot, "--json");
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-    await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
-    const created = req(
-      repository,
-      "new", "QST",
-      "--scenario", "resolve-question@2",
-      "--set", "title=Unavailable exact evidence",
-      "--set", "kind=empirical",
-      "--set", "evidence_available=false",
-      "--set", "question=Can the evidence provider establish the exact outcome?",
-      "--set", "state=open",
-      "--set", "blocking_impact=The still-open Question awaits exact evidence",
-      "--json",
-    );
-    expect(created.status, `${created.stderr}${created.stdout}`).toBe(0);
-    const question = JSON.parse(created.stdout).created as { revisionId: string };
-    await freezeQuestionSource(repository, question.revisionId);
-    expect(git(repository, "init").status).toBe(0);
-    expect(git(repository, "add", ".lifecycle").status).toBe(0);
-    expect(git(
-      repository,
-      "-c", "user.name=MDLM Test",
-      "-c", "user.email=mdlm-test@example.invalid",
-      "commit", "-m", "Prepare unavailable evidence Question",
-    ).status).toBe(0);
+    const { parent, repository } = await initializedRepository("mdlm-phase0-inability-");
+    try {
+      const { prepared: first } = await advancePhase0To(
+        repository,
+        "resolve-question@2",
+        { empiricalEvidenceAvailable: false },
+      );
+      expect(first.outcome).toEqual(expect.objectContaining({
+        outcome: "attention-required",
+        authorityRequirement: {
+          mode: "attended",
+          authority: "evidence-provider",
+          delegationAllowed: true,
+        },
+      }));
+      const dataRoot = path.join(repository, ".lifecycle/data");
+      const before = await directoryDigest(dataRoot);
+      const unable = {
+        contract: "mdlm-assignment-response@1",
+        assignment: first.outcome.assignment.id,
+        kind: "unable",
+        unable: {
+          reason: "insufficient-declared-inputs",
+          diagnostics: [{
+            code: "unavailable-evidence",
+            message: "The evidence provider cannot obtain the exact declared evidence.",
+            path: "assignment",
+          }],
+        },
+      };
+      const submitted = mdlmWithInput(
+        repository,
+        `${JSON.stringify(unable)}\n`,
+        "scenario",
+        "submit",
+      );
+      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      expect(JSON.parse(submitted.stdout)).toEqual(expect.objectContaining({
+        contract: "mdlm-assignment-disposition@1",
+        assignment: { id: first.outcome.assignment.id },
+        disposition: "abandoned",
+        orchestration: { action: "stop", automaticReplacement: false },
+        unable: unable.unable,
+      }));
+      expect(await directoryDigest(dataRoot)).toBe(before);
 
-    const first = mdlm(repository, undefined, "next");
-    expect(first.status, `${first.stderr}${first.stdout}`).toBe(0);
-    const allocated = JSON.parse(first.stdout);
-    expect(allocated).toEqual(expect.objectContaining({
-      outcome: "attention-required",
-      assignment: { id: expect.any(String) },
-      authorityRequirement: {
-        mode: "attended",
-        authority: "evidence-provider",
-        delegationAllowed: true,
-      },
-    }));
-    const before = await treeDigest(path.join(repository, ".lifecycle/data"));
-    const unable = {
-      contract: "mdlm-assignment-response@1",
-      assignment: allocated.assignment.id,
-      kind: "unable",
-      unable: {
-        reason: "insufficient-declared-inputs",
-        diagnostics: [{
-          code: "unavailable-evidence",
-          message: "The evidence provider cannot obtain the exact evidence.",
-          path: "assignment",
-        }],
-      },
-    };
-    const submitted = mdlm(
-      repository,
-      `${JSON.stringify(unable)}\n`,
-      "scenario", "submit",
-    );
-    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
-    expect(JSON.parse(submitted.stdout)).toEqual(expect.objectContaining({
-      disposition: "abandoned",
-      orchestration: { action: "stop", automaticReplacement: false },
-      unable: unable.unable,
-    }));
-    expect(await treeDigest(path.join(repository, ".lifecycle/data"))).toBe(before);
-    const lease = JSON.parse(await fs.readFile(path.join(
-      repository,
-      ".lifecycle/work/active-assignment.json",
-    ), "utf8"));
-    expect(lease).toEqual(expect.objectContaining({
-      id: allocated.assignment.id,
-      disposition: "abandoned",
-    }));
-
-    const fresh = mdlm(repository, undefined, "next");
-    expect(fresh.status, `${fresh.stderr}${fresh.stdout}`).toBe(0);
-    expect(JSON.parse(fresh.stdout)).toEqual(expect.objectContaining({
-      outcome: "attention-required",
-      assignment: { id: expect.not.stringMatching(allocated.assignment.id) },
-      authorityRequirement: expect.objectContaining({ authority: "evidence-provider" }),
-    }));
-  }, 45_000);
+      const fresh = prepareNextAssignment(repository, "resolve-question@2");
+      expect(fresh.outcome).toEqual(expect.objectContaining({
+        outcome: "attention-required",
+        authorityRequirement: expect.objectContaining({
+          authority: "evidence-provider",
+        }),
+      }));
+      expect(fresh.outcome.assignment.id).not.toBe(first.outcome.assignment.id);
+      expect(fresh.packet.repository).toEqual(first.packet.repository);
+      expect(inputRevision(fresh, "question")).toBe(inputRevision(first, "question"));
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it("keeps a preferential answer unsatisfied until its exact scoped Decision passes fresh Review", () => {
     const source = record("QST", "QST-1030000003", {

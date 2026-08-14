@@ -3,13 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  req,
+  mdlm,
   selectBootstrapProcessPackage,
-  selectProcessPackage,
-} from "./helpers/req.js";
+  selectProcessPackageFixture,
+} from "./helpers/mdlm.js";
 import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
-describe("req schema", () => {
+describe("mdlm schema", () => {
   let repositoryRoot: string;
   const externalRoots: string[] = [];
 
@@ -29,7 +29,7 @@ describe("req schema", () => {
   it("projects one effective lifecycle type from the exact selected Process Package", () => {
     selectBootstrapProcessPackage(repositoryRoot);
 
-    const result = req(repositoryRoot, "schema", "STK", "--json");
+    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -128,13 +128,9 @@ describe("req schema", () => {
   it("reports the Kernel Capability binding for any package-defined type ID", async () => {
     const processRoot = await renamedBaselineProcessPackage("mdlm-schema-neutral-");
     externalRoots.push(path.dirname(processRoot));
-    selectProcessPackage(
-      repositoryRoot,
-      processRoot,
-      "mdlm-bootstrap@0.59.0",
-    );
+    await selectProcessPackageFixture(repositoryRoot, processRoot);
 
-    const result = req(repositoryRoot, "schema", "SNP", "--json");
+    const result = mdlm(repositoryRoot, "schema", "SNP", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout).schema).toEqual(expect.objectContaining({
@@ -148,11 +144,11 @@ describe("req schema", () => {
 
   it("renders the same effective type evidence for a human", () => {
     selectBootstrapProcessPackage(repositoryRoot);
-    const machine = req(repositoryRoot, "schema", "STK", "--json");
+    const machine = mdlm(repositoryRoot, "schema", "STK", "--json");
     expect(machine.status, machine.stderr).toBe(0);
     const output = JSON.parse(machine.stdout);
 
-    const human = req(repositoryRoot, "schema", "STK");
+    const human = mdlm(repositoryRoot, "schema", "STK");
 
     expect(human.status, human.stderr).toBe(0);
     for (const evidence of [
@@ -176,7 +172,7 @@ describe("req schema", () => {
   it("returns a typed diagnostic for an unknown lifecycle type", () => {
     selectBootstrapProcessPackage(repositoryRoot);
 
-    const result = req(repositoryRoot, "schema", "UNKNOWN", "--json");
+    const result = mdlm(repositoryRoot, "schema", "UNKNOWN", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -195,7 +191,7 @@ describe("req schema", () => {
   });
 
   it("returns a typed diagnostic when no Process Package is selected", () => {
-    const result = req(repositoryRoot, "schema", "STK", "--json");
+    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -205,7 +201,7 @@ describe("req schema", () => {
       diagnostics: [{
         code: "process-package-not-selected",
         message:
-          "No Process Package is selected; run 'mdlm process use <package@version>'",
+          "No Process Package is selected; initialize a repository with 'mdlm init <destination>'",
       }],
     });
   });
@@ -218,7 +214,7 @@ describe("req schema", () => {
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 
-    const result = req(repositoryRoot, "schema", "STK", "--json");
+    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({

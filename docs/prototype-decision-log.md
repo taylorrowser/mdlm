@@ -1,5 +1,12 @@
 # MDLM evaluator prototype decision log
 
+> **Historical prototype design — not supported operating instructions.** This
+> log preserves decisions and observations from superseded prototype surfaces.
+> Any `req`, direct mutation, scenario dry-run/execution, executable adapter,
+> package install/use/scaffolding, or Package Command Alias invocation shown below
+> is historical evidence only. Use the current `mdlm` contract in the repository
+> README.
+
 This log records implementation choices, alternatives, expected behavior, and
 observations so the prototype can produce explicit learnings rather than silently
 turning provisional choices into architecture.

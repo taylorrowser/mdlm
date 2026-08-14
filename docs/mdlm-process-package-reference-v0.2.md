@@ -1,6 +1,13 @@
 # MDLM Declarative Process Package Reference
 
-**Bootstrap package 0.55 — experimental implementation reference**
+> **Historical prototype design — not supported operating instructions.** This
+> reference preserves an earlier experimental package contract. Any `req`, direct
+> mutation, scenario dry-run/execution, executable adapter, package
+> install/use/scaffolding, or Package Command Alias invocation below is historical
+> only. Use `.lifecycle/process/README.md` and the repository README for the live
+> package and operator contracts.
+
+**Bootstrap package 0.55 — historical experimental implementation reference**
 
 The `.lifecycle/process` package declares the exact `mdlm-expression@1`
 authoring contract. Every expression-bearing field accepts textual source only;

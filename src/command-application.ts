@@ -36,68 +36,39 @@ import {
   humanPhaseStatus,
 } from "./lifecycle-output.js";
 import {
-  createExactBaseline,
   diffExactBaselines,
-  freezeExactBaseline,
-  mutateExactBaseline,
   verifyExactBaseline,
   verifyRepositoryBaselines,
   type BaselineDiff,
-  type BaselineFreeze,
-  type BaselineMutation,
   type BaselineRepositoryVerification,
   type BaselineVerification,
 } from "./exact-baseline-repository.js";
 import {
-  createDatum,
   datumHistory,
   inspectBacklinks,
   listData,
-  mutateDatumLink,
   rebuildRepositoryIndex,
   rebuildRepositoryReport,
   repositoryLifecycleSnapshot,
-  reviseDatum,
   showDatum,
   traceGraph,
   type BacklinkInspection,
-  type CreatedDatum,
   type DatumHistory,
   type DatumProjections,
   type GraphTrace,
-  type LinkMutation,
   type ListedDatum,
   type RepositoryIndexSummary,
   type RepositoryReportSummary,
   type StoredDatum,
 } from "./lifecycle-repository.js";
 import {
-  dryRunResolverScenario,
-  type ScenarioDryRun,
-} from "./scenario-dry-run.js";
-import {
-  bindCommandAlias,
-  matchingCommandAlias,
-} from "./command-alias.js";
-import {
-  executeExplicitScenario,
-  executeResolverScenario,
-  prepareRepositoryExplicitScenario,
-  prepareRepositoryResolverScenario,
   readScenarioExecution,
   type ScenarioExecution,
 } from "./scenario-execution.js";
-import { processPackageDigest } from "./process-package-digest.js";
 import {
-  scaffoldProcessDefinition,
-  scaffoldProcessFixture,
-  scaffoldProcessPackage,
   testProcessFixtures,
-  type DefinitionScaffold,
-  type FixtureScaffold,
   type FixtureTestSummary,
-  type PackageScaffold,
-} from "./process-package-scaffolding.js";
+} from "./process-package-fixtures.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import {
   inspectOperatorStatus,
@@ -188,25 +159,17 @@ interface CommandResultBase {
   evaluation?: ProcessDirectEvaluation | ProcessExpressionEvaluation;
   phaseStatus?: PhaseStatusProjection;
   looseEnds?: LooseEndsProjection;
-  scaffold?: PackageScaffold;
-  definition?: DefinitionScaffold;
-  fixture?: FixtureScaffold;
   tests?: FixtureTestSummary;
   repository?: RepositorySummary | AssignmentPacket["repository"];
   migration?: ProcessMigration;
   schema?: TypeSchemaInspection;
-  created?: CreatedDatum;
   lifecycleDatum?: StoredDatum["lifecycleDatum"];
   projections?: DatumProjections;
   data?: ListedDatum[];
   history?: DatumHistory;
-  linkMutation?: LinkMutation;
-  baselineMutation?: BaselineMutation;
-  baselineFreeze?: BaselineFreeze;
   baselineVerification?: BaselineVerification;
   baselineDiff?: BaselineDiff;
   baselineRepositoryVerification?: BaselineRepositoryVerification;
-  scenarioDryRun?: ScenarioDryRun;
   execution?: ScenarioExecution;
   backlinks?: BacklinkInspection;
   trace?: GraphTrace;
@@ -236,13 +199,6 @@ function failure(
       ...(pathValue === undefined ? {} : { path: pathValue }),
     }],
   };
-}
-
-async function atomicJson(filePath: string, value: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
-  await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
-  await fs.rename(temporaryPath, filePath);
 }
 
 async function atomicJsonPair(
@@ -295,114 +251,6 @@ async function atomicJsonPair(
   }
 }
 
-async function initializeRepository(
-  repositoryRoot: string,
-  processReference: string | undefined,
-): Promise<CommandResult> {
-  if (!processReference) {
-    return failure(
-      "process-package-required",
-      "Repository initialization requires '--process <package-ref>'",
-    );
-  }
-  const lifecycleRoot = path.join(repositoryRoot, ".lifecycle");
-  try {
-    await fs.access(lifecycleRoot);
-    return failure(
-      "repository-already-initialized",
-      "The repository already contains .lifecycle",
-      lifecycleRoot,
-    );
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-
-  const installedRoot = await installedPackageRoot(repositoryRoot, processReference);
-  const sourceRoot = installedRoot ?? path.resolve(repositoryRoot, processReference);
-  const loaded = await loadProcessPackage(sourceRoot);
-  if (!loaded.ok) return { ok: false, command: "init", diagnostics: loaded.diagnostics };
-  const summary = await packageSummary(loaded.package, sourceRoot);
-  if (installedRoot && summary.reference !== processReference) {
-    return failure(
-      "process-package-reference-mismatch",
-      `Installed reference '${processReference}' contains '${summary.reference}'`,
-      sourceRoot,
-    );
-  }
-  const repository = repositorySummary(loaded.package);
-  const temporaryRoot = path.join(repositoryRoot, `.mdlm-init-${randomUUID()}`);
-  try {
-    await fs.mkdir(temporaryRoot);
-    const installation = await installPackage(temporaryRoot, sourceRoot);
-    if (!installation.ok) return { ...installation, command: "init" };
-    const selection = await usePackage(temporaryRoot, summary.reference);
-    if (!selection.ok) return { ...selection, command: "init" };
-    await Promise.all([
-      fs.mkdir(path.join(temporaryRoot, ".lifecycle/data"), { recursive: true }),
-      fs.mkdir(path.join(temporaryRoot, ".lifecycle/generated/indexes"), {
-        recursive: true,
-      }),
-    ]);
-    await atomicJson(
-      path.join(temporaryRoot, ".lifecycle/repository.json"),
-      repositoryDescriptor(loaded.package, summary),
-    );
-    await fs.rename(path.join(temporaryRoot, ".lifecycle"), lifecycleRoot);
-  } finally {
-    await fs.rm(temporaryRoot, { recursive: true, force: true });
-  }
-  return {
-    ok: true,
-    command: "init",
-    package: summary,
-    repository,
-    diagnostics: [],
-  };
-}
-
-async function installPackage(
-  repositoryRoot: string,
-  sourceRoot: string,
-): Promise<CommandResult> {
-  const absoluteSource = path.resolve(repositoryRoot, sourceRoot);
-  const loaded = await loadProcessPackage(absoluteSource);
-  if (!loaded.ok) return { ok: false, command: "process.install", diagnostics: loaded.diagnostics };
-  const summary = await packageSummary(loaded.package, absoluteSource);
-  const packagesRoot = path.join(repositoryRoot, packagesRelativePath);
-  const destination = path.join(packagesRoot, summary.reference);
-  await fs.mkdir(packagesRoot, { recursive: true });
-
-  let installed = true;
-  try {
-    const destinationDigest = await processPackageDigest(destination);
-    if (destinationDigest !== summary.digest) {
-      return failure(
-        "process-package-version-conflict",
-        `Installed Process Package '${summary.reference}' has different content for the same exact version`,
-        destination,
-      );
-    }
-    installed = false;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    const temporaryDirectory = path.join(
-      packagesRoot,
-      `.${summary.reference}.${randomUUID()}.tmp`,
-    );
-    await fs.cp(absoluteSource, temporaryDirectory, { recursive: true });
-    await fs.rename(temporaryDirectory, destination);
-  }
-
-  return {
-    ok: true,
-    command: "process.install",
-    package: summary,
-    installed,
-    selected: false,
-    diagnostics: [],
-  };
-}
-
 async function installedPackageRoot(
   repositoryRoot: string,
   reference: string,
@@ -417,96 +265,6 @@ async function installedPackageRoot(
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   return undefined;
-}
-
-async function initPackage(
-  repositoryRoot: string,
-  destination: string,
-  from?: string,
-): Promise<CommandResult> {
-  let source:
-    | { root: string; reference: string; digest: string }
-    | undefined;
-  if (from) {
-    const installedRoot = await installedPackageRoot(repositoryRoot, from);
-    const sourceRoot = installedRoot ?? path.resolve(repositoryRoot, from);
-    const loaded = await loadProcessPackage(sourceRoot);
-    if (!loaded.ok) {
-      return { ok: false, command: "process.init", diagnostics: loaded.diagnostics };
-    }
-    const summary = await packageSummary(loaded.package, sourceRoot);
-    if (installedRoot && summary.reference !== from) {
-      return failure(
-        "process-package-reference-mismatch",
-        `Installed reference '${from}' contains '${summary.reference}'`,
-        sourceRoot,
-      );
-    }
-    source = {
-      root: sourceRoot,
-      reference: summary.reference,
-      digest: summary.digest,
-    };
-  }
-  const scaffolded = await scaffoldProcessPackage(
-    path.resolve(repositoryRoot, destination),
-    source,
-  );
-  if (!scaffolded.ok) {
-    return {
-      ok: false,
-      command: "process.init",
-      diagnostics: scaffolded.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command: "process.init",
-    scaffold: scaffolded.value,
-    diagnostics: [],
-  };
-}
-
-async function newProcessDefinition(
-  repositoryRoot: string,
-  kind: string,
-  id: string,
-): Promise<CommandResult> {
-  const scaffolded = await scaffoldProcessDefinition(repositoryRoot, kind, id);
-  if (!scaffolded.ok) {
-    return {
-      ok: false,
-      command: "process.definition.new",
-      diagnostics: scaffolded.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command: "process.definition.new",
-    definition: scaffolded.value,
-    diagnostics: [],
-  };
-}
-
-async function newProcessFixture(
-  repositoryRoot: string,
-  name: string,
-  phaseId?: string,
-): Promise<CommandResult> {
-  const scaffolded = await scaffoldProcessFixture(repositoryRoot, name, phaseId);
-  if (!scaffolded.ok) {
-    return {
-      ok: false,
-      command: "process.fixture.new",
-      diagnostics: scaffolded.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command: "process.fixture.new",
-    fixture: scaffolded.value,
-    diagnostics: [],
-  };
 }
 
 async function runProcessFixtures(
@@ -549,245 +307,6 @@ async function runProcessFixtures(
     command: "process.test",
     tests: tested.value,
     diagnostics,
-  };
-}
-
-function assignments(
-  arguments_: string[],
-  option: string,
-): { ok: true; values: { path: string; value: unknown }[] } | CommandResult {
-  const values: { path: string; value: unknown }[] = [];
-  for (const assignment of optionValues(arguments_, option)) {
-    const separator = assignment.indexOf("=");
-    if (separator < 1) {
-      return failure(
-        "invalid-assignment",
-        `Invalid ${option} '${assignment}'; expected path=value`,
-      );
-    }
-    const pathValue = assignment.slice(0, separator);
-    const source = assignment.slice(separator + 1);
-    let value: unknown;
-    try {
-      value = parse(source) as unknown;
-    } catch (error) {
-      return failure(
-        "invalid-assignment",
-        `Invalid ${option} value for '${pathValue}': ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-    values.push({ path: pathValue, value });
-  }
-  return { ok: true, values };
-}
-
-async function newDatum(
-  repositoryRoot: string,
-  typeId: string,
-  arguments_: string[],
-): Promise<CommandResult> {
-  const selected = await selectedRepositoryPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command: "new",
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  const fields = assignments(arguments_, "--set");
-  if (!("values" in fields)) return { ...fields, command: "new" };
-  const linkAssignments = assignments(arguments_, "--link");
-  if (!("values" in linkAssignments)) return { ...linkAssignments, command: "new" };
-  const links: { type: string; target: string }[] = [];
-  for (const link of linkAssignments.values) {
-    if (typeof link.value !== "string") {
-      return failure(
-        "invalid-link",
-        `Link '${link.path}' target must be a Stable or Revision ID`,
-      );
-    }
-    links.push({ type: link.path, target: link.value });
-  }
-  const created = await createDatum(
-    repositoryRoot,
-    selected.processPackage,
-    selected.summary.reference,
-    selected.summary.digest,
-    typeId,
-    optionValue(arguments_, "--scenario"),
-    fields.values,
-    links,
-    optionValue(arguments_, "--body") ?? "",
-  );
-  if (!created.ok) {
-    return {
-      ok: false,
-      command: "new",
-      package: selected.summary,
-      selected: true,
-      diagnostics: created.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command: "new",
-    package: selected.summary,
-    created: created.value,
-    diagnostics: [],
-  };
-}
-
-function unavailableExactBaseline(command: string): CommandResult {
-  return {
-    ...failure(
-      "kernel-capability-unavailable",
-      "Selected Process Package does not bind Kernel Capability exact-baseline@1",
-      "exact-baseline@1",
-    ),
-    command,
-  };
-}
-
-async function newBaseline(
-  repositoryRoot: string,
-  arguments_: string[],
-): Promise<CommandResult> {
-  const command = "baseline.create";
-  const selected = await selectedRepositoryPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command,
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  if (!selected.processPackage.kernelCapabilities["exact-baseline@1"]) {
-    return unavailableExactBaseline(command);
-  }
-  const type = optionValue(arguments_, "--type");
-  if (!type) {
-    return {
-      ...failure("baseline-type-required", "Baseline creation requires '--type <bound-type>'"),
-      command,
-    };
-  }
-  const fields = assignments(arguments_, "--set");
-  if (!("values" in fields)) return { ...fields, command };
-  const created = await createExactBaseline(
-    repositoryRoot,
-    selected.processPackage,
-    selected.summary.reference,
-    selected.summary.digest,
-    type,
-    optionValue(arguments_, "--scenario"),
-    fields.values,
-    optionValue(arguments_, "--body") ?? "",
-  );
-  if (!created.ok) {
-    return {
-      ok: false,
-      command,
-      package: selected.summary,
-      selected: true,
-      diagnostics: created.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command,
-    package: selected.summary,
-    created: created.value,
-    diagnostics: [],
-  };
-}
-
-async function mutateBaseline(
-  repositoryRoot: string,
-  command: "baseline.add" | "baseline.remove" | "baseline.evidence.add" |
-    "baseline.evidence.remove" | "baseline.compose",
-  baselineIdentity: string,
-  targetRevision: string,
-): Promise<CommandResult> {
-  const selected = await selectedRepositoryPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command,
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  const section = command === "baseline.compose"
-    ? "composition" as const
-    : command.startsWith("baseline.evidence")
-    ? "evidence" as const
-    : "definition_members" as const;
-  const operation = command.endsWith(".remove") || command === "baseline.remove"
-    ? "removed" as const
-    : "added" as const;
-  const mutated = await mutateExactBaseline(
-    repositoryRoot,
-    selected.processPackage,
-    baselineIdentity,
-    targetRevision,
-    section,
-    operation,
-  );
-  if (!mutated.ok) {
-    return {
-      ok: false,
-      command,
-      package: selected.summary,
-      selected: true,
-      diagnostics: mutated.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command,
-    package: selected.summary,
-    baselineMutation: mutated.value,
-    diagnostics: [],
-  };
-}
-
-async function freezeBaseline(
-  repositoryRoot: string,
-  baselineIdentity: string,
-): Promise<CommandResult> {
-  const command = "baseline.freeze";
-  const selected = await selectedRepositoryPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command,
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  const frozen = await freezeExactBaseline(
-    repositoryRoot,
-    selected.processPackage,
-    `${selected.summary.reference}#${selected.summary.digest}`,
-    baselineIdentity,
-  );
-  if (!frozen.ok) {
-    return {
-      ok: false,
-      command,
-      package: selected.summary,
-      selected: true,
-      diagnostics: frozen.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command,
-    package: selected.summary,
-    baselineFreeze: frozen.value,
-    diagnostics: [],
   };
 }
 
@@ -865,92 +384,6 @@ async function diffBaselines(
     command,
     package: selected.summary,
     baselineDiff: diff.value,
-    diagnostics: [],
-  };
-}
-
-async function reviseStoredDatum(
-  repositoryRoot: string,
-  stableId: string,
-  arguments_: string[],
-): Promise<CommandResult> {
-  const selected = await selectedRepositoryPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command: "revise",
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  const revised = await reviseDatum(
-    repositoryRoot,
-    selected.processPackage,
-    selected.summary.reference,
-    selected.summary.digest,
-    stableId,
-    optionValue(arguments_, "--from"),
-  );
-  if (!revised.ok) {
-    return {
-      ok: false,
-      command: "revise",
-      package: selected.summary,
-      selected: true,
-      diagnostics: revised.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command: "revise",
-    package: selected.summary,
-    created: revised.value,
-    diagnostics: [],
-  };
-}
-
-async function mutateStoredDatumLink(
-  repositoryRoot: string,
-  command: "link" | "unlink",
-  sourceRevision: string,
-  target: string,
-  arguments_: string[],
-): Promise<CommandResult> {
-  const selected = await selectedRepositoryPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command,
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  const type = optionValue(arguments_, "--type");
-  if (!type) {
-    return { ...failure("link-type-required", "Link mutation requires '--type <relationship>'"), command };
-  }
-  const mutated = await mutateDatumLink(
-    repositoryRoot,
-    selected.processPackage,
-    sourceRevision,
-    target,
-    type,
-    command === "link" ? "added" : "removed",
-  );
-  if (!mutated.ok) {
-    return {
-      ok: false,
-      command,
-      package: selected.summary,
-      selected: true,
-      diagnostics: mutated.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command,
-    package: selected.summary,
-    linkMutation: mutated.value,
     diagnostics: [],
   };
 }
@@ -1206,41 +639,6 @@ async function doctorRepository(repositoryRoot: string): Promise<CommandResult> 
     baselineRepositoryVerification: verified.value,
     index: rebuilt.value,
     report: report.value,
-    diagnostics: [],
-  };
-}
-
-async function usePackage(
-  repositoryRoot: string,
-  reference: string,
-): Promise<CommandResult> {
-  const packageRoot = await installedPackageRoot(repositoryRoot, reference);
-  if (!packageRoot) {
-    return failure(
-      "process-package-not-installed",
-      `Process Package '${reference}' is not installed`,
-    );
-  }
-  const loaded = await loadProcessPackage(packageRoot);
-  if (!loaded.ok) return { ok: false, command: "process.use", diagnostics: loaded.diagnostics };
-  const summary = await packageSummary(loaded.package, packageRoot);
-  if (summary.reference !== reference) {
-    return failure(
-      "process-package-reference-mismatch",
-      `Installed reference '${reference}' contains '${summary.reference}'`,
-      packageRoot,
-    );
-  }
-  await atomicJson(
-    path.join(repositoryRoot, selectionRelativePath),
-    processSelection(summary),
-  );
-  return {
-    ok: true,
-    command: "process.use",
-    package: summary,
-    installed: true,
-    selected: true,
     diagnostics: [],
   };
 }
@@ -1790,281 +1188,6 @@ async function submitExactAssignment(
       };
 }
 
-async function dryRunScenario(
-  repositoryRoot: string,
-  scenarioReference: string,
-  obligationInstance: string | undefined,
-  explicitInitiation: boolean,
-  snapshotPath: string | undefined,
-  inputArguments: string[],
-): Promise<CommandResult> {
-  const selected = await selectedPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command: "scenario.dry-run",
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  if (explicitInitiation && obligationInstance) {
-    return {
-      ...failure(
-        "scenario-authorization-ambiguous",
-        "scenario.dry-run cannot combine '--initiate' with '--obligation'",
-      ),
-      command: "scenario.dry-run",
-    };
-  }
-  if (!explicitInitiation && !obligationInstance) {
-    return {
-      ...failure(
-        "obligation-instance-required",
-        "scenario.dry-run requires '--obligation <exact-instance>' or explicit '--initiate' authorization",
-      ),
-      command: "scenario.dry-run",
-    };
-  }
-  if (explicitInitiation && snapshotPath) {
-    return {
-      ...failure(
-        "explicit-initiation-repository-required",
-        "Explicit Scenario initiation prepares only from durable repository truth",
-      ),
-      command: "scenario.dry-run",
-    };
-  }
-  const requested = requestedScenarioInputs(inputArguments);
-  if (!requested.ok) return { ...requested.result, command: "scenario.dry-run" };
-  let scenarioDryRun: ScenarioDryRun;
-  if (explicitInitiation) {
-    const preparation = await prepareRepositoryExplicitScenario(
-      repositoryRoot,
-      selected.processPackage,
-      selected.summary,
-      scenarioReference,
-      requested.inputs,
-    );
-    if (!preparation.ok) {
-      return {
-        ok: false,
-        command: "scenario.dry-run",
-        package: selected.summary,
-        selected: true,
-        diagnostics: preparation.diagnostics,
-      };
-    }
-    scenarioDryRun = preparation.value.dryRun;
-  } else {
-    if (!obligationInstance) {
-      return {
-        ...failure(
-          "obligation-instance-required",
-          "Resolver Scenario preparation requires an exact Obligation Instance",
-        ),
-        command: "scenario.dry-run",
-      };
-    }
-    if (snapshotPath) {
-      const dryRun = await dryRunResolverScenario(
-        selected.processPackage,
-        await readLifecycleSnapshot(repositoryRoot, snapshotPath),
-        scenarioReference,
-        obligationInstance,
-        requested.inputs,
-      );
-      if (!dryRun.ok) {
-        return {
-          ok: false,
-          command: "scenario.dry-run",
-          package: selected.summary,
-          selected: true,
-          diagnostics: dryRun.diagnostics,
-        };
-      }
-      scenarioDryRun = dryRun.value;
-    } else {
-      const preparation = await prepareRepositoryResolverScenario(
-        repositoryRoot,
-        selected.processPackage,
-        selected.summary,
-        scenarioReference,
-        obligationInstance,
-        requested.inputs,
-      );
-      if (!preparation.ok) {
-        return {
-          ok: false,
-          command: "scenario.dry-run",
-          package: selected.summary,
-          selected: true,
-          diagnostics: preparation.diagnostics,
-        };
-      }
-      scenarioDryRun = preparation.value.dryRun;
-    }
-  }
-  return {
-    ok: true,
-    command: "scenario.dry-run",
-    package: selected.summary,
-    selected: true,
-    scenarioDryRun,
-    diagnostics: [],
-  };
-}
-
-function requestedScenarioInputs(inputArguments: string[]):
-  | { ok: true; inputs: { name: string; value: string }[] }
-  | { ok: false; result: CommandResult } {
-  const inputs = inputArguments.flatMap((argument) => {
-    const separator = argument.indexOf("=");
-    return separator > 0
-      ? [{ name: argument.slice(0, separator), value: argument.slice(separator + 1) }]
-      : [];
-  });
-  return inputs.length === inputArguments.length
-    ? { ok: true, inputs }
-    : {
-        ok: false,
-        result: failure(
-          "invalid-scenario-input",
-          "Scenario input assertions require '--input <name>=<value>'",
-        ),
-      };
-}
-
-async function executeScenario(
-  repositoryRoot: string,
-  scenarioReference: string,
-  obligationInstance: string | undefined,
-  explicitInitiation: boolean,
-  adapter: string | undefined,
-  inputArguments: string[],
-  suppliedAuthorities: string[],
-  suppliedDelegations: string[],
-): Promise<CommandResult> {
-  const selected = await selectedPackage(repositoryRoot);
-  if (!selected.ok) {
-    return {
-      ok: false,
-      command: "scenario.execute",
-      selected: selected.selected,
-      diagnostics: selected.diagnostics,
-    };
-  }
-  if (explicitInitiation && obligationInstance) {
-    return {
-      ...failure(
-        "scenario-authorization-ambiguous",
-        "scenario.execute cannot combine '--initiate' with '--obligation'",
-      ),
-      command: "scenario.execute",
-    };
-  }
-  if (!explicitInitiation && !obligationInstance) {
-    return {
-      ...failure(
-        "obligation-instance-required",
-        "scenario.execute requires '--obligation <exact-instance>' or explicit '--initiate' authorization",
-      ),
-      command: "scenario.execute",
-    };
-  }
-  if (!adapter) {
-    return {
-      ...failure(
-        "scenario-adapter-required",
-        "scenario.execute requires '--adapter <executable>'",
-      ),
-      command: "scenario.execute",
-    };
-  }
-  const requested = requestedScenarioInputs(inputArguments);
-  if (!requested.ok) return { ...requested.result, command: "scenario.execute" };
-  const packageIdentity = {
-    reference: selected.summary.reference,
-    digest: selected.summary.digest,
-    language: selected.summary.language,
-  };
-  const execution = explicitInitiation
-    ? await executeExplicitScenario(
-        repositoryRoot,
-        selected.processPackage,
-        packageIdentity,
-        scenarioReference,
-        requested.inputs,
-        adapter,
-        suppliedAuthorities,
-        suppliedDelegations,
-      )
-    : obligationInstance
-      ? await executeResolverScenario(
-          repositoryRoot,
-          selected.processPackage,
-          packageIdentity,
-          scenarioReference,
-          obligationInstance,
-          requested.inputs,
-          adapter,
-          suppliedAuthorities,
-          suppliedDelegations,
-        )
-      : {
-          ok: false as const,
-          diagnostics: [{
-            code: "obligation-instance-required",
-            message: "Resolver Scenario execution requires an exact Obligation Instance",
-          }],
-        };
-  return execution.ok
-    ? {
-        ok: true,
-        command: "scenario.execute",
-        package: selected.summary,
-        selected: true,
-        execution: execution.value,
-        diagnostics: [],
-      }
-    : {
-        ok: false,
-        command: "scenario.execute",
-        package: selected.summary,
-        selected: true,
-        diagnostics: execution.diagnostics,
-      };
-}
-
-async function executePackageAlias(
-  repositoryRoot: string,
-  arguments_: string[],
-): Promise<CommandResult | undefined> {
-  const selected = await selectedPackage(repositoryRoot);
-  if (!selected.ok) return undefined;
-  const alias = matchingCommandAlias(selected.processPackage, arguments_);
-  if (!alias) return undefined;
-  const binding = bindCommandAlias(alias, arguments_);
-  if (!binding.ok) {
-    return {
-      ok: false,
-      command: `alias.${alias.id}`,
-      package: selected.summary,
-      selected: true,
-      diagnostics: binding.diagnostics,
-    };
-  }
-  return executeScenario(
-    repositoryRoot,
-    binding.value.scenario,
-    optionValue(arguments_, "--obligation"),
-    false,
-    optionValue(arguments_, "--adapter"),
-    binding.value.inputs.map((input) => `${input.name}=${input.value}`),
-    optionValues(arguments_, "--authorize"),
-    optionValues(arguments_, "--delegation"),
-  );
-}
-
 async function showScenarioExecution(
   repositoryRoot: string,
   executionId: string,
@@ -2314,29 +1437,6 @@ function renderCommandResult(result: CommandResult): string {
       `Primitive Catalog: ${result.repository.primitiveCatalog}`,
     ].join("\n");
   }
-  if (result.scaffold) {
-    return [
-      `Process Package: ${result.scaffold.package}`,
-      `Path: ${result.scaffold.path}`,
-      `Derived From: ${result.scaffold.derivedFrom?.package ?? "none"}`,
-      `Source Digest: ${result.scaffold.derivedFrom?.digest ?? "none"}`,
-    ].join("\n");
-  }
-  if (result.definition) {
-    return [
-      `Definition: ${result.definition.id}@${result.definition.version}`,
-      `Kind: ${result.definition.kind}`,
-      `Path: ${result.definition.path}`,
-    ].join("\n");
-  }
-  if (result.fixture) {
-    return [
-      `Fixture: ${result.fixture.name}`,
-      `Phase: ${result.fixture.phase}`,
-      `Snapshot: ${result.fixture.snapshot}`,
-      `Expected Result: ${result.fixture.expected}`,
-    ].join("\n");
-  }
   if (result.tests) {
     return [
       `Process Fixtures: passed=${result.tests.passed}, failed=${result.tests.failed}`,
@@ -2355,32 +1455,6 @@ function renderCommandResult(result: CommandResult): string {
       `Index Path: ${result.index.path}`,
       `Report: ${result.report?.rebuilt ? "rebuilt" : "current"}`,
       `Report Path: ${result.report?.path ?? "none"}`,
-    ].join("\n");
-  }
-  if (result.linkMutation) {
-    return [
-      `Link: ${result.linkMutation.operation}`,
-      `Source Revision: ${result.linkMutation.sourceRevision}`,
-      `Relationship: ${result.linkMutation.type}`,
-      `Target: ${result.linkMutation.target}`,
-    ].join("\n");
-  }
-  if (result.baselineMutation) {
-    return [
-      `Baseline Mutation: ${result.baselineMutation.operation}`,
-      `Baseline Revision: ${result.baselineMutation.baselineRevision}`,
-      `Target: ${result.baselineMutation.target}`,
-    ].join("\n");
-  }
-  if (result.baselineFreeze) {
-    return [
-      `Frozen Baseline: ${result.baselineFreeze.baselineRevision}`,
-      `Frozen At: ${result.baselineFreeze.frozenAt}`,
-      `Definition Members: ${result.baselineFreeze.definitionMembers.join(", ") || "none"}`,
-      `Evidence: ${result.baselineFreeze.evidence.join(", ") || "none"}`,
-      `Composition: ${result.baselineFreeze.composition.join(", ") || "none"}`,
-      `Hashes: ${result.baselineFreeze.hashes}`,
-      `Process: ${result.baselineFreeze.processRef}`,
     ].join("\n");
   }
   if (result.baselineVerification) {
@@ -2403,11 +1477,7 @@ function renderCommandResult(result: CommandResult): string {
         ? [`Obligation: ${execution.obligation.instance}`]
         : []),
       `Package: ${execution.package.reference}#${execution.package.digest}`,
-      ...(execution.adapter
-        ? [`Adapter: ${execution.adapter.executable}`]
-        : execution.response
-          ? [`Assignment Response: ${execution.response.assignment}`]
-          : []),
+      `Assignment Response: ${execution.response.assignment}`,
       `Prompt: ${execution.prompt.reference}`,
       ...execution.skills.map((skill) => `Skill: ${skill.reference}`),
       ...execution.policies.map((policy) =>
@@ -2429,40 +1499,6 @@ function renderCommandResult(result: CommandResult): string {
       `Contract Valid: ${execution.completion.contractValid}`,
       `Completion Passed: ${execution.completion.expressionPassed}`,
       `Discovered Obligations: ${execution.discoveredObligations.length}`,
-    ].join("\n");
-  }
-  if (result.scenarioDryRun) {
-    const dryRun = result.scenarioDryRun;
-    return [
-      `Scenario Dry Run: ${dryRun.definition.scenario} [executable]`,
-      `Authorization: ${dryRun.authorization.mode}`,
-      ...(dryRun.obligation
-        ? [
-            `Obligation: ${dryRun.obligation.instance}`,
-            `Obligation Definition: ${dryRun.definition.obligation}`,
-            `Status: ${dryRun.obligation.status}`,
-            `Dispatchable: ${dryRun.obligation.dispatchable}`,
-          ]
-        : []),
-      ...dryRun.invocations.flatMap((invocation, index) => [
-        `Invocation: ${index + 1}`,
-        ...invocation.inputs.map((input) =>
-          `Input ${input.name}: ${input.values.map((value) => value.identity.revision_id ?? value.identity.id).join(", ") || "none"}`
-        ),
-      ]),
-      `Prompt: ${dryRun.prompt.reference}`,
-      ...dryRun.prompt.skills.map((skill) => `Skill: ${skill.reference}`),
-      ...dryRun.policies.map((policy) =>
-        `Policy [${policy.role}]: ${policy.reference}`
-      ),
-      ...humanParticipation(dryRun.participation ?? []),
-      `Prohibited Inputs: ${dryRun.prohibitedInputs.join(", ") || "none"}`,
-      ...dryRun.expectedOutputs.map((output) =>
-        `Expected Output ${output.name}: ${output.types.join("|")} (${output.cardinality})`
-      ),
-      `Completion: ${dryRun.completion.status}`,
-      `Completion Expression: ${dryRun.completion.expression}`,
-      `Side Effect Free: ${dryRun.sideEffectFree}`,
     ].join("\n");
   }
   if (result.baselineDiff) {
@@ -2501,14 +1537,6 @@ function renderCommandResult(result: CommandResult): string {
       ...result.trace.links.map((link) =>
         `${link.source} --${link.type}/${link.inverseLabel}--> ${link.target} [${link.targetIdentityKind.replace("-", " ")}]`
       ),
-    ].join("\n");
-  }
-  if (result.created) {
-    return [
-      `Lifecycle Datum: ${result.created.id}`,
-      `Revision: ${result.created.revisionId}`,
-      `Type: ${result.created.type}`,
-      `Path: ${result.created.path}`,
     ].join("\n");
   }
   if (result.history) {
@@ -2727,75 +1755,6 @@ function commandOperands(arguments_: string[]): string[] {
   );
 }
 
-async function dispatchLegacyLifecycleMutation(
-  arguments_: string[],
-  repositoryRoot: string,
-): Promise<CommandResult | undefined> {
-  const operands = commandOperands(arguments_);
-  if (operands[0] === "new" && operands[1]) {
-    return newDatum(repositoryRoot, operands[1], arguments_);
-  }
-  if (operands[0] === "revise" && operands[1]) {
-    return reviseStoredDatum(repositoryRoot, operands[1], arguments_);
-  }
-  if (operands[0] === "baseline" && operands[1] === "create") {
-    return newBaseline(repositoryRoot, arguments_);
-  }
-  if (
-    operands[0] === "baseline" &&
-    (operands[1] === "add" || operands[1] === "remove") &&
-    operands[2] && operands[3]
-  ) {
-    return mutateBaseline(
-      repositoryRoot,
-      `baseline.${operands[1]}`,
-      operands[2],
-      operands[3],
-    );
-  }
-  if (
-    operands[0] === "baseline" && operands[1] === "evidence" &&
-    (operands[2] === "add" || operands[2] === "remove") &&
-    operands[3] && operands[4]
-  ) {
-    return mutateBaseline(
-      repositoryRoot,
-      `baseline.evidence.${operands[2]}`,
-      operands[3],
-      operands[4],
-    );
-  }
-  if (
-    operands[0] === "baseline" && operands[1] === "compose" &&
-    operands[2] && operands[3]
-  ) {
-    return mutateBaseline(
-      repositoryRoot,
-      "baseline.compose",
-      operands[2],
-      operands[3],
-    );
-  }
-  if (
-    operands[0] === "baseline" && operands[1] === "freeze" && operands[2]
-  ) {
-    return freezeBaseline(repositoryRoot, operands[2]);
-  }
-  if (
-    (operands[0] === "link" || operands[0] === "unlink") &&
-    operands[1] && operands[2]
-  ) {
-    return mutateStoredDatumLink(
-      repositoryRoot,
-      operands[0],
-      operands[1],
-      operands[2],
-      arguments_,
-    );
-  }
-  return undefined;
-}
-
 async function dispatchCommand(
   arguments_: string[],
   repositoryRoot: string,
@@ -2933,54 +1892,14 @@ async function dispatchCommand(
   ) {
     return showScenarioExecution(repositoryRoot, operands[3]);
   }
-  if (
-    operands[0] === "scenario" && operands[1] === "dry-run" && operands[2]
-  ) {
-    return dryRunScenario(
-      repositoryRoot,
-      operands[2],
-      optionValue(arguments_, "--obligation"),
-      arguments_.includes("--initiate"),
-      optionValue(arguments_, "--snapshot"),
-      optionValues(arguments_, "--input"),
-    );
-  }
   if (operands[0] !== "process") {
     return failure(
       "unknown-command",
       "Expected an MDLM operator or inspection command",
     );
   }
-  if (operands[1] === "init" && operands[2]) {
-    return initPackage(
-      repositoryRoot,
-      operands[2],
-      optionValue(arguments_, "--from"),
-    );
-  }
-  if (
-    operands[1] === "definition" && operands[2] === "new" &&
-    operands[3] && operands[4]
-  ) {
-    return newProcessDefinition(repositoryRoot, operands[3], operands[4]);
-  }
-  if (
-    operands[1] === "fixture" && operands[2] === "new" && operands[3]
-  ) {
-    return newProcessFixture(
-      repositoryRoot,
-      operands[3],
-      optionValue(arguments_, "--phase"),
-    );
-  }
   if (operands[1] === "test") {
     return runProcessFixtures(repositoryRoot, optionValue(arguments_, "--ref"));
-  }
-  if (operands[1] === "install" && operands[2]) {
-    return installPackage(repositoryRoot, operands[2]);
-  }
-  if (operands[1] === "use" && operands[2]) {
-    return usePackage(repositoryRoot, operands[2]);
   }
   if (operands[1] === "migrate" && operands[2]) {
     return migrateRepositoryPackage(repositoryRoot, operands[2]);
@@ -3068,56 +1987,5 @@ export function executeCommandApplication(
   return executeCommand(
     arguments_,
     () => dispatchCommand(arguments_, repositoryRoot, standardInput),
-  );
-}
-
-async function dispatchLegacyReqCommand(
-  arguments_: string[],
-  repositoryRoot: string,
-): Promise<CommandResult> {
-  if (
-    arguments_.find((argument) => argument !== "--json") === "init" &&
-    arguments_.includes("--process")
-  ) {
-    return initializeRepository(
-      repositoryRoot,
-      optionValue(arguments_, "--process"),
-    );
-  }
-  const operands = commandOperands(arguments_);
-  const lifecycleMutation = await dispatchLegacyLifecycleMutation(
-    arguments_,
-    repositoryRoot,
-  );
-  if (lifecycleMutation) return lifecycleMutation;
-  if (
-    operands[0] === "scenario" && operands[1] === "execute" && operands[2]
-  ) {
-    return executeScenario(
-      repositoryRoot,
-      operands[2],
-      optionValue(arguments_, "--obligation"),
-      arguments_.includes("--initiate"),
-      optionValue(arguments_, "--adapter"),
-      optionValues(arguments_, "--input"),
-      optionValues(arguments_, "--authorize"),
-      optionValues(arguments_, "--delegation"),
-    );
-  }
-  if (operands[0] !== "process") {
-    const aliasResult = await executePackageAlias(repositoryRoot, arguments_);
-    if (aliasResult) return aliasResult;
-  }
-  return dispatchCommand(arguments_, repositoryRoot);
-}
-
-/** Keep temporary prototype behavior outside the mdlm product surface. */
-export function executeLegacyReqApplication(
-  arguments_: string[],
-  repositoryRoot: string,
-): Promise<CommandApplicationExecution> {
-  return executeCommand(
-    arguments_,
-    () => dispatchLegacyReqCommand(arguments_, repositoryRoot),
   );
 }

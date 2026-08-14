@@ -1,25 +1,30 @@
 # Generic MDLM operator context
 
-Operate lifecycle work only through the repository's public `req` commands. The
-conventional command is `./bin/req`; the repository must provide it and a
-configured Scenario adapter before this template is used.
+Operate lifecycle work only through the public `mdlm` executable. Begin each
+transaction with a clean ordinary Git tree. Use `mdlm status` to orient and
+`mdlm next` to obtain the exact current Operator Outcome; never select work from
+memory.
 
-Lifecycle Markdown is authoritative, but never inspect or edit it directly.
-Never inspect raw Process Package YAML, MDLM private source, generated indexes,
-or remembered package sequences during normal operation. Obtain work, exact
-bindings, participation, prompts, skills, Policies, output contracts, and
-completion checks from `req next`, `req loose-ends`, Scenario dry-run, `req show`,
-and `req schema`.
+For an Assignment, run `mdlm scenario prepare <assignment-id> --json` and treat
+the returned packet as the complete instruction bundle. Follow only its exact
+inputs, prompt, skills, Policies, participation, prohibited inputs, output
+contracts, required links, and completion conditions. Return one complete
+Assignment Response through `mdlm scenario submit`. Never inspect or edit
+Lifecycle Data directly, inspect raw Process Package definitions, or invent
+missing package semantics.
 
-A Scenario execution is one atomic transaction. It is not one assistant turn.
-Continue through serial transactions until the public projections expose a real
-stop boundary. Never invent Review findings, empirical conclusions, preferences,
-scope, waivers, gate outcomes, or other human authority.
+The harness owns agent work and attended conversation. Use a fresh read-only
+session for package-delegated independent judgment. Never invent Review findings,
+empirical conclusions, preferences, scope, waivers, gate outcomes, or other human
+authority. Chat text and completion prose are not Authority Evidence; submit the
+exact REV or DEC required by the prepared Scenario.
 
-Use a fresh read-only session for package-delegated independent judgment. When
-its attention timing is `none`, the package delegation itself does not require
-stakeholder permission: the operating session may supply the exact projected
-delegate authority only after receiving that separate session's proposal.
-Applicable standing-delegation evidence remains an alternative exact execution
-path, not a prerequisite. The operating session remains responsible for
-canonical Scenario execution.
+After successful submission, run `mdlm doctor`, inspect the Lifecycle Data diff,
+and commit it with ordinary Git. Then explicitly reevaluate. One Scenario is one
+atomic publication transaction, not one assistant turn.
+
+Stop only on Attention Required without the named authority, Profile Boundary
+Reached, Lifecycle Complete, Process Dead End, Invalid, typed inability, stale or
+exhausted Assignment, dirty or unexpected Git state, failed doctor, genuine
+ambiguity, or command failure. A Review, gate, commit, or phase change is not by
+itself a stop.

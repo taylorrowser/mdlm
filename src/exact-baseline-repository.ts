@@ -14,28 +14,14 @@ import {
   type StableLinkResolution,
 } from "./index.js";
 import {
-  createDatum,
   provisionalLifecycleRecord,
   readRepositoryData,
-  replaceRepositoryDatum,
-  type CreatedDatum,
   type KernelFinalizedScenarioOutput,
   type ParsedDatum,
   type RepositoryResult,
 } from "./lifecycle-repository.js";
 import { isObligationInstanceIdentity } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
-
-export interface BaselineMutation {
-  operation:
-    | "definition-member-added"
-    | "definition-member-removed"
-    | "evidence-added"
-    | "evidence-removed"
-    | "composition-added";
-  baselineRevision: string;
-  target: string;
-}
 
 export interface BaselineFreeze {
   baselineRevision: string;
@@ -98,7 +84,6 @@ function exactBaselineSubject(
   parsed: ParsedDatum[],
   identity: string,
   boundType: string,
-  requireEditable: boolean,
 ): RepositoryResult<ParsedDatum> {
   const candidates = revisionIdentity.test(identity)
     ? parsed.filter((item) => item.lifecycleDatum.datum.revision_id === identity)
@@ -124,16 +109,6 @@ function exactBaselineSubject(
         code: "baseline-type-mismatch",
         path: identity,
         message: `Lifecycle Datum '${identity}' is not the type '${boundType}' bound to exact-baseline@1`,
-      }],
-    };
-  }
-  if (requireEditable && selected.lifecycleDatum.storage.frozen) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "frozen-revision-immutable",
-        path: selected.lifecycleDatum.datum.revision_id,
-        message: `Frozen Revision '${selected.lifecycleDatum.datum.revision_id}' cannot be changed`,
       }],
     };
   }
@@ -362,211 +337,6 @@ async function sha256File(filePath: string): Promise<string> {
   return `sha256:${createHash("sha256").update(await fs.readFile(filePath)).digest("hex")}`;
 }
 
-export async function createExactBaseline(
-  root: string,
-  processPackage: ProcessPackage,
-  packageReference: string,
-  packageDigest: string,
-  typeId: string,
-  scenarioReference: string | undefined,
-  fields: { path: string; value: unknown }[],
-  body: string,
-): Promise<RepositoryResult<CreatedDatum>> {
-  const capability = exactBaselineType(processPackage);
-  if (!capability.ok) return capability;
-  if (typeId !== capability.value) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "baseline-type-mismatch",
-        path: typeId,
-        message: `Baseline creation requires the type '${capability.value}' bound to exact-baseline@1, received '${typeId}'`,
-      }],
-    };
-  }
-  return createDatum(
-    root,
-    processPackage,
-    packageReference,
-    packageDigest,
-    typeId,
-    scenarioReference,
-    fields,
-    [],
-    body,
-    [
-      { path: "definition_members", value: [] },
-      { path: "evidence", value: [] },
-    ],
-  );
-}
-
-export async function mutateExactBaseline(
-  root: string,
-  processPackage: ProcessPackage,
-  baselineIdentity: string,
-  targetRevision: string,
-  section: "definition_members" | "evidence" | "composition",
-  operation: "added" | "removed",
-): Promise<RepositoryResult<BaselineMutation>> {
-  const capability = exactBaselineType(processPackage);
-  if (!capability.ok) return capability;
-  if (!revisionIdentity.test(targetRevision)) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "exact-target-revision-required",
-        path: targetRevision,
-        message: `Baseline mutation requires an exact target Revision ID, received '${targetRevision}'`,
-      }],
-    };
-  }
-  const loaded = await readRepositoryData(root, processPackage);
-  if (!loaded.ok) return loaded;
-  const source = exactBaselineSubject(
-    loaded.value,
-    baselineIdentity,
-    capability.value,
-    true,
-  );
-  if (!source.ok) return source;
-  if (source.value.lifecycleDatum.datum.revision_id === targetRevision) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "baseline-self-reference",
-        path: targetRevision,
-        message: `Exact baseline '${targetRevision}' cannot include itself`,
-      }],
-    };
-  }
-  const target = loaded.value.find((item) =>
-    item.lifecycleDatum.datum.revision_id === targetRevision
-  );
-  if (!target) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "baseline-reference-missing",
-        path: targetRevision,
-        message: `Baseline mutation references missing exact Revision '${targetRevision}'`,
-      }],
-    };
-  }
-  if (section === "composition" && (
-    target.lifecycleDatum.datum.type !== capability.value ||
-    !target.lifecycleDatum.storage.frozen
-  )) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "baseline-composition-not-frozen",
-        path: targetRevision,
-        message: `Composed baseline '${targetRevision}' must be a frozen exact Revision of bound type '${capability.value}'`,
-      }],
-    };
-  }
-
-  const datum = structuredClone(source.value.lifecycleDatum.datum);
-  let operationName: BaselineMutation["operation"];
-  if (section === "composition") {
-    if (operation !== "added") {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "unsupported-baseline-mutation",
-          path: section,
-          message: "Baseline composition currently supports addition only",
-        }],
-      };
-    }
-    if (datum.links.some((link) =>
-      link.type === "composes" && link.target === targetRevision
-    )) {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: "duplicate-baseline-reference",
-          path: targetRevision,
-          message: `Baseline already composes '${targetRevision}'`,
-        }],
-      };
-    }
-    datum.links.push({ type: "composes", target: targetRevision });
-    datum.links.sort((left, right) =>
-      left.type.localeCompare(right.type) || left.target.localeCompare(right.target)
-    );
-    operationName = "composition-added";
-  } else {
-    const values = exactRevisionList(datum.payload[section]);
-    const index = values.indexOf(targetRevision);
-    if (operation === "added") {
-      if (index >= 0) {
-        return {
-          ok: false,
-          diagnostics: [{
-            code: "duplicate-baseline-reference",
-            path: targetRevision,
-            message: `Baseline ${section} already contains '${targetRevision}'`,
-          }],
-        };
-      }
-      values.push(targetRevision);
-      values.sort();
-    } else {
-      if (index < 0) {
-        return {
-          ok: false,
-          diagnostics: [{
-            code: "unknown-baseline-reference",
-            path: targetRevision,
-            message: `Baseline ${section} does not contain '${targetRevision}'`,
-          }],
-        };
-      }
-      values.splice(index, 1);
-    }
-    datum.payload[section] = values;
-    operationName = section === "definition_members"
-      ? `definition-member-${operation}`
-      : `evidence-${operation}`;
-  }
-  const referenceDiagnostics = baselineReferenceDiagnostics(
-    loaded.value,
-    datum,
-    capability.value,
-  );
-  const cycleDiagnostics = compositionCycleDiagnostics(
-    loaded.value.map((item) => item === source.value
-      ? { ...item, lifecycleDatum: { ...item.lifecycleDatum, datum } }
-      : item),
-    datum.revision_id,
-  );
-  if (referenceDiagnostics.length + cycleDiagnostics.length > 0) {
-    return {
-      ok: false,
-      diagnostics: [...referenceDiagnostics, ...cycleDiagnostics],
-    };
-  }
-  const replaced = await replaceRepositoryDatum(
-    root,
-    processPackage,
-    loaded.value,
-    source.value,
-    datum,
-  );
-  if (!replaced.ok) return replaced;
-  return {
-    ok: true,
-    value: {
-      operation: operationName,
-      baselineRevision: datum.revision_id,
-      target: targetRevision,
-    },
-    diagnostics: [],
-  };
-}
-
 async function finalizeExactBaselineDatumFromRepository(
   root: string,
   processPackage: ProcessPackage,
@@ -703,42 +473,6 @@ export async function finalizeExactBaselineScenarioOutput(
   );
 }
 
-export async function freezeExactBaseline(
-  root: string,
-  processPackage: ProcessPackage,
-  processRef: string,
-  baselineIdentity: string,
-): Promise<RepositoryResult<BaselineFreeze>> {
-  const capability = exactBaselineType(processPackage);
-  if (!capability.ok) return capability;
-  const loaded = await readRepositoryData(root, processPackage);
-  if (!loaded.ok) return loaded;
-  const source = exactBaselineSubject(
-    loaded.value,
-    baselineIdentity,
-    capability.value,
-    true,
-  );
-  if (!source.ok) return source;
-  const finalized = await finalizeExactBaselineDatumFromRepository(
-    root,
-    processPackage,
-    processRef,
-    loaded.value,
-    source.value.lifecycleDatum.datum,
-  );
-  if (!finalized.ok) return finalized;
-  const replaced = await replaceRepositoryDatum(
-    root,
-    processPackage,
-    loaded.value,
-    source.value,
-    finalized.value.output.datum,
-  );
-  if (!replaced.ok) return replaced;
-  return { ok: true, value: finalized.value.freeze, diagnostics: [] };
-}
-
 function objectRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -759,7 +493,6 @@ export async function verifyExactBaseline(
     loaded.value,
     baselineIdentity,
     capability.value,
-    false,
   );
   if (!source.ok) return source;
   const datum = source.value.lifecycleDatum.datum;
@@ -1028,14 +761,12 @@ export async function diffExactBaselines(
     loaded.value,
     beforeIdentity,
     capability.value,
-    false,
   );
   if (!before.ok) return before;
   const after = exactBaselineSubject(
     loaded.value,
     afterIdentity,
     capability.value,
-    false,
   );
   if (!after.ok) return after;
   for (const item of [before.value, after.value]) {
