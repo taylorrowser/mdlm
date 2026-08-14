@@ -22,6 +22,7 @@ export const testFiles = [
   "test/mdlm-pilot-assessment.test.ts",
   "test/mdlm-process-expression.test.ts",
   "test/mdlm-process-migration.test.ts",
+  "test/mdlm-review-assignment.test.ts",
   "test/mdlm-repository-inspection.test.ts",
   "test/mdlm-schema.test.ts",
   "test/operator-outcome.test.ts",
@@ -33,6 +34,7 @@ export const testFiles = [
   "test/phase-hardening-matrix.test.ts",
   "test/pi-operator-instructions.test.ts",
   "test/resolve-type.test.ts",
+  "test/scenario-policy-assets.test.ts",
   "test/selector-memoization.test.ts",
   "test/textual-expression.test.ts",
 ];

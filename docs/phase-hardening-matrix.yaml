@@ -30,8 +30,8 @@ rows:
           - assignment
         budget: The one malformed-response correction is lease-local transport state and consumes no package-authored lifecycle
           Correction cycle.
-        disposition: The response returns correction-required, publishes no Lifecycle Data, keeps the lease active with zero
-          corrections remaining, and permits only a corrected response for the same Assignment.
+        disposition: The response returns correction-required, publishes no Lifecycle Data, keeps the lease active with one
+          corrected submission remaining, and permits only that corrected response for the same Assignment.
         reuse: The exact Assignment and all clean-head package evidence remain reusable; the malformed bytes and diagnostics
           remain ignored operational lease evidence only.
         transport:
