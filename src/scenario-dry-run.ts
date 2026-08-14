@@ -8,6 +8,7 @@ import {
   evaluateProcessExpression,
   evaluateResolverInputs,
   evaluateScenarioParticipation,
+  evaluateScenarioReviewPolicy,
   scenarioOutputExplanations,
   type DatumEnvelope,
   type ExactTypedEntity,
@@ -67,11 +68,19 @@ export interface ResolvedPrompt extends ResolvedProcessAsset {
   skills: ResolvedProcessAsset[];
 }
 
+export interface ResolvedScenarioPolicyEvaluation {
+  invocation: number;
+  arguments: Record<string, unknown>;
+  result: Record<string, unknown>;
+  assets: ResolvedProcessAsset[];
+}
+
 export interface ResolvedScenarioPolicy {
   role: "review" | "waiver";
   reference: string;
   definition: { id: string; version: number };
   result?: Record<string, unknown>;
+  evaluations?: ResolvedScenarioPolicyEvaluation[];
 }
 
 export type ScenarioAuthorization =
@@ -188,10 +197,16 @@ function assetFrontmatter(content: string): RecordValue | undefined {
   return match?.[1] ? object(parse(match[1])) : undefined;
 }
 
+function pathIsWithin(root: string, target: string): boolean {
+  const relative = path.relative(root, target);
+  return relative !== ".." && !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative);
+}
+
 async function resolvedAsset(
   processPackage: ProcessPackage,
   reference: string,
-  kind: "prompt" | "skill",
+  kind: "prompt" | "skill" | "policy-asset",
 ): Promise<{ asset?: ResolvedProcessAsset; diagnostic?: ProcessDiagnostic }> {
   const relativePath = assetPath(reference);
   if (!relativePath) {
@@ -205,7 +220,11 @@ async function resolvedAsset(
   }
   try {
     const assetCatalog = object(processPackage.manifest.assets);
-    const declared = array(assetCatalog?.[`${kind}s`]).includes(reference);
+    const declared = kind === "policy-asset"
+      ? Object.values(assetCatalog ?? {}).some((catalog) =>
+          array(catalog).includes(reference)
+        )
+      : array(assetCatalog?.[`${kind}s`]).includes(reference);
     if (!declared) {
       return {
         diagnostic: {
@@ -215,10 +234,28 @@ async function resolvedAsset(
         },
       };
     }
-    const content = await fs.readFile(
-      path.join(processPackage.root, relativePath),
-      "utf8",
-    );
+    const packageRoot = await fs.realpath(processPackage.root);
+    const unresolvedPath = path.resolve(packageRoot, relativePath);
+    if (!pathIsWithin(packageRoot, unresolvedPath)) {
+      return {
+        diagnostic: {
+          code: `${kind}-outside-package`,
+          path: relativePath,
+          message: `Resolved ${kind} '${reference}' is outside the exact Process Package root`,
+        },
+      };
+    }
+    const resolvedPath = await fs.realpath(unresolvedPath);
+    if (!pathIsWithin(packageRoot, resolvedPath)) {
+      return {
+        diagnostic: {
+          code: `${kind}-outside-package`,
+          path: relativePath,
+          message: `Resolved ${kind} '${reference}' escapes the exact Process Package root`,
+        },
+      };
+    }
+    const content = await fs.readFile(resolvedPath, "utf8");
     const frontmatter = assetFrontmatter(content);
     const expectedVersion = Number(
       reference.slice(reference.lastIndexOf("@") + 1),
@@ -253,6 +290,49 @@ async function resolvedAsset(
       },
     };
   }
+}
+
+function referencedPolicyAssets(
+  processPackage: ProcessPackage,
+  result: Record<string, unknown>,
+): string[] {
+  const catalog = object(processPackage.manifest.assets);
+  const declared = new Set(
+    Object.values(catalog ?? {}).flatMap((value) =>
+      array(value).filter((item): item is string => typeof item === "string")
+    ),
+  );
+  const references = new Set<string>();
+  const visit = (value: unknown): void => {
+    if (typeof value === "string") {
+      if (declared.has(value)) references.add(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (object(value)) Object.values(value as RecordValue).forEach(visit);
+  };
+  visit(result);
+  return [...references].sort();
+}
+
+async function resolvePolicyAssets(
+  processPackage: ProcessPackage,
+  result: Record<string, unknown>,
+): Promise<{ assets: ResolvedProcessAsset[]; diagnostics: ProcessDiagnostic[] }> {
+  const resolved = await Promise.all(
+    referencedPolicyAssets(processPackage, result).map((reference) =>
+      resolvedAsset(processPackage, reference, "policy-asset")
+    ),
+  );
+  return {
+    assets: resolved.flatMap((value) => value.asset ? [value.asset] : []),
+    diagnostics: resolved.flatMap((value) =>
+      value.diagnostic ? [value.diagnostic] : []
+    ),
+  };
 }
 
 async function resolvePrompt(
@@ -450,6 +530,52 @@ function policyProjection(
         ...(result ? { result } : {}),
       }
     : undefined;
+}
+
+async function resolveReviewPolicyEvaluations(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  scenarioReference: string,
+  invocationBindings: Record<string, unknown>[],
+): Promise<{
+  evaluations: ResolvedScenarioPolicyEvaluation[];
+  diagnostics: ProcessDiagnostic[];
+}> {
+  let evaluated: ReturnType<typeof evaluateScenarioReviewPolicy>;
+  try {
+    evaluated = evaluateScenarioReviewPolicy(
+      processPackage,
+      snapshot,
+      scenarioReference,
+      invocationBindings,
+    );
+  } catch (error) {
+    return {
+      evaluations: [],
+      diagnostics: [{
+        code: "review-policy-evaluation-failed",
+        path: `${scenarioReference}#review_policy_arguments`,
+        message: error instanceof Error ? error.message : String(error),
+      }],
+    };
+  }
+  const evaluations: ResolvedScenarioPolicyEvaluation[] = [];
+  for (const [invocation, evaluation] of (evaluated ?? []).entries()) {
+    const resolvedAssets = await resolvePolicyAssets(
+      processPackage,
+      evaluation.result,
+    );
+    if (resolvedAssets.diagnostics.length > 0) {
+      return { evaluations: [], diagnostics: resolvedAssets.diagnostics };
+    }
+    evaluations.push({
+      invocation,
+      arguments: evaluation.arguments,
+      result: evaluation.result,
+      assets: resolvedAssets.assets,
+    });
+  }
+  return { evaluations, diagnostics: [] };
 }
 
 function requestedInputDiagnostics(
@@ -814,6 +940,20 @@ async function dryRunScenario(
           actual: true,
         });
     }
+  }
+
+  const reviewPolicyEvaluations = await resolveReviewPolicyEvaluations(
+    processPackage,
+    snapshot,
+    scenarioReference,
+    invocationBindings,
+  );
+  if (reviewPolicyEvaluations.diagnostics.length > 0) {
+    return { ok: false, diagnostics: reviewPolicyEvaluations.diagnostics };
+  }
+  const reviewPolicy = policies.find((policy) => policy.role === "review");
+  if (reviewPolicy && reviewPolicyEvaluations.evaluations.length > 0) {
+    reviewPolicy.evaluations = reviewPolicyEvaluations.evaluations;
   }
 
   if (authorizationRequest.mode === "explicit-initiation") {

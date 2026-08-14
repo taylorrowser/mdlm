@@ -309,6 +309,11 @@ export interface ProcessDirectEvaluation {
   evidence: ProcessDefinitionEvidence[];
 }
 
+export interface ScenarioReviewPolicyEvaluation {
+  arguments: Record<string, unknown>;
+  result: Record<string, unknown>;
+}
+
 export interface ProcessExpressionEvaluation {
   target: {
     definition: string;
@@ -634,27 +639,19 @@ class LifecycleEvaluator {
     );
   }
 
-  evaluateScenarioParticipation(
+  private evaluateScenarioPolicyArguments(
     scenarioReference: string,
+    policyReference: string,
+    argumentsValue: Record<string, unknown>,
     invocationBindings: Record<string, unknown>[],
-  ): ScenarioParticipation[] | undefined {
-    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
-      scenarioReference,
-    );
-    const scenario = match?.[1]
-      ? this.processPackage.scenarios[match[1]]
-      : undefined;
-    if (!scenario || scenario.version !== Number(match?.[2])) return undefined;
-    const participation = object(scenario.participation);
-    const policyReference = string(participation?.policy_ref);
-    const argumentsValue = object(participation?.arguments);
-    if (!policyReference || !argumentsValue) return undefined;
+    label: string,
+  ): Record<string, unknown>[] {
     return invocationBindings.map((bindings) => {
       const policyArguments = Object.fromEntries(
         Object.entries(argumentsValue).map(([name, expression]) => {
           if (!isCompiledTextExpression(expression)) {
             throw new Error(
-              `Scenario '${scenarioReference}' participation argument '${name}' is not compiled`,
+              `Scenario '${scenarioReference}' ${label} argument '${name}' is not compiled`,
             );
           }
           const resolvedBindings = Object.fromEntries(
@@ -676,16 +673,72 @@ class LifecycleEvaluator {
           ];
         }),
       );
-      this.requireParticipationPolicyArguments(
-        policyReference,
-        policyArguments,
-      );
-      return projectScenarioParticipation(
+      this.requirePolicyArguments(policyReference, policyArguments);
+      return policyArguments;
+    });
+  }
+
+  evaluateScenarioParticipation(
+    scenarioReference: string,
+    invocationBindings: Record<string, unknown>[],
+  ): ScenarioParticipation[] | undefined {
+    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
+      scenarioReference,
+    );
+    const scenario = match?.[1]
+      ? this.processPackage.scenarios[match[1]]
+      : undefined;
+    if (!scenario || scenario.version !== Number(match?.[2])) return undefined;
+    const participation = object(scenario.participation);
+    const policyReference = string(participation?.policy_ref);
+    const argumentsValue = object(participation?.arguments);
+    if (!policyReference || !argumentsValue) return undefined;
+    return this.evaluateScenarioPolicyArguments(
+      scenarioReference,
+      policyReference,
+      argumentsValue,
+      invocationBindings,
+      "participation",
+    ).map((policyArguments) =>
+      projectScenarioParticipation(
         policyReference,
         this.policyResult(policyReference, policyArguments),
         string(scenario.batching) ?? "single",
-      );
-    });
+      )
+    );
+  }
+
+  evaluateScenarioReviewPolicy(
+    scenarioReference: string,
+    invocationBindings: Record<string, unknown>[],
+  ): ScenarioReviewPolicyEvaluation[] | undefined {
+    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
+      scenarioReference,
+    );
+    const scenario = match?.[1]
+      ? this.processPackage.scenarios[match[1]]
+      : undefined;
+    if (!scenario || scenario.version !== Number(match?.[2])) return undefined;
+    const policyReference = string(scenario.review_policy_ref);
+    const argumentsValue = object(scenario.review_policy_arguments);
+    if (!policyReference || !argumentsValue) return undefined;
+    return this.evaluateScenarioPolicyArguments(
+      scenarioReference,
+      policyReference,
+      argumentsValue,
+      invocationBindings,
+      "review Policy",
+    ).map((arguments_) => ({
+      arguments: Object.fromEntries(
+        Object.entries(arguments_).map(([name, value]) => [
+          name,
+          this.expressionBindingValue(value),
+        ]),
+      ),
+      result: this.evidenceValue(
+        this.policyResult(policyReference, arguments_),
+      ) as Record<string, unknown>,
+    }));
   }
 
   evaluateDirectDefinition(
@@ -1813,7 +1866,7 @@ class LifecycleEvaluator {
     return this.stateExplanationMemo.get(memoKey) ?? "";
   }
 
-  private requireParticipationPolicyArguments(
+  private requirePolicyArguments(
     reference: string,
     argumentsContext: EvaluationContext,
   ): void {
@@ -1857,7 +1910,7 @@ class LifecycleEvaluator {
           allowedTypes.includes(entity.identity.type));
       if (!kindValid || !typeValid) {
         throw new Error(
-          `Participation Policy '${reference}' argument '${name}' does not satisfy parameter kind '${kind}'`,
+          `Policy '${reference}' argument '${name}' does not satisfy parameter kind '${kind}'`,
         );
       }
     }
@@ -2259,6 +2312,16 @@ export function evaluateScenarioParticipation(
 ): ScenarioParticipation[] | undefined {
   return new LifecycleEvaluator(processPackage, snapshot)
     .evaluateScenarioParticipation(scenarioReference, invocationBindings);
+}
+
+export function evaluateScenarioReviewPolicy(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  scenarioReference: string,
+  invocationBindings: Record<string, unknown>[],
+): ScenarioReviewPolicyEvaluation[] | undefined {
+  return new LifecycleEvaluator(processPackage, snapshot)
+    .evaluateScenarioReviewPolicy(scenarioReference, invocationBindings);
 }
 
 export function evaluateProcessDefinition(

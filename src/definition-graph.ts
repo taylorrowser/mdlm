@@ -152,6 +152,22 @@ function validateReferences(
       manifestRecord.profiles !== null
     ? manifestRecord.profiles as Record<string, unknown>
     : {};
+  for (const [id, policy] of Object.entries(definitions.policies)) {
+    const parameterNames = (Array.isArray(policy.parameters)
+      ? policy.parameters
+      : []).flatMap((value) => {
+        if (typeof value !== "object" || value === null) return [];
+        const name = (value as Record<string, unknown>).name;
+        return typeof name === "string" ? [name] : [];
+      });
+    if (new Set(parameterNames).size !== parameterNames.length) {
+      diagnostics.push({
+        code: "policy-parameters",
+        path: `policies.${id}.parameters`,
+        message: `Policy '${id}@${policy.version}' has duplicate parameter names`,
+      });
+    }
+  }
   if (typeof profiles.default === "string") {
     diagnostics.push(...validateVersionedReference(
       profiles.default,
@@ -279,6 +295,35 @@ function validateReferences(
           "Policy",
         ),
       );
+    }
+    const reviewPolicyArguments =
+      typeof definition.review_policy_arguments === "object" &&
+        definition.review_policy_arguments !== null &&
+        !Array.isArray(definition.review_policy_arguments)
+        ? definition.review_policy_arguments as Record<string, unknown>
+        : undefined;
+    if (typeof definition.review_policy_ref === "string") {
+      const policyId = referenceId(definition.review_policy_ref);
+      const policy = policyId ? definitions.policies[policyId] : undefined;
+      if (policy && reviewPolicyArguments) {
+        const parameterNames = (Array.isArray(policy.parameters)
+          ? policy.parameters
+          : []).flatMap((value) => {
+            if (typeof value !== "object" || value === null) return [];
+            const name = (value as Record<string, unknown>).name;
+            return typeof name === "string" ? [name] : [];
+          });
+        const supplied = Object.keys(reviewPolicyArguments);
+        const missing = parameterNames.filter((name) => !supplied.includes(name));
+        const unknown = supplied.filter((name) => !parameterNames.includes(name));
+        if (missing.length > 0 || unknown.length > 0) {
+          diagnostics.push({
+            code: "review-policy-arguments",
+            path: `scenarios.${id}.review_policy_arguments`,
+            message: `Scenario '${id}' review Policy arguments must exactly match Policy '${definition.review_policy_ref}'; missing: ${missing.join(", ") || "none"}; unknown: ${unknown.join(", ") || "none"}`,
+          });
+        }
+      }
     }
     const participation = typeof definition.participation === "object" &&
         definition.participation !== null

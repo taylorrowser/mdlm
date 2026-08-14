@@ -105,6 +105,13 @@ describe("loadProcessPackage", () => {
           scenario: "register-pilot-target@1",
         }),
       }));
+    expect(result.package.scenarios["review-datum-in-context"]
+      ?.review_policy_arguments).toEqual({
+        subject: expect.objectContaining({
+          kind: "mdlm-expression",
+          source: "subject",
+        }),
+      });
     expect(result.package.scenarios["register-pilot-target"]?.participation)
       .toBeUndefined();
     for (const scenario of [
@@ -134,6 +141,98 @@ describe("loadProcessPackage", () => {
       expect(prompt).toContain("`justifies`");
     }
     expect(result.diagnostics).toEqual([]);
+  });
+
+  it("rejects review Policy argument mappings that do not cover the Policy", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("  subject: subject", "  other: subject"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "review-policy-arguments",
+      path: "scenarios.review-datum-in-context.review_policy_arguments",
+      message: expect.stringContaining("missing: subject; unknown: other"),
+    }));
+  });
+
+  it("rejects review Policy arguments bound to a missing Scenario input", async () => {
+    const processRoot = await copiedProcessPackage();
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/review-datum-in-context.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("  subject: subject", "  subject: absent"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "expression-unknown-binding",
+      path: expect.stringContaining(
+        "review-datum-in-context.yaml#review_policy_arguments.subject",
+      ),
+    }));
+  });
+
+  it("rejects Review Policy arguments with incompatible parameter kinds", async () => {
+    const processRoot = await copiedProcessPackage();
+    const policyPath = path.join(
+      processRoot,
+      "policies/review-applicability.yaml",
+    );
+    const policy = await fs.readFile(policyPath, "utf8");
+    await fs.writeFile(
+      policyPath,
+      policy.replace("kind: revision", "kind: stable-datum"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "review-policy-argument-type",
+      path: expect.stringContaining(
+        "review-datum-in-context.yaml#review_policy_arguments.subject",
+      ),
+    }));
+  });
+
+  it("rejects Review Policies with duplicate parameter names", async () => {
+    const processRoot = await copiedProcessPackage();
+    const policyPath = path.join(
+      processRoot,
+      "policies/review-applicability.yaml",
+    );
+    const policy = await fs.readFile(policyPath, "utf8");
+    await fs.writeFile(
+      policyPath,
+      policy.replace(
+        "  - {name: subject, kind: revision}",
+        "  - {name: subject, kind: revision}\n  - {name: subject, kind: stable-datum}",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "policy-parameters",
+      path: "policies.review-applicability.parameters",
+    }));
   });
 
   it("validates Review Context membership contracts for DEC and CHG callers", async () => {

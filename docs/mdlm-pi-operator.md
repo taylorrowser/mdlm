@@ -18,9 +18,9 @@ For each transaction, the harness:
    Operator Outcome;
 3. prepares an Assignment with
    `mdlm scenario prepare <assignment-id> --json`;
-4. follows only the prepared packet's prompt, skills, exact inputs, Policies,
-   participation, prohibited inputs, output contracts, required links, and
-   completion conditions;
+4. follows only the prepared packet's prompt, skills, exact inputs, resolved
+   Policy evaluations and assets, participation, prohibited inputs, output
+   contracts, required links, and completion conditions;
 5. performs autonomous work, obtains fresh package-delegated judgment, or conducts
    the projected attended conversation as declared by that packet;
 6. submits one complete Assignment Response with
@@ -36,7 +36,12 @@ reason to pause.
 ## Harness-owned work and authority
 
 Preparation is side-effect-free. It is the complete harness-neutral instruction
-packet for the exact leased Assignment.
+packet for the exact leased Assignment. `mdlm-assignment-packet@2` includes each
+package-authored review Policy evaluation with its exact invocation arguments and
+result. When that result references a versioned asset declared by the selected
+package, the packet includes the asset's exact reference, path, digest, and
+content in both the evaluation and the packet asset list. This evidence tells a
+delegate which criteria apply without choosing the delegate's judgment.
 
 - Autonomous work may proceed in the operating session.
 - Package-delegated judgment uses a fresh read-only session. The delegate receives
@@ -88,6 +93,11 @@ Interpret the returned Operator Outcome, never a remembered package sequence:
 - **Process Dead End:** stop unsuccessfully and report the exact blockers as a
   Package Liveness Defect.
 - **Invalid:** stop unsuccessfully on integrity failure.
+
+A `correction-required` disposition with `correctionsRemaining: 1` keeps the same
+Assignment active for exactly one corrected submission. Correct the complete
+response and submit it once; a malformed correction exhausts the lease and reports
+`correctionsRemaining: 0`.
 
 Also stop on dirty initial state, stale or exhausted Assignment, typed inability,
 failed doctor, unexpected diff, genuine ambiguity, or command failure. Never

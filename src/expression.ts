@@ -1724,6 +1724,81 @@ function definitionEntityBindings(
   return bindings;
 }
 
+function compileScenarioPolicyArguments(
+  argumentsValue: Record<string, unknown> | undefined,
+  policyReference: unknown,
+  path: string,
+  label: string,
+  bindings: Bindings,
+  catalogs: ExpressionDefinitionCatalogs,
+  diagnostics: ProcessDiagnostic[],
+): void {
+  const policyMatch = typeof policyReference === "string"
+    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(policyReference)
+    : undefined;
+  const policy = policyMatch?.[1] ? catalogs.policies[policyMatch[1]] : undefined;
+  if (policy?.version !== Number(policyMatch?.[2]) || !argumentsValue) return;
+  for (const parameterValue of Array.isArray(policy.parameters) ? policy.parameters : []) {
+    if (typeof parameterValue !== "object" || parameterValue === null) continue;
+    const parameter = parameterValue as Record<string, unknown>;
+    const name = typeof parameter.name === "string" ? parameter.name : undefined;
+    if (!name || !(name in argumentsValue)) continue;
+    const kind = String(parameter.kind);
+    const parameterContract = policyParameterBinding(parameter, catalogs);
+    const compiled = compileField(
+      argumentsValue,
+      name,
+      `${path}.${name}`,
+      bindings,
+      catalogs,
+      diagnostics,
+      parameterContract.valueType,
+    );
+    if (!compiled) continue;
+    const executionExpression = findCompiledExpressionBindingReference(
+      compiled,
+      "execution",
+      catalogs,
+    );
+    if (executionExpression) {
+      diagnostics.push({
+        code: `${label}-execution-binding-forbidden`,
+        path: executionExpression.contract?.definitionPath ?? `${path}.${name}`,
+        line: executionExpression.root.span.start.line,
+        column: executionExpression.root.span.start.column,
+        source: executionExpression.source,
+        message: `${label === "participation" ? "Participation" : "Review Policy"} argument '${name}' cannot depend on execution because it is evaluated before Scenario execution`,
+      });
+      continue;
+    }
+    const compatibleDomains = kind === "revision"
+      ? ["revision", "baseline"]
+      : [kind];
+    const compatibleDomain = kind === "scalar" ||
+      (compiled.root.domainKind !== undefined &&
+        compatibleDomains.includes(compiled.root.domainKind));
+    const compatibleValueType = compiled.root.valueType !== "unknown" &&
+      valueTypeCompatible(
+        compiled.root.valueType,
+        parameterContract.valueType,
+      );
+    const allowedTypes = parameterContract.lifecycleTypes ?? [];
+    const compatibleTypes = allowedTypes.length === 0 ||
+      (compiled.root.lifecycleTypes !== undefined &&
+        compiled.root.lifecycleTypes.every((type) => allowedTypes.includes(type)));
+    if (!compatibleValueType || !compatibleDomain || !compatibleTypes) {
+      diagnostics.push({
+        code: `${label}-policy-argument-type`,
+        path: `${path}.${name}`,
+        line: compiled.root.span.start.line,
+        column: compiled.root.span.start.column,
+        source: compiled.source,
+        message: `${label === "participation" ? "Participation" : "Review Policy"} argument '${name}' does not match Policy parameter kind '${kind}'`,
+      });
+    }
+  }
+}
+
 function compileScenarioDefinition(
   definition: VersionedDefinition,
   filePath: string,
@@ -1760,73 +1835,64 @@ function compileScenarioDefinition(
       participation.arguments !== null && !Array.isArray(participation.arguments)
     ? participation.arguments as Record<string, unknown>
     : undefined;
-  const policyMatch = typeof participation?.policy_ref === "string"
-    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(participation.policy_ref)
-    : undefined;
-  const policy = policyMatch?.[1] ? catalogs.policies[policyMatch[1]] : undefined;
-  if (policy?.version === Number(policyMatch?.[2]) && participationArguments) {
-    for (const parameterValue of Array.isArray(policy.parameters) ? policy.parameters : []) {
-      if (typeof parameterValue !== "object" || parameterValue === null) continue;
-      const parameter = parameterValue as Record<string, unknown>;
-      const name = typeof parameter.name === "string" ? parameter.name : undefined;
-      if (!name || !(name in participationArguments)) continue;
-      const kind = String(parameter.kind);
-      const parameterContract = policyParameterBinding(parameter, catalogs);
-      const expectedType = parameterContract.valueType;
-      const compiled = compileField(
-        participationArguments,
-        name,
-        `${filePath}#participation.arguments.${name}`,
-        participationBindings,
-        catalogs,
-        diagnostics,
-        expectedType,
+  compileScenarioPolicyArguments(
+    participationArguments,
+    participation?.policy_ref,
+    `${filePath}#participation.arguments`,
+    "participation",
+    participationBindings,
+    catalogs,
+    diagnostics,
+  );
+  let reviewPolicyArguments =
+    typeof definition.review_policy_arguments === "object" &&
+      definition.review_policy_arguments !== null &&
+      !Array.isArray(definition.review_policy_arguments)
+      ? definition.review_policy_arguments as Record<string, unknown>
+      : undefined;
+  if (!reviewPolicyArguments && typeof definition.review_policy_ref === "string") {
+    const policyMatch = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
+      definition.review_policy_ref,
+    );
+    const reviewPolicy = policyMatch?.[1]
+      ? catalogs.policies[policyMatch[1]]
+      : undefined;
+    const singleInputNames = new Set(
+      inputs.flatMap((value) => {
+        if (typeof value !== "object" || value === null) return [];
+        const input = value as Record<string, unknown>;
+        return typeof input.name === "string" && input.cardinality === "one"
+          ? [input.name]
+          : [];
+      }),
+    );
+    const parameterNames = Array.isArray(reviewPolicy?.parameters)
+      ? reviewPolicy.parameters.flatMap((value) => {
+        if (typeof value !== "object" || value === null) return [];
+        const name = (value as Record<string, unknown>).name;
+        return typeof name === "string" ? [name] : [];
+      })
+      : [];
+    if (
+      reviewPolicy?.version === Number(policyMatch?.[2]) &&
+      new Set(parameterNames).size === parameterNames.length &&
+      parameterNames.every((name) => singleInputNames.has(name))
+    ) {
+      reviewPolicyArguments = Object.fromEntries(
+        parameterNames.map((name) => [name, name]),
       );
-      if (!compiled) continue;
-      const executionExpression = findCompiledExpressionBindingReference(
-        compiled,
-        "execution",
-        catalogs,
-      );
-      if (executionExpression) {
-        diagnostics.push({
-          code: "participation-execution-binding-forbidden",
-          path: executionExpression.contract?.definitionPath ??
-            `${filePath}#participation.arguments.${name}`,
-          line: executionExpression.root.span.start.line,
-          column: executionExpression.root.span.start.column,
-          source: executionExpression.source,
-          message: `Participation argument '${name}' cannot depend on execution because participation is evaluated before Scenario execution`,
-        });
-        continue;
-      }
-      const compatibleDomains = kind === "revision"
-        ? ["revision", "baseline"]
-        : [kind];
-      const compatibleDomain = kind === "scalar" ||
-        (compiled.root.domainKind !== undefined &&
-          compatibleDomains.includes(compiled.root.domainKind));
-      const compatibleValueType = compiled.root.valueType !== "unknown" &&
-        valueTypeCompatible(
-          compiled.root.valueType,
-          parameterContract.valueType,
-        );
-      const allowedTypes = parameterContract.lifecycleTypes ?? [];
-      const compatibleTypes = allowedTypes.length === 0 ||
-        (compiled.root.lifecycleTypes !== undefined &&
-          compiled.root.lifecycleTypes.every((type) => allowedTypes.includes(type)));
-      if (!compatibleValueType || !compatibleDomain || !compatibleTypes) {
-        diagnostics.push({
-          code: "participation-policy-argument-type",
-          path: `${filePath}#participation.arguments.${name}`,
-          line: compiled.root.span.start.line,
-          column: compiled.root.span.start.column,
-          source: compiled.source,
-          message: `Participation argument '${name}' does not match Policy parameter kind '${kind}'`,
-        });
-      }
+      definition.review_policy_arguments = reviewPolicyArguments;
     }
   }
+  compileScenarioPolicyArguments(
+    reviewPolicyArguments,
+    definition.review_policy_ref,
+    `${filePath}#review_policy_arguments`,
+    "review",
+    participationBindings,
+    catalogs,
+    diagnostics,
+  );
   const completionBindings = {
     ...definitionEntityBindings(
       definition.inputs,
