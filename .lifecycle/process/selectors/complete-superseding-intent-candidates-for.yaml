@@ -27,13 +27,23 @@ query:
       exists("candidate-members-matching@1",
         {candidate: replacement, required_member: member}))
     && none("non-phase-0-foundation-members-for@1", {candidate: replacement})
+    && every("phase-0-foundation-member-reviews@1", {}, review =>
+      exists("baseline-contains-evidence@1",
+        {baseline: replacement, subject: review}))
+    && every("baseline-evidence@1", {baseline: candidate}, evidence =>
+      evidence.identity.type == "REV"
+      || exists("baseline-contains-evidence@1",
+        {baseline: replacement, subject: evidence}))
+    && every("baseline-evidence@1", {baseline: replacement}, evidence =>
+      !every("phase-0-foundation-member-reviews@1", {}, review =>
+        review != evidence)
+      || (evidence.identity.type != "REV"
+        && exists("baseline-contains-evidence@1",
+          {baseline: candidate, subject: evidence})))
     && (
       none("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
       || (
-        every("baseline-evidence@1", {baseline: candidate}, evidence =>
-          exists("baseline-contains-evidence@1",
-            {baseline: replacement, subject: evidence}))
-        && count("cited-gate-rejections-by-correction@1",
+        count("cited-gate-rejections-by-correction@1",
           {replacement: replacement})
           == count("reviewed-gate-rejections-for-candidate@1",
             {candidate: candidate})

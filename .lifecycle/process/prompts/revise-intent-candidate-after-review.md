@@ -8,11 +8,13 @@ scenario: revise-intent-candidate-after-review
 
 Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`, and
 `skills/scope-challenge.md@1`. Use only the exact candidate lineage, complete
-failed Review/finding history, reviewed current foundation members, and reviewed
-gate rejections supplied by the Assignment. Publish one frozen replacement
-Revision in the same BSL lineage. Preserve every unaffected exact evidence item,
-link `supersedes` to the prior candidate, link `corrects-review` to every supplied
-failed Review, and link `corrects-gate-rejection` to every supplied rejection.
+failed Review/finding history, reviewed current foundation members, their exact
+supplied `member_reviews`, and reviewed gate rejections supplied by the Assignment.
+Publish one frozen replacement Revision in the same BSL lineage. Its evidence must
+contain every supplied current member Review, retain prior non-Review evidence,
+and omit obsolete or unrelated Review evidence. Link `supersedes` to the prior
+candidate, link `corrects-review` to every supplied failed Review, and link
+`corrects-gate-rejection` to every supplied rejection.
 
 The first two causal Review-correction cycles are autonomous. When participation
 is attended, present the same exact packet to the stakeholder and additionally

@@ -1,0 +1,14 @@
+kind: selector-definition
+id: phase-0-foundation-member-reviews
+version: 1
+description: Every exact current valid passing Review of the current Phase 0 foundation Revisions.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    !every("phase-0-foundation-members@1", {}, member =>
+      none("matching-passing-review-for@1", {subject: member, review: review}))
+  distinct: true
+  order_by: [identity.revision_id]

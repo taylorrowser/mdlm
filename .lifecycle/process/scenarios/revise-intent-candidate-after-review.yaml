@@ -6,6 +6,7 @@ phases: [phase-0-wayfinding]
 inputs:
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}
   - {name: definition_members, types: [MAP, PSP, STK], cardinality: one-or-more, identity: revision}
+  - {name: member_reviews, types: [REV], cardinality: one-or-more, identity: revision}
   - {name: lineage, types: [BSL], cardinality: one-or-more, identity: revision}
   - {name: prior_failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
@@ -35,6 +36,7 @@ participation:
 authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
+  && member_reviews == select("phase-0-foundation-member-reviews@1", {})
   && exists("complete-superseding-intent-candidates-for@1",
     {candidate: candidate})
   && (
@@ -54,5 +56,5 @@ completion: >-
           && state(authority, "validity") == "valid"))
   )
 resolves: [intent-candidate-review-correction-required]
-prohibited_inputs: [mutation of the prior candidate, unreviewed definition Revisions, omission of unaffected evidence, inferred terminal disposition]
+prohibited_inputs: [mutation of the prior candidate, unreviewed definition Revisions, omitted or unrelated member Review evidence, omission of unaffected evidence, inferred terminal disposition]
 batching: single

@@ -15,7 +15,9 @@ Read, in order:
 
 Create one `intent-level-candidate` BSL from the supplied exact reviewed MAP, PSP,
 and STK Revisions. Include only artifacts necessary to define the product intent.
-Keep Review and Decision support in `evidence`, not `definition_members`. Resolve
-Stable links, capture hashes and exact Process Package provenance, freeze
-atomically, and verify. The candidate itself requires a fresh contextual Review
-before gate authorization.
+Copy every and only supplied `member_reviews` Revision into `evidence`; keep that
+Review evidence out of `definition_members`. Do not substitute a Review of another
+Revision or rely on repository knowledge absent from the Assignment. Resolve Stable
+links, capture hashes and exact Process Package provenance, freeze atomically, and
+verify. The candidate itself requires a fresh contextual Review before gate
+authorization.

@@ -165,8 +165,15 @@ function intentCandidate(
   foundation: ReturnType<typeof phase0Foundation>,
   options: { revision?: number; links?: Array<{ type: string; target: string }> } = {},
 ): LifecycleRecord {
+  const memberRevisions = new Set(
+    foundation.members.map((member) => member.datum.revision_id),
+  );
   const memberReviewIds = foundation.reviews
-    .filter((item) => item.datum.type === "REV")
+    .filter((item) =>
+      item.datum.type === "REV" && item.datum.links.some((link) =>
+        link.type === "reviews" && memberRevisions.has(link.target)
+      )
+    )
     .map((item) => item.datum.revision_id);
   return record("BSL", "BSL-1030000004", {
     title: "Exact Phase 0 intent candidate",
@@ -770,7 +777,12 @@ describe("Phase 0 missing hardening routes", () => {
       expect(members.map((revision) => revision.slice(0, 3)).sort()).toEqual([
         "MAP", "PSP", "STK",
       ]);
-      const candidate = (definitionMembers: string[]): ProposedOutput => ({
+      const memberReviews = inputRevisions(prepared, "member_reviews");
+      expect(memberReviews).toEqual([...reviewRevisions].sort());
+      const candidate = (
+        definitionMembers: string[],
+        evidence: string[] = memberReviews,
+      ): ProposedOutput => ({
         localId: "candidate",
         name: "candidate",
         invocation: 0,
@@ -783,7 +795,7 @@ describe("Phase 0 missing hardening routes", () => {
             scope: "public-candidate-route",
             group: "DEFAULT",
             definition_members: definitionMembers,
-            evidence: reviewRevisions,
+            evidence,
           },
           links: [],
           body: "The complete exact reviewed foundation is frozen.\n",
@@ -791,9 +803,13 @@ describe("Phase 0 missing hardening routes", () => {
       });
       const dataRoot = path.join(repository, ".lifecycle/data");
       const beforeInvalid = await directoryDigest(dataRoot);
-      const invalid = submitAssignment(repository, prepared, [candidate(members.slice(0, 2))]);
-      expect(invalid.status).toBe(1);
-      expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
+      const missingEvidence = submitAssignment(
+        repository,
+        prepared,
+        [candidate(members, [])],
+      );
+      expect(missingEvidence.status).toBe(1);
+      expect(JSON.parse(missingEvidence.stdout).diagnostics).toEqual(expect.arrayContaining([
         expect.objectContaining({ code: "scenario-completion-failed" }),
       ]));
       expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
@@ -805,7 +821,7 @@ describe("Phase 0 missing hardening routes", () => {
       expect(execution.definition.scenario).toBe("create-phase-0-intent-candidate@1");
       expect(output.data.payload).toMatchObject({
         definition_members: members,
-        evidence: reviewRevisions,
+        evidence: memberReviews,
         snapshot: expect.objectContaining({
           member_hashes: expect.any(Object),
           resolved_links: expect.any(Object),
@@ -819,6 +835,105 @@ describe("Phase 0 missing hardening routes", () => {
       await fs.rm(parent, { recursive: true, force: true });
     }
   }, 90_000);
+
+  it("supplies complete passing member Reviews when correcting a candidate that omitted them", async () => {
+    const foundation = phase0Foundation();
+    const candidate = intentCandidate(foundation);
+    candidate.datum.payload.evidence = [];
+    const context = record("BSL", "BSL-1030000092", {
+      title: "Exact failed candidate Review Context",
+      kind: "review-context",
+      role: "review-context",
+      scope: candidate.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        candidate.datum.revision_id,
+        ...foundation.members.map((member) => member.datum.revision_id),
+      ],
+      evidence: [],
+    }, { scenario: "create-review-context@1" });
+    const failed = record("REV", "REV-1030000092", {
+      title: "Failed candidate evidence Review",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      simplification: {
+        target: candidate.datum.revision_id,
+        findings: [{
+          id: "F-001",
+          severity: "blocking",
+          summary: "The candidate omits complete member Review evidence.",
+        }],
+      },
+      outcome: "fail",
+    }, {
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: candidate.datum.revision_id },
+        { type: "contextualizes", target: context.datum.revision_id },
+        { type: "blocks", target: candidate.datum.revision_id },
+      ],
+    });
+    const records = [
+      ...foundation.members,
+      ...foundation.reviews,
+      candidate,
+      context,
+      failed,
+    ];
+    const correction = obligation(
+      processPackage,
+      records,
+      "intent-candidate-review-correction-required",
+      candidate.datum.revision_id,
+    );
+    expect(correction).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-intent-candidate-after-review@3",
+    }));
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot(records),
+      "revise-intent-candidate-after-review@3",
+      correction!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    const memberReviewIds = foundation.reviews
+      .filter((item) => item.datum.type === "REV")
+      .map((item) => item.datum.revision_id);
+    expect(prepared.value.invocations[0]!.inputs.find((input) =>
+      input.name === "member_reviews"
+    )?.values.map((value) => value.identity.revision_id)).toEqual(
+      memberReviewIds,
+    );
+
+    const replacement = intentCandidate(foundation, {
+      revision: 2,
+      links: [
+        { type: "supersedes", target: candidate.datum.revision_id },
+        { type: "corrects-review", target: failed.datum.revision_id },
+      ],
+    });
+    const completionResult = (evidence: string[]) => {
+      replacement.datum.payload.evidence = evidence;
+      return evaluateProcessDefinition(
+        processPackage,
+        snapshot([...records, replacement]),
+        "selector",
+        "complete-superseding-intent-candidates-for@1",
+        { candidate: candidate.datum.revision_id },
+      ).result;
+    };
+    expect(completionResult([])).toEqual([]);
+    expect(completionResult([...memberReviewIds, failed.datum.revision_id])).toEqual([]);
+    expect(completionResult(memberReviewIds)).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({
+        revision_id: replacement.datum.revision_id,
+      }) }),
+    ]);
+  });
 
   it("routes an initial failed foundation Review to the first autonomous correction with exact evidence", async () => {
     const subject = phase0Foundation().requirement;

@@ -56,6 +56,7 @@ resolve_with:
   inputs:
     candidate: candidate
     definition_members: 'select("phase-0-foundation-members@1", {})'
+    member_reviews: 'select("phase-0-foundation-member-reviews@1", {})'
     lineage: >-
       select("review-correction-history-for@1",
         {subject: candidate, view: "lineage"})

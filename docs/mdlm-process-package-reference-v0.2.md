@@ -984,10 +984,15 @@ supplies the exact PSP directly without rewriting that historical BSL. A context
 authored under the current package receives no such compatibility allowance and
 cannot be published without freezing the supplied parent. Other subjects may still
 include package-selected supporting parent or sibling Revisions. The tracer then
-freezes the earliest complete evidence-bearing intent candidate. Its Review Context must
-contain the candidate and every exact MAP, PSP, and STK member, and the independent
-Assignment receives those member Revisions directly so their complete contents—not
-only IDs and hashes—are available for judgment. That candidate's required Review
+freezes the earliest complete evidence-bearing intent candidate. Candidate
+authoring receives the exact current passing REV Revisions for every MAP, PSP, and
+STK member and must freeze every and only those Reviews as initial candidate
+evidence. Candidate correction receives the same complete set, preserves prior
+non-Review evidence, replaces obsolete member Reviews, and rejects unrelated Review
+evidence. Its Review Context must contain the candidate and every exact MAP, PSP,
+and STK member, and the independent Assignment receives those member Revisions
+directly so their complete contents—not only IDs and hashes—are available for
+judgment. That candidate's required Review
 is the dedicated `simplification-product-definition` judgment, so no second
 context or duplicate candidate-review ceremony is introduced. A failed
 simplification REV groups every current blocking finding for one exact target and
