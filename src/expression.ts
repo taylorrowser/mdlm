@@ -1875,7 +1875,7 @@ function compileScenarioDefinition(
       : [];
     if (
       reviewPolicy?.version === Number(policyMatch?.[2]) &&
-      parameterNames.length > 0 &&
+      new Set(parameterNames).size === parameterNames.length &&
       parameterNames.every((name) => singleInputNames.has(name))
     ) {
       reviewPolicyArguments = Object.fromEntries(

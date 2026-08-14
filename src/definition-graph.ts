@@ -297,6 +297,13 @@ function validateReferences(
             const name = (value as Record<string, unknown>).name;
             return typeof name === "string" ? [name] : [];
           });
+        if (new Set(parameterNames).size !== parameterNames.length) {
+          diagnostics.push({
+            code: "review-policy-parameters",
+            path: `scenarios.${id}.review_policy_ref`,
+            message: `Review Policy '${definition.review_policy_ref}' has duplicate parameter names`,
+          });
+        }
         const supplied = Object.keys(reviewPolicyArguments);
         const missing = parameterNames.filter((name) => !supplied.includes(name));
         const unknown = supplied.filter((name) => !parameterNames.includes(name));

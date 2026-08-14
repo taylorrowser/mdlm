@@ -211,6 +211,30 @@ describe("loadProcessPackage", () => {
     }));
   });
 
+  it("rejects Review Policies with duplicate parameter names", async () => {
+    const processRoot = await copiedProcessPackage();
+    const policyPath = path.join(
+      processRoot,
+      "policies/review-applicability.yaml",
+    );
+    const policy = await fs.readFile(policyPath, "utf8");
+    await fs.writeFile(
+      policyPath,
+      policy.replace(
+        "  - {name: subject, kind: revision}",
+        "  - {name: subject, kind: revision}\n  - {name: subject, kind: stable-datum}",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "review-policy-parameters",
+      path: "scenarios.review-datum-in-context.review_policy_ref",
+    }));
+  });
+
   it("validates Review Context membership contracts for DEC and CHG callers", async () => {
     const result = await loadProcessPackage(
       path.join(process.cwd(), ".lifecycle/process"),
