@@ -152,6 +152,22 @@ function validateReferences(
       manifestRecord.profiles !== null
     ? manifestRecord.profiles as Record<string, unknown>
     : {};
+  for (const [id, policy] of Object.entries(definitions.policies)) {
+    const parameterNames = (Array.isArray(policy.parameters)
+      ? policy.parameters
+      : []).flatMap((value) => {
+        if (typeof value !== "object" || value === null) return [];
+        const name = (value as Record<string, unknown>).name;
+        return typeof name === "string" ? [name] : [];
+      });
+    if (new Set(parameterNames).size !== parameterNames.length) {
+      diagnostics.push({
+        code: "policy-parameters",
+        path: `policies.${id}.parameters`,
+        message: `Policy '${id}@${policy.version}' has duplicate parameter names`,
+      });
+    }
+  }
   if (typeof profiles.default === "string") {
     diagnostics.push(...validateVersionedReference(
       profiles.default,
@@ -297,13 +313,6 @@ function validateReferences(
             const name = (value as Record<string, unknown>).name;
             return typeof name === "string" ? [name] : [];
           });
-        if (new Set(parameterNames).size !== parameterNames.length) {
-          diagnostics.push({
-            code: "review-policy-parameters",
-            path: `scenarios.${id}.review_policy_ref`,
-            message: `Review Policy '${definition.review_policy_ref}' has duplicate parameter names`,
-          });
-        }
         const supplied = Object.keys(reviewPolicyArguments);
         const missing = parameterNames.filter((name) => !supplied.includes(name));
         const unknown = supplied.filter((name) => !parameterNames.includes(name));

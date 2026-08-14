@@ -431,8 +431,11 @@ process-specific conditions but should not duplicate those generic checks.
 Prompts choose and order skills. Execution provenance records the exact prompt,
 skills, policies, process reference, authorization mode, and inputs actually used.
 
-A Scenario with a `review_policy_ref` may declare `review_policy_arguments` as a
-mapping from every Policy parameter to a typed `mdlm-expression@1` value over the
+A Scenario that needs its `review_policy_ref` evaluated before execution may
+declare `review_policy_arguments`; `review_policy_ref` alone still selects the
+Policy for reviewing the Scenario's produced outputs and does not imply that its
+arguments are available before those outputs exist. The arguments block maps every
+Policy parameter to a typed `mdlm-expression@1` value over the
 Scenario inputs and pre-execution process and Phase context. The mapping must cover
 the exact parameter set, match each parameter kind and lifecycle types, and cannot
 depend on `execution`. For package compatibility, an omitted mapping is derived only

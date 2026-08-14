@@ -230,8 +230,8 @@ describe("loadProcessPackage", () => {
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "review-policy-parameters",
-      path: "scenarios.review-datum-in-context.review_policy_ref",
+      code: "policy-parameters",
+      path: "policies.review-applicability.parameters",
     }));
   });
 
