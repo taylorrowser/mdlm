@@ -286,10 +286,10 @@ function validateReferences(
         !Array.isArray(definition.review_policy_arguments)
         ? definition.review_policy_arguments as Record<string, unknown>
         : undefined;
-    if (reviewPolicyArguments && typeof definition.review_policy_ref === "string") {
+    if (typeof definition.review_policy_ref === "string") {
       const policyId = referenceId(definition.review_policy_ref);
       const policy = policyId ? definitions.policies[policyId] : undefined;
-      if (policy) {
+      if (policy && reviewPolicyArguments) {
         const parameterNames = (Array.isArray(policy.parameters)
           ? policy.parameters
           : []).flatMap((value) => {

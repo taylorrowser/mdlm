@@ -66,7 +66,7 @@ describe("package-authored review Policy evidence", () => {
       initiation: "explicit",
       phases: ["phase-0-terminal"],
       inputs: [{
-        name: "item",
+        name: "candidate",
         types: ["ITM"],
         cardinality: "one",
         identity: "revision",
@@ -79,7 +79,6 @@ describe("package-authored review Policy evidence", () => {
       }],
       prompt_ref: "prompts/inspect-item.md@1",
       review_policy_ref: "item-judgment@1",
-      review_policy_arguments: { candidate: "item" },
       completion: "execution.integrity.contract_valid == true",
       resolves: [],
       prohibited_inputs: [],
@@ -115,7 +114,7 @@ describe("package-authored review Policy evidence", () => {
         dependencyComparisons: [],
       },
       "inspect-item@1",
-      [{ name: "item", value: item.datum.revision_id }],
+      [{ name: "candidate", value: item.datum.revision_id }],
     );
 
     expect(prepared.ok, prepared.ok ? "" : JSON.stringify(prepared.diagnostics))
@@ -166,7 +165,7 @@ describe("package-authored review Policy evidence", () => {
         dependencyComparisons: [],
       },
       "inspect-item@1",
-      [{ name: "item", value: item.datum.revision_id }],
+      [{ name: "candidate", value: item.datum.revision_id }],
     );
     expect(escaped.ok).toBe(false);
     expect(escaped.diagnostics).toContainEqual(expect.objectContaining({

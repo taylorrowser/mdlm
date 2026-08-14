@@ -435,7 +435,10 @@ A Scenario with a `review_policy_ref` may declare `review_policy_arguments` as a
 mapping from every Policy parameter to a typed `mdlm-expression@1` value over the
 Scenario inputs and pre-execution process and Phase context. The mapping must cover
 the exact parameter set, match each parameter kind and lifecycle types, and cannot
-depend on `execution`. Assignment preparation evaluates that Policy once per exact
+depend on `execution`. For package compatibility, an omitted mapping is derived only
+when every Policy parameter exactly names a cardinality-`one` Scenario input; there
+is no positional or type-name inference. Assignment preparation evaluates that
+Policy once per exact
 invocation and records the bound exact identifiers and result. If the result
 contains an exact versioned asset reference declared anywhere in the selected
 package's asset catalogs, preparation resolves that asset's content and digest

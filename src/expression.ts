@@ -1844,12 +1844,46 @@ function compileScenarioDefinition(
     catalogs,
     diagnostics,
   );
-  const reviewPolicyArguments =
+  let reviewPolicyArguments =
     typeof definition.review_policy_arguments === "object" &&
       definition.review_policy_arguments !== null &&
       !Array.isArray(definition.review_policy_arguments)
       ? definition.review_policy_arguments as Record<string, unknown>
       : undefined;
+  if (!reviewPolicyArguments && typeof definition.review_policy_ref === "string") {
+    const policyMatch = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
+      definition.review_policy_ref,
+    );
+    const reviewPolicy = policyMatch?.[1]
+      ? catalogs.policies[policyMatch[1]]
+      : undefined;
+    const singleInputNames = new Set(
+      inputs.flatMap((value) => {
+        if (typeof value !== "object" || value === null) return [];
+        const input = value as Record<string, unknown>;
+        return typeof input.name === "string" && input.cardinality === "one"
+          ? [input.name]
+          : [];
+      }),
+    );
+    const parameterNames = Array.isArray(reviewPolicy?.parameters)
+      ? reviewPolicy.parameters.flatMap((value) => {
+        if (typeof value !== "object" || value === null) return [];
+        const name = (value as Record<string, unknown>).name;
+        return typeof name === "string" ? [name] : [];
+      })
+      : [];
+    if (
+      reviewPolicy?.version === Number(policyMatch?.[2]) &&
+      parameterNames.length > 0 &&
+      parameterNames.every((name) => singleInputNames.has(name))
+    ) {
+      reviewPolicyArguments = Object.fromEntries(
+        parameterNames.map((name) => [name, name]),
+      );
+      definition.review_policy_arguments = reviewPolicyArguments;
+    }
+  }
   compileScenarioPolicyArguments(
     reviewPolicyArguments,
     definition.review_policy_ref,
