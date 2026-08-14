@@ -14,6 +14,11 @@ query:
       (exists("intent-candidates-matching-subject@1", {subject: subject})
         && exists("candidate-members-matching@1",
           {candidate: one("intent-candidates-matching-subject@1", {subject: subject}), required_member: member}))
+      || (subject.identity.type == "STK"
+        && member.identity.type == "PSP"
+        && !every("stakeholder-requirements-for@1", {product_specification: member},
+          requirement => requirement != subject)
+        && none("newer-revisions-for@1", {subject: member}))
       || (subject.identity.type == "DWP"
         && subject.payload.stage == "planning"
         && exists("decomposition-outputs-for@1", {plan: subject})

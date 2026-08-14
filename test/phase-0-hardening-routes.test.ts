@@ -591,10 +591,131 @@ describe("Phase 0 missing hardening routes", () => {
       expect(mdlm(repository, "doctor", "--json").status).toBe(0);
       const next = prepareNextAssignment(repository, "create-review-context@1");
       expect(inputRevision(next, "subject")).toBe(requirement.revisionId);
+      expect(inputRevisions(next, "context_members")).toEqual([
+        product.revision_id,
+      ]);
+      const contextOutput: ProposedOutput = {
+        localId: "context",
+        name: "context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Exact public STK Review Context",
+            kind: "review-context",
+            role: "review-context",
+            scope: requirement.revisionId,
+            group: "DEFAULT",
+            definition_members: [requirement.revisionId],
+            evidence: [],
+          },
+          links: [],
+          body: "Freeze the exact STK and its current PSP parent.\n",
+        },
+      };
+      const beforeContext = await directoryDigest(dataRoot);
+      const missingParent = submitAssignment(repository, next, [contextOutput]);
+      expect(missingParent.status).toBe(1);
+      expect(JSON.parse(missingParent.stdout).diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "scenario-completion-failed" }),
+      ]));
+      expect(await directoryDigest(dataRoot)).toBe(beforeContext);
+      contextOutput.lifecycleDatum.payload.definition_members = [
+        requirement.revisionId,
+        product.revision_id,
+      ];
+      const contextSubmission = submitAssignment(repository, next, [contextOutput]);
+      expect(
+        contextSubmission.status,
+        `${contextSubmission.stderr}${contextSubmission.stdout}`,
+      ).toBe(0);
+      const frozenContext = JSON.parse(contextSubmission.stdout).execution.outputs[0];
+      expect(frozenContext.data.payload.definition_members).toEqual([
+        requirement.revisionId,
+        product.revision_id,
+      ]);
+      expect(Object.keys(frozenContext.data.payload.snapshot.member_hashes)).toEqual(
+        expect.arrayContaining([requirement.revisionId, product.revision_id]),
+      );
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
   }, 60_000);
+
+  it("prepares the exact PSP parent in both STK Review context Assignments", async () => {
+    const foundation = phase0Foundation();
+    const records = [
+      ...foundation.members,
+      ...foundation.reviews.slice(0, 4),
+    ];
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(records),
+      "selector",
+      "current-product-specifications-for-requirement@1",
+      { requirement: foundation.requirement.datum.revision_id },
+    ).result).toEqual([{ key: foundation.product.datum.id }]);
+    const contextRoute = obligation(
+      processPackage,
+      records,
+      "review-context-required",
+      foundation.requirement.datum.revision_id,
+    );
+    expect(contextRoute).toBeDefined();
+    const preparedContext = await dryRunResolverScenario(
+      processPackage,
+      snapshot(records),
+      "create-review-context@1",
+      contextRoute!.id,
+      [],
+    );
+    expect(preparedContext.ok, JSON.stringify(preparedContext.diagnostics)).toBe(true);
+    if (!preparedContext.ok) return;
+    expect(preparedContext.value.invocations[0]!.inputs.find((input) =>
+      input.name === "context_members"
+    )?.values.map((value) => value.identity.revision_id)).toEqual([
+      foundation.product.datum.revision_id,
+    ]);
+
+    const context = record("BSL", "BSL-1030000091", {
+      title: "Historical STK Review Context",
+      kind: "review-context",
+      role: "review-context",
+      scope: foundation.requirement.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [foundation.requirement.datum.revision_id],
+      evidence: [],
+    }, { scenario: "create-review-context@1" });
+    context.datum.created_by.process_ref =
+      "mdlm-bootstrap@0.58.0#sha256:0000000000000000000000000000000000000000000000000000000000000000";
+    const reviewRecords = [...records, context];
+    const reviewRoute = obligation(
+      processPackage,
+      reviewRecords,
+      "passing-review-required",
+      foundation.requirement.datum.revision_id,
+    );
+    expect(reviewRoute).toBeDefined();
+    const preparedReview = await dryRunResolverScenario(
+      processPackage,
+      snapshot(reviewRecords),
+      "review-datum-in-context@2",
+      reviewRoute!.id,
+      [],
+    );
+    expect(preparedReview.ok, JSON.stringify(preparedReview.diagnostics)).toBe(true);
+    if (!preparedReview.ok) return;
+    const suppliedParents = preparedReview.value.invocations[0]!.inputs.find(
+      (input) => input.name === "context_members",
+    )?.values;
+    expect(suppliedParents?.map((value) => value.identity.revision_id)).toEqual([
+      foundation.product.datum.revision_id,
+    ]);
+    expect(suppliedParents?.[0]?.data.payload).toEqual(expect.objectContaining({
+      title: "Exact Phase 0 product",
+      problem: "The operator needs one deterministic outcome.",
+    }));
+  });
 
   it("creates only a complete reviewed Phase 0 intent candidate and then yields fresh candidate Review work", () => {
     const foundation = phase0Foundation();
