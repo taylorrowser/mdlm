@@ -1,7 +1,7 @@
 kind: selector-definition
 id: verification-implementations-requiring-run
 version: 1
-description: Exact qualification and pilot implementations whose execution obligations are evaluated.
+description: Current valid qualification and pilot implementations whose execution obligations are evaluated.
 parameters: []
 result_kind: revision
 query:
@@ -10,5 +10,7 @@ query:
   where: >-
     implementation.payload.kind in ["qualification", "pilot"]
     && state(implementation, "disposition") == "active"
+    && state(implementation, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: implementation})
   distinct: true
   order_by: [identity.revision_id]

@@ -23,6 +23,8 @@ import {
   publishScenarioMutation,
   readRepositoryData,
 } from "../src/lifecycle-repository.js";
+import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import { processPackageDigest } from "../src/process-package-digest.js";
 import {
   directoryDigest,
   inputRevision,
@@ -502,6 +504,52 @@ function implementationAuthorization(
     scenario,
     links: [{ type: "justifies", target: implementation.datum.revision_id }],
   });
+}
+
+function correctedPilotImplementationFixture() {
+  const currentStrategy = strategy(1);
+  const strategyReview = passingReview(currentStrategy, "REV-0HARDVAI0");
+  const currentEnvironment = environment();
+  const qualification = qualificationEvidence(currentStrategy, currentEnvironment);
+  const environmentReview = passingReview(currentEnvironment, "REV-0HARDVAI1", {
+    definitions: [currentEnvironment, currentStrategy],
+    evidence: [
+      qualification.activity,
+      qualification.implementation,
+      qualification.run,
+      qualification.result,
+    ],
+  });
+  const activity = pilotActivity();
+  const activityReview = passingReview(activity, "REV-0HARDVAI2");
+  const exactTarget = target();
+  const first = pilotImplementation();
+  const firstAuthorization = implementationAuthorization(first, "DEC-0HARDVAI1");
+  const failed = failedReview(first, "REV-0HARDVAI3");
+  const priorExecution = pilotRun(first, { idSuffix: "OLDVAI" });
+  const replacement = pilotImplementation(2, [failed[1].datum.revision_id]);
+  const replacementAuthorization = implementationAuthorization(
+    replacement,
+    "DEC-0HARDVAI2",
+  );
+  const freshReview = passingReview(replacement, "REV-0HARDVAI4");
+  return {
+    currentStrategy,
+    strategyReview,
+    currentEnvironment,
+    qualification,
+    environmentReview,
+    activity,
+    activityReview,
+    exactTarget,
+    first,
+    firstAuthorization,
+    failed,
+    priorExecution,
+    replacement,
+    replacementAuthorization,
+    freshReview,
+  };
 }
 
 function pilotRun(
@@ -1869,29 +1917,64 @@ describe("Phase 1 hardening route evidence", () => {
   }, 45_000);
 
   it("proves Phase 1 VAI correction, fresh Review, and refusal of prior RUN and RES reuse", () => {
-    const currentStrategy = strategy(1);
-    const strategyReview = passingReview(currentStrategy, "REV-0HARDVAI0");
-    const currentEnvironment = environment();
-    const qualification = qualificationEvidence(currentStrategy, currentEnvironment);
-    const environmentReview = passingReview(currentEnvironment, "REV-0HARDVAI1", {
-      definitions: [currentEnvironment, currentStrategy],
-      evidence: [
-        qualification.activity,
-        qualification.implementation,
-        qualification.run,
-        qualification.result,
-      ],
-    });
-    const activity = pilotActivity();
-    const activityReview = passingReview(activity, "REV-0HARDVAI2");
-    const exactTarget = target();
-    const first = pilotImplementation();
-    const firstAuthorization = implementationAuthorization(first, "DEC-0HARDVAI1");
-    const failed = failedReview(first, "REV-0HARDVAI3");
-    const priorExecution = pilotRun(first, { idSuffix: "OLDVAI" });
-    const replacement = pilotImplementation(2, [failed[1].datum.revision_id]);
-    const replacementAuthorization = implementationAuthorization(replacement, "DEC-0HARDVAI2");
-    const freshReview = passingReview(replacement, "REV-0HARDVAI4");
+    const {
+      currentStrategy,
+      strategyReview,
+      currentEnvironment,
+      qualification,
+      environmentReview,
+      activity,
+      activityReview,
+      exactTarget,
+      first,
+      firstAuthorization,
+      failed,
+      priorExecution,
+      replacement,
+      replacementAuthorization,
+      freshReview,
+    } = correctedPilotImplementationFixture();
+    const correctedBeforeReview = [
+      currentStrategy,
+      ...strategyReview,
+      currentEnvironment,
+      qualification.activity,
+      qualification.implementation,
+      qualification.run,
+      qualification.result,
+      ...environmentReview,
+      activity,
+      ...activityReview,
+      exactTarget,
+      first,
+      firstAuthorization,
+      ...failed,
+      replacement,
+      replacementAuthorization,
+      freshReview[0],
+    ];
+    const correctedEvaluation = phase1Evaluation(processPackage, correctedBeforeReview);
+    expect(correctedEvaluation.obligations.find((item) =>
+      item.obligation === "verification-run-required" &&
+      item.subject === first.datum.revision_id
+    )).toBeUndefined();
+    expect(correctedEvaluation.obligations.find((item) =>
+      item.obligation === "passing-review-required" &&
+      item.subject === replacement.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: true,
+      actionableResolver: "review-datum-in-context@2",
+    }));
+    expect(correctedEvaluation.obligations.find((item) =>
+      item.obligation === "verification-run-required" &&
+      item.subject === replacement.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: false,
+      actionableResolver: "review-datum-in-context@2",
+    }));
+
     const records = [
       currentStrategy,
       ...strategyReview,
@@ -1947,7 +2030,12 @@ describe("Phase 1 hardening route evidence", () => {
       "completed-runs-for-implementation@1",
       { implementation: replacement.datum.revision_id },
     ).result).toEqual([]);
-    expect(phase1Evaluation(processPackage, records).obligations.find((item) =>
+    const reviewedEvaluation = phase1Evaluation(processPackage, records);
+    expect(reviewedEvaluation.obligations.find((item) =>
+      item.obligation === "verification-run-required" &&
+      item.subject === first.datum.revision_id
+    )).toBeUndefined();
+    expect(reviewedEvaluation.obligations.find((item) =>
       item.obligation === "verification-run-required" &&
       item.subject === replacement.datum.revision_id
     )).toEqual(expect.objectContaining({
@@ -1981,6 +2069,308 @@ describe("Phase 1 hardening route evidence", () => {
       }),
     ]);
   });
+
+  it("allocates Review of corrected VAI r2 instead of a run for failed superseded r1", async () => {
+    const repository = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-phase1-vai-correction-"),
+    );
+    const processRoot = await copiedProcessPackage(
+      "mdlm-phase1-vai-correction-process-",
+    );
+    try {
+      const phase0Path = path.join(
+        processRoot,
+        "phases/phase-0-wayfinding.yaml",
+      );
+      const phase1Path = path.join(
+        processRoot,
+        "phases/phase-1-product-assurance.yaml",
+      );
+      const implementationObligationPath = path.join(
+        processRoot,
+        "obligations/pilot-verification-implementation-required.yaml",
+      );
+      const reviewSubjectsPath = path.join(
+        processRoot,
+        "selectors/review-required-revisions.yaml",
+      );
+      await fs.writeFile(
+        phase0Path,
+        (await fs.readFile(phase0Path, "utf8")).replace(
+          "order: 0",
+          "order: 10",
+        ),
+      );
+      await fs.writeFile(
+        phase1Path,
+        (await fs.readFile(phase1Path, "utf8"))
+          .replace("order: 1", "order: 0")
+          .replace(
+            /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+            "scenarios:\n  - review-datum-in-context@2\n  - execute-verification-run@1\n" +
+              "obligations:\n  - passing-review-required@2\n  - verification-run-required@1\noutputs:",
+          ),
+      );
+      await fs.writeFile(
+        implementationObligationPath,
+        (await fs.readFile(implementationObligationPath, "utf8")).replace(
+          'satisfied_when: \'exists("complete-pilot-implementations-for-activity@1", {activity: activity})\'',
+          "satisfied_when: 'true'",
+        ),
+      );
+      await fs.writeFile(
+        reviewSubjectsPath,
+        (await fs.readFile(reviewSubjectsPath, "utf8")).replace(
+          "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]",
+          "types: [VSP, ENV, VER, VAI]",
+        ),
+      );
+      await selectProcessPackageFixture(repository, processRoot);
+      const loadedFixture = await loadProcessPackage(processRoot);
+      if (!loadedFixture.ok)
+        throw new Error(JSON.stringify(loadedFixture.diagnostics));
+
+      const product = record(
+        "PSP",
+        "PSP-0HARDENP10",
+        {
+          title: "Phase 1 product",
+          rationale: "Bound exact public assurance.",
+          problem: "Public commands require exact assurance.",
+          users: ["operator"],
+          goals: ["deterministic public behavior"],
+          non_goals: ["private implementation assurance"],
+          success_measures: ["all exact public cases discriminate"],
+        },
+        { scenario: "compile-psp@2" },
+      );
+      const requirement = record(
+        "STK",
+        "STK-0HARDENP10",
+        {
+          title: "Public command requirement",
+          rationale: "The supported command returns deterministic output.",
+          statement: "The public command shall return deterministic output.",
+          verification_intent:
+            "Observe exact success and malformed rejection bytes.",
+          stakeholder: "operator",
+          priority: "must",
+        },
+        {
+          scenario: "draft-stakeholder-requirements@2",
+          links: [{ type: "derived-from", target: product.datum.id }],
+        },
+      );
+      const {
+        currentStrategy,
+        strategyReview,
+        currentEnvironment,
+        qualification,
+        environmentReview,
+        activity,
+        activityReview,
+        exactTarget,
+        first,
+        failed,
+        replacement,
+        freshReview,
+      } = correctedPilotImplementationFixture();
+      const replacementContext = freshReview[0];
+      const sourceRecords = repositorySafeRecords([
+        product,
+        requirement,
+        currentStrategy,
+        ...strategyReview,
+        currentEnvironment,
+        qualification.activity,
+        qualification.implementation,
+        qualification.run,
+        qualification.result,
+        ...environmentReview,
+        activity,
+        ...activityReview,
+        exactTarget,
+        first,
+        ...failed,
+        replacement,
+        replacementContext,
+      ]);
+      const fixtureProcessRef = `mdlm-bootstrap@0.62.0#${await processPackageDigest(processRoot)}`;
+      for (const item of sourceRecords) {
+        item.datum.created_by.process_ref = fixtureProcessRef;
+      }
+      const replacementRevision = sourceRecords.find(
+        (item) => item.datum.type === "VAI" && item.datum.revision === 2,
+      )!.datum.revision_id;
+      const baseRecords = sourceRecords.filter(
+        (item) =>
+          item.datum.type !== "BSL" &&
+          item.datum.type !== "REV" &&
+          item.datum.revision_id !== replacementRevision &&
+          !item.datum.links.some((link) => link.target === replacementRevision),
+      );
+      const initialContexts = sourceRecords.filter(
+        (item) =>
+          item.datum.type === "BSL" &&
+          item.datum.payload.scope !== replacementRevision,
+      );
+      const reviews = sourceRecords.filter((item) => item.datum.type === "REV");
+      const replacementRecords = sourceRecords.filter(
+        (item) =>
+          item.datum.revision_id === replacementRevision ||
+          (item.datum.type !== "BSL" &&
+            item.datum.type !== "REV" &&
+            item.datum.links.some(
+              (link) => link.target === replacementRevision,
+            )),
+      );
+      const replacementContextRecord = sourceRecords.find(
+        (item) =>
+          item.datum.type === "BSL" &&
+          item.datum.payload.scope === replacementRevision,
+      )!;
+      let stored: LifecycleRecord["datum"][] = [];
+      const publishFixtureRecords = async (
+        records: LifecycleRecord["datum"][],
+        executionId: string,
+        finalized: Array<{
+          capability: "exact-baseline@1";
+          datum: LifecycleRecord["datum"];
+        }> = [],
+      ) => {
+        const publication = await publishScenarioMutation(
+          repository,
+          loadedFixture.package,
+          stored,
+          records,
+          executionId,
+          { contract: "phase-1-vai-correction-fixture@1" },
+          finalized,
+        );
+        if (!publication.ok)
+          throw new Error(JSON.stringify(publication.diagnostics));
+        stored = [...stored, ...records];
+      };
+      await publishFixtureRecords(
+        baseRecords.map((item) => item.datum),
+        "phase-1-vai-correction-base",
+      );
+      const finalizedInitialContexts = [];
+      for (const context of initialContexts) {
+        const finalized = await finalizeExactBaselineScenarioOutput(
+          repository,
+          loadedFixture.package,
+          fixtureProcessRef,
+          context.datum,
+        );
+        if (!finalized.ok)
+          throw new Error(JSON.stringify(finalized.diagnostics));
+        finalizedInitialContexts.push(finalized.value.output);
+      }
+      await publishFixtureRecords(
+        finalizedInitialContexts.map((item) => item.datum),
+        "phase-1-vai-correction-contexts",
+        finalizedInitialContexts,
+      );
+      const pendingReviews = [...reviews];
+      let failedReviewRevision: string | undefined;
+      while (pendingReviews.length > 0) {
+        const prepared = prepareNextAssignment(
+          repository,
+          "review-datum-in-context@2",
+        );
+        const subject = inputRevision(prepared, "subject");
+        const reviewIndex = pendingReviews.findIndex((item) =>
+          item.datum.links.some((link) =>
+            link.type === "reviews" && link.target === subject
+          )
+        );
+        expect(reviewIndex).toBeGreaterThanOrEqual(0);
+        const review = pendingReviews.splice(reviewIndex, 1)[0]!;
+        const submitted = submitAssignment(repository, prepared, [{
+          localId: "review",
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: review.datum.payload,
+            links: review.datum.links,
+            body: review.datum.body,
+          },
+        }]);
+        expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+        if (review.datum.payload.outcome === "fail") {
+          failedReviewRevision = JSON.parse(submitted.stdout).execution.outputs[0]
+            .lifecycleDatum.revisionId;
+          break;
+        }
+      }
+      expect(failedReviewRevision).toMatch(/^REV-.*-r00001$/);
+      for (const item of replacementRecords) {
+        const correction = item.datum.links.find((link) => link.type === "corrects-review");
+        if (correction) correction.target = failedReviewRevision!;
+      }
+      const afterReviews = await readRepositoryData(repository, loadedFixture.package);
+      if (!afterReviews.ok) throw new Error(JSON.stringify(afterReviews.diagnostics));
+      stored = afterReviews.value.map((item) => item.lifecycleDatum.datum);
+      await publishFixtureRecords(
+        replacementRecords.map((item) => item.datum),
+        "phase-1-vai-correction-r2",
+      );
+      const finalizedReplacementContext =
+        await finalizeExactBaselineScenarioOutput(
+          repository,
+          loadedFixture.package,
+          fixtureProcessRef,
+          replacementContextRecord.datum,
+        );
+      if (!finalizedReplacementContext.ok) {
+        throw new Error(
+          JSON.stringify(finalizedReplacementContext.diagnostics),
+        );
+      }
+      await publishFixtureRecords(
+        [finalizedReplacementContext.value.output.datum],
+        "phase-1-vai-correction-r2-context",
+        [finalizedReplacementContext.value.output],
+      );
+
+      const firstRevision = sourceRecords.find(
+        (item) =>
+          item.datum.type === "VAI" &&
+          item.datum.revision === 1 &&
+          item.datum.payload.kind === "pilot",
+      )!.datum.revision_id;
+      const looseEnds = mdlm(repository, "loose-ends", "--json");
+      expect(looseEnds.status, `${looseEnds.stderr}${looseEnds.stdout}`).toBe(
+        0,
+      );
+      const items = JSON.parse(looseEnds.stdout).looseEnds.items as Array<{
+        obligation: string;
+        subject: string;
+        dispatchable: boolean;
+      }>;
+      expect(
+        items.find(
+          (item) =>
+            item.obligation === "verification-run-required" &&
+            item.subject === firstRevision,
+        ),
+      ).toBeUndefined();
+
+      const prepared = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(prepared, "subject")).toBe(replacementRevision);
+      expect(prepared.packet.obligation.instance).toContain(
+        replacementRevision,
+      );
+    } finally {
+      await fs.rm(repository, { recursive: true, force: true });
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  }, 60_000);
 
   it("executes timeout cleanup and continues aggregation with the subsequent case", () => {
     if (!(["darwin", "linux"].includes(process.platform))) return;
