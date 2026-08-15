@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
   loadProcessPackage,
+  type LoadProcessPackageOptions,
   type ProcessDiagnostic,
   type ProcessPackage,
 } from "./index.js";
@@ -64,6 +65,7 @@ export async function readSelection(
 
 export async function selectedPackage(
   repositoryRoot: string,
+  options: LoadProcessPackageOptions = {},
 ): Promise<SelectedPackageResolution> {
   let selection: ProcessSelection | undefined;
   try {
@@ -102,7 +104,7 @@ export async function selectedPackage(
     };
   }
   const packageRoot = path.resolve(repositoryRoot, selection.package.path);
-  const loaded = await loadProcessPackage(packageRoot);
+  const loaded = await loadProcessPackage(packageRoot, options);
   if (!loaded.ok) {
     return { ok: false, selected: true, diagnostics: loaded.diagnostics };
   }
@@ -128,8 +130,9 @@ export async function selectedPackage(
 
 export async function selectedRepositoryPackage(
   repositoryRoot: string,
+  options: LoadProcessPackageOptions = {},
 ): Promise<SelectedPackageResolution> {
-  const selected = await selectedPackage(repositoryRoot);
+  const selected = await selectedPackage(repositoryRoot, options);
   if (!selected.ok) return selected;
   const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
   let descriptor: Record<string, unknown>;

@@ -16,8 +16,8 @@ completion: >-
   && context.payload.scope == subject.identity.revision_id
   && context_members == select("review-context-members-for@1", {subject: subject})
   && every("review-context-members-for@1", {subject: subject}, member =>
-    exists("review-context-contains-member@1",
-      {context: context, required_member: member}))
+    exists("review-context-contains-required-support@1",
+      {subject: subject, context: context, required_support: member}))
   && context.storage.frozen == true
   && exists("valid-review-contexts-for@1", {subject: subject})
 resolves: [review-context-required]

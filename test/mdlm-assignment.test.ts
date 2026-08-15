@@ -145,7 +145,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       id: outcome.assignment.id,
       disposition: "active",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.60.0",
+        reference: "mdlm-bootstrap@0.61.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       repository: {
@@ -706,12 +706,38 @@ describe("MDLM Assignment leasing and preparation", () => {
     const response = wayfindingResponse(assignment, loadedSkillRefs);
     const responsePath = path.join(parent, "response.json");
     const before = git(repository, "diff", "--binary", "HEAD").stdout;
-    const rejectionCases = [{
-      code: "scenario-skill-provenance-mismatch",
-      mutate(candidate: typeof response) {
-        candidate.proposal.loadedSkillRefs = ["skills/not-in-the-assignment.md@1"];
+    const rejectionCases = [
+      {
+        code: "scenario-skill-provenance-mismatch",
+        mutate(candidate: typeof response) {
+          candidate.proposal.loadedSkillRefs = loadedSkillRefs.slice(0, -1);
+        },
       },
-    }];
+      {
+        code: "scenario-skill-provenance-mismatch",
+        mutate(candidate: typeof response) {
+          candidate.proposal.loadedSkillRefs = [
+            ...loadedSkillRefs,
+            "skills/not-in-the-assignment.md@1",
+          ];
+        },
+      },
+      {
+        code: "scenario-skill-provenance-mismatch",
+        mutate(candidate: typeof response) {
+          candidate.proposal.loadedSkillRefs = [...loadedSkillRefs].reverse();
+        },
+      },
+      {
+        code: "scenario-skill-provenance-mismatch",
+        mutate(candidate: typeof response) {
+          candidate.proposal.loadedSkillRefs = [
+            "skills/not-in-the-assignment.md@1",
+            ...loadedSkillRefs.slice(1),
+          ];
+        },
+      },
+    ];
     const abandonMalformedAssignment = () => {
       const abandoned = mdlmWithInput(
         repository,
@@ -751,7 +777,10 @@ describe("MDLM Assignment leasing and preparation", () => {
       expect(JSON.parse(rejected.stdout)).toEqual(expect.objectContaining({
         disposition: "correction-required",
         diagnostics: expect.arrayContaining([
-          expect.objectContaining({ code: rejectionCase.code }),
+          expect.objectContaining({
+            code: rejectionCase.code,
+            message: `Scenario Proposal must report exact Assignment skills in packet order; expected ${JSON.stringify(loadedSkillRefs)}, received ${JSON.stringify(invalid.proposal.loadedSkillRefs)}`,
+          }),
         ]),
       }));
       abandonMalformedAssignment();
@@ -785,7 +814,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       retryAvailability: { malformedResponseCorrection: 1 },
       malformedResponses: [],
     }));
-  }, 40_000);
+  }, 60_000);
 
   it("atomically publishes one Assignment Response from stdin and rejects replay", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
@@ -838,8 +867,10 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(result.execution).not.toHaveProperty("adapter");
     expect(result.execution.skills.map((skill: { reference: string }) => skill.reference))
       .toEqual(loadedSkillRefs);
-    expect(result.execution.outputs[0].data.created_by.loaded_skill_refs)
-      .toEqual(loadedSkillRefs);
+    expect(result.execution.outputs.map(
+      (output: { data: { created_by: { loaded_skill_refs: string[] } } }) =>
+        output.data.created_by.loaded_skill_refs,
+    )).toEqual(result.execution.outputs.map(() => loadedSkillRefs));
     expect(result.execution.outputs[0].data.payload.frontier).toEqual([
       result.execution.outputs[1].lifecycleDatum.revisionId,
     ]);
@@ -1064,7 +1095,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.60.0/prompts/establish-initial-wayfinding-map.md",
+        ".lifecycle/packages/mdlm-bootstrap@0.61.0/prompts/establish-initial-wayfinding-map.md",
       ),
       "\nPackage change.\n",
     );
@@ -1080,7 +1111,7 @@ describe("MDLM Assignment leasing and preparation", () => {
   it("invalidates the active lease when next observes a package change", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);
     const promptRelative =
-      ".lifecycle/packages/mdlm-bootstrap@0.60.0/prompts/establish-initial-wayfinding-map.md";
+      ".lifecycle/packages/mdlm-bootstrap@0.61.0/prompts/establish-initial-wayfinding-map.md";
     await fs.appendFile(path.join(repository, promptRelative), "\nPackage change.\n");
 
     const changed = mdlm(repository, "next");

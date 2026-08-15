@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.60.0");
+    expect(result.package.manifest.version).toBe("0.61.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(288);
+    expect(Object.keys(result.package.selectors)).toHaveLength(292);
     expect(result.package.selectors).toEqual(expect.objectContaining({
       "accepted-baseline-promotes-candidate": expect.any(Object),
       "blocking-product-simplification-reviews-for": expect.any(Object),
@@ -36,6 +36,10 @@ describe("loadProcessPackage", () => {
       "phase-0-candidate-review-context-members": expect.any(Object),
       "phase-0-foundation-member-reviews": expect.any(Object),
       "review-context-members-for": expect.any(Object),
+      "review-context-contains-required-support": expect.any(Object),
+      "composed-baselines-for-review-context": expect.any(Object),
+      "environment-review-evidence-for": expect.any(Object),
+      "unexpected-environment-review-context-evidence": expect.any(Object),
       "phase-2-definition-members-for-plan": expect.any(Object),
       "valid-phase-2-simplification-review": expect.any(Object),
       "failed-phase-2-simplification-reviews-by-scope": expect.any(Object),
@@ -1415,6 +1419,157 @@ describe("loadProcessPackage", () => {
         }),
       ]),
     );
+  });
+
+  it("rejects prompt skills outside the manifest catalog during package loading", async () => {
+    const processRoot = await copiedProcessPackage();
+    const promptPath = path.join(
+      processRoot,
+      "prompts/escalate-foundation-review-correction.md",
+    );
+    await fs.writeFile(
+      promptPath,
+      (await fs.readFile(promptPath, "utf8")).replace(
+        "skills/requirement-writing.md@1",
+        "skills/not-declared.md@1",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "prompt-skill-not-declared",
+      path: promptPath,
+      message: expect.stringContaining("skills/not-declared.md@1"),
+    }));
+  });
+
+  it("rejects undeclared legacy body skill references during package loading", async () => {
+    const processRoot = await copiedProcessPackage();
+    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
+    await fs.appendFile(promptPath, "\nLoad `skills/not-declared.md@1`.\n");
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "prompt-skill-not-declared",
+      path: promptPath,
+      message: expect.stringContaining("skills/not-declared.md@1"),
+    }));
+  });
+
+  it("rejects duplicate legacy body skill references during package loading", async () => {
+    const processRoot = await copiedProcessPackage();
+    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
+    await fs.appendFile(promptPath, "\nLoad `skills/lifecycle-data.md@1` again.\n");
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "prompt-skills-invalid",
+      path: promptPath,
+    }));
+  });
+
+  it("rejects prompt symlinks escaping the package during package loading", async () => {
+    const processRoot = await copiedProcessPackage();
+    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
+    const outsidePath = path.join(path.dirname(processRoot), "outside-prompt.md");
+    await fs.writeFile(outsidePath, await fs.readFile(promptPath, "utf8"));
+    await fs.rm(promptPath);
+    await fs.symlink(outsidePath, promptPath);
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "prompt-outside-package",
+      path: promptPath,
+    }));
+  });
+
+  it("rejects malformed legacy body skill references during package loading", async () => {
+    const processRoot = await copiedProcessPackage();
+    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
+    await fs.appendFile(promptPath, "\nLoad malformed `skills/lifecycle-data.md@0`.\n");
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "prompt-skills-invalid",
+      path: promptPath,
+    }));
+  });
+
+  it("rejects mismatched declared skill identity during package loading", async () => {
+    const processRoot = await copiedProcessPackage();
+    const skillPath = path.join(processRoot, "skills/lifecycle-data.md");
+    await fs.writeFile(
+      skillPath,
+      (await fs.readFile(skillPath, "utf8")).replace("version: 1", "version: 2"),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "skill-version-mismatch",
+      path: skillPath,
+    }));
+  });
+
+  it("loads immutable historical authoring packages without retroactive prompt-skill conformance", async () => {
+    const processRoot = await copiedProcessPackage();
+    const promptPath = path.join(
+      processRoot,
+      "prompts/revise-stakeholder-change-after-review.md",
+    );
+    await fs.writeFile(
+      promptPath,
+      (await fs.readFile(promptPath, "utf8")).replace(
+        "skills/contextual-artifact-review.md@1",
+        "skills/review-model.md@1",
+      ),
+    );
+    const strict = await loadProcessPackage(processRoot);
+    expect(strict.ok).toBe(false);
+    expect(strict.diagnostics).toContainEqual(expect.objectContaining({
+      code: "prompt-skill-not-declared",
+    }));
+
+    const historical = await loadProcessPackage(processRoot, {
+      compatibility: "historical-authoring",
+    });
+    expect(historical.ok, JSON.stringify(historical.diagnostics)).toBe(true);
+  });
+
+  it("rejects Scenario prompts outside the manifest catalog", async () => {
+    const processRoot = await copiedProcessPackage();
+    const manifestPath = path.join(processRoot, "manifest.yaml");
+    await fs.writeFile(
+      manifestPath,
+      (await fs.readFile(manifestPath, "utf8")).replace(
+        "    - prompts/chart-wayfinding-map.md@1\n",
+        "",
+      ),
+    );
+
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "scenario-prompt-not-declared",
+      path: "scenarios.chart-wayfinding-map.prompt_ref",
+    }));
+
+    const historical = await loadProcessPackage(processRoot, {
+      compatibility: "historical-authoring",
+    });
+    expect(historical.ok, JSON.stringify(historical.diagnostics)).toBe(true);
   });
 
   it("rejects a template inheritance cycle before any type is resolved", async () => {

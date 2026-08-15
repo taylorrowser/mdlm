@@ -19,6 +19,13 @@ query:
         && !every("stakeholder-requirements-for@1", {product_specification: member},
           requirement => requirement != subject)
         && none("newer-revisions-for@1", {subject: member}))
+      || (subject.identity.type == "ENV"
+        && (
+          !every("strategies-for-environment@1", {environment: subject}, strategy =>
+            strategy != member)
+          || !every("environment-review-evidence-for@1", {environment: subject}, evidence =>
+            evidence != member)
+        ))
       || (subject.identity.type == "DWP"
         && subject.payload.stage == "planning"
         && exists("decomposition-outputs-for@1", {plan: subject})

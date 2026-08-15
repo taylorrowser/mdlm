@@ -1199,7 +1199,7 @@ rows:
       - route: ENV qualification
         executable:
           file: test/phase-1-hardening-routes.test.ts
-          test: proves Phase 1 ENV qualification and keeps incomplete qualification execution actionable
+          test: proves Phase 1 ENV qualification and supplies its exact Review evidence
         evidence:
           facts: One exact reviewed VSP profile and one complete ENV qualification chain.
           links: ENV realizes the exact VSP; qualification evidence binds that ENV and profile.

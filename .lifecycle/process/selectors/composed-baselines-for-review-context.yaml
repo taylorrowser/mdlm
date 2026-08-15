@@ -1,0 +1,13 @@
+kind: selector-definition
+id: composed-baselines-for-review-context
+version: 1
+description: Exact baselines composed by one Review Context.
+parameters:
+  - {name: context, kind: revision, types: [BSL]}
+result_kind: baseline
+query:
+  from: {relation: baseline-composed, of: context, emit: entity, types: [BSL]}
+  as: composed
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]

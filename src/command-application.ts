@@ -715,7 +715,9 @@ async function migrateRepositoryPackage(
       command,
     };
   }
-  const previousLoaded = await loadProcessPackage(previousRoot);
+  const previousLoaded = await loadProcessPackage(previousRoot, {
+    compatibility: "historical-authoring",
+  });
   if (!previousLoaded.ok) {
     return { ok: false, command, diagnostics: previousLoaded.diagnostics };
   }
@@ -734,7 +736,9 @@ async function migrateRepositoryPackage(
     };
   }
 
-  const selected = await selectedPackage(repositoryRoot);
+  const selected = await selectedPackage(repositoryRoot, {
+    compatibility: "historical-authoring",
+  });
   if (!selected.ok) {
     return { ok: false, command, diagnostics: selected.diagnostics };
   }

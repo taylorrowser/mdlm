@@ -584,7 +584,7 @@ async function submitScenario(
       diagnostics: [{
         code: "scenario-skill-provenance-mismatch",
         path: `${scenarioReference}#skills`,
-        message: "Scenario Proposal must report every exact Assignment skill in packet order",
+        message: `Scenario Proposal must report exact Assignment skills in packet order; expected ${JSON.stringify(declaredSkillRefs)}, received ${JSON.stringify(loadedSkillRefs)}`,
       }],
     };
   }

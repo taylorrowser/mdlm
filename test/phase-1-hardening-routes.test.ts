@@ -18,6 +18,7 @@ import {
   evaluateProcessDefinition,
   evaluateScenarioParticipation,
 } from "../src/evaluator.js";
+import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import {
   publishScenarioMutation,
   readRepositoryData,
@@ -722,7 +723,7 @@ describe("Phase 1 hardening route evidence", () => {
     )).toEqual(expect.objectContaining({ status: "ready" }));
   });
 
-  it("proves Phase 1 ENV qualification and keeps incomplete qualification execution actionable", () => {
+  it("proves Phase 1 ENV qualification and supplies its exact Review evidence", async () => {
     const currentStrategy = strategy(1);
     const strategyReview = passingReview(currentStrategy, "REV-0HARDENV0");
     const currentEnvironment = environment();
@@ -768,6 +769,174 @@ describe("Phase 1 hardening route evidence", () => {
       status: "ready",
       actionableResolver: "create-review-context@1",
     }));
+    const reviewMembers = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...foundation(),
+          ...incompleteRecords,
+          qualification.run,
+          qualification.result,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "review-context-members-for@1",
+      { subject: currentEnvironment.datum.revision_id },
+    );
+    const expectedReviewMembers = [
+      qualification.result.datum.revision_id,
+      qualification.run.datum.revision_id,
+      qualification.implementation.datum.revision_id,
+      qualification.activity.datum.revision_id,
+      currentStrategy.datum.revision_id,
+    ];
+    expect((reviewMembers.result as Array<{ identity: { revision_id: string } }>)
+      .map((item) => item.identity.revision_id)).toEqual(expectedReviewMembers);
+
+    const [exactContext] = passingReview(currentEnvironment, "REV-0HARDENV1", {
+      definitions: [currentEnvironment, currentStrategy],
+      evidence: [
+        qualification.activity,
+        qualification.implementation,
+        qualification.run,
+        qualification.result,
+      ],
+    });
+    const contextRecords = [
+      ...foundation(),
+      ...incompleteRecords,
+      qualification.run,
+      qualification.result,
+    ];
+    const matchingContext = (
+      context: LifecycleRecord,
+      additionalRecords: LifecycleRecord[] = [],
+    ) => evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...contextRecords, ...additionalRecords, context],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "environment-assurance-context-matches@1",
+      {
+        environment: currentEnvironment.datum.revision_id,
+        context: context.datum.revision_id,
+      },
+    ).result;
+    expect(matchingContext(exactContext)).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: exactContext.datum.revision_id,
+        }),
+      }),
+    ]);
+
+    const unrelatedBaseline = record("BSL", "BSL-0UNRELATED2", {
+      title: "Unrelated composed baseline",
+      kind: "intent-level-candidate",
+      role: "candidate",
+      scope: "unrelated",
+      group: "DEFAULT",
+      definition_members: [],
+      evidence: [],
+    });
+    const contextWithComposition = record("BSL", "BSL-0HARDENV5", {
+      title: `Exact context for ${currentEnvironment.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: currentEnvironment.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        currentEnvironment.datum.revision_id,
+        currentStrategy.datum.revision_id,
+      ],
+      evidence: [
+        qualification.activity.datum.revision_id,
+        qualification.implementation.datum.revision_id,
+        qualification.run.datum.revision_id,
+        qualification.result.datum.revision_id,
+      ],
+    }, {
+      scenario: "create-review-context@1",
+      links: [{
+        type: "composes",
+        target: unrelatedBaseline.datum.revision_id,
+      }],
+    });
+    expect(matchingContext(contextWithComposition, [unrelatedBaseline])).toEqual([]);
+
+    const recordsWithContext = [
+      ...incompleteRecords,
+      qualification.run,
+      qualification.result,
+      exactContext,
+    ];
+    const reviewRoute = phase1Evaluation(processPackage, recordsWithContext).obligations.find(
+      (item) => item.obligation === "passing-review-required" &&
+        item.subject === currentEnvironment.datum.revision_id,
+    );
+    expect(reviewRoute).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: true,
+      actionableResolver: "review-datum-in-context@2",
+    }));
+    const preparedReview = await dryRunResolverScenario(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...recordsWithContext],
+        dependencyComparisons: [],
+      },
+      "review-datum-in-context@2",
+      reviewRoute!.id,
+      [],
+    );
+    expect(preparedReview.ok, JSON.stringify(preparedReview.diagnostics)).toBe(true);
+    if (!preparedReview.ok) return;
+    expect(preparedReview.value.invocations[0]!.inputs.find((input) =>
+      input.name === "context_members"
+    )?.values.map((value) => value.identity.revision_id)).toEqual(
+      expectedReviewMembers,
+    );
+
+    const [contextWithUnrelatedEvidence] = passingReview(
+      currentEnvironment,
+      "REV-0HARDENV2",
+      {
+        definitions: [currentEnvironment, currentStrategy],
+        evidence: [
+          qualification.activity,
+          qualification.implementation,
+          qualification.run,
+          qualification.result,
+          strategyReview[1],
+        ],
+      },
+    );
+    expect(matchingContext(contextWithUnrelatedEvidence)).toEqual([]);
+
+    const [contextWithUnrelatedDefinition] = passingReview(
+      currentEnvironment,
+      "REV-0HARDENV3",
+      {
+        definitions: [currentEnvironment, currentStrategy, strategyReview[0]],
+        evidence: [
+          qualification.activity,
+          qualification.implementation,
+          qualification.run,
+          qualification.result,
+        ],
+      },
+    );
+    expect(matchingContext(contextWithUnrelatedDefinition)).toEqual([]);
+
     expect(complete.obligations.find((item) =>
       item.obligation === "pilot-verification-activity-required"
     )).toEqual(expect.objectContaining({

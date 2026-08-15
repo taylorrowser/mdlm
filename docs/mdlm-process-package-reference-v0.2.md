@@ -428,8 +428,12 @@ prohibited-input conflicts, and required-link names, targets, target types, and
 cardinalities are rejected before execution. The completion expression may add
 process-specific conditions but should not duplicate those generic checks.
 
-Prompts choose and order skills. Execution provenance records the exact prompt,
-skills, policies, process reference, authorization mode, and inputs actually used.
+Prompts choose and order skills through their YAML-frontmatter `skills` array.
+That array is authoritative when present; for legacy prompts without it, exact
+backtick-wrapped skill references in the body remain the compatibility fallback.
+Skill entries must be unique exact references declared by the package. Execution
+provenance records the exact prompt, skills, policies, process reference,
+authorization mode, and inputs actually used.
 
 A Scenario that needs its `review_policy_ref` evaluated before execution may
 declare `review_policy_arguments`; `review_policy_ref` alone still selects the
@@ -767,7 +771,8 @@ stakeholder attention.
 
 `req process validate` must reject:
 
-- meta-schema violations and manifest/catalog disagreement;
+- meta-schema violations and manifest/catalog disagreement, including malformed,
+  duplicate, or undeclared prompt skill references;
 - unresolved or version-mismatched template, Policy, Selector, Computed State,
   Obligation, Scenario, or Phase references;
 - complete Template, Selector, Computed State, or Policy dependency cycles;
@@ -1020,7 +1025,7 @@ The Phase 1 tracer derives required VSP work from exact entry requirements, then
 derives one atomic ENV and qualification VER/VAI realization from each applicable
 exact strategy. Generated RUN/RES work follows from the exact qualification VAI.
 Environment Review Context work waits for passing qualification and freezes the
-exact VSP, ENV, qualification VER, RUN, and RES Revisions before independent
+exact VSP, ENV, qualification VER, VAI, RUN, and RES Revisions before independent
 judgment. A failed current VSP, ENV, or pilot VER Review derives a package-owned
 same-lineage correction Scenario rather than a null work queue. Corrections carry
 every exact failed REV and Finding applicable to the current Revision and require

@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.60.0
+version: 0.61.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -101,6 +101,8 @@ catalog:
     - review-context-members-for
     - review-context-members
     - review-context-contains-member
+    - review-context-contains-required-support
+    - composed-baselines-for-review-context
     - complete-phase-0-intent-candidates
     - complete-superseding-intent-candidates-for
     - failed-phase-0-foundation-revisions
@@ -146,6 +148,8 @@ catalog:
     - strategies-for-environment
     - context-contains-definition
     - context-contains-evidence
+    - environment-review-evidence-for
+    - unexpected-environment-review-context-evidence
     - environment-assurance-context-matches
     - stale-review-contexts-for
     - passing-reviews-for

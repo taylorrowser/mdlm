@@ -1,0 +1,16 @@
+kind: selector-definition
+id: unexpected-environment-review-context-evidence
+version: 1
+description: Evidence in an ENV Review Context that is not part of its exact completed qualification chain.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+  - {name: context, kind: revision, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: context, emit: entity}
+  as: evidence
+  where: >-
+    every("environment-review-evidence-for@1", {environment: environment}, expected =>
+      expected != evidence)
+  distinct: true
+  order_by: [identity.revision_id]
