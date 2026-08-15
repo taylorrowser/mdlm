@@ -28,6 +28,7 @@ import { processPackageDigest } from "../src/process-package-digest.js";
 import {
   directoryDigest,
   inputRevision,
+  inputRevisions,
   prepareNextAssignment,
   submitAssignment,
   type ProposedOutput,
@@ -521,7 +522,9 @@ function correctedPilotImplementationFixture() {
     ],
   });
   const activity = pilotActivity();
-  const activityReview = passingReview(activity, "REV-0HARDVAI2");
+  const activityReview = passingReview(activity, "REV-0HARDVAI2", {
+    definitions: [activity, foundation()[1]!, currentStrategy],
+  });
   const exactTarget = target();
   const first = pilotImplementation();
   const firstAuthorization = implementationAuthorization(first, "DEC-0HARDVAI1");
@@ -993,7 +996,7 @@ describe("Phase 1 hardening route evidence", () => {
     }));
   });
 
-  it("proves Phase 1 pilot VER publication with exact Stable Datum, Revision, and strategy links", () => {
+  it("proves Phase 1 pilot VER publication with exact Stable Datum, Revision, strategy links, and Review support", () => {
     const currentStrategy = strategy(1);
     const strategyReview = passingReview(currentStrategy, "REV-0HARDVER0");
     const currentEnvironment = environment();
@@ -1034,18 +1037,248 @@ describe("Phase 1 hardening route evidence", () => {
       actionableResolver: "register-pilot-target@1",
     }));
 
+    const reviewMembers = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), currentStrategy, ...strategyReview, activity],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "review-context-members-for@1",
+      { subject: activity.datum.revision_id },
+    );
+    expect((reviewMembers.result as Array<{ identity: { revision_id: string } }>)
+      .map((item) => item.identity.revision_id)).toEqual([
+        "STK-0HARDENP10-r00001",
+        currentStrategy.datum.revision_id,
+      ]);
+
+    const supportedRequirement = foundation().find((item) =>
+      item.datum.revision_id === "STK-0HARDENP10-r00001"
+    )!;
+    const [exactContext] = passingReview(activity, "REV-0HARDVER1", {
+      definitions: [activity, supportedRequirement, currentStrategy],
+    });
+    const recordsWithExactContext = [
+      currentStrategy,
+      ...strategyReview,
+      activity,
+      exactContext,
+    ];
+    const reviewRoute = phase1Evaluation(processPackage, recordsWithExactContext)
+      .obligations.find((item) =>
+        item.obligation === "passing-review-required" &&
+        item.subject === activity.datum.revision_id
+      );
+    expect(reviewRoute).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: true,
+      actionableResolver: "review-datum-in-context@2",
+      id: expect.any(String),
+    }));
+    const [contextWithUnrelatedDefinition] = passingReview(
+      activity,
+      "REV-0HARDVER2",
+      {
+        definitions: [
+          activity,
+          supportedRequirement,
+          currentStrategy,
+          foundation()[0]!,
+        ],
+      },
+    );
+    const invalidExtraContext = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...foundation(),
+          currentStrategy,
+          ...strategyReview,
+          activity,
+          contextWithUnrelatedDefinition,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "valid-review-contexts-for@1",
+      { subject: activity.datum.revision_id },
+    );
+    expect(invalidExtraContext.result).toEqual([]);
+
+    const [contextWithUnrelatedComposition] = passingReview(
+      activity,
+      "REV-0HARDVER5",
+      { definitions: [activity, supportedRequirement, currentStrategy] },
+    );
+    contextWithUnrelatedComposition.datum.links.push({
+      type: "composes",
+      target: strategyReview[0]!.datum.revision_id,
+    });
+    const invalidComposedContext = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...foundation(),
+          currentStrategy,
+          ...strategyReview,
+          activity,
+          contextWithUnrelatedComposition,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "valid-review-contexts-for@1",
+      { subject: activity.datum.revision_id },
+    );
+    expect(invalidComposedContext.result).toEqual([]);
+
+    const [legacyContext] = passingReview(activity, "REV-0HARDVER3");
+    const legacyProcessRef =
+      "mdlm-bootstrap@0.62.0#sha256:38b4912e78d4524a5755bd8d5260eba092f4543666315a217bc0782244327ec1";
+    legacyContext.datum.created_by.process_ref = legacyProcessRef;
+    legacyContext.datum.payload.snapshot = {
+      frozen_at: "2026-08-15T00:00:00.000Z",
+      member_hashes: {
+        [activity.datum.revision_id]: `sha256:${"a".repeat(64)}`,
+      },
+      resolved_links: {
+        [activity.datum.revision_id]: [
+          "STK-0HARDENP10-r00001",
+          currentStrategy.datum.revision_id,
+        ],
+      },
+      process_provenance: {
+        process_ref: legacyProcessRef,
+        manifest_hash: `sha256:${"b".repeat(64)}`,
+        asset_refs: [],
+      },
+    };
+    const validLegacyContext = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...foundation(),
+          currentStrategy,
+          ...strategyReview,
+          activity,
+          legacyContext,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "valid-review-contexts-for@1",
+      { subject: activity.datum.revision_id },
+    );
+    expect(
+      (
+        validLegacyContext.result as Array<{
+          identity: { revision_id: string };
+        }>
+      ).map((item) => item.identity.revision_id),
+    ).toEqual([legacyContext.datum.revision_id]);
+
+    const [legacyContextWithEvidence] = passingReview(
+      activity,
+      "REV-0HARDVER4",
+      { evidence: [strategyReview[1]] },
+    );
+    legacyContextWithEvidence.datum.created_by.process_ref = legacyProcessRef;
+    legacyContextWithEvidence.datum.payload.snapshot =
+      legacyContext.datum.payload.snapshot;
+    const invalidLegacyEvidence = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...foundation(),
+          currentStrategy,
+          ...strategyReview,
+          activity,
+          legacyContextWithEvidence,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "valid-review-contexts-for@1",
+      { subject: activity.datum.revision_id },
+    );
+    expect(invalidLegacyEvidence.result).toEqual([]);
+
+    const legacyContextWithComposition = structuredClone(legacyContext);
+    legacyContextWithComposition.datum.links.push({
+      type: "composes",
+      target: strategyReview[0]!.datum.revision_id,
+    });
+    const invalidLegacyComposition = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...foundation(),
+          currentStrategy,
+          ...strategyReview,
+          activity,
+          legacyContextWithComposition,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "valid-review-contexts-for@1",
+      { subject: activity.datum.revision_id },
+    );
+    expect(invalidLegacyComposition.result).toEqual([]);
+
+    const foreignLegacyContext = structuredClone(legacyContext);
+    foreignLegacyContext.datum.created_by.process_ref =
+      "mdlm-bootstrap@0.42.0#sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    const invalidForeignLegacy = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...foundation(),
+          currentStrategy,
+          ...strategyReview,
+          activity,
+          foreignLegacyContext,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "valid-review-contexts-for@1",
+      { subject: activity.datum.revision_id },
+    );
+    expect(invalidForeignLegacy.result).toEqual([]);
+
     const malformed = pilotActivity();
     malformed.datum.links = malformed.datum.links.map((link) =>
       link.type === "verifies-revision"
         ? { ...link, target: "STK-0HARDENP10-r00002" }
-        : link
+        : link,
     );
     const selected = evaluateProcessDefinition(
       processPackage,
       {
         processRef,
         phaseId: "phase-1-product-assurance",
-        records: [...foundation(), currentStrategy, ...strategyReview, malformed],
+        records: [
+          ...foundation(),
+          currentStrategy,
+          ...strategyReview,
+          malformed,
+        ],
         dependencyComparisons: [],
       },
       "selector",
@@ -1518,7 +1751,9 @@ describe("Phase 1 hardening route evidence", () => {
       ],
     });
     const activity = pilotActivity();
-    const activityReview = passingReview(activity, "REV-0HARDTGT2");
+    const activityReview = passingReview(activity, "REV-0HARDTGT2", {
+      definitions: [activity, foundation()[1]!, currentStrategy],
+    });
     const exactTarget = target();
     expect(validatePayload(processPackage, "ART", exactTarget.datum.payload)).toBe(true);
     expect(exactTarget.datum.links).toEqual([
@@ -1573,7 +1808,9 @@ describe("Phase 1 hardening route evidence", () => {
       ],
     });
     const activity = pilotActivity();
-    const activityReview = passingReview(activity, "REV-0HARDVAI2");
+    const activityReview = passingReview(activity, "REV-0HARDVAI2", {
+      definitions: [activity, foundation()[1]!, currentStrategy],
+    });
     const exactTarget = target();
     const records = [
       ...foundation(),
@@ -2195,12 +2432,24 @@ describe("Phase 1 hardening route evidence", () => {
         replacement,
         replacementContext,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.62.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.63.0#${await processPackageDigest(processRoot)}`;
       for (const item of sourceRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
       const replacementRevision = sourceRecords.find(
         (item) => item.datum.type === "VAI" && item.datum.revision === 2,
+      )!.datum.revision_id;
+      const pilotActivityRevision = sourceRecords.find(
+        (item) => item.datum.type === "VER" && item.datum.payload.kind === "pilot",
+      )!.datum.revision_id;
+      const requirementRevision = sourceRecords.find(
+        (item) => item.datum.type === "STK",
+      )!.datum.revision_id;
+      const environmentRevision = sourceRecords.find(
+        (item) => item.datum.type === "ENV",
+      )!.datum.revision_id;
+      const strategyRevision = sourceRecords.find(
+        (item) => item.datum.type === "VSP",
       )!.datum.revision_id;
       const baseRecords = sourceRecords.filter(
         (item) =>
@@ -2214,6 +2463,166 @@ describe("Phase 1 hardening route evidence", () => {
           item.datum.type === "BSL" &&
           item.datum.payload.scope !== replacementRevision,
       );
+      const pilotContext = initialContexts.find(
+        (item) => item.datum.payload.scope === pilotActivityRevision,
+      )!;
+      const pilotReviewRepository = await fs.mkdtemp(
+        path.join(os.tmpdir(), "mdlm-phase1-ver-review-"),
+      );
+      const pilotReviewProcessParent = await fs.mkdtemp(
+        path.join(os.tmpdir(), "mdlm-phase1-ver-review-process-"),
+      );
+      const pilotReviewProcessRoot = path.join(
+        pilotReviewProcessParent,
+        "process",
+      );
+      await fs.cp(processRoot, pilotReviewProcessRoot, { recursive: true });
+      const pilotReviewSubjectsPath = path.join(
+        pilotReviewProcessRoot,
+        "selectors/review-required-revisions.yaml",
+      );
+      try {
+        await fs.writeFile(
+          pilotReviewSubjectsPath,
+          (await fs.readFile(pilotReviewSubjectsPath, "utf8")).replace(
+            "types: [VSP, ENV, VER, VAI]",
+            "types: [ENV, VER]",
+          ),
+        );
+        await selectProcessPackageFixture(
+          pilotReviewRepository,
+          pilotReviewProcessRoot,
+        );
+        const pilotReviewPackage = await loadProcessPackage(
+          pilotReviewProcessRoot,
+        );
+        if (!pilotReviewPackage.ok) {
+          throw new Error(JSON.stringify(pilotReviewPackage.diagnostics));
+        }
+        const pilotReviewProcessRef = `mdlm-bootstrap@0.63.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
+        const pilotReviewRecords = structuredClone(baseRecords);
+        for (const item of pilotReviewRecords) {
+          item.datum.created_by.process_ref = pilotReviewProcessRef;
+        }
+        const basePublication = await publishScenarioMutation(
+          pilotReviewRepository,
+          pilotReviewPackage.package,
+          [],
+          pilotReviewRecords.map((item) => item.datum),
+          "phase-1-ver-review-base",
+          { contract: "phase-1-ver-review-fixture@1" },
+        );
+        if (!basePublication.ok) {
+          throw new Error(JSON.stringify(basePublication.diagnostics));
+        }
+        const environmentContext = initialContexts.find(
+          (item) => item.datum.payload.scope === environmentRevision,
+        )!;
+        const finalizedContexts = [];
+        for (const sourceContext of [environmentContext, pilotContext]) {
+          const exactContext = structuredClone(sourceContext.datum);
+          exactContext.created_by.process_ref = pilotReviewProcessRef;
+          const finalized = await finalizeExactBaselineScenarioOutput(
+            pilotReviewRepository,
+            pilotReviewPackage.package,
+            pilotReviewProcessRef,
+            exactContext,
+          );
+          if (!finalized.ok) {
+            throw new Error(JSON.stringify(finalized.diagnostics));
+          }
+          finalizedContexts.push(finalized.value.output);
+        }
+        const contextPublication = await publishScenarioMutation(
+          pilotReviewRepository,
+          pilotReviewPackage.package,
+          pilotReviewRecords.map((item) => item.datum),
+          finalizedContexts.map((item) => item.datum),
+          "phase-1-ver-review-contexts",
+          { contract: "phase-1-ver-review-fixture@1" },
+          finalizedContexts,
+        );
+        if (!contextPublication.ok) {
+          throw new Error(JSON.stringify(contextPublication.diagnostics));
+        }
+        const preparedEnvironmentReview = prepareNextAssignment(
+          pilotReviewRepository,
+          "review-datum-in-context@2",
+        );
+        expect(inputRevision(preparedEnvironmentReview, "subject")).toBe(
+          environmentRevision,
+        );
+        const environmentReviewRecord = sourceRecords.find(
+          (item) =>
+            item.datum.type === "REV" &&
+            item.datum.links.some(
+              (link) =>
+                link.type === "reviews" && link.target === environmentRevision,
+            ),
+        )!;
+        const environmentReviewSubmission = submitAssignment(
+          pilotReviewRepository,
+          preparedEnvironmentReview,
+          [
+            {
+              localId: "review",
+              name: "review",
+              invocation: 0,
+              lifecycleDatum: {
+                type: "REV",
+                payload: environmentReviewRecord.datum.payload,
+                links: environmentReviewRecord.datum.links,
+                body: environmentReviewRecord.datum.body,
+              },
+            },
+          ],
+        );
+        expect(
+          environmentReviewSubmission.status,
+          `${environmentReviewSubmission.stderr}${environmentReviewSubmission.stdout}`,
+        ).toBe(0);
+        const preparedPilotReview = prepareNextAssignment(
+          pilotReviewRepository,
+          "review-datum-in-context@2",
+        );
+        expect(inputRevision(preparedPilotReview, "subject")).toBe(
+          pilotActivityRevision,
+        );
+        expect(inputRevisions(preparedPilotReview, "context_members")).toEqual([
+          requirementRevision,
+          strategyRevision,
+        ]);
+        expect(
+          preparedPilotReview.packet.allowedProjections.inputSchemas.map(
+            (schema: { type: string }) => schema.type,
+          ),
+        ).toEqual(["BSL", "STK", "VER", "VSP"]);
+        const projectedVerSchema =
+          preparedPilotReview.packet.allowedProjections.inputSchemas.find(
+            (schema: { type: string }) => schema.type === "VER",
+          );
+        expect(projectedVerSchema).toEqual(
+          expect.objectContaining({
+            envelope: expect.objectContaining({ type: "object" }),
+            payload: expect.objectContaining({
+              required: expect.arrayContaining([
+                "claim",
+                "acceptance_criteria",
+                "evidence_requirements",
+              ]),
+            }),
+            outgoingLinks: expect.arrayContaining([
+              expect.objectContaining({ id: "governed-by" }),
+              expect.objectContaining({ id: "verifies-revision" }),
+            ]),
+          }),
+        );
+      } finally {
+        await Promise.all([
+          fs.rm(pilotReviewRepository, { recursive: true, force: true }),
+          fs.rm(pilotReviewProcessParent, { recursive: true, force: true }),
+        ]);
+      }
       const reviews = sourceRecords.filter((item) => item.datum.type === "REV");
       const replacementRecords = sourceRecords.filter(
         (item) =>

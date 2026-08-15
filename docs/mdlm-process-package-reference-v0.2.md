@@ -1038,8 +1038,16 @@ prior exact strategy cannot satisfy a replacement. Multiple applicable
 strategies, environments, or pilot targets reach the narrow profile's declared
 boundary rather than arbitrary selection or Process Dead End; missing or incomplete
 evidence remains ordinary Obligation, Question, or validation work.
-Exact requirement and VSP Revision evidence then derives pilot VER work. The
-presence of current pilot activity work also derives exact ART registration when
+Exact requirement and VSP Revision evidence then derives pilot VER work. Each
+current-package pilot VER Review Context freezes the exact VER together with its
+linked STK and governing VSP Revisions, and independent Review packets project
+those two exact support Revisions. Current VER Review Contexts may neither add
+Review evidence nor compose unrelated baselines. A thin VER Review Context remains
+usable without rewriting frozen Lifecycle Data only when its authenticated snapshot
+was created by the exact 0.60.0, 0.61.0, or 0.62.0 Example Process Package, contains
+only the VER, contains no evidence, and composes no baselines; foreign or augmented
+historical contexts are rejected.
+The presence of current pilot activity work also derives exact ART registration when
 its requirement has no target. That Resolver records one immutable Git commit,
 bounded supported/unsupported behavior, and a controlled public execution interface
 containing the repository locator, an ordered typed command matrix with every
