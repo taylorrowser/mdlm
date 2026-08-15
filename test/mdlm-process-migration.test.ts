@@ -23,78 +23,90 @@ async function packageCopy(
   await fs.writeFile(
     manifestPath,
     (await fs.readFile(manifestPath, "utf8")).replace(
-      "version: 0.63.0",
+      "version: 0.64.0",
       `version: ${version}`,
     ),
   );
   return root;
 }
 
-async function historicalBootstrap062Copy(parent: string): Promise<string> {
-  const root = await packageCopy(parent, "historical-0.62.0", "0.62.0");
-  const membersPath = path.join(
-    root,
-    "selectors/review-context-members-for.yaml",
-  );
-  await fs.writeFile(
-    membersPath,
-    (await fs.readFile(membersPath, "utf8")).replace(
-      '      || (subject.identity.type == "VER"\n' +
-        "        && (\n" +
-        '          !every("requirements-for-pilot-activity@1", {activity: subject}, requirement =>\n' +
-        "            requirement != member)\n" +
-        '          || !every("strategies-for-verification-activity@1", {activity: subject}, strategy =>\n' +
-        "            strategy != member)\n" +
-        "        ))\n",
-      "",
-    ),
-  );
+async function historicalBootstrap063Copy(parent: string): Promise<string> {
+  const root = await packageCopy(parent, "historical-0.63.0", "0.63.0");
   const manifestPath = path.join(root, "manifest.yaml");
   await fs.writeFile(
     manifestPath,
-    (await fs.readFile(manifestPath, "utf8"))
-      .replace("    - legacy-thin-ver-review-contexts-for\n", "")
-      .replace("    - review-context-evidence\n", ""),
+    (await fs.readFile(manifestPath, "utf8")).replace(
+      "    - all-cited-reviews-by-correction\n",
+      "",
+    ),
   );
-  await Promise.all(
-    [
-      "selectors/legacy-thin-ver-review-contexts-for.yaml",
-      "selectors/review-context-evidence.yaml",
-    ].map((relativePath) => fs.rm(path.join(root, relativePath))),
+  await fs.rm(
+    path.join(root, "selectors/all-cited-reviews-by-correction.yaml"),
+  );
+  const selectorPath = path.join(
+    root,
+    "selectors/corrected-pilot-verification-implementation-revisions-for.yaml",
   );
   await fs.writeFile(
-    path.join(root, "selectors/valid-review-contexts-for.yaml"),
-    `kind: selector-definition
-id: valid-review-contexts-for
-version: 1
-description: Frozen valid review-context baselines containing the exact supplied subject.
-parameters:
-  - {name: subject, kind: revision}
-result_kind: baseline
-query:
-  from: {relation: baseline-memberships, of: subject, emit: entity, types: [BSL]}
-  as: context
-  where: >-
-    context.payload.kind == "review-context"
-    && context.payload.scope == subject.identity.revision_id
-    && context.storage.frozen == true
-    && state(context, "validity") == "valid"
-    && every("review-context-members-for@1", {subject: subject}, member =>
-      exists("review-context-contains-required-support@1",
-        {subject: subject, context: context, required_support: member})
-      || (subject.identity.type == "STK" && member.identity.type == "PSP"
-        && context.provenance.process_ref != process.current_ref))
-    && (subject.identity.type != "DWP"
-      || subject.payload.stage != "planning"
-      || none("decomposition-outputs-for@1", {plan: subject})
-      || count("review-context-members@1", {context: context})
-        == count("phase-2-definition-members-for-plan@1", {plan: subject}))
-    && (subject.identity.type != "ENV"
-      || exists("environment-assurance-context-matches@1",
-        {environment: subject, context: context}))
-  distinct: true
-  order_by: [identity.revision_id]
-`,
+    path.join(root, "prompts/revise-pilot-vai-after-review.md"),
+    (await fs.readFile(
+      path.join(root, "prompts/revise-pilot-vai-after-review.md"),
+      "utf8",
+    )).replace(
+      "supplied failed Review, preserving the exact pilot claim class, declared cases,\nVER, ENV, ART, supported behavior, and intentionally unsupported behavior. The\nreplacement may revise procedure and activity-binding text when needed to address\nan exact failed Review Finding. Do not mutate or reuse the failed VAI, Reviews,\nor prior RUN/RES evidence.",
+      "supplied failed Review, preserving the exact pilot claim class, case bindings,\nVER, ENV, ART, supported behavior, and intentionally unsupported behavior. Do\nnot mutate or reuse the failed VAI, Reviews, or prior RUN/RES evidence.",
+    ),
+  );
+  const scenarioPath = path.join(
+    root,
+    "scenarios/revise-pilot-vai-after-review.yaml",
+  );
+  await fs.writeFile(
+    scenarioPath,
+    (await fs.readFile(scenarioPath, "utf8"))
+      .replace(
+        "description: Correct one failed source-blind pilot procedure in the same VAI lineage while preserving its exact VER, ENV, ART, claim-class, and behavior bindings.",
+        "description: Correct one failed source-blind pilot procedure in the same VAI lineage while preserving its exact verification bindings.",
+      )
+      .replace(
+        "prohibited_inputs: [mutation of failed VAI, RUN, RES, or Review history, changed VER, ENV, or ART binding, changed pilot claim class, product source, product unit tests, private implementation details]",
+        "prohibited_inputs: [mutation of failed VAI, RUN, RES, or Review history, changed verification binding, changed pilot claim class, product source, product unit tests, private implementation details]",
+      ),
+  );
+  const profilePath = path.join(root, "profiles/bootstrap.yaml");
+  await fs.writeFile(
+    profilePath,
+    (await fs.readFile(profilePath, "utf8")).replace(
+      "  - corrected pilot VAI procedures preserve exact VER, ENV, ART, claim-class, declared-case, and behavior bindings while allowing procedure and activity-binding text to address Review findings; they require bounded checkout, environment-check, and product-case deadlines, forced termination and reaping, partial raw observation, guaranteed cleanup, continue-through-all-cases aggregation, and fresh run evidence",
+      "  - corrected pilot VAI procedures preserve exact activity, ENV, ART, claim-class, and case bindings while requiring bounded checkout, environment-check, and product-case deadlines, forced termination and reaping, partial raw observation, guaranteed cleanup, continue-through-all-cases aggregation, and fresh run evidence",
+    ),
+  );
+  await fs.writeFile(
+    selectorPath,
+    (await fs.readFile(selectorPath, "utf8"))
+      .replaceAll(
+        '"all-cited-reviews-by-correction@1"',
+        '"cited-failing-reviews-by-correction@1"',
+      )
+      .replace(
+        '    && count("cited-failing-reviews-by-correction@1", {replacement: replacement})\n' +
+          '      == count("failing-reviews-for@1", {subject: implementation})\n' +
+          '    && every("cited-failing-reviews-by-correction@1", {replacement: replacement}, review =>\n',
+        '    && count("cited-failing-reviews-by-correction@1",\n' +
+          '      {replacement: replacement})\n' +
+          '      == count("failing-reviews-for@1", {subject: implementation})\n' +
+          '    && every("cited-failing-reviews-by-correction@1",\n' +
+          '      {replacement: replacement}, review =>\n',
+      )
+      .replace(
+        "description: Valid newer pilot VAI Revisions preserving exact VER, ENV, and ART links while citing every and only failed Review.",
+        "description: Valid newer pilot VAI Revisions preserving every exact verification binding and citing every and only failed Review.",
+      )
+      .replace(
+        "    && replacement.payload.independence_mode == implementation.payload.independence_mode\n",
+        "    && replacement.payload.independence_mode == implementation.payload.independence_mode\n" +
+          "    && replacement.payload.activity_bindings == implementation.payload.activity_bindings\n",
+      ),
   );
   return root;
 }
@@ -128,8 +140,8 @@ describe("mdlm Process Package migration", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
-  it("migrates preserved 0.62.0 state and its active Assignment to exact 0.63.0", async () => {
-    const previousRoot = await historicalBootstrap062Copy(parent);
+  it("migrates preserved 0.63.0 state and its active Assignment to exact 0.64.0", async () => {
+    const previousRoot = await historicalBootstrap063Copy(parent);
     await selectProcessPackageFixture(repository, previousRoot);
     const selectedBefore = JSON.parse(
       await fs.readFile(
@@ -139,9 +151,9 @@ describe("mdlm Process Package migration", () => {
     );
     expect(selectedBefore.package).toEqual(
       expect.objectContaining({
-        reference: "mdlm-bootstrap@0.62.0",
+        reference: "mdlm-bootstrap@0.63.0",
         digest:
-          "sha256:38b4912e78d4524a5755bd8d5260eba092f4543666315a217bc0782244327ec1",
+          "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
       }),
     );
     const initial = JSON.parse(mdlm(repository, "next").stdout);
@@ -163,7 +175,7 @@ describe("mdlm Process Package migration", () => {
               lifecycleDatum: {
                 type: "MAP",
                 payload: {
-                  title: "Preserved 0.62.0 migration history",
+                  title: "Preserved 0.63.0 migration history",
                   purpose:
                     "Prove historical Lifecycle Data and Assignment compatibility.",
                   frontier: [
@@ -171,12 +183,12 @@ describe("mdlm Process Package migration", () => {
                   ],
                 },
                 links: [],
-                body: "One exact historical 0.62.0 transaction.\n",
+                body: "One exact historical 0.63.0 transaction.\n",
               },
             },
           ],
           completionEvidence: {
-            summary: "Published preserved 0.62.0 history.",
+            summary: "Published preserved 0.63.0 history.",
           },
           loadedSkillRefs: initialPacket.prompt.skills.map(
             (skill: { reference: string }) => skill.reference,
@@ -196,7 +208,7 @@ describe("mdlm Process Package migration", () => {
       historyBefore.status,
       `${historyBefore.stderr}${historyBefore.stdout}`,
     ).toBe(0);
-    expect(historyBefore.stdout).toContain("mdlm-bootstrap@0.62.0");
+    expect(historyBefore.stdout).toContain("mdlm-bootstrap@0.63.0");
     const dataBefore = await directoryDigest(
       path.join(repository, ".lifecycle/data"),
     );
@@ -226,14 +238,14 @@ describe("mdlm Process Package migration", () => {
         selected: true,
         migration: {
           from: expect.objectContaining({
-            reference: "mdlm-bootstrap@0.62.0",
-            digest:
-              "sha256:38b4912e78d4524a5755bd8d5260eba092f4543666315a217bc0782244327ec1",
-          }),
-          to: expect.objectContaining({
             reference: "mdlm-bootstrap@0.63.0",
             digest:
               "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
+          }),
+          to: expect.objectContaining({
+            reference: "mdlm-bootstrap@0.64.0",
+            digest:
+              "sha256:e3759f865e15cb62a7014d1cd3c05b25bee3f2858966a1cc7ed59bfda5476c8b",
           }),
         },
         diagnostics: [],
@@ -251,7 +263,7 @@ describe("mdlm Process Package migration", () => {
     expect(JSON.parse(historyAfter.stdout).history).toEqual(
       JSON.parse(historyBefore.stdout).history,
     );
-    expect(historyAfter.stdout).toContain("mdlm-bootstrap@0.62.0");
+    expect(historyAfter.stdout).toContain("mdlm-bootstrap@0.63.0");
     const prepared = mdlm(
       repository,
       "scenario",
@@ -261,6 +273,73 @@ describe("mdlm Process Package migration", () => {
     );
     expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
     expect(JSON.parse(prepared.stdout).assignment.id).toBe(assignment);
+    expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+  }, 60_000);
+
+  it("preserves exhausted 0.63.0 malformed-response history during migration", async () => {
+    const previousRoot = await historicalBootstrap063Copy(parent);
+    await selectProcessPackageFixture(repository, previousRoot);
+    const assignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id as string;
+    const dataBefore = await directoryDigest(
+      path.join(repository, ".lifecycle/data"),
+    );
+
+    const first = mdlmWithInput(repository, "{}\n", "scenario", "submit");
+    expect(first.status).toBe(1);
+    expect(JSON.parse(first.stdout)).toEqual(expect.objectContaining({
+      assignment: { id: assignment },
+      disposition: "correction-required",
+      malformedResponse: expect.objectContaining({
+        attempt: 1,
+        correctionsRemaining: 1,
+      }),
+    }));
+    const second = mdlmWithInput(repository, "{]\n", "scenario", "submit");
+    expect(second.status).toBe(1);
+    expect(JSON.parse(second.stdout)).toEqual(expect.objectContaining({
+      assignment: { id: assignment },
+      disposition: "exhausted",
+      malformedResponse: expect.objectContaining({
+        attempt: 2,
+        correctionsRemaining: 0,
+      }),
+    }));
+    const leasePath = path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    );
+    const exhaustedBefore = JSON.parse(await fs.readFile(leasePath, "utf8"));
+    expect(exhaustedBefore).toEqual(expect.objectContaining({
+      id: assignment,
+      disposition: "exhausted",
+      package: expect.objectContaining({
+        reference: "mdlm-bootstrap@0.63.0",
+        digest:
+          "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
+      }),
+      malformedResponses: [
+        expect.objectContaining({ digest: expect.stringMatching(/^sha256:/) }),
+        expect.objectContaining({ digest: expect.stringMatching(/^sha256:/) }),
+      ],
+    }));
+
+    const targetReference = await stageProcessPackageFixture(
+      repository,
+      bootstrapPackage,
+    );
+    const migrated = mdlm(
+      repository,
+      "process",
+      "migrate",
+      targetReference,
+      "--json",
+    );
+    expect(migrated.status, `${migrated.stderr}${migrated.stdout}`).toBe(0);
+    expect(
+      await directoryDigest(path.join(repository, ".lifecycle/data")),
+    ).toBe(dataBefore);
+    const exhaustedAfter = JSON.parse(await fs.readFile(leasePath, "utf8"));
+    expect(exhaustedAfter).toEqual(exhaustedBefore);
     expect(mdlm(repository, "doctor", "--json").status).toBe(0);
   }, 60_000);
 

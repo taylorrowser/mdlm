@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-pilot-vai-after-review
 version: 1
-description: Correct one failed source-blind pilot procedure in the same VAI lineage while preserving its exact verification bindings.
+description: Correct one failed source-blind pilot procedure in the same VAI lineage while preserving its exact VER, ENV, ART, claim-class, and behavior bindings.
 phases: [phase-1-product-assurance]
 inputs:
   - name: implementation
@@ -79,5 +79,5 @@ completion: >-
       && authorization.payload.kind == "scope")
   )
 resolves: [pilot-vai-review-correction-required]
-prohibited_inputs: [mutation of failed VAI, RUN, RES, or Review history, changed verification binding, changed pilot claim class, product source, product unit tests, private implementation details]
+prohibited_inputs: [mutation of failed VAI, RUN, RES, or Review history, changed VER, ENV, or ART binding, changed pilot claim class, product source, product unit tests, private implementation details]
 batching: single
