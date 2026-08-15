@@ -8,9 +8,11 @@ skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation
 # Correct one failed source-blind pilot procedure
 
 Create the next Revision in the supplied VAI lineage. Cite and address every
-supplied failed Review, preserving the exact pilot claim class, case bindings,
-VER, ENV, ART, supported behavior, and intentionally unsupported behavior. Do
-not mutate or reuse the failed VAI, Reviews, or prior RUN/RES evidence.
+supplied failed Review, preserving the exact pilot claim class, declared cases,
+VER, ENV, ART, supported behavior, and intentionally unsupported behavior. The
+replacement may revise procedure and activity-binding text when needed to address
+an exact failed Review Finding. Do not mutate or reuse the failed VAI, Reviews,
+or prior RUN/RES evidence.
 
 Give checkout, environment checks, and each product case positive bounded
 infrastructure-safety deadlines. On timeout, terminate the process group with

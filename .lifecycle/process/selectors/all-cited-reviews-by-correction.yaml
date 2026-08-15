@@ -1,0 +1,12 @@
+kind: selector-definition
+id: all-cited-reviews-by-correction
+version: 1
+description: Every exact Review targeted by a correction Revision, regardless of Review validity.
+parameters:
+  - {name: replacement, kind: revision}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: replacement, link: corrects-review, emit: target, types: [REV]}
+  as: review
+  distinct: true
+  order_by: [identity.revision_id]

@@ -63,7 +63,11 @@ function record(
 function failedReview(
   subject: LifecycleRecord,
   id: string,
-  options: { stakeholderOwned?: boolean; blockedTarget?: string } = {},
+  options: {
+    stakeholderOwned?: boolean;
+    blockedTarget?: string;
+    summary?: string;
+  } = {},
 ): [LifecycleRecord, LifecycleRecord] {
   const context = record("BSL", id.replace("REV", "BSL"), {
     title: `Exact context for ${subject.datum.revision_id}`,
@@ -84,7 +88,7 @@ function failedReview(
       target,
       relationship: "primary",
       severity: "blocking",
-      summary: "Correct the exact reviewed assurance artifact.",
+      summary: options.summary ?? "Correct the exact reviewed assurance artifact.",
     }],
     ...(options.stakeholderOwned ? { correction_authority: "stakeholder" } : {}),
     outcome: "fail",
@@ -528,9 +532,16 @@ function correctedPilotImplementationFixture() {
   const exactTarget = target();
   const first = pilotImplementation();
   const firstAuthorization = implementationAuthorization(first, "DEC-0HARDVAI1");
-  const failed = failedReview(first, "REV-0HARDVAI3");
+  const failed = failedReview(first, "REV-0HARDVAI3", {
+    summary:
+      "The activity binding lacks an exact reproducible mode-producing observation.",
+  });
   const priorExecution = pilotRun(first, { idSuffix: "OLDVAI" });
   const replacement = pilotImplementation(2, [failed[1].datum.revision_id]);
+  replacement.datum.payload.activity_bindings = [
+    ...(replacement.datum.payload.activity_bindings as string[]),
+    "Correct the failed Review by adding an exact reproducible mode-producing observation.",
+  ];
   const replacementAuthorization = implementationAuthorization(
     replacement,
     "DEC-0HARDVAI2",
@@ -2249,6 +2260,40 @@ describe("Phase 1 hardening route evidence", () => {
         identity: expect.objectContaining({ revision_id: replacement.datum.revision_id }),
       }),
     ]);
+    expect(replacement.datum.payload.activity_bindings).not.toEqual(
+      first.datum.payload.activity_bindings,
+    );
+    replacement.datum.links.push({
+      type: "corrects-review",
+      target: freshReview[1].datum.revision_id,
+    });
+    expect(evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...records],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "corrected-pilot-verification-implementation-revisions-for@1",
+      { implementation: first.datum.revision_id },
+    ).result).toEqual([]);
+    freshReview[1].integrity.hash_valid = false;
+    expect(evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...records],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "corrected-pilot-verification-implementation-revisions-for@1",
+      { implementation: first.datum.revision_id },
+    ).result).toEqual([]);
+    freshReview[1].integrity.hash_valid = true;
+    replacement.datum.links.pop();
     expect(replacement.datum.links).toEqual(expect.arrayContaining([
       { type: "realizes", target: activity.datum.revision_id },
       { type: "uses", target: currentEnvironment.datum.revision_id },
@@ -2432,7 +2477,7 @@ describe("Phase 1 hardening route evidence", () => {
         replacement,
         replacementContext,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.63.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.64.0#${await processPackageDigest(processRoot)}`;
       for (const item of sourceRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -2499,7 +2544,7 @@ describe("Phase 1 hardening route evidence", () => {
         if (!pilotReviewPackage.ok) {
           throw new Error(JSON.stringify(pilotReviewPackage.diagnostics));
         }
-        const pilotReviewProcessRef = `mdlm-bootstrap@0.63.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
+        const pilotReviewProcessRef = `mdlm-bootstrap@0.64.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
         const pilotReviewRecords = structuredClone(baseRecords);
         for (const item of pilotReviewRecords) {
           item.datum.created_by.process_ref = pilotReviewProcessRef;
@@ -2715,17 +2760,74 @@ describe("Phase 1 hardening route evidence", () => {
         }
       }
       expect(failedReviewRevision).toMatch(/^REV-.*-r00001$/);
-      for (const item of replacementRecords) {
-        const correction = item.datum.links.find((link) => link.type === "corrects-review");
-        if (correction) correction.target = failedReviewRevision!;
-      }
+      const replacementRecord = replacementRecords.find(
+        (item) => item.datum.type === "VAI",
+      )!;
+      const authorizationRecord = implementationAuthorization(
+        replacementRecord,
+        "DEC-0HARDVAICORRECTION",
+      );
+      const correctionLink = replacementRecord.datum.links.find(
+        (link) => link.type === "corrects-review",
+      )!;
+      correctionLink.target = failedReviewRevision!;
+      const preparedCorrection = prepareNextAssignment(
+        repository,
+        "revise-pilot-vai-after-review@1",
+      );
+      expect(inputRevision(preparedCorrection, "implementation")).not.toBe(
+        replacementRevision,
+      );
+      expect(inputRevisions(preparedCorrection, "failed_reviews")).toEqual([
+        failedReviewRevision,
+      ]);
+      const correctionSubmission = submitAssignment(
+        repository,
+        preparedCorrection,
+        [
+          {
+            localId: "replacement",
+            name: "replacement",
+            invocation: 0,
+            lifecycleDatum: {
+              id: replacementRecord.datum.id,
+              type: "VAI",
+              payload: replacementRecord.datum.payload,
+              links: replacementRecord.datum.links,
+              body: replacementRecord.datum.body,
+            },
+          },
+          {
+            localId: "authorization",
+            name: "authorization",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "DEC",
+              payload: {
+                ...authorizationRecord.datum.payload,
+                effective_scope: replacementRevision,
+              },
+              links: [{
+                type: "justifies",
+                target: "$proposal.replacement.revision_id",
+              }],
+              body: authorizationRecord.datum.body,
+            },
+          },
+        ],
+      );
+      expect(
+        correctionSubmission.status,
+        `${correctionSubmission.stderr}${correctionSubmission.stdout}`,
+      ).toBe(0);
+      expect(
+        JSON.parse(correctionSubmission.stdout).execution.outputs.find(
+          (output: { name: string }) => output.name === "replacement",
+        ).lifecycleDatum.revisionId,
+      ).toBe(replacementRevision);
       const afterReviews = await readRepositoryData(repository, loadedFixture.package);
       if (!afterReviews.ok) throw new Error(JSON.stringify(afterReviews.diagnostics));
       stored = afterReviews.value.map((item) => item.lifecycleDatum.datum);
-      await publishFixtureRecords(
-        replacementRecords.map((item) => item.datum),
-        "phase-1-vai-correction-r2",
-      );
       const finalizedReplacementContext =
         await finalizeExactBaselineScenarioOutput(
           repository,
@@ -2779,7 +2881,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 60_000);
+  }, 120_000);
 
   it("executes timeout cleanup and continues aggregation with the subsequent case", () => {
     if (!(["darwin", "linux"].includes(process.platform))) return;
