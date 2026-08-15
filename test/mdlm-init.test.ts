@@ -84,7 +84,7 @@ describe("mdlm init", () => {
       ok: true,
       command: "init",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.62.0",
+        reference: "mdlm-bootstrap@0.63.0",
       }),
       repository: expect.objectContaining({
         contract: "mdlm-repository@1",
@@ -95,7 +95,7 @@ describe("mdlm init", () => {
       path.join(destination, ".lifecycle/process-selection.json"),
       "utf8",
     ));
-    expect(selection.package.reference).toBe("mdlm-bootstrap@0.62.0");
+    expect(selection.package.reference).toBe("mdlm-bootstrap@0.63.0");
     await expect(fs.stat(path.join(destination, ".lifecycle/data")))
       .resolves.toMatchObject({});
     await expect(fs.stat(path.join(destination, ".lifecycle/work")))

@@ -292,6 +292,12 @@ export interface AssignmentPacket {
   exactInputs: ScenarioDryRunInvocation[];
   allowedProjections: {
     exactLifecycleData: string[];
+    inputSchemas: {
+      type: string;
+      envelope: Record<string, unknown>;
+      payload: Record<string, unknown>;
+      outgoingLinks: Record<string, unknown>[];
+    }[];
     outputSchemas: {
       type: string;
       envelope: Record<string, unknown>;
@@ -1474,24 +1480,50 @@ function parseAssignmentResponse(
   };
 }
 
+type ProjectedTypeSchema =
+  AssignmentPacket["allowedProjections"]["outputSchemas"][number];
+
+function projectedTypeSchemas(
+  processPackage: ProcessPackage,
+  types: string[],
+): ProjectedTypeSchema[] {
+  return [...new Set(types)].sort().flatMap((type) => {
+    const resolved = resolveType(processPackage, type);
+    return resolved.ok
+      ? [
+          {
+            type,
+            envelope: resolved.type.envelopeSchema,
+            payload: resolved.type.payloadSchema,
+            outgoingLinks: resolved.type.outgoingLinks,
+          },
+        ]
+      : [];
+  });
+}
+
+function inputSchemas(
+  processPackage: ProcessPackage,
+  dryRun: ScenarioDryRun,
+): AssignmentPacket["allowedProjections"]["inputSchemas"] {
+  return projectedTypeSchemas(
+    processPackage,
+    dryRun.invocations.flatMap((invocation) =>
+      invocation.inputs.flatMap((input) =>
+        input.values.map((value) => value.identity.type),
+      ),
+    ),
+  );
+}
+
 function outputSchemas(
   processPackage: ProcessPackage,
   dryRun: ScenarioDryRun,
 ): AssignmentPacket["allowedProjections"]["outputSchemas"] {
-  const types = [...new Set(
+  return projectedTypeSchemas(
+    processPackage,
     dryRun.expectedOutputs.flatMap((output) => output.types),
-  )].sort();
-  return types.flatMap((type) => {
-    const resolved = resolveType(processPackage, type);
-    return resolved.ok
-      ? [{
-          type,
-          envelope: resolved.type.envelopeSchema,
-          payload: resolved.type.payloadSchema,
-          outgoingLinks: resolved.type.outgoingLinks,
-        }]
-      : [];
-  });
+  );
 }
 
 function exactLifecycleData(dryRun: ScenarioDryRun): string[] {
@@ -1539,6 +1571,7 @@ function packet(
     exactInputs: exact.dryRun.invocations,
     allowedProjections: {
       exactLifecycleData: exactLifecycleData(exact.dryRun),
+      inputSchemas: inputSchemas(exact.processPackage, exact.dryRun),
       outputSchemas: outputSchemas(exact.processPackage, exact.dryRun),
     },
     policies: exact.dryRun.policies,

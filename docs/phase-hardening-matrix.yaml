@@ -1221,9 +1221,9 @@ rows:
       - route: pilot VER
         executable:
           file: test/phase-1-hardening-routes.test.ts
-          test: proves Phase 1 pilot VER publication with exact Stable Datum, Revision, and strategy links
+          test: proves Phase 1 pilot VER publication with exact Stable Datum, Revision, strategy links, and Review support
         evidence:
-          facts: One exact accepted requirement, reviewed VSP, qualified ENV, and source-independent pilot VER.
+          facts: One exact accepted requirement, reviewed VSP, qualified ENV, source-independent pilot VER, and exact STK/VSP Review support.
           links: The VER verifies the requirement and is governed by the exact VSP Revision.
         selectors:
           - current-pilot-verification-activities@1

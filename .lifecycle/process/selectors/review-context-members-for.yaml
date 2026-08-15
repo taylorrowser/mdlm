@@ -26,6 +26,13 @@ query:
           || !every("environment-review-evidence-for@1", {environment: subject}, evidence =>
             evidence != member)
         ))
+      || (subject.identity.type == "VER"
+        && (
+          !every("requirements-for-pilot-activity@1", {activity: subject}, requirement =>
+            requirement != member)
+          || !every("strategies-for-verification-activity@1", {activity: subject}, strategy =>
+            strategy != member)
+        ))
       || (subject.identity.type == "DWP"
         && subject.payload.stage == "planning"
         && exists("decomposition-outputs-for@1", {plan: subject})

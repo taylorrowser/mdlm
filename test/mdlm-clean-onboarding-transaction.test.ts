@@ -41,8 +41,8 @@ describe("clean onboarding transaction contract", () => {
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
     expect(JSON.parse(initialized.stdout)).toMatchObject({
       package: {
-        reference: "mdlm-bootstrap@0.62.0",
-        digest: "sha256:38b4912e78d4524a5755bd8d5260eba092f4543666315a217bc0782244327ec1",
+        reference: "mdlm-bootstrap@0.63.0",
+        digest: "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
       },
       repository: { contract: "mdlm-repository@1" },
     });
@@ -67,8 +67,8 @@ describe("clean onboarding transaction contract", () => {
     expect(packet).toMatchObject({
       contract: "mdlm-assignment-packet@2",
       package: {
-        reference: "mdlm-bootstrap@0.62.0",
-        digest: "sha256:38b4912e78d4524a5755bd8d5260eba092f4543666315a217bc0782244327ec1",
+        reference: "mdlm-bootstrap@0.63.0",
+        digest: "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
       },
       scenario: { reference: "establish-initial-wayfinding-map@1" },
     });
