@@ -1,0 +1,19 @@
+kind: selector-definition
+id: planning-dwp-review-support-is-current
+version: 1
+description: The supplied planning DWP when every exact Review-support Revision is active, valid, and unsuperseded.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: candidate
+  where: >-
+    candidate == plan
+    && plan.payload.stage == "planning"
+    && every("planning-dwp-review-support-for@1", {plan: plan}, support =>
+      state(support, "disposition") == "active"
+      && state(support, "validity") == "valid"
+      && none("newer-revisions-for@1", {subject: support}))
+  distinct: true
+  order_by: [identity.revision_id]

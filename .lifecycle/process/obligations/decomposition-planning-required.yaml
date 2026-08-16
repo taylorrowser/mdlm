@@ -8,6 +8,13 @@ subject_as: requirement
 satisfied_when: 'count("current-decomposition-plans-for-requirement@1", {requirement: requirement}) == 1'
 status_rules:
   - status: blocked
+    priority: 400
+    when: 'exists("stale-decomposition-plans-for-requirement@1", {requirement: requirement})'
+    reason: The prior exact DWP has stale Review support and must receive one same-lineage replacement rather than creating a copied planning lineage.
+    blocked_by:
+      - obligation: stale-decomposition-plan-correction-required@1
+        subjects: 'select("stale-decomposition-plans-for-requirement@1", {requirement: requirement})'
+  - status: blocked
     priority: 350
     when: 'count("current-decomposition-plans-for-requirement@1", {requirement: requirement}) > 1'
     reason: Multiple current DWP planning Revisions are ambiguous and require explicit correction before execution can continue.

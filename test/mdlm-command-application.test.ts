@@ -171,6 +171,17 @@ describe("clean mdlm command application", () => {
       expect(result.status, `${arguments_.join(" ")}\n${result.stderr}${result.stdout}`).toBe(0);
     }
 
+    const capabilities = mdlm(
+      repository,
+      "process",
+      "capabilities",
+      "--json",
+    );
+    expect(capabilities.status, `${capabilities.stderr}${capabilities.stdout}`).toBe(0);
+    expect(JSON.parse(capabilities.stdout).capabilities.hostFunctions).toContain(
+      "array_has_field",
+    );
+
     expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
     const committed = git(
       repository,

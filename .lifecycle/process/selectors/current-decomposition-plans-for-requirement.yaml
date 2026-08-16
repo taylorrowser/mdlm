@@ -12,6 +12,7 @@ query:
     plan.payload.stage == "planning"
     && state(plan, "disposition") == "active"
     && state(plan, "validity") == "valid"
+    && exists("planning-dwp-review-support-is-current@1", {plan: plan})
     && none("newer-planning-revisions-for@1", {plan: plan})
     && count("decomposition-architecture-matches-requirement@1",
       {plan: plan, requirement: requirement}) == 1

@@ -1732,6 +1732,31 @@ rows:
         disposition: DWP plan yields assignment. Completion and candidate work stay blocked until both exact simplification
           judgments pass.
         reuse: "DWP plan: Exact member Reviews remain reusable while members do not change."
+      - route: stale planning-DWP support replanning
+        executable:
+          file: test/phase-2-hardening-routes.test.ts
+          test: replans instead of dispatching an impossible DWP Review Context when exact interface support is superseded
+        evidence:
+          facts: One planning DWP links exact ICSP r1; package evaluation adds same-lineage ICSP r2 and derives explicit same-lineage DWP correction work.
+          links: The old DWP retains its immutable exact r1 link while the correction Assignment binds the current exact support.
+        selectors:
+          - decomposition-plans@1
+          - planning-dwp-review-support-for@1
+          - planning-dwp-review-support-is-current@1
+          - stale-decomposition-plans@1
+        obligations:
+          - stale-decomposition-plan-correction-required@1
+        participation:
+          mode: autonomous
+          policies: []
+          authority: kernel-autonomous
+        resolvers:
+          - replan-stale-decomposition-work-package@1
+        next:
+          - assignment
+        budget: Selector reevaluation consumes no lifecycle Correction budget.
+        disposition: The stale-support DWP receives no Review-context Obligation; package evaluation makes the explicit same-lineage correction Assignment ready. Separate bounded public integrations cover allocation and canonical publication.
+        reuse: Exact prior DWP and support Revisions remain immutable; unaffected planning intent remains exact.
       - route: planning DWP independent Review
         executable:
           file: test/phase-2-hardening-routes.test.ts

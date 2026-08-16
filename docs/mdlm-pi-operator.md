@@ -46,7 +46,10 @@ input and expected output Lifecycle type, so packet-only work can interpret the
 supplied data without raw Process Package inspection. For a current planning-DWP
 Review, the packet supplies the exact allocated ASP, governing ICSP Revisions, and
 applicable current SYS support frozen with the DWP; historical authenticated thin
-contexts remain usable without concealing those current exact packet inputs. This
+contexts remain usable without concealing those current exact packet inputs. If that
+exact support becomes stale, the package suppresses the impossible Review-context
+route and prepares an explicit same-lineage DWP replacement with the prior plan and
+current exact support; the operator must not invent an unrelated DWP identity. This
 evidence tells a delegate which criteria apply without choosing the delegate's
 judgment.
 

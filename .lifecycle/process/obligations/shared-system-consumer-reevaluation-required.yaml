@@ -7,14 +7,31 @@ for_each: 'select("outdated-shared-system-consumers@2", {})'
 subject_as: consumer
 satisfied_when: 'exists("newer-revisions-for@1", {subject: consumer})'
 status_rules:
+  - status: blocked
+    priority: 650
+    when: >-
+      !every("system-requirements-consumed-by@1", {consumer: consumer}, requirement =>
+        (state(requirement, "disposition") == "active"
+          && state(requirement, "validity") == "valid"
+          && none("newer-revisions-for@1", {subject: requirement}))
+        || !every("replacement-system-requirements-for-consumer@2", {consumer: consumer}, replacement =>
+          replacement.identity.id != requirement.identity.id))
+    reason: At least one consumed-parent SYS lineage lacks an active valid latest replacement, so exact consumer support cannot yet be corrected.
   - status: ready
-    priority: 100
-    when: 'count("replacement-system-requirements-for-consumer@2", {consumer: consumer}) == 1'
-    reason: Rebind this one exact consumer; the public operator seam serializes consumers and ordinary Review obligations collect fresh evidence.
+    priority: 200
+    when: >-
+      exists("replacement-system-requirements-for-consumer@2", {consumer: consumer})
+      && every("system-requirements-consumed-by@1", {consumer: consumer}, requirement =>
+        (state(requirement, "disposition") == "active"
+          && state(requirement, "validity") == "valid"
+          && none("newer-revisions-for@1", {subject: requirement}))
+        || !every("replacement-system-requirements-for-consumer@2", {consumer: consumer}, replacement =>
+          replacement.identity.id != requirement.identity.id))
+    reason: Rebind every exact current replacement for this one consumer; the public operator seam serializes consumers and ordinary Review obligations collect fresh evidence.
 default_status: blocked
 resolve_with:
   scenario: reevaluate-shared-system-consumer@1
   inputs:
     consumer: consumer
-    replacement_requirement: 'one("replacement-system-requirements-for-consumer@2", {consumer: consumer})'
+    replacement_requirements: 'select("replacement-system-requirements-for-consumer@2", {consumer: consumer})'
 waiver_policy_ref: waiver-applicability@1

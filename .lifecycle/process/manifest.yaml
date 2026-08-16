@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.65.0
+version: 0.66.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -97,6 +97,7 @@ catalog:
     - planning-dwp-matching-subject
     - planning-dwp-review-context-matches
     - planning-dwp-review-support-for
+    - planning-dwp-review-support-is-current
     - valid-dwp-product-simplification-reviews
     - intent-candidates-matching-subject
     - non-phase-0-foundation-members-for
@@ -153,6 +154,7 @@ catalog:
     - frozen-baselines
     - legacy-thin-ver-review-contexts-for
     - legacy-thin-dwp-review-contexts-for
+    - historical-exact-dwp-review-contexts-for
     - valid-review-contexts-for
     - strategies-for-environment
     - context-contains-definition
@@ -208,6 +210,11 @@ catalog:
     - current-decomposition-plans-for-requirement
     - newer-planning-revisions-for
     - decomposition-plans
+    - stale-decomposition-plans
+    - stale-decomposition-plans-for-requirement
+    - replacement-architectures-for-stale-plan
+    - replacement-strategies-for-stale-plan
+    - retained-system-requirements-for-stale-plan
     - valid-decomposition-completions-for-plan
     - decomposition-completions-for
     - current-decomposition-completions
@@ -215,6 +222,7 @@ catalog:
     - decomposition-parents-for
     - matching-decomposition-parent
     - decomposition-output-revisions-for
+    - later-decomposition-output-revisions-for-plan
     - decomposition-outputs-for
     - system-output-parents-for
     - matching-system-output-parent
@@ -309,6 +317,7 @@ catalog:
     - accepted-system-baselines-for-requirement
     - system-requirements-consumed-by
     - replacement-system-requirements-for-consumer
+    - system-requirements-after-consumer-reevaluation
     - outdated-shared-system-consumers
     - accepted-shared-system-consumer-revisions-for-change
     - shared-system-consumers-for-change
@@ -337,6 +346,8 @@ catalog:
     - changes-controlling-stakeholder-change-subject
     - stakeholder-change-decision-targets
     - changes-changed-under-subject
+    - change-causes-for-consumer-replacements
+    - review-causes-for-consumer-replacements
     - change-level-candidates-matching-subject
     - failed-stakeholder-change-subjects
     - failed-change-dispositions
@@ -378,6 +389,7 @@ catalog:
     - system-architecture-required
     - interface-control-specification-required
     - decomposition-planning-required
+    - stale-decomposition-plan-correction-required
     - decomposition-execution-required
     - decomposition-output-reviews-required
     - decomposition-simplification-required
@@ -442,6 +454,7 @@ catalog:
     - define-system-architecture
     - define-interface-control-specification
     - define-decomposition-work-package
+    - replan-stale-decomposition-work-package
     - execute-decomposition-work-package
     - simplify-requirement-set
     - simplify-architecture-and-interfaces
@@ -507,6 +520,7 @@ assets:
     - prompts/define-system-architecture.md@1
     - prompts/define-interface-control-specification.md@1
     - prompts/define-decomposition-work-package.md@1
+    - prompts/replan-stale-decomposition-work-package.md@1
     - prompts/execute-decomposition-work-package.md@1
     - prompts/simplify-requirement-set.md@1
     - prompts/simplify-architecture-and-interfaces.md@1

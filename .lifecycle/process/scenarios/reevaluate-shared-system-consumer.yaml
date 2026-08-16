@@ -1,17 +1,17 @@
 kind: scenario-definition
 id: reevaluate-shared-system-consumer
 version: 1
-description: Rebind one exact decomposition consumer to a replacement shared SYS Revision, with Change Request evidence only after acceptance.
+description: Rebind one exact planning or completion decomposition consumer to every exact replacement shared SYS Revision, with Change Request evidence only after acceptance.
 phases: [phase-2-system-definition, phase-7-change-control]
 inputs:
   - {name: consumer, types: [DWP], cardinality: one, identity: revision}
-  - {name: replacement_requirement, types: [SYS], cardinality: one, identity: revision}
+  - {name: replacement_requirements, types: [SYS], cardinality: one-or-more, identity: revision}
 outputs:
   - name: replacement_consumer
     types: [DWP]
     cardinality: one
     required_links:
-      - {link: decomposes, target: {input: replacement_requirement}}
+      - {link: decomposes, target: {input: replacement_requirements}}
 prompt_ref: prompts/reevaluate-shared-system-consumer.md@1
 review_policy_ref: review-applicability@1
 completion: >-
@@ -28,7 +28,8 @@ completion: >-
   && replacement_consumer.payload.dependencies == consumer.payload.dependencies
   && replacement_consumer.payload.required_review_policy == consumer.payload.required_review_policy
   && replacement_consumer.payload.parent_coverage_status == consumer.payload.parent_coverage_status
-  && replacement_consumer.payload.parent_coverage_status == "complete"
+  && (replacement_consumer.payload.stage != "completion"
+    || replacement_consumer.payload.parent_coverage_status == "complete")
   && replacement_consumer.payload.deferred_questions == consumer.payload.deferred_questions
   && replacement_consumer.payload.cross_group_dependencies == consumer.payload.cross_group_dependencies
   && replacement_consumer.payload.output_reviews_complete == consumer.payload.output_reviews_complete
@@ -47,14 +48,12 @@ completion: >-
     == select("planning-revisions-for-completion@1", {completion: consumer})
   && select("completion-simplification-evidence-for@1", {completion: replacement_consumer})
     == select("completion-simplification-evidence-for@1", {completion: consumer})
-  && select("cited-reviews-by-correction@1", {replacement: replacement_consumer})
-    == select("cited-reviews-by-correction@1", {replacement: consumer})
-  && count("system-requirements-consumed-by@1", {consumer: replacement_consumer}) == 1
-  && one("system-requirements-consumed-by@1", {consumer: replacement_consumer}) == replacement_requirement
-  && every("changes-changed-under-subject@1", {subject: replacement_requirement}, owner =>
-    !every("changes-changed-under-subject@1", {subject: replacement_consumer}, copied => copied != owner))
-  && every("changes-changed-under-subject@1", {subject: replacement_consumer}, owner =>
-    !every("changes-changed-under-subject@1", {subject: replacement_requirement}, cause => cause != owner))
+  && select("all-cited-reviews-by-correction@1", {replacement: replacement_consumer})
+    == select("review-causes-for-consumer-replacements@1", {consumer: consumer})
+  && select("system-requirements-consumed-by@1", {consumer: replacement_consumer})
+    == select("system-requirements-after-consumer-reevaluation@1", {consumer: consumer})
+  && select("changes-changed-under-subject@1", {subject: replacement_consumer})
+    == select("change-causes-for-consumer-replacements@1", {consumer: consumer})
 resolves: [shared-system-consumer-reevaluation-required]
 prohibited_inputs: [copied requirement lineages, unrelated consumers, incomplete coverage, mutable latest aliases, parallel consumer publication]
 batching: single

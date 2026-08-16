@@ -1,0 +1,56 @@
+kind: scenario-definition
+id: replan-stale-decomposition-work-package
+version: 1
+description: Publish one same-lineage planning DWP replacement against current exact definition support without mutating the stale plan.
+phases: [phase-2-system-definition]
+inputs:
+  - {name: prior_plan, types: [DWP], cardinality: one, identity: revision}
+  - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: retained_requirements, types: [SYS], cardinality: zero-or-more, identity: revision}
+  - {name: architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: one-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: replacement_plan
+    types: [DWP]
+    cardinality: one
+    required_links:
+      - {link: decomposes, target: {input: parents}}
+      - {link: allocated-to, target: {input: architecture}}
+      - {link: governed-by, target: {input: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
+prompt_ref: prompts/replan-stale-decomposition-work-package.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement_plan.identity.id == prior_plan.identity.id
+  && replacement_plan.payload.stage == "planning"
+  && replacement_plan.payload.title == prior_plan.payload.title
+  && replacement_plan.payload.rationale == prior_plan.payload.rationale
+  && replacement_plan.payload.architecture_element == prior_plan.payload.architecture_element
+  && replacement_plan.payload.target_child_type == prior_plan.payload.target_child_type
+  && replacement_plan.payload.behavioral_slice == prior_plan.payload.behavioral_slice
+  && replacement_plan.payload.expected_coverage == prior_plan.payload.expected_coverage
+  && replacement_plan.payload.exclusions == prior_plan.payload.exclusions
+  && replacement_plan.payload.dependencies == prior_plan.payload.dependencies
+  && replacement_plan.payload.required_review_policy == prior_plan.payload.required_review_policy
+  && select("decomposition-parents-for@1", {plan: replacement_plan}) == parents
+  && select("system-requirements-consumed-by@1", {consumer: replacement_plan}) == retained_requirements
+  && count("architectures-for-decomposition@1", {plan: replacement_plan}) == 1
+  && one("architectures-for-decomposition@1", {plan: replacement_plan}) == architecture
+  && select("interfaces-for-decomposition@1", {plan: replacement_plan}) == interfaces
+  && count("strategies-for-decomposition@1", {plan: replacement_plan}) == 1
+  && one("strategies-for-decomposition@1", {plan: replacement_plan}) == verification_strategy
+  && select("all-cited-reviews-by-correction@1", {replacement: replacement_plan})
+    == select("all-cited-reviews-by-correction@1", {replacement: prior_plan})
+  && select("changes-changed-under-subject@1", {subject: replacement_plan})
+    == select("changes-changed-under-subject@1", {subject: prior_plan})
+  && select("planning-revisions-for-completion@1", {completion: replacement_plan})
+    == select("planning-revisions-for-completion@1", {completion: prior_plan})
+  && select("completion-outputs-for@1", {completion: replacement_plan})
+    == select("completion-outputs-for@1", {completion: prior_plan})
+  && select("completion-simplification-evidence-for@1", {completion: replacement_plan})
+    == select("completion-simplification-evidence-for@1", {completion: prior_plan})
+resolves: [stale-decomposition-plan-correction-required]
+prohibited_inputs: [mutation of stale DWP or support, copied DWP lineage, unrelated definitions, mutable latest aliases, product source code]
+batching: single

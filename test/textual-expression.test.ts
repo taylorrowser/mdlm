@@ -212,6 +212,29 @@ describe("textual MDLM expressions", () => {
     ).toEqual(["process-drift"]);
   });
 
+  it("matches exact top-level object fields in bounded arrays", async () => {
+    const processRoot = await processPackageWithTextualProcessDrift(
+      'array_has_field([{"id": "A"}, {"id": "B"}], "id", "B") && !array_has_field([{"id": "A"}], "id", "B") && !array_has_field([{}], "__proto__", {})',
+    );
+    const loaded = await loadProcessPackage(processRoot);
+
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const evaluation = evaluateLifecycle(loaded.package, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [pspCreatedUnder("git:current")],
+      dependencyComparisons: [],
+    });
+
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(
+      evaluation.artifacts["PSP-7K3M9Q2D8F-r00001"]?.states[
+        "relationship-overlays"
+      ],
+    ).toEqual(["process-drift"]);
+  });
+
   it("resolves Selector selection and cardinality operations", async () => {
     const selector = '"newer-revisions-for@1", {subject: subject}';
     const processRoot = await processPackageWithTextualProcessDrift(

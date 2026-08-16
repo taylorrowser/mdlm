@@ -1,13 +1,16 @@
 kind: selector-definition
 id: decomposition-output-revisions-for
 version: 1
-description: Latest-lineage SYS Revisions that identify the supplied DWP as their decomposition source, without computed-state filtering.
+description: Current linked SYS outputs, or the last exact linked output when its newer lineage no longer identifies this DWP, without computed-state filtering.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: plan, link: decomposes, emit: source, types: [SYS]}
   as: output
-  where: 'none("newer-revisions-for@1", {subject: output})'
+  where: >-
+    none("newer-revisions-for@1", {subject: output})
+    || none("later-decomposition-output-revisions-for-plan@1",
+      {output: output, plan: plan})
   distinct: true
   order_by: [identity.revision_id]

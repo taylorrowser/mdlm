@@ -258,16 +258,15 @@ one("selector-id@1", {subject: subject})
 ### 6.2 Predicates
 
 Predicates compose `==`, `!=`, `>`, `>=`, `<`, `<=`, membership with `in`, `&&`,
-`||`, unary `!`, and parentheses. Safe predicate host calls are `present`,
-`exists`, `none`, and finite universal quantification:
+`||`, unary `!`, and parentheses. Safe predicates include `present`, `exists`, `none`, exact object-field membership within a bounded array, and finite universal quantification:
 
 ```text
+array_has_field(architecture.payload.elements, "id", plan.payload.architecture_element)
 every("selector-id@1", {candidate: candidate},
   member => state(member, "validity") == "valid")
 ```
 
-The universal binding receives the Selector's declared result kind, and its
-predicate must return Boolean.
+`array_has_field` returns true only when an object in the supplied array has an exact value at the named top-level field. The universal binding receives the Selector's declared result kind, and its predicate must return Boolean.
 
 Expressions cannot execute arbitrary code, access the filesystem, make network
 requests, mutate data, or invoke undeclared functions.
@@ -1087,7 +1086,16 @@ dedicated simplification Obligations, and publishes a completion Revision in the
 same DWP lineage. Before execution, a current-package planning-DWP Review Context
 contains the exact DWP, its allocated ASP, all governing ICSP Revisions, and any
 exact current SYS support selected for that plan; unrelated, stale, non-exact,
-evidence, or composed-baseline additions are rejected. The independent packet
+evidence, or composed-baseline additions are rejected. If any exact ASP, ICSP, or
+applicable SYS support is inactive, invalid, or has a newer Revision, the old planning DWP is
+excluded from Review work and from current decomposition plans. The package instead dispatches `replan-stale-decomposition-work-package@1` with the
+exact prior DWP, stakeholder parents, retained current SYS parents, and current ASP,
+ICSP, and VSP support. Its replacement stays in the prior DWP lineage and preserves
+the reviewed title, rationale, architecture-element binding present in the current same-lineage architecture, child type, behavioral slice, coverage, exclusions,
+dependencies, Review policy, and every non-support correction, change, planning, output, and simplification link while rebinding exact current support. One or more newer active,
+valid consumed-parent SYS Revisions first derive exact same-lineage consumer reevaluation,
+preserving the planning stage, every unaffected binding, every prior Review-correction and Change cause, and every supplied replacement-parent Review-correction and Change cause while rebinding all supplied replacements in one consumer Revision.
+If a superseded consumed-parent lineage has no active valid latest replacement, stale-plan correction remains blocked instead of deleting that exact parent binding. This avoids both an impossible Review Context and an unrelated generic DWP lineage. The independent packet
 projects those exact support Revisions, and the mandated
 `simplification-product-definition` pass, fail, or cancellation can complete. A
 failed judgment targets and blocks exactly the reviewed DWP. An authenticated thin
@@ -1095,7 +1103,9 @@ planning-DWP context from exact package 0.63.0 or 0.64.0 remains usable for Revi
 completion without rewriting frozen Lifecycle Data only when it contains only the
 DWP, no evidence, and no composed baselines. The current Assignment separately
 projects exact ASP, ICSP, and applicable current SYS support; foreign or augmented
-historical contexts are rejected.
+historical contexts are rejected. An authenticated exact-support planning-DWP context
+from exact package 0.65.0 remains reusable when its frozen membership is still exact and
+current; its completed Review remains governed by its original package provenance.
 Its reviewed group candidate contains exact DWP, SYS, ASP, and ICSP Revisions. The
 reviewed SYS level candidate composes that exact group while
 retaining shared VSP, ASP, and ICSP members, then reaches exact reviewed gate

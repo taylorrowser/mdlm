@@ -1,0 +1,16 @@
+kind: selector-definition
+id: review-causes-for-consumer-replacements
+version: 1
+description: Every prior exact Review-correction cause plus every exact Review-correction cause attached to current replacement SYS Revisions for one consumer.
+parameters:
+  - {name: consumer, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    !every("all-cited-reviews-by-correction@1", {replacement: consumer}, cause => cause != review)
+    || !every("replacement-system-requirements-for-consumer@2", {consumer: consumer}, replacement =>
+      every("all-cited-reviews-by-correction@1", {replacement: replacement}, cause => cause != review))
+  distinct: true
+  order_by: [identity.id, identity.revision]
