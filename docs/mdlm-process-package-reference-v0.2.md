@@ -1080,11 +1080,24 @@ must record positive success and negative discrimination observations; Scenario
 completion rejects a formal claim from that pilot even when the proposed RES is
 otherwise schema-valid.
 
-The Phase 2 tracer records one reviewed DWP plan in exact ASP, ICSP, and VSP
-context, derives exact question, execution, output-Review, parent-coverage, and
+The Phase 2 tracer records one VSP-governed DWP plan and independently reviews it
+with exact DWP, ASP, ICSP, and applicable current SYS support before deriving exact
+question, execution, output-Review, parent-coverage, and
 dedicated simplification Obligations, and publishes a completion Revision in the
-same DWP lineage. Its reviewed group candidate contains exact DWP, SYS, ASP, and
-ICSP Revisions. The reviewed SYS level candidate composes that exact group while
+same DWP lineage. Before execution, a current-package planning-DWP Review Context
+contains the exact DWP, its allocated ASP, all governing ICSP Revisions, and any
+exact current SYS support selected for that plan; unrelated, stale, non-exact,
+evidence, or composed-baseline additions are rejected. The independent packet
+projects those exact support Revisions, and the mandated
+`simplification-product-definition` pass, fail, or cancellation can complete. A
+failed judgment targets and blocks exactly the reviewed DWP. An authenticated thin
+planning-DWP context from exact package 0.63.0 or 0.64.0 remains usable for Review
+completion without rewriting frozen Lifecycle Data only when it contains only the
+DWP, no evidence, and no composed baselines. The current Assignment separately
+projects exact ASP, ICSP, and applicable current SYS support; foreign or augmented
+historical contexts are rejected.
+Its reviewed group candidate contains exact DWP, SYS, ASP, and ICSP Revisions. The
+reviewed SYS level candidate composes that exact group while
 retaining shared VSP, ASP, and ICSP members, then reaches exact reviewed gate
 authorization. Required Scenario links normalize an input Revision to Stable
 identity only when the package-owned source contract requires it. Kernel identity

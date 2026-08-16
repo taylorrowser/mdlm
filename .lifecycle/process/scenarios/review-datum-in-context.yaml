@@ -39,7 +39,10 @@ completion: >-
   && (
     (exists("intent-candidates-matching-subject@1", {subject: subject})
       && exists("valid-product-simplification-reviews@1", {review: review}))
+    || (exists("planning-dwp-matching-subject@1", {subject: subject})
+      && exists("valid-dwp-product-simplification-reviews@1", {review: review}))
     || (none("intent-candidates-matching-subject@1", {subject: subject})
+      && none("planning-dwp-matching-subject@1", {subject: subject})
       && review.payload.review_kind != "simplification-product-definition")
   )
 resolves: [passing-review-required, candidate-members-reviewed]

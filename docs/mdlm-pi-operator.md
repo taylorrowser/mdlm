@@ -43,8 +43,12 @@ package, the packet includes the asset's exact reference, path, digest, and
 content in both the evaluation and the packet asset list. Its allowed projections
 also include resolved envelope, payload, and outgoing-link schemas for every exact
 input and expected output Lifecycle type, so packet-only work can interpret the
-supplied data without raw Process Package inspection. This evidence tells a
-delegate which criteria apply without choosing the delegate's judgment.
+supplied data without raw Process Package inspection. For a current planning-DWP
+Review, the packet supplies the exact allocated ASP, governing ICSP Revisions, and
+applicable current SYS support frozen with the DWP; historical authenticated thin
+contexts remain usable without concealing those current exact packet inputs. This
+evidence tells a delegate which criteria apply without choosing the delegate's
+judgment.
 
 - Autonomous work may proceed in the operating session.
 - Package-delegated judgment uses a fresh read-only session. The delegate receives

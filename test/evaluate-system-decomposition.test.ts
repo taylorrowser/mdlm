@@ -158,8 +158,20 @@ describe("exact DWP parent Revision matching", () => {
     payload: Record<string, unknown>,
   ) {
     const subject = record(type, id, payload, revisionNumber);
+    const planningDwp = type === "DWP" && payload.stage === "planning";
+    const context = planningDwp
+      ? record("BSL", "BSL-0CORRECT1", {
+        kind: "review-context",
+        role: "review-context",
+        scope: subject.datum.revision_id,
+        definition_members: [subject.datum.revision_id],
+        evidence: [],
+      }, 1)
+      : undefined;
     const review = record("REV", "REV-0CORRECT1", {
-      review_kind: "contextual",
+      review_kind: planningDwp
+        ? "simplification-product-definition"
+        : "contextual",
       rubric_ref: "policies/rubrics/bootstrap-review.md@1",
       findings: [{
         id: "F-001",
@@ -168,13 +180,33 @@ describe("exact DWP parent Revision matching", () => {
         severity: "blocking",
         summary: "The exact Phase 2 subject requires local correction.",
       }],
+      ...(planningDwp
+        ? {
+          simplification: {
+            target: subject.datum.revision_id,
+            findings: [{
+              id: "F-001",
+              severity: "blocking",
+              summary: "The exact Phase 2 subject requires local correction.",
+            }],
+          },
+        }
+        : {}),
       outcome: "fail",
-    }, 1, [{ type: "reviews", target: subject.datum.revision_id }]);
+    }, 1, [
+      { type: "reviews", target: subject.datum.revision_id },
+      ...(planningDwp && context
+        ? [
+          { type: "contextualizes", target: context.datum.revision_id },
+          { type: "blocks", target: subject.datum.revision_id },
+        ]
+        : []),
+    ]);
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-2-system-definition",
-      records: [subject, review],
+      records: [subject, ...(context ? [context] : []), review],
       dependencyComparisons: [],
     });
 

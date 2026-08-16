@@ -1,0 +1,34 @@
+kind: selector-definition
+id: valid-dwp-product-simplification-reviews
+version: 1
+description: Canonical product-definition Reviews of one exact planning DWP in its valid frozen context.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: review, link: reviews, emit: target, types: [DWP]}
+  as: plan
+  where: >-
+    plan.payload.stage == "planning"
+    && review.payload.review_kind == "simplification-product-definition"
+    && review.payload.outcome in ["pass", "fail", "cancelled"]
+    && state(review, "validity") == "valid"
+    && count("phase-2-contexts-for-review@1", {review: review}) == 1
+    && every("phase-2-contexts-for-review@1", {review: review}, context =>
+      exists("planning-dwp-review-context-matches@1",
+        {plan: plan, context: context}))
+    && (
+      ((review.payload.outcome == "pass"
+        || (review.payload.outcome == "cancelled"
+          && present(review.payload.cancellation_reason)))
+        && !present(review.payload.simplification)
+        && none("dwp-product-simplification-blockers-for-review@1", {review: review}))
+      || (review.payload.outcome == "fail"
+        && present(review.payload.simplification)
+        && review.payload.simplification.target == plan.identity.revision_id
+        && count("dwp-product-simplification-blockers-for-review@1", {review: review}) == 1
+        && every("dwp-product-simplification-blockers-for-review@1", {review: review}, blocker =>
+          blocker == plan))
+    )
+  distinct: true
+  order_by: [identity.revision_id]
