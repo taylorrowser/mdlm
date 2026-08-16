@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
@@ -10,6 +11,20 @@ import {
   type ProcessPackage,
 } from "../src/index.js";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
+import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import {
+  publishScenarioMutation,
+  readRepositoryData,
+} from "../src/lifecycle-repository.js";
+import { processPackageDigest } from "../src/process-package-digest.js";
+import {
+  inputRevision,
+  inputRevisions,
+  prepareNextAssignment,
+  submitAssignment,
+} from "./helpers/assignment-submission.js";
+import { selectProcessPackageFixture } from "./helpers/mdlm.js";
+import { copiedProcessPackage } from "./helpers/process-package.js";
 
 type Snapshot = {
   processRef: string;
@@ -26,6 +41,8 @@ const definitionMembers = [
   "ICSP-0REPRT1CSP-r00001",
   "SYS-0EXPRTREQ0-r00001",
 ];
+const currentDwpContext = "BSL-FMKW2W7Z71-r00001";
+const currentDwpReview = "REV-0DWPREV001-r00001";
 
 async function fixture(name: string): Promise<Snapshot> {
   return JSON.parse(await fs.readFile(path.join(fixtureRoot, name), "utf8"));
@@ -140,6 +157,28 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
     processPackage = loaded.package;
     completionReady = await fixture("phase2-completion-ready.json");
+    const currentRef = completionReady.processRef;
+    const retainedContext = completionReady.records.find(
+      (record) => record.datum.revision_id === "BSL-A8S7MK45TQ-r00001",
+    );
+    const retainedReview = completionReady.records.find(
+      (record) => record.datum.revision_id === "REV-EFXYWYJQ9S-r00001",
+    );
+    if (!retainedContext || !retainedReview) {
+      throw new Error("missing retained DWP Review evidence");
+    }
+    const review = structuredClone(retainedReview);
+    review.datum.id = "REV-0DWPREV001";
+    review.datum.revision_id = currentDwpReview;
+    review.datum.payload.review_kind = "simplification-product-definition";
+    delete review.datum.payload.findings;
+    review.datum.links = review.datum.links.map((link) =>
+      link.type === "contextualizes"
+        ? { ...link, target: currentDwpContext }
+        : link
+    );
+    review.datum.created_by.process_ref = currentRef;
+    completionReady.records.push(review);
   });
 
   it("derives decomposition planning when the exact planning DWP and its dependent evidence are absent", () => {
@@ -151,6 +190,288 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       "STK-HJGTM8026G-r00001",
     );
   });
+
+  it("supplies exact ASP and ICSP support to a planning DWP Review before SYS execution", () => {
+    const snapshot = withoutRecordAndDependents(
+      completionReady,
+      "SYS-0EXPRTREQ0-r00001",
+    );
+    const selected = evaluateProcessDefinition(
+      processPackage,
+      snapshot,
+      "selector",
+      "review-context-members-for@1",
+      { subject: plan },
+    );
+
+    expect(
+      (selected.result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      ),
+    ).toEqual([
+      "ASP-0REPRTARCH-r00001",
+      "ICSP-0REPRT1CSP-r00001",
+    ]);
+  });
+
+  it("adds only the exact current SYS output to planning-DWP Review support", () => {
+    const selected = evaluateProcessDefinition(
+      processPackage,
+      completionReady,
+      "selector",
+      "review-context-members-for@1",
+      { subject: plan },
+    );
+
+    expect(
+      (selected.result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      ),
+    ).toEqual([
+      "ASP-0REPRTARCH-r00001",
+      "ICSP-0REPRT1CSP-r00001",
+      "SYS-0EXPRTREQ0-r00001",
+    ]);
+  });
+
+  it("prepares and completes every planning-DWP product-definition outcome with exact support", async () => {
+    const repository = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-phase2-dwp-review-"),
+    );
+    const processRoot = await copiedProcessPackage(
+      "mdlm-phase2-dwp-review-process-",
+    );
+    try {
+      const phase0Path = path.join(
+        processRoot,
+        "phases/phase-0-wayfinding.yaml",
+      );
+      const phase2Path = path.join(
+        processRoot,
+        "phases/phase-2-system-definition.yaml",
+      );
+      const reviewSubjectsPath = path.join(
+        processRoot,
+        "selectors/review-required-revisions.yaml",
+      );
+      await fs.writeFile(
+        phase0Path,
+        (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
+      );
+      await fs.writeFile(
+        phase2Path,
+        (await fs.readFile(phase2Path, "utf8"))
+          .replace("order: 2", "order: 0")
+          .replace(
+            /entry: >-[\s\S]*?attention_checkpoints:/,
+            "entry: 'process.integrity.package_valid == true'\nattention_checkpoints:",
+          )
+          .replace(
+            /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+            "scenarios:\n  - review-datum-in-context@2\n  - record-gate-signoff@3\n" +
+              "obligations:\n  - passing-review-required@2\noutputs:",
+          ),
+      );
+      await fs.writeFile(
+        reviewSubjectsPath,
+        (await fs.readFile(reviewSubjectsPath, "utf8")).replace(
+          "policy(\"review-applicability@1\", {subject: subject}).required == true",
+          "subject.identity.type == \"DWP\"\n    && policy(\"review-applicability@1\", {subject: subject}).required == true",
+        ),
+      );
+      await selectProcessPackageFixture(repository, processRoot);
+      const loaded = await loadProcessPackage(processRoot);
+      if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+      const fixtureProcessRef = `mdlm-bootstrap@0.65.0#${await processPackageDigest(processRoot)}`;
+
+      const wanted = new Set([plan, "SYS-0EXPRTREQ0-r00001"]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const item of completionReady.records) {
+          if (!wanted.has(item.datum.revision_id)) continue;
+          for (const link of item.datum.links) {
+            const target = completionReady.records.find(
+              (candidate) =>
+                candidate.datum.revision_id === link.target ||
+                candidate.datum.id === link.target,
+            );
+            if (target && !wanted.has(target.datum.revision_id)) {
+              wanted.add(target.datum.revision_id);
+              changed = true;
+            }
+          }
+        }
+      }
+      const records = structuredClone(
+        completionReady.records.filter(
+          (item) =>
+            wanted.has(item.datum.revision_id) &&
+            !["BSL", "REV", "DEC"].includes(item.datum.type),
+        ),
+      );
+      const planRecord = records.find(
+        (item) => item.datum.revision_id === plan,
+      );
+      const outputRecord = records.find(
+        (item) => item.datum.revision_id === "SYS-0EXPRTREQ0-r00001",
+      );
+      if (!planRecord || !outputRecord) {
+        throw new Error("missing planning DWP or SYS output fixture");
+      }
+      const parentSystem = structuredClone(outputRecord);
+      parentSystem.datum.id = "SYS-0PARENTREQ";
+      parentSystem.datum.revision_id = "SYS-0PARENTREQ-r00001";
+      parentSystem.datum.links = parentSystem.datum.links.filter(
+        (link) => link.type === "derived-from",
+      );
+      planRecord.datum.links.push({
+        type: "decomposes",
+        target: parentSystem.datum.revision_id,
+      });
+      records.push(parentSystem);
+      for (const item of records) {
+        item.datum.created_by.process_ref = fixtureProcessRef;
+      }
+      const basePublication = await publishScenarioMutation(
+        repository,
+        loaded.package,
+        [],
+        records.map((item) => item.datum),
+        "phase-2-dwp-review-base",
+        { contract: "phase-2-dwp-review-fixture@1" },
+      );
+      if (!basePublication.ok) {
+        throw new Error(JSON.stringify(basePublication.diagnostics));
+      }
+
+      const sourceContext = structuredClone(
+        completionReady.records.find(
+          (item) => item.datum.revision_id === "BSL-A8S7MK45TQ-r00001",
+        )!.datum,
+      );
+      sourceContext.created_by.process_ref = fixtureProcessRef;
+      sourceContext.payload.definition_members = [
+        "ASP-0REPRTARCH-r00001",
+        plan,
+        "ICSP-0REPRT1CSP-r00001",
+        "SYS-0EXPRTREQ0-r00001",
+        "SYS-0PARENTREQ-r00001",
+      ];
+      sourceContext.payload.evidence = [];
+      delete sourceContext.payload.snapshot;
+      const finalized = await finalizeExactBaselineScenarioOutput(
+        repository,
+        loaded.package,
+        fixtureProcessRef,
+        sourceContext,
+      );
+      if (!finalized.ok) throw new Error(JSON.stringify(finalized.diagnostics));
+      const contextPublication = await publishScenarioMutation(
+        repository,
+        loaded.package,
+        records.map((item) => item.datum),
+        [finalized.value.output.datum],
+        "phase-2-dwp-review-context",
+        { contract: "phase-2-dwp-review-fixture@1" },
+        [finalized.value.output],
+      );
+      if (!contextPublication.ok) {
+        throw new Error(JSON.stringify(contextPublication.diagnostics));
+      }
+
+      for (const outcome of ["pass", "fail", "cancelled"] as const) {
+        const outcomeRepository = path.join(
+          path.dirname(repository),
+          `mdlm-phase2-dwp-review-${outcome}`,
+        );
+        await fs.cp(repository, outcomeRepository, { recursive: true });
+        try {
+          const prepared = prepareNextAssignment(
+            outcomeRepository,
+            "review-datum-in-context@2",
+          );
+          expect(inputRevision(prepared, "subject")).toBe(plan);
+          expect(inputRevisions(prepared, "context_members")).toEqual([
+            "ASP-0REPRTARCH-r00001",
+            "ICSP-0REPRT1CSP-r00001",
+            "SYS-0EXPRTREQ0-r00001",
+            "SYS-0PARENTREQ-r00001",
+          ]);
+          const contextRevision = inputRevision(prepared, "review_context");
+          const submitted = submitAssignment(outcomeRepository, prepared, [
+            {
+              localId: "review",
+              name: "review",
+              invocation: 0,
+              lifecycleDatum: {
+                type: "REV",
+                payload: {
+                  title: `Review ${plan}`,
+                  review_kind: "simplification-product-definition",
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+                  outcome,
+                  ...(outcome === "fail"
+                    ? {
+                      simplification: {
+                        target: plan,
+                        findings: [{
+                          id: "F-001",
+                          severity: "blocking",
+                          summary: "Clarify the exact decomposition boundary.",
+                        }],
+                      },
+                    }
+                    : {}),
+                  ...(outcome === "cancelled"
+                    ? {
+                      cancellation_reason:
+                        "The exact packet cannot support a bounded judgment.",
+                    }
+                    : {}),
+                },
+                links: [
+                  { type: "reviews", target: plan },
+                  { type: "contextualizes", target: contextRevision },
+                  ...(outcome === "fail"
+                    ? [{ type: "blocks", target: plan }]
+                    : []),
+                ],
+                body:
+                  `The exact planning DWP received a canonical ${outcome} judgment.\n`,
+              },
+            },
+          ]);
+          expect(
+            submitted.status,
+            `${submitted.stderr}${submitted.stdout}`,
+          ).toBe(0);
+          const stored = await readRepositoryData(
+            outcomeRepository,
+            loaded.package,
+          );
+          if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
+          expect(
+            stored.value.some(
+              (item) =>
+                item.lifecycleDatum.datum.type === "REV" &&
+                item.lifecycleDatum.datum.payload.outcome === outcome &&
+                item.lifecycleDatum.datum.links.some(
+                  (link) => link.type === "reviews" && link.target === plan,
+                ),
+            ),
+          ).toBe(true);
+        } finally {
+          await fs.rm(outcomeRepository, { recursive: true, force: true });
+        }
+      }
+    } finally {
+      await Promise.all([
+        fs.rm(repository, { recursive: true, force: true }),
+        fs.rm(path.dirname(processRoot), { recursive: true, force: true }),
+      ]);
+    }
+  }, 180_000);
 
   it("derives SYS execution when the exact output and its dependent Review are absent", () => {
     expectReady(
@@ -200,6 +521,406 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
         dispatchable: true,
         actionableResolver: "simplify-architecture-and-interfaces@2",
       }));
+  });
+
+  it("accepts a canonical passing planning-DWP product-definition Review", () => {
+    const selected = evaluateProcessDefinition(
+      processPackage,
+      completionReady,
+      "selector",
+      "passing-reviews-for@1",
+      { subject: plan },
+    );
+    expect(
+      (selected.result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      ),
+    ).toEqual([currentDwpReview]);
+  });
+
+  it("accepts only canonical planning-DWP product-definition outcomes and blockers", () => {
+    const selectedReviewIds = (snapshot: Snapshot) =>
+      (evaluateProcessDefinition(
+        processPackage,
+        snapshot,
+        "selector",
+        "valid-dwp-product-simplification-reviews@1",
+        { review: currentDwpReview },
+      ).result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      );
+    const canonical = (outcome: "pass" | "fail" | "cancelled") => {
+      const snapshot = structuredClone(completionReady);
+      const review = snapshot.records.find(
+        (record) => record.datum.revision_id === currentDwpReview,
+      );
+      if (!review) throw new Error("missing retained planning DWP Review");
+      review.datum.payload.review_kind = "simplification-product-definition";
+      review.datum.payload.outcome = outcome;
+      delete review.datum.payload.findings;
+      if (outcome === "fail") {
+        review.datum.payload.simplification = {
+          target: plan,
+          findings: [
+            {
+              id: "F-001",
+              severity: "blocking",
+              summary: "Clarify the exact decomposition boundary.",
+            },
+          ],
+        };
+        review.datum.links.push({ type: "blocks", target: plan });
+      } else if (outcome === "cancelled") {
+        review.datum.payload.cancellation_reason =
+          "The exact packet cannot support a bounded judgment.";
+      }
+      return { snapshot, review };
+    };
+
+    for (const outcome of ["pass", "fail", "cancelled"] as const) {
+      expect(selectedReviewIds(canonical(outcome).snapshot)).toEqual([plan]);
+    }
+
+    const reasonlessCancellation = canonical("cancelled");
+    delete reasonlessCancellation.review.datum.payload.cancellation_reason;
+    expect(selectedReviewIds(reasonlessCancellation.snapshot)).toEqual([]);
+
+    const extraBlocker = canonical("fail");
+    extraBlocker.review.datum.links.push({
+      type: "blocks",
+      target: "ASP-0REPRTARCH-r00001",
+    });
+    expect(selectedReviewIds(extraBlocker.snapshot)).toEqual([]);
+
+    const wrongTarget = canonical("fail");
+    wrongTarget.review.datum.payload.simplification = {
+      target: "ASP-0REPRTARCH-r00001",
+      findings: [
+        {
+          id: "F-001",
+          severity: "blocking",
+          summary: "Wrong exact target.",
+        },
+      ],
+    };
+    expect(selectedReviewIds(wrongTarget.snapshot)).toEqual([]);
+  });
+
+  it("rejects incomplete, unrelated, non-exact, evidence-bearing, and composed current DWP contexts", () => {
+    const selectedContextIds = (snapshot: Snapshot) =>
+      (evaluateProcessDefinition(
+        processPackage,
+        snapshot,
+        "selector",
+        "valid-review-contexts-for@1",
+        { subject: plan },
+      ).result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      );
+    const current = () => {
+      const snapshot = structuredClone(completionReady);
+      const context = snapshot.records.find(
+        (record) => record.datum.revision_id === "BSL-A8S7MK45TQ-r00001",
+      );
+      if (!context) throw new Error("missing planning DWP Review Context");
+      const payload = context.datum.payload as {
+        role: string;
+        definition_members: string[];
+        evidence: string[];
+        snapshot: { process_provenance: { process_ref: string } };
+      };
+      payload.definition_members = [
+        "ASP-0REPRTARCH-r00001",
+        plan,
+        "ICSP-0REPRT1CSP-r00001",
+        "SYS-0EXPRTREQ0-r00001",
+      ];
+      payload.evidence = [];
+      context.datum.created_by.process_ref = snapshot.processRef;
+      payload.snapshot.process_provenance.process_ref = snapshot.processRef;
+      return { snapshot, context, payload };
+    };
+
+    expect(selectedContextIds(current().snapshot)).toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const wrongRole = current();
+    wrongRole.payload.role = "candidate";
+    expect(selectedContextIds(wrongRole.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const unrelated = current();
+    unrelated.payload.definition_members.push("QST-3RYPAB0KQZ-r00001");
+    expect(selectedContextIds(unrelated.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const incomplete = current();
+    incomplete.payload.definition_members = incomplete.payload.definition_members.filter(
+      (revision) => revision !== "ICSP-0REPRT1CSP-r00001",
+    );
+    expect(selectedContextIds(incomplete.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const stale = current();
+    const architecture = stale.snapshot.records.find(
+      (record) => record.datum.revision_id === "ASP-0REPRTARCH-r00001",
+    );
+    if (!architecture) throw new Error("missing exact architecture support");
+    const newerArchitecture = structuredClone(architecture);
+    newerArchitecture.datum.revision = 2;
+    newerArchitecture.datum.revision_id = "ASP-0REPRTARCH-r00002";
+    newerArchitecture.datum.created_by.process_ref = stale.snapshot.processRef;
+    stale.snapshot.records.push(newerArchitecture);
+    expect(selectedContextIds(stale.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const staleInterface = current();
+    const interfaceRevision = staleInterface.snapshot.records.find(
+      (record) => record.datum.revision_id === "ICSP-0REPRT1CSP-r00001",
+    );
+    if (!interfaceRevision) throw new Error("missing exact interface support");
+    const newerInterface = structuredClone(interfaceRevision);
+    newerInterface.datum.revision = 2;
+    newerInterface.datum.revision_id = "ICSP-0REPRT1CSP-r00002";
+    newerInterface.datum.created_by.process_ref =
+      staleInterface.snapshot.processRef;
+    staleInterface.snapshot.records.push(newerInterface);
+    expect(selectedContextIds(staleInterface.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const staleConsumedSystem = current();
+    const stalePlan = staleConsumedSystem.snapshot.records.find(
+      (record) => record.datum.revision_id === plan,
+    );
+    const system = staleConsumedSystem.snapshot.records.find(
+      (record) => record.datum.revision_id === "SYS-0EXPRTREQ0-r00001",
+    );
+    if (!stalePlan || !system) throw new Error("missing exact SYS support");
+    const parent = structuredClone(system);
+    parent.datum.id = "SYS-0PARENTREQ";
+    parent.datum.revision_id = "SYS-0PARENTREQ-r00001";
+    parent.datum.links = parent.datum.links.filter(
+      (link) => link.type === "derived-from",
+    );
+    const newerParent = structuredClone(parent);
+    newerParent.datum.revision = 2;
+    newerParent.datum.revision_id = "SYS-0PARENTREQ-r00002";
+    stalePlan.datum.links.push({
+      type: "decomposes",
+      target: parent.datum.revision_id,
+    });
+    staleConsumedSystem.payload.definition_members.push(
+      parent.datum.revision_id,
+    );
+    staleConsumedSystem.snapshot.records.push(parent, newerParent);
+    expect(selectedContextIds(staleConsumedSystem.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const nonExact = current();
+    nonExact.payload.definition_members = nonExact.payload.definition_members.map(
+      (revision) =>
+        revision === "ICSP-0REPRT1CSP-r00001" ? "ICSP-0REPRT1CSP" : revision,
+    );
+    expect(selectedContextIds(nonExact.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const evidenceBearing = current();
+    evidenceBearing.payload.evidence = ["BSL-R6SFPZ4R31-r00001"];
+    expect(selectedContextIds(evidenceBearing.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const composed = current();
+    composed.context.datum.links.push({
+      type: "composes",
+      target: "BSL-R6SFPZ4R31-r00001",
+    });
+    expect(selectedContextIds(composed.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+  });
+
+  it("does not recognize DWP Review evidence attached to invalid support", () => {
+    const selectedReviewIds = (snapshot: Snapshot) =>
+      (evaluateProcessDefinition(
+        processPackage,
+        snapshot,
+        "selector",
+        "passing-reviews-for@1",
+        { subject: plan },
+      ).result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      );
+    const invalid = () => {
+      const snapshot = structuredClone(completionReady);
+      const context = snapshot.records.find(
+        (record) => record.datum.revision_id === currentDwpContext,
+      );
+      if (!context) throw new Error("missing current planning DWP context");
+      return {
+        snapshot,
+        context,
+        payload: context.datum.payload as {
+          definition_members: string[];
+          evidence: string[];
+        },
+      };
+    };
+
+    const augmented = invalid();
+    augmented.payload.definition_members.push("QST-3RYPAB0KQZ-r00001");
+    expect(selectedReviewIds(augmented.snapshot)).not.toContain(currentDwpReview);
+    const incomplete = invalid();
+    incomplete.payload.definition_members =
+      incomplete.payload.definition_members.filter(
+        (revision) => revision !== "ICSP-0REPRT1CSP-r00001",
+      );
+    expect(selectedReviewIds(incomplete.snapshot)).not.toContain(currentDwpReview);
+    const evidenceBearing = invalid();
+    evidenceBearing.payload.evidence = ["BSL-R6SFPZ4R31-r00001"];
+    expect(selectedReviewIds(evidenceBearing.snapshot)).not.toContain(
+      currentDwpReview,
+    );
+    const composed = invalid();
+    composed.context.datum.links.push({
+      type: "composes",
+      target: "BSL-R6SFPZ4R31-r00001",
+    });
+    expect(selectedReviewIds(composed.snapshot)).not.toContain(currentDwpReview);
+    const stale = invalid();
+    const architecture = stale.snapshot.records.find(
+      (record) => record.datum.revision_id === "ASP-0REPRTARCH-r00001",
+    );
+    if (!architecture) throw new Error("missing architecture support");
+    const newerArchitecture = structuredClone(architecture);
+    newerArchitecture.datum.revision = 2;
+    newerArchitecture.datum.revision_id = "ASP-0REPRTARCH-r00002";
+    stale.snapshot.records.push(newerArchitecture);
+    expect(selectedReviewIds(stale.snapshot)).not.toContain(currentDwpReview);
+    const foreign = invalid();
+    foreign.context.datum.created_by.process_ref =
+      "foreign-process@1.0.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    expect(selectedReviewIds(foreign.snapshot)).not.toContain(currentDwpReview);
+  });
+
+  it("accepts only authenticated unaugmented historical thin DWP contexts", () => {
+    const selectedContextIds = (snapshot: Snapshot) =>
+      (evaluateProcessDefinition(
+        processPackage,
+        snapshot,
+        "selector",
+        "valid-review-contexts-for@1",
+        { subject: plan },
+      ).result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      );
+    const historical = (processRef: string) => {
+      const snapshot = structuredClone(completionReady);
+      const context = snapshot.records.find(
+        (record) => record.datum.revision_id === "BSL-A8S7MK45TQ-r00001",
+      );
+      if (!context) throw new Error("missing historical DWP Review Context");
+      const payload = context.datum.payload as {
+        definition_members: string[];
+        evidence: string[];
+        snapshot: { process_provenance: { process_ref: string } };
+      };
+      payload.definition_members = [plan];
+      payload.evidence = [];
+      context.datum.created_by.process_ref = processRef;
+      payload.snapshot.process_provenance.process_ref = processRef;
+      return { snapshot, context, payload };
+    };
+
+    const historicalRefs = [
+      "mdlm-bootstrap@0.63.0#sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
+      "mdlm-bootstrap@0.64.0#sha256:e3759f865e15cb62a7014d1cd3c05b25bee3f2858966a1cc7ed59bfda5476c8b",
+    ];
+    for (const processRef of historicalRefs) {
+      const accepted = historical(processRef);
+      expect(selectedContextIds(accepted.snapshot)).toContain(
+        "BSL-A8S7MK45TQ-r00001",
+      );
+      const review = accepted.snapshot.records.find(
+        (record) => record.datum.revision_id === currentDwpReview,
+      );
+      if (!review) throw new Error("missing planning DWP Review");
+      review.datum.links = review.datum.links.map((link) =>
+        link.type === "contextualizes"
+          ? { ...link, target: "BSL-A8S7MK45TQ-r00001" }
+          : link
+      );
+      expect(
+        (evaluateProcessDefinition(
+          processPackage,
+          accepted.snapshot,
+          "selector",
+          "passing-reviews-for@1",
+          { subject: plan },
+        ).result as Array<{ identity: { revision_id: string } }>).map(
+          (item) => item.identity.revision_id,
+        ),
+      ).toContain(currentDwpReview);
+      const augmented = historical(processRef);
+      augmented.payload.definition_members.push("QST-3RYPAB0KQZ-r00001");
+      expect(selectedContextIds(augmented.snapshot)).not.toContain(
+        "BSL-A8S7MK45TQ-r00001",
+      );
+    }
+    const staleSupport = historical(historicalRefs[1]!);
+    const architecture = staleSupport.snapshot.records.find(
+      (record) => record.datum.revision_id === "ASP-0REPRTARCH-r00001",
+    );
+    if (!architecture) throw new Error("missing historical architecture support");
+    const newerArchitecture = structuredClone(architecture);
+    newerArchitecture.datum.revision = 2;
+    newerArchitecture.datum.revision_id = "ASP-0REPRTARCH-r00002";
+    staleSupport.snapshot.records.push(newerArchitecture);
+    expect(selectedContextIds(staleSupport.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const evidenceBearing = historical(historicalRefs[1]!);
+    evidenceBearing.payload.evidence = ["BSL-R6SFPZ4R31-r00001"];
+    expect(selectedContextIds(evidenceBearing.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const composed = historical(historicalRefs[1]!);
+    composed.context.datum.links.push({
+      type: "composes",
+      target: "BSL-R6SFPZ4R31-r00001",
+    });
+    expect(selectedContextIds(composed.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+    const foreign = historical(historicalRefs[1]!);
+    const foreignRef =
+      "foreign-process@1.0.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    foreign.context.datum.created_by.process_ref = foreignRef;
+    foreign.payload.snapshot.process_provenance.process_ref = foreignRef;
+    expect(selectedContextIds(foreign.snapshot)).not.toContain(
+      "BSL-A8S7MK45TQ-r00001",
+    );
+  });
+
+  it("rejects a non-product-definition planning-DWP Review", () => {
+    const snapshot = structuredClone(completionReady);
+    const review = snapshot.records.find(
+      (record) => record.datum.revision_id === currentDwpReview,
+    );
+    if (!review) throw new Error("missing retained DWP Review");
+    review.datum.payload.review_kind = "contextual";
+
+    const selected = evaluateProcessDefinition(
+      processPackage,
+      snapshot,
+      "selector",
+      "passing-reviews-for@1",
+      { subject: plan },
+    );
+    expect(
+      (selected.result as Array<{ identity: { revision_id: string } }>).map(
+        (item) => item.identity.revision_id,
+      ),
+    ).not.toContain(currentDwpReview);
   });
 
   it("accepts the retained passing requirement simplification Review without correction work", () => {

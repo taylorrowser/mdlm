@@ -1,0 +1,13 @@
+kind: selector-definition
+id: planning-dwp-matching-subject
+version: 1
+description: The supplied exact revision when it is a planning DWP.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: plan
+  where: 'plan == subject && plan.payload.stage == "planning"'
+  distinct: true
+  order_by: [identity.revision_id]

@@ -2477,7 +2477,7 @@ describe("Phase 1 hardening route evidence", () => {
         replacement,
         replacementContext,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.64.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.65.0#${await processPackageDigest(processRoot)}`;
       for (const item of sourceRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -2544,7 +2544,7 @@ describe("Phase 1 hardening route evidence", () => {
         if (!pilotReviewPackage.ok) {
           throw new Error(JSON.stringify(pilotReviewPackage.diagnostics));
         }
-        const pilotReviewProcessRef = `mdlm-bootstrap@0.64.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
+        const pilotReviewProcessRef = `mdlm-bootstrap@0.65.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
         const pilotReviewRecords = structuredClone(baseRecords);
         for (const item of pilotReviewRecords) {
           item.datum.created_by.process_ref = pilotReviewProcessRef;

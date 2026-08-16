@@ -1732,6 +1732,31 @@ rows:
         disposition: DWP plan yields assignment. Completion and candidate work stay blocked until both exact simplification
           judgments pass.
         reuse: "DWP plan: Exact member Reviews remain reusable while members do not change."
+      - route: planning DWP independent Review
+        executable:
+          file: test/phase-2-hardening-routes.test.ts
+          test: prepares and completes every planning-DWP product-definition outcome with exact support
+        evidence:
+          facts: One exact planning DWP, its allocated ASP, all governing ICSP Revisions, applicable current SYS support, and one exact frozen Review Context.
+          links: The Review reviews the exact DWP and contextualizes its frozen context; a failed judgment blocks only that exact DWP.
+        selectors:
+          - review-context-members-for@1
+          - valid-review-contexts-for@1
+          - valid-dwp-product-simplification-reviews@1
+        obligations:
+          - passing-review-required@2
+        participation:
+          mode: package-delegated
+          policies:
+            - contextual-review-participation@1
+          authority: independent-reviewer
+        resolvers:
+          - review-datum-in-context@2
+        next:
+          - assignment
+        budget: One malformed-response correction remains available; substantive failure derives ordinary DWP correction work.
+        disposition: A canonical simplification-product-definition pass completes, while fail and cancelled outcomes remain exact durable authority evidence.
+        reuse: Authenticated thin 0.63.0 and 0.64.0 contexts remain usable only without unrelated members, evidence, or composed baselines.
       - route: SYS outputs
         executable:
           file: test/phase-2-hardening-routes.test.ts

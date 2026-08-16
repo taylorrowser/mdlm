@@ -23,7 +23,7 @@ async function packageCopy(
   await fs.writeFile(
     manifestPath,
     (await fs.readFile(manifestPath, "utf8")).replace(
-      "version: 0.64.0",
+      "version: 0.65.0",
       `version: ${version}`,
     ),
   );
@@ -111,6 +111,85 @@ async function historicalBootstrap063Copy(parent: string): Promise<string> {
   return root;
 }
 
+async function historicalBootstrap064Copy(parent: string): Promise<string> {
+  const root = await packageCopy(parent, "historical-0.64.0", "0.64.0");
+  const manifestPath = path.join(root, "manifest.yaml");
+  let manifest = await fs.readFile(manifestPath, "utf8");
+  for (const selector of [
+    "decomposition-output-revisions-for",
+    "dwp-product-simplification-blockers-for-review",
+    "planning-dwp-matching-subject",
+    "planning-dwp-review-context-matches",
+    "planning-dwp-review-support-for",
+    "valid-dwp-product-simplification-reviews",
+    "legacy-thin-dwp-review-contexts-for",
+  ]) {
+    manifest = manifest.replace(`    - ${selector}\n`, "");
+    await fs.rm(path.join(root, `selectors/${selector}.yaml`));
+  }
+  await fs.writeFile(manifestPath, manifest);
+
+  const membersPath = path.join(root, "selectors/review-context-members-for.yaml");
+  await fs.writeFile(
+    membersPath,
+    (await fs.readFile(membersPath, "utf8")).replace(
+      '      || (subject.identity.type == "DWP"\n        && subject.payload.stage == "planning"\n        && !every("planning-dwp-review-support-for@1", {plan: subject}, support =>\n          support != member))\n',
+      '      || (subject.identity.type == "DWP"\n        && subject.payload.stage == "planning"\n        && exists("decomposition-outputs-for@1", {plan: subject})\n        && (\n          (member.identity.type == "SYS"\n            && exists("matching-decomposition-output@1", {plan: subject, output: member}))\n          || (member.identity.type == "ASP"\n            && count("architectures-for-decomposition@1", {plan: subject}) == 1\n            && member == one("architectures-for-decomposition@1", {plan: subject}))\n          || (member.identity.type == "ICSP"\n            && exists("matching-decomposition-interface@1", {plan: subject, interface: member}))\n        ))\n      || (subject.identity.type == "DWP"\n        && member.identity.type == "SYS"\n        && !every("system-requirements-consumed-by@1", {consumer: subject}, requirement =>\n          requirement != member))\n',
+    ),
+  );
+
+  const contextsPath = path.join(root, "selectors/valid-review-contexts-for.yaml");
+  await fs.writeFile(
+    contextsPath,
+    (await fs.readFile(contextsPath, "utf8"))
+      .replace('    && context.payload.role == "review-context"\n', "")
+      .replace(
+        '      || (subject.identity.type == "VER"\n        && !every("legacy-thin-ver-review-contexts-for@1", {subject: subject}, legacy =>\n          legacy != context))\n      || (subject.identity.type == "DWP"\n        && !every("legacy-thin-dwp-review-contexts-for@1", {subject: subject}, legacy =>\n          legacy != context)))\n',
+        '      || (subject.identity.type == "VER"\n        && !every("legacy-thin-ver-review-contexts-for@1", {subject: subject}, legacy =>\n          legacy != context)))\n',
+      )
+      .replace(
+        '    && (subject.identity.type != "DWP"\n      || subject.payload.stage != "planning"\n      || (every("planning-dwp-review-support-for@1", {plan: subject}, support =>\n          state(support, "disposition") == "active"\n          && state(support, "validity") == "valid"\n          && none("newer-revisions-for@1", {subject: support}))\n        && (!every("legacy-thin-dwp-review-contexts-for@1", {subject: subject}, legacy =>\n          legacy != context)\n        || (context.provenance.process_ref == process.current_ref\n          && every("review-context-members@1", {context: context}, context_member =>\n            context_member == subject\n            || !every("review-context-members-for@1", {subject: subject}, required =>\n              required != context_member))\n          && none("review-context-evidence@1", {context: context})\n          && none("composed-baselines-for-review-context@1", {context: context})))))\n',
+        '    && (subject.identity.type != "DWP"\n      || subject.payload.stage != "planning"\n      || none("decomposition-outputs-for@1", {plan: subject})\n      || count("review-context-members@1", {context: context})\n        == count("phase-2-definition-members-for-plan@1", {plan: subject}))\n',
+      ),
+  );
+
+  for (const name of ["passing-reviews-for", "failing-reviews-for"]) {
+    const selectorPath = path.join(root, `selectors/${name}.yaml`);
+    await fs.writeFile(
+      selectorPath,
+      (await fs.readFile(selectorPath, "utf8")).replace(
+        '      || (exists("planning-dwp-matching-subject@1", {subject: subject})\n        && exists("valid-dwp-product-simplification-reviews@1", {review: review}))\n      || (none("intent-candidates-matching-subject@1", {subject: subject})\n        && none("planning-dwp-matching-subject@1", {subject: subject})\n',
+        '      || (none("intent-candidates-matching-subject@1", {subject: subject})\n',
+      ),
+    );
+  }
+  const reviewScenarioPath = path.join(root, "scenarios/review-datum-in-context.yaml");
+  await fs.writeFile(
+    reviewScenarioPath,
+    (await fs.readFile(reviewScenarioPath, "utf8")).replace(
+      '    || (exists("planning-dwp-matching-subject@1", {subject: subject})\n      && exists("valid-dwp-product-simplification-reviews@1", {review: review}))\n    || (none("intent-candidates-matching-subject@1", {subject: subject})\n      && none("planning-dwp-matching-subject@1", {subject: subject})\n',
+      '    || (none("intent-candidates-matching-subject@1", {subject: subject})\n',
+    ),
+  );
+  const reviewTypePath = path.join(root, "types/REV.yaml");
+  await fs.writeFile(
+    reviewTypePath,
+    (await fs.readFile(reviewTypePath, "utf8")).replace(
+      "description: One exact correction target with every blocking Phase 0 or planning-DWP simplification finding that applies to it.",
+      "description: One exact Phase 0 correction target with every blocking simplification finding that applies to it.",
+    ),
+  );
+  const profilePath = path.join(root, "profiles/bootstrap.yaml");
+  await fs.writeFile(
+    profilePath,
+    (await fs.readFile(profilePath, "utf8")).replace(
+      "  - one planning DWP receives independent product-definition Review with every and only exact allocated ASP, governing ICSP, and applicable current SYS support before deriving coverage, output-review, simplification, completion, question, and blocker Obligations\n",
+      "  - one reviewed DWP plan derives exact coverage, output-review, simplification, completion, question, and blocker Obligations\n",
+    ),
+  );
+  return root;
+}
+
 async function contractBytes(repository: string): Promise<string> {
   const paths = [
     ".lifecycle/process-selection.json",
@@ -140,8 +219,8 @@ describe("mdlm Process Package migration", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
-  it("migrates preserved 0.63.0 state and its active Assignment to exact 0.64.0", async () => {
-    const previousRoot = await historicalBootstrap063Copy(parent);
+  it("migrates preserved 0.64.0 state and its active Assignment to exact 0.65.0", async () => {
+    const previousRoot = await historicalBootstrap064Copy(parent);
     await selectProcessPackageFixture(repository, previousRoot);
     const selectedBefore = JSON.parse(
       await fs.readFile(
@@ -151,9 +230,9 @@ describe("mdlm Process Package migration", () => {
     );
     expect(selectedBefore.package).toEqual(
       expect.objectContaining({
-        reference: "mdlm-bootstrap@0.63.0",
+        reference: "mdlm-bootstrap@0.64.0",
         digest:
-          "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
+          "sha256:e3759f865e15cb62a7014d1cd3c05b25bee3f2858966a1cc7ed59bfda5476c8b",
       }),
     );
     const initial = JSON.parse(mdlm(repository, "next").stdout);
@@ -175,7 +254,7 @@ describe("mdlm Process Package migration", () => {
               lifecycleDatum: {
                 type: "MAP",
                 payload: {
-                  title: "Preserved 0.63.0 migration history",
+                  title: "Preserved 0.64.0 migration history",
                   purpose:
                     "Prove historical Lifecycle Data and Assignment compatibility.",
                   frontier: [
@@ -183,12 +262,12 @@ describe("mdlm Process Package migration", () => {
                   ],
                 },
                 links: [],
-                body: "One exact historical 0.63.0 transaction.\n",
+                body: "One exact historical 0.64.0 transaction.\n",
               },
             },
           ],
           completionEvidence: {
-            summary: "Published preserved 0.63.0 history.",
+            summary: "Published preserved 0.64.0 history.",
           },
           loadedSkillRefs: initialPacket.prompt.skills.map(
             (skill: { reference: string }) => skill.reference,
@@ -208,7 +287,7 @@ describe("mdlm Process Package migration", () => {
       historyBefore.status,
       `${historyBefore.stderr}${historyBefore.stdout}`,
     ).toBe(0);
-    expect(historyBefore.stdout).toContain("mdlm-bootstrap@0.63.0");
+    expect(historyBefore.stdout).toContain("mdlm-bootstrap@0.64.0");
     const dataBefore = await directoryDigest(
       path.join(repository, ".lifecycle/data"),
     );
@@ -238,14 +317,14 @@ describe("mdlm Process Package migration", () => {
         selected: true,
         migration: {
           from: expect.objectContaining({
-            reference: "mdlm-bootstrap@0.63.0",
-            digest:
-              "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
-          }),
-          to: expect.objectContaining({
             reference: "mdlm-bootstrap@0.64.0",
             digest:
               "sha256:e3759f865e15cb62a7014d1cd3c05b25bee3f2858966a1cc7ed59bfda5476c8b",
+          }),
+          to: expect.objectContaining({
+            reference: "mdlm-bootstrap@0.65.0",
+            digest:
+              "sha256:585b32dad15327e6fc7822cc4ea08c42c14d63301a55b6659b7bfa63297a5c0e",
           }),
         },
         diagnostics: [],
@@ -263,7 +342,7 @@ describe("mdlm Process Package migration", () => {
     expect(JSON.parse(historyAfter.stdout).history).toEqual(
       JSON.parse(historyBefore.stdout).history,
     );
-    expect(historyAfter.stdout).toContain("mdlm-bootstrap@0.63.0");
+    expect(historyAfter.stdout).toContain("mdlm-bootstrap@0.64.0");
     const prepared = mdlm(
       repository,
       "scenario",
@@ -276,8 +355,8 @@ describe("mdlm Process Package migration", () => {
     expect(mdlm(repository, "doctor", "--json").status).toBe(0);
   }, 60_000);
 
-  it("preserves exhausted 0.63.0 malformed-response history during migration", async () => {
-    const previousRoot = await historicalBootstrap063Copy(parent);
+  it("preserves exhausted 0.64.0 malformed-response history during migration", async () => {
+    const previousRoot = await historicalBootstrap064Copy(parent);
     await selectProcessPackageFixture(repository, previousRoot);
     const assignment = JSON.parse(mdlm(repository, "next").stdout).assignment.id as string;
     const dataBefore = await directoryDigest(
@@ -313,9 +392,9 @@ describe("mdlm Process Package migration", () => {
       id: assignment,
       disposition: "exhausted",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.63.0",
+        reference: "mdlm-bootstrap@0.64.0",
         digest:
-          "sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
+          "sha256:e3759f865e15cb62a7014d1cd3c05b25bee3f2858966a1cc7ed59bfda5476c8b",
       }),
       malformedResponses: [
         expect.objectContaining({ digest: expect.stringMatching(/^sha256:/) }),
@@ -341,7 +420,32 @@ describe("mdlm Process Package migration", () => {
     const exhaustedAfter = JSON.parse(await fs.readFile(leasePath, "utf8"));
     expect(exhaustedAfter).toEqual(exhaustedBefore);
     expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-  }, 60_000);
+
+    const reevaluated = mdlm(repository, "next", "--json");
+    expect(
+      reevaluated.status,
+      `${reevaluated.stderr}${reevaluated.stdout}`,
+    ).toBe(0);
+    const replacement = JSON.parse(reevaluated.stdout).assignment;
+    expect(replacement.id).not.toBe(assignment);
+    const prepared = mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      replacement.id,
+      "--json",
+    );
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    expect(JSON.parse(prepared.stdout)).toEqual(expect.objectContaining({
+      assignment: expect.objectContaining({ id: replacement.id }),
+      package: expect.objectContaining({
+        reference: "mdlm-bootstrap@0.65.0",
+      }),
+      scenario: expect.objectContaining({
+        reference: "establish-initial-wayfinding-map@1",
+      }),
+    }));
+  }, 90_000);
 
   it("rejects an incompatible package without changing exact contract bytes", async () => {
     const previousRoot = await packageCopy(parent, "previous", "0.40.0");

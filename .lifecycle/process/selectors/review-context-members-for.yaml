@@ -35,20 +35,8 @@ query:
         ))
       || (subject.identity.type == "DWP"
         && subject.payload.stage == "planning"
-        && exists("decomposition-outputs-for@1", {plan: subject})
-        && (
-          (member.identity.type == "SYS"
-            && exists("matching-decomposition-output@1", {plan: subject, output: member}))
-          || (member.identity.type == "ASP"
-            && count("architectures-for-decomposition@1", {plan: subject}) == 1
-            && member == one("architectures-for-decomposition@1", {plan: subject}))
-          || (member.identity.type == "ICSP"
-            && exists("matching-decomposition-interface@1", {plan: subject, interface: member}))
-        ))
-      || (subject.identity.type == "DWP"
-        && member.identity.type == "SYS"
-        && !every("system-requirements-consumed-by@1", {consumer: subject}, requirement =>
-          requirement != member))
+        && !every("planning-dwp-review-support-for@1", {plan: subject}, support =>
+          support != member))
       || (exists("change-level-candidates-matching-subject@1", {subject: subject})
         && exists("candidate-members-matching@1",
           {candidate: one("change-level-candidates-matching-subject@1", {subject: subject}), required_member: member}))

@@ -10,6 +10,7 @@ query:
   as: context
   where: >-
     context.payload.kind == "review-context"
+    && context.payload.role == "review-context"
     && context.payload.scope == subject.identity.revision_id
     && context.storage.frozen == true
     && state(context, "validity") == "valid"
@@ -20,6 +21,9 @@ query:
         && context.provenance.process_ref != process.current_ref)
       || (subject.identity.type == "VER"
         && !every("legacy-thin-ver-review-contexts-for@1", {subject: subject}, legacy =>
+          legacy != context))
+      || (subject.identity.type == "DWP"
+        && !every("legacy-thin-dwp-review-contexts-for@1", {subject: subject}, legacy =>
           legacy != context)))
     && (subject.identity.type != "VER"
       || !every("legacy-thin-ver-review-contexts-for@1", {subject: subject}, legacy =>
@@ -33,9 +37,19 @@ query:
         && none("composed-baselines-for-review-context@1", {context: context})))
     && (subject.identity.type != "DWP"
       || subject.payload.stage != "planning"
-      || none("decomposition-outputs-for@1", {plan: subject})
-      || count("review-context-members@1", {context: context})
-        == count("phase-2-definition-members-for-plan@1", {plan: subject}))
+      || (every("planning-dwp-review-support-for@1", {plan: subject}, support =>
+          state(support, "disposition") == "active"
+          && state(support, "validity") == "valid"
+          && none("newer-revisions-for@1", {subject: support}))
+        && (!every("legacy-thin-dwp-review-contexts-for@1", {subject: subject}, legacy =>
+          legacy != context)
+        || (context.provenance.process_ref == process.current_ref
+          && every("review-context-members@1", {context: context}, context_member =>
+            context_member == subject
+            || !every("review-context-members-for@1", {subject: subject}, required =>
+              required != context_member))
+          && none("review-context-evidence@1", {context: context})
+          && none("composed-baselines-for-review-context@1", {context: context})))))
     && (subject.identity.type != "ENV"
       || exists("environment-assurance-context-matches@1",
         {environment: subject, context: context}))

@@ -1,0 +1,13 @@
+kind: selector-definition
+id: dwp-product-simplification-blockers-for-review
+version: 1
+description: Every exact definition blocker named by one planning-DWP product-definition Review.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: review, link: blocks, emit: target, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, BSL]}
+  as: blocker
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]
