@@ -22,6 +22,7 @@ import {
 } from "./lifecycle-repository.js";
 import { isObligationInstanceIdentity } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
+import { recordWork } from "./performance-diagnostics.js";
 
 export interface BaselineFreeze {
   baselineRevision: string;
@@ -371,6 +372,7 @@ async function finalizeExactBaselineDatumFromRepository(
   const proposedRecord: ParsedDatum = {
     lifecycleDatum: provisionalLifecycleRecord(datum),
     relativePath: "",
+    sourceDigest: "",
   };
   const withProposal = [
     ...parsed.filter((item) =>
@@ -489,8 +491,180 @@ export async function verifyExactBaseline(
   if (!capability.ok) return capability;
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
-  const source = exactBaselineSubject(
+  return verifyExactBaselineData(
+    root,
+    processPackage,
+    processRef,
+    baselineIdentity,
     loaded.value,
+  );
+}
+
+type BaselineVerificationCache = Map<
+  string,
+  Promise<RepositoryResult<BaselineVerification>>
+>;
+
+export function verifyExactBaselineData(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  baselineIdentity: string,
+  parsed: ParsedDatum[],
+  cache: BaselineVerificationCache = new Map(),
+): Promise<RepositoryResult<BaselineVerification>> {
+  const cached = cache.get(baselineIdentity);
+  if (cached) return cached;
+  const verification = verifyExactBaselineDataUncached(
+    root,
+    processPackage,
+    processRef,
+    baselineIdentity,
+    parsed,
+    cache,
+  );
+  cache.set(baselineIdentity, verification);
+  return verification;
+}
+
+async function composedBaselineDiagnostics(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  parsed: ParsedDatum[],
+  composition: string[],
+  cache: BaselineVerificationCache,
+  cycleDetected: boolean,
+): Promise<ProcessDiagnostic[]> {
+  if (cycleDetected) return [];
+  const diagnostics: ProcessDiagnostic[] = [];
+  for (const identity of composition) {
+    const verified = await verifyExactBaselineData(
+      root,
+      processPackage,
+      processRef,
+      identity,
+      parsed,
+      cache,
+    );
+    if (!verified.ok) {
+      diagnostics.push({
+        code: "baseline-composition-invalid",
+        path: identity,
+        message: `Composed exact baseline '${identity}' failed verification`,
+      }, ...verified.diagnostics);
+    }
+  }
+  return diagnostics;
+}
+
+function baselineHashDiagnostics(
+  parsed: ParsedDatum[],
+  references: string[],
+  snapshot: Record<string, unknown>,
+): ProcessDiagnostic[] {
+  const expectedHashes = Object.fromEntries(references.flatMap((identity) => {
+    const item = parsed.find((candidate) =>
+      candidate.lifecycleDatum.datum.revision_id === identity
+    );
+    return item ? [[identity, item.sourceDigest]] : [];
+  }));
+  const storedHashes = objectRecord(snapshot.member_hashes);
+  return [...new Set([
+    ...Object.keys(storedHashes),
+    ...Object.keys(expectedHashes),
+  ])].flatMap((identity) =>
+    storedHashes[identity] === expectedHashes[identity]
+      ? []
+      : [{
+        code: "baseline-hash-mismatch",
+        path: identity,
+        message: `Exact bytes for Revision '${identity}' do not match the frozen baseline hash`,
+      }]
+  );
+}
+
+function baselineResolutionDiagnostics(
+  parsed: ParsedDatum[],
+  datum: DatumEnvelope,
+  references: string[],
+  snapshot: Record<string, unknown>,
+): ProcessDiagnostic[] {
+  const sources = [datum.revision_id, ...references].sort();
+  const stored = objectRecord(snapshot.resolved_links);
+  const resolutionsMatch = frozenResolutionsMatch(parsed, sources, stored);
+  const diagnostics: ProcessDiagnostic[] = resolutionsMatch
+    ? []
+    : [{
+      code: "baseline-resolution-mismatch",
+      path: datum.revision_id,
+      message: `Resolved links for exact baseline '${datum.revision_id}' do not match the frozen snapshot`,
+    }];
+  for (const targets of Object.values(stored)) {
+    if (!Array.isArray(targets)) continue;
+    for (const target of targets) {
+      if (
+        typeof target === "string" && revisionIdentity.test(target) &&
+        !parsed.some((item) => item.lifecycleDatum.datum.revision_id === target)
+      ) {
+        diagnostics.push({
+          code: "baseline-reference-missing",
+          path: target,
+          message: `Frozen link resolution references missing exact Revision '${target}'`,
+        });
+      }
+    }
+  }
+  return diagnostics;
+}
+
+async function baselineProvenanceDiagnostics(
+  processPackage: ProcessPackage,
+  processRef: string,
+  parsed: ParsedDatum[],
+  datum: DatumEnvelope,
+  references: string[],
+  snapshot: Record<string, unknown>,
+): Promise<ProcessDiagnostic[]> {
+  const provenanceData = [datum, ...references.flatMap((identity) => {
+    const item = parsed.find((candidate) =>
+      candidate.lifecycleDatum.datum.revision_id === identity
+    );
+    return item ? [item.lifecycleDatum.datum] : [];
+  })];
+  const expected = {
+    process_ref: processRef,
+    manifest_hash: await sha256File(
+      path.join(processPackage.root, "manifest.yaml"),
+    ),
+    asset_refs: processAssetRefs(processPackage, provenanceData),
+  };
+  const provenanceMatches = structuralValuesEqual(
+    objectRecord(snapshot.process_provenance),
+    expected,
+  );
+  return provenanceMatches
+    ? []
+    : [{
+      code: "baseline-process-provenance-mismatch",
+      path: datum.revision_id,
+      message: `Process provenance for exact baseline '${datum.revision_id}' does not match the selected package and frozen content`,
+    }];
+}
+
+async function verifyExactBaselineDataUncached(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  baselineIdentity: string,
+  parsed: ParsedDatum[],
+  cache: BaselineVerificationCache,
+): Promise<RepositoryResult<BaselineVerification>> {
+  recordWork("baseline.revisions-checked");
+  const capability = exactBaselineType(processPackage);
+  if (!capability.ok) return capability;
+  const source = exactBaselineSubject(
+    parsed,
     baselineIdentity,
     capability.value,
   );
@@ -515,98 +689,34 @@ export async function verifyExactBaseline(
     ...evidence,
     ...composition,
   ])].sort();
+  const cycleDiagnostics = compositionCycleDiagnostics(
+    parsed,
+    datum.revision_id,
+  );
   const diagnostics = [
-    ...baselineReferenceDiagnostics(loaded.value, datum, capability.value),
-    ...compositionCycleDiagnostics(loaded.value, datum.revision_id),
+    ...baselineReferenceDiagnostics(parsed, datum, capability.value),
+    ...cycleDiagnostics,
+    ...await composedBaselineDiagnostics(
+      root,
+      processPackage,
+      processRef,
+      parsed,
+      composition,
+      cache,
+      cycleDiagnostics.length > 0,
+    ),
+    ...baselineHashDiagnostics(parsed, references, snapshot),
+    ...baselineResolutionDiagnostics(parsed, datum, references, snapshot),
+    ...await baselineProvenanceDiagnostics(
+      processPackage,
+      processRef,
+      parsed,
+      datum,
+      references,
+      snapshot,
+    ),
   ];
-  if (!diagnostics.some((diagnostic) =>
-    diagnostic.code === "baseline-composition-cycle"
-  )) {
-    for (const identity of composition) {
-      const verified = await verifyExactBaseline(
-        root,
-        processPackage,
-        processRef,
-        identity,
-      );
-      if (!verified.ok) {
-        diagnostics.push({
-          code: "baseline-composition-invalid",
-          path: identity,
-          message: `Composed exact baseline '${identity}' failed verification`,
-        }, ...verified.diagnostics);
-      }
-    }
-  }
-  const expectedHashes: Record<string, string> = {};
-  for (const identity of references) {
-    const item = loaded.value.find((candidate) =>
-      candidate.lifecycleDatum.datum.revision_id === identity
-    );
-    if (item) expectedHashes[identity] = await sha256File(path.join(root, item.relativePath));
-  }
-  const storedHashes = objectRecord(snapshot.member_hashes);
-  for (const identity of new Set([
-    ...Object.keys(storedHashes),
-    ...Object.keys(expectedHashes),
-  ])) {
-    if (storedHashes[identity] !== expectedHashes[identity]) {
-      diagnostics.push({
-        code: "baseline-hash-mismatch",
-        path: identity,
-        message: `Exact bytes for Revision '${identity}' do not match the frozen baseline hash`,
-      });
-    }
-  }
   const resolutionSources = [datum.revision_id, ...references].sort();
-  const storedResolutions = objectRecord(snapshot.resolved_links);
-  if (!frozenResolutionsMatch(
-    loaded.value,
-    resolutionSources,
-    storedResolutions,
-  )) {
-    diagnostics.push({
-      code: "baseline-resolution-mismatch",
-      path: datum.revision_id,
-      message: `Resolved links for exact baseline '${datum.revision_id}' do not match the frozen snapshot`,
-    });
-  }
-  for (const targets of Object.values(storedResolutions)) {
-    if (!Array.isArray(targets)) continue;
-    for (const target of targets) {
-      if (
-        typeof target === "string" && revisionIdentity.test(target) &&
-        !loaded.value.some((item) =>
-          item.lifecycleDatum.datum.revision_id === target
-        )
-      ) {
-        diagnostics.push({
-          code: "baseline-reference-missing",
-          path: target,
-          message: `Frozen link resolution references missing exact Revision '${target}'`,
-        });
-      }
-    }
-  }
-  const storedProvenance = objectRecord(snapshot.process_provenance);
-  const provenanceData = [datum, ...references.flatMap((identity) => {
-    const item = loaded.value.find((candidate) =>
-      candidate.lifecycleDatum.datum.revision_id === identity
-    );
-    return item ? [item.lifecycleDatum.datum] : [];
-  })];
-  const expectedProvenance = {
-    process_ref: processRef,
-    manifest_hash: await sha256File(path.join(processPackage.root, "manifest.yaml")),
-    asset_refs: processAssetRefs(processPackage, provenanceData),
-  };
-  if (!structuralValuesEqual(storedProvenance, expectedProvenance)) {
-    diagnostics.push({
-      code: "baseline-process-provenance-mismatch",
-      path: datum.revision_id,
-      message: `Process provenance for exact baseline '${datum.revision_id}' does not match the selected package and frozen content`,
-    });
-  }
   if (diagnostics.length > 0) return { ok: false, diagnostics };
   return {
     ok: true,
@@ -694,6 +804,22 @@ export async function verifyRepositoryBaselines(
   processPackage: ProcessPackage,
   processRef: string,
 ): Promise<RepositoryResult<BaselineRepositoryVerification>> {
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  return verifyRepositoryBaselinesData(
+    root,
+    processPackage,
+    processRef,
+    loaded.value,
+  );
+}
+
+export async function verifyRepositoryBaselinesData(
+  root: string,
+  processPackage: ProcessPackage,
+  processRef: string,
+  parsed: ParsedDatum[],
+): Promise<RepositoryResult<BaselineRepositoryVerification>> {
   const capability = exactBaselineType(processPackage);
   if (!capability.ok) {
     return {
@@ -702,9 +828,7 @@ export async function verifyRepositoryBaselines(
       diagnostics: [],
     };
   }
-  const loaded = await readRepositoryData(root, processPackage);
-  if (!loaded.ok) return loaded;
-  const baselines = loaded.value.filter((item) =>
+  const baselines = parsed.filter((item) =>
     item.lifecycleDatum.datum.type === capability.value &&
     Object.keys(objectRecord(item.lifecycleDatum.datum.payload.snapshot)).length > 0
   ).sort((left, right) =>
@@ -713,13 +837,16 @@ export async function verifyRepositoryBaselines(
     )
   );
   const diagnostics: ProcessDiagnostic[] = [];
+  const cache: BaselineVerificationCache = new Map();
   let processDrift = 0;
   for (const baseline of baselines) {
-    const verified = await verifyExactBaseline(
+    const verified = await verifyExactBaselineData(
       root,
       processPackage,
       processRef,
       baseline.lifecycleDatum.datum.revision_id,
+      parsed,
+      cache,
     );
     if (!verified.ok) {
       if (verified.diagnostics.some((diagnostic) =>

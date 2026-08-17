@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -14,6 +14,12 @@ import {
 } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
 import { processPackageDigest } from "./process-package-digest.js";
+import {
+  measure,
+  measureAsync,
+  recordRepositoryLoad,
+  recordWork,
+} from "./performance-diagnostics.js";
 import {
   evaluateLifecycle,
   loadProcessPackage,
@@ -120,6 +126,7 @@ export type RepositoryResult<T> =
 export interface ParsedDatum {
   lifecycleDatum: LifecycleRecord;
   relativePath: string;
+  sourceDigest: string;
 }
 
 export interface KernelFinalizedScenarioOutput {
@@ -156,7 +163,11 @@ function renderDatum(datum: DatumEnvelope): string {
   return `---\n${stringify(frontmatter).trimEnd()}\n---\n${body}`;
 }
 
-function parseDatum(source: string, relativePath: string): RepositoryResult<ParsedDatum> {
+function parseDatum(
+  source: string,
+  relativePath: string,
+  sourceDigest: string,
+): RepositoryResult<ParsedDatum> {
   if (!source.startsWith("---\n")) {
     return {
       ok: false,
@@ -191,6 +202,7 @@ function parseDatum(source: string, relativePath: string): RepositoryResult<Pars
       ok: true,
       value: {
         relativePath,
+        sourceDigest,
         lifecycleDatum: {
           datum,
           storage: { editable: true, frozen: false },
@@ -655,6 +667,7 @@ async function exactDatumProcessPackage(
   root: string,
   processRef: string,
   cache: Map<string, Promise<ProcessPackage | undefined>>,
+  digestCache: Map<string, Promise<string>>,
 ): Promise<ProcessPackage | undefined> {
   const separator = processRef.lastIndexOf("#sha256:");
   if (separator < 1) return undefined;
@@ -671,8 +684,9 @@ async function exactDatumProcessPackage(
     if (!loaded.ok) return undefined;
     const loadedReference =
       `${loaded.package.manifest.id}@${loaded.package.manifest.version}`;
-    return loadedReference === reference &&
-        await processPackageDigest(packageRoot) === digest
+    const loadedDigest = await processPackageDigest(packageRoot);
+    digestCache.set(packageRoot, Promise.resolve(loadedDigest));
+    return loadedReference === reference && loadedDigest === digest
       ? loaded.package
       : undefined;
   })();
@@ -689,12 +703,14 @@ async function scenarioExecutionProvenance(
   root: string,
   item: ParsedDatum,
   packageCache: Map<string, Promise<ProcessPackage | undefined>>,
+  digestCache: Map<string, Promise<string>>,
 ): Promise<ScenarioExecutionProvenance> {
   const datum = item.lifecycleDatum.datum;
   const processPackage = await exactDatumProcessPackage(
     root,
     datum.created_by.process_ref,
     packageCache,
+    digestCache,
   );
   if (!processPackage) return { valid: false };
   const transaction = /^\.lifecycle\/data\/\.transactions\/([^/]+)\//
@@ -759,7 +775,12 @@ async function scenarioExecutionProvenance(
     ? execution.definition as Record<string, unknown>
     : undefined;
   const packageIdentity = recordValue(execution?.package);
-  const selectedPackageDigest = await processPackageDigest(processPackage.root);
+  let digest = digestCache.get(processPackage.root);
+  if (!digest) {
+    digest = processPackageDigest(processPackage.root);
+    digestCache.set(processPackage.root, digest);
+  }
+  const selectedPackageDigest = await digest;
   if (
     execution && scenarioExecutionStructureValid(
       processPackage,
@@ -808,13 +829,26 @@ export async function readRepositoryData(
   root: string,
   processPackage: ProcessPackage,
 ): Promise<RepositoryResult<ParsedDatum[]>> {
+  const relativePaths = await measureAsync(
+    "repository.discovery",
+    () => markdownPaths(root),
+  );
+  recordRepositoryLoad(relativePaths.length);
+  recordWork("repository.parse.records", relativePaths.length);
+  const parsedResults = await measureAsync(
+    "repository.parse",
+    () => Promise.all(relativePaths.map(async (relativePath) => {
+      const source = await fs.readFile(path.join(root, relativePath));
+      return parseDatum(
+        source.toString("utf8"),
+        relativePath,
+        `sha256:${createHash("sha256").update(source).digest("hex")}`,
+      );
+    })),
+  );
   const parsed: ParsedDatum[] = [];
   const diagnostics: ProcessDiagnostic[] = [];
-  for (const relativePath of await markdownPaths(root)) {
-    const result = parseDatum(
-      await fs.readFile(path.join(root, relativePath), "utf8"),
-      relativePath,
-    );
+  for (const result of parsedResults) {
     if (!result.ok) diagnostics.push(...result.diagnostics);
     else parsed.push(result.value);
   }
@@ -824,17 +858,26 @@ export async function readRepositoryData(
   >();
   const selectedReference =
     `${processPackage.manifest.id}@${processPackage.manifest.version}`;
+  const digestCache = new Map<string, Promise<string>>();
   const selectedDigest = await processPackageDigest(processPackage.root);
+  digestCache.set(processPackage.root, Promise.resolve(selectedDigest));
   authoringPackages.set(
     `${selectedReference}#${selectedDigest}`,
     Promise.resolve(processPackage),
   );
-  for (const item of parsed) {
-    const executionProvenance = await scenarioExecutionProvenance(
+  recordWork("repository.provenance.records", parsed.length);
+  const provenances = await measureAsync(
+    "repository.provenance",
+    () => Promise.all(parsed.map((item) => scenarioExecutionProvenance(
       root,
       item,
       authoringPackages,
-    );
+      digestCache,
+    ))),
+  );
+  for (let index = 0; index < parsed.length; index += 1) {
+    const item = parsed[index]!;
+    const executionProvenance = provenances[index]!;
     item.lifecycleDatum.integrity.scenario_execution_valid =
       executionProvenance.valid;
     const authorityDiagnostic = authorityEvidenceExecutionDiagnostic(
@@ -845,18 +888,21 @@ export async function readRepositoryData(
   }
   applyStorageFacts(processPackage, parsed);
   const lifecycleData = parsed.map((item) => item.lifecycleDatum);
-  for (const item of parsed) {
-    diagnostics.push(...validateDatum(
-      processPackage,
-      item.lifecycleDatum.datum,
-      lifecycleData,
-    ).map(
-      (diagnostic) => ({
-        ...diagnostic,
-        path: `${item.relativePath}#${diagnostic.path ?? ""}`,
-      }),
-    ));
-  }
+  recordWork("repository.validation.records", parsed.length);
+  await measureAsync("repository.validation", async () => {
+    for (const item of parsed) {
+      diagnostics.push(...validateDatum(
+        processPackage,
+        item.lifecycleDatum.datum,
+        lifecycleData,
+      ).map(
+        (diagnostic) => ({
+          ...diagnostic,
+          path: `${item.relativePath}#${diagnostic.path ?? ""}`,
+        }),
+      ));
+    }
+  });
   return diagnostics.length > 0
     ? { ok: false, diagnostics }
     : { ok: true, value: parsed, diagnostics: [] };
@@ -870,17 +916,25 @@ export async function repositoryLifecycleSnapshot(
 ): Promise<RepositoryResult<LifecycleSnapshot>> {
   const loaded = await readRepositoryData(root, processPackage);
   return loaded.ok
-    ? {
-        ok: true,
-        value: {
-          processRef,
-          phaseId,
-          records: loaded.value.map((item) => item.lifecycleDatum),
-          dependencyComparisons: [],
-        },
-        diagnostics: [],
-      }
+    ? repositoryLifecycleSnapshotData(loaded.value, processRef, phaseId)
     : loaded;
+}
+
+export function repositoryLifecycleSnapshotData(
+  parsed: ParsedDatum[],
+  processRef: string,
+  phaseId: string,
+): RepositoryResult<LifecycleSnapshot> {
+  return {
+    ok: true,
+    value: {
+      processRef,
+      phaseId,
+      records: parsed.map((item) => item.lifecycleDatum),
+      dependencyComparisons: [],
+    },
+    diagnostics: [],
+  };
 }
 
 function authorityEvidenceScenarioReferences(
@@ -1198,34 +1252,68 @@ function projections(
   subject: LifecycleRecord,
   processReference: string,
 ): DatumProjections {
-  let states: Record<string, string | string[]> = {};
-  const obligations = new Map<string, ObligationEvaluation>();
-  for (const phaseId of Object.keys(processPackage.phases).sort()) {
-    const evaluation = evaluateLifecycle(processPackage, {
-      processRef: processReference,
-      phaseId,
-      records: lifecycleData,
-      dependencyComparisons: [],
-    });
-    states = evaluation.artifacts[subject.datum.revision_id]?.states ?? states;
-    for (const obligation of evaluation.obligations) {
-      if (obligation.subject === subject.datum.revision_id) {
+  const projected = projectionsForLifecycleData(
+    processPackage,
+    lifecycleData,
+    processReference,
+  ).get(subject.datum.revision_id);
+  if (!projected) {
+    throw new Error(
+      `Could not project Lifecycle Datum '${subject.datum.revision_id}'`,
+    );
+  }
+  return projected;
+}
+
+function projectionsForLifecycleData(
+  processPackage: ProcessPackage,
+  lifecycleData: LifecycleRecord[],
+  processReference: string,
+): Map<string, DatumProjections> {
+  return measure("repository.report-projections", () => {
+    const statesByRevision = new Map<string, Record<string, string | string[]>>();
+    const obligationsByRevision = new Map<string, Map<string, ObligationEvaluation>>();
+    for (const phaseId of Object.keys(processPackage.phases).sort()) {
+      recordWork("lifecycle.phase-evaluations");
+      const evaluation = measure(
+        "lifecycle.evaluation",
+        () => evaluateLifecycle(processPackage, {
+          processRef: processReference,
+          phaseId,
+          records: lifecycleData,
+          dependencyComparisons: [],
+        }),
+      );
+      for (const subject of lifecycleData) {
+        const revisionId = subject.datum.revision_id;
+        const states = evaluation.artifacts[revisionId]?.states;
+        if (states) statesByRevision.set(revisionId, states);
+      }
+      for (const obligation of evaluation.obligations) {
+        const obligations = obligationsByRevision.get(obligation.subject) ??
+          new Map<string, ObligationEvaluation>();
         obligations.set(obligation.id, obligation);
+        obligationsByRevision.set(obligation.subject, obligations);
       }
     }
-  }
-  const backlinks = durableGraphLinks(processPackage, lifecycleData).filter((link) =>
-    link.target === subject.datum.id || link.target === subject.datum.revision_id
-  );
-  const resolved = resolveType(processPackage, subject.datum.type);
-  return {
-    backlinks,
-    states,
-    obligations: [...obligations.values()].sort((left, right) =>
-      left.id.localeCompare(right.id)
-    ),
-    kernelCapabilities: resolved.ok ? resolved.type.kernelCapabilities : [],
-  };
+    const graphLinks = durableGraphLinks(processPackage, lifecycleData);
+    return new Map(lifecycleData.map((subject) => {
+      const revisionId = subject.datum.revision_id;
+      const backlinks = graphLinks.filter((link) =>
+        link.target === subject.datum.id || link.target === revisionId
+      );
+      const resolved = resolveType(processPackage, subject.datum.type);
+      return [revisionId, {
+        backlinks,
+        states: statesByRevision.get(revisionId) ?? {},
+        obligations: [...(obligationsByRevision.get(revisionId)?.values() ?? [])]
+          .sort((left, right) => left.id.localeCompare(right.id)),
+        kernelCapabilities: resolved.ok
+          ? resolved.type.kernelCapabilities
+          : [],
+      }];
+    }));
+  });
 }
 
 async function publishGeneratedJson(
@@ -1259,6 +1347,15 @@ export async function rebuildRepositoryIndex(
 ): Promise<RepositoryResult<RepositoryIndexSummary>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
+  return rebuildRepositoryIndexData(root, packageReference, loaded.value);
+}
+
+export async function rebuildRepositoryIndexData(
+  root: string,
+  packageReference: string,
+  parsed: ParsedDatum[],
+): Promise<RepositoryResult<RepositoryIndexSummary>> {
+  recordWork("repository.index.records", parsed.length);
   const relativePath = ".lifecycle/generated/indexes/data.json" as const;
   const indexPath = path.join(root, relativePath);
   const value = {
@@ -1267,7 +1364,7 @@ export async function rebuildRepositoryIndex(
       package: packageReference,
       source: ".lifecycle/data",
     },
-    data: loaded.value.map((item) => ({
+    data: parsed.map((item) => ({
       id: item.lifecycleDatum.datum.id,
       revisionId: item.lifecycleDatum.datum.revision_id,
       type: item.lifecycleDatum.datum.type,
@@ -1291,8 +1388,25 @@ export async function rebuildRepositoryReport(
   processPackage: ProcessPackage,
   processReference: string,
 ): Promise<RepositoryResult<RepositoryReportSummary>> {
-  const listed = await listData(root, processPackage, processReference);
+  const loaded = await readRepositoryData(root, processPackage);
+  if (!loaded.ok) return loaded;
+  return rebuildRepositoryReportData(
+    root,
+    processPackage,
+    processReference,
+    loaded.value,
+  );
+}
+
+export async function rebuildRepositoryReportData(
+  root: string,
+  processPackage: ProcessPackage,
+  processReference: string,
+  parsed: ParsedDatum[],
+): Promise<RepositoryResult<RepositoryReportSummary>> {
+  const listed = listDataFromParsed(parsed, processPackage, processReference);
   if (!listed.ok) return listed;
+  recordWork("repository.report.records", listed.value.length);
   const relativePath = ".lifecycle/generated/reports/lifecycle.json" as const;
   const reportPath = path.join(root, relativePath);
   const value = {
@@ -1405,8 +1519,16 @@ export async function listData(
 ): Promise<RepositoryResult<ListedDatum[]>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
+  return listDataFromParsed(loaded.value, processPackage, processReference);
+}
+
+export function listDataFromParsed(
+  parsed: ParsedDatum[],
+  processPackage: ProcessPackage,
+  processReference: string,
+): RepositoryResult<ListedDatum[]> {
   const selected = new Map<string, ParsedDatum>();
-  for (const item of loaded.value) {
+  for (const item of parsed) {
     const current = selected.get(item.lifecycleDatum.datum.id);
     if (
       !current ||
@@ -1415,15 +1537,17 @@ export async function listData(
       selected.set(item.lifecycleDatum.datum.id, item);
     }
   }
-  const lifecycleData = loaded.value.map((item) => item.lifecycleDatum);
+  const lifecycleData = parsed.map((item) => item.lifecycleDatum);
+  const projectionByRevision = projectionsForLifecycleData(
+    processPackage,
+    lifecycleData,
+    processReference,
+  );
   const result = [...selected.values()].map((item) => ({
     lifecycleDatum: item.lifecycleDatum,
-    projections: projections(
-      processPackage,
-      lifecycleData,
-      item.lifecycleDatum,
-      processReference,
-    ),
+    projections: projectionByRevision.get(
+      item.lifecycleDatum.datum.revision_id,
+    )!,
   }));
   result.sort((left, right) =>
     left.lifecycleDatum.datum.type.localeCompare(right.lifecycleDatum.datum.type) ||

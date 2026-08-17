@@ -112,3 +112,19 @@ response and submit it once; a malformed correction exhausts the lease and repor
 Also stop on dirty initial state, stale or exhausted Assignment, typed inability,
 failed doctor, unexpected diff, genuine ambiguity, or command failure. Never
 invent Lifecycle Data or an undeclared Scenario to escape a stop.
+
+## Performance diagnostics
+
+Set `MDLM_PERFORMANCE=json` on a single command to emit one
+`mdlm-performance@1` JSON object on standard error. It reports repository load and
+Markdown-file counts, per-stage elapsed measurements, and processed-record work
+counts for discovery, parsing, provenance, whole-graph validation, exact-baseline
+verification, lifecycle evaluation, index rebuild, and report rebuild. The
+diagnostics are ephemeral operator
+telemetry: they do not enter Lifecycle Data or generated repository truth.
+
+```sh
+MDLM_PERFORMANCE=json mdlm doctor --json \
+  > /tmp/mdlm-doctor.json \
+  2> /tmp/mdlm-performance.json
+```

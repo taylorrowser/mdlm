@@ -7,6 +7,7 @@ import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import type {
   LifecycleEvaluation,
   LifecycleRecord,
+  LifecycleSnapshot,
   ObligationEvaluation,
   ProcessDiagnostic,
   ProcessPackage,
@@ -17,9 +18,9 @@ import {
   initialPhaseId,
   nextWorkProjection,
 } from "./lifecycle-inspection.js";
-import { verifyRepositoryBaselines } from "./exact-baseline-repository.js";
 import { selectedImplementationProfile } from "./implementation-profile.js";
-import { repositoryLifecycleSnapshot } from "./lifecycle-repository.js";
+import { loadRepositoryInspection } from "./repository-inspection.js";
+import { measure } from "./performance-diagnostics.js";
 import {
   classifyOperatorOutcome,
   type CheckpointConversation,
@@ -439,6 +440,22 @@ async function repositoryFingerprint(
   }
 }
 
+async function confirmRepositoryFingerprint(
+  repositoryRoot: string,
+  expected: RepositoryFingerprint,
+): Promise<AssignmentResult<RepositoryFingerprint>> {
+  const current = await repositoryFingerprint(repositoryRoot);
+  if (!current.ok) return current;
+  if (!isDeepStrictEqual(current.value, expected)) {
+    return failure(
+      "assignment-repository-changed-during-inspection",
+      "The tracked repository changed while MDLM prepared its verified command snapshot",
+      repositoryRoot,
+    );
+  }
+  return current;
+}
+
 function leasePath(repositoryRoot: string): string {
   return path.join(repositoryRoot, leaseRelativePath);
 }
@@ -743,6 +760,112 @@ function progressionRequestedInputs(
   };
 }
 
+type AssignableClassification = Extract<OperatorOutcomeClassification, {
+  kind: "assignment" | "attention-required";
+}>;
+
+interface PreparedOperatorWork {
+  dryRun: ScenarioDryRun;
+  item?: ObligationEvaluation;
+  scenario: VersionedDefinition;
+}
+
+async function prepareOperatorWork(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  evaluation: LifecycleEvaluation,
+  classification: AssignableClassification,
+): Promise<AssignmentResult<PreparedOperatorWork>> {
+  const work = classification.work;
+  const item = work.kind === "obligation"
+    ? evaluation.looseEnds.find((candidate) => candidate.id === work.instance)
+    : undefined;
+  const scenario = definition(processPackage.scenarios, work.scenario);
+  const phaseId = unversioned(work.phase);
+  if (!scenario || !phaseId || (work.kind === "obligation" && !item)) {
+    return failure(
+      "scenario-definition-unavailable",
+      `Could not resolve exact Scenario '${work.scenario}' in Phase '${work.phase}'`,
+      work.scenario,
+    );
+  }
+  const phaseSnapshot = { ...snapshot, phaseId };
+  if (work.kind === "obligation" && item) {
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      phaseSnapshot,
+      work.scenario,
+      item.id,
+      [],
+    );
+    return prepared.ok
+      ? {
+        ok: true,
+        value: { dryRun: prepared.value, item, scenario },
+        diagnostics: [],
+      }
+      : prepared;
+  }
+  const requestedInputs = progressionRequestedInputs(scenario, work);
+  if (!requestedInputs.ok) return requestedInputs;
+  const prepared = await dryRunExplicitScenario(
+    processPackage,
+    phaseSnapshot,
+    work.scenario,
+    requestedInputs.value,
+  );
+  return prepared.ok
+    ? {
+      ok: true,
+      value: { dryRun: prepared.value, scenario },
+      diagnostics: [],
+    }
+    : prepared;
+}
+
+function assignmentFromPreparedWork(
+  summary: PackageSummary,
+  processPackage: ProcessPackage,
+  fingerprint: RepositoryFingerprint,
+  classification: AssignableClassification,
+  prepared: PreparedOperatorWork,
+): ExactAssignment {
+  const work = classification.work;
+  return {
+    summary,
+    processPackage,
+    lease: {
+      contract: "mdlm-assignment-lease@1",
+      disposition: "active",
+      package: packageIdentity(summary),
+      repository: fingerprint,
+      phase: work.phase,
+      obligation: prepared.item
+        ? {
+          instance: prepared.item.id,
+          definition: obligationDefinition(prepared.item),
+          subject: prepared.item.subject,
+        }
+        : null,
+      progression: work.progression
+        ? {
+          instance: work.instance,
+          nextPhase: work.progression.nextPhase,
+          subjects: work.progression.subjects,
+        }
+        : null,
+      scenario: work.scenario,
+      bindings: bindings(prepared.dryRun.invocations),
+      participation: prepared.dryRun.participation ?? [],
+      retryAvailability: { malformedResponseCorrection: 1 },
+      malformedResponses: [],
+    },
+    dryRun: prepared.dryRun,
+    scenario: prepared.scenario,
+    classification,
+  };
+}
+
 async function exactOperatorState(
   repositoryRoot: string,
 ): Promise<AssignmentResult<ExactOperatorState>> {
@@ -753,31 +876,25 @@ async function exactOperatorState(
     return failure("phase-required", "The selected Process Package declares no Phase");
   }
   const processReference = `${selected.summary.reference}#${selected.summary.digest}`;
-  const [loaded, fingerprint, baselines] = await Promise.all([
-    repositoryLifecycleSnapshot(
-      repositoryRoot,
-      selected.processPackage,
-      processReference,
-      firstPhase,
-    ),
-    repositoryFingerprint(repositoryRoot),
-    verifyRepositoryBaselines(
-      repositoryRoot,
-      selected.processPackage,
-      processReference,
-    ),
-  ]);
-  if (!loaded.ok) return loaded;
+  const fingerprint = await repositoryFingerprint(repositoryRoot);
   if (!fingerprint.ok) return fingerprint;
-  if (!baselines.ok) return baselines;
-  const evaluation = activeLifecycleEvaluation(
+  const inspection = await loadRepositoryInspection(
+    repositoryRoot,
     selected.processPackage,
-    loaded.value,
+    processReference,
+  );
+  if (!inspection.ok) return inspection;
+  const baselines = await inspection.value.verifyBaselines();
+  if (!baselines.ok) return baselines;
+  const snapshot = inspection.value.lifecycleSnapshot(firstPhase);
+  const evaluation = measure(
+    "lifecycle.evaluation",
+    () => activeLifecycleEvaluation(selected.processPackage, snapshot),
   );
   if (evaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: evaluation.diagnostics };
   }
-  const workItems = operatorWork(evaluation, loaded.value.records);
+  const workItems = operatorWork(evaluation, snapshot.records);
   const classification = classifyOperatorOutcome(
     workItems,
     evaluation.terminalOutcome,
@@ -796,77 +913,34 @@ async function exactOperatorState(
     classification.kind !== "assignment" &&
     classification.kind !== "attention-required"
   ) {
-    return { ok: true, value: state, diagnostics: [] };
+    const confirmed = await confirmRepositoryFingerprint(
+      repositoryRoot,
+      fingerprint.value,
+    );
+    return confirmed.ok
+      ? { ok: true, value: state, diagnostics: [] }
+      : confirmed;
   }
 
-  const work = classification.work;
-  const item = work.kind === "obligation"
-    ? evaluation.looseEnds.find((candidate) => candidate.id === work.instance)
-    : undefined;
-  const scenarioReference = work.scenario;
-  const scenario = definition(selected.processPackage.scenarios, scenarioReference);
-  const phaseId = unversioned(work.phase);
-  if (!scenario || !phaseId || (work.kind === "obligation" && !item)) {
-    return failure(
-      "scenario-definition-unavailable",
-      `Could not resolve exact Scenario '${scenarioReference}' in Phase '${work.phase}'`,
-      scenarioReference,
-    );
-  }
-  const snapshot = { ...loaded.value, phaseId };
-  let prepared: Awaited<ReturnType<typeof dryRunResolverScenario>>;
-  if (work.kind === "obligation" && item) {
-    prepared = await dryRunResolverScenario(
-      selected.processPackage,
-      snapshot,
-      scenarioReference,
-      item.id,
-      [],
-    );
-  } else {
-    const requestedInputs = progressionRequestedInputs(scenario, work);
-    if (!requestedInputs.ok) return requestedInputs;
-    prepared = await dryRunExplicitScenario(
-      selected.processPackage,
-      snapshot,
-      scenarioReference,
-      requestedInputs.value,
-    );
-  }
-  if (!prepared.ok) return prepared;
-  state.assignment = {
-    summary: selected.summary,
-    processPackage: selected.processPackage,
-    lease: {
-      contract: "mdlm-assignment-lease@1",
-      disposition: "active",
-      package: packageIdentity(selected.summary),
-      repository: fingerprint.value,
-      phase: work.phase,
-      obligation: item
-        ? {
-            instance: item.id,
-            definition: obligationDefinition(item),
-            subject: item.subject,
-          }
-        : null,
-      progression: work.progression
-        ? {
-            instance: work.instance,
-            nextPhase: work.progression.nextPhase,
-            subjects: work.progression.subjects,
-          }
-        : null,
-      scenario: scenarioReference,
-      bindings: bindings(prepared.value.invocations),
-      participation: prepared.value.participation ?? [],
-      retryAvailability: { malformedResponseCorrection: 1 },
-      malformedResponses: [],
-    },
-    dryRun: prepared.value,
-    scenario,
+  const prepared = await prepareOperatorWork(
+    selected.processPackage,
+    snapshot,
+    evaluation,
     classification,
-  };
+  );
+  if (!prepared.ok) return prepared;
+  const confirmed = await confirmRepositoryFingerprint(
+    repositoryRoot,
+    fingerprint.value,
+  );
+  if (!confirmed.ok) return confirmed;
+  state.assignment = assignmentFromPreparedWork(
+    selected.summary,
+    selected.processPackage,
+    fingerprint.value,
+    classification,
+    prepared.value,
+  );
   return { ok: true, value: state, diagnostics: [] };
 }
 

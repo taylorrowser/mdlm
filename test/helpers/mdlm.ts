@@ -18,6 +18,19 @@ export function mdlm(cwd: string, ...arguments_: string[]) {
   });
 }
 
+export function mdlmWithEnvironment(
+  cwd: string,
+  environment: NodeJS.ProcessEnv,
+  ...arguments_: string[]
+) {
+  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, ...environment },
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
+
 export function mdlmWithInput(
   cwd: string,
   input: string,
