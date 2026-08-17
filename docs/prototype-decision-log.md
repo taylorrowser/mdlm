@@ -1071,7 +1071,7 @@ turning provisional choices into architecture.
 
 - **Status:** accepted and implemented
 - **Decision:** `req scenario execute <scenario@version> --obligation
-  <exact-instance> --adapter <executable>` derives its snapshot from current
+<exact-instance> --adapter <executable>` derives its snapshot from current
   Markdown truth and must first reproduce the successful D-040 dry-run. Only then
   does it directly invoke an operator-configured `mdlm-agent-adapter@1` executable,
   without a shell, using the exact validated input data, prompt and ordered skills,
@@ -1285,7 +1285,6 @@ turning provisional choices into architecture.
   bindings, terminal immutability, no qualification requirement link, and
   successful repository health validation.
 
-
 ## D-045 — Derive one bounded system decomposition entirely from package data
 
 - **Status:** accepted and implemented
@@ -1344,7 +1343,6 @@ turning provisional choices into architecture.
   validates Stable required-link normalization without a V-model noun in generic
   source.
 
-
 ## D-046 — Close one exact pilot-discovered change without invalidating unrelated evidence
 
 - **Status:** accepted and implemented
@@ -1354,7 +1352,6 @@ turning provisional choices into architecture.
 - **Expected behavior:** One unsuitable source-independent pilot creates one Dispatchable PRB report. Its exact impact CHG cannot be approved before contextual Review and cannot revise SYS before exact approval. Revision work preserves Stable lineage and executes before replacement context, Review, baseline, and pilot evidence. Baseline diff marks the changed SYS, dependent Review, dependent historical RES, and changed candidate Stale while omitting the unrelated SYS and Review. Closure cites exact approval and replacement evidence, creates PRB r00002 with its original evidence source, satisfies the CHG closure Obligation, and leaves repository health valid.
 - **Reversibility:** Later package versions may support multiple impacted requirements, architecture/interface revisions, accepted-baseline promotion, ordered work packages, change campaigns, or formal verification without changing generic Scenario execution. The frozen-resolution representation may become link-keyed in a future capability version; until then, comparison consumes exact targets before pairing Stable resolutions so an exact target and Stable dependency in one lineage cannot be confused.
 - **Evidence/observations:** Public executable coverage initializes a real repository, qualifies an ENV, runs an independently reviewed failing pilot, executes PRB reporting and exact CHG impact analysis through adapters, reviews and approves the CHG, revises one affected SYS in its original lineage, freezes replacement context and candidate evidence, runs replacement verification, proves selective Review/RES Staleness and unrelated evidence reuse through `baseline diff`, atomically publishes closure DEC plus PRB r00002, verifies derived closed state and absent closure Loose End, and finishes with `req doctor`. Generic source contains no PRB, CHG, pilot, original-V, or change-status identifier.
-
 
 ## D-047 — Review durable pilot measurements before deferring package expansion
 
@@ -1518,7 +1515,7 @@ turning provisional choices into architecture.
   checks as Datum-scoped work.
 - **Expected behavior:** An initialized repository can report one Dispatchable
   package-declared Loose End against its exact Phase or Process subject. `req
-  next`, dry-run, and execution preserve the exact Obligation Instance. Once the
+next`, dry-run, and execution preserve the exact Obligation Instance. Once the
   Resolver publishes evidence satisfying the package expression, reevaluation
   removes that Loose End and discovers any downstream work. Scope entities never
   appear in Revision selectors or Scenario lifecycle inputs.
@@ -1810,7 +1807,6 @@ turning provisional choices into architecture.
 - **Reversibility:** Another Process Package may choose different correction sets, budgets, ambiguity dispositions, candidate composition, or acceptance evidence without changing generic MDLM interfaces. Exact prior Revisions, Reviews, rejections, and accepted baselines remain immutable.
 - **Evidence/observations:** `test/evaluate-bootstrap-participation.test.ts` covers explicit attended ambiguity, actionable plural interfaces, and exhausted reviewed-rejection correction budget; `test/mdlm-phase-2-simplification.test.ts` retains public correction behavior; and `test/req-system-decomposition.test.ts` rejects duplicate or incomplete canonical DWP accounts and carries candidate-level reviewed rejection through replacement, mechanical system acceptance, and compiled `mdlm` progression outcomes. The package advances to `mdlm-bootstrap@0.56.0`, `bootstrap@30`, and `phase-2-system-definition@7`.
 
-
 ## D-100 — Make reviewed pilot outcomes explicit and self-correcting
 
 - **Status:** accepted and implemented
@@ -1820,7 +1816,6 @@ turning provisional choices into architecture.
 - **Expected behavior:** Complete exact pilot evidence derives observation, context, PAS, Review, and final attended Decision work. Two failed PAS replacement cycles remain autonomous; a third failure returns Attention Required with the exact context and history. Every proceed/change/stop DEC waits for passing independent Review. Failed DEC Review returns attended Correction. Proceed ends at Profile Boundary, change enters Phase 7 and ends at Profile Boundary only when no supported change work remains, and stop ends at Lifecycle Complete. None fabricates Phase 3–6 data or reports an implemented-profile terminal result as Process Dead End.
 - **Reversibility:** Another Process Package may choose a different PAS budget, Decision review policy, change Phase, or mapping between reviewed recommendations and terminal outcomes without changing generic evaluator, Assignment, or Operator Outcome interfaces. Later issue #101/#102 work may add exact change Obligations to Phase 7; runnable work naturally takes precedence over the declared boundary.
 - **Evidence/observations:** `test/mdlm-pilot-assessment.test.ts` drives actual `mdlm next`, `scenario prepare`, and `scenario submit` Assignments through two autonomous PAS Corrections, attended escalation, final nondelegable authority, each reviewed Decision outcome, failed Decision Review Correction, Phase 7 routing, Profile Boundary, and Lifecycle Complete. `test/load-process-package.test.ts`, `test/evaluate-bootstrap-participation.test.ts`, and `test/req-pilot-assessment.test.ts` protect package compilation, package-owned participation/authority evidence, and the expanded catalog. The package keeps the exact digest-qualified `mdlm-bootstrap@0.56.0` reference and advances to `bootstrap@31` and `phase-2-pilot-assessment@3`.
-
 
 ## D-101 — Protect accepted stakeholder intent with exact attended change control
 
@@ -1850,4 +1845,14 @@ turning provisional choices into architecture.
 - **Rationale:** Independent judgment is meaningful only when the delegated packet carries the exact definitions it asks the reviewer to assess. Package-owned selection and completion keep Phase 2 semantics out of MDLM core, while digest-qualified compatibility preserves exact history without weakening current context completeness.
 - **Expected behavior:** `mdlm next` and `scenario prepare` supply exact DWP support; unrelated, stale, non-exact, evidence, and composed-baseline additions reject. Canonical product-definition Review publication succeeds, failed judgments derive existing DWP correction work, exact 0.64.0 repositories migrate without Lifecycle Data rewriting, and exhausted leases remain preserved.
 - **Reversibility:** A later package may expand the DWP support boundary or Review taxonomy by publishing another immutable package version. Historical context and Review bytes remain governed by their recorded package.
-- **Evidence/observations:** `test/phase-2-hardening-routes.test.ts` constructs a real repository, prepares the exact DWP Review Assignment, asserts packet support, and canonically submits the Review; focused cases cover outcome and context exactness. `test/mdlm-process-migration.test.ts` reconstructs exact 0.64.0, preserves Lifecycle Data plus active and exhausted Assignment state, migrates to 0.65.0, prepares the retained Assignment, and passes doctor. The package advances to `mdlm-bootstrap@0.65.0`.
+- **Evidence/observations:** `test/phase-2-hardening-routes.test.ts` constructs a real repository, prepares the exact DWP Review Assignment, asserts packet support, and canonically submits the Review; focused cases cover outcome and context exactness. The original 0.65.0 validation reconstructed exact 0.64.0, preserved Lifecycle Data plus active and exhausted Assignment state, migrated to 0.65.0, prepared the retained Assignment, and passed doctor. Current migration compatibility is covered by D-104. The package advances to `mdlm-bootstrap@0.65.0`.
+
+## D-104 — Replan instead of reviewing a DWP with superseded exact support
+
+- **Status:** accepted and implemented
+- **Decision:** A planning DWP is current and review-required only while every exact ASP, ICSP, decomposition-output SYS, and consumed-parent SYS selected as Review support is active, valid, and has no newer Revision. When exact support is inactive, invalid, or superseded, preserve the old DWP and its exact links but exclude it from Review-context dispatch and current decomposition-plan satisfaction. A decomposition output whose newer same-lineage Revision no longer identifies the DWP remains projected as stale exact support instead of disappearing. The package then requires an explicit same-lineage planning-DWP replacement against exact current support; the replacement preserves the prior title, rationale, architecture-element binding present in the current same-lineage architecture, child type, behavioral slice, coverage, exclusions, dependencies, Review policy, and every non-support correction, change, planning, output, and simplification link. Only active valid newer consumed-parent SYS Revisions derive the higher-priority specialized consumer reevaluation, which preserves all unaffected bindings, every prior Review-correction and Change cause, and every supplied replacement-parent Review-correction and Change cause while rebinding every supplied exact replacement in one consumer Revision. If any superseded consumed-parent lineage lacks such a replacement, stale-plan correction remains blocked rather than deleting that exact binding. Authenticated exact-support 0.65.0 contexts and their completed Reviews remain readable after migration, while current-plan routing and satisfaction separately require every support member to remain current.
+- **Alternatives:** Keep dispatching an impossible Review-context Assignment; silently substitute a newer support Revision that the DWP does not link; rewrite the frozen DWP; create an unrelated DWP lineage through generic planning; accept a context that current validation rejects; or ask reviewers to infer the intended replacement.
+- **Rationale:** Review-context selection and validation must agree before work is dispatchable. An explicit same-lineage correction preserves exact traceability and immutable failure history while avoiding both the liveness loop and an unrelated generic-plan escape, without teaching the kernel about DWP or support currency.
+- **Expected behavior:** If DWP r1 links ICSP r1 and ICSP r2 is later published, no Review-context Obligation is dispatched for DWP r1. Public `next` allocation supplies DWP r1, its exact stakeholder parents, retained active valid SYS parents, and exact current architecture, interfaces, and strategy; canonical publication creates DWP r2 in the same Stable Datum. A copied DWP identity or changed behavioral intent rejects. Detached, invalid, inactive, or superseded output and consumed-parent support also makes the old plan ineligible rather than disappearing or dispatching an impossible context. If one or several consumed-parent SYS lineages receive active valid replacements, public evaluation instead selects exact consumer reevaluation for every replacement in one consumer Revision while preserving prior and replacement-parent correction provenance; an invalid candidate cannot be selected, and a superseded lineage without a valid replacement blocks stale-plan correction. DWP plans whose exact support remains current retain the complete DWP Review path from D-103, including authenticated 0.65.0 exact-support context and Review history after migration.
+- **Reversibility:** Another immutable Process Package may refine the exact stale-plan correction inputs or preserved intent fields, provided it keeps same-lineage traceability and does not rewrite prior Lifecycle Data.
+- **Evidence/observations:** `test/phase-2-hardening-routes.test.ts` uses public `evaluateLifecycle` coverage to prove that two simultaneously advanced consumed-parent SYS lineages still expose specialized consumer reevaluation rather than a dead end. Its authenticated current-package bundle descends from exact preserved-calculator head `c8c76418732271acef9ba448271cae5002bbecc6` and preserves that head's complete `.lifecycle/data`; `test/issue-154-public-allocation.integration.ts` invokes public `next` against that bundle and verifies the generated exact Assignment bindings, while `test/issue-154-public-submission.integration.ts` uses a separately digest-pinned generated lease for canonical same-lineage DWP r2 publication against corrected ICSP r2. An explicitly bounded package-authoring contract unit, which is not behavioral-seam evidence, pins the complete optional-link preservation expression. Separate bounded selector units check incompatible architecture elements, detached output projection, invalid support, completion-DWP eligibility, and foreign Review provenance; copied identity and changed intent are explicit completion predicates reviewed as package contract. The historical migration fixture separately descends from the same exact source head and intentionally prunes whole unrelated transaction directories: the test pins its exact 183-path deletion manifest as SHA-256 `84caf41221bdcd741e75a8b4677aa1a3c300183e544e6ac1ceeff828db4cc9a3`, rejects additions, modifications, and partial-transaction deletions, verifies the retained completed product-definition Review through public `history`, migrates without changing retained `.lifecycle/data`, reads both that Review and corrected ICSP r2 under 0.66.0, and passes public `doctor`. Separate public migration coverage preserves active and exhausted Assignment state and canonically publishes post-migration work. The package advances to `mdlm-bootstrap@0.66.0`.

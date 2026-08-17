@@ -1,0 +1,23 @@
+kind: selector-definition
+id: replacement-architectures-for-stale-plan
+version: 1
+description: Current same-lineage architecture Revisions shared by every stakeholder parent of one stale-support planning DWP.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ASP]}
+  as: architecture
+  where: >-
+    state(architecture, "disposition") == "active"
+    && state(architecture, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: architecture})
+    && every("architectures-for-decomposition@1", {plan: plan}, previous =>
+      architecture.identity.id == previous.identity.id)
+    && array_has_field(architecture.payload.elements, "id",
+      plan.payload.architecture_element)
+    && every("decomposition-parents-for@1", {plan: plan}, parent =>
+      !every("current-architectures-for-requirement@1", {requirement: parent}, current =>
+        current != architecture))
+  distinct: true
+  order_by: [identity.revision_id]

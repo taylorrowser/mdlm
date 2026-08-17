@@ -45,6 +45,7 @@ const expressionOperators = [
 ] as const;
 
 const expressionHostFunctions = [
+  "array_has_field",
   "count",
   "every",
   "exists",
@@ -152,7 +153,15 @@ interface EveryNode extends NodeBase {
   predicate: ExpressionNode;
 }
 
+interface ArrayHasFieldNode extends NodeBase {
+  kind: "array-has-field";
+  array: ExpressionNode;
+  field: string;
+  expected: ExpressionNode;
+}
+
 type ExpressionNode =
+  | ArrayHasFieldNode
   | ArrayNode
   | ComparisonNode
   | EveryNode
@@ -478,6 +487,9 @@ class ExpressionParser {
     if (token.kind === "identifier" && token.text === "every") {
       return this.parseEveryCall();
     }
+    if (token.kind === "identifier" && token.text === "array_has_field") {
+      return this.parseArrayHasFieldCall();
+    }
     if (
       token.kind === "identifier" &&
       ["count", "exists", "none", "one", "select"].includes(token.text)
@@ -509,6 +521,32 @@ class ExpressionParser {
       };
     }
     return this.parseValue();
+  }
+
+  private parseArrayHasFieldCall(): ArrayHasFieldNode {
+    const functionToken = this.take("identifier", "Expected 'array_has_field'");
+    this.take("left-parenthesis", "Expected '(' after 'array_has_field'");
+    const array = this.parseOr();
+    if (!["array", "unknown"].includes(array.valueType)) {
+      throw new ExpressionFailure(
+        "expression-type",
+        `array_has_field requires an array operand, received ${array.valueType}`,
+        array.span,
+      );
+    }
+    this.take("comma", "Expected ',' after array operand");
+    const fieldToken = this.take("string", "Expected an object field name string");
+    this.take("comma", "Expected ',' after object field name");
+    const expected = this.parseOr();
+    const closing = this.take("right-parenthesis", "Expected ')' after array_has_field");
+    return {
+      kind: "array-has-field",
+      array,
+      field: String(fieldToken.value),
+      expected,
+      valueType: "boolean",
+      span: { start: functionToken.span.start, end: closing.span.end },
+    };
   }
 
   private parseEveryCall(): EveryNode {
@@ -2212,6 +2250,9 @@ function expressionReferencesBinding(
   switch (node.kind) {
     case "literal":
       return false;
+    case "array-has-field":
+      return expressionReferencesBinding(node.array, binding) ||
+        expressionReferencesBinding(node.expected, binding);
     case "path":
     case "variable":
       return node.variable === binding;
@@ -2248,6 +2289,11 @@ function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
     case "path":
     case "variable":
       return [];
+    case "array-has-field":
+      return [
+        ...expressionDependencies(node.array),
+        ...expressionDependencies(node.expected),
+      ];
     case "array":
       return node.elements.flatMap(expressionDependencies);
     case "every":
@@ -2531,6 +2577,15 @@ function evaluateNode(
 ): unknown {
   switch (node.kind) {
     case "literal": return node.value;
+    case "array-has-field": {
+      const array = evaluateNode(node.array, context, host);
+      const expected = evaluateNode(node.expected, context, host);
+      return Array.isArray(array) && array.some((item) =>
+        typeof item === "object" && item !== null &&
+        Object.hasOwn(item, node.field) &&
+        expressionValuesEqual((item as Record<string, unknown>)[node.field], expected)
+      );
+    }
     case "array": return node.elements.map((element) => evaluateNode(element, context, host));
     case "object": return Object.fromEntries(
       Object.entries(node.properties).map(([key, value]) => [key, evaluateNode(value, context, host)]),

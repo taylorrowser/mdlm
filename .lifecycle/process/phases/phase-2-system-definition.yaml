@@ -29,6 +29,7 @@ scenarios:
   - define-system-architecture@2
   - define-interface-control-specification@2
   - define-decomposition-work-package@2
+  - replan-stale-decomposition-work-package@1
   - execute-decomposition-work-package@2
   - create-review-context@1
   - review-datum-in-context@2
@@ -57,6 +58,7 @@ obligations:
   - system-architecture-required@1
   - interface-control-specification-required@1
   - decomposition-planning-required@1
+  - stale-decomposition-plan-correction-required@1
   - decomposition-execution-required@1
   - decomposition-output-reviews-required@1
   - decomposition-simplification-required@1

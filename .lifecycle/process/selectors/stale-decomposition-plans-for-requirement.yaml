@@ -1,0 +1,15 @@
+kind: selector-definition
+id: stale-decomposition-plans-for-requirement
+version: 1
+description: Latest stale-support planning DWP Revisions that bind one exact stakeholder requirement.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from:
+    selector: stale-decomposition-plans@1
+    arguments: {}
+  as: plan
+  where: 'exists("matching-decomposition-parent@1", {plan: plan, parent: requirement})'
+  distinct: true
+  order_by: [identity.id, identity.revision]

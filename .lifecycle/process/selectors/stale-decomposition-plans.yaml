@@ -1,7 +1,7 @@
 kind: selector-definition
-id: decomposition-plans
+id: stale-decomposition-plans
 version: 1
-description: Exact active DWP planning revisions that can organize decomposition work.
+description: Latest planning DWP Revisions whose exact Review support is no longer wholly current.
 parameters: []
 result_kind: revision
 query:
@@ -11,7 +11,7 @@ query:
     plan.payload.stage == "planning"
     && state(plan, "disposition") == "active"
     && state(plan, "validity") == "valid"
-    && exists("planning-dwp-review-support-is-current@1", {plan: plan})
-    && none("newer-planning-revisions-for@1", {plan: plan})
+    && none("newer-revisions-for@1", {subject: plan})
+    && !exists("planning-dwp-review-support-is-current@1", {plan: plan})
   distinct: true
   order_by: [identity.id, identity.revision]

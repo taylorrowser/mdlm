@@ -9,9 +9,12 @@ query:
   from: {collection: revisions, types: [SYS]}
   as: replacement
   where: >-
-    none("newer-revisions-for@1", {subject: replacement})
-    && every("system-requirements-consumed-by@1", {consumer: consumer}, requirement =>
-      requirement.identity.id == replacement.identity.id
-      && requirement.identity.revision < replacement.identity.revision)
+    exists("system-requirements-consumed-by@1", {consumer: consumer})
+    && state(replacement, "disposition") == "active"
+    && state(replacement, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: replacement})
+    && !every("system-requirements-consumed-by@1", {consumer: consumer}, requirement =>
+      requirement.identity.id != replacement.identity.id
+      || requirement.identity.revision >= replacement.identity.revision)
   distinct: true
   order_by: [identity.id, identity.revision]

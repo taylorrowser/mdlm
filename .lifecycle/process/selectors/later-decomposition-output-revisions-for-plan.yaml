@@ -1,0 +1,16 @@
+kind: selector-definition
+id: later-decomposition-output-revisions-for-plan
+version: 1
+description: Later same-lineage SYS Revisions that still identify the supplied DWP as their decomposition source.
+parameters:
+  - {name: output, kind: revision, types: [SYS]}
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: plan, link: decomposes, emit: source, types: [SYS]}
+  as: candidate
+  where: >-
+    candidate.identity.id == output.identity.id
+    && candidate.identity.revision > output.identity.revision
+  distinct: true
+  order_by: [identity.revision]

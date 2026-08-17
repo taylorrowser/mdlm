@@ -626,6 +626,69 @@ describe("shared SYS change hardening routes", () => {
     expect(operatorOutcome(secondResult).kind).toBe("assignment");
   });
 
+  it("preserves prior and replacement-parent Change causes during shared-SYS consumer reevaluation", async () => {
+    const snapshot = await fixture("shared-consumer-a-ready.json");
+    const consumer = findRecord(snapshot, consumerA);
+    const currentChange = findRecord(snapshot, sharedChangeId);
+    const currentReview = findRecord(snapshot, "REV-1020000001-r00001");
+    const replacement = findRecord(snapshot, replacementSharedSystem);
+    const priorChange = structuredClone(currentChange);
+    priorChange.datum.id = "CHG-0PR10RCA5E";
+    priorChange.datum.revision_id = "CHG-0PR10RCA5E-r00001";
+    consumer.datum.links.push({
+      type: "changed-under",
+      target: priorChange.datum.revision_id,
+    });
+    currentReview.datum.payload.outcome = "fail";
+    currentReview.datum.payload.findings = [{
+      id: "F-001",
+      target: replacement.datum.revision_id,
+      relationship: "primary",
+      severity: "blocking",
+      summary: "Correct the replacement requirement before consumer reuse.",
+    }];
+    currentReview.datum.links = currentReview.datum.links.map((link) =>
+      link.type === "reviews"
+        ? { ...link, target: replacement.datum.revision_id }
+        : link,
+    );
+    const priorReview = structuredClone(currentReview);
+    priorReview.datum.id = "REV-0PR10RCA5E";
+    priorReview.datum.revision_id = "REV-0PR10RCA5E-r00001";
+    priorReview.datum.payload.findings = [{
+      id: "F-002",
+      target: consumer.datum.revision_id,
+      relationship: "primary",
+      severity: "blocking",
+      summary: "Correct the consumer before reuse.",
+    }];
+    priorReview.datum.links = priorReview.datum.links.map((link) =>
+      link.type === "reviews"
+        ? { ...link, target: consumer.datum.revision_id }
+        : link,
+    );
+    consumer.datum.links.push({
+      type: "corrects-review",
+      target: priorReview.datum.revision_id,
+    });
+    replacement.datum.links.push({
+      type: "corrects-review",
+      target: currentReview.datum.revision_id,
+    });
+    snapshot.records.push(priorChange, priorReview);
+
+    expect(
+      selected(snapshot, "change-causes-for-consumer-replacements@1", {
+        consumer: consumerA,
+      }),
+    ).toEqual([priorChange.datum.revision_id, sharedChangeId]);
+    expect(
+      selected(snapshot, "review-causes-for-consumer-replacements@1", {
+        consumer: consumerA,
+      }),
+    ).toEqual([priorReview.datum.revision_id, currentReview.datum.revision_id]);
+  });
+
   it("requires complete accepted shared-SYS impact before attended approval", async () => {
     const complete = await fixture("shared-consumer-a-ready.json");
     expect(selected(complete, "valid-stakeholder-change-impact@2", { change: sharedChangeId }))

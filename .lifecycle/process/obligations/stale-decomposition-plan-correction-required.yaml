@@ -1,0 +1,60 @@
+kind: obligation-definition
+id: stale-decomposition-plan-correction-required
+version: 1
+description: Every latest planning DWP with stale exact Review support requires one same-lineage replacement before Review work resumes.
+phases: [phase-2-system-definition]
+for_each: 'select("stale-decomposition-plans@1", {})'
+subject_as: plan
+satisfied_when: 'exists("newer-planning-revisions-for@1", {plan: plan})'
+status_rules:
+  - status: blocked
+    priority: 650
+    when: >-
+      !every("system-requirements-consumed-by@1", {consumer: plan}, requirement =>
+        (state(requirement, "disposition") == "active"
+          && state(requirement, "validity") == "valid"
+          && none("newer-revisions-for@1", {subject: requirement}))
+        || !every("replacement-system-requirements-for-consumer@2", {consumer: plan}, replacement =>
+          replacement.identity.id != requirement.identity.id))
+    reason: A superseded consumed-parent SYS lineage has no active valid latest replacement, so exact consumer support cannot yet be corrected.
+  - status: blocked
+    priority: 600
+    when: 'exists("replacement-system-requirements-for-consumer@2", {consumer: plan})'
+    reason: Active valid replacement consumed-parent SYS Revisions must rebind this exact DWP before ordinary stale-support replanning.
+    blocked_by:
+      - obligation: shared-system-consumer-reevaluation-required@1
+        subjects: '[plan]'
+  - status: blocked
+    priority: 250
+    when: 'count("replacement-architectures-for-stale-plan@1", {plan: plan}) != 1'
+    reason: Same-lineage DWP correction requires one unambiguous current architecture shared by every exact stakeholder parent.
+  - status: blocked
+    priority: 200
+    when: >-
+      count("replacement-architectures-for-stale-plan@1", {plan: plan}) == 1
+      && none("current-interfaces-for-architecture@1",
+        {architecture: one("replacement-architectures-for-stale-plan@1", {plan: plan})})
+    reason: Same-lineage DWP correction requires the current complete nonempty interface set for its replacement architecture.
+  - status: blocked
+    priority: 150
+    when: 'count("replacement-strategies-for-stale-plan@1", {plan: plan}) != 1'
+    reason: Same-lineage DWP correction requires one unambiguous current verification strategy shared by every exact stakeholder parent.
+  - status: ready
+    priority: 500
+    when: >-
+      count("replacement-architectures-for-stale-plan@1", {plan: plan}) == 1
+      && exists("current-interfaces-for-architecture@1",
+        {architecture: one("replacement-architectures-for-stale-plan@1", {plan: plan})})
+      && count("replacement-strategies-for-stale-plan@1", {plan: plan}) == 1
+    reason: The stale DWP, exact stakeholder parents, retained valid SYS parents, and current architecture, interfaces, and strategy are sufficient for one same-lineage replacement.
+default_status: blocked
+resolve_with:
+  scenario: replan-stale-decomposition-work-package@1
+  inputs:
+    prior_plan: 'plan'
+    parents: 'select("decomposition-parents-for@1", {plan: plan})'
+    retained_requirements: 'select("retained-system-requirements-for-stale-plan@1", {plan: plan})'
+    architecture: 'one("replacement-architectures-for-stale-plan@1", {plan: plan})'
+    interfaces: 'select("current-interfaces-for-architecture@1", {architecture: one("replacement-architectures-for-stale-plan@1", {plan: plan})})'
+    verification_strategy: 'one("replacement-strategies-for-stale-plan@1", {plan: plan})'
+waiver_policy_ref: waiver-applicability@1

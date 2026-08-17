@@ -37,13 +37,12 @@ query:
         && none("composed-baselines-for-review-context@1", {context: context})))
     && (subject.identity.type != "DWP"
       || subject.payload.stage != "planning"
-      || (every("planning-dwp-review-support-for@1", {plan: subject}, support =>
-          state(support, "disposition") == "active"
-          && state(support, "validity") == "valid"
-          && none("newer-revisions-for@1", {subject: support}))
+      || (exists("planning-dwp-review-support-is-current@1", {plan: subject})
         && (!every("legacy-thin-dwp-review-contexts-for@1", {subject: subject}, legacy =>
           legacy != context)
-        || (context.provenance.process_ref == process.current_ref
+        || ((context.provenance.process_ref == process.current_ref
+            || !every("historical-exact-dwp-review-contexts-for@1",
+              {subject: subject}, historical => historical != context))
           && every("review-context-members@1", {context: context}, context_member =>
             context_member == subject
             || !every("review-context-members-for@1", {subject: subject}, required =>
