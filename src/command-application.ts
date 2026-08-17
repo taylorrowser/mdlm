@@ -38,7 +38,6 @@ import {
 import {
   diffExactBaselines,
   verifyExactBaseline,
-  verifyRepositoryBaselines,
   type BaselineDiff,
   type BaselineRepositoryVerification,
   type BaselineVerification,
@@ -47,8 +46,6 @@ import {
   datumHistory,
   inspectBacklinks,
   listData,
-  rebuildRepositoryIndex,
-  rebuildRepositoryReport,
   repositoryLifecycleSnapshot,
   showDatum,
   traceGraph,
@@ -61,6 +58,7 @@ import {
   type RepositoryReportSummary,
   type StoredDatum,
 } from "./lifecycle-repository.js";
+import { loadRepositoryInspection } from "./repository-inspection.js";
 import {
   readScenarioExecution,
   type ScenarioExecution,
@@ -590,11 +588,21 @@ async function doctorRepository(repositoryRoot: string): Promise<CommandResult> 
   }
   const processReference =
     `${selected.summary.reference}#${selected.summary.digest}`;
-  const verified = await verifyRepositoryBaselines(
+  const inspection = await loadRepositoryInspection(
     repositoryRoot,
     selected.processPackage,
     processReference,
   );
+  if (!inspection.ok) {
+    return {
+      ok: false,
+      command: "doctor",
+      package: selected.summary,
+      selected: true,
+      diagnostics: inspection.diagnostics,
+    };
+  }
+  const verified = await inspection.value.verifyBaselines();
   if (!verified.ok) {
     return {
       ok: false,
@@ -604,32 +612,14 @@ async function doctorRepository(repositoryRoot: string): Promise<CommandResult> 
       diagnostics: verified.diagnostics,
     };
   }
-  const rebuilt = await rebuildRepositoryIndex(
-    repositoryRoot,
-    selected.processPackage,
-    selected.summary.reference,
-  );
-  if (!rebuilt.ok) {
+  const projections = await inspection.value.rebuildGeneratedProjections();
+  if (!projections.ok) {
     return {
       ok: false,
       command: "doctor",
       package: selected.summary,
       selected: true,
-      diagnostics: rebuilt.diagnostics,
-    };
-  }
-  const report = await rebuildRepositoryReport(
-    repositoryRoot,
-    selected.processPackage,
-    processReference,
-  );
-  if (!report.ok) {
-    return {
-      ok: false,
-      command: "doctor",
-      package: selected.summary,
-      selected: true,
-      diagnostics: report.diagnostics,
+      diagnostics: projections.diagnostics,
     };
   }
   return {
@@ -637,8 +627,8 @@ async function doctorRepository(repositoryRoot: string): Promise<CommandResult> 
     command: "doctor",
     package: selected.summary,
     baselineRepositoryVerification: verified.value,
-    index: rebuilt.value,
-    report: report.value,
+    index: projections.value.index,
+    report: projections.value.report,
     diagnostics: [],
   };
 }
@@ -771,20 +761,15 @@ async function migrateRepositoryPackage(
   }
 
   const targetProcessReference = `${target.reference}#${target.digest}`;
-  const snapshot = await repositoryLifecycleSnapshot(
+  const inspection = await loadRepositoryInspection(
     repositoryRoot,
     targetLoaded.package,
     targetProcessReference,
-    Object.values(targetLoaded.package.phases)[0]?.id ?? "",
   );
-  if (!snapshot.ok) {
-    return { ok: false, command, diagnostics: snapshot.diagnostics };
+  if (!inspection.ok) {
+    return { ok: false, command, diagnostics: inspection.diagnostics };
   }
-  const baselines = await verifyRepositoryBaselines(
-    repositoryRoot,
-    targetLoaded.package,
-    targetProcessReference,
-  );
+  const baselines = await inspection.value.verifyBaselines();
   if (!baselines.ok) {
     return { ok: false, command, diagnostics: baselines.diagnostics };
   }

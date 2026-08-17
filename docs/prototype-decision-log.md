@@ -1856,3 +1856,34 @@ next`, dry-run, and execution preserve the exact Obligation Instance. Once the
 - **Expected behavior:** If DWP r1 links ICSP r1 and ICSP r2 is later published, no Review-context Obligation is dispatched for DWP r1. Public `next` allocation supplies DWP r1, its exact stakeholder parents, retained active valid SYS parents, and exact current architecture, interfaces, and strategy; canonical publication creates DWP r2 in the same Stable Datum. A copied DWP identity or changed behavioral intent rejects. Detached, invalid, inactive, or superseded output and consumed-parent support also makes the old plan ineligible rather than disappearing or dispatching an impossible context. If one or several consumed-parent SYS lineages receive active valid replacements, public evaluation instead selects exact consumer reevaluation for every replacement in one consumer Revision while preserving prior and replacement-parent correction provenance; an invalid candidate cannot be selected, and a superseded lineage without a valid replacement blocks stale-plan correction. DWP plans whose exact support remains current retain the complete DWP Review path from D-103, including authenticated 0.65.0 exact-support context and Review history after migration.
 - **Reversibility:** Another immutable Process Package may refine the exact stale-plan correction inputs or preserved intent fields, provided it keeps same-lineage traceability and does not rewrite prior Lifecycle Data.
 - **Evidence/observations:** `test/phase-2-hardening-routes.test.ts` uses public `evaluateLifecycle` coverage to prove that two simultaneously advanced consumed-parent SYS lineages still expose specialized consumer reevaluation rather than a dead end. Its authenticated current-package bundle descends from exact preserved-calculator head `c8c76418732271acef9ba448271cae5002bbecc6` and preserves that head's complete `.lifecycle/data`; `test/issue-154-public-allocation.integration.ts` invokes public `next` against that bundle and verifies the generated exact Assignment bindings, while `test/issue-154-public-submission.integration.ts` uses a separately digest-pinned generated lease for canonical same-lineage DWP r2 publication against corrected ICSP r2. An explicitly bounded package-authoring contract unit, which is not behavioral-seam evidence, pins the complete optional-link preservation expression. Separate bounded selector units check incompatible architecture elements, detached output projection, invalid support, completion-DWP eligibility, and foreign Review provenance; copied identity and changed intent are explicit completion predicates reviewed as package contract. The historical migration fixture separately descends from the same exact source head and intentionally prunes whole unrelated transaction directories: the test pins its exact 183-path deletion manifest as SHA-256 `84caf41221bdcd741e75a8b4677aa1a3c300183e544e6ac1ceeff828db4cc9a3`, rejects additions, modifications, and partial-transaction deletions, verifies the retained completed product-definition Review through public `history`, migrates without changing retained `.lifecycle/data`, reads both that Review and corrected ICSP r2 under 0.66.0, and passes public `doctor`. Separate public migration coverage preserves active and exhausted Assignment state and canonically publishes post-migration work. The package advances to `mdlm-bootstrap@0.66.0`.
+
+## D-105 — Reuse one verified repository snapshot per command
+
+- **Status:** accepted and implemented
+- **Decision:** Repository-backed command behavior loads, parses, provenance-checks,
+  and whole-graph validates authoritative Markdown once, then shares one immutable
+  in-memory inspection across exact-baseline verification, lifecycle evaluation,
+  generated-index publication, and report projection. Source-byte digests are
+  captured with parsed records so baseline verification cannot reread a different
+  filesystem state. Exact-baseline composition verification is memoized.
+  Assignment preparation compares tracked Git fingerprints before and after
+  inspection so Lifecycle Data and its exact state binding cannot silently diverge.
+  Repository provenance checks cache exact Process Package digests, and lifecycle
+  report projections evaluate each Phase once rather
+  than once per reported Stable Datum. `MDLM_PERFORMANCE=json` exposes
+  command-isolated ephemeral stage timings and work counts on standard error.
+- **Alternatives:** Make SQLite authoritative, consume the disposable generated
+  index as truth, persist evaluator state before measuring, or continue reparsing
+  the complete repository for every baseline and report row.
+- **Rationale:** Markdown authority and deterministic rebuildability remain valid,
+  but repeated complete reads are an implementation accident rather than an
+  integrity requirement. A deep inspection interface gives every caller the same
+  verified facts while hiding parse/provenance/storage details.
+- **Expected behavior:** Deleting generated data changes no semantic command result.
+  `doctor`, `status`, `next`, and Assignment preparation perform one repository
+  load per command. Cold commands remain correct without a persistent cache.
+- **Evidence/observations:** On identical disposable copies of the preserved
+  163-Revision calculator repository, cold `doctor` fell from 295.96 seconds to
+  6.19 seconds (47.8×). The optimized command reported one repository load; its
+  public doctor JSON, generated index, and generated report were byte-identical to
+  the pre-change command outputs.

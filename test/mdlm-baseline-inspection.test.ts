@@ -1,3 +1,4 @@
+import { spawn, spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -5,7 +6,7 @@ import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
-import { mdlm } from "./helpers/mdlm.js";
+import { mdlm, mdlmWithEnvironment } from "./helpers/mdlm.js";
 
 type WrittenDatum = { datum: DatumEnvelope; path: string };
 type BaselineFixture = {
@@ -19,6 +20,60 @@ type BaselineFixture = {
 
 function expectSuccess(result: ReturnType<typeof mdlm>, command: string): void {
   expect(result.status, `${command}\n${result.stderr}${result.stdout}`).toBe(0);
+}
+
+function cloneBaselineHeavyRepository(parent: string, name: string): string {
+  const repository = path.join(parent, name);
+  const cloned = spawnSync(
+    "git",
+    [
+      "clone",
+      path.resolve(
+        "test/fixtures/phase-hardening/calculator-stale-dwp-ready-0.66.0.bundle",
+      ),
+      repository,
+    ],
+    { encoding: "utf8" },
+  );
+  expect(
+    cloned.status,
+    `git clone fixture\n${cloned.stderr}${cloned.stdout}`,
+  ).toBe(0);
+  return repository;
+}
+
+async function nextDuringTrackedChanges(
+  repository: string,
+): Promise<{ exit: number | null; stderr: string; stdout: string }> {
+  const child = spawn(
+    process.execPath,
+    [path.resolve("dist/mdlm.js"), "next", "--json"],
+    { cwd: repository },
+  );
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => stdout += chunk);
+  child.stderr.on("data", (chunk: string) => stderr += chunk);
+  let keepMutating = true;
+  const mutations = (async () => {
+    let revision = 0;
+    while (keepMutating) {
+      revision += 1;
+      await fs.appendFile(
+        path.join(repository, ".gitignore"),
+        `# concurrent tracked change ${revision}\n`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  })();
+  const exit = await new Promise<number | null>((resolve) =>
+    child.on("close", resolve)
+  );
+  keepMutating = false;
+  await mutations;
+  return { exit, stderr, stdout };
 }
 
 async function writeDatum(repository: string, datum: DatumEnvelope): Promise<WrittenDatum> {
@@ -317,6 +372,54 @@ describe("compiled mdlm baseline inspection", () => {
     ]));
   });
 
+  it("verifies the same raw bytes that were frozen when Markdown contains malformed UTF-8", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const evidence = await writeDatum(
+      repository,
+      question(processRef, "QST-1040000001", "Raw-byte evidence"),
+    );
+    const member = await writeDatum(
+      repository,
+      mapRevision(processRef, 1, evidence.datum.id),
+    );
+    await fs.appendFile(
+      path.join(repository, member.path),
+      Buffer.from([0xff, 0xfe]),
+    );
+    const baselineId = "BSL-1040000001";
+    const baseline = await freezeBaseline(repository, processPackage, processRef, {
+      id: baselineId,
+      revision: 1,
+      revision_id: `${baselineId}-r00001`,
+      type: "BSL",
+      payload: {
+        title: "Raw-byte exact baseline",
+        kind: "level-candidate",
+        role: "candidate",
+        scope: "raw-byte verification",
+        group: "inspection",
+        definition_members: [member.datum.revision_id],
+        evidence: [evidence.datum.revision_id],
+      },
+      links: [],
+      created_by: authoring(
+        processRef,
+        "create-candidate-baseline@1",
+        "prompts/create-candidate-baseline.md@1",
+      ),
+      body: "Freeze exact malformed UTF-8 member bytes.\n",
+    });
+
+    const verified = mdlm(
+      repository,
+      "baseline",
+      "verify",
+      baseline.datum.revision_id,
+      "--json",
+    );
+    expectSuccess(verified, "mdlm baseline verify raw bytes");
+  });
+
   it("detects changed bytes, missing exact members, and corrupt frozen resolutions", async () => {
     const fixture = await arrangeChangedBaselines(repository);
     const memberPath = path.join(repository, fixture.firstMap.path);
@@ -400,6 +503,109 @@ describe("compiled mdlm baseline inspection", () => {
       })]),
     );
   });
+
+  it("loads one verified repository snapshot while checking all baselines and projections", async () => {
+    await arrangeChangedBaselines(repository);
+
+    const result = mdlmWithEnvironment(
+      repository,
+      { MDLM_PERFORMANCE: "json" },
+      "doctor",
+      "--json",
+    );
+
+    expectSuccess(result, "mdlm doctor with performance diagnostics");
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      contract: "mdlm-performance@1",
+      repository: {
+        loads: 1,
+        markdownFiles: 6,
+      },
+      work: {
+        "baseline.revisions-checked": 2,
+        "repository.index.records": 6,
+        "repository.parse.records": 6,
+        "repository.provenance.records": 6,
+        "repository.report.records": 5,
+        "repository.validation.records": 6,
+      },
+      stages: {
+        "lifecycle.evaluation": { count: expect.any(Number) },
+        "baseline.verification": {
+          count: 1,
+          milliseconds: expect.any(Number),
+        },
+        "repository.discovery": { count: 1 },
+        "repository.parse": { count: 1 },
+        "repository.provenance": { count: 1 },
+        "repository.validation": { count: 1 },
+        "repository.generated-projections": { count: 1 },
+        "repository.index-rebuild": { count: 1 },
+        "repository.report-rebuild": { count: 1 },
+        "repository.report-projections": { count: 1 },
+      },
+    });
+  });
+
+  it("loads one snapshot while doctor verifies many exact baselines", () => {
+    const baselineHeavyRepository = cloneBaselineHeavyRepository(
+      parent,
+      "baseline-heavy-doctor",
+    );
+    const doctor = mdlmWithEnvironment(
+      baselineHeavyRepository,
+      { MDLM_PERFORMANCE: "json" },
+      "doctor",
+      "--json",
+    );
+    expectSuccess(doctor, "baseline-heavy mdlm doctor");
+    const diagnostics = JSON.parse(doctor.stderr);
+    expect(diagnostics).toMatchObject({
+      contract: "mdlm-performance@1",
+      repository: { loads: 1, markdownFiles: expect.any(Number) },
+    });
+    expect(diagnostics.repository.markdownFiles).toBeGreaterThan(100);
+    expect(diagnostics.work["baseline.revisions-checked"]).toBeGreaterThan(30);
+  }, 30_000);
+
+  it("loads one snapshot for baseline-heavy operator inspection", () => {
+    const baselineHeavyRepository = cloneBaselineHeavyRepository(
+      parent,
+      "baseline-heavy-status",
+    );
+    const status = mdlmWithEnvironment(
+      baselineHeavyRepository,
+      { MDLM_PERFORMANCE: "json" },
+      "status",
+      "--json",
+    );
+    expectSuccess(status, "baseline-heavy mdlm status");
+    expect(JSON.parse(status.stderr)).toMatchObject({
+      contract: "mdlm-performance@1",
+      repository: { loads: 1 },
+      stages: {
+        "baseline.verification": { count: 1 },
+        "lifecycle.evaluation": { count: 1 },
+      },
+    });
+  }, 30_000);
+
+  it("rejects Assignment preparation across concurrent tracked changes", async () => {
+    const baselineHeavyRepository = cloneBaselineHeavyRepository(
+      parent,
+      "baseline-heavy-concurrent",
+    );
+    const result = await nextDuringTrackedChanges(baselineHeavyRepository);
+    expect(
+      result.exit,
+      `concurrent mdlm next\n${result.stderr}${result.stdout}`,
+    ).toBe(1);
+    expect(JSON.parse(result.stdout).diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({
+        code: "assignment-repository-changed-during-inspection",
+      })]),
+    );
+  }, 30_000);
 
   it("verifies every repository baseline before rebuilding disposable projections", async () => {
     const fixture = await arrangeChangedBaselines(repository);
