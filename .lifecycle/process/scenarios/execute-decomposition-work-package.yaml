@@ -4,13 +4,7 @@ version: 2
 description: Produce a minimal solution-independent SYS set within one exact reviewed decomposition plan.
 phases: [phase-2-system-definition]
 inputs:
-  - name: plan
-    types: [DWP]
-    cardinality: one
-    identity: revision
-    conditions: >-
-      plan.payload.stage == "planning"
-      && exists("passing-reviews-for@1", {subject: plan})
+  - {name: plan, types: [DWP], cardinality: one, identity: revision}
   - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
   - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
@@ -19,12 +13,12 @@ outputs:
     types: [SYS]
     cardinality: one-or-more
     required_links:
-      - {link: derived-from, target: {input: parents}}
+      - {link: derived-from, target: {input: parents}, distribution: cover}
       - {link: decomposes, target: {input: plan}}
       - {link: allocated-to, target: {input: architecture}}
       - {link: governed-by, target: {input: interfaces}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/execute-decomposition-work-package.md@1
+prompt_ref: prompts/execute-decomposition-work-package.md@2
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
 resolves: [decomposition-execution-required]

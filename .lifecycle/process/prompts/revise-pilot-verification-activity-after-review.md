@@ -2,7 +2,7 @@
 id: revise-pilot-verification-activity-after-review
 version: 1
 scenario: revise-pilot-verification-activity-after-review
-skills: [skills/lifecycle-data.md@1, skills/verification-writing.md@1, skills/contextual-artifact-review.md@1, skills/verification-independence.md@1]
+skills: [skills/lifecycle-data.md@1, skills/verification-writing.md@1, skills/contextual-artifact-review.md@2, skills/verification-independence.md@1, skills/author-preflight.md@1]
 ---
 
 # Correct a failed pilot verification activity
@@ -21,3 +21,6 @@ proposal. Set `kind: scope`; using the replacement output's local ID, set
 non-empty decision, rationale, and alternatives; and link `justifies`
 to the replacement Revision. This DEC records the stakeholder's authority for this
 exact correction; it does not replace or suppress the failed Review.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

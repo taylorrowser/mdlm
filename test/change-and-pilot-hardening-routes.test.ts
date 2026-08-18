@@ -151,16 +151,23 @@ function passingReview(
   subject: LifecycleRecord,
   context: LifecycleRecord,
 ): LifecycleRecord {
-  return record(processRef, "REV", id, {
-    title: `Passing Review of ${subject.datum.revision_id}`,
-    review_kind: "contextual",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    findings: [],
-    outcome: "pass",
-  }, [
+  return record(
+    processRef,
+    "REV",
+    id,
+    {
+      title: `Passing Review of ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    },
+    [
     { type: "reviews", target: subject.datum.revision_id },
     { type: "contextualizes", target: context.datum.revision_id },
-  ], "review-datum-in-context@2");
+  ],
+    "review-datum-in-context@2",
+  );
 }
 
 function failedReview(
@@ -170,30 +177,51 @@ function failedReview(
   context: LifecycleRecord,
   correctionAuthority?: "stakeholder",
 ): LifecycleRecord {
-  return record(processRef, "REV", id, {
-    title: `Failed Review of ${subject.datum.revision_id}`,
-    review_kind: "contextual",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    findings: [{
-      id: "F-001",
-      target: subject.datum.revision_id,
-      relationship: "primary",
-      severity: "blocking",
-      summary: "Correct the exact reviewed subject.",
-    }],
-    ...(correctionAuthority ? { correction_authority: correctionAuthority } : {}),
-    outcome: "fail",
-  }, [
+  return record(
+    processRef,
+    "REV",
+    id,
+    {
+      title: `Failed Review of ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [
+        {
+          id: "F-001",
+          target: subject.datum.revision_id,
+          relationship: "primary",
+          severity: "blocking",
+          criterion: "A reviewed change-control artifact must preserve every exact subject and parent binding required by its route.",
+          evidence:
+            "The failed Review targets the exact current subject and identifies its unresolved route-specific defect.",
+          material_consequence:
+            "The subject cannot authorize downstream change-control work until a corrected Revision passes Review.",
+          summary: "Correct the exact reviewed subject.",
+        },
+      ],
+      ...(correctionAuthority ? { correction_authority: correctionAuthority } : {}),
+      outcome: "fail",
+    },
+    [
     { type: "reviews", target: subject.datum.revision_id },
     { type: "contextualizes", target: context.datum.revision_id },
-  ], "review-datum-in-context@2");
+  ],
+    "review-datum-in-context@2",
+  );
 }
 
 function reviewContext(
   processRef: string,
   id: string,
   subject: LifecycleRecord,
-  members: string[] = [subject.datum.revision_id],
+  members: string[] =
+    subject.datum.type === "DEC" &&
+    subject.datum.payload.kind !== "pilot-expansion"
+      ? [subject.datum.revision_id]
+      : [
+          subject.datum.revision_id,
+          ...subject.datum.links.map((link) => link.target).sort(),
+        ],
 ): LifecycleRecord {
   return record(processRef, "BSL", id, {
     title: `Review Context for ${subject.datum.revision_id}`,
@@ -332,28 +360,71 @@ function expansionAuthority(
     evidence: [],
   });
   const pas = assessment(processRef, context, recommendation);
-  pas.datum.links[0] = { type: "measures", target: "BSL-1030000099-r00001" };
-  const pasReview = record(processRef, "REV", "REV-1030000011", {
-    title: "Passing retained PAS Review",
-    review_kind: "contextual",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    findings: [],
-    outcome: "pass",
-  }, [{ type: "reviews", target: pas.datum.revision_id }], "review-datum-in-context@2");
+  const pasReviewContext = reviewContext(
+    processRef,
+    "BSL-1030000011",
+    pas,
+    [pas.datum.revision_id, context.datum.revision_id],
+  );
+  const pasReview = record(
+    processRef,
+    "REV",
+    "REV-1030000011",
+    {
+      title: "Passing retained PAS Review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    },
+    [
+      { type: "reviews", target: pas.datum.revision_id },
+      { type: "contextualizes", target: pasReviewContext.datum.revision_id },
+    ],
+    "review-datum-in-context@2",
+  );
   const decision = expansionDecision(processRef, pas, pasReview, recommendation);
-  const decisionReview = record(processRef, "REV", "REV-1030000012", {
-    title: "Passing retained expansion Decision Review",
-    review_kind: "contextual",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    findings: [],
-    outcome: "pass",
-  }, [{ type: "reviews", target: decision.datum.revision_id }], "review-datum-in-context@2");
-  return [pas, pasReview, decision, decisionReview];
+  const decisionReviewContext = reviewContext(
+    processRef,
+    "BSL-1030000012",
+    decision,
+    [decision.datum.revision_id, pas.datum.revision_id, pasReview.datum.revision_id],
+  );
+  const decisionReview = record(
+    processRef,
+    "REV",
+    "REV-1030000012",
+    {
+      title: "Passing retained expansion Decision Review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    },
+    [
+      { type: "reviews", target: decision.datum.revision_id },
+      { type: "contextualizes", target: decisionReviewContext.datum.revision_id },
+    ],
+    "review-datum-in-context@2",
+  );
+  return [
+    context,
+    pas,
+    pasReviewContext,
+    pasReview,
+    decision,
+    decisionReviewContext,
+    decisionReview,
+  ];
 }
 
 async function dispositionSnapshot(
   disposition: "reject" | "defer" | "cancel",
-): Promise<{ snapshot: Snapshot; decision: LifecycleRecord; review: LifecycleRecord }> {
+): Promise<{
+  snapshot: Snapshot;
+  decision: LifecycleRecord;
+  review: LifecycleRecord;
+}> {
   const snapshot = await fixture("change-approval-ready.json");
   const change = findRecord(snapshot, changeId);
   const decision = record(snapshot.processRef, "DEC", "DEC-1030000003", {
@@ -406,13 +477,20 @@ describe("accepted stakeholder change hardening routes", () => {
     snapshot.phaseId = "phase-0-wayfinding";
     const failed = findRecord(snapshot, "REV-1010000000-r00001");
     failed.datum.payload.outcome = "fail";
-    failed.datum.payload.findings = [{
-      id: "F-001",
-      target: "STK-1010000003-r00001",
-      relationship: "primary",
-      severity: "blocking",
-      summary: "Correct the draft stakeholder requirement.",
-    }];
+    failed.datum.payload.findings = [
+      {
+        id: "F-001",
+        target: "STK-1010000003-r00001",
+        relationship: "primary",
+        severity: "blocking",
+        criterion: "A draft STK must state one stakeholder-visible commitment consistent with its accepted PSP parent.",
+        evidence:
+          "The Review rejects the exact draft STK Revision before it can enter the accepted requirement set.",
+        material_consequence:
+          "The rejected STK cannot become an active stakeholder commitment.",
+        summary: "Correct the draft stakeholder requirement.",
+      },
+    ];
     const result = expectReady(
       snapshot,
       "foundation-review-correction-required",
@@ -473,13 +551,20 @@ describe("accepted stakeholder change hardening routes", () => {
     const change = findRecord(snapshot, changeId);
     const review = findRecord(snapshot, "REV-C4PG9BPTGZ-r00001");
     review.datum.payload.outcome = "fail";
-    review.datum.payload.findings = [{
-      id: "F-001",
-      target: changeId,
-      relationship: "primary",
-      severity: "blocking",
-      summary: "Correct the bounded impact.",
-    }];
+    review.datum.payload.findings = [
+      {
+        id: "F-001",
+        target: changeId,
+        relationship: "primary",
+        severity: "blocking",
+        criterion: "A CHG must define an exact authorized scope without contradicting the current stakeholder commitment.",
+        evidence:
+          "The failed Review identifies the exact CHG Revision whose declared change scope is not usable.",
+        material_consequence:
+          "Applying the change would alter stakeholder scope without usable authorization.",
+        summary: "Correct the bounded impact.",
+      },
+    ];
     const result = expectReady(
       snapshot,
       "stakeholder-change-review-correction-required",
@@ -640,13 +725,20 @@ describe("shared SYS change hardening routes", () => {
       target: priorChange.datum.revision_id,
     });
     currentReview.datum.payload.outcome = "fail";
-    currentReview.datum.payload.findings = [{
-      id: "F-001",
-      target: replacement.datum.revision_id,
-      relationship: "primary",
-      severity: "blocking",
-      summary: "Correct the replacement requirement before consumer reuse.",
-    }];
+    currentReview.datum.payload.findings = [
+      {
+        id: "F-001",
+        target: replacement.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        criterion: "Shared-SYS consumer reevaluation must preserve prior Change causes and cite every replacement-parent Change cause.",
+        evidence:
+          "The reviewed replacement route omits a required Change cause from the consumer lineage.",
+        material_consequence:
+          "The consumer could be rebound without complete causal traceability.",
+        summary: "Correct the replacement requirement before consumer reuse.",
+      },
+    ];
     currentReview.datum.links = currentReview.datum.links.map((link) =>
       link.type === "reviews"
         ? { ...link, target: replacement.datum.revision_id }
@@ -655,13 +747,20 @@ describe("shared SYS change hardening routes", () => {
     const priorReview = structuredClone(currentReview);
     priorReview.datum.id = "REV-0PR10RCA5E";
     priorReview.datum.revision_id = "REV-0PR10RCA5E-r00001";
-    priorReview.datum.payload.findings = [{
-      id: "F-002",
-      target: consumer.datum.revision_id,
-      relationship: "primary",
-      severity: "blocking",
-      summary: "Correct the consumer before reuse.",
-    }];
+    priorReview.datum.payload.findings = [
+      {
+        id: "F-002",
+        target: consumer.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        criterion: "A replacement SYS must pass Review before an existing shared consumer is rebound to it.",
+        evidence:
+          "The exact replacement requirement has a blocking Review finding before consumer reuse.",
+        material_consequence:
+          "Rebinding would make the consumer depend on an unapproved system requirement.",
+        summary: "Correct the consumer before reuse.",
+      },
+    ];
     priorReview.datum.links = priorReview.datum.links.map((link) =>
       link.type === "reviews"
         ? { ...link, target: consumer.datum.revision_id }

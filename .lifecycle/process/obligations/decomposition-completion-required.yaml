@@ -21,13 +21,10 @@ status_rules:
     when: >-
       none("decomposition-outputs-for@1", {plan: plan})
       || exists("unreviewed-decomposition-outputs-for@1", {plan: plan})
-      || none("requirement-simplification-reviews-for@1", {plan: plan})
       || none("architecture-simplification-reviews-for@1", {plan: plan})
-    reason: Exact outputs, output Reviews, and both simplification Reviews must complete first.
+    reason: Exact outputs, output Reviews, and the late semantic simplification Review must complete first.
     blocked_by:
       - obligation: decomposition-output-reviews-required@1
-        subjects: '[plan]'
-      - obligation: decomposition-simplification-required@1
         subjects: '[plan]'
       - obligation: architecture-interface-simplification-required@1
         subjects: '[plan]'
@@ -36,7 +33,6 @@ status_rules:
     when: >-
       exists("decomposition-outputs-for@1", {plan: plan})
       && none("unreviewed-decomposition-outputs-for@1", {plan: plan})
-      && exists("requirement-simplification-reviews-for@1", {plan: plan})
       && exists("architecture-simplification-reviews-for@1", {plan: plan})
       && none("blocking-questions-for-decomposition@1", {plan: plan})
     reason: Coverage evidence can now be recorded in the exact DWP completion Revision.

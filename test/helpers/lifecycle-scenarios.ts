@@ -44,6 +44,7 @@ export function reviewedGateFixture(processRef: string) {
       definition_members: [candidate.datum.revision_id],
       evidence: [],
     },
+    { scenario: "create-review-context@1" },
   );
   const candidateReview = frozenLifecycleRecord(processRef, "REV", "REV-4K3M9Q2D8F", {
     title: "Candidate review",
@@ -76,7 +77,7 @@ export function reviewedGateFixture(processRef: string) {
     group: "DEFAULT",
     definition_members: [signoff.datum.revision_id],
     evidence: [],
-  });
+  }, { scenario: "create-review-context@1" });
   const signoffReview = frozenLifecycleRecord(processRef, "REV", "REV-4K3M9Q2D8G", {
     title: "Sign-off review",
     review_kind: "independent",
@@ -167,11 +168,27 @@ export function exactContextWaiverFor(
       expires_when: ["subject-revised"],
     },
   }, { links: [{ type: "waives", target: obligationInstance }] });
+  const context = frozenLifecycleRecord(processRef, "BSL", "BSL-2BC4DF6GHJ", {
+    title: "Exact waiver context",
+    kind: "review-context",
+    role: "review-context",
+    scope: waiver.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [waiver.datum.revision_id],
+    evidence: [],
+  }, { scenario: "create-review-context@1" });
   const review = frozenLifecycleRecord(processRef, "REV", "REV-2BC4DF6GHJ", {
     title: "Waiver review",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+    review_kind: "contextual",
+    rubric_ref: "policies/rubrics/bootstrap-review.md@2",
     findings: [],
     outcome: "pass",
-  }, { links: [{ type: "reviews", target: waiver.datum.revision_id }] });
-  return { obligationInstance, waiver, review };
+  }, {
+    scenario: "review-datum-in-context@2",
+    links: [
+      { type: "reviews", target: waiver.datum.revision_id },
+      { type: "contextualizes", target: context.datum.revision_id },
+    ],
+  });
+  return { obligationInstance, waiver, context, review };
 }

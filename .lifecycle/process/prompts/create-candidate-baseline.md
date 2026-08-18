@@ -25,3 +25,6 @@ candidate already exists for the same role and scope, use an explicit
 `supersedes` link; never mutate it.
 
 The new candidate itself still requires contextual review and gate sign-off.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

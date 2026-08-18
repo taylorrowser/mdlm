@@ -23,3 +23,6 @@ those identities in payload fields or claim completion while any blocker,
 coverage gap, or required Review remains unresolved. Waived or terminated
 coverage requires a separately implemented exact authority route and is not a
 valid completion proposal in this profile.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

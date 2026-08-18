@@ -1,14 +1,29 @@
-import type { ProcessPackage } from "./index.js";
-import type { BaselineRepositoryVerification } from "./exact-baseline-repository.js";
-import { verifyRepositoryBaselinesData } from "./exact-baseline-repository.js";
+import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import type { DatumEnvelope, ProcessPackage } from "./index.js";
+import type {
+  BaselineFreeze,
+  BaselineRepositoryVerification,
+  BaselineVerificationCache,
+} from "./exact-baseline-repository.js";
 import {
+  finalizeExactBaselineScenarioOutputData,
+  verifyRepositoryBaselinesData,
+} from "./exact-baseline-repository.js";
+import {
+  deriveLifecycleRecordStorage,
   readRepositoryData,
+  publishScenarioMutationData,
   rebuildRepositoryIndexData,
   rebuildRepositoryReportData,
   repositoryLifecycleSnapshotData,
+  type KernelFinalizedScenarioOutput,
+  type ParsedDatum,
   type RepositoryIndexSummary,
   type RepositoryReportSummary,
   type RepositoryResult,
+  type ScenarioMutationPublication,
 } from "./lifecycle-repository.js";
 import type { LifecycleSnapshot } from "./index.js";
 import { measureAsync } from "./performance-diagnostics.js";
@@ -26,6 +41,21 @@ export interface GeneratedRepositoryProjections {
   report: RepositoryReportSummary;
 }
 
+/** Mutable publication overlay owned by one command transaction. */
+export interface RepositoryTransaction {
+  finalizeExactBaseline(proposedDatum: DatumEnvelope): Promise<RepositoryResult<{
+    output: KernelFinalizedScenarioOutput;
+    freeze: BaselineFreeze;
+  }>>;
+  publishScenarioMutation(
+    expectedData: DatumEnvelope[],
+    data: DatumEnvelope[],
+    executionId: string,
+    executionRecord: unknown,
+    kernelFinalizedOutputs?: readonly KernelFinalizedScenarioOutput[],
+  ): Promise<RepositoryResult<ScenarioMutationPublication>>;
+}
+
 /**
  * One immutable, verified view of authoritative repository Markdown for a command.
  * Expensive discovery, parsing, provenance, and whole-graph validation stay behind
@@ -33,6 +63,7 @@ export interface GeneratedRepositoryProjections {
  */
 export interface RepositoryInspection {
   lifecycleSnapshot(phaseId: string): LifecycleSnapshot;
+  beginTransaction(): RepositoryTransaction;
   verifyBaselines(): Promise<RepositoryResult<BaselineRepositoryVerification>>;
   rebuildGeneratedProjections(): Promise<
     RepositoryResult<GeneratedRepositoryProjections>
@@ -49,6 +80,7 @@ export async function loadRepositoryInspection(
   const parsed = deepFreeze(loaded.value);
   let baselineVerification:
     Promise<RepositoryResult<BaselineRepositoryVerification>> | undefined;
+  const baselineVerificationCache: BaselineVerificationCache = new Map();
 
   return {
     ok: true,
@@ -63,6 +95,67 @@ export async function loadRepositoryInspection(
           throw new Error("Verified repository snapshot unavailable");
         return snapshot.value;
       },
+      beginTransaction() {
+        const published: ParsedDatum[] = [];
+        const currentData = () => [...parsed, ...published];
+        return {
+          finalizeExactBaseline(proposedDatum) {
+            return finalizeExactBaselineScenarioOutputData(
+              root,
+              processPackage,
+              processReference,
+              currentData(),
+              proposedDatum,
+              baselineVerificationCache,
+            );
+          },
+          async publishScenarioMutation(
+            expectedData,
+            data,
+            executionId,
+            executionRecord,
+            kernelFinalizedOutputs = [],
+          ) {
+            const before = currentData();
+            const result = await publishScenarioMutationData(
+              root,
+              processPackage,
+              before,
+              expectedData,
+              data,
+              executionId,
+              executionRecord,
+              kernelFinalizedOutputs,
+            );
+            if (!result.ok) return result;
+            const stored = deriveLifecycleRecordStorage(processPackage, [
+              ...before.map((item) => item.lifecycleDatum),
+              ...data.map((datum) => ({
+                datum,
+                storage: { editable: true, frozen: false },
+                integrity: {
+                  parseable: true,
+                  schema_valid: true,
+                  identity_valid: true,
+                  references_valid: true,
+                  hash_valid: true,
+                  scenario_execution_valid: true,
+                },
+              })),
+            ]).slice(-data.length);
+            for (const [index, datum] of data.entries()) {
+              const created = result.value.created[index]!;
+              const source = await fs.readFile(path.join(root, created.path));
+              published.push(deepFreeze({
+                lifecycleDatum: stored[index]!,
+                relativePath: created.path,
+                sourceDigest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+              }));
+            }
+            return result;
+          },
+        };
+      },
       verifyBaselines() {
         baselineVerification ??= measureAsync("baseline.verification", () =>
           verifyRepositoryBaselinesData(
@@ -70,6 +163,7 @@ export async function loadRepositoryInspection(
             processPackage,
             processReference,
             parsed,
+            baselineVerificationCache,
           ),
         );
         return baselineVerification;

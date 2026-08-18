@@ -8,7 +8,7 @@ inputs:
   - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
   - {name: outputs, types: [SYS], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
-  - {name: interfaces, types: [ICSP], cardinality: one-or-more, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
   - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
   - {name: simplification_reviews, types: [REV], cardinality: one-or-more, identity: revision}
 outputs:

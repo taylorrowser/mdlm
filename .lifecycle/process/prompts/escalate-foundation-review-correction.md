@@ -2,7 +2,7 @@
 id: escalate-foundation-review-correction
 version: 2
 scenario: escalate-foundation-review-correction
-skills: [skills/lifecycle-data.md@1, skills/clarification-protocol.md@1, skills/requirement-writing.md@1]
+skills: [skills/lifecycle-data.md@1, skills/clarification-protocol.md@1, skills/requirement-writing.md@1, skills/author-preflight.md@1]
 ---
 
 # Escalate a failed correction lineage
@@ -20,3 +20,6 @@ gate rejection through `corrects-gate-rejection`, plus one exact scope DEC whose
 all immutable Revisions, Review Contexts, Reviews, and findings. The replacement
 must receive a fresh exact Review Context and fresh independent Review through
 normal reevaluation.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

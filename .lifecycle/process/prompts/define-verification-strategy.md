@@ -19,3 +19,6 @@ controllability, observability, external-service, timing, evidence, and assessme
 needs. Keep the
 boundary black-box. Do not inspect product source or unit tests and do not invent
 capabilities merely because an implementation could supply them.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

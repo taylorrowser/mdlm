@@ -12,3 +12,6 @@ simplification Reviews. Publish one frozen `group-candidate` BSL whose definitio
 members contain exactly the completion, outputs, architecture, and interfaces,
 and whose evidence contains exactly the simplification Reviews. Do not add nearby
 or historical Revisions.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

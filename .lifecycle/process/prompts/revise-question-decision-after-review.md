@@ -14,3 +14,6 @@ its Decision kind and exact Question scope, link `resolves` to that exact QST
 Revision, and link `corrects-review` to every supplied failed Review. Do not
 rewrite an unfavorable Review or infer a different preference. Normal
 reevaluation must require a fresh independent Review of the replacement.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

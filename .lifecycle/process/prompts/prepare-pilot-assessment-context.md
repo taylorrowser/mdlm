@@ -2,7 +2,7 @@
 id: prepare-pilot-assessment-context
 version: 1
 scenario: prepare-pilot-assessment-context
-skills: [skills/lifecycle-data.md@1, skills/baseline-model.md@1, skills/pilot-assessment.md@1]
+skills: [skills/lifecycle-data.md@1, skills/baseline-model.md@1, skills/pilot-assessment.md@1, skills/author-preflight.md@1]
 ---
 
 # Prepare the pilot assessment context
@@ -16,3 +16,6 @@ profiles, verification discrimination, and scope reduction.
 Do not use generated indexes, generated reports, mutable aliases, or chat history
 as lifecycle truth. Hash and verify every exact evidence Revision before the
 context becomes eligible for assessment.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

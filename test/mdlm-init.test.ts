@@ -80,22 +80,24 @@ describe("mdlm init", () => {
     const initialized = execute(parent, ["init", destination, "--json"]);
 
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-    expect(JSON.parse(initialized.stdout)).toEqual(expect.objectContaining({
-      ok: true,
-      command: "init",
-      package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.66.0",
-      }),
-      repository: expect.objectContaining({
+    expect(JSON.parse(initialized.stdout)).toEqual(
+      expect.objectContaining({
+        ok: true,
+        command: "init",
+        package: expect.objectContaining({
+          reference: "mdlm-bootstrap@0.67.0",
+        }),
+        repository: expect.objectContaining({
         contract: "mdlm-repository@1",
       }),
-    }));
+      }),
+    );
 
     const selection = JSON.parse(await fs.readFile(
       path.join(destination, ".lifecycle/process-selection.json"),
       "utf8",
     ));
-    expect(selection.package.reference).toBe("mdlm-bootstrap@0.66.0");
+    expect(selection.package.reference).toBe("mdlm-bootstrap@0.67.0");
     await expect(fs.stat(path.join(destination, ".lifecycle/data")))
       .resolves.toMatchObject({});
     await expect(fs.stat(path.join(destination, ".lifecycle/work")))

@@ -10,6 +10,7 @@ query:
   as: interface
   where: >-
     interface.payload.architecture_revision == architecture.identity.revision_id
+    && interface.payload.boundaries == architecture.payload.controlled_boundaries
     && state(interface, "disposition") == "active"
     && state(interface, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: interface})

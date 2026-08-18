@@ -41,7 +41,7 @@ describe("mdlm process expression evaluation", () => {
       ok: true,
       command: "process.expression.evaluate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.66.0",
+        reference: "mdlm-bootstrap@0.67.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -131,7 +131,7 @@ describe("mdlm process expression evaluation", () => {
       "Relation mdlm-kernel-process-interface@1#relation.baseline-memberships -> []",
     );
     expect(human.stdout).toContain(
-      "Source: exists(\"valid-review-contexts-for@1\", {subject: subject}) [1:1-1:58]",
+      'Source: exists("valid-review-contexts-for@1", {subject: subject}) [1:1-1:58]',
     );
   });
 
@@ -266,7 +266,7 @@ describe("mdlm process expression evaluation", () => {
         },
         result: {
           required: true,
-          rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         },
         evidenceKind: "policy",
       },
@@ -321,7 +321,7 @@ describe("mdlm process expression evaluation", () => {
         ok: true,
         command: testCase.command,
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.66.0",
+          reference: "mdlm-bootstrap@0.67.0",
           language: "mdlm-expression@1",
         }),
         selected: true,
@@ -374,7 +374,7 @@ describe("mdlm process expression evaluation", () => {
     );
     expect(human.status, human.stderr).toBe(0);
     expect(human.stdout).toContain("State: validity@2");
-    expect(human.stdout).toContain("Result: \"valid\"");
+    expect(human.stdout).toContain('Result: "valid"');
     expect(human.stdout).toContain(
       "Source: subject.integrity.parseable == false",
     );

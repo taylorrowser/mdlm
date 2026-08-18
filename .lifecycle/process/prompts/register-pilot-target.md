@@ -2,7 +2,7 @@
 id: register-pilot-target
 version: 1
 scenario: register-pilot-target
-skills: [skills/lifecycle-data.md@1, skills/reproducibility.md@1, skills/traceability.md@1, skills/scope-challenge.md@1]
+skills: [skills/lifecycle-data.md@1, skills/reproducibility.md@1, skills/traceability.md@1, skills/scope-challenge.md@1, skills/author-preflight.md@1]
 ---
 
 # Register an exact pilot target
@@ -39,3 +39,6 @@ Do not inspect or promote product source as verification evidence, claim a
 verification result or requirement acceptance, choose new stakeholder scope, or
 register a mutable branch or tag. Publication records existing repository evidence;
 it does not authorize product scope.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

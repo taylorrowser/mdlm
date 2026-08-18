@@ -51,7 +51,7 @@ function reviewContextFor(subject: LifecycleRecord): LifecycleRecord {
     {
       createdBy: {
         scenario: "create-review-context@1",
-        prompt_ref: "prompts/create-review-context.md@1",
+        prompt_ref: "prompts/create-review-context.md@2",
         process_ref: "git:current",
         loaded_skill_refs: [],
         policy_refs: ["review-applicability@1"],

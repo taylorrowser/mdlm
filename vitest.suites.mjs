@@ -33,6 +33,8 @@ export const testFiles = [
   "test/phase-hardening-domain-contracts.test.ts",
   "test/phase-hardening-matrix.test.ts",
   "test/pi-operator-instructions.test.ts",
+  "test/proportional-distinct-context-phase-2-public.test.ts",
+  "test/proportional-phase-2-public.test.ts",
   "test/resolve-type.test.ts",
   "test/scenario-policy-assets.test.ts",
   "test/selector-memoization.test.ts",

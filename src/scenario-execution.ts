@@ -213,6 +213,17 @@ function outputContractDiagnostics(
             message: `Scenario output '${name}' cannot return type '${value.lifecycleDatum.type}'`,
           });
         }
+        const requiredPayload = object(contract.required_payload);
+        for (const [payloadPath, expected] of Object.entries(requiredPayload ?? {})) {
+          const actual = valueAtPath(value.lifecycleDatum.payload, payloadPath);
+          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+            diagnostics.push({
+              code: "scenario-output-required-payload-invalid",
+              path: `outputs.${name}.payload.${payloadPath}`,
+              message: `Scenario output '${name}' requires payload '${payloadPath}' to equal ${JSON.stringify(expected)}`,
+            });
+          }
+        }
       }
     }
   }
@@ -234,6 +245,7 @@ function requiredLinkDiagnostics(
     const contract = contracts.get(output.proposal.name);
     for (const requiredValue of array(contract?.required_links)) {
       const required = object(requiredValue);
+      if (["partition", "cover"].includes(String(required?.distribution))) continue;
       const target = object(required?.target);
       const linkType = typeof required?.link === "string" ? required.link : "";
       const resolvedOutputType = resolveType(processPackage, output.datum.type);
@@ -284,6 +296,86 @@ function requiredLinkDiagnostics(
             path: `outputs.${output.proposal.name}.links.${linkType}`,
             message: `Scenario output '${output.proposal.name}' must link '${linkType}' to '${identity}'`,
           });
+        }
+      }
+    }
+  }
+  for (const [outputName, contract] of contracts) {
+    for (const requiredValue of array(contract.required_links)) {
+      const required = object(requiredValue);
+      const distribution = String(required?.distribution);
+      if (!["partition", "cover"].includes(distribution)) continue;
+      const target = object(required?.target);
+      const inputName = typeof target?.input === "string" ? target.input : undefined;
+      const linkType = typeof required?.link === "string" ? required.link : "";
+      for (let invocationIndex = 0; invocationIndex < dryRun.invocations.length; invocationIndex += 1) {
+        const invocation = dryRun.invocations[invocationIndex];
+        const invocationOutputs = outputs.filter((output) =>
+          output.proposal.invocation === invocationIndex &&
+          output.proposal.name === outputName
+        );
+        const input = inputName
+          ? invocation?.inputs.find((candidate) => candidate.name === inputName)
+          : undefined;
+        if (!input) {
+          diagnostics.push({
+            code: "scenario-output-link-distribution-invalid",
+            path: `outputs.${outputName}.required_links.${linkType}`,
+            message: `Distributed link '${linkType}' requires one declared input target`,
+          });
+          continue;
+        }
+        const expected = new Set<string>();
+        const actualCounts = new Map<string, number>();
+        for (const output of invocationOutputs) {
+          const resolvedOutputType = resolveType(processPackage, output.datum.type);
+          const linkContract = resolvedOutputType.ok
+            ? resolvedOutputType.type.outgoingLinks.map(object)
+              .find((candidate) => candidate?.id === linkType)
+            : undefined;
+          const linkTargets = array(linkContract?.targets).map(object);
+          for (const value of input.values) {
+            const identity = linkTargets.find((candidate) =>
+              candidate?.kind === "datum" &&
+              array(candidate.types).includes(value.identity.type)
+            )?.identity === "stable"
+              ? value.identity.id
+              : value.identity.revision_id ?? value.identity.id;
+            expected.add(identity);
+          }
+          const actual = output.datum.links
+            .filter((link) => link.type === linkType)
+            .map((link) => link.target);
+          if (actual.length === 0) {
+            diagnostics.push({
+              code: "scenario-output-link-distribution-empty",
+              path: `outputs.${outputName}.links.${linkType}`,
+              message: `Every '${outputName}' output must link '${linkType}' to at least one supplied '${inputName}' value`,
+            });
+          }
+          for (const identity of actual) {
+            if (!expected.has(identity)) {
+              diagnostics.push({
+                code: "scenario-output-link-distribution-unexpected",
+                path: `outputs.${outputName}.links.${linkType}`,
+                message: `Distributed link '${linkType}' targets '${identity}', which is not a supplied '${inputName}' value`,
+              });
+            }
+            actualCounts.set(identity, (actualCounts.get(identity) ?? 0) + 1);
+          }
+        }
+        for (const identity of expected) {
+          const count = actualCounts.get(identity) ?? 0;
+          const valid = distribution === "partition" ? count === 1 : count >= 1;
+          if (!valid) {
+            diagnostics.push({
+              code: "scenario-output-link-distribution-incomplete",
+              path: `outputs.${outputName}.links.${linkType}`,
+              message: distribution === "partition"
+                ? `Distributed link '${linkType}' must target '${identity}' exactly once, received ${count}`
+                : `Distributed link '${linkType}' must target '${identity}' at least once`,
+            });
+          }
         }
       }
     }
@@ -442,15 +534,21 @@ async function submitScenario(
     proposal: ScenarioProposal;
     loadedSkillRefs: string[];
   },
+  prepared?: Extract<RepositoryScenarioPreparationResult, { ok: true }>["value"] & {
+    finalizeExactBaseline?: typeof finalizeExactBaselineScenarioOutput;
+    publishMutation?: typeof publishScenarioMutation;
+  },
 ): Promise<ScenarioExecutionResult> {
-  const dryRunResult = await prepareRepositoryScenario(
-    repositoryRoot,
-    processPackage,
-    packageIdentity,
-    scenarioReference,
-    authorizationRequest,
-    requestedInputs,
-  );
+  const dryRunResult: RepositoryScenarioPreparationResult = prepared
+    ? { ok: true, value: prepared, diagnostics: [] }
+    : await prepareRepositoryScenario(
+      repositoryRoot,
+      processPackage,
+      packageIdentity,
+      scenarioReference,
+      authorizationRequest,
+      requestedInputs,
+    );
   if (!dryRunResult.ok) return dryRunResult;
   const { dryRun, scenario: selectedScenario, snapshot } = dryRunResult.value;
   const authorityEvidence = authorityEvidenceContract(
@@ -756,7 +854,8 @@ async function submitScenario(
   if (exactBaselineType) {
     for (const output of outputData) {
       if (output.datum.type !== exactBaselineType) continue;
-      const finalized = await finalizeExactBaselineScenarioOutput(
+      const finalized = await (prepared?.finalizeExactBaseline ??
+        finalizeExactBaselineScenarioOutput)(
         repositoryRoot,
         processPackage,
         `${packageIdentity.reference}#${packageIdentity.digest}`,
@@ -874,7 +973,7 @@ async function submitScenario(
     data: datum,
   }));
   const execution: ScenarioExecution = { ...executionBase, outputs: provisionalOutputs };
-  const published = await publishScenarioMutation(
+  const published = await (prepared?.publishMutation ?? publishScenarioMutation)(
     repositoryRoot,
     processPackage,
     snapshot.records.map((record) => record.datum),
@@ -931,6 +1030,41 @@ export async function submitResolverScenario(
       proposal: submission.proposal,
       loadedSkillRefs: submission.loadedSkillRefs,
     },
+  );
+}
+
+export async function submitPreparedResolverScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  submission: ResolverScenarioSubmission,
+  prepared: {
+    dryRun: ScenarioDryRun;
+    scenario: VersionedDefinition;
+    snapshot: LifecycleSnapshot;
+    finalizeExactBaseline?: typeof finalizeExactBaselineScenarioOutput;
+    publishMutation?: typeof publishScenarioMutation;
+  },
+): Promise<ScenarioExecutionResult> {
+  return submitScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    submission.scenarioReference,
+    {
+      mode: "dispatchable-obligation",
+      obligationInstance: submission.obligationInstance,
+    },
+    [],
+    submission.suppliedAuthorities,
+    submission.suppliedDelegations,
+    {
+      assignment: submission.assignment,
+      digest: submission.responseDigest,
+      proposal: submission.proposal,
+      loadedSkillRefs: submission.loadedSkillRefs,
+    },
+    prepared,
   );
 }
 

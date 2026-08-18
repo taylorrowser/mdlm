@@ -16,7 +16,7 @@ outputs:
     required_links:
       - {link: derived-from, target: {input: product_specification}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/draft-stakeholder-requirements.md@2
+prompt_ref: prompts/draft-stakeholder-requirements.md@3
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
 resolves: [stakeholder-requirements-required]

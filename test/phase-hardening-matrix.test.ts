@@ -145,7 +145,7 @@ describe("Phase-hardening matrix", () => {
     const phases = [
       "phase-0-wayfinding@4",
       "phase-1-product-assurance@5",
-      "phase-2-system-definition@8",
+      "phase-2-system-definition@9",
     ];
     const common = {
       selectors: [
@@ -236,7 +236,7 @@ describe("Phase-hardening matrix", () => {
     const phases = [
       "phase-0-wayfinding@4",
       "phase-1-product-assurance@5",
-      "phase-2-system-definition@8",
+      "phase-2-system-definition@9",
       "phase-2-pilot-assessment@3",
     ];
 

@@ -7,7 +7,7 @@ scenario: revise-phase-2-candidate-after-review
 # Replace one Phase 2 candidate
 
 Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`,
-`skills/contextual-artifact-review.md@1`, `skills/traceability.md@1`, and
+`skills/contextual-artifact-review.md@2`, `skills/traceability.md@1`, and
 `skills/gate-protocol.md@1`.
 
 Publish one frozen same-lineage replacement group or level candidate. Preserve
@@ -20,3 +20,6 @@ request authority again.
 
 When participation is attended, publish the exact scope DEC required by the
 Assignment without using it as Review evidence.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

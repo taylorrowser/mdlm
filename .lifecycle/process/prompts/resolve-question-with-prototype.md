@@ -26,3 +26,6 @@ Do not infer behavior outside the declared supported and unsupported claims. Do
 not substitute a branch, tag, working tree, or moving repository reference. Do
 not represent exploratory prototype findings as qualification RUN/RES evidence or
 as accepted product implementation.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

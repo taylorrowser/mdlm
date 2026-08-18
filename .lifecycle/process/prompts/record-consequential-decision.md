@@ -2,7 +2,7 @@
 id: record-consequential-decision
 version: 1
 scenario: record-consequential-decision
-skills: [skills/lifecycle-data.md@1, skills/clarification-protocol.md@1, skills/gate-protocol.md@1]
+skills: [skills/lifecycle-data.md@1, skills/clarification-protocol.md@1, skills/gate-protocol.md@1, skills/author-preflight.md@1]
 ---
 
 # Record one exact consequential authorization
@@ -20,3 +20,6 @@ Scenario, one expiry condition, and one reactivation requirement. Do not infer
 permission from silence, prior conversation, adapter prose, or a completion
 summary. The DEC remains subject to the package Review Policy before applicable
 Selectors may use it.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

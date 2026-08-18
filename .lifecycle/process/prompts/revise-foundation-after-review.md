@@ -19,3 +19,6 @@ any prior Revision, Review, candidate, or Decision. Do not broaden unrelated
 scope.
 
 The replacement must undergo a fresh exact Review Context and independent Review.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

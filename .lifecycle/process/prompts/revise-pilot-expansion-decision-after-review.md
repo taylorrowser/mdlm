@@ -2,7 +2,7 @@
 id: revise-pilot-expansion-decision-after-review
 version: 1
 scenario: revise-pilot-expansion-decision-after-review
-skills: [skills/lifecycle-data.md@1, skills/pilot-assessment.md@1, skills/contextual-artifact-review.md@1]
+skills: [skills/lifecycle-data.md@1, skills/pilot-assessment.md@1, skills/contextual-artifact-review.md@2, skills/author-preflight.md@1]
 ---
 
 # Revise a failed pilot Expansion Decision
@@ -15,3 +15,6 @@ its passing Review through `relies-on-review`, and cite every supplied failed
 Decision Review through `corrects-review`. The replacement requires a fresh
 independent Review before proceed, change, or stop can apply. Do not invent a
 recovery route or any Phase 3–6 output.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

@@ -28,3 +28,6 @@ proposed architecture.
 
 Before completion, perform an adversarial deletion and merge pass, validate all
 schemas and links, and record exact provenance.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

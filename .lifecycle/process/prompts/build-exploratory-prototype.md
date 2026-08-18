@@ -18,3 +18,6 @@ its exact repository reference, supported behavior, deliberately unsupported
 behavior, and evidence references in ART. Record the bounded finding as DEC and
 link both outputs to the exact question. Do not generalize beyond observed
 evidence or treat prototype code as an accepted product implementation.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

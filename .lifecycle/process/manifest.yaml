@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.66.0
+version: 0.67.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -39,6 +39,7 @@ compatibility:
   unknown_definition_fields: reject
   arbitrary_code_execution: forbidden
   template_inheritance: single-parent-additive
+  repository_migration: fresh-only
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
@@ -48,6 +49,7 @@ catalog:
     - current-wayfinding-maps
     - current-product-specifications
     - stakeholder-requirements-for
+    - stakeholder-requirements-for-review-context
     - current-product-specifications-for-requirement
     - current-phase-1-stakeholder-requirements
     - verification-strategies-for-requirement
@@ -69,8 +71,11 @@ catalog:
     - failed-current-pilot-verification-implementations
     - corrected-pilot-verification-implementation-revisions-for
     - environments-for-strategy
+    - environments-for-strategy-review-context
     - complete-environment-assurance-for-strategy
+    - complete-environment-assurance-for-strategy-review-context
     - complete-environment-assurance-for-environment
+    - complete-environment-assurance-for-environment-review-context
     - requirements-governed-by-strategy
     - failed-current-verification-strategies
     - failed-current-environments
@@ -98,6 +103,7 @@ catalog:
     - planning-dwp-review-context-matches
     - planning-dwp-review-support-for
     - planning-dwp-review-support-is-current
+    - planning-dwp-review-context-support-is-current
     - valid-dwp-product-simplification-reviews
     - intent-candidates-matching-subject
     - non-phase-0-foundation-members-for
@@ -152,9 +158,6 @@ catalog:
     - candidate-baselines
     - gate-authorization-candidates
     - frozen-baselines
-    - legacy-thin-ver-review-contexts-for
-    - legacy-thin-dwp-review-contexts-for
-    - historical-exact-dwp-review-contexts-for
     - valid-review-contexts-for
     - strategies-for-environment
     - context-contains-definition
@@ -164,6 +167,7 @@ catalog:
     - environment-assurance-context-matches
     - stale-review-contexts-for
     - passing-reviews-for
+    - current-exact-review-contexts-cited-by
     - failing-reviews-for
     - stale-reviews-for
     - review-required-members-for
@@ -191,14 +195,21 @@ catalog:
     - qualified-environment-match-for-result
     - passing-qualification-results-for-run-and-environment
     - qualification-activities-for-environment
+    - qualification-activities-for-environment-review-context
     - qualification-implementations-for-environment
     - complete-environment-qualification-for-environment
+    - complete-environment-qualification-for-environment-review-context
     - accepted-baseline-promotes-candidate
     - phase-0-intent-approvals-for
     - accepted-intent-candidates-for-requirement
     - phase-2-entry-requirements
     - matching-phase-2-entry-requirement
+    - coherent-phase-2-entry-requirements
+    - phase-2-entry-requirement-group-representatives
+    - phase-2-architecture-representative-requirements
     - current-architectures-for-requirement
+    - interaction-free-architectures-for-requirement
+    - interacting-architectures-for-requirement
     - accepted-requirements-for-architecture
     - current-phase-2-architectures
     - current-interfaces-for-architecture
@@ -210,6 +221,8 @@ catalog:
     - current-decomposition-plans-for-requirement
     - newer-planning-revisions-for
     - decomposition-plans
+    - decomposition-plans-sharing-architecture-with
+    - architecture-definition-set-representative-plans
     - stale-decomposition-plans
     - stale-decomposition-plans-for-requirement
     - replacement-architectures-for-stale-plan
@@ -220,6 +233,7 @@ catalog:
     - current-decomposition-completions
     - planning-revisions-for-completion
     - decomposition-parents-for
+    - direct-review-support-for
     - matching-decomposition-parent
     - decomposition-output-revisions-for
     - later-decomposition-output-revisions-for-plan
@@ -228,6 +242,7 @@ catalog:
     - matching-system-output-parent
     - unreviewed-decomposition-outputs-for
     - phase-2-definition-members-for-plan
+    - phase-2-definition-review-context-support-for-plan
     - unreviewed-phase-2-definition-members-for-plan
     - decomposition-review-contexts-for
     - decomposition-simplification-contexts-for
@@ -254,7 +269,6 @@ catalog:
     - matching-reviewed-phase-2-system-requirement
     - valid-phase-2-simplification-review
     - failed-phase-2-simplification-reviews-by-scope
-    - requirement-simplification-reviews-for
     - architecture-simplification-reviews-for
     - blocking-questions-for-decomposition
     - architectures-for-decomposition
@@ -334,6 +348,7 @@ catalog:
     - traceability-affected-change-contexts
     - implemented-changes-impacting-revision
     - recorded-change-approval-decisions-for
+    - change-approval-decisions-for-review-context
     - change-approval-decisions-for
     - terminal-change-disposition-decisions-for
     - impacted-requirements-for-change
@@ -392,7 +407,7 @@ catalog:
     - stale-decomposition-plan-correction-required
     - decomposition-execution-required
     - decomposition-output-reviews-required
-    - decomposition-simplification-required
+    - phase-2-definition-review-context-required
     - architecture-interface-simplification-required
     - phase-2-simplification-correction-required
     - phase-2-definition-consistency-correction-required
@@ -427,6 +442,7 @@ catalog:
     - draft-stakeholder-requirements
     - derive-system-requirements
     - create-review-context
+    - create-phase-2-definition-review-context
     - review-datum-in-context
     - resolve-question
     - freeze-source-boundary
@@ -456,7 +472,6 @@ catalog:
     - define-decomposition-work-package
     - replan-stale-decomposition-work-package
     - execute-decomposition-work-package
-    - simplify-requirement-set
     - simplify-architecture-and-interfaces
     - revise-phase-2-subject-after-simplification
     - revise-phase-2-definition-set-after-simplification
@@ -490,10 +505,11 @@ assets:
     - prompts/establish-initial-wayfinding-map.md@1
     - prompts/build-exploratory-prototype.md@1
     - prompts/compile-psp.md@2
-    - prompts/draft-stakeholder-requirements.md@2
+    - prompts/draft-stakeholder-requirements.md@3
     - prompts/derive-system-requirements.md@1
-    - prompts/create-review-context.md@1
-    - prompts/review-datum-in-context.md@2
+    - prompts/create-review-context.md@2
+    - prompts/create-phase-2-definition-review-context.md@1
+    - prompts/review-datum-in-context.md@3
     - prompts/resolve-question.md@2
     - prompts/freeze-source-boundary.md@1
     - prompts/resolve-question-with-prototype.md@2
@@ -517,12 +533,11 @@ assets:
     - prompts/revise-environment-assurance-after-review.md@1
     - prompts/revise-pilot-verification-activity-after-review.md@1
     - prompts/revise-pilot-vai-after-review.md@1
-    - prompts/define-system-architecture.md@1
-    - prompts/define-interface-control-specification.md@1
-    - prompts/define-decomposition-work-package.md@1
+    - prompts/define-system-architecture.md@2
+    - prompts/define-interface-control-specification.md@2
+    - prompts/define-decomposition-work-package.md@2
     - prompts/replan-stale-decomposition-work-package.md@1
-    - prompts/execute-decomposition-work-package.md@1
-    - prompts/simplify-requirement-set.md@1
+    - prompts/execute-decomposition-work-package.md@2
     - prompts/simplify-architecture-and-interfaces.md@1
     - prompts/revise-phase-2-subject-after-simplification.md@1
     - prompts/revise-phase-2-definition-set-after-simplification.md@1
@@ -553,11 +568,13 @@ assets:
     - skills/wayfinding-map.md@1
     - skills/prototyping.md@1
     - skills/product-specification.md@1
+    - skills/information-allocation.md@1
+    - skills/author-preflight.md@1
     - skills/requirement-writing.md@1
     - skills/traceability.md@1
     - skills/scope-challenge.md@1
     - skills/baseline-model.md@1
-    - skills/contextual-artifact-review.md@1
+    - skills/contextual-artifact-review.md@2
     - skills/clarification-protocol.md@1
     - skills/gate-protocol.md@1
     - skills/verification-strategy-specification.md@1
@@ -579,11 +596,11 @@ assets:
     - skills/change-control.md@1
     - skills/pilot-assessment.md@1
   rubrics:
-    - policies/rubrics/bootstrap-review.md@1
+    - policies/rubrics/bootstrap-review.md@2
 profiles:
-  default: bootstrap@34
+  default: bootstrap@35
   available:
-    - profiles/bootstrap.yaml@34
+    - profiles/bootstrap.yaml@35
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

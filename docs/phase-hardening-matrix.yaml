@@ -7,7 +7,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
       - phase-2-pilot-assessment@3
     routes:
       - route: first malformed response
@@ -189,7 +189,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
       - phase-2-pilot-assessment@3
       - phase-7-change-control@4
     routes:
@@ -586,7 +586,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: source boundary before attended resolution
         executable:
@@ -621,7 +621,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: source boundary before autonomous resolution
         executable:
@@ -656,7 +656,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: immediate blocking
         executable:
@@ -688,7 +688,7 @@ rows:
   - id: question-checkpoint-attention
     phases:
       - phase-0-wayfinding@4
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: consolidated checkpoint
         executable:
@@ -722,7 +722,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: empirical answer
         executable:
@@ -756,7 +756,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: prototype answer
         executable:
@@ -789,7 +789,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: unavailable evidence
         executable:
@@ -825,7 +825,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: defer
         executable:
@@ -859,7 +859,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: cancel
         executable:
@@ -892,7 +892,7 @@ rows:
     phases:
       - phase-0-wayfinding@4
       - phase-1-product-assurance@5
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: preferential answer
         executable:
@@ -1703,7 +1703,7 @@ rows:
         reuse: The timeout RUN/RES remains immutable for its exact VAI and cannot be silently reclassified.
   - id: phase-2-definition-and-simplification
     phases:
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: DWP plan
         executable:
@@ -1725,7 +1725,7 @@ rows:
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - define-decomposition-work-package@2
+          - define-decomposition-work-package@3
         next:
           - assignment
         budget: "DWP plan: No correction consumed on the positive route."
@@ -1829,21 +1829,21 @@ rows:
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - define-system-architecture@2
+          - define-system-architecture@3
         next:
           - assignment
         budget: "ASP: No correction consumed on the positive route."
         disposition: ASP yields assignment. Completion and candidate work stay blocked until both exact simplification judgments
           pass.
         reuse: "ASP: Exact member Reviews remain reusable while members do not change."
-      - route: plural ICSP
+      - route: exact ICSP
         executable:
           file: test/phase-2-hardening-routes.test.ts
           test: derives interface definition when the exact ICSP and its dependent evidence are absent
         evidence:
-          facts: "plural ICSP: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context, and both
-            simplification REVs."
-          links: "plural ICSP: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind
+          facts: "exact ICSP: Exact planning DWP, complete SYS output set, one ASP, its ICSP, one frozen context, and the
+            simplification Review."
+          links: "exact ICSP: Canonical source-owned parent, architecture, interface, strategy, Review, and context links bind
             exact Revisions."
         selectors:
           - phase-2-definition-members-for-plan@1
@@ -1859,45 +1859,17 @@ rows:
           - define-interface-control-specification@2
         next:
           - assignment
-        budget: "plural ICSP: No correction consumed on the positive route."
-        disposition: plural ICSP yields assignment. Completion and candidate work stay blocked until both exact simplification
-          judgments pass.
-        reuse: "plural ICSP: Exact member Reviews remain reusable while members do not change."
-      - route: earliest complete context
-        executable:
-          file: test/phase-2-hardening-routes.test.ts
-          test: returns the earliest exact definition context to requirement simplification Review
-        evidence:
-          facts: "earliest complete context: Exact planning DWP, complete SYS output set, one ASP, all ICSPs, one frozen context,
-            and both simplification REVs."
-          links: "earliest complete context: Canonical source-owned parent, architecture, interface, strategy, Review, and context
-            links bind exact Revisions."
-        selectors:
-          - phase-2-definition-members-for-plan@1
-          - review-context-members-for@1
-          - valid-phase-2-simplification-review@1
-        obligations:
-          - decomposition-simplification-required@1
-        participation:
-          mode: package-delegated
-          policies:
-            - contextual-review-participation@1
-          authority: independent-reviewer
-        resolvers:
-          - simplify-requirement-set@2
-        next:
-          - assignment
-        budget: "earliest complete context: No correction consumed on the positive route."
-        disposition: earliest complete context yields assignment. Completion and candidate work stay blocked until both exact
-          simplification judgments pass.
-        reuse: "earliest complete context: Exact member Reviews remain reusable while members do not change."
+        budget: "exact ICSP: No correction consumed on the positive route."
+        disposition: Exact ICSP yields assignment. Completion and candidate work stay blocked until the exact simplification
+          judgment passes.
+        reuse: "exact ICSP: Exact member Reviews remain reusable while members do not change."
       - route: architecture/interface simplification dispatch
         executable:
           file: test/phase-2-hardening-routes.test.ts
           test: returns the earliest exact definition context to architecture and interface simplification Review
         evidence:
-          facts: The earliest complete reviewed Phase 2 definition set lacks its architecture/interface simplification Review.
-          links: The frozen context contains the exact current ASP and ICSP Revisions and no superseded members.
+          facts: The complete reviewed Phase 2 definition set lacks its one late semantic simplification Review.
+          links: The frozen context contains the exact current ASP, ICSP, DWP, and SYS Revisions and no superseded members.
         selectors:
           - phase-2-definition-members-for-plan@1
           - review-context-members-for@1
@@ -1913,42 +1885,16 @@ rows:
           - simplify-architecture-and-interfaces@2
         next:
           - assignment
-        budget: "earliest complete context: No correction consumed on the positive route."
-        disposition: The complete architecture/interface context yields its independent simplification Review Assignment.
-        reuse: "earliest complete context: Exact member Reviews remain reusable while members do not change."
-      - route: requirement simplification pass
-        executable:
-          file: test/phase-2-hardening-routes.test.ts
-          test: accepts the retained passing requirement simplification Review without correction work
-        evidence:
-          facts: One complete exact SYS definition set and its passing independent requirement-simplification Review.
-          links: The Review contextualizes the earliest complete definition context and reviews that exact set.
-        selectors:
-          - phase-2-definition-members-for-plan@1
-          - review-context-members-for@1
-          - valid-phase-2-simplification-review@1
-        obligations:
-          - decomposition-simplification-required@1
-        participation:
-          mode: package-delegated
-          policies:
-            - contextual-review-participation@1
-          authority: independent-reviewer
-        resolvers:
-          - simplify-requirement-set@2
-        next:
-          - assignment
-        budget: "two simplification passes: No correction consumed on the positive route."
-        disposition: two simplification passes yields assignment. Completion and candidate work stay blocked until both exact
-          simplification judgments pass.
-        reuse: "two simplification passes: Exact member Reviews remain reusable while members do not change."
-      - route: architecture/interface simplification pass
+        budget: "late semantic simplification: No correction consumed on the positive route."
+        disposition: The complete definition context yields its independent late semantic simplification Review Assignment.
+        reuse: "late semantic simplification: Exact member Reviews remain reusable while members do not change."
+      - route: late semantic simplification pass
         executable:
           file: test/phase-2-hardening-routes.test.ts
           test: accepts the retained passing architecture and interface simplification Review without correction work
         evidence:
-          facts: One exact ASP with all current ICSPs and its passing independent architecture/interface-simplification Review.
-          links: The Review contextualizes the earliest complete architecture/interface context and reviews that exact set.
+          facts: One complete exact ASP, ICSP, DWP, and SYS definition set and its passing independent late semantic Review.
+          links: The Review contextualizes the complete exact Phase 2 definition context and reviews that set.
         selectors:
           - phase-2-definition-members-for-plan@1
           - review-context-members-for@1
@@ -1964,13 +1910,12 @@ rows:
           - simplify-architecture-and-interfaces@2
         next:
           - assignment
-        budget: "two simplification passes: No correction consumed on the positive route."
-        disposition: two simplification passes yields assignment. Completion and candidate work stay blocked until both exact
-          simplification judgments pass.
-        reuse: "two simplification passes: Exact member Reviews remain reusable while members do not change."
+        budget: "late semantic simplification: No correction consumed on the positive route."
+        disposition: The one late semantic simplification pass permits completion when its exact Review passes.
+        reuse: "late semantic simplification: Exact member Reviews remain reusable while members do not change."
   - id: phase-2-simplification-correction
     phases:
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: one SYS with several Findings
         executable:
@@ -2060,65 +2005,11 @@ rows:
           consumed."
         disposition: scope reduction yields assignment. Cross-subject, incomplete, or total-removal proposals reject atomically
           or return typed inability.
-        reuse: "scope reduction: Unchanged definition members remain reusable; corrected set receives fresh context and both
-          simplification judgments."
-      - route: complete removal inability
-        executable:
-          file: test/phase-2-hardening-routes.test.ts
-          test: rejects complete removal of the current SYS set instead of fabricating correction work
-        evidence:
-          facts: The proposal removes every current SYS output, so it is not valid Phase 2 simplification evidence and cannot
-            derive correction work.
-          links: The attempted removes link targets the sole current SYS; no fabricated replacement or correction link is
-            accepted.
-        selectors:
-          - valid-phase-2-simplification-review@1
-          - phase-2-removed-outputs-for-review@1
-        obligations:
-          - decomposition-simplification-required@1
-        participation:
-          mode: package-delegated
-          policies:
-            - contextual-review-participation@1
-          authority: independent-reviewer
-        resolvers:
-          - simplify-requirement-set@2
-        next:
-          - assignment
-        budget: The invalid total-removal proposal consumes no Correction cycle; independent simplification remains pending.
-        disposition: No correction work is fabricated; the exact definition set remains awaiting its valid independent
-          simplification Review Assignment.
-        reuse: The prior exact definition set and frozen context remain current and reusable for a fresh simplification
-          judgment.
-      - route: malformed blocker
-        executable:
-          file: test/phase-2-hardening-routes.test.ts
-          test: rejects an incomplete definition-consistency blocker set as invalid correction evidence
-        evidence:
-          facts: "malformed blocker: Failed simplification REV declares one exact subject or complete consistency set and all
-            current Findings."
-          links: "malformed blocker: The incomplete canonical blocks set fails to match the exact current definition-consistency
-            scope, so it authorizes no replacement or corrects-review link."
-        selectors:
-          - valid-phase-2-simplification-review@1
-        obligations:
-          - decomposition-simplification-required@1
-        participation:
-          mode: package-delegated
-          policies:
-            - contextual-review-participation@1
-          authority: independent-reviewer
-        resolvers:
-          - simplify-requirement-set@2
-        next:
-          - assignment
-        budget: The malformed proposal consumes no Correction cycle; independent simplification remains pending.
-        disposition: Incomplete definition-consistency blockers are invalid evidence, fabricate no correction work, and return
-          the exact definition set to its independent simplification Review Assignment.
-        reuse: Unchanged definition members and the frozen exact context remain current for a valid independent judgment.
+        reuse: "scope reduction: Unchanged definition members remain reusable; the corrected set receives a fresh context and
+          one late semantic simplification judgment."
   - id: phase-2-review-correction-and-ambiguity
     phases:
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: SYS
         executable:
@@ -2335,7 +2226,7 @@ rows:
         reuse: The complete lineage and failed Reviews remain immutable; unrelated Phase 2 evidence remains reusable.
   - id: phase-2-candidate-gate-acceptance
     phases:
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
     routes:
       - route: DWP completion
         executable:
@@ -2966,7 +2857,7 @@ rows:
           evidence remains reusable."
   - id: shared-system-change
     phases:
-      - phase-2-system-definition@8
+      - phase-2-system-definition@9
       - phase-7-change-control@4
     routes:
       - route: two exact consumers

@@ -1,0 +1,17 @@
+kind: selector-definition
+id: direct-review-support-for
+version: 1
+description: Every exact Datum Revision directly referenced by the primary Review subject.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: subject, emit: target, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
+  as: support
+  where: >-
+    support != subject
+    && (subject.identity.type in ["STK", "ASP", "ICSP", "DWP", "SYS", "VSP", "PAS"]
+      || (subject.identity.type == "DEC"
+        && subject.payload.kind == "pilot-expansion"))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

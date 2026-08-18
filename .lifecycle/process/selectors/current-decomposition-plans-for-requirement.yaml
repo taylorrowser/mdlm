@@ -20,8 +20,9 @@ query:
       {plan: plan, requirement: requirement}) == 1
     && count("architectures-for-decomposition@1", {plan: plan}) == 1
     && one("architectures-for-decomposition@1", {plan: plan}) == one("decomposition-architecture-matches-requirement@1", {plan: plan, requirement: requirement})
-    && exists("current-interfaces-for-architecture@1",
-      {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
+    && (exists("interaction-free-architectures-for-requirement@1", {requirement: requirement})
+      || exists("current-interfaces-for-architecture@1",
+        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}))
     && count("interfaces-for-decomposition@1", {plan: plan})
       == count("current-interfaces-for-architecture@1",
         {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})

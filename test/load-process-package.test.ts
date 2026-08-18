@@ -24,56 +24,108 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.66.0");
+    expect(result.package.manifest.version).toBe("0.67.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(313);
-    expect(result.package.selectors).toEqual(expect.objectContaining({
-      "accepted-baseline-promotes-candidate": expect.any(Object),
-      "blocking-product-simplification-reviews-for": expect.any(Object),
-      "candidate-correction-decisions-for": expect.any(Object),
-      "candidate-definition-members": expect.any(Object),
-      "phase-0-candidate-review-context-members": expect.any(Object),
-      "phase-0-foundation-member-reviews": expect.any(Object),
-      "review-context-members-for": expect.any(Object),
-      "legacy-thin-ver-review-contexts-for": expect.any(Object),
-      "review-context-evidence": expect.any(Object),
-      "review-context-contains-required-support": expect.any(Object),
-      "composed-baselines-for-review-context": expect.any(Object),
-      "environment-review-evidence-for": expect.any(Object),
-      "unexpected-environment-review-context-evidence": expect.any(Object),
-      "phase-2-definition-members-for-plan": expect.any(Object),
-      "valid-phase-2-simplification-review": expect.any(Object),
-      "failed-phase-2-simplification-reviews-by-scope": expect.any(Object),
-      "review-context-contains-member": expect.any(Object),
-      "intent-candidates-matching-subject": expect.any(Object),
-      "accepted-intent-candidates-for-change": expect.any(Object),
-      "revisions-tracing-subject": expect.any(Object),
-      "changes-changed-under-subject": expect.any(Object),
-      "invalid-product-simplification-blockers-for-review": expect.any(Object),
-      "matching-product-simplification-review": expect.any(Object),
-      "product-simplification-blockers-for-candidate": expect.any(Object),
-      "product-simplification-blockers-for-review": expect.any(Object),
-      "product-simplification-reviews-blocking-subject": expect.any(Object),
-      "valid-product-simplification-reviews": expect.any(Object),
-      "product-simplification-reviews-for": expect.any(Object),
-      "review-correction-history-for": expect.any(Object),
-      "phase-0-intent-approvals-for": expect.any(Object),
-      "failed-question-decisions": expect.any(Object),
-      "valid-question-decision-replacements-for": expect.any(Object),
-      "question-targets-for-decision": expect.any(Object),
-      "cited-failing-reviews-by-correction": expect.any(Object),
-      "foundation-correction-history": expect.any(Object),
-      "foundation-correction-decisions-for": expect.any(Object),
-      "foundation-review-failures-at-stage": expect.any(Object),
-      "reviewed-gate-rejections-for-candidate": expect.any(Object),
-      "matching-cited-gate-rejection-by-correction": expect.any(Object),
-      "gate-rejection-corrections-for-subject": expect.any(Object),
-      "phase-1-assurance-correction-decisions-for": expect.any(Object),
-    }));
+    expect(Object.keys(result.package.selectors)).toHaveLength(327);
+    expect(result.package.selectors).toEqual(
+      expect.objectContaining({
+        "accepted-baseline-promotes-candidate": expect.any(Object),
+        "blocking-product-simplification-reviews-for": expect.any(Object),
+        "candidate-correction-decisions-for": expect.any(Object),
+        "candidate-definition-members": expect.any(Object),
+        "phase-0-candidate-review-context-members": expect.any(Object),
+        "phase-0-foundation-member-reviews": expect.any(Object),
+        "review-context-members-for": expect.any(Object),
+        "current-exact-review-contexts-cited-by": expect.any(Object),
+        "interaction-free-architectures-for-requirement": expect.any(Object),
+        "interacting-architectures-for-requirement": expect.any(Object),
+        "review-context-evidence": expect.any(Object),
+        "review-context-contains-required-support": expect.any(Object),
+        "composed-baselines-for-review-context": expect.any(Object),
+        "environment-review-evidence-for": expect.any(Object),
+        "unexpected-environment-review-context-evidence": expect.any(Object),
+        "phase-2-definition-members-for-plan": expect.any(Object),
+        "phase-2-definition-review-context-support-for-plan": expect.any(Object),
+        "architecture-definition-set-representative-plans": expect.any(Object),
+        "decomposition-plans-sharing-architecture-with": expect.any(Object),
+        "stakeholder-requirements-for-review-context": expect.any(Object),
+        "valid-phase-2-simplification-review": expect.any(Object),
+        "failed-phase-2-simplification-reviews-by-scope": expect.any(Object),
+        "review-context-contains-member": expect.any(Object),
+        "intent-candidates-matching-subject": expect.any(Object),
+        "accepted-intent-candidates-for-change": expect.any(Object),
+        "revisions-tracing-subject": expect.any(Object),
+        "changes-changed-under-subject": expect.any(Object),
+        "invalid-product-simplification-blockers-for-review": expect.any(Object),
+        "matching-product-simplification-review": expect.any(Object),
+        "product-simplification-blockers-for-candidate": expect.any(Object),
+        "product-simplification-blockers-for-review": expect.any(Object),
+        "product-simplification-reviews-blocking-subject": expect.any(Object),
+        "valid-product-simplification-reviews": expect.any(Object),
+        "product-simplification-reviews-for": expect.any(Object),
+        "review-correction-history-for": expect.any(Object),
+        "phase-0-intent-approvals-for": expect.any(Object),
+        "failed-question-decisions": expect.any(Object),
+        "valid-question-decision-replacements-for": expect.any(Object),
+        "question-targets-for-decision": expect.any(Object),
+        "cited-failing-reviews-by-correction": expect.any(Object),
+        "foundation-correction-history": expect.any(Object),
+        "foundation-correction-decisions-for": expect.any(Object),
+        "foundation-review-failures-at-stage": expect.any(Object),
+        "reviewed-gate-rejections-for-candidate": expect.any(Object),
+        "matching-cited-gate-rejection-by-correction": expect.any(Object),
+        "gate-rejection-corrections-for-subject": expect.any(Object),
+        "phase-1-assurance-correction-decisions-for": expect.any(Object),
+      }),
+    );
     expect(Object.keys(result.package.policies)).toHaveLength(14);
     expect(Object.keys(result.package.obligations)).toHaveLength(60);
     expect(Object.keys(result.package.scenarios)).toHaveLength(62);
+    expect(result.package.scenarios["define-system-architecture"]?.outputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "architecture",
+          cardinality: "one-or-more",
+          required_links: [expect.objectContaining({ distribution: "partition" })],
+        }),
+      ]),
+    );
+    expect(
+      result.package.scenarios["define-decomposition-work-package"]?.outputs,
+    ).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "plan",
+        cardinality: "one-or-more",
+        required_payload: { stage: "planning" },
+        required_links: expect.arrayContaining([
+          expect.objectContaining({ link: "decomposes", distribution: "cover" }),
+        ]),
+      }),
+    ]));
+    expect(
+      result.package.scenarios["create-review-context"]?.kernel_materialization,
+    ).toEqual({
+      kind: "exact-baseline@1",
+      output: "context",
+      subject_input: "subject",
+      support_input: "context_members",
+      payload_fields: {
+        title: "title",
+        kind: "kind",
+        role: "role",
+        scope: "scope",
+        group: "group",
+        members: "definition_members",
+        evidence: "evidence",
+      },
+      title_prefix: "Review context for ",
+      baseline_kind: "review-context",
+      baseline_role: "review-context",
+      baseline_group: "DEFAULT",
+      evidence_subject_types: ["ENV"],
+      evidence_types: ["RES", "RUN", "VAI", "VER"],
+    });
     expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
       .toEqual([expect.objectContaining({
         id: "phase-0-gate",
@@ -452,7 +504,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       obligationPath,
       obligation.replace(
-        'for_each: \'select("gate-authorization-candidates@1", {})\'',
+        "for_each: 'select(\"gate-authorization-candidates@1\", {})'",
         "for_each: {selector: gate-authorization-candidates@1, arguments: {}}",
       ),
     );
@@ -1065,8 +1117,8 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       malformedPath,
       malformed.replace(
-        "      exists(\"candidate-baselines-of-kind@1\", {baseline_kind: \"intent-level-candidate\"})",
-        "      exists(\"missing-checkpoint-selector@1\", {})",
+        '      exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})',
+        '      exists("missing-checkpoint-selector@1", {})',
       ),
     );
 
@@ -1533,7 +1585,7 @@ describe("loadProcessPackage", () => {
     await fs.writeFile(
       promptPath,
       (await fs.readFile(promptPath, "utf8")).replace(
-        "skills/contextual-artifact-review.md@1",
+        "skills/contextual-artifact-review.md@2",
         "skills/review-model.md@1",
       ),
     );

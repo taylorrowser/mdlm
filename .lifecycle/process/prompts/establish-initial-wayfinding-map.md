@@ -18,3 +18,6 @@ QST, DEC, ART, PSP, and STK data rather than restating those claims. Record
 preferential uncertainty as QST and prototype candidates only where empirical
 evidence could change a decision. Do not invent stakeholder preference or turn
 the map into an imperative workflow.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

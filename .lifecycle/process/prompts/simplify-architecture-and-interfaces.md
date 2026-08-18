@@ -12,11 +12,13 @@ Read, in order:
 2. `skills/scope-challenge.md@1`
 3. `skills/architecture-specification.md@1`
 4. `skills/interface-control-specification.md@1`
-5. `skills/contextual-artifact-review.md@1`
+5. `skills/contextual-artifact-review.md@2`
 
 Independently challenge every architecture element, interaction, constraint,
-and interface obligation in the frozen context. Remove complexity that exists
-only to support itself. Record a terminal Review with
+interface obligation, and SYS behavior in the frozen context. Across the complete
+SYS set, identify missing behavior, duplicate or mergeable statements, conflicts,
+unjustified splits, implementation leakage, and behavior not traceable to an exact
+accepted parent. Remove complexity that exists only to support itself. Record a terminal Review with
 `review_kind: simplification-architecture-interfaces` against the supplied exact
 Review Context. A pass has no blockers. A failure declares one
 `definition_simplification`: use `subject` only for one exact SYS target, or

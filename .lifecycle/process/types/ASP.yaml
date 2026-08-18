@@ -2,7 +2,7 @@ kind: type-definition
 id: ASP
 version: 2
 name: Architecture Specification
-description: Exact system architecture context defining stable elements, responsibilities, interactions, constraints, and nominated risks.
+description: Exact system architecture context defining stable elements, responsibilities, internal interactions, independently controlled boundaries, constraints, and nominated risks.
 extends: rationale-bearing@1
 lifecycle:
   authorship: authored
@@ -10,7 +10,7 @@ lifecycle:
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  required: [level, elements, interactions, constraints, nominated_risks]
+  required: [level, elements, internal_interactions, controlled_boundaries, constraints, nominated_risks]
   properties:
     level: {const: system}
     elements:
@@ -26,7 +26,20 @@ payload_schema:
           alias: {type: string, pattern: '^[A-Z][A-Z0-9_-]*$'}
           title: {type: string, minLength: 1}
           responsibilities: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
-    interactions: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+    internal_interactions:
+      type: array
+      uniqueItems: true
+      items: {type: string, minLength: 1}
+    controlled_boundaries:
+      type: array
+      uniqueItems: true
+      items:
+        type: object
+        additionalProperties: false
+        required: [from_element, to_element]
+        properties:
+          from_element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
+          to_element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
     constraints: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
     nominated_risks: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
 outgoing_links:

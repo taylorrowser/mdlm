@@ -30,9 +30,26 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-const processRef = "mdlm-bootstrap@0.59.0#sha256:phase-0-route-evidence";
+const processRef = "mdlm-bootstrap@0.67.0#sha256:phase-0-route-evidence";
 const revisionId = (id: string, revision = 1) =>
   `${id}-r${String(revision).padStart(5, "0")}`;
+
+async function hasGeneratedReviewContext(
+  repository: string,
+  scope: string,
+): Promise<boolean> {
+  const dataRoot = path.join(repository, ".lifecycle", "data");
+  const files = await fs.readdir(dataRoot, { recursive: true });
+  for (const file of files.filter((candidate) => candidate.endsWith(".md"))) {
+    const source = await fs.readFile(path.join(dataRoot, file), "utf8");
+    if (
+      source.includes("kind: review-context") &&
+      source.includes(`scope: ${scope}`)
+    )
+      return true;
+  }
+  return false;
+}
 
 function record(
   type: string,
@@ -54,13 +71,35 @@ function record(
 }
 
 function contextFor(subject: LifecycleRecord, id: string): LifecycleRecord {
+  const directSupportTypes = new Set([
+    "STK",
+    "ASP",
+    "ICSP",
+    "DWP",
+    "SYS",
+    "VSP",
+    "PAS",
+  ]);
+  const exactTarget = (target: string) =>
+    /-r[0-9]{5}$/.test(target) ? target : `${target}-r00001`;
+  const support = directSupportTypes.has(subject.datum.type)
+    ? subject.datum.links.map((link) => exactTarget(link.target))
+    : subject.datum.type === "DEC" &&
+        subject.datum.payload.kind === "pilot-expansion"
+      ? subject.datum.links.map((link) => exactTarget(link.target))
+      : subject.datum.type === "BSL" &&
+          subject.datum.payload.role === "candidate"
+        ? (subject.datum.payload.definition_members as string[])
+        : [];
   return record("BSL", id, {
     title: `Exact Review Context for ${subject.datum.revision_id}`,
     kind: "review-context",
     role: "review-context",
     scope: subject.datum.revision_id,
     group: "DEFAULT",
-    definition_members: [subject.datum.revision_id],
+    definition_members: [
+      ...new Set([subject.datum.revision_id, ...support]),
+    ].sort(),
     evidence: [],
   }, { scenario: "create-review-context@1" });
 }
@@ -80,39 +119,60 @@ function reviewFor(
     options.contextId ?? id.replace("REV", "BSL"),
   );
   const reviewKind = options.reviewKind ?? "contextual";
-  const review = record("REV", id, {
-    title: `${outcome === "pass" ? "Passing" : "Failed"} Review of ${subject.datum.revision_id}`,
-    review_kind: reviewKind,
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    ...(reviewKind === "simplification-product-definition"
-      ? outcome === "fail"
-        ? {
-            simplification: {
-              target: subject.datum.revision_id,
-              findings: [{
-                id: "F-001",
-                severity: "blocking",
-                summary: "The exact product definition remains unnecessarily broad.",
-              }],
-            },
-          }
-        : {}
-      : {
-          findings: outcome === "fail"
-            ? [{
-                id: "F-001",
+  const review = record(
+    "REV",
+    id,
+    {
+      title: `${outcome === "pass" ? "Passing" : "Failed"} Review of ${subject.datum.revision_id}`,
+      review_kind: reviewKind,
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      ...(reviewKind === "simplification-product-definition"
+        ? outcome === "fail"
+          ? {
+              simplification: {
                 target: subject.datum.revision_id,
-                relationship: "primary",
-                severity: "blocking",
-                summary: "Correct the exact reviewed Revision.",
-              }]
-            : [],
-        }),
-    ...(options.correctionAuthority
+                findings: [
+                  {
+                    id: "F-001",
+                    severity: "blocking",
+                    criterion:
+                      "A failed contextual Review must identify a concrete defect in the exact Phase 0 Revision.",
+                    evidence:
+                      "The Review rejects the exact subject Revision in its kernel-frozen Phase 0 context.",
+                    material_consequence:
+                      "The rejected Revision cannot satisfy its foundation Review obligation.",
+                    summary: "The exact product definition remains unnecessarily broad.",
+                  },
+                ],
+              },
+            }
+          : {}
+        : {
+            findings:
+              outcome === "fail"
+                ? [
+                    {
+                      id: "F-001",
+                      target: subject.datum.revision_id,
+                      relationship: "primary",
+                      severity: "blocking",
+                      criterion:
+                        "Product-definition simplification must remove or justify scope broader than the accepted intent.",
+                      evidence:
+                        "The Review observes that the exact candidate contains an unnecessarily broad product definition.",
+                      material_consequence:
+                        "Accepting the candidate would preserve avoidable scope and downstream artifact expansion.",
+                      summary: "Correct the exact reviewed Revision.",
+                    },
+                  ]
+                : [],
+          }),
+      ...(options.correctionAuthority
       ? { correction_authority: options.correctionAuthority }
       : {}),
-    outcome,
-  }, {
+      outcome,
+    },
+    {
     scenario: "review-datum-in-context@2",
     links: [
       { type: "reviews", target: subject.datum.revision_id },
@@ -121,7 +181,8 @@ function reviewFor(
         ? [{ type: "blocks", target: subject.datum.revision_id }]
         : []),
     ],
-  });
+  },
+  );
   return [context, review];
 }
 
@@ -140,17 +201,23 @@ function phase0Foundation() {
     non_goals: ["implementation architecture"],
     success_measures: ["the outcome is independently reviewable"],
   }, { scenario: "compile-psp@2" });
-  const requirement = record("STK", "STK-1030000001", {
-    title: "Deterministic operator outcome",
-    rationale: "The exact product intent requires an observable commitment.",
-    statement: "The product shall expose one deterministic operator outcome.",
-    verification_intent: "Observe the exact public outcome.",
-    stakeholder: "operator",
-    priority: "must",
-  }, {
+  const requirement = record(
+    "STK",
+    "STK-1030000001",
+    {
+      title: "Deterministic operator outcome",
+      rationale: "The exact product intent requires an observable commitment.",
+      statement: "The product shall expose one deterministic operator outcome.",
+      verification_intent: "Observe the exact public outcome.",
+      stakeholder: "operator",
+      priority: "must",
+      system_context: "product",
+    },
+    {
     scenario: "draft-stakeholder-requirements@2",
     links: [{ type: "derived-from", target: product.datum.id }],
-  });
+  },
+  );
   const members = [map, product, requirement];
   const reviews = members.flatMap((member, index) => reviewFor(
     member,
@@ -163,7 +230,10 @@ function phase0Foundation() {
 
 function intentCandidate(
   foundation: ReturnType<typeof phase0Foundation>,
-  options: { revision?: number; links?: Array<{ type: string; target: string }> } = {},
+  options: {
+    revision?: number;
+    links?: Array<{ type: string; target: string }>;
+  } = {},
 ): LifecycleRecord {
   const memberRevisions = new Set(
     foundation.members.map((member) => member.datum.revision_id),
@@ -205,18 +275,23 @@ function passingSimplification(
     definition_members: [candidate.datum.revision_id],
     evidence: [],
   }, { scenario: "create-review-context@1" });
-  const review = record("REV", id, {
-    title: "Passing candidate-centered simplification Review",
-    review_kind: "simplification-product-definition",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    outcome: "pass",
-  }, {
+  const review = record(
+    "REV",
+    id,
+    {
+      title: "Passing candidate-centered simplification Review",
+      review_kind: "simplification-product-definition",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      outcome: "pass",
+    },
+    {
     scenario: "review-datum-in-context@2",
     links: [
       { type: "reviews", target: candidate.datum.revision_id },
       { type: "contextualizes", target: context.datum.revision_id },
     ],
-  });
+  },
+  );
   return [context, review];
 }
 
@@ -358,26 +433,28 @@ function reviewContextOutput(prepared: PreparedAssignment): ProposedOutput[] {
 function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
   const subject = inputRevision(prepared, "subject");
   const context = inputRevision(prepared, "review_context");
-  return [{
-    localId: "review",
-    name: "review",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "REV",
-      payload: {
-        title: `Passing independent Review of ${subject}`,
-        review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [],
-        outcome: "pass",
-      },
-      links: [
+  return [
+    {
+      localId: "review",
+      name: "review",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "REV",
+        payload: {
+          title: `Passing independent Review of ${subject}`,
+          review_kind: "contextual",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          findings: [],
+          outcome: "pass",
+        },
+        links: [
         { type: "reviews", target: subject },
         { type: "contextualizes", target: context },
       ],
-      body: "The exact public foundation Revision passes independent Review.\n",
+        body: "The exact public foundation Revision passes independent Review.\n",
+      },
     },
-  }];
+  ];
 }
 
 async function advancePhase0To(
@@ -424,24 +501,27 @@ async function advancePhase0To(
         break;
       case "draft-stakeholder-requirements@2": {
         const product = exactInput(prepared, "product_specification").identity;
-        outputs = [{
-          localId: "requirement",
-          name: "requirements",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "STK",
-            payload: {
-              title: "Exact public stakeholder commitment",
-              rationale: "Bind observable behavior to the exact product intent.",
-              statement: "The product shall publish one deterministic operator outcome.",
-              verification_intent: "Observe the exact compiled public outcome.",
-              stakeholder: "operator",
-              priority: "must",
+        outputs = [
+          {
+            localId: "requirement",
+            name: "requirements",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "STK",
+              payload: {
+                title: "Exact public stakeholder commitment",
+                rationale: "Bind observable behavior to the exact product intent.",
+                statement: "The product shall publish one deterministic operator outcome.",
+                verification_intent: "Observe the exact compiled public outcome.",
+                stakeholder: "operator",
+                priority: "must",
+                system_context: "product",
+              },
+              links: [{ type: "derived-from", target: product.id }],
+              body: "One exact stakeholder-visible commitment.\n",
             },
-            links: [{ type: "derived-from", target: product.id }],
-            body: "One exact stakeholder-visible commitment.\n",
           },
-        }];
+        ];
         break;
       }
       case "freeze-source-boundary@1": {
@@ -542,8 +622,13 @@ describe("Phase 0 missing hardening routes", () => {
       }));
       const doctor = mdlm(repository, "doctor", "--json");
       expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-      const next = prepareNextAssignment(repository, "create-review-context@1");
-      expect(inputRevision(next, "subject")).toBe(product.revisionId);
+      const next = prepareNextAssignment(repository);
+      expect(next.packet.scenario.reference).not.toBe(
+        "create-review-context@1",
+      );
+      expect(
+        await hasGeneratedReviewContext(repository, product.revisionId),
+      ).toBe(true);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
@@ -572,6 +657,7 @@ describe("Phase 0 missing hardening routes", () => {
             verification_intent: "Observe no publication.",
             stakeholder: "operator",
             priority: "must",
+            system_context: "product",
           },
           links: [],
           body: "Missing the exact required product link.\n",
@@ -596,54 +682,41 @@ describe("Phase 0 missing hardening routes", () => {
         target: product.id,
       });
       expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-      const next = prepareNextAssignment(repository, "create-review-context@1");
-      expect(inputRevision(next, "subject")).toBe(requirement.revisionId);
-      expect(inputRevisions(next, "context_members")).toEqual([
-        product.revision_id,
-      ]);
-      const contextOutput: ProposedOutput = {
-        localId: "context",
-        name: "context",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Exact public STK Review Context",
-            kind: "review-context",
-            role: "review-context",
-            scope: requirement.revisionId,
-            group: "DEFAULT",
-            definition_members: [requirement.revisionId],
-            evidence: [],
-          },
-          links: [],
-          body: "Freeze the exact STK and its current PSP parent.\n",
-        },
-      };
-      const beforeContext = await directoryDigest(dataRoot);
-      const missingParent = submitAssignment(repository, next, [contextOutput]);
-      expect(missingParent.status).toBe(1);
-      expect(JSON.parse(missingParent.stdout).diagnostics).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: "scenario-completion-failed" }),
-      ]));
-      expect(await directoryDigest(dataRoot)).toBe(beforeContext);
-      contextOutput.lifecycleDatum.payload.definition_members = [
-        requirement.revisionId,
-        product.revision_id,
-      ];
-      const contextSubmission = submitAssignment(repository, next, [contextOutput]);
-      expect(
-        contextSubmission.status,
-        `${contextSubmission.stderr}${contextSubmission.stdout}`,
-      ).toBe(0);
-      const frozenContext = JSON.parse(contextSubmission.stdout).execution.outputs[0];
-      expect(frozenContext.data.payload.definition_members).toEqual([
-        requirement.revisionId,
-        product.revision_id,
-      ]);
-      expect(Object.keys(frozenContext.data.payload.snapshot.member_hashes)).toEqual(
-        expect.arrayContaining([requirement.revisionId, product.revision_id]),
+      const next = prepareNextAssignment(repository);
+      expect(next.packet.scenario.reference).not.toBe(
+        "create-review-context@1",
       );
+      expect(
+        await hasGeneratedReviewContext(repository, requirement.revisionId),
+      ).toBe(true);
+      const listed = mdlm(repository, "list", "--json");
+      expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
+      const generated = (
+        JSON.parse(listed.stdout).data as Array<{
+        lifecycleDatum: { datum: LifecycleRecord["datum"] };
+      }>
+      )
+        .map((item) => item.lifecycleDatum.datum)
+        .find(
+          (datum) =>
+            datum.type === "BSL" &&
+            datum.payload.scope === requirement.revisionId,
+        );
+      expect(generated?.payload.definition_members).toEqual([
+        product.revision_id,
+        requirement.revisionId,
+      ]);
+      expect(generated?.payload.evidence).toEqual([]);
+      const snapshot = generated?.payload.snapshot as
+        { member_hashes: Record<string, string> } | undefined;
+      expect(Object.keys(snapshot?.member_hashes ?? {})).toEqual([
+        product.revision_id,
+        requirement.revisionId,
+      ]);
+      expect(Object.values(snapshot?.member_hashes ?? {})).toEqual([
+        expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+      ]);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
@@ -684,17 +757,23 @@ describe("Phase 0 missing hardening routes", () => {
       foundation.product.datum.revision_id,
     ]);
 
-    const context = record("BSL", "BSL-1030000091", {
-      title: "Historical STK Review Context",
-      kind: "review-context",
-      role: "review-context",
-      scope: foundation.requirement.datum.revision_id,
-      group: "DEFAULT",
-      definition_members: [foundation.requirement.datum.revision_id],
-      evidence: [],
-    }, { scenario: "create-review-context@1" });
-    context.datum.created_by.process_ref =
-      "mdlm-bootstrap@0.58.0#sha256:0000000000000000000000000000000000000000000000000000000000000000";
+    const context = record(
+      "BSL",
+      "BSL-1030000091",
+      {
+        title: "Exact current STK Review Context",
+        kind: "review-context",
+        role: "review-context",
+        scope: foundation.requirement.datum.revision_id,
+        group: "DEFAULT",
+        definition_members: [
+          foundation.requirement.datum.revision_id,
+          foundation.product.datum.revision_id,
+        ],
+        evidence: [],
+      },
+      { scenario: "create-review-context@1" },
+    );
     const reviewRecords = [...records, context];
     const reviewRoute = obligation(
       processPackage,
@@ -829,8 +908,16 @@ describe("Phase 0 missing hardening routes", () => {
         }),
       });
       expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-      const next = prepareNextAssignment(repository, "create-review-context@1");
-      expect(inputRevision(next, "subject")).toBe(output.lifecycleDatum.revisionId);
+      const next = prepareNextAssignment(repository);
+      expect(next.packet.scenario.reference).not.toBe(
+        "create-review-context@1",
+      );
+      expect(
+        await hasGeneratedReviewContext(
+          repository,
+          output.lifecycleDatum.revisionId,
+        ),
+      ).toBe(true);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
@@ -852,27 +939,40 @@ describe("Phase 0 missing hardening routes", () => {
       ],
       evidence: [],
     }, { scenario: "create-review-context@1" });
-    const failed = record("REV", "REV-1030000092", {
-      title: "Failed candidate evidence Review",
-      review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      simplification: {
-        target: candidate.datum.revision_id,
-        findings: [{
-          id: "F-001",
-          severity: "blocking",
-          summary: "The candidate omits complete member Review evidence.",
-        }],
+    const failed = record(
+      "REV",
+      "REV-1030000092",
+      {
+        title: "Failed candidate evidence Review",
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        simplification: {
+          target: candidate.datum.revision_id,
+          findings: [
+            {
+              id: "F-001",
+              severity: "blocking",
+              criterion:
+                "A corrected candidate must include passing Reviews for every exact definition member.",
+              evidence:
+                "The candidate correction omits one member Review required by its complete frozen definition set.",
+              material_consequence:
+                "The candidate cannot establish that every member is independently usable.",
+              summary: "The candidate omits complete member Review evidence.",
+            },
+          ],
+        },
+        outcome: "fail",
       },
-      outcome: "fail",
-    }, {
+      {
       scenario: "review-datum-in-context@2",
       links: [
         { type: "reviews", target: candidate.datum.revision_id },
         { type: "contextualizes", target: context.datum.revision_id },
         { type: "blocks", target: candidate.datum.revision_id },
       ],
-    });
+    },
+    );
     const records = [
       ...foundation.members,
       ...foundation.reviews,
@@ -1090,6 +1190,7 @@ describe("Phase 0 missing hardening routes", () => {
       "skills/lifecycle-data.md@1",
       "skills/clarification-protocol.md@1",
       "skills/requirement-writing.md@1",
+      "skills/author-preflight.md@1",
     ]);
     expect(prepared.value.invocations[0]!.inputs.find((input) =>
       input.name === "lineage"
@@ -1243,9 +1344,20 @@ describe("Phase 0 missing hardening routes", () => {
         state: "answered",
       });
       expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-      const next = prepareNextAssignment(repository, "create-review-context@1");
-      expect(inputRevision(next, "subject")).toMatch(/^STK-.*-r00001$/);
+      const next = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(next, "subject")).toMatch(
+        /^(?:MAP|PSP|STK)-.*-r00001$/,
+      );
       expect(inputRevision(next, "subject")).not.toBe(question.revision_id);
+      expect(
+        await hasGeneratedReviewContext(
+          repository,
+          inputRevision(next, "subject"),
+        ),
+      ).toBe(true);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }

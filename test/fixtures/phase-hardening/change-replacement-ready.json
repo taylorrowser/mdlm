@@ -1,5 +1,5 @@
 {
-  "processRef": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+  "processRef": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
   "phaseId": "phase-7-change-control",
   "records": [
     {
@@ -21,57 +21,13 @@
           ],
           "evidence": [
             "REV-1010000001-r00001"
-          ],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:14.179Z",
-            "member_hashes": {
-              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5",
-              "REV-1010000001-r00001": "sha256:e31bc9fab6fead50b370f7663ffb6c7489971a4dfdc68ea86f9f488ae664a95e",
-              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
-              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7"
-            },
-            "resolved_links": {
-              "BSL-1010000004-r00001": [],
-              "PSP-1010000000-r00001": [],
-              "REV-1010000001-r00001": [
-                "BSL-1010000003-r00001",
-                "STK-1010000001-r00001"
-              ],
-              "STK-1010000001-r00001": [
-                "PSP-1010000000-r00001"
-              ],
-              "STK-1010000002-r00001": [
-                "PSP-1010000000-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "PSP@4",
-                "REV@5",
-                "STK@4",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          ]
         },
         "links": [],
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -101,7 +57,7 @@
         "payload": {
           "title": "Passing Review of DEC-G7GAHE6SEX-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -117,8 +73,8 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@2",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "prompt_ref": "prompts/review-datum-in-context.md@3",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -172,85 +128,7 @@
             "REV-1010000002-r00001",
             "DEC-1010000000-r00001",
             "REV-1010000003-r00001"
-          ],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:21.085Z",
-            "member_hashes": {
-              "BSL-1010000003-r00001": "sha256:cf2cb7a3b6753e18ec6ea5ef7943267172d89f73fe85fe315412b92ad6e3c91d",
-              "BSL-1010000004-r00001": "sha256:3bd2995bee62845ed3eb72cf6fb344f32b3eed5ddc67dd9abf908ae90d1efc04",
-              "DEC-1010000000-r00001": "sha256:a47a5efb9c95c99942214f59f24525a6cd5c607b43011766802bb220ab086e7a",
-              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5",
-              "REV-1010000001-r00001": "sha256:e31bc9fab6fead50b370f7663ffb6c7489971a4dfdc68ea86f9f488ae664a95e",
-              "REV-1010000002-r00001": "sha256:c5d17d2659d1fdc79f45f612d7447c9a2c1f39fd0b76ad52b4151b45d61188fd",
-              "REV-1010000003-r00001": "sha256:7c87d215cfb95a9264dbfe7269bba8d6d9e8e3b04acb5cfe76f086ec419c88b1",
-              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
-              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7",
-              "VER-1010000001-r00001": "sha256:46a32e4f875505ab967174ea13be0890d5648d163bbe4100499dc4819ce119a4",
-              "VER-1010000002-r00001": "sha256:164f6def8284a11b7717ea1d82034306660a3390bfc004576e49ecc6fb9fbf20"
-            },
-            "resolved_links": {
-              "BSL-1010000000-r00001": [
-                "BSL-1010000004-r00001"
-              ],
-              "BSL-1010000003-r00001": [],
-              "BSL-1010000004-r00001": [],
-              "DEC-1010000000-r00001": [
-                "BSL-1010000004-r00001"
-              ],
-              "PSP-1010000000-r00001": [],
-              "REV-1010000001-r00001": [
-                "BSL-1010000003-r00001",
-                "STK-1010000001-r00001"
-              ],
-              "REV-1010000002-r00001": [
-                "BSL-1010000004-r00001",
-                "BSL-1010000005-r00001"
-              ],
-              "REV-1010000003-r00001": [
-                "BSL-1010000006-r00001",
-                "DEC-1010000000-r00001"
-              ],
-              "STK-1010000001-r00001": [
-                "PSP-1010000000-r00001"
-              ],
-              "STK-1010000002-r00001": [
-                "PSP-1010000000-r00001"
-              ],
-              "VER-1010000001-r00001": [
-                "STK-1010000001-r00001",
-                "STK-1010000001-r00001",
-                "VSP-1010000000-r00001"
-              ],
-              "VER-1010000002-r00001": [
-                "STK-1010000002-r00001",
-                "STK-1010000002-r00001",
-                "VSP-1010000000-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "DEC@6",
-                "PSP@4",
-                "REV@5",
-                "STK@4",
-                "VER@2",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          ]
         },
         "links": [
           {
@@ -261,7 +139,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -298,46 +176,13 @@
           "evidence": [
             "ART-1010000000-r00001",
             "PRB-1010000000-r00001"
-          ],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:21.343Z",
-            "member_hashes": {
-              "ART-1010000000-r00001": "sha256:f0fac17fa87e755d856d87abc479032b3bdc70b1f849342d274fa80f3824f851",
-              "PRB-1010000000-r00001": "sha256:4d96c02dbb0be1267b7247f237d0bd2a8214946a75ed81fe534a5507ccb120b0"
-            },
-            "resolved_links": {
-              "ART-1010000000-r00001": [],
-              "BSL-1010000001-r00001": [],
-              "PRB-1010000000-r00001": [
-                "ART-1010000000-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "ART@1",
-                "BSL@4",
-                "PRB@1",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          ]
         },
         "links": [],
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -384,7 +229,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -414,7 +259,7 @@
         "payload": {
           "title": "Passing simplification Review of accepted intent candidate",
           "review_kind": "simplification-product-definition",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "outcome": "pass"
         },
         "links": [
@@ -430,7 +275,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -472,7 +317,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -518,7 +363,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -566,7 +411,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -599,7 +444,8 @@
           "statement": "The product shall export a completed report.",
           "verification_intent": "Observe the exact stakeholder-visible behavior.",
           "stakeholder": "report author",
-          "priority": "must"
+          "priority": "must",
+          "system_context": "product"
         },
         "links": [
           {
@@ -610,7 +456,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -643,7 +489,8 @@
           "statement": "The product shall retain the authored report title.",
           "verification_intent": "Observe the exact stakeholder-visible behavior.",
           "stakeholder": "report author",
-          "priority": "must"
+          "priority": "must",
+          "system_context": "product"
         },
         "links": [
           {
@@ -654,7 +501,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -687,7 +534,8 @@
           "statement": "The product shall preview a completed report.",
           "verification_intent": "Observe the exact stakeholder-visible behavior.",
           "stakeholder": "report author",
-          "priority": "must"
+          "priority": "must",
+          "system_context": "product"
         },
         "links": [
           {
@@ -698,7 +546,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -762,7 +610,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -826,7 +674,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -899,7 +747,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -938,53 +786,13 @@
             "STK-1010000001-r00001",
             "STK-1010000002-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:15.525Z",
-            "member_hashes": {
-              "BSL-1010000004-r00001": "sha256:3bd2995bee62845ed3eb72cf6fb344f32b3eed5ddc67dd9abf908ae90d1efc04",
-              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5",
-              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
-              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7"
-            },
-            "resolved_links": {
-              "BSL-1010000004-r00001": [],
-              "BSL-1010000005-r00001": [],
-              "PSP-1010000000-r00001": [],
-              "STK-1010000001-r00001": [
-                "PSP-1010000000-r00001"
-              ],
-              "STK-1010000002-r00001": [
-                "PSP-1010000000-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "PSP@4",
-                "STK@4",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1040,7 +848,7 @@
         "created_by": {
           "scenario": "analyze-change-impact@2",
           "prompt_ref": "prompts/analyze-change-impact.md@2",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1",
@@ -1077,51 +885,13 @@
           "definition_members": [
             "CHG-YSYT05KE22-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:58.944Z",
-            "member_hashes": {
-              "CHG-YSYT05KE22-r00001": "sha256:ef51760a80ea6f51809375652a1ad96a1a60114c273bab78c8f4c1f9ea14418c"
-            },
-            "resolved_links": {
-              "BSL-ZF8MZCDNHY-r00001": [],
-              "CHG-YSYT05KE22-r00001": [
-                "BSL-1010000000-r00001",
-                "PRB-1010000000-r00001",
-                "STK-1010000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "CHG@3",
-                "analyze-change-impact@2",
-                "create-review-context@1",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/analyze-change-impact.md@2",
-                "prompts/create-review-context.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "skills/baseline-model.md@1",
-                "skills/lifecycle-data.md@1",
-                "skills/traceability.md@1",
-                "titled-datum@1",
-                "waiver-applicability@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -1162,50 +932,13 @@
           "definition_members": [
             "DEC-G7GAHE6SEX-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:57:50.632Z",
-            "member_hashes": {
-              "DEC-G7GAHE6SEX-r00001": "sha256:48fc89383829d96d3fcba65684c2a7904c02421de8b448dc0bc85881c3ee5a6a"
-            },
-            "resolved_links": {
-              "BSL-WWE4MKE4QY-r00001": [],
-              "DEC-G7GAHE6SEX-r00001": [
-                "CHG-YSYT05KE22-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "DEC@6",
-                "approve-change-request@3",
-                "consequential-decision-participation@1",
-                "create-review-context@1",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/approve-change-request.md@3",
-                "prompts/create-review-context.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "skills/baseline-model.md@1",
-                "skills/lifecycle-data.md@1",
-                "skills/traceability.md@1",
-                "titled-datum@1",
-                "waiver-applicability@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -1246,41 +979,13 @@
           "definition_members": [
             "PSP-1010000000-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:11.321Z",
-            "member_hashes": {
-              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
-            },
-            "resolved_links": {
-              "BSL-1010000007-r00001": [],
-              "PSP-1010000000-r00001": []
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "PSP@4",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1314,50 +1019,16 @@
           "scope": "STK-1010000002-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "STK-1010000002-r00001",
-            "PSP-1010000000-r00001"
+            "PSP-1010000000-r00001",
+            "STK-1010000002-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:11.441Z",
-            "member_hashes": {
-              "STK-1010000002-r00001": "sha256:5804fbdbaa27e5433cf4406f35bb5293e816c711572fdca64f524b8a02e0baa7",
-              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
-            },
-            "resolved_links": {
-              "BSL-1010000008-r00001": [],
-              "STK-1010000002-r00001": [
-                "PSP-1010000000-r00001"
-              ],
-              "PSP-1010000000-r00001": []
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "PSP@4",
-                "STK@4",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1391,46 +1062,16 @@
           "scope": "VSP-1010000000-r00001",
           "group": "DEFAULT",
           "definition_members": [
+            "STK-1010000001-r00001",
             "VSP-1010000000-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:11.553Z",
-            "member_hashes": {
-              "VSP-1010000000-r00001": "sha256:47658dcbdb3177ced85b49eb9ae627e6aaf65e75adf94b4d8e244015d7d80d7c"
-            },
-            "resolved_links": {
-              "BSL-1010000009-r00001": [],
-              "VSP-1010000000-r00001": [
-                "STK-1010000001-r00001",
-                "STK-1010000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "VSP@1",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1464,47 +1105,17 @@
           "scope": "VER-1010000001-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "VER-1010000001-r00001"
+            "STK-1010000001-r00001",
+            "VER-1010000001-r00001",
+            "VSP-1010000000-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:11.664Z",
-            "member_hashes": {
-              "VER-1010000001-r00001": "sha256:46a32e4f875505ab967174ea13be0890d5648d163bbe4100499dc4819ce119a4"
-            },
-            "resolved_links": {
-              "BSL-1010000010-r00001": [],
-              "VER-1010000001-r00001": [
-                "STK-1010000001-r00001",
-                "STK-1010000001-r00001",
-                "VSP-1010000000-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "VER@2",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1538,47 +1149,17 @@
           "scope": "VER-1010000002-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "VER-1010000002-r00001"
+            "STK-1010000002-r00001",
+            "VER-1010000002-r00001",
+            "VSP-1010000000-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:11.778Z",
-            "member_hashes": {
-              "VER-1010000002-r00001": "sha256:164f6def8284a11b7717ea1d82034306660a3390bfc004576e49ecc6fb9fbf20"
-            },
-            "resolved_links": {
-              "BSL-1010000011-r00001": [],
-              "VER-1010000002-r00001": [
-                "STK-1010000002-r00001",
-                "STK-1010000002-r00001",
-                "VSP-1010000000-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "VER@2",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1627,7 +1208,7 @@
         "created_by": {
           "scenario": "approve-change-request@3",
           "prompt_ref": "prompts/approve-change-request.md@3",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "consequential-decision-participation@1",
@@ -1663,50 +1244,16 @@
           "scope": "STK-1010000003-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "STK-1010000003-r00001",
-            "PSP-1010000000-r00001"
+            "PSP-1010000000-r00001",
+            "STK-1010000003-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:10.138Z",
-            "member_hashes": {
-              "STK-1010000003-r00001": "sha256:5d29097ad9214e32b29c1477b3180b457c0fe19853e7cb029a236f376357f16d",
-              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
-            },
-            "resolved_links": {
-              "BSL-1010000002-r00001": [],
-              "STK-1010000003-r00001": [
-                "PSP-1010000000-r00001"
-              ],
-              "PSP-1010000000-r00001": []
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "PSP@4",
-                "STK@4",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1740,50 +1287,16 @@
           "scope": "STK-1010000001-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "STK-1010000001-r00001",
-            "PSP-1010000000-r00001"
+            "PSP-1010000000-r00001",
+            "STK-1010000001-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:10.225Z",
-            "member_hashes": {
-              "STK-1010000001-r00001": "sha256:136fec8ca8cbcbd4660555011d660719e87a1247bbb57159d314c14cec8d619c",
-              "PSP-1010000000-r00001": "sha256:3471aaad60577be73910aaaba7ca72f11877e189911348eaddbe7a582f78e2c5"
-            },
-            "resolved_links": {
-              "BSL-1010000003-r00001": [],
-              "STK-1010000001-r00001": [
-                "PSP-1010000000-r00001"
-              ],
-              "PSP-1010000000-r00001": []
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "PSP@4",
-                "STK@4",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1813,7 +1326,7 @@
         "payload": {
           "title": "Passing Review of unaccepted stakeholder requirement",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -1830,7 +1343,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1860,7 +1373,7 @@
         "payload": {
           "title": "Passing Review of accepted stakeholder requirement",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -1877,7 +1390,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1907,7 +1420,7 @@
         "payload": {
           "title": "Passing Review of CHG-YSYT05KE22-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -1923,8 +1436,8 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@2",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "prompt_ref": "prompts/review-datum-in-context.md@3",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1961,7 +1474,7 @@
         "payload": {
           "title": "Passing Review of PSP-1010000000-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -1978,7 +1491,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2008,7 +1521,7 @@
         "payload": {
           "title": "Passing Review of STK-1010000002-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -2025,7 +1538,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2055,7 +1568,7 @@
         "payload": {
           "title": "Passing Review of VSP-1010000000-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -2072,7 +1585,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2102,7 +1615,7 @@
         "payload": {
           "title": "Passing Review of VER-1010000001-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -2119,7 +1632,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2149,7 +1662,7 @@
         "payload": {
           "title": "Passing Review of VER-1010000002-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -2166,7 +1679,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2202,43 +1715,13 @@
           "definition_members": [
             "DEC-1010000000-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T17:56:18.196Z",
-            "member_hashes": {
-              "DEC-1010000000-r00001": "sha256:a47a5efb9c95c99942214f59f24525a6cd5c607b43011766802bb220ab086e7a"
-            },
-            "resolved_links": {
-              "BSL-1010000006-r00001": [],
-              "DEC-1010000000-r00001": [
-                "BSL-1010000004-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-              "manifest_hash": "sha256:1ec4092d43ab58e096ea3ce79067bd7a051f8c2ae1f609111f390b8bb813e26c",
-              "asset_refs": [
-                "BSL@4",
-                "DEC@6",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-accepted-stakeholder-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-accepted-stakeholder-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-accepted-stakeholder-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2268,7 +1751,7 @@
         "payload": {
           "title": "Passing Review of accepted intent gate Decision",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -2285,7 +1768,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:99ad2687af941ed1c2f775c1cb42d649e61e37ebaf4735f24ec67f5ed3685f57",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2307,5 +1790,9 @@
       }
     }
   ],
-  "dependencyComparisons": []
+  "dependencyComparisons": [],
+  "fixture": {
+    "kind": "synthetic-evaluator-snapshot",
+    "canonical_lifecycle_evidence": false
+  }
 }

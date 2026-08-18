@@ -33,11 +33,12 @@ function record(
     revision: revisionNumber,
     links,
     createdBy: {
-      scenario: type === "DWP"
-        ? revisionNumber === 1
-          ? "define-decomposition-work-package@2"
-          : "complete-decomposition-work-package@2"
-        : "test-fixture@1",
+      scenario:
+        type === "DWP"
+          ? revisionNumber === 1
+            ? "define-decomposition-work-package@3"
+            : "complete-decomposition-work-package@2"
+          : "test-fixture@1",
       prompt_ref: "prompts/test-fixture.md@1",
       process_ref: "git:current",
       loaded_skill_refs: [],
@@ -168,32 +169,52 @@ describe("exact DWP parent Revision matching", () => {
         evidence: [],
       }, 1)
       : undefined;
-    const review = record("REV", "REV-0CORRECT1", {
-      review_kind: planningDwp
+    const review = record(
+      "REV",
+      "REV-0CORRECT1",
+      {
+        review_kind: planningDwp
         ? "simplification-product-definition"
         : "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{
-        id: "F-001",
-        target: subject.datum.revision_id,
-        relationship: "primary",
-        severity: "blocking",
-        summary: "The exact Phase 2 subject requires local correction.",
-      }],
-      ...(planningDwp
-        ? {
-          simplification: {
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [
+          {
+            id: "F-001",
             target: subject.datum.revision_id,
-            findings: [{
-              id: "F-001",
-              severity: "blocking",
-              summary: "The exact Phase 2 subject requires local correction.",
-            }],
+            relationship: "primary",
+            severity: "blocking",
+            criterion: "A DWP Review correction must preserve every unaffected exact parent binding.",
+            evidence:
+              "The candidate correction substitutes a same-lineage parent Revision not authorized by the failed Review.",
+            material_consequence:
+              "The correction would silently change decomposition scope instead of resolving the cited finding.",
+            summary: "The exact Phase 2 subject requires local correction.",
           },
-        }
-        : {}),
-      outcome: "fail",
-    }, 1, [
+        ],
+        ...(planningDwp
+          ? {
+              simplification: {
+                target: subject.datum.revision_id,
+                findings: [
+                  {
+                    id: "F-001",
+                    severity: "blocking",
+                    criterion:
+                      "A DWP correction may alter only the exact subject or support identified by the failed Review.",
+                    evidence:
+                      "The Review finding requires local correction of the exact Phase 2 subject, not parent substitution.",
+                    material_consequence:
+                      "Changing an unrelated parent would break Review-to-correction causality.",
+                    summary: "The exact Phase 2 subject requires local correction.",
+                  },
+                ],
+              },
+            }
+          : {}),
+        outcome: "fail",
+      },
+      1,
+      [
       { type: "reviews", target: subject.datum.revision_id },
       ...(planningDwp && context
         ? [
@@ -201,7 +222,8 @@ describe("exact DWP parent Revision matching", () => {
           { type: "blocks", target: subject.datum.revision_id },
         ]
         : []),
-    ]);
+    ],
+    );
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
@@ -248,30 +270,75 @@ describe("exact DWP parent Revision matching", () => {
   it("derives attended Phase 2 correction after two autonomous replacements", () => {
     const stableId = "SYS-0COREXHA01";
     const first = record("SYS", stableId, {}, 1);
-    const firstReview = record("REV", "REV-0COREXHA01", {
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{ id: "F-001", target: first.datum.revision_id, relationship: "primary", severity: "blocking", summary: "First failure." }],
-      outcome: "fail",
-    }, 1, [{ type: "reviews", target: first.datum.revision_id }]);
+    const firstReview = record(
+      "REV",
+      "REV-0COREXHA01",
+      {
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [{
+          id: "F-001",
+          target: first.datum.revision_id,
+          relationship: "primary",
+          severity: "blocking",
+          summary: "First failure.",
+          criterion: "A SYS correction lineage must remain usable after each exact Review.",
+          evidence: "The first SYS Revision fails the reviewed system-behavior contract.",
+          material_consequence: "The first Revision cannot authorize downstream system work.",
+        }],
+        outcome: "fail",
+      },
+      1,
+      [{ type: "reviews", target: first.datum.revision_id }],
+    );
     const second = record("SYS", stableId, {}, 2, [
       { type: "corrects-review", target: firstReview.datum.revision_id },
     ]);
-    const secondReview = record("REV", "REV-0COREXHA02", {
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{ id: "F-002", target: second.datum.revision_id, relationship: "primary", severity: "blocking", summary: "Second failure." }],
-      outcome: "fail",
-    }, 1, [{ type: "reviews", target: second.datum.revision_id }]);
+    const secondReview = record(
+      "REV",
+      "REV-0COREXHA02",
+      {
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [{
+          id: "F-002",
+          target: second.datum.revision_id,
+          relationship: "primary",
+          severity: "blocking",
+          summary: "Second failure.",
+          criterion: "A corrected SYS Revision must resolve the blocker cited by its predecessor.",
+          evidence: "The second Revision retains the reviewed system-behavior defect.",
+          material_consequence: "A second autonomous correction is required before use.",
+        }],
+        outcome: "fail",
+      },
+      1,
+      [{ type: "reviews", target: second.datum.revision_id }],
+    );
     const third = record("SYS", stableId, {}, 3, [
       { type: "corrects-review", target: secondReview.datum.revision_id },
     ]);
-    const thirdReview = record("REV", "REV-0COREXHA03", {
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{ id: "F-003", target: third.datum.revision_id, relationship: "primary", severity: "blocking", summary: "Third failure." }],
-      outcome: "fail",
-    }, 1, [{ type: "reviews", target: third.datum.revision_id }]);
+    const thirdReview = record(
+      "REV",
+      "REV-0COREXHA03",
+      {
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [{
+          id: "F-003",
+          target: third.datum.revision_id,
+          relationship: "primary",
+          severity: "blocking",
+          summary: "Third failure.",
+          criterion: "A third failed SYS Revision requires attended correction authority.",
+          evidence: "Three consecutive exact Revisions retain a blocking Review outcome.",
+          material_consequence: "Autonomous correction is exhausted and attended authority is required.",
+        }],
+        outcome: "fail",
+      },
+      1,
+      [{ type: "reviews", target: third.datum.revision_id }],
+    );
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
@@ -301,21 +368,34 @@ describe("exact DWP parent Revision matching", () => {
   it("derives exact correction work for a collateral Finding target", () => {
     const primary = record("SYS", "SYS-0CORPRIM01", {}, 1);
     const collateral = record("ICSP", "ICSP-0CORCOLL1", {}, 1);
-    const review = record("REV", "REV-0CORCOLL01", {
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{
-        id: "F-001",
-        target: collateral.datum.revision_id,
-        relationship: "collateral",
-        severity: "blocking",
-        summary: "The exact collateral interface requires local correction.",
-      }],
-      outcome: "pass",
-    }, 1, [
+    const review = record(
+      "REV",
+      "REV-0CORCOLL01",
+      {
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [
+          {
+            id: "F-001",
+            target: collateral.datum.revision_id,
+            relationship: "collateral",
+            severity: "blocking",
+            criterion: "A collateral blocker may route correction only to its exact in-scope collateral target.",
+            evidence:
+              "The Review cites a concrete collateral target distinct from the primary decomposition subject.",
+            material_consequence:
+              "Routing correction to the primary subject would leave the cited collateral defect unresolved.",
+            summary: "The exact collateral interface requires local correction.",
+          },
+        ],
+        outcome: "pass",
+      },
+      1,
+      [
       { type: "reviews", target: primary.datum.revision_id },
       { type: "flags", target: collateral.datum.revision_id },
-    ]);
+    ],
+    );
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",

@@ -1,0 +1,18 @@
+kind: selector-definition
+id: change-approval-decisions-for-review-context
+version: 1
+description: Current valid attended change-approval Decisions structurally supporting a Review Context without depending on Review outcomes.
+parameters:
+  - {name: change, kind: revision, types: [CHG]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: change, link: justifies, emit: source, types: [DEC]}
+  as: decision
+  where: >-
+    decision.payload.kind == "change-approval"
+    && decision.payload.change_disposition in ["approve", "reject", "defer", "cancel"]
+    && decision.payload.effective_scope == change.identity.revision_id
+    && state(decision, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: decision})
+  distinct: true
+  order_by: [identity.revision_id]

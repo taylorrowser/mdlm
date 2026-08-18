@@ -19,8 +19,6 @@ status_rules:
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
       || count("strategies-for-decomposition@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})}) != 1
-      || none("requirement-simplification-reviews-for@1",
-        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
       || none("architecture-simplification-reviews-for@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
     reason: Group candidate creation requires one complete exact DWP provenance and evidence chain.
@@ -47,8 +45,6 @@ status_rules:
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
       && count("strategies-for-decomposition@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
-      && exists("requirement-simplification-reviews-for@1",
-        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
       && exists("architecture-simplification-reviews-for@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
     reason: The exact reviewed decomposition definition is ready to freeze as its group candidate.

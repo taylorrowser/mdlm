@@ -9,7 +9,12 @@ import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 type PublishedOutput = {
   name: string;
-  lifecycleDatum: { id: string; revisionId: string; type: string; path: string };
+  lifecycleDatum: {
+    id: string;
+    revisionId: string;
+    type: string;
+    path: string;
+  };
   data: DatumEnvelope;
 };
 
@@ -135,7 +140,7 @@ async function freezeFirstRevisions(
       links: [],
       created_by: {
         scenario: "create-review-context@1",
-        prompt_ref: "prompts/create-review-context.md@1",
+        prompt_ref: "prompts/create-review-context.md@2",
         process_ref: processRef,
         loaded_skill_refs: [],
         policy_refs: [],

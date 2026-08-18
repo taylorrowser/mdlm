@@ -6,6 +6,8 @@ import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js";
+import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlm, mdlmWithEnvironment } from "./helpers/mdlm.js";
 
 type WrittenDatum = { datum: DatumEnvelope; path: string };
@@ -271,6 +273,123 @@ describe("compiled mdlm baseline inspection", () => {
 
   afterEach(async () => {
     await fs.rm(parent, { recursive: true, force: true });
+  });
+
+  it("verifies shared composed descendants once while finalizing a baseline", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const baseline = (
+      id: string,
+      title: string,
+      composition: string[] = [],
+    ): DatumEnvelope => ({
+      id,
+      revision: 1,
+      revision_id: `${id}-r00001`,
+      type: "BSL",
+      payload: {
+        title,
+        kind: "level-candidate",
+        role: "candidate",
+        scope: title,
+        group: "composition-cache",
+        definition_members: [],
+        evidence: [],
+      },
+      links: composition.map((target) => ({ type: "composes", target })),
+      created_by: authoring(
+        processRef,
+        "create-candidate-baseline@1",
+        "prompts/create-candidate-baseline.md@1",
+      ),
+      body: `${title}.\n`,
+    });
+    const shared = await freezeBaseline(
+      repository,
+      processPackage,
+      processRef,
+      baseline("BSL-1040000101", "Shared descendant"),
+    );
+    const left = await freezeBaseline(
+      repository,
+      processPackage,
+      processRef,
+      baseline("BSL-1040000102", "Left parent", [shared.datum.revision_id]),
+    );
+    const right = await freezeBaseline(
+      repository,
+      processPackage,
+      processRef,
+      baseline("BSL-1040000103", "Right parent", [shared.datum.revision_id]),
+    );
+
+    const result = await collectPerformanceDiagnostics(() =>
+      finalizeExactBaselineScenarioOutput(
+        repository,
+        processPackage,
+        processRef,
+        baseline("BSL-1040000104", "Composed root", [
+          left.datum.revision_id,
+          right.datum.revision_id,
+        ]),
+      ),
+    );
+
+    expect(result.value.ok).toBe(true);
+    expect(result.diagnostics.work["baseline.revisions-checked"]).toBe(3);
+  });
+
+  it("shares composed-baseline verification across one command transaction", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const baseline = (id: string, composition: string[] = []): DatumEnvelope => ({
+      id,
+      revision: 1,
+      revision_id: `${id}-r00001`,
+      type: "BSL",
+      payload: {
+        title: id,
+        kind: "level-candidate",
+        role: "candidate",
+        scope: id,
+        group: "transaction-cache",
+        definition_members: [],
+        evidence: [],
+      },
+      links: composition.map((target) => ({ type: "composes", target })),
+      created_by: authoring(
+        processRef,
+        "create-candidate-baseline@1",
+        "prompts/create-candidate-baseline.md@1",
+      ),
+      body: `${id}.\n`,
+    });
+    const shared = await freezeBaseline(
+      repository,
+      processPackage,
+      processRef,
+      baseline("BSL-1040000201"),
+    );
+    const inspection = await loadRepositoryInspection(
+      repository,
+      processPackage,
+      processRef,
+    );
+    expect(inspection.ok).toBe(true);
+    if (!inspection.ok) throw new Error("repository inspection unavailable");
+    const transaction = inspection.value.beginTransaction();
+
+    const result = await collectPerformanceDiagnostics(async () => {
+      const first = await transaction.finalizeExactBaseline(
+        baseline("BSL-1040000202", [shared.datum.revision_id]),
+      );
+      const second = await transaction.finalizeExactBaseline(
+        baseline("BSL-1040000203", [shared.datum.revision_id]),
+      );
+      return { first, second };
+    });
+
+    expect(result.value.first.ok).toBe(true);
+    expect(result.value.second.ok).toBe(true);
+    expect(result.diagnostics.work["baseline.revisions-checked"]).toBe(1);
   });
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {

@@ -96,7 +96,7 @@ describe("phase evaluation", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.phase).toEqual({
       id: "phase-2-system-definition",
-      version: 8,
+      version: 9,
       attentionCheckpoints: [expect.objectContaining({
         id: "phase-2-system-gate",
         active: false,
@@ -248,7 +248,7 @@ describe("phase evaluation", () => {
                 arguments: { subject: memberIdentity },
                 result: {
                   required: true,
-                  rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@2",
                 },
               },
             ],
@@ -512,6 +512,7 @@ describe("phase evaluation", () => {
         definition_members: [progressionDecision.datum.revision_id],
         evidence: [],
       },
+      { scenario: "create-review-context@1" },
     );
     const progressionReview = frozenLifecycleRecord(
       "git:distinct-progression",
@@ -520,7 +521,7 @@ describe("phase evaluation", () => {
       {
         title: "Progression Decision Review",
         review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         summary: "The distinct progression Decision passes Review.",
         findings: [],
         outcome: "pass",

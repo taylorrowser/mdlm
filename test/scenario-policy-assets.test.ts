@@ -32,15 +32,80 @@ describe("package-authored review Policy evidence", () => {
   });
 
   it("ignores non-skill versioned assets in legacy prompt bodies", () => {
-    expect(promptSkillReferences(
-      "Use `policies/rubrics/bootstrap-review.md@1`.",
-    )).toEqual({ ok: true, references: [] });
+    expect(
+      promptSkillReferences("Use `policies/rubrics/bootstrap-review.md@2`."),
+    ).toEqual({ ok: true, references: [] });
   });
 
   afterEach(async () => {
     await Promise.all(temporaryRoots.splice(0).map((root) =>
       fs.rm(root, { recursive: true, force: true })
     ));
+  });
+
+  it("keeps topology preflight mandatory, ephemeral, and outside reviewer input", async () => {
+    const root = path.join(process.cwd(), ".lifecycle/process");
+    const architecturePrompt = await fs.readFile(
+      path.join(root, "prompts/define-system-architecture.md"),
+      "utf8",
+    );
+    expect(promptSkillReferences(architecturePrompt)).toEqual({
+      ok: true,
+      references: expect.arrayContaining([
+        "skills/information-allocation.md@1",
+        "skills/author-preflight.md@1",
+      ]),
+    });
+    expect(architecturePrompt).toMatch(
+      /early whole-topology simplification\s+checkpoint/,
+    );
+    const preflight = await fs.readFile(
+      path.join(root, "skills/author-preflight.md"),
+      "utf8",
+    );
+    expect(preflight).toContain("Publish no REV");
+    expect(preflight).toMatch(/do not supply it to the independent\s+reviewer/);
+    const lateSimplification = await fs.readFile(
+      path.join(root, "prompts/simplify-architecture-and-interfaces.md"),
+      "utf8",
+    );
+    expect(lateSimplification).toMatch(/complete\s+SYS set/);
+    expect(lateSimplification).toContain("duplicate or mergeable statements");
+  });
+
+  it("applies ephemeral author preflight to every authored Lifecycle Data route", async () => {
+    const root = path.join(process.cwd(), ".lifecycle/process");
+    const loaded = await loadProcessPackage(root);
+    expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const nonAuthorRoutes = new Set([
+      "create-review-context",
+      "execute-verification-run",
+      "review-datum-in-context",
+      "simplify-architecture-and-interfaces",
+    ]);
+    const missing: string[] = [];
+    for (const scenario of Object.values(loaded.package.scenarios)) {
+      const authored = (scenario.outputs as { types?: string[] }[]).some((output) =>
+        (output.types ?? []).some((type) =>
+          loaded.package.types[type]?.lifecycle &&
+          (loaded.package.types[type].lifecycle as { authorship?: string }).authorship ===
+            "authored"
+        )
+      );
+      if (
+        !authored || nonAuthorRoutes.has(scenario.id) ||
+        typeof scenario.prompt_ref !== "string"
+      ) continue;
+      const promptPath = scenario.prompt_ref.replace(/@[1-9][0-9]*$/, "");
+      const references = promptSkillReferences(
+        await fs.readFile(path.join(root, promptPath), "utf8"),
+      );
+      if (!references.ok || !references.references.includes("skills/author-preflight.md@1")) {
+        missing.push(`${scenario.id}@${scenario.version}`);
+      }
+    }
+    expect(missing).toEqual([]);
   });
 
   it("keeps every bootstrap prompt skill declaration exact and resolvable", async () => {

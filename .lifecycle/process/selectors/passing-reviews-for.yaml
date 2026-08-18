@@ -11,6 +11,9 @@ query:
   where: >-
     review.payload.outcome == "pass"
     && state(review, "validity") == "valid"
+    && review.provenance.process_ref == process.current_ref
+    && count("current-exact-review-contexts-cited-by@1",
+      {review: review, subject: subject}) == 1
     && (
       (exists("intent-candidates-matching-subject@1", {subject: subject})
         && exists("valid-product-simplification-reviews@1", {review: review}))

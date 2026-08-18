@@ -23,7 +23,7 @@ inputs:
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
   - name: interfaces
     types: [ICSP]
-    cardinality: one-or-more
+    cardinality: zero-or-more
     identity: revision
     conditions: >-
       exists("matching-decomposition-interface@1",

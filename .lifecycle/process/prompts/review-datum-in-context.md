@@ -1,6 +1,6 @@
 ---
 id: review-datum-in-context
-version: 2
+version: 3
 scenario: review-datum-in-context
 ---
 
@@ -9,12 +9,13 @@ scenario: review-datum-in-context
 Read, in order:
 
 1. `skills/lifecycle-data.md@1`
-2. `skills/contextual-artifact-review.md@1`
+2. `skills/contextual-artifact-review.md@2`
 3. `skills/traceability.md@1`
 4. `skills/scope-challenge.md@1`
 
 Review exactly one primary subject revision against the rubric resolved by
-`review-applicability@1` using only its exact frozen context. Judge schema
+`review-applicability@1` using only its exact frozen context. Author preflight is
+not Review evidence and must not be requested, inferred, or supplied. Judge schema
 validity, clarity, necessity, traceability, consistency with parents and siblings,
 and type-specific quality. For PSP, STK, SYS, and candidate BSL subjects, apply
 the corresponding rubric section.
@@ -39,8 +40,11 @@ that target, and exactly one matching `blocks` link. Distinct targets are judged
 and corrected serially through fresh candidate Reviews rather than encoded as a
 cross-subject batch.
 
-Record primary and collateral findings separately. Primary blocking findings
-force `fail`; collateral findings use `needs-triage` and do not automatically fail
+Record primary and collateral findings separately. Every primary blocking
+Finding must name its exact `criterion`, concrete `evidence` or counterexample,
+and `material_consequence`, and must satisfy the rubric's complete five-part
+blocking test. Primary blocking findings force `fail`; usable concerns are
+`needs-triage` or `advisory`, and collateral findings do not automatically fail
 the subject. In Phase 2, add one exact `flags` link for every SYS, ASP, ICSP, or
 DWP subject selected by a collateral Finding so normal reevaluation derives one
 subject-bounded Correction with the complete immutable Review. Do not silently

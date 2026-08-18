@@ -37,9 +37,8 @@ rules:
       && subject.payload.stage == "planning"
       && exists("decomposition-outputs-for@1", {plan: subject})
       && none("unreviewed-decomposition-outputs-for@1", {plan: subject})
-      && (none("requirement-simplification-reviews-for@1", {plan: subject})
-        || none("architecture-simplification-reviews-for@1", {plan: subject}))
-    explanation: Reviewed outputs await dedicated requirement and architecture/interface simplification.
+      && none("architecture-simplification-reviews-for@1", {plan: subject})
+    explanation: Reviewed outputs await the late semantic architecture/interface simplification Review.
   - value: awaiting-output-reviews
     priority: 300
     when: >-

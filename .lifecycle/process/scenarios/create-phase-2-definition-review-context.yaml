@@ -1,0 +1,46 @@
+kind: scenario-definition
+id: create-phase-2-definition-review-context
+version: 1
+description: Deterministically freeze the complete architecture-wide ASP, ICSP, DWP, and SYS definition set for late simplification.
+kernel_materialization:
+  kind: exact-baseline@1
+  output: context
+  subject_input: plan
+  support_input: definition_members
+  payload_fields:
+    title: title
+    kind: kind
+    role: role
+    scope: scope
+    group: group
+    members: definition_members
+    evidence: evidence
+  title_prefix: 'Phase 2 definition context for '
+  baseline_kind: review-context
+  baseline_role: review-context
+  baseline_group: DEFAULT
+  evidence_subject_types: []
+  evidence_types: []
+phases: [phase-2-system-definition]
+inputs:
+  - {name: plan, types: [DWP], cardinality: one, identity: revision}
+  - {name: definition_members, types: [ASP, ICSP, DWP, SYS], cardinality: one-or-more, identity: revision}
+outputs:
+  - {name: context, types: [BSL], cardinality: one, required_links: []}
+prompt_ref: prompts/create-phase-2-definition-review-context.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && context.payload.kind == "review-context"
+  && context.payload.scope == plan.identity.revision_id
+  && definition_members == select("phase-2-definition-review-context-support-for-plan@1", {plan: plan})
+  && every("phase-2-definition-members-for-plan@1", {plan: plan}, member =>
+    exists("review-context-contains-member@1",
+      {context: context, required_member: member}))
+  && count("review-context-members@1", {context: context})
+    == count("phase-2-definition-members-for-plan@1", {plan: plan})
+  && context.storage.frozen == true
+  && exists("decomposition-simplification-contexts-for@1", {plan: plan})
+resolves: [phase-2-definition-review-context-required]
+prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth]
+batching: either

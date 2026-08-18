@@ -20,25 +20,25 @@ rules:
     when: 'subject.identity.type in ["MAP", "PSP", "STK", "SYS", "ASP", "ICSP", "DWP", "VSP", "ENV", "CHG", "PAS"]'
     result:
       required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@1
+      rubric_ref: policies/rubrics/bootstrap-review.md@2
   - priority: 350
     when: >-
       subject.identity.type in ["VER", "VAI"]
       && subject.payload.kind in ["pilot", "formal"]
     result:
       required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@1
+      rubric_ref: policies/rubrics/bootstrap-review.md@2
   - priority: 200
     when: >-
       subject.identity.type == "BSL"
       && subject.payload.role == "candidate"
     result:
       required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@1
+      rubric_ref: policies/rubrics/bootstrap-review.md@2
   - priority: 100
     when: >-
       subject.identity.type == "DEC"
       && subject.payload.kind in ["scope", "waiver", "deferral", "authority-delegation", "gate-signoff", "change-approval", "pilot-expansion", "retirement", "cancellation"]
     result:
       required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@1
+      rubric_ref: policies/rubrics/bootstrap-review.md@2

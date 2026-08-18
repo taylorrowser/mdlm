@@ -140,29 +140,31 @@ describe("MDLM Assignment leasing and preparation", () => {
       ".lifecycle/work/active-assignment.json",
     );
     const lease = JSON.parse(await fs.readFile(leasePath, "utf8"));
-    expect(lease).toEqual(expect.objectContaining({
-      contract: "mdlm-assignment-lease@1",
-      id: outcome.assignment.id,
-      disposition: "active",
-      package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.66.0",
-        digest: expect.stringMatching(/^sha256:/),
-      }),
-      repository: {
+    expect(lease).toEqual(
+      expect.objectContaining({
+        contract: "mdlm-assignment-lease@1",
+        id: outcome.assignment.id,
+        disposition: "active",
+        package: expect.objectContaining({
+          reference: "mdlm-bootstrap@0.67.0",
+          digest: expect.stringMatching(/^sha256:/),
+        }),
+        repository: {
         head: expect.stringMatching(/^[0-9a-f]{40}$/),
         trackedState: expect.stringMatching(/^sha256:/),
       },
-      phase: "phase-0-wayfinding@4",
-      obligation: {
+        phase: "phase-0-wayfinding@4",
+        obligation: {
         instance: expect.stringContaining("initial-wayfinding-map-required@1:"),
         definition: "initial-wayfinding-map-required@1",
         subject: "phase-0-wayfinding@4",
       },
-      scenario: "establish-initial-wayfinding-map@1",
-      bindings: [{ invocation: 0, inputs: [] }],
-      participation: [],
-      retryAvailability: { malformedResponseCorrection: 1 },
-    }));
+        scenario: "establish-initial-wayfinding-map@1",
+        bindings: [{ invocation: 0, inputs: [] }],
+        participation: [],
+        retryAvailability: { malformedResponseCorrection: 1 },
+      }),
+    );
 
     const extraArgument = mdlm(
       repository,
@@ -966,7 +968,6 @@ describe("MDLM Assignment leasing and preparation", () => {
     }));
   });
 
-
   it("keeps the versioned Assignment Response schema stable across Assignments", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);
     const firstPacket = JSON.parse(mdlm(
@@ -1096,7 +1097,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.66.0/prompts/establish-initial-wayfinding-map.md",
+        ".lifecycle/packages/mdlm-bootstrap@0.67.0/prompts/establish-initial-wayfinding-map.md",
       ),
       "\nPackage change.\n",
     );
@@ -1112,7 +1113,7 @@ describe("MDLM Assignment leasing and preparation", () => {
   it("invalidates the active lease when next observes a package change", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);
     const promptRelative =
-      ".lifecycle/packages/mdlm-bootstrap@0.66.0/prompts/establish-initial-wayfinding-map.md";
+      ".lifecycle/packages/mdlm-bootstrap@0.67.0/prompts/establish-initial-wayfinding-map.md";
     await fs.appendFile(path.join(repository, promptRelative), "\nPackage change.\n");
 
     const changed = mdlm(repository, "next");

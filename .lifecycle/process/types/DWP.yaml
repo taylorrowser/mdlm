@@ -73,7 +73,7 @@ outgoing_links:
     description: Exact interface Revisions constraining this work package.
     targets:
       - {kind: datum, types: [ICSP], identity: revision}
-    cardinality: {minimum: 1, maximum: many}
+    cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: governs-decomposition
   - id: verified-under

@@ -2,7 +2,7 @@
 id: revise-pilot-assessment-after-review
 version: 2
 scenario: revise-pilot-assessment-after-review
-skills: [skills/lifecycle-data.md@1, skills/pilot-assessment.md@1, skills/contextual-artifact-review.md@1]
+skills: [skills/lifecycle-data.md@1, skills/pilot-assessment.md@1, skills/contextual-artifact-review.md@2, skills/author-preflight.md@1]
 ---
 
 # Correct a failed pilot assessment
@@ -23,3 +23,6 @@ decision, and alternatives; and link `justifies` to the replacement PAS. This DE
 records stakeholder authority for the exact escalated Correction; it does not
 replace or suppress failed Review evidence. Continued failure remains on this same
 attended interface without changing the frozen assessment context.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

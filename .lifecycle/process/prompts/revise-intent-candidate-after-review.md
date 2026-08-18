@@ -22,3 +22,6 @@ publish the required scope DEC that justifies the replacement; do not route to a
 parallel recovery Scenario. The replacement requires a fresh independent
 `simplification-product-definition` Review. A reviewed rejection returns the
 passing replacement to this same gate; it never implies stop, defer, or cancel.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

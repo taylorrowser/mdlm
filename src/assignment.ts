@@ -19,7 +19,11 @@ import {
   nextWorkProjection,
 } from "./lifecycle-inspection.js";
 import { selectedImplementationProfile } from "./implementation-profile.js";
-import { loadRepositoryInspection } from "./repository-inspection.js";
+import {
+  loadRepositoryInspection,
+  type RepositoryInspection,
+  type RepositoryTransaction,
+} from "./repository-inspection.js";
 import { measure } from "./performance-diagnostics.js";
 import {
   classifyOperatorOutcome,
@@ -39,6 +43,7 @@ import {
 } from "./scenario-dry-run.js";
 import {
   submitExplicitScenario,
+  submitPreparedResolverScenario,
   submitResolverScenario,
   type PackageExecutionIdentity,
   type ScenarioExecution,
@@ -348,6 +353,8 @@ type AssignmentSubmissionResult =
 interface ExactAssignment {
   summary: PackageSummary;
   processPackage: ProcessPackage;
+  inspection: RepositoryInspection;
+  transaction: RepositoryTransaction;
   lease: Omit<AssignmentLease, "id">;
   dryRun: ScenarioDryRun;
   scenario: VersionedDefinition;
@@ -359,6 +366,9 @@ interface ExactAssignment {
 interface ExactOperatorState {
   summary: PackageSummary;
   processPackage: ProcessPackage;
+  inspection: RepositoryInspection;
+  transaction: RepositoryTransaction;
+  snapshot: LifecycleSnapshot;
   evaluation: LifecycleEvaluation;
   fingerprint: RepositoryFingerprint;
   work: OperatorWorkFacts[];
@@ -826,6 +836,8 @@ async function prepareOperatorWork(
 function assignmentFromPreparedWork(
   summary: PackageSummary,
   processPackage: ProcessPackage,
+  inspection: RepositoryInspection,
+  transaction: RepositoryTransaction,
   fingerprint: RepositoryFingerprint,
   classification: AssignableClassification,
   prepared: PreparedOperatorWork,
@@ -834,6 +846,8 @@ function assignmentFromPreparedWork(
   return {
     summary,
     processPackage,
+    inspection,
+    transaction,
     lease: {
       contract: "mdlm-assignment-lease@1",
       disposition: "active",
@@ -866,6 +880,67 @@ function assignmentFromPreparedWork(
   };
 }
 
+async function operatorStateFromSnapshot(
+  repositoryRoot: string,
+  summary: PackageSummary,
+  processPackage: ProcessPackage,
+  inspection: RepositoryInspection,
+  transaction: RepositoryTransaction,
+  snapshot: LifecycleSnapshot,
+  fingerprint: RepositoryFingerprint,
+): Promise<AssignmentResult<ExactOperatorState>> {
+  const evaluation = measure(
+    "lifecycle.evaluation",
+    () => activeLifecycleEvaluation(processPackage, snapshot),
+  );
+  if (evaluation.diagnostics.length > 0) {
+    return { ok: false, diagnostics: evaluation.diagnostics };
+  }
+  const workItems = operatorWork(evaluation, snapshot.records);
+  const classification = classifyOperatorOutcome(
+    workItems,
+    evaluation.terminalOutcome,
+    evaluation.phase?.attentionCheckpoints.filter((checkpoint) => checkpoint.active)
+      .map((checkpoint) => checkpoint.id) ?? [],
+  );
+  const state: ExactOperatorState = {
+    summary,
+    processPackage,
+    inspection,
+    transaction,
+    snapshot,
+    evaluation,
+    fingerprint,
+    work: workItems,
+    classification,
+  };
+  if (
+    classification.kind === "assignment" ||
+    classification.kind === "attention-required"
+  ) {
+    const prepared = await prepareOperatorWork(
+      processPackage,
+      snapshot,
+      evaluation,
+      classification,
+    );
+    if (!prepared.ok) return prepared;
+    state.assignment = assignmentFromPreparedWork(
+      summary,
+      processPackage,
+      inspection,
+      transaction,
+      fingerprint,
+      classification,
+      prepared.value,
+    );
+  }
+  const confirmed = await confirmRepositoryFingerprint(repositoryRoot, fingerprint);
+  return confirmed.ok
+    ? { ok: true, value: state, diagnostics: [] }
+    : confirmed;
+}
+
 async function exactOperatorState(
   repositoryRoot: string,
 ): Promise<AssignmentResult<ExactOperatorState>> {
@@ -886,62 +961,15 @@ async function exactOperatorState(
   if (!inspection.ok) return inspection;
   const baselines = await inspection.value.verifyBaselines();
   if (!baselines.ok) return baselines;
-  const snapshot = inspection.value.lifecycleSnapshot(firstPhase);
-  const evaluation = measure(
-    "lifecycle.evaluation",
-    () => activeLifecycleEvaluation(selected.processPackage, snapshot),
-  );
-  if (evaluation.diagnostics.length > 0) {
-    return { ok: false, diagnostics: evaluation.diagnostics };
-  }
-  const workItems = operatorWork(evaluation, snapshot.records);
-  const classification = classifyOperatorOutcome(
-    workItems,
-    evaluation.terminalOutcome,
-    evaluation.phase?.attentionCheckpoints.filter((checkpoint) => checkpoint.active)
-      .map((checkpoint) => checkpoint.id) ?? [],
-  );
-  const state: ExactOperatorState = {
-    summary: selected.summary,
-    processPackage: selected.processPackage,
-    evaluation,
-    fingerprint: fingerprint.value,
-    work: workItems,
-    classification,
-  };
-  if (
-    classification.kind !== "assignment" &&
-    classification.kind !== "attention-required"
-  ) {
-    const confirmed = await confirmRepositoryFingerprint(
-      repositoryRoot,
-      fingerprint.value,
-    );
-    return confirmed.ok
-      ? { ok: true, value: state, diagnostics: [] }
-      : confirmed;
-  }
-
-  const prepared = await prepareOperatorWork(
-    selected.processPackage,
-    snapshot,
-    evaluation,
-    classification,
-  );
-  if (!prepared.ok) return prepared;
-  const confirmed = await confirmRepositoryFingerprint(
+  return operatorStateFromSnapshot(
     repositoryRoot,
-    fingerprint.value,
-  );
-  if (!confirmed.ok) return confirmed;
-  state.assignment = assignmentFromPreparedWork(
     selected.summary,
     selected.processPackage,
+    inspection.value,
+    inspection.value.beginTransaction(),
+    inspection.value.lifecycleSnapshot(firstPhase),
     fingerprint.value,
-    classification,
-    prepared.value,
   );
-  return { ok: true, value: state, diagnostics: [] };
 }
 
 async function exactAssignment(
@@ -1058,6 +1086,268 @@ function attendedInputs(
   };
 }
 
+interface ExactBaselineMaterialization {
+  kind: "exact-baseline@1";
+  output: string;
+  subjectInput: string;
+  supportInput: string;
+  payloadFields: {
+    title: string;
+    kind: string;
+    role: string;
+    scope: string;
+    group: string;
+    members: string;
+    evidence: string;
+  };
+  titlePrefix: string;
+  baselineKind: string;
+  baselineRole: string;
+  baselineGroup: string;
+  evidenceSubjectTypes: Set<string>;
+  evidenceTypes: Set<string>;
+}
+
+function exactBaselineMaterialization(
+  scenario: VersionedDefinition,
+): ExactBaselineMaterialization | undefined {
+  const value = scenario.kernel_materialization;
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return undefined;
+  const marker = value as Record<string, unknown>;
+  if (marker.kind !== "exact-baseline@1") return undefined;
+  const string = (name: string) =>
+    typeof marker[name] === "string" ? marker[name] as string : "";
+  const strings = (candidate: unknown) =>
+    Array.isArray(candidate)
+      ? new Set(
+          candidate.filter((item): item is string => typeof item === "string"),
+        )
+      : new Set<string>();
+  const payloadFields = object(marker.payload_fields);
+  if (!payloadFields) return undefined;
+  const payloadField = (name: string) =>
+    typeof payloadFields[name] === "string" ? payloadFields[name] as string : "";
+  return {
+    kind: marker.kind,
+    output: string("output"),
+    subjectInput: string("subject_input"),
+    supportInput: string("support_input"),
+    payloadFields: {
+      title: payloadField("title"),
+      kind: payloadField("kind"),
+      role: payloadField("role"),
+      scope: payloadField("scope"),
+      group: payloadField("group"),
+      members: payloadField("members"),
+      evidence: payloadField("evidence"),
+    },
+    titlePrefix: string("title_prefix"),
+    baselineKind: string("baseline_kind"),
+    baselineRole: string("baseline_role"),
+    baselineGroup: string("baseline_group"),
+    evidenceSubjectTypes: strings(marker.evidence_subject_types),
+    evidenceTypes: strings(marker.evidence_types),
+  };
+}
+
+function inputEntities(
+  exact: ExactAssignment,
+  name: string,
+  invocation = 0,
+): ScenarioBoundEntity[] {
+  return (
+    exact.dryRun.invocations[invocation]?.inputs.find((input) => input.name === name)
+      ?.values ?? []
+  );
+}
+
+function exactBaselineProposal(
+  baselineType: string,
+  subject: ScenarioBoundEntity,
+  support: ScenarioBoundEntity[],
+  materialization: ExactBaselineMaterialization,
+  invocation: number,
+  lineageId?: string,
+): ScenarioProposal {
+  const isEvidence = (item: ScenarioBoundEntity) =>
+    materialization.evidenceSubjectTypes.has(subject.identity.type) &&
+    materialization.evidenceTypes.has(item.identity.type);
+  const revisionIds = (items: ScenarioBoundEntity[]) =>
+    items
+      .map((item) => item.identity.revision_id)
+      .filter((id): id is string => id !== undefined)
+      .sort();
+  return {
+    outputs: [
+      {
+        name: materialization.output,
+        invocation,
+        lifecycleDatum: {
+          ...(lineageId ? { id: lineageId } : {}),
+          type: baselineType,
+          payload: {
+            [materialization.payloadFields.title]:
+              `${materialization.titlePrefix}${subject.identity.revision_id}`,
+            [materialization.payloadFields.kind]: materialization.baselineKind,
+            [materialization.payloadFields.role]: materialization.baselineRole,
+            [materialization.payloadFields.scope]: subject.identity.revision_id,
+            [materialization.payloadFields.group]: materialization.baselineGroup,
+            [materialization.payloadFields.members]: revisionIds([
+              subject,
+              ...support.filter((item) => !isEvidence(item)),
+            ]),
+            [materialization.payloadFields.evidence]: revisionIds(
+              support.filter(isEvidence),
+            ),
+          },
+          links: [],
+          body: "",
+        },
+      },
+    ],
+    completionEvidence: { contract: "kernel-exact-baseline-materialization@1" },
+  };
+}
+
+function exactBaselineLineage(
+  snapshot: LifecycleSnapshot,
+  baselineType: string,
+  subject: ScenarioBoundEntity,
+  materialization: ExactBaselineMaterialization,
+  scenarioReference: string,
+): string | undefined {
+  return snapshot.records
+    .filter((record) =>
+      record.datum.type === baselineType &&
+      record.datum.payload[materialization.payloadFields.kind] ===
+        materialization.baselineKind &&
+      record.datum.payload[materialization.payloadFields.role] ===
+        materialization.baselineRole &&
+      record.datum.payload[materialization.payloadFields.scope] ===
+        subject.identity.revision_id &&
+      record.datum.created_by.scenario === scenarioReference
+    )
+    .sort((left, right) => right.datum.revision - left.datum.revision)[0]
+    ?.datum.id;
+}
+
+async function materializeExactBaseline(
+  repositoryRoot: string,
+  exact: ExactAssignment,
+  snapshot: LifecycleSnapshot,
+  assignmentId: string,
+  materialization: ExactBaselineMaterialization,
+): Promise<AssignmentResult<ScenarioExecution>> {
+  const baselineType = exact.processPackage.kernelCapabilities[materialization.kind]?.type;
+  if (!baselineType || !exact.lease.obligation) {
+    return failure(
+      "kernel-materialization-input-invalid",
+      "Exact Baseline materialization requires a bound capability and one Obligation",
+    );
+  }
+  const proposals = exact.dryRun.invocations.map((_, invocation) => {
+    const subject = inputEntities(
+      exact,
+      materialization.subjectInput,
+      invocation,
+    )[0];
+    if (!subject?.identity.revision_id) return undefined;
+    return exactBaselineProposal(
+      baselineType,
+      subject,
+      inputEntities(exact, materialization.supportInput, invocation),
+      materialization,
+      invocation,
+      exactBaselineLineage(
+        snapshot,
+        baselineType,
+        subject,
+        materialization,
+        exact.lease.scenario,
+      ),
+    );
+  });
+  if (proposals.some((proposal) => proposal === undefined)) {
+    return failure(
+      "kernel-materialization-input-invalid",
+      "Exact Baseline materialization requires one revision subject per invocation",
+    );
+  }
+  const proposal: ScenarioProposal = {
+    outputs: proposals.flatMap((item) => item!.outputs),
+    completionEvidence: { contract: "kernel-exact-baseline-materialization@1" },
+  };
+  const loadedSkillRefs = exact.dryRun.prompt.skills.map(
+    (skill) => skill.reference,
+  );
+  const responseSource = JSON.stringify({
+    contract: "mdlm-assignment-response@1",
+    assignment: assignmentId,
+    kind: "proposal",
+    proposal: {
+      ...proposal,
+      loadedSkillRefs,
+      authoritySupplies: [],
+      standingDelegations: [],
+    },
+  });
+  const submitted = await submitPreparedResolverScenario(
+    repositoryRoot,
+    exact.processPackage,
+    exact.lease.package,
+    {
+      scenarioReference: exact.lease.scenario,
+      obligationInstance: exact.lease.obligation.instance,
+      proposal,
+      assignment: assignmentId,
+      responseDigest: sha256(responseSource),
+      suppliedAuthorities: [],
+      suppliedDelegations: [],
+      loadedSkillRefs,
+    },
+    {
+      dryRun: exact.dryRun,
+      scenario: exact.scenario,
+      snapshot,
+      finalizeExactBaseline: (_root, _package, _processRef, proposedDatum) =>
+        exact.transaction.finalizeExactBaseline(proposedDatum),
+      publishMutation: (
+        _root,
+        _package,
+        expectedData,
+        data,
+        executionId,
+        executionRecord,
+        kernelFinalizedOutputs,
+      ) =>
+        exact.transaction.publishScenarioMutation(
+          expectedData,
+          data,
+          executionId,
+          executionRecord,
+          kernelFinalizedOutputs,
+        ),
+    },
+  );
+  return submitted;
+}
+
+function materializedRecords(execution: ScenarioExecution): LifecycleRecord[] {
+  return execution.outputs.map((output) => ({
+    datum: output.data,
+    storage: { editable: false, frozen: true },
+    integrity: {
+      parseable: true,
+      schema_valid: true,
+      identity_valid: true,
+      references_valid: true,
+      hash_valid: true,
+      scenario_execution_valid: true,
+    },
+  }));
+}
+
 function leasedOutcome(
   exact: ExactAssignment,
   assignmentId: string,
@@ -1092,21 +1382,79 @@ export async function leaseNextAssignment(
 ): Promise<AssignmentResult<AssignmentOutcome>> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
-  const state = await exactOperatorState(repositoryRoot);
+  let activeLease = persisted.value;
+  let state = await exactOperatorState(repositoryRoot);
   if (!state.ok) {
     if (
-      persisted.value &&
+      activeLease &&
       !state.diagnostics.some((item) =>
         item.code === "assignment-repository-fingerprint-failed"
       )
     ) await fs.rm(leasePath(repositoryRoot), { force: true });
     return state;
   }
+
+  const materializedObligations = new Set<string>();
+  while (state.value.assignment) {
+    const exact = state.value.assignment;
+    const materialization = exactBaselineMaterialization(exact.scenario);
+    if (!materialization) break;
+    const obligation = exact.lease.obligation?.instance;
+    if (!obligation || materializedObligations.has(obligation)) {
+      return failure(
+        "kernel-materialization-cycle",
+        "Kernel materialization did not discharge its exact Obligation",
+        obligation,
+      );
+    }
+    materializedObligations.add(obligation);
+    if (activeLease) await fs.rm(leasePath(repositoryRoot), { force: true });
+    const lease: AssignmentLease = { ...exact.lease, id: randomUUID() };
+    await writeLease(repositoryRoot, lease);
+    const unchanged = await confirmRepositoryFingerprint(
+      repositoryRoot,
+      exact.lease.repository,
+    );
+    if (!unchanged.ok) {
+      await fs.rm(leasePath(repositoryRoot), { force: true });
+      return unchanged;
+    }
+    const materialized = await materializeExactBaseline(
+      repositoryRoot,
+      exact,
+      state.value.snapshot,
+      lease.id,
+      materialization,
+    );
+    await fs.rm(leasePath(repositoryRoot), { force: true });
+    activeLease = undefined;
+    if (!materialized.ok) return materialized;
+    const fingerprint = await repositoryFingerprint(repositoryRoot);
+    if (!fingerprint.ok) return fingerprint;
+    const snapshot: LifecycleSnapshot = {
+      ...state.value.snapshot,
+      records: [
+        ...state.value.snapshot.records,
+        ...materializedRecords(materialized.value),
+      ],
+    };
+    state = await operatorStateFromSnapshot(
+      repositoryRoot,
+      state.value.summary,
+      state.value.processPackage,
+      state.value.inspection,
+      state.value.transaction,
+      snapshot,
+      fingerprint.value,
+    );
+    if (!state.ok) return state;
+  }
+
   if (
     state.value.classification.kind !== "assignment" &&
     state.value.classification.kind !== "attention-required"
   ) {
-    if (persisted.value) await fs.rm(leasePath(repositoryRoot), { force: true });
+    if (activeLease) await fs.rm(leasePath(repositoryRoot), { force: true });
     const classification = state.value.classification;
     const base = {
       package: state.value.summary,
@@ -1130,16 +1478,16 @@ export async function leaseNextAssignment(
       "The classified Operator Outcome did not prepare its exact Assignment",
     );
   }
-  if (persisted.value && sameAssignment(persisted.value, exact)) {
+  if (activeLease && sameAssignment(activeLease, exact)) {
     return {
       ok: true,
-      value: leasedOutcome(exact, persisted.value.id),
+      value: leasedOutcome(exact, activeLease.id),
       diagnostics: [],
     };
   }
   if (
-    persisted.value?.disposition === "active" &&
-    sameAssignmentSource(persisted.value, exact)
+    activeLease?.disposition === "active" &&
+    sameAssignmentSource(activeLease, exact)
   ) {
     return invalidLease(repositoryRoot);
   }

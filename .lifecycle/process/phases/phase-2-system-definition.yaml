@@ -1,14 +1,14 @@
 kind: phase-definition
 id: phase-2-system-definition
-version: 8
+version: 9
 order: 2
 name: System definition tracer
-purpose: Plan, review, execute, simplify, and complete one bounded decomposition into an exact reviewed SYS candidate with architecture and interface context.
+purpose: Preflight coherent topology, then plan, review, execute, and semantically simplify proportional many-to-many decomposition into exact reviewed SYS candidates.
 coverage: bootstrap-subset
 omitted_capabilities:
   - formal SYS verification execution
   - downstream promotion of STK candidates
-  - multiple architecture groups and cross-group reconciliation
+  - cross-group reconciliation beyond exact parent traceability
 entry: >-
   process.integrity.package_valid == true
   && exists("signed-off-candidates-of-kind@1",
@@ -26,14 +26,14 @@ attention_checkpoints:
           && none("failing-reviews-for@1", {subject: candidate}))
       && none("open-blocking-questions@1", {})
 scenarios:
-  - define-system-architecture@2
+  - define-system-architecture@3
   - define-interface-control-specification@2
-  - define-decomposition-work-package@2
+  - define-decomposition-work-package@3
   - replan-stale-decomposition-work-package@1
   - execute-decomposition-work-package@2
   - create-review-context@1
+  - create-phase-2-definition-review-context@1
   - review-datum-in-context@2
-  - simplify-requirement-set@2
   - simplify-architecture-and-interfaces@2
   - revise-phase-2-subject-after-simplification@1
   - revise-phase-2-definition-set-after-simplification@1
@@ -61,7 +61,7 @@ obligations:
   - stale-decomposition-plan-correction-required@1
   - decomposition-execution-required@1
   - decomposition-output-reviews-required@1
-  - decomposition-simplification-required@1
+  - phase-2-definition-review-context-required@1
   - architecture-interface-simplification-required@1
   - phase-2-simplification-correction-required@1
   - phase-2-definition-consistency-correction-required@1

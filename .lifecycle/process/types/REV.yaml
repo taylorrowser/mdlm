@@ -1,6 +1,6 @@
 kind: type-definition
 id: REV
-version: 5
+version: 6
 name: Review
 description: Immutable judgment about one exact primary subject in one exact frozen context.
 extends: titled-datum@1
@@ -14,7 +14,7 @@ payload_schema:
   type: object
   required: [rubric_ref, outcome]
   properties:
-    review_kind: {enum: [contextual, simplification-product-definition, simplification-requirements, simplification-architecture-interfaces, cross-group, gate]}
+    review_kind: {enum: [contextual, simplification-product-definition, simplification-architecture-interfaces, cross-group, gate]}
     decomposition_plan_revision: {type: string, pattern: '^DWP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     rubric_ref: {type: string, pattern: '^policies/rubrics/.+\.md@[1-9][0-9]*$'}
     findings:
@@ -30,7 +30,15 @@ payload_schema:
           relationship: {enum: [primary, collateral]}
           severity: {enum: [blocking, needs-triage, advisory]}
           summary: {type: string, minLength: 1}
+          criterion: {type: string, minLength: 1}
           evidence: {type: string, minLength: 1}
+          material_consequence: {type: string, minLength: 1}
+        allOf:
+          - if:
+              properties:
+                severity: {const: blocking}
+              required: [severity]
+            then: {required: [criterion, evidence, material_consequence]}
     simplification:
       description: One exact correction target with every blocking Phase 0 or planning-DWP simplification finding that applies to it.
       type: object
@@ -45,12 +53,14 @@ payload_schema:
           items:
             type: object
             additionalProperties: false
-            required: [id, severity, summary]
+            required: [id, severity, summary, criterion, evidence, material_consequence]
             properties:
               id: {type: string, pattern: '^F-[0-9]{3,}$'}
               severity: {const: blocking}
               summary: {type: string, minLength: 1}
+              criterion: {type: string, minLength: 1}
               evidence: {type: string, minLength: 1}
+              material_consequence: {type: string, minLength: 1}
     definition_simplification:
       description: Exact Phase 2 subject or declared definition-consistency set selected by blocking simplification findings.
       type: object
@@ -67,12 +77,14 @@ payload_schema:
           items:
             type: object
             additionalProperties: false
-            required: [id, severity, summary]
+            required: [id, severity, summary, criterion, evidence, material_consequence]
             properties:
               id: {type: string, pattern: '^F-[0-9]{3,}$'}
               severity: {const: blocking}
               summary: {type: string, minLength: 1}
+              criterion: {type: string, minLength: 1}
               evidence: {type: string, minLength: 1}
+              material_consequence: {type: string, minLength: 1}
         collateral_findings:
           description: Findings owned collectively by the exact canonical blockers of a declared definition-consistency set.
           type: array
@@ -85,7 +97,15 @@ payload_schema:
               id: {type: string, pattern: '^F-[0-9]{3,}$'}
               severity: {enum: [blocking, needs-triage, advisory]}
               summary: {type: string, minLength: 1}
+              criterion: {type: string, minLength: 1}
               evidence: {type: string, minLength: 1}
+              material_consequence: {type: string, minLength: 1}
+            allOf:
+              - if:
+                  properties:
+                    severity: {const: blocking}
+                  required: [severity]
+                then: {required: [criterion, evidence, material_consequence]}
         scope_reduction:
           description: Rationale for exact SYS outputs named by this Review's removes links.
           type: object
@@ -110,6 +130,19 @@ payload_schema:
   allOf:
     - if:
         properties:
+          findings:
+            contains:
+              type: object
+              required: [relationship, severity]
+              properties:
+                relationship: {const: primary}
+                severity: {const: blocking}
+        required: [findings]
+      then:
+        properties: {outcome: {const: fail}}
+        required: [outcome]
+    - if:
+        properties:
           review_kind: {const: simplification-product-definition}
         required: [review_kind]
       then:
@@ -129,7 +162,7 @@ payload_schema:
         not: {required: [simplification]}
     - if:
         properties:
-          review_kind: {enum: [simplification-requirements, simplification-architecture-interfaces]}
+          review_kind: {const: simplification-architecture-interfaces}
         required: [review_kind]
       then:
         allOf:
@@ -149,7 +182,7 @@ payload_schema:
     - if:
         properties:
           review_kind:
-            enum: [simplification-product-definition, simplification-requirements, simplification-architecture-interfaces]
+            enum: [simplification-product-definition, simplification-architecture-interfaces]
         required: [review_kind]
       else: {required: [findings]}
 outgoing_links:

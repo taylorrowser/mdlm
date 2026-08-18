@@ -35,14 +35,8 @@ completion: >-
     {plan: one("planning-revisions-for-completion@1", {completion: completion})},
     interface => exists("baseline-contains-definition@1",
       {baseline: candidate, subject: interface}))
-  && exists("requirement-simplification-reviews-for@1",
-    {plan: one("planning-revisions-for-completion@1", {completion: completion})})
   && exists("architecture-simplification-reviews-for@1",
     {plan: one("planning-revisions-for-completion@1", {completion: completion})})
-  && every("requirement-simplification-reviews-for@1",
-    {plan: one("planning-revisions-for-completion@1", {completion: completion})},
-    review => exists("baseline-contains-evidence@1",
-      {baseline: candidate, subject: review}))
   && every("architecture-simplification-reviews-for@1",
     {plan: one("planning-revisions-for-completion@1", {completion: completion})},
     review => exists("baseline-contains-evidence@1",
