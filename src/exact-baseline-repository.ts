@@ -338,12 +338,13 @@ async function sha256File(filePath: string): Promise<string> {
   return `sha256:${createHash("sha256").update(await fs.readFile(filePath)).digest("hex")}`;
 }
 
-async function finalizeExactBaselineDatumFromRepository(
+export async function finalizeExactBaselineScenarioOutputData(
   root: string,
   processPackage: ProcessPackage,
   processRef: string,
   parsed: ParsedDatum[],
   proposedDatum: DatumEnvelope,
+  verificationCache: BaselineVerificationCache = new Map(),
 ): Promise<RepositoryResult<{ output: KernelFinalizedScenarioOutput; freeze: BaselineFreeze }>> {
   const capability = exactBaselineType(processPackage);
   if (!capability.ok) return capability;
@@ -389,11 +390,13 @@ async function finalizeExactBaselineDatumFromRepository(
   ];
   if (diagnostics.length > 0) return { ok: false, diagnostics };
   for (const identity of composition) {
-    const verified = await verifyExactBaseline(
+    const verified = await verifyExactBaselineData(
       root,
       processPackage,
       processRef,
       identity,
+      parsed,
+      verificationCache,
     );
     if (!verified.ok) {
       return {
@@ -416,7 +419,7 @@ async function finalizeExactBaselineDatumFromRepository(
     const item = parsed.find((candidate) =>
       candidate.lifecycleDatum.datum.revision_id === identity
     );
-    if (item) memberHashes[identity] = await sha256File(path.join(root, item.relativePath));
+    if (item) memberHashes[identity] = item.sourceDigest;
   }
   const frozenAt = new Date().toISOString();
   const provenanceData = [datum, ...references.flatMap((identity) => {
@@ -466,7 +469,7 @@ export async function finalizeExactBaselineScenarioOutput(
 ): Promise<RepositoryResult<{ output: KernelFinalizedScenarioOutput; freeze: BaselineFreeze }>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
-  return finalizeExactBaselineDatumFromRepository(
+  return finalizeExactBaselineScenarioOutputData(
     root,
     processPackage,
     processRef,
@@ -500,7 +503,7 @@ export async function verifyExactBaseline(
   );
 }
 
-type BaselineVerificationCache = Map<
+export type BaselineVerificationCache = Map<
   string,
   Promise<RepositoryResult<BaselineVerification>>
 >;
@@ -819,6 +822,7 @@ export async function verifyRepositoryBaselinesData(
   processPackage: ProcessPackage,
   processRef: string,
   parsed: ParsedDatum[],
+  cache: BaselineVerificationCache = new Map(),
 ): Promise<RepositoryResult<BaselineRepositoryVerification>> {
   const capability = exactBaselineType(processPackage);
   if (!capability.ok) {
@@ -837,7 +841,6 @@ export async function verifyRepositoryBaselinesData(
     )
   );
   const diagnostics: ProcessDiagnostic[] = [];
-  const cache: BaselineVerificationCache = new Map();
   let processDrift = 0;
   for (const baseline of baselines) {
     const verified = await verifyExactBaselineData(

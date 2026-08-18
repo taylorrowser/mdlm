@@ -1,0 +1,15 @@
+kind: selector-definition
+id: architecture-definition-set-representative-plans
+version: 1
+description: One deterministic planning DWP representative for each complete architecture definition set.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: decomposition-plans@1
+    arguments: {}
+  as: plan
+  where: >-
+    plan == first("decomposition-plans-sharing-architecture-with@1", {plan: plan})
+  distinct: true
+  order_by: [identity.revision_id]

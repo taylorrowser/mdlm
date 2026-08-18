@@ -1,32 +1,27 @@
 kind: scenario-definition
 id: define-decomposition-work-package
-version: 2
-description: Plan one bounded decomposition from exact stakeholder requirements in architecture, interface, and verification context.
+version: 3
+description: Plan the smallest justified set of cohesive many-to-many change-and-verification slices for the exact accepted requirements governed by one architecture context.
 phases: [phase-2-system-definition]
 inputs:
   - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
-  - {name: interfaces, types: [ICSP], cardinality: one-or-more, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
   - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
 outputs:
   - name: plan
     types: [DWP]
-    cardinality: one
+    cardinality: one-or-more
+    required_payload: {stage: planning}
     required_links:
-      - {link: decomposes, target: {input: parents}}
+      - {link: decomposes, target: {input: parents}, distribution: cover}
       - {link: allocated-to, target: {input: architecture}}
       - {link: governed-by, target: {input: interfaces}}
       - {link: verified-under, target: {input: verification_strategy}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/define-decomposition-work-package.md@1
+prompt_ref: prompts/define-decomposition-work-package.md@2
 review_policy_ref: review-applicability@1
-completion: >-
-  execution.integrity.contract_valid == true
-  && plan.payload.stage == "planning"
-  && count("architectures-for-decomposition@1", {plan: plan}) == 1
-  && one("architectures-for-decomposition@1", {plan: plan}) == architecture
-  && count("strategies-for-decomposition@1", {plan: plan}) == 1
-  && one("strategies-for-decomposition@1", {plan: plan}) == verification_strategy
+completion: 'execution.integrity.contract_valid == true'
 resolves: [decomposition-planning-required]
 prohibited_inputs: [mutable latest aliases, product source code, proposed implementation details]
-batching: single
+batching: coherent-batch

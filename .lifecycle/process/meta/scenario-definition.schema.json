@@ -11,6 +11,7 @@
     "version": {"type": "integer", "minimum": 1},
     "description": {"type": "string", "minLength": 1},
     "initiation": {"const": "explicit"},
+    "kernel_materialization": {"$ref": "#/$defs/kernelMaterialization"},
     "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
     "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
     "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}, "minItems": 1},
@@ -31,6 +32,37 @@
     "batching": {"enum": ["single", "coherent-batch", "either"]}
   },
   "$defs": {
+    "kernelMaterialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "output", "subject_input", "support_input", "payload_fields", "title_prefix", "baseline_kind", "baseline_role", "baseline_group", "evidence_subject_types", "evidence_types"],
+      "properties": {
+        "kind": {"const": "exact-baseline@1"},
+        "output": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "subject_input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "support_input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "payload_fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title", "kind", "role", "scope", "group", "members", "evidence"],
+          "properties": {
+            "title": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "kind": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "role": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "scope": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "group": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "members": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "evidence": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+          }
+        },
+        "title_prefix": {"type": "string", "minLength": 1},
+        "baseline_kind": {"type": "string", "minLength": 1},
+        "baseline_role": {"type": "string", "minLength": 1},
+        "baseline_group": {"type": "string", "minLength": 1},
+        "evidence_subject_types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "uniqueItems": true},
+        "evidence_types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "uniqueItems": true}
+      }
+    },
     "standingDelegation": {
       "type": "object",
       "additionalProperties": false,
@@ -82,6 +114,7 @@
       "required": ["link", "target"],
       "properties": {
         "link": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+        "distribution": {"enum": ["each-output", "partition", "cover"]},
         "target": {
           "type": "object",
           "additionalProperties": false,
@@ -114,7 +147,12 @@
         "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
         "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
         "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]},
-        "required_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}}
+        "required_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}},
+        "required_payload": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"},
+          "additionalProperties": {"type": ["string", "number", "boolean", "null"]}
+        }
       }
     }
   }

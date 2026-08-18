@@ -37,14 +37,14 @@ describe("mdlm schema", () => {
       command: "schema",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.66.0",
-        reference: "mdlm-bootstrap@0.66.0",
+        version: "0.67.0",
+        reference: "mdlm-bootstrap@0.67.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
       selected: true,
       schema: {
-        definition: "STK@4",
+        definition: "STK@5",
         name: "Stakeholder Requirement",
         description: expect.stringContaining("stakeholder-visible"),
         templateChain: [
@@ -74,6 +74,7 @@ describe("mdlm schema", () => {
             "rationale",
             "stakeholder",
             "statement",
+            "system_context",
             "title",
             "verification_intent",
           ],
@@ -84,6 +85,11 @@ describe("mdlm schema", () => {
             verification_intent: { type: "string", minLength: 1 },
             stakeholder: { type: "string", minLength: 1 },
             priority: { enum: ["must", "should", "could"] },
+            system_context: {
+              type: "string",
+              pattern: "^[a-z][a-z0-9-]{0,62}$",
+              description: expect.stringContaining("trust-context routing key"),
+            },
           },
         },
         sourceOwnedLinkContracts: [{
@@ -179,7 +185,7 @@ describe("mdlm schema", () => {
       ok: false,
       command: "schema",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.66.0",
+        reference: "mdlm-bootstrap@0.67.0",
       }),
       selected: true,
       diagnostics: [{
@@ -210,7 +216,7 @@ describe("mdlm schema", () => {
     selectBootstrapProcessPackage(repositoryRoot);
     const selectedType = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.66.0/types/STK.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.67.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 

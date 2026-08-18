@@ -26,3 +26,6 @@ Validate the PSP schema and record this prompt, all loaded skills, the process
 reference, `review-applicability@1`, and the resolved rubric in provenance. Do
 not claim the PSP is candidate-ready; review and baseline obligations are
 computed afterward.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

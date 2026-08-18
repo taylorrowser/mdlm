@@ -1,5 +1,5 @@
 {
-  "processRef": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+  "processRef": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
   "phaseId": "phase-7-change-control",
   "records": [
     {
@@ -17,43 +17,13 @@
           "definition_members": [
             "DEC-1020000001-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:53.949Z",
-            "member_hashes": {
-              "DEC-1020000001-r00001": "sha256:11228620640fa431d02d2edec60b88e1884de19e3e3928e5d1b7f068fd2e17f3"
-            },
-            "resolved_links": {
-              "BSL-1020000006-r00001": [],
-              "DEC-1020000001-r00001": [
-                "BSL-1020000004-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "DEC@6",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-shared-system-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -83,7 +53,7 @@
         "payload": {
           "title": "Candidate Review",
           "review_kind": "cross-group",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -100,7 +70,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -154,115 +124,7 @@
             "REV-1020000005-r00001",
             "VER-1020000001-r00001",
             "VER-1020000002-r00001"
-          ],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:56.890Z",
-            "member_hashes": {
-              "BSL-1020000001-r00001": "sha256:484523603c245772556296ea51af27556cdd2de1035de6b8b82127488c43a88b",
-              "BSL-1020000002-r00001": "sha256:964e7ba15794429e069b2b3871671e148fd567c6d55ad20d9b2b1ae51526e269",
-              "BSL-1020000003-r00001": "sha256:aa3c20042267257f9e6feac68a0f586a1bbed53d8955d2aedb467c888ae6fd40",
-              "BSL-1020000004-r00001": "sha256:e31d218eb69c265e43d8f3b365040012e64ff5192556236f82e51b9c6c342a43",
-              "BSL-1020000005-r00001": "sha256:90e2fbc01bceb959ae687b3f3c4cd93a8955af98634426919383642bac39dd41",
-              "BSL-1020000006-r00001": "sha256:3750563c6d3cbc8a6976cc2d984a665b3de85d8dd2b537554a31dbc318bd25e2",
-              "DEC-1020000001-r00001": "sha256:11228620640fa431d02d2edec60b88e1884de19e3e3928e5d1b7f068fd2e17f3",
-              "DWP-1020000001-r00001": "sha256:1ba539282c787d820159fd77adf784e8e00b211f10b71def79d9522b7ca7f2c8",
-              "DWP-1020000002-r00001": "sha256:819b4fee7342fb761f1ce4c0f95156252f8c0dbc0b47d4777a35c3bbf5a38fe9",
-              "REV-1020000001-r00001": "sha256:434ea13a6a37499d8a4b32c24fa792a0302c25327ed4706e8bf7dbe9f6883668",
-              "REV-1020000002-r00001": "sha256:3aff7b1d934f6b67d8fe8e96318dc15b058bf70a21452115701ad2c6d9cbc09a",
-              "REV-1020000003-r00001": "sha256:ef7805fa8dff04559fceba53fb9f9110987ec49d3f66626e7662bf8b192daf84",
-              "REV-1020000004-r00001": "sha256:1e87ea613d0253b770817374fc860f7e33d804879d92e7739236770bde215cca",
-              "REV-1020000005-r00001": "sha256:ec7782453ef8ef134d70d9510f68d8c591d9fbac7b406195de3c2969165f474b",
-              "SYS-1020000001-r00001": "sha256:ad4d6c1c5a20bc62730a0e86ca620bf52992b5a463b93a9e18655b7361461c77",
-              "SYS-1020000002-r00001": "sha256:817fa2ebd470fa679cdae25334e379a870c889bd9942217e141d7050c9da0295",
-              "VER-1020000001-r00001": "sha256:7fda16d04a854f6e063ff2c7519e98fe775899dce2c6ffdaabef5464a50db61f",
-              "VER-1020000002-r00001": "sha256:d15c3aa42489edddd0108900d7ead4a325e3d2ab4c972a5ce5ef28baf86e8265"
-            },
-            "resolved_links": {
-              "BSL-1020000001-r00001": [],
-              "BSL-1020000002-r00001": [],
-              "BSL-1020000003-r00001": [],
-              "BSL-1020000004-r00001": [],
-              "BSL-1020000005-r00001": [],
-              "BSL-1020000006-r00001": [],
-              "BSL-1020000007-r00001": [
-                "BSL-1020000004-r00001"
-              ],
-              "DEC-1020000001-r00001": [
-                "BSL-1020000004-r00001"
-              ],
-              "DWP-1020000001-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "DWP-1020000002-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "REV-1020000001-r00001": [
-                "BSL-1020000001-r00001",
-                "SYS-1020000001-r00001"
-              ],
-              "REV-1020000002-r00001": [
-                "BSL-1020000002-r00001",
-                "DWP-1020000001-r00001"
-              ],
-              "REV-1020000003-r00001": [
-                "BSL-1020000003-r00001",
-                "DWP-1020000002-r00001"
-              ],
-              "REV-1020000004-r00001": [
-                "BSL-1020000004-r00001",
-                "BSL-1020000005-r00001"
-              ],
-              "REV-1020000005-r00001": [
-                "BSL-1020000006-r00001",
-                "DEC-1020000001-r00001"
-              ],
-              "SYS-1020000001-r00001": [
-                "STK-1020000001-r00001"
-              ],
-              "SYS-1020000002-r00001": [
-                "STK-1020000001-r00001"
-              ],
-              "VER-1020000001-r00001": [
-                "SYS-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "VER-1020000002-r00001": [
-                "SYS-1020000002-r00001",
-                "SYS-1020000002-r00001",
-                "VSP-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "DEC@6",
-                "DWP@3",
-                "REV@5",
-                "SYS@3",
-                "VER@2",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          ]
         },
         "links": [
           {
@@ -273,7 +135,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -310,46 +172,13 @@
           "evidence": [
             "ART-1020000001-r00001",
             "PRB-1020000001-r00001"
-          ],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:57.116Z",
-            "member_hashes": {
-              "ART-1020000001-r00001": "sha256:3187b7752bf1a03937396b9cd8ac4108f565a2b0952bdc28aec8f7b6380e7404",
-              "PRB-1020000001-r00001": "sha256:579ff0898a91ff809cf0575203d590f09da45ced829af226944ce409d09fa06a"
-            },
-            "resolved_links": {
-              "ART-1020000001-r00001": [],
-              "BSL-1020000008-r00001": [],
-              "PRB-1020000001-r00001": [
-                "ART-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "ART@1",
-                "BSL@4",
-                "PRB@1",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          ]
         },
         "links": [],
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -397,98 +226,13 @@
             "REV-1020000003-r00001",
             "VER-1020000001-r00001",
             "VER-1020000002-r00001"
-          ],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:50.956Z",
-            "member_hashes": {
-              "BSL-1020000001-r00001": "sha256:484523603c245772556296ea51af27556cdd2de1035de6b8b82127488c43a88b",
-              "BSL-1020000002-r00001": "sha256:964e7ba15794429e069b2b3871671e148fd567c6d55ad20d9b2b1ae51526e269",
-              "BSL-1020000003-r00001": "sha256:aa3c20042267257f9e6feac68a0f586a1bbed53d8955d2aedb467c888ae6fd40",
-              "DWP-1020000001-r00001": "sha256:1ba539282c787d820159fd77adf784e8e00b211f10b71def79d9522b7ca7f2c8",
-              "DWP-1020000002-r00001": "sha256:819b4fee7342fb761f1ce4c0f95156252f8c0dbc0b47d4777a35c3bbf5a38fe9",
-              "REV-1020000001-r00001": "sha256:434ea13a6a37499d8a4b32c24fa792a0302c25327ed4706e8bf7dbe9f6883668",
-              "REV-1020000002-r00001": "sha256:3aff7b1d934f6b67d8fe8e96318dc15b058bf70a21452115701ad2c6d9cbc09a",
-              "REV-1020000003-r00001": "sha256:ef7805fa8dff04559fceba53fb9f9110987ec49d3f66626e7662bf8b192daf84",
-              "SYS-1020000001-r00001": "sha256:ad4d6c1c5a20bc62730a0e86ca620bf52992b5a463b93a9e18655b7361461c77",
-              "SYS-1020000002-r00001": "sha256:817fa2ebd470fa679cdae25334e379a870c889bd9942217e141d7050c9da0295",
-              "VER-1020000001-r00001": "sha256:7fda16d04a854f6e063ff2c7519e98fe775899dce2c6ffdaabef5464a50db61f",
-              "VER-1020000002-r00001": "sha256:d15c3aa42489edddd0108900d7ead4a325e3d2ab4c972a5ce5ef28baf86e8265"
-            },
-            "resolved_links": {
-              "BSL-1020000001-r00001": [],
-              "BSL-1020000002-r00001": [],
-              "BSL-1020000003-r00001": [],
-              "BSL-1020000004-r00001": [],
-              "DWP-1020000001-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "DWP-1020000002-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "REV-1020000001-r00001": [
-                "BSL-1020000001-r00001",
-                "SYS-1020000001-r00001"
-              ],
-              "REV-1020000002-r00001": [
-                "BSL-1020000002-r00001",
-                "DWP-1020000001-r00001"
-              ],
-              "REV-1020000003-r00001": [
-                "BSL-1020000003-r00001",
-                "DWP-1020000002-r00001"
-              ],
-              "SYS-1020000001-r00001": [
-                "STK-1020000001-r00001"
-              ],
-              "SYS-1020000002-r00001": [
-                "STK-1020000001-r00001"
-              ],
-              "VER-1020000001-r00001": [
-                "SYS-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "VER-1020000002-r00001": [
-                "SYS-1020000002-r00001",
-                "SYS-1020000002-r00001",
-                "VSP-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "DWP@3",
-                "REV@5",
-                "SYS@3",
-                "VER@2",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          ]
         },
         "links": [],
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -559,7 +303,7 @@
         "created_by": {
           "scenario": "reevaluate-shared-system-consumer@1",
           "prompt_ref": "prompts/reevaluate-shared-system-consumer.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/decomposition.md@1",
@@ -595,7 +339,7 @@
         "payload": {
           "title": "Gate Review",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -612,7 +356,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -648,50 +392,13 @@
           "definition_members": [
             "DEC-KEVJNTTEE7-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:06:54.785Z",
-            "member_hashes": {
-              "DEC-KEVJNTTEE7-r00001": "sha256:89e3285cdd2651a11b84c3323dbe79d1b9c41afb3ded1447f8c7d54d18cd9014"
-            },
-            "resolved_links": {
-              "BSL-FEPPX7JXJ5-r00001": [],
-              "DEC-KEVJNTTEE7-r00001": [
-                "CHG-1TGXYWDZ3T-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "DEC@6",
-                "approve-change-request@3",
-                "consequential-decision-participation@1",
-                "create-review-context@1",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/approve-change-request.md@3",
-                "prompts/create-review-context.md@1",
-                "rationale-bearing@1",
-                "review-applicability@1",
-                "skills/baseline-model.md@1",
-                "skills/lifecycle-data.md@1",
-                "skills/traceability.md@1",
-                "titled-datum@1",
-                "waiver-applicability@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -726,7 +433,7 @@
         "payload": {
           "title": "Review DEC-KEVJNTTEE7-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -742,8 +449,8 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@2",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "prompt_ref": "prompts/review-datum-in-context.md@3",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -780,7 +487,7 @@
         "payload": {
           "title": "Review CHG-1TGXYWDZ3T-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -796,8 +503,8 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@2",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "prompt_ref": "prompts/review-datum-in-context.md@3",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -846,7 +553,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -887,12 +594,16 @@
               ]
             }
           ],
-          "interactions": [
-            "Consumers use export boundary"
-          ],
           "constraints": [],
           "nominated_risks": [
             "consumer divergence"
+          ],
+          "internal_interactions": [],
+          "controlled_boundaries": [
+            {
+              "from_element": "AEL-1020000000",
+              "to_element": "AEL-1020000000"
+            }
           ]
         },
         "links": [
@@ -904,7 +615,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -971,7 +682,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1038,7 +749,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1069,10 +780,6 @@
           "title": "Shared export interface",
           "rationale": "Control consumer boundary.",
           "architecture_revision": "ASP-1020000001-r00001",
-          "boundary": {
-            "from_element": "AEL-1020000000",
-            "to_element": "AEL-1020000000"
-          },
           "operations": [
             "export"
           ],
@@ -1089,7 +796,13 @@
           "compatibility": [
             "v1"
           ],
-          "interface_version": "1.0.0"
+          "interface_version": "1.0.0",
+          "boundaries": [
+            {
+              "from_element": "AEL-1020000000",
+              "to_element": "AEL-1020000000"
+            }
+          ]
         },
         "links": [
           {
@@ -1100,7 +813,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1146,7 +859,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1194,7 +907,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1227,7 +940,8 @@
           "statement": "The system shall provide one portable report.",
           "verification_intent": "Inspect exact public behavior.",
           "stakeholder": "report author",
-          "priority": "must"
+          "priority": "must",
+          "system_context": "product"
         },
         "links": [
           {
@@ -1238,7 +952,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1280,7 +994,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1322,7 +1036,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1386,7 +1100,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1450,7 +1164,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1523,7 +1237,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1557,46 +1271,16 @@
           "scope": "SYS-1020000001-r00001",
           "group": "DEFAULT",
           "definition_members": [
+            "STK-1020000001-r00001",
             "SYS-1020000001-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:48.212Z",
-            "member_hashes": {
-              "SYS-1020000001-r00001": "sha256:ad4d6c1c5a20bc62730a0e86ca620bf52992b5a463b93a9e18655b7361461c77"
-            },
-            "resolved_links": {
-              "BSL-1020000001-r00001": [],
-              "SYS-1020000001-r00001": [
-                "STK-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "SYS@3",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-shared-system-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1630,55 +1314,19 @@
           "scope": "DWP-1020000001-r00001",
           "group": "DEFAULT",
           "definition_members": [
+            "ASP-1020000001-r00001",
             "DWP-1020000001-r00001",
-            "SYS-1020000001-r00001"
+            "ICSP-1020000001-r00001",
+            "SYS-1020000001-r00001",
+            "VSP-1020000001-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:48.324Z",
-            "member_hashes": {
-              "DWP-1020000001-r00001": "sha256:1ba539282c787d820159fd77adf784e8e00b211f10b71def79d9522b7ca7f2c8",
-              "SYS-1020000001-r00001": "sha256:ad4d6c1c5a20bc62730a0e86ca620bf52992b5a463b93a9e18655b7361461c77"
-            },
-            "resolved_links": {
-              "BSL-1020000002-r00001": [],
-              "DWP-1020000001-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "SYS-1020000001-r00001": [
-                "STK-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "DWP@3",
-                "SYS@3",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-shared-system-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1712,55 +1360,19 @@
           "scope": "DWP-1020000002-r00001",
           "group": "DEFAULT",
           "definition_members": [
+            "ASP-1020000001-r00001",
             "DWP-1020000002-r00001",
-            "SYS-1020000001-r00001"
+            "ICSP-1020000001-r00001",
+            "SYS-1020000001-r00001",
+            "VSP-1020000001-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:48.436Z",
-            "member_hashes": {
-              "DWP-1020000002-r00001": "sha256:819b4fee7342fb761f1ce4c0f95156252f8c0dbc0b47d4777a35c3bbf5a38fe9",
-              "SYS-1020000001-r00001": "sha256:ad4d6c1c5a20bc62730a0e86ca620bf52992b5a463b93a9e18655b7361461c77"
-            },
-            "resolved_links": {
-              "BSL-1020000003-r00001": [],
-              "DWP-1020000002-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "SYS-1020000001-r00001": [
-                "STK-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "DWP@3",
-                "SYS@3",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-shared-system-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1790,7 +1402,7 @@
         "payload": {
           "title": "SYS Review",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -1807,7 +1419,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1837,7 +1449,7 @@
         "payload": {
           "title": "Consumer A Review",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -1854,7 +1466,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1884,7 +1496,7 @@
         "payload": {
           "title": "Consumer B Review",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@1",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
           "findings": [],
           "outcome": "pass"
         },
@@ -1901,7 +1513,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1935,14 +1547,13 @@
           "scope": "CHG-1TGXYWDZ3T-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "CHG-1TGXYWDZ3T-r00001",
             "BSL-1020000001-r00001",
             "BSL-1020000002-r00001",
             "BSL-1020000003-r00001",
             "BSL-1020000004-r00001",
-            "BSL-1020000005-r00001",
             "BSL-1020000006-r00001",
             "BSL-1020000007-r00001",
+            "CHG-1TGXYWDZ3T-r00001",
             "DEC-1020000001-r00001",
             "DWP-1020000001-r00001",
             "DWP-1020000002-r00001",
@@ -1954,128 +1565,13 @@
             "SYS-1020000001-r00001",
             "VER-1020000001-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:06:18.366Z",
-            "member_hashes": {
-              "BSL-1020000001-r00001": "sha256:484523603c245772556296ea51af27556cdd2de1035de6b8b82127488c43a88b",
-              "BSL-1020000002-r00001": "sha256:964e7ba15794429e069b2b3871671e148fd567c6d55ad20d9b2b1ae51526e269",
-              "BSL-1020000003-r00001": "sha256:aa3c20042267257f9e6feac68a0f586a1bbed53d8955d2aedb467c888ae6fd40",
-              "BSL-1020000004-r00001": "sha256:e31d218eb69c265e43d8f3b365040012e64ff5192556236f82e51b9c6c342a43",
-              "BSL-1020000005-r00001": "sha256:90e2fbc01bceb959ae687b3f3c4cd93a8955af98634426919383642bac39dd41",
-              "BSL-1020000006-r00001": "sha256:3750563c6d3cbc8a6976cc2d984a665b3de85d8dd2b537554a31dbc318bd25e2",
-              "BSL-1020000007-r00001": "sha256:7669bbe88ae52cba74b1aa20fda19e47b0cd1a0c1360467485c1e125c58a192d",
-              "CHG-1TGXYWDZ3T-r00001": "sha256:0ce1dfcb228b090597c1fc9e44a7345e86e37456d4c4d5324f40e42725c3082a",
-              "DEC-1020000001-r00001": "sha256:11228620640fa431d02d2edec60b88e1884de19e3e3928e5d1b7f068fd2e17f3",
-              "DWP-1020000001-r00001": "sha256:1ba539282c787d820159fd77adf784e8e00b211f10b71def79d9522b7ca7f2c8",
-              "DWP-1020000002-r00001": "sha256:819b4fee7342fb761f1ce4c0f95156252f8c0dbc0b47d4777a35c3bbf5a38fe9",
-              "REV-1020000001-r00001": "sha256:434ea13a6a37499d8a4b32c24fa792a0302c25327ed4706e8bf7dbe9f6883668",
-              "REV-1020000002-r00001": "sha256:3aff7b1d934f6b67d8fe8e96318dc15b058bf70a21452115701ad2c6d9cbc09a",
-              "REV-1020000003-r00001": "sha256:ef7805fa8dff04559fceba53fb9f9110987ec49d3f66626e7662bf8b192daf84",
-              "REV-1020000004-r00001": "sha256:1e87ea613d0253b770817374fc860f7e33d804879d92e7739236770bde215cca",
-              "REV-1020000005-r00001": "sha256:ec7782453ef8ef134d70d9510f68d8c591d9fbac7b406195de3c2969165f474b",
-              "SYS-1020000001-r00001": "sha256:ad4d6c1c5a20bc62730a0e86ca620bf52992b5a463b93a9e18655b7361461c77",
-              "VER-1020000001-r00001": "sha256:7fda16d04a854f6e063ff2c7519e98fe775899dce2c6ffdaabef5464a50db61f"
-            },
-            "resolved_links": {
-              "BSL-1020000001-r00001": [],
-              "BSL-1020000002-r00001": [],
-              "BSL-1020000003-r00001": [],
-              "BSL-1020000004-r00001": [],
-              "BSL-1020000005-r00001": [],
-              "BSL-1020000006-r00001": [],
-              "BSL-1020000007-r00001": [
-                "BSL-1020000004-r00001"
-              ],
-              "BSL-8V74RY2HAZ-r00001": [],
-              "CHG-1TGXYWDZ3T-r00001": [
-                "BSL-1020000007-r00001",
-                "PRB-1020000001-r00001",
-                "SYS-1020000001-r00001"
-              ],
-              "DEC-1020000001-r00001": [
-                "BSL-1020000004-r00001"
-              ],
-              "DWP-1020000001-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "DWP-1020000002-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "REV-1020000001-r00001": [
-                "BSL-1020000001-r00001",
-                "SYS-1020000001-r00001"
-              ],
-              "REV-1020000002-r00001": [
-                "BSL-1020000002-r00001",
-                "DWP-1020000001-r00001"
-              ],
-              "REV-1020000003-r00001": [
-                "BSL-1020000003-r00001",
-                "DWP-1020000002-r00001"
-              ],
-              "REV-1020000004-r00001": [
-                "BSL-1020000004-r00001",
-                "BSL-1020000005-r00001"
-              ],
-              "REV-1020000005-r00001": [
-                "BSL-1020000006-r00001",
-                "DEC-1020000001-r00001"
-              ],
-              "SYS-1020000001-r00001": [
-                "STK-1020000001-r00001"
-              ],
-              "VER-1020000001-r00001": [
-                "SYS-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "CHG@3",
-                "DEC@6",
-                "DWP@3",
-                "REV@5",
-                "SYS@3",
-                "VER@2",
-                "analyze-change-impact@2",
-                "create-review-context@1",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/analyze-change-impact.md@2",
-                "prompts/create-review-context.md@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "skills/baseline-model.md@1",
-                "skills/lifecycle-data.md@1",
-                "skills/traceability.md@1",
-                "titled-datum@1",
-                "waiver-applicability@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -2114,71 +1610,15 @@
           "scope": "BSL-1020000004-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "BSL-1020000004-r00001",
-            "SYS-1020000001-r00001",
-            "SYS-1020000002-r00001",
-            "DWP-1020000001-r00001",
-            "DWP-1020000002-r00001"
+            "BSL-1020000004-r00001"
           ],
-          "evidence": [],
-          "snapshot": {
-            "frozen_at": "2026-08-13T18:05:52.418Z",
-            "member_hashes": {
-              "BSL-1020000004-r00001": "sha256:e31d218eb69c265e43d8f3b365040012e64ff5192556236f82e51b9c6c342a43",
-              "DWP-1020000001-r00001": "sha256:1ba539282c787d820159fd77adf784e8e00b211f10b71def79d9522b7ca7f2c8",
-              "DWP-1020000002-r00001": "sha256:819b4fee7342fb761f1ce4c0f95156252f8c0dbc0b47d4777a35c3bbf5a38fe9",
-              "SYS-1020000001-r00001": "sha256:ad4d6c1c5a20bc62730a0e86ca620bf52992b5a463b93a9e18655b7361461c77",
-              "SYS-1020000002-r00001": "sha256:817fa2ebd470fa679cdae25334e379a870c889bd9942217e141d7050c9da0295"
-            },
-            "resolved_links": {
-              "BSL-1020000004-r00001": [],
-              "BSL-1020000005-r00001": [],
-              "DWP-1020000001-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "DWP-1020000002-r00001": [
-                "ASP-1020000001-r00001",
-                "ICSP-1020000001-r00001",
-                "SYS-1020000001-r00001",
-                "VSP-1020000001-r00001"
-              ],
-              "SYS-1020000001-r00001": [
-                "STK-1020000001-r00001"
-              ],
-              "SYS-1020000002-r00001": [
-                "STK-1020000001-r00001"
-              ]
-            },
-            "process_provenance": {
-              "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-              "manifest_hash": "sha256:640bb51a13d87865278c4c71cc197f9d0e68c5d6ca3658be5fc53c0e11cf1fa5",
-              "asset_refs": [
-                "BSL@4",
-                "DWP@3",
-                "SYS@3",
-                "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-                "json-schema-draft:2020-12",
-                "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
-                "meta-schema@3",
-                "primitives/kernel-v1.yaml@1",
-                "prompts/seed-shared-system-change.md@1",
-                "rationale-bearing@1",
-                "requirement@2",
-                "review-applicability@1",
-                "seed-shared-system-change@1",
-                "titled-datum@1"
-              ]
-            }
-          }
+          "evidence": []
         },
         "links": [],
         "created_by": {
-          "scenario": "seed-shared-system-change@1",
+          "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2225,7 +1665,7 @@
         "created_by": {
           "scenario": "seed-shared-system-change@1",
           "prompt_ref": "prompts/seed-shared-system-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2271,7 +1711,7 @@
         "created_by": {
           "scenario": "revise-requirement-under-change@3",
           "prompt_ref": "prompts/revise-requirement-under-change.md@3",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/requirement-writing.md@1",
@@ -2333,7 +1773,7 @@
         "created_by": {
           "scenario": "analyze-change-impact@2",
           "prompt_ref": "prompts/analyze-change-impact.md@2",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1",
@@ -2383,7 +1823,7 @@
         "created_by": {
           "scenario": "approve-change-request@3",
           "prompt_ref": "prompts/approve-change-request.md@3",
-          "process_ref": "mdlm-bootstrap@0.59.0#sha256:e2322179a9fd6513f0a7a7c68e590f87e8b575a706d77d6f92c933507b296740",
+          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "consequential-decision-participation@1",
@@ -2407,5 +1847,9 @@
       }
     }
   ],
-  "dependencyComparisons": []
+  "dependencyComparisons": [],
+  "fixture": {
+    "kind": "synthetic-evaluator-snapshot",
+    "canonical_lifecycle_evidence": false
+  }
 }

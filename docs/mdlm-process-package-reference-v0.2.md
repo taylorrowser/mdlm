@@ -1041,11 +1041,8 @@ Exact requirement and VSP Revision evidence then derives pilot VER work. Each
 current-package pilot VER Review Context freezes the exact VER together with its
 linked STK and governing VSP Revisions, and independent Review packets project
 those two exact support Revisions. Current VER Review Contexts may neither add
-Review evidence nor compose unrelated baselines. A thin VER Review Context remains
-usable without rewriting frozen Lifecycle Data only when its authenticated snapshot
-was created by the exact 0.60.0, 0.61.0, or 0.62.0 Example Process Package, contains
-only the VER, contains no evidence, and composes no baselines; foreign or augmented
-historical contexts are rejected.
+Review evidence nor compose unrelated baselines. The clean-break package accepts
+no thin historical Review Context compatibility.
 The presence of current pilot activity work also derives exact ART registration when
 its requirement has no target. That Resolver records one immutable Git commit,
 bounded supported/unsupported behavior, and a controlled public execution interface
@@ -1079,11 +1076,24 @@ must record positive success and negative discrimination observations; Scenario
 completion rejects a formal claim from that pilot even when the proposed RES is
 otherwise schema-valid.
 
-The Phase 2 tracer records one VSP-governed DWP plan and independently reviews it
-with exact DWP, ASP, ICSP, and applicable current SYS support before deriving exact
-question, execution, output-Review, parent-coverage, and
-dedicated simplification Obligations, and publishes a completion Revision in the
-same DWP lineage. Before execution, a current-package planning-DWP Review Context
+The Phase 2 tracer allocates information once according to
+`skills/information-allocation.md@1`. Accepted STKs with the same exact PSP parent
+and solution-independent `system_context` enter one architecture work item;
+distinct responsibility or trust contexts remain separate. The architecture
+author runs a bounded, undisclosed ephemeral preflight over the whole group before
+any ASP/ICSP/DWP fan-out. The result is one shared ASP by default or the smallest
+justified partition when concrete responsibility, boundary, risk, or trust seams
+require it; every STK is governed exactly once. Each resulting architecture
+receives an ICSP only when its ASP declares independently controlled boundaries;
+the ICSP boundary set must exactly equal the complete ASP boundary set. Internal
+interactions require none, so an architecture is not forced to invent a boundary. Each architecture
+also receives the smallest justified set of VSP-governed many-to-many DWPs covering
+every accepted STK it governs. Detailed solution-independent SYS definitions are derived inside those
+cohesive plans. One later independent semantic simplification Review examines the
+complete architecture-wide ASP/ICSP/DWP/SYS set after SYS derivation, including
+all sibling plans and their exact outputs.
+
+Before execution, a current-package planning-DWP Review Context
 contains the exact DWP, its allocated ASP, all governing ICSP Revisions, and any
 exact current SYS support selected for that plan; unrelated, stale, non-exact,
 evidence, or composed-baseline additions are rejected. If any exact ASP, ICSP, or
@@ -1098,14 +1108,26 @@ preserving the planning stage, every unaffected binding, every prior Review-corr
 If a superseded consumed-parent lineage has no active valid latest replacement, stale-plan correction remains blocked instead of deleting that exact parent binding. This avoids both an impossible Review Context and an unrelated generic DWP lineage. The independent packet
 projects those exact support Revisions, and the mandated
 `simplification-product-definition` pass, fail, or cancellation can complete. A
-failed judgment targets and blocks exactly the reviewed DWP. An authenticated thin
-planning-DWP context from exact package 0.63.0 or 0.64.0 remains usable for Review
-completion without rewriting frozen Lifecycle Data only when it contains only the
-DWP, no evidence, and no composed baselines. The current Assignment separately
-projects exact ASP, ICSP, and applicable current SYS support; foreign or augmented
-historical contexts are rejected. An authenticated exact-support planning-DWP context
-from exact package 0.65.0 remains reusable when its frozen membership is still exact and
-current; its completed Review remains governed by its original package provenance.
+failed judgment targets and blocks exactly the reviewed DWP. Current Review
+Context definition membership is every-and-only the package-selected subject and
+support set; the package requests the generic `exact-baseline@1` Kernel
+Capability, declares its input/output and payload mapping, and the runtime fulfills
+a real internal Assignment before returning reviewer work without reloading the
+repository. The kernel owns evidence partitioning from that Scenario contract,
+exact-byte hashes, stable-link resolution, response provenance, freeze, and
+verification. Review authors cannot choose
+extra context. Re-materializing one Scenario for the same subject revises the same
+context lineage, so changed selected support supersedes the prior context; the
+architecture-wide simplification context has its own materialization Scenario and
+lineage. Exact context membership follows valid current structural support rather
+than reviewed disposition, preventing an authority cycle while ordinary work still
+requires active support. An ordinary passing Review is reusable only when both the Review
+and its cited frozen valid exact Review Context come from the current package and
+that context scopes the exact subject, contains every-and-only the currently selected
+members, and has no newer same-lineage Revision. Every blocking Finding requires an exact criterion, concrete
+evidence or counterexample, and material consequence; usable concerns remain
+triage or advisory. The clean
+0.67.0 package does not read or migrate historical 0.66.0 Lifecycle Data.
 Its reviewed group candidate contains exact DWP, SYS, ASP, and ICSP Revisions. The
 reviewed SYS level candidate composes that exact group while
 retaining shared VSP, ASP, and ICSP members, then reaches exact reviewed gate

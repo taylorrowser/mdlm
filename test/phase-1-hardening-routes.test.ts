@@ -37,7 +37,7 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, selectProcessPackageFixture } from "./helpers/mdlm.js";
 import { copiedProcessPackage } from "./helpers/process-package.js";
 
-const processRef = "mdlm-bootstrap@0.59.0#sha256:phase-1-route-evidence";
+const processRef = "mdlm-bootstrap@0.67.0#sha256:phase-1-route-evidence";
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
 
@@ -79,26 +79,38 @@ function failedReview(
     evidence: [],
   }, { scenario: "create-review-context@1" });
   const target = options.blockedTarget ?? subject.datum.revision_id;
-  const review = record("REV", id, {
-    title: `Failed Review of ${subject.datum.revision_id}`,
-    review_kind: "contextual",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    findings: [{
-      id: "F-001",
-      target,
-      relationship: "primary",
-      severity: "blocking",
-      summary: options.summary ?? "Correct the exact reviewed assurance artifact.",
-    }],
-    ...(options.stakeholderOwned ? { correction_authority: "stakeholder" } : {}),
-    outcome: "fail",
-  }, {
+  const review = record(
+    "REV",
+    id,
+    {
+      title: `Failed Review of ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [
+        {
+          id: "F-001",
+          target,
+          relationship: "primary",
+          severity: "blocking",
+          criterion: "A failed assurance Review must cite an exact defect in the current VSP, ENV, ART, VAI, VER, or evidence Revision.",
+          evidence:
+            "The Review rejects the exact current assurance subject in its complete frozen context.",
+          material_consequence:
+            "Pilot assurance cannot rely on the rejected subject until a corrected Revision passes.",
+          summary: options.summary ?? "Correct the exact reviewed assurance artifact.",
+        },
+      ],
+      ...(options.stakeholderOwned ? { correction_authority: "stakeholder" } : {}),
+      outcome: "fail",
+    },
+    {
     scenario: "review-datum-in-context@2",
     links: [
       { type: "reviews", target: subject.datum.revision_id },
       { type: "contextualizes", target: context.datum.revision_id },
     ],
-  });
+  },
+  );
   return [context, review];
 }
 
@@ -202,7 +214,10 @@ function passingReview(
     evidence?: LifecycleRecord[];
   } = {},
 ): [LifecycleRecord, LifecycleRecord] {
-  const definitions = options.definitions ?? [subject];
+  const definitions = options.definitions ?? [
+    subject,
+    ...(subject.datum.type === "VSP" ? [foundation()[1]!] : []),
+  ];
   const evidence = options.evidence ?? [];
   const context = record("BSL", id.replace("REV", "BSL"), {
     title: `Exact context for ${subject.datum.revision_id}`,
@@ -213,19 +228,24 @@ function passingReview(
     definition_members: definitions.map((item) => item.datum.revision_id),
     evidence: evidence.map((item) => item.datum.revision_id),
   }, { scenario: "create-review-context@1" });
-  const review = record("REV", id, {
-    title: `Passing Review of ${subject.datum.revision_id}`,
-    review_kind: "contextual",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-    findings: [],
-    outcome: "pass",
-  }, {
+  const review = record(
+    "REV",
+    id,
+    {
+      title: `Passing Review of ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    },
+    {
     scenario: "review-datum-in-context@2",
     links: [
       { type: "reviews", target: subject.datum.revision_id },
       { type: "contextualizes", target: context.datum.revision_id },
     ],
-  });
+  },
+  );
   return [context, review];
 }
 
@@ -1150,129 +1170,6 @@ describe("Phase 1 hardening route evidence", () => {
     );
     expect(invalidComposedContext.result).toEqual([]);
 
-    const [legacyContext] = passingReview(activity, "REV-0HARDVER3");
-    const legacyProcessRef =
-      "mdlm-bootstrap@0.62.0#sha256:38b4912e78d4524a5755bd8d5260eba092f4543666315a217bc0782244327ec1";
-    legacyContext.datum.created_by.process_ref = legacyProcessRef;
-    legacyContext.datum.payload.snapshot = {
-      frozen_at: "2026-08-15T00:00:00.000Z",
-      member_hashes: {
-        [activity.datum.revision_id]: `sha256:${"a".repeat(64)}`,
-      },
-      resolved_links: {
-        [activity.datum.revision_id]: [
-          "STK-0HARDENP10-r00001",
-          currentStrategy.datum.revision_id,
-        ],
-      },
-      process_provenance: {
-        process_ref: legacyProcessRef,
-        manifest_hash: `sha256:${"b".repeat(64)}`,
-        asset_refs: [],
-      },
-    };
-    const validLegacyContext = evaluateProcessDefinition(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-1-product-assurance",
-        records: [
-          ...foundation(),
-          currentStrategy,
-          ...strategyReview,
-          activity,
-          legacyContext,
-        ],
-        dependencyComparisons: [],
-      },
-      "selector",
-      "valid-review-contexts-for@1",
-      { subject: activity.datum.revision_id },
-    );
-    expect(
-      (
-        validLegacyContext.result as Array<{
-          identity: { revision_id: string };
-        }>
-      ).map((item) => item.identity.revision_id),
-    ).toEqual([legacyContext.datum.revision_id]);
-
-    const [legacyContextWithEvidence] = passingReview(
-      activity,
-      "REV-0HARDVER4",
-      { evidence: [strategyReview[1]] },
-    );
-    legacyContextWithEvidence.datum.created_by.process_ref = legacyProcessRef;
-    legacyContextWithEvidence.datum.payload.snapshot =
-      legacyContext.datum.payload.snapshot;
-    const invalidLegacyEvidence = evaluateProcessDefinition(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-1-product-assurance",
-        records: [
-          ...foundation(),
-          currentStrategy,
-          ...strategyReview,
-          activity,
-          legacyContextWithEvidence,
-        ],
-        dependencyComparisons: [],
-      },
-      "selector",
-      "valid-review-contexts-for@1",
-      { subject: activity.datum.revision_id },
-    );
-    expect(invalidLegacyEvidence.result).toEqual([]);
-
-    const legacyContextWithComposition = structuredClone(legacyContext);
-    legacyContextWithComposition.datum.links.push({
-      type: "composes",
-      target: strategyReview[0]!.datum.revision_id,
-    });
-    const invalidLegacyComposition = evaluateProcessDefinition(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-1-product-assurance",
-        records: [
-          ...foundation(),
-          currentStrategy,
-          ...strategyReview,
-          activity,
-          legacyContextWithComposition,
-        ],
-        dependencyComparisons: [],
-      },
-      "selector",
-      "valid-review-contexts-for@1",
-      { subject: activity.datum.revision_id },
-    );
-    expect(invalidLegacyComposition.result).toEqual([]);
-
-    const foreignLegacyContext = structuredClone(legacyContext);
-    foreignLegacyContext.datum.created_by.process_ref =
-      "mdlm-bootstrap@0.42.0#sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-    const invalidForeignLegacy = evaluateProcessDefinition(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-1-product-assurance",
-        records: [
-          ...foundation(),
-          currentStrategy,
-          ...strategyReview,
-          activity,
-          foreignLegacyContext,
-        ],
-        dependencyComparisons: [],
-      },
-      "selector",
-      "valid-review-contexts-for@1",
-      { subject: activity.datum.revision_id },
-    );
-    expect(invalidForeignLegacy.result).toEqual([]);
-
     const malformed = pilotActivity();
     malformed.datum.links = malformed.datum.links.map((link) =>
       link.type === "verifies-revision"
@@ -1684,14 +1581,16 @@ describe("Phase 1 hardening route evidence", () => {
     const records = [currentStrategy, firstEnvironment, secondEnvironment];
     const exactState = structuredClone(records);
     const evaluation = phase1Evaluation(processPackage, records);
-    expect(evaluation.terminalOutcome).toEqual(expect.objectContaining({
-      outcome: "profile-boundary-reached",
-      explanation: expect.stringMatching(/multiple applicable/i),
-      evidence: expect.objectContaining({
-        profile: "bootstrap@34",
-        condition: expect.objectContaining({ result: true }),
+    expect(evaluation.terminalOutcome).toEqual(
+      expect.objectContaining({
+        outcome: "profile-boundary-reached",
+        explanation: expect.stringMatching(/multiple applicable/i),
+        evidence: expect.objectContaining({
+          profile: "bootstrap@35",
+          condition: expect.objectContaining({ result: true }),
+        }),
       }),
-    }));
+    );
     expect(evaluation.terminalOutcome?.outcome).not.toBe("process-dead-end");
     expect(records).toEqual(exactState);
     expect(evaluateProcessDefinition(
@@ -1716,14 +1615,16 @@ describe("Phase 1 hardening route evidence", () => {
     const records = [currentStrategy, activity, firstTarget, secondTarget];
     const exactState = structuredClone(records);
     const evaluation = phase1Evaluation(processPackage, records);
-    expect(evaluation.terminalOutcome).toEqual(expect.objectContaining({
-      outcome: "profile-boundary-reached",
-      explanation: expect.stringMatching(/multiple applicable/i),
-      evidence: expect.objectContaining({
-        profile: "bootstrap@34",
-        condition: expect.objectContaining({ result: true }),
+    expect(evaluation.terminalOutcome).toEqual(
+      expect.objectContaining({
+        outcome: "profile-boundary-reached",
+        explanation: expect.stringMatching(/multiple applicable/i),
+        evidence: expect.objectContaining({
+          profile: "bootstrap@35",
+          condition: expect.objectContaining({ result: true }),
+        }),
       }),
-    }));
+    );
     expect(evaluation.terminalOutcome?.outcome).not.toBe("process-dead-end");
     expect(records).toEqual(exactState);
     expect(evaluateProcessDefinition(
@@ -1942,17 +1843,23 @@ describe("Phase 1 hardening route evidence", () => {
         non_goals: ["private implementation assurance"],
         success_measures: ["all exact public cases discriminate"],
       }, { scenario: "compile-psp@2" });
-      const repositoryRequirement = record("STK", "STK-0HARDENP10", {
-        title: "Public command requirement",
-        rationale: "The supported command returns deterministic output.",
-        statement: "The public command shall return deterministic output.",
-        verification_intent: "Observe exact success and malformed rejection bytes.",
-        stakeholder: "operator",
-        priority: "must",
-      }, {
+      const repositoryRequirement = record(
+        "STK",
+        "STK-0HARDENP10",
+        {
+          title: "Public command requirement",
+          rationale: "The supported command returns deterministic output.",
+          statement: "The public command shall return deterministic output.",
+          verification_intent: "Observe exact success and malformed rejection bytes.",
+          stakeholder: "operator",
+          priority: "must",
+          system_context: "product",
+        },
+        {
         scenario: "draft-stakeholder-requirements@2",
         links: [{ type: "derived-from", target: repositoryProduct.datum.id }],
-      });
+      },
+      );
       const currentStrategy = strategy(1);
       const currentEnvironment = environment();
       const qualification = qualificationEvidence(currentStrategy, currentEnvironment);
@@ -2396,7 +2303,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.writeFile(
         implementationObligationPath,
         (await fs.readFile(implementationObligationPath, "utf8")).replace(
-          'satisfied_when: \'exists("complete-pilot-implementations-for-activity@1", {activity: activity})\'',
+          "satisfied_when: 'exists(\"complete-pilot-implementations-for-activity@1\", {activity: activity})'",
           "satisfied_when: 'true'",
         ),
       );
@@ -2437,6 +2344,7 @@ describe("Phase 1 hardening route evidence", () => {
             "Observe exact success and malformed rejection bytes.",
           stakeholder: "operator",
           priority: "must",
+          system_context: "product",
         },
         {
           scenario: "draft-stakeholder-requirements@2",
@@ -2477,7 +2385,7 @@ describe("Phase 1 hardening route evidence", () => {
         replacement,
         replacementContext,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.66.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.67.0#${await processPackageDigest(processRoot)}`;
       for (const item of sourceRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -2544,7 +2452,7 @@ describe("Phase 1 hardening route evidence", () => {
         if (!pilotReviewPackage.ok) {
           throw new Error(JSON.stringify(pilotReviewPackage.diagnostics));
         }
-        const pilotReviewProcessRef = `mdlm-bootstrap@0.66.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
+        const pilotReviewProcessRef = `mdlm-bootstrap@0.67.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
         const pilotReviewRecords = structuredClone(baseRecords);
         for (const item of pilotReviewRecords) {
           item.datum.created_by.process_ref = pilotReviewProcessRef;
@@ -2711,6 +2619,34 @@ describe("Phase 1 hardening route evidence", () => {
       );
       const finalizedInitialContexts = [];
       for (const context of initialContexts) {
+        const contextReview = reviews.find((review) =>
+          review.datum.links.some(
+            (link) =>
+              link.type === "contextualizes" &&
+              link.target === context.datum.revision_id,
+          ),
+        );
+        const subjectRevision = contextReview?.datum.links.find(
+          (link) => link.type === "reviews",
+        )?.target;
+        const subjectRecord = sourceRecords.find(
+          (item) => item.datum.revision_id === subjectRevision,
+        );
+        if (subjectRecord?.datum.type === "VAI") {
+          context.datum.payload.definition_members = [subjectRevision];
+          context.datum.payload.evidence = [];
+          delete context.datum.payload.snapshot;
+        } else if (subjectRecord?.datum.type === "VSP") {
+          const governedRequirement = subjectRecord.datum.links.find(
+            (link) => link.type === "governs-revision",
+          )?.target;
+          context.datum.payload.definition_members = [
+            subjectRevision,
+            ...(governedRequirement ? [governedRequirement] : []),
+          ];
+          context.datum.payload.evidence = [];
+          delete context.datum.payload.snapshot;
+        }
         const finalized = await finalizeExactBaselineScenarioOutput(
           repository,
           loadedFixture.package,
@@ -2828,6 +2764,11 @@ describe("Phase 1 hardening route evidence", () => {
       const afterReviews = await readRepositoryData(repository, loadedFixture.package);
       if (!afterReviews.ok) throw new Error(JSON.stringify(afterReviews.diagnostics));
       stored = afterReviews.value.map((item) => item.lifecycleDatum.datum);
+      replacementContextRecord.datum.payload.definition_members = [
+        replacementRevision,
+      ];
+      replacementContextRecord.datum.payload.evidence = [];
+      delete replacementContextRecord.datum.payload.snapshot;
       const finalizedReplacementContext =
         await finalizeExactBaselineScenarioOutput(
           repository,
@@ -2870,9 +2811,9 @@ describe("Phase 1 hardening route evidence", () => {
       ).toBeUndefined();
 
       const prepared = prepareNextAssignment(
-        repository,
-        "review-datum-in-context@2",
-      );
+          repository,
+          "review-datum-in-context@2",
+        );
       expect(inputRevision(prepared, "subject")).toBe(replacementRevision);
       expect(prepared.packet.obligation.instance).toContain(
         replacementRevision,
@@ -2884,7 +2825,7 @@ describe("Phase 1 hardening route evidence", () => {
   }, 120_000);
 
   it("executes timeout cleanup and continues aggregation with the subsequent case", () => {
-    if (!(["darwin", "linux"].includes(process.platform))) return;
+    if (!["darwin", "linux"].includes(process.platform)) return;
     const runner = path.join(process.cwd(), "scripts/frontier-process-group.mjs");
     const stubbornGroup = `
 const { spawn } = require("node:child_process");

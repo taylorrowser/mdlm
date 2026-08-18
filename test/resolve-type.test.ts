@@ -40,6 +40,7 @@ describe("resolveType", () => {
       "rationale",
       "stakeholder",
       "statement",
+      "system_context",
       "title",
       "verification_intent",
     ]);
@@ -48,6 +49,7 @@ describe("resolveType", () => {
       "rationale",
       "stakeholder",
       "statement",
+      "system_context",
       "title",
       "verification_intent",
     ]);
@@ -136,35 +138,126 @@ describe("resolveType", () => {
     const review = {
       title: "Product simplification",
       review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
       outcome: "pass",
     };
 
     expect(validate(review)).toBe(true);
-    expect(validate({
-      ...review,
-      simplification: {
-        target: "STK-7K3M9Q2D8F-r00001",
-        findings: [{
-          id: "F-001",
-          severity: "blocking",
-          summary: "Unnecessary scope remains.",
-        }],
-      },
-    })).toBe(false);
+    expect(
+      validate({
+        ...review,
+        simplification: {
+          target: "STK-7K3M9Q2D8F-r00001",
+          findings: [
+            {
+              id: "F-001",
+              severity: "blocking",
+              criterion:
+                "A blocking primary Finding must identify the exact unmet criterion for its STK target.",
+              evidence:
+                "The reviewed STK statement conflicts with the exact stakeholder commitment represented by its target.",
+              material_consequence:
+                "The STK cannot enter an accepted intent baseline while the contradiction remains.",
+              summary: "Unnecessary scope remains.",
+            },
+          ],
+        },
+      }),
+    ).toBe(false);
     expect(validate({ ...review, outcome: "fail" })).toBe(false);
-    expect(validate({
-      ...review,
+    expect(
+      validate({
+        ...review,
+        outcome: "fail",
+        simplification: {
+          target: "STK-7K3M9Q2D8F-r00001",
+          findings: [
+            {
+              id: "F-001",
+              severity: "blocking",
+              summary: "Unnecessary scope remains.",
+              criterion:
+                "Every scope element is necessary for the product commitment.",
+              evidence: "The target duplicates an already stated commitment.",
+              material_consequence:
+                "Retaining it creates contradictory acceptance scope.",
+            },
+          ],
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("requires evidence-complete primary blockers while keeping non-blocking triage usable", async () => {
+    const loaded = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    const result = resolveType(loaded.package, "REV");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
+      result.type.payloadSchema,
+    );
+    const review = {
+      title: "Contextual review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
       outcome: "fail",
-      simplification: {
-        target: "STK-7K3M9Q2D8F-r00001",
-        findings: [{
+      findings: [
+        {
           id: "F-001",
+          target: "STK-7K3M9Q2D8F-r00001",
+          relationship: "primary",
           severity: "blocking",
-          summary: "Unnecessary scope remains.",
-        }],
-      },
-    })).toBe(true);
+          summary: "The stated behavior has two materially different outcomes.",
+        },
+      ],
+    };
+
+    expect(validate(review)).toBe(false);
+    const evidenceCompleteBlocker = {
+      ...review.findings[0],
+      criterion: "One input has one observable outcome.",
+      evidence: "The same input permits success and rejection.",
+      material_consequence: "A verifier cannot determine conformance.",
+    };
+    expect(validate({ ...review, findings: [evidenceCompleteBlocker] })).toBe(true);
+    expect(
+      validate({
+        ...review,
+        outcome: "pass",
+        findings: [evidenceCompleteBlocker],
+      }),
+    ).toBe(false);
+    expect(
+      validate({
+        ...review,
+        outcome: "pass",
+        findings: [
+          {
+            ...review.findings[0],
+            severity: "needs-triage",
+          },
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      validate({
+        ...review,
+        definition_simplification: {
+          set_kind: "phase-2-definition-set",
+          set_key: "group",
+          complete: true,
+          primary_subjects: ["STK-7K3M9Q2D8F-r00001"],
+          collateral_findings: [{
+            id: "F-002",
+            severity: "blocking",
+            summary: "The complete set has a material contradiction.",
+          }],
+        },
+      }),
+    ).toBe(false);
   });
 
   it("preserves package-authored conditional payload constraints", async () => {
@@ -249,6 +342,7 @@ describe("resolveType", () => {
       "rationale",
       "stakeholder",
       "statement",
+      "system_context",
       "title",
       "verification_intent",
     ]);

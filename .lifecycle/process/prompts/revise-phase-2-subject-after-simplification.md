@@ -18,3 +18,6 @@ Keep its Stable Datum identity and all still-applicable exact parent, DWP,
 architecture, and interface bindings. Link `corrects-review` to the supplied failed REV. Do not absorb another subject's findings or add replacement scope.
 The corrected Revision requires a fresh exact Review Context, contextual Review,
 and complete-set simplification judgment before DWP completion can resume.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: planning-dwp-review-context-matches
 version: 1
-description: One authenticated historical thin or current exact Review Context for the supplied planning DWP.
+description: One exact current-support Review Context for the supplied planning DWP.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
   - {name: context, kind: revision, types: [BSL]}
@@ -23,23 +23,21 @@ query:
       && support.integrity.references_valid == true
       && support.integrity.hash_valid == true
       && none("newer-revisions-for@1", {subject: support}))
-    && (
-      !every("legacy-thin-dwp-review-contexts-for@1", {subject: plan}, legacy =>
-        legacy != candidate)
-      || ((candidate.provenance.process_ref == process.current_ref
-          || !every("historical-exact-dwp-review-contexts-for@1",
-            {subject: plan}, historical => historical != candidate))
-        && none("review-context-evidence@1", {context: candidate})
-        && none("composed-baselines-for-review-context@1", {context: candidate})
-        && exists("review-context-contains-member@1",
-          {context: candidate, required_member: plan})
-        && every("planning-dwp-review-support-for@1", {plan: plan}, support =>
-          exists("review-context-contains-member@1",
-            {context: candidate, required_member: support}))
-        && every("review-context-members@1", {context: candidate}, member =>
-          member == plan
-          || !every("planning-dwp-review-support-for@1", {plan: plan}, support =>
-            support != member)))
-    )
+    && none("review-context-evidence@1", {context: candidate})
+    && none("composed-baselines-for-review-context@1", {context: candidate})
+    && exists("review-context-contains-member@1",
+      {context: candidate, required_member: plan})
+    && every("planning-dwp-review-support-for@1", {plan: plan}, support =>
+      exists("review-context-contains-member@1",
+        {context: candidate, required_member: support}))
+    && every("direct-review-support-for@1", {subject: plan}, support =>
+      exists("review-context-contains-member@1",
+        {context: candidate, required_member: support}))
+    && every("review-context-members@1", {context: candidate}, member =>
+      member == plan
+      || !every("planning-dwp-review-support-for@1", {plan: plan}, support =>
+        support != member)
+      || !every("direct-review-support-for@1", {subject: plan}, support =>
+        support != member))
   distinct: true
   order_by: [identity.revision_id]

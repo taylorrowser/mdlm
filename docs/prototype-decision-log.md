@@ -1877,8 +1877,10 @@ next`, dry-run, and execution preserve the exact Obligation Instance. Once the
   the complete repository for every baseline and report row.
 - **Rationale:** Markdown authority and deterministic rebuildability remain valid,
   but repeated complete reads are an implementation accident rather than an
-  integrity requirement. A deep inspection interface gives every caller the same
-  verified facts while hiding parse/provenance/storage details.
+  integrity requirement. A deep immutable inspection interface gives every caller
+  the same verified facts while hiding parse/provenance/storage details. Commands
+  that publish data use a distinct transaction overlay owned by that inspection;
+  publication never mutates the inspection contract itself.
 - **Expected behavior:** Deleting generated data changes no semantic command result.
   `doctor`, `status`, `next`, and Assignment preparation perform one repository
   load per command. Cold commands remain correct without a persistent cache.
@@ -1886,4 +1888,19 @@ next`, dry-run, and execution preserve the exact Obligation Instance. Once the
   163-Revision calculator repository, cold `doctor` fell from 295.96 seconds to
   6.19 seconds (47.8×). The optimized command reported one repository load; its
   public doctor JSON, generated index, and generated report were byte-identical to
-  the pre-change command outputs.
+  the pre-change command outputs. A focused finalization regression composes two
+  parent baselines over one shared descendant and observes exactly three baseline
+  verification work units, proving the descendant is verified once. The same
+  command-scoped cache is shared across all exact-baseline finalizations in one
+  transaction; a second regression proves two finalizations over one composed
+  descendant perform one verification work unit.
+
+## D-106 — Allocate lifecycle information once and group system definition by context
+
+- **Status:** accepted and implemented
+- **Decision:** Publish `mdlm-bootstrap@0.67.0` as a clean package break. Keep every lifecycle level while assigning each fact to one authoritative level. STK carries a solution-independent `system_context` routing key; all current accepted STKs with the same product parent and key expose one architecture work item. That item publishes one shared ASP by default or the smallest justified partition for concrete responsibility, boundary, risk, or trust seams. Each ASP exposes one decomposition work item that publishes the smallest justified set of cohesive many-to-many DWPs covering its governed STKs. Distinct responsibility or trust contexts remain separate. Architecture authoring begins with a mandatory ephemeral whole-topology preflight; every authored Lifecycle Data route applies the same ephemeral preflight, publishes none of its working memory, and never supplies it to independent Review. Internal architecture interactions require no ICSP. An ICSP is authored only when the ASP declares one or more independently controlled boundaries, and its exact boundary set must equal the ASP's complete controlled-boundary set. One later semantic simplification Review examines the complete architecture-wide ASP/ICSP/DWP/SYS set after SYS derivation, including every sibling DWP and output. Current Review Context membership is every-and-only the package-selected exact set; each materializing Scenario selects the generic `exact-baseline@1` Kernel Capability and declares the mapping, while the runtime fulfills truthful internal Assignments from the existing command inspection and the kernel owns hashing, resolution, response provenance, and freezing. Repeated materialization by the same Scenario and subject creates a same-lineage context Revision, so changed support supersedes the prior context; purpose-specific definition-set contexts use their own Scenario lineage. Exact membership uses validity, lineage currentness, and structural support relations rather than reviewed disposition, avoiding a circular authority dependency while operational selectors continue to require active disposition. Ordinary passing Reviews require a current-package Review and a current-package frozen valid exact Review Context with every-and-only the currently selected members for their exact subject. Every blocking Finding records an exact criterion, concrete evidence, and material consequence; any unresolved primary blocker forces a failing outcome.
+- **Alternatives:** Remove lifecycle levels; retain one ASP/DWP tower per STK; impose artifact budgets; persist author self-review; disclose it to reviewers; let agents choose Review Context membership; or permit summary-only blockers.
+- **Rationale:** Complexity should follow independently changing behavior, responsibility, boundary, risk, trust context, and verification need—not requirement count. Ephemeral preflight improves author quality without contaminating fresh independent judgment. Exact package-selected Review Contexts remove a semanticless authoring decision while preserving frozen evidence.
+- **Expected behavior:** A simple product with several STKs in one context receives one ASP, one actual ICSP, and one many-parent DWP while still deriving detailed SYS definitions. A product with materially distinct context keys receives separate ASPs and DWPs through complete public routes. A single-element architecture with no independently controlled boundary proceeds through DWP and SYS definition without an invented ICSP. No reduced profile or fixed artifact budget is introduced.
+- **Compatibility:** None with 0.66.0 repositories, Assignments, or historical Lifecycle Data. New repositories initialize directly with 0.67.0; demonstrations restart from empty repositories.
+- **Evidence/observations:** Compiled public-CLI regressions publish grouped and distinct-context architectures, zero or actual interfaces as appropriate, planning DWPs, detailed SYS definitions, complete architecture-wide simplification contexts and Reviews, and same-lineage DWP completion Revisions. Public evaluator coverage rejects ICSP satisfaction for interaction-free architectures. Package and schema tests cover exact context membership, ephemeral preflight references, and blocking Finding enforcement.

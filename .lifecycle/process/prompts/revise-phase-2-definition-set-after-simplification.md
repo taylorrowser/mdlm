@@ -32,3 +32,6 @@ the newer planning Revision and its exact output links make removed work
 inapplicable to completion and candidate assembly. Every published
 replacement still requires fresh contextual Review, then both fresh complete-set
 simplification judgments, before DWP completion resumes.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

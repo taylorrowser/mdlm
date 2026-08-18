@@ -10,7 +10,7 @@ import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.59.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.67.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -35,6 +35,60 @@ function lifecycleDatum(
   });
 }
 
+function contextualPassingReview(subject: LifecycleRecord, id: string) {
+  const directSupportTypes = new Set([
+    "STK",
+    "ASP",
+    "ICSP",
+    "DWP",
+    "SYS",
+    "VSP",
+    "PAS",
+  ]);
+  const exactTarget = (target: string) =>
+    /-r[0-9]{5}$/.test(target) ? target : `${target}-r00001`;
+  const support = directSupportTypes.has(subject.datum.type)
+    ? subject.datum.links.map((link) => exactTarget(link.target))
+    : subject.datum.type === "DEC" &&
+        subject.datum.payload.kind === "pilot-expansion"
+      ? subject.datum.links.map((link) => exactTarget(link.target))
+      : subject.datum.type === "BSL" &&
+          subject.datum.payload.role === "candidate"
+        ? (subject.datum.payload.definition_members as string[])
+        : [];
+  const context = lifecycleDatum("BSL", id.replace("REV", "BSL"), {
+    title: `Exact Review Context for ${subject.datum.revision_id}`,
+    kind: "review-context",
+    role: "review-context",
+    scope: subject.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      ...new Set([subject.datum.revision_id, ...support]),
+    ].sort(),
+    evidence: [],
+  }, { frozen: true, scenario: "create-review-context@1" });
+  const review = lifecycleDatum(
+    "REV",
+    id,
+    {
+      title: `Passing Review of ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    },
+    {
+      frozen: true,
+      links: [
+        { type: "reviews", target: subject.datum.revision_id },
+        { type: "contextualizes", target: context.datum.revision_id },
+      ],
+      scenario: "review-datum-in-context@2",
+    },
+  );
+  return { context, review };
+}
+
 function question(
   id: string,
   title: string,
@@ -46,8 +100,7 @@ function question(
     resolutionDisposition?: "answer" | "defer" | "cancel";
     attentionCheckpoint?: "phase-0-gate" | "phase-2-system-gate";
     consolidationGroup?:
-      | "phase-0-stakeholder-questions"
-      | "phase-2-system-stakeholder-questions";
+      "phase-0-stakeholder-questions" | "phase-2-system-stakeholder-questions";
   } = {},
 ): LifecycleRecord {
   return lifecycleDatum("QST", id, {
@@ -207,8 +260,293 @@ describe("bootstrap Scenario participation Policies", () => {
         type: "DEC",
       },
       "simplify-architecture-and-interfaces": { output: "review", type: "REV" },
-      "simplify-requirement-set": { output: "review", type: "REV" },
     });
+  });
+
+  it("satisfies grouped architecture and DWP obligations once for one coherent STK context", () => {
+    const product = lifecycleDatum("PSP", "PSP-0GROUPP200", {
+      title: "Grouped product",
+      rationale: "Exercise proportional topology.",
+    });
+    const requirement = (id: string, statement: string) =>
+      lifecycleDatum(
+        "STK",
+        id,
+        {
+          title: statement,
+          rationale: "Shared product responsibility.",
+          statement,
+          verification_intent: "Observe the shared product boundary.",
+          stakeholder: "operator",
+          priority: "must",
+          system_context: "product",
+        },
+        { links: [{ type: "derived-from", target: product.datum.id }] },
+      );
+    const first = requirement("STK-0GROUPR201", "Convert one valid value");
+    const second = requirement("STK-0GROUPR202", "Reject one invalid value");
+    const accepted = lifecycleDatum(
+      "BSL",
+      "BSL-0GROUPB200",
+      {
+        title: "Accepted grouped intent",
+        kind: "intent-approved",
+        role: "accepted",
+        scope: "grouped-product",
+        group: "DEFAULT",
+        definition_members: [product, first, second].map(
+          (item) => item.datum.revision_id,
+        ),
+        evidence: [],
+      },
+      { frozen: true, scenario: "accept-phase-0-intent@1" },
+    );
+    const architecture = lifecycleDatum(
+      "ASP",
+      "ASP-0GROUPA200",
+      {
+        title: "Shared product architecture",
+        rationale: "One responsibility context.",
+      },
+      {
+        links: [first, second].map((item) => ({
+          type: "governs",
+          target: item.datum.revision_id,
+        })),
+      },
+    );
+    const interfaceSpec = lifecycleDatum(
+      "ICSP",
+      "ICSP-0GROUPI20",
+      {
+        title: "Controlled command boundary",
+        rationale: "One actual external boundary.",
+        architecture_revision: architecture.datum.revision_id,
+      },
+      { links: [{ type: "defines-interface-for", target: architecture.datum.revision_id }] },
+    );
+    const strategy = lifecycleDatum(
+      "VSP",
+      "VSP-0GROUPV200",
+      {
+        title: "Grouped verification",
+        rationale: "One shared black-box strategy.",
+      },
+      {
+        links: [
+          ...[first, second].flatMap((item) => [
+            {
+              type: "governs",
+              target: item.datum.id,
+            },
+            {
+              type: "governs-revision",
+              target: item.datum.revision_id,
+            },
+          ]),
+        ],
+      },
+    );
+    const plan = lifecycleDatum(
+      "DWP",
+      "DWP-0GROUPD200",
+      {
+        title: "Grouped behavior slice",
+        rationale: "One cohesive verification slice.",
+        stage: "planning",
+      },
+      {
+        links: [
+          ...[first, second].map((item) => ({
+            type: "decomposes",
+            target: item.datum.revision_id,
+          })),
+          { type: "allocated-to", target: architecture.datum.revision_id },
+          { type: "governed-by", target: interfaceSpec.datum.revision_id },
+          { type: "verified-under", target: strategy.datum.revision_id },
+        ],
+        scenario: "define-decomposition-work-package@3",
+      },
+    );
+    const snapshot = (extra: LifecycleRecord[]) =>
+      evaluateLifecycle(processPackage, {
+        processRef,
+        phaseId: "phase-2-system-definition",
+        records: [product, first, second, accepted, ...extra],
+        dependencyComparisons: [],
+      });
+
+    const before = snapshot([]);
+    expect(
+      before.obligations.filter(
+        (item) =>
+          item.obligation === "system-architecture-required" &&
+          item.status === "ready",
+      ),
+    ).toEqual([
+      expect.objectContaining({ subject: first.datum.revision_id }),
+    ]);
+    const afterArchitecture = snapshot([architecture]);
+    expect(
+      afterArchitecture.obligations.filter(
+        (item) => item.obligation === "system-architecture-required",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        subject: first.datum.revision_id,
+        satisfied: true,
+      }),
+    ]);
+    const afterPlan = snapshot([architecture, interfaceSpec, strategy, plan]);
+    expect(
+      afterPlan.obligations.filter(
+        (item) => item.obligation === "decomposition-planning-required",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        subject: first.datum.revision_id,
+        satisfied: true,
+      }),
+    ]);
+  });
+
+  it("routes one justified architecture partition to one DWP work item per architecture", () => {
+    const product = lifecycleDatum("PSP", "PSP-0SPLITP200", {
+      title: "Partitioned product",
+      rationale: "Exercise a material trust partition inside one discovered context.",
+    });
+    const requirement = (id: string, title: string) => lifecycleDatum(
+      "STK",
+      id,
+      {
+        title,
+        rationale: "The topology preflight discovered a material boundary.",
+        statement: `${title} shall remain independently controlled.`,
+        verification_intent: `Observe ${title} independently.`,
+        stakeholder: "operator",
+        priority: "must",
+        system_context: "product",
+      },
+      { links: [{ type: "derived-from", target: product.datum.id }] },
+    );
+    const client = requirement("STK-0SPLITR201", "Client boundary");
+    const service = requirement("STK-0SPLITR202", "Service boundary");
+    const accepted = lifecycleDatum("BSL", "BSL-0SPLITB200", {
+      title: "Accepted partition intent",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: "partitioned-product",
+      group: "DEFAULT",
+      definition_members: [product, client, service].map(
+        (item) => item.datum.revision_id,
+      ),
+      evidence: [],
+    }, { frozen: true, scenario: "accept-phase-0-intent@1" });
+    const architecture = (id: string, parent: LifecycleRecord) => lifecycleDatum(
+      "ASP",
+      id,
+      { title: `${parent.datum.payload.title} architecture`, rationale: "Material boundary." },
+      { links: [{ type: "governs", target: parent.datum.revision_id }] },
+    );
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [
+        product,
+        client,
+        service,
+        accepted,
+        architecture("ASP-0SPLITA201", client),
+        architecture("ASP-0SPLITA202", service),
+      ],
+      dependencyComparisons: [],
+    });
+
+    expect(
+      evaluation.obligations.filter(
+        (item) => item.obligation === "system-architecture-required",
+      ),
+    ).toEqual([expect.objectContaining({ satisfied: true })]);
+    expect(
+      evaluation.obligations.filter(
+        (item) => item.obligation === "decomposition-planning-required",
+      ).map((item) => item.subject).sort(),
+    ).toEqual([client.datum.revision_id, service.datum.revision_id].sort());
+  });
+
+  it("keeps materially distinct responsibility contexts as separate architecture groups", () => {
+    const product = lifecycleDatum("PSP", "PSP-0TRUSTP200", {
+      title: "Trust-separated product",
+      rationale: "Exercise distinct contexts.",
+    });
+    const requirement = (id: string, context: string) =>
+      lifecycleDatum(
+        "STK",
+        id,
+        {
+          title: `${context} commitment`,
+          rationale: "Distinct trust responsibility.",
+          statement: `${context} shall expose one outcome.`,
+          verification_intent: `Observe the ${context} outcome.`,
+          stakeholder: "operator",
+          priority: "must",
+          system_context: context,
+        },
+        { links: [{ type: "derived-from", target: product.datum.id }] },
+      );
+    const client = requirement("STK-0TRUSTR201", "client");
+    const service = requirement("STK-0TRUSTR202", "service");
+    const accepted = lifecycleDatum(
+      "BSL",
+      "BSL-0TRUSTB200",
+      {
+        title: "Accepted split intent",
+        kind: "intent-approved",
+        role: "accepted",
+        scope: "trust-separated",
+        group: "DEFAULT",
+        definition_members: [product, client, service].map(
+          (item) => item.datum.revision_id,
+        ),
+        evidence: [],
+      },
+      { frozen: true, scenario: "accept-phase-0-intent@1" },
+    );
+    const architecture = lifecycleDatum(
+      "ASP",
+      "ASP-0TRUSTA200",
+      {
+        title: "Client architecture",
+        rationale: "Client trust context.",
+      },
+      { links: [{ type: "governs", target: client.datum.revision_id }] },
+    );
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [product, client, service, accepted, architecture],
+      dependencyComparisons: [],
+    });
+
+    expect(
+      evaluation.obligations.find(
+        (item) =>
+          item.obligation === "system-architecture-required" &&
+          item.subject === client.datum.revision_id,
+      ),
+    ).toEqual(expect.objectContaining({ satisfied: true }));
+    expect(
+      evaluation.obligations.find(
+        (item) =>
+          item.obligation === "system-architecture-required" &&
+          item.subject === service.datum.revision_id,
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        actionableResolver: "define-system-architecture@3",
+      }),
+    );
   });
 
   it("projects attended exact disposition instead of choosing ambiguous Phase 2 architecture", () => {
@@ -221,14 +559,20 @@ describe("bootstrap Scenario participation Policies", () => {
       non_goals: [],
       success_measures: ["no arbitrary selection"],
     });
-    const requirement = lifecycleDatum("STK", "STK-0AMBGR3Q00", {
-      title: "One accepted requirement",
-      rationale: "Architecture must organize exact accepted intent.",
-      statement: "The product shall expose one exact boundary.",
-      verification_intent: "Inspect the selected boundary.",
-      stakeholder: "operator",
-      priority: "must",
-    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const requirement = lifecycleDatum(
+      "STK",
+      "STK-0AMBGR3Q00",
+      {
+        title: "One accepted requirement",
+        rationale: "Architecture must organize exact accepted intent.",
+        statement: "The product shall expose one exact boundary.",
+        verification_intent: "Inspect the selected boundary.",
+        stakeholder: "operator",
+        priority: "must",
+        system_context: "product",
+      },
+      { links: [{ type: "derived-from", target: product.datum.id }] },
+    );
     const accepted = lifecycleDatum("BSL", "BSL-0AMBGB5000", {
       title: "Accepted ambiguity fixture",
       kind: "intent-approved",
@@ -248,7 +592,8 @@ describe("bootstrap Scenario participation Policies", () => {
         title: alias,
         responsibilities: ["own the exact boundary"],
       }],
-      interactions: [],
+      internal_interactions: [],
+      controlled_boundaries: [],
       constraints: [],
       nominated_risks: ["ambiguous selection"],
     }, { links: [{ type: "governs", target: requirement.datum.revision_id }] });
@@ -258,10 +603,10 @@ describe("bootstrap Scenario participation Policies", () => {
       title: `${operation} boundary`,
       rationale: "Multiple exact interfaces are valid for one architecture.",
       architecture_revision: first.datum.revision_id,
-      boundary: {
+      boundaries: [{
         from_element: "AEL-FRST000000",
         to_element: "AEL-FRST000000",
-      },
+      }],
       operations: [operation],
       schemas: [`${operation}@1`],
       units: [],
@@ -325,14 +670,20 @@ describe("bootstrap Scenario participation Policies", () => {
       non_goals: [],
       success_measures: ["decomposition remains actionable"],
     });
-    const requirement = lifecycleDatum("STK", "STK-0MULTR3Q00", {
-      title: "One accepted requirement",
-      rationale: "The architecture must cover exact accepted intent.",
-      statement: "The product shall expose controlled read and write boundaries.",
-      verification_intent: "Inspect both controlled boundaries.",
-      stakeholder: "operator",
-      priority: "must",
-    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const requirement = lifecycleDatum(
+      "STK",
+      "STK-0MULTR3Q00",
+      {
+        title: "One accepted requirement",
+        rationale: "The architecture must cover exact accepted intent.",
+        statement: "The product shall expose controlled read and write boundaries.",
+        verification_intent: "Inspect both controlled boundaries.",
+        stakeholder: "operator",
+        priority: "must",
+        system_context: "product",
+      },
+      { links: [{ type: "derived-from", target: product.datum.id }] },
+    );
     const accepted = lifecycleDatum("BSL", "BSL-0MULTB5000", {
       title: "Accepted plural-interface fixture",
       kind: "intent-approved",
@@ -351,8 +702,20 @@ describe("bootstrap Scenario participation Policies", () => {
         alias: "SYSTEM",
         title: "System",
         responsibilities: ["own read and write boundaries"],
+      }, {
+        id: "AEL-0MULTARC01",
+        alias: "PEER",
+        title: "Controlled peer",
+        responsibilities: ["participate in the write boundary"],
       }],
-      interactions: [],
+      internal_interactions: [],
+      controlled_boundaries: [{
+        from_element: "AEL-0MULTARC00",
+        to_element: "AEL-0MULTARC00",
+      }, {
+        from_element: "AEL-0MULTARC00",
+        to_element: "AEL-0MULTARC01",
+      }],
       constraints: [],
       nominated_risks: [],
     }, { links: [{ type: "governs", target: requirement.datum.revision_id }] });
@@ -360,10 +723,13 @@ describe("bootstrap Scenario participation Policies", () => {
       title: `${operation} boundary`,
       rationale: "This independently valid interface constrains decomposition.",
       architecture_revision: architecture.datum.revision_id,
-      boundary: {
+      boundaries: [{
         from_element: "AEL-0MULTARC00",
         to_element: "AEL-0MULTARC00",
-      },
+      }, {
+        from_element: "AEL-0MULTARC00",
+        to_element: "AEL-0MULTARC01",
+      }],
       operations: [operation],
       schemas: [`${operation}@1`],
       units: [],
@@ -429,11 +795,13 @@ describe("bootstrap Scenario participation Policies", () => {
     expect(evaluation.obligations.find((item) =>
       item.obligation === "decomposition-planning-required" &&
       item.subject === requirement.datum.revision_id
-    )).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "define-decomposition-work-package@2",
-    }));
+    )).toEqual(
+      expect.objectContaining({
+        status: "ready",
+        dispatchable: true,
+        actionableResolver: "define-decomposition-work-package@3",
+      }),
+    );
   });
 
   it("escalates a third reviewed Phase 2 candidate rejection", () => {
@@ -447,7 +815,8 @@ describe("bootstrap Scenario participation Policies", () => {
         title: "System",
         responsibilities: ["own system behavior"],
       }],
-      interactions: [],
+      internal_interactions: [],
+      controlled_boundaries: [],
       constraints: [],
       nominated_risks: [],
     });
@@ -486,18 +855,11 @@ describe("bootstrap Scenario participation Policies", () => {
         ],
         scenario: "record-gate-signoff@3",
       });
-      const review = lifecycleDatum("REV", id.replace("DEC", "REV"), {
-        title: `Review ${decision.datum.revision_id}`,
-        review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [],
-        outcome: "pass",
-      }, {
-        frozen: true,
-        links: [{ type: "reviews", target: decision.datum.revision_id }],
-        scenario: "review-datum-in-context@2",
-      });
-      return { decision, review };
+      const { context, review } = contextualPassingReview(
+        decision,
+        id.replace("DEC", "REV"),
+      );
+      return { decision, context, review };
     };
     const firstRejection = rejection(first, "DEC-0GATEGAT10");
     const second = candidate(2, [
@@ -518,12 +880,15 @@ describe("bootstrap Scenario participation Policies", () => {
         architecture,
         first,
         firstRejection.decision,
+        firstRejection.context,
         firstRejection.review,
         second,
         secondRejection.decision,
+        secondRejection.context,
         secondRejection.review,
         third,
         thirdRejection.decision,
+        thirdRejection.context,
         thirdRejection.review,
       ],
       dependencyComparisons: [],
@@ -860,24 +1225,14 @@ describe("bootstrap Scenario participation Policies", () => {
       blockedBy: [expect.stringContaining(`:${decision.datum.revision_id}:`)],
     }));
 
-    const review = lifecycleDatum("REV", "REV-8ZT5KQ3P9W", {
-      title: "Deferral review",
-      review_kind: "independent",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      summary: "The exact deferral is bounded.",
-      findings: [],
-      outcome: "pass",
-    }, {
-      frozen: true,
-      links: [{ type: "reviews", target: decision.datum.revision_id }],
-      scenario: "review-datum-in-context@2",
-    });
+    const reviewedDecision = contextualPassingReview(decision, "REV-8ZT5KQ3P9W");
+    const review = reviewedDecision.review;
     const unboundedDeferral = structuredClone(deferred);
     delete unboundedDeferral.datum.payload.reactivation_condition;
     const afterReview = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [source, unboundedDeferral, decision, review],
+      records: [source, unboundedDeferral, decision, reviewedDecision.context, review],
       dependencyComparisons: [],
     });
     expect(afterReview.obligations.find((item) =>
@@ -891,7 +1246,7 @@ describe("bootstrap Scenario participation Policies", () => {
     const withReactivation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [source, deferred, decision, review],
+      records: [source, deferred, decision, reviewedDecision.context, review],
       dependencyComparisons: [],
     });
     expect(withReactivation.obligations.some((item) =>
@@ -941,22 +1296,12 @@ describe("bootstrap Scenario participation Policies", () => {
       blockedBy: [expect.stringContaining(`:${decision.datum.revision_id}:`)],
     }));
 
-    const review = lifecycleDatum("REV", "REV-8ZT5KQ3P9X", {
-      title: "Cancellation review",
-      review_kind: "independent",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      summary: "The cancellation is explicit and exact.",
-      findings: [],
-      outcome: "pass",
-    }, {
-      frozen: true,
-      links: [{ type: "reviews", target: decision.datum.revision_id }],
-      scenario: "review-datum-in-context@2",
-    });
+    const reviewedDecision = contextualPassingReview(decision, "REV-8ZT5KQ3P9X");
+    const review = reviewedDecision.review;
     const afterReview = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [source, cancelled, decision, review],
+      records: [source, cancelled, decision, reviewedDecision.context, review],
       dependencyComparisons: [],
     });
     expect(afterReview.obligations.some((item) =>
@@ -1032,6 +1377,7 @@ describe("bootstrap Scenario participation Policies", () => {
       verification_intent: "Observe an export.",
       stakeholder: "report author",
       priority: "must",
+      system_context: "product",
     });
     fixture.candidate.datum.payload.definition_members = [
       member.datum.revision_id,
@@ -1092,27 +1438,39 @@ describe("bootstrap Scenario participation Policies", () => {
       verification_intent: "Observe an outcome.",
       stakeholder: "operator",
       priority: "must",
+      system_context: "product",
     });
-    const failedReview = (
-      subject: LifecycleRecord,
-      id: string,
-    ) => lifecycleDatum("REV", id, {
-      title: `Failed Review of ${subject.datum.revision_id}`,
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{
-        id: "F-001",
-        target: subject.datum.revision_id,
-        relationship: "primary",
-        severity: "blocking",
-        summary: "The exact outcome remains ambiguous.",
-      }],
-      outcome: "fail",
-    }, {
+    const failedReview = (subject: LifecycleRecord, id: string) =>
+      lifecycleDatum(
+        "REV",
+        id,
+        {
+          title: `Failed Review of ${subject.datum.revision_id}`,
+          review_kind: "contextual",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          findings: [
+            {
+              id: "F-001",
+              target: subject.datum.revision_id,
+              relationship: "primary",
+              severity: "blocking",
+              criterion:
+                "A gate Decision rejected after autonomous correction exhaustion requires attended authority.",
+              evidence:
+                "The later gate Review rejects the exact corrected foundation subject after both autonomous cycles.",
+              material_consequence:
+                "Autonomous work cannot advance the rejected foundation lineage.",
+              summary: "The exact outcome remains ambiguous.",
+            },
+          ],
+          outcome: "fail",
+        },
+        {
       frozen: true,
       links: [{ type: "reviews", target: subject.datum.revision_id }],
       scenario: "review-datum-in-context@2",
-    });
+    },
+      );
     const firstFailure = failedReview(original, "REV-6K3M9Q2D8F");
     const firstReplacement = structuredClone(original);
     firstReplacement.datum.revision = 2;
@@ -1129,17 +1487,22 @@ describe("bootstrap Scenario participation Policies", () => {
       type: "corrects-review",
       target: review.datum.revision_id,
     }));
-    const currentReview = lifecycleDatum("REV", "REV-6K3M9Q2D8H", {
-      title: `Passing Review of ${current.datum.revision_id}`,
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [],
-      outcome: "pass",
-    }, {
+    const currentReview = lifecycleDatum(
+      "REV",
+      "REV-6K3M9Q2D8H",
+      {
+        title: `Passing Review of ${current.datum.revision_id}`,
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [],
+        outcome: "pass",
+      },
+      {
       frozen: true,
       links: [{ type: "reviews", target: current.datum.revision_id }],
       scenario: "review-datum-in-context@2",
-    });
+    },
+    );
     fixture.candidate.datum.payload.definition_members = [
       current.datum.revision_id,
     ];
@@ -1228,31 +1591,46 @@ describe("bootstrap Scenario participation Policies", () => {
       verification_intent: "Observe the stakeholder outcome.",
       stakeholder: "operator",
       priority: "must",
+      system_context: "product",
     });
     const failedReview = (
       subject: LifecycleRecord,
       id: string,
       correctionAuthority?: "stakeholder",
-    ) => lifecycleDatum("REV", id, {
-      title: `Failed Review of ${subject.datum.revision_id}`,
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{
-        id: "F-001",
-        target: subject.datum.revision_id,
-        relationship: "primary",
-        severity: "blocking",
-        summary: "The exact observable outcome remains ambiguous.",
-      }],
-      ...(correctionAuthority
+    ) =>
+      lifecycleDatum(
+        "REV",
+        id,
+        {
+          title: `Failed Review of ${subject.datum.revision_id}`,
+          review_kind: "contextual",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          findings: [
+            {
+              id: "F-001",
+              target: subject.datum.revision_id,
+              relationship: "primary",
+              severity: "blocking",
+              criterion:
+                "An attended foundation correction must preserve both earlier autonomous correction attempts.",
+              evidence:
+                "The reviewed attended Revision does not account for the complete predecessor correction lineage.",
+              material_consequence:
+                "The correction history would lose the evidence required for attended authorization.",
+              summary: "The exact observable outcome remains ambiguous.",
+            },
+          ],
+          ...(correctionAuthority
         ? { correction_authority: correctionAuthority }
         : {}),
-      outcome: "fail",
-    }, {
+          outcome: "fail",
+        },
+        {
       frozen: true,
       links: [{ type: "reviews", target: subject.datum.revision_id }],
       scenario: "review-datum-in-context@2",
-    });
+    },
+      );
     const stakeholderFailure = failedReview(
       original,
       "REV-9K3M9Q2D8F",
@@ -1391,15 +1769,19 @@ describe("bootstrap Scenario participation Policies", () => {
       firstAutonomous.datum.revision_id,
       secondAutonomous.datum.revision_id,
     ]);
-    expect([
-      ...input("prior_failed_reviews") ?? [],
-      ...input("failed_reviews") ?? [],
-    ].sort()).toEqual([
+    expect(
+      [
+        ...(input("prior_failed_reviews") ?? []),
+        ...(input("failed_reviews") ?? []),
+      ].sort(),
+    ).toEqual(
+      [
       stakeholderFailure,
       attendedFailure,
       firstAutonomousFailure,
       secondAutonomousFailure,
-    ].map((review) => review.datum.revision_id).sort());
+    ].map((review) => review.datum.revision_id).sort(),
+    );
   });
 
   it("ignores candidate-only simplification Reviews of ordinary foundation subjects", () => {
@@ -1426,20 +1808,32 @@ describe("bootstrap Scenario participation Policies", () => {
       definition_members: [map.datum.revision_id],
       evidence: [],
     }, { frozen: true, scenario: "create-review-context@1" });
-    const redirectedReview = lifecycleDatum("REV", "REV-7K3M9Q2D8J", {
-      title: "Mis-scoped product simplification Review",
-      review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      simplification: {
-        target: product.datum.revision_id,
-        findings: [{
-          id: "F-001",
-          severity: "blocking",
-          summary: "This finding exceeds the exact MAP Review Assignment.",
-        }],
+    const redirectedReview = lifecycleDatum(
+      "REV",
+      "REV-7K3M9Q2D8J",
+      {
+        title: "Mis-scoped product simplification Review",
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        simplification: {
+          target: product.datum.revision_id,
+          findings: [
+            {
+              id: "F-001",
+              severity: "blocking",
+              criterion:
+                "Candidate simplification Review findings may block only subjects in the candidate definition set.",
+              evidence:
+                "The blocker targets an ordinary foundation subject outside the candidate simplification scope.",
+              material_consequence:
+                "Using it would route unrelated foundation correction from a candidate-only Review.",
+              summary: "This finding exceeds the exact MAP Review Assignment.",
+            },
+          ],
+        },
+        outcome: "fail",
       },
-      outcome: "fail",
-    }, {
+      {
       frozen: true,
       scenario: "review-datum-in-context@2",
       links: [
@@ -1447,7 +1841,8 @@ describe("bootstrap Scenario participation Policies", () => {
         { type: "contextualizes", target: context.datum.revision_id },
         { type: "blocks", target: product.datum.revision_id },
       ],
-    });
+    },
+    );
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
@@ -1473,14 +1868,20 @@ describe("bootstrap Scenario participation Policies", () => {
       non_goals: ["General integration platform"],
       success_measures: ["One outcome exports"],
     });
-    const requirement = lifecycleDatum("STK", "STK-7K3M9Q2D8F", {
-      title: "Overbroad export",
-      rationale: "The initial commitment retains unnecessary scope.",
-      statement: "The product shall export every internal representation.",
-      verification_intent: "Observe all internal representations.",
-      stakeholder: "operator",
-      priority: "must",
-    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const requirement = lifecycleDatum(
+      "STK",
+      "STK-7K3M9Q2D8F",
+      {
+        title: "Overbroad export",
+        rationale: "The initial commitment retains unnecessary scope.",
+        statement: "The product shall export every internal representation.",
+        verification_intent: "Observe all internal representations.",
+        stakeholder: "operator",
+        priority: "must",
+        system_context: "product",
+      },
+      { links: [{ type: "derived-from", target: product.datum.id }] },
+    );
     const foundation = [product, requirement];
     fixture.candidate.datum.payload.definition_members = foundation.map(
       (subject) => subject.datum.revision_id,
@@ -1493,32 +1894,41 @@ describe("bootstrap Scenario participation Policies", () => {
     delete fixture.candidateReview.datum.payload.findings;
     fixture.candidateReview.datum.payload.simplification = {
       target: fixture.candidate.datum.revision_id,
-      findings: [{
-        id: "F-001",
-        severity: "blocking",
-        summary: "The commitment retains unnecessary internal scope.",
-      }],
+      findings: [
+        {
+          id: "F-001",
+          severity: "blocking",
+          criterion: "A candidate simplification blocker must identify the exact removable or inconsistent member.",
+          evidence:
+            "The Review identifies the exact candidate member that remains unjustifiably broad.",
+          material_consequence:
+            "The candidate cannot be accepted while that member remains unresolved.",
+          summary: "The commitment retains unnecessary internal scope.",
+        },
+      ],
     };
     fixture.candidateReview.datum.links.push({
       type: "blocks",
       target: requirement.datum.revision_id,
     });
-    const memberReviews = foundation.map((subject, index) => lifecycleDatum(
-      "REV",
-      `REV-7K3M9Q2D8${index === 0 ? "F" : "G"}`,
-      {
-        title: `Passing Review of ${subject.datum.revision_id}`,
-        review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [],
-        outcome: "pass",
-      },
-      {
+    const memberReviews = foundation.map((subject, index) =>
+      lifecycleDatum(
+        "REV",
+        `REV-7K3M9Q2D8${index === 0 ? "F" : "G"}`,
+        {
+          title: `Passing Review of ${subject.datum.revision_id}`,
+          review_kind: "contextual",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          findings: [],
+          outcome: "pass",
+        },
+        {
         frozen: true,
         links: [{ type: "reviews", target: subject.datum.revision_id }],
         scenario: "review-datum-in-context@2",
       },
-    ));
+      ),
+    );
 
     const records = [
       fixture.candidate,
@@ -1572,11 +1982,18 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.candidateReview.datum.payload.outcome = "fail";
     fixture.candidateReview.datum.payload.simplification = {
       target: requirement.datum.revision_id,
-      findings: [{
-        id: "F-001",
-        severity: "blocking",
-        summary: "The commitment retains unnecessary internal scope.",
-      }],
+      findings: [
+        {
+          id: "F-001",
+          severity: "blocking",
+          criterion: "Definition-consistency simplification must name the complete exact correction set.",
+          evidence:
+            "The Review identifies a candidate-wide inconsistency that cannot be corrected on one member alone.",
+          material_consequence:
+            "Partial correction would leave the candidate definition set internally inconsistent.",
+          summary: "The commitment retains unnecessary internal scope.",
+        },
+      ],
     };
     fixture.candidateReview.datum.links = fixture.candidateReview.datum.links.filter(
       (link) => link.type !== "blocks",
@@ -1616,16 +2033,8 @@ describe("bootstrap Scenario participation Policies", () => {
       purpose: "Keep candidate correction fully bound.",
       frontier: ["One bounded candidate"],
     });
-    const mapReview = lifecycleDatum("REV", "REV-8K3M9Q2D8K", {
-      title: "Passing frontier Review",
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [],
-      outcome: "pass",
-    }, {
-      frozen: true,
-      links: [{ type: "reviews", target: map.datum.revision_id }],
-    });
+    const reviewedMap = contextualPassingReview(map, "REV-8K3M9Q2D8K");
+    const mapReview = reviewedMap.review;
     fixture.candidate.datum.payload.definition_members = [map.datum.revision_id];
     fixture.candidateContext.datum.payload.definition_members = [
       fixture.candidate.datum.revision_id,
@@ -1635,11 +2044,18 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.candidateReview.datum.payload.correction_authority = "stakeholder";
     fixture.candidateReview.datum.payload.simplification = {
       target: fixture.candidate.datum.revision_id,
-      findings: [{
-        id: "F-001",
-        severity: "blocking",
-        summary: "The candidate changes stakeholder-owned intent.",
-      }],
+      findings: [
+        {
+          id: "F-001",
+          severity: "blocking",
+          criterion: "Stakeholder-owned simplification findings require attended authority without consuming an autonomous cycle.",
+          evidence:
+            "The primary blocker concerns stakeholder-owned scope in the exact candidate.",
+          material_consequence:
+            "Autonomous correction would exceed package authority over stakeholder scope.",
+          summary: "The candidate changes stakeholder-owned intent.",
+        },
+      ],
     };
     fixture.candidateReview.datum.links.push({
       type: "blocks",
@@ -1650,6 +2066,7 @@ describe("bootstrap Scenario participation Policies", () => {
       phaseId: "phase-0-wayfinding",
       records: [
         map,
+        reviewedMap.context,
         mapReview,
         fixture.candidate,
         fixture.candidateContext,
@@ -1694,27 +2111,39 @@ describe("bootstrap Scenario participation Policies", () => {
       links: [{ type: "justifies", target: attendedReplacement.datum.revision_id }],
     });
     const replacementContext = structuredClone(fixture.candidateContext);
-    replacementContext.datum.id = "BSL-8K3M9Q2D8K";
-    replacementContext.datum.revision_id = "BSL-8K3M9Q2D8K-r00001";
+    replacementContext.datum.id = "BSL-8K3M9Q2D8M";
+    replacementContext.datum.revision_id = "BSL-8K3M9Q2D8M-r00001";
     replacementContext.datum.payload.scope = attendedReplacement.datum.revision_id;
     replacementContext.datum.payload.definition_members = [
       attendedReplacement.datum.revision_id,
       map.datum.revision_id,
     ];
-    const nextFailure = lifecycleDatum("REV", "REV-8K3M9Q2D8M", {
-      title: "Failed simplification after attended correction",
-      review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      simplification: {
-        target: attendedReplacement.datum.revision_id,
-        findings: [{
-          id: "F-002",
-          severity: "blocking",
-          summary: "The corrected candidate still retains package-bounded excess.",
-        }],
+    const nextFailure = lifecycleDatum(
+      "REV",
+      "REV-8K3M9Q2D8M",
+      {
+        title: "Failed simplification after attended correction",
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        simplification: {
+          target: attendedReplacement.datum.revision_id,
+          findings: [
+            {
+              id: "F-002",
+              severity: "blocking",
+              criterion:
+                "A repeated stakeholder-owned blocker remains attended after an attended replacement.",
+              evidence:
+                "The replacement Review again rejects stakeholder-owned scope rather than an agent-owned definition defect.",
+              material_consequence:
+                "The package must request renewed stakeholder authority instead of autonomous correction.",
+              summary: "The corrected candidate still retains package-bounded excess.",
+            },
+          ],
+        },
+        outcome: "fail",
       },
-      outcome: "fail",
-    }, {
+      {
       frozen: true,
       links: [
         { type: "reviews", target: attendedReplacement.datum.revision_id },
@@ -1722,7 +2151,8 @@ describe("bootstrap Scenario participation Policies", () => {
         { type: "blocks", target: attendedReplacement.datum.revision_id },
       ],
       scenario: "review-datum-in-context@2",
-    });
+    },
+    );
     snapshot.records.push(
       attendedReplacement,
       authorityDecision,
@@ -1748,16 +2178,8 @@ describe("bootstrap Scenario participation Policies", () => {
       purpose: "Keep the candidate correction Assignment fully bound.",
       frontier: ["One bounded candidate"],
     });
-    const mapReview = lifecycleDatum("REV", "REV-8K3M9Q2D8J", {
-      title: "Passing frontier Review",
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [],
-      outcome: "pass",
-    }, {
-      frozen: true,
-      links: [{ type: "reviews", target: map.datum.revision_id }],
-    });
+    const reviewedMap = contextualPassingReview(map, "REV-8K3M9Q2D8J");
+    const mapReview = reviewedMap.review;
     first.datum.payload.definition_members = [map.datum.revision_id];
     const replacement = structuredClone(first);
     replacement.datum.revision = 2;
@@ -1775,27 +2197,40 @@ describe("bootstrap Scenario participation Policies", () => {
       { type: "corrects-review", target: "REV-8K3M9Q2D8G-r00001" },
     ];
     const failedReview = (subject: LifecycleRecord, id: string) =>
-      lifecycleDatum("REV", id, {
-        title: `Failed simplification of ${subject.datum.revision_id}`,
-        review_kind: "simplification-product-definition",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        simplification: {
-          target: subject.datum.revision_id,
-          findings: [{
-            id: "F-001",
-            severity: "blocking",
-            summary: "The exact candidate remains unnecessarily broad.",
-          }],
+      lifecycleDatum(
+        "REV",
+        id,
+        {
+          title: `Failed simplification of ${subject.datum.revision_id}`,
+          review_kind: "simplification-product-definition",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          simplification: {
+            target: subject.datum.revision_id,
+            findings: [
+              {
+                id: "F-001",
+                severity: "blocking",
+                criterion:
+                  "An exhausted candidate lineage must preserve exact blockers when escalating through the correction interface.",
+                evidence:
+                  "The failed Review occurs after the candidate correction lineage has exhausted autonomous attempts.",
+                material_consequence:
+                  "Further autonomous candidate publication would bypass the required attended escalation.",
+                summary: "The exact candidate remains unnecessarily broad.",
+              },
+            ],
+          },
+          outcome: "fail",
         },
-        outcome: "fail",
-      }, {
+        {
         frozen: true,
         links: [
           { type: "reviews", target: subject.datum.revision_id },
           { type: "blocks", target: subject.datum.revision_id },
         ],
         scenario: "review-datum-in-context@2",
-      });
+      },
+      );
     const reviews = [
       failedReview(first, "REV-8K3M9Q2D8F"),
       failedReview(replacement, "REV-8K3M9Q2D8G"),
@@ -1805,7 +2240,7 @@ describe("bootstrap Scenario participation Policies", () => {
     const snapshot = {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [map, mapReview, first, replacement, current, ...reviews],
+      records: [map, reviewedMap.context, mapReview, first, replacement, current, ...reviews],
       dependencyComparisons: [],
     };
     const evaluation = evaluateLifecycle(processPackage, snapshot);
@@ -1865,22 +2300,34 @@ describe("bootstrap Scenario participation Policies", () => {
       frozen: true,
       links: [{ type: "resolves", target: answered.datum.revision_id }],
     });
-    const failedReview = lifecycleDatum("REV", "REV-7K3M9Q2D8H", {
-      title: "Failed scope Decision Review",
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{
-        id: "F-001",
-        target: decision.datum.revision_id,
-        relationship: "primary",
-        severity: "blocking",
-        summary: "The rationale does not preserve the stakeholder constraint.",
-      }],
-      outcome: "fail",
-    }, {
+    const failedReview = lifecycleDatum(
+      "REV",
+      "REV-7K3M9Q2D8H",
+      {
+        title: "Failed scope Decision Review",
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [
+          {
+            id: "F-001",
+            target: decision.datum.revision_id,
+            relationship: "primary",
+            severity: "blocking",
+            criterion: "A Question Decision must resolve its exact QST under the supplied decision authority.",
+            evidence:
+              "The Review rejects the Decision because it does not safely resolve the exact Question target.",
+            material_consequence:
+              "The unresolved Question continues to block downstream lifecycle work.",
+            summary: "The rationale does not preserve the stakeholder constraint.",
+          },
+        ],
+        outcome: "fail",
+      },
+      {
       frozen: true,
       links: [{ type: "reviews", target: decision.datum.revision_id }],
-    });
+    },
+    );
 
     const snapshot = {
       processRef,
@@ -1924,13 +2371,20 @@ describe("bootstrap Scenario participation Policies", () => {
   it("routes a failed gate Decision Review through exact attended correction", async () => {
     const fixture = reviewedGateFixture(processRef);
     fixture.signoffReview.datum.payload.outcome = "fail";
-    fixture.signoffReview.datum.payload.findings = [{
-      id: "F-001",
-      target: fixture.signoff.datum.revision_id,
-      relationship: "primary",
-      severity: "blocking",
-      summary: "The gate rationale is incomplete.",
-    }];
+    fixture.signoffReview.datum.payload.findings = [
+      {
+        id: "F-001",
+        target: fixture.signoff.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        criterion: "A gate signoff Decision must satisfy the exact gate evidence and authority contract.",
+        evidence:
+          "The Review rejects the exact signoff Decision against its frozen gate context.",
+        material_consequence:
+          "The gate cannot authorize phase progression.",
+        summary: "The gate rationale is incomplete.",
+      },
+    ];
     const snapshot = {
       processRef,
       phaseId: "phase-0-wayfinding",
@@ -2031,14 +2485,20 @@ describe("bootstrap Scenario participation Policies", () => {
       non_goals: ["Implementation detail"],
       success_measures: ["Exact command results"],
     });
-    const requirement = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
-      title: "Current requirement",
-      rationale: "The operator needs an exact outcome.",
-      statement: "MDLM shall report one exact outcome.",
-      verification_intent: "Observe the public command result.",
-      stakeholder: "operator",
-      priority: "must",
-    }, { links: [{ type: "derived-from", target: product.datum.id }] });
+    const requirement = lifecycleDatum(
+      "STK",
+      "STK-4K3M9Q2D8F",
+      {
+        title: "Current requirement",
+        rationale: "The operator needs an exact outcome.",
+        statement: "MDLM shall report one exact outcome.",
+        verification_intent: "Observe the public command result.",
+        stakeholder: "operator",
+        priority: "must",
+        system_context: "product",
+      },
+      { links: [{ type: "derived-from", target: product.datum.id }] },
+    );
     const foundation = [map, product, requirement];
     fixture.candidate.datum.payload.definition_members = foundation.map(
       (member) => member.datum.revision_id,
@@ -2048,22 +2508,12 @@ describe("bootstrap Scenario participation Policies", () => {
       ...foundation.map((member) => member.datum.revision_id),
     ];
     const reviewIds = [
-      "REV-4K3M9Q2D8H",
-      "REV-4K3M9Q2D8J",
-      "REV-4K3M9Q2D8K",
+      "REV-4K3M9Q2D8L",
+      "REV-4K3M9Q2D8M",
+      "REV-4K3M9Q2D8N",
     ];
-    const passingReviews = foundation.map((subject, index) =>
-      lifecycleDatum("REV", reviewIds[index]!, {
-        title: `Passing Review of ${subject.datum.revision_id}`,
-        review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [],
-        outcome: "pass",
-      }, {
-        frozen: true,
-        links: [{ type: "reviews", target: subject.datum.revision_id }],
-        scenario: "review-datum-in-context@2",
-      })
+    const passingReviewPairs = foundation.map((subject, index) =>
+      contextualPassingReview(subject, reviewIds[index]!),
     );
     fixture.signoff.datum.payload.gate_outcome = "reject";
     fixture.signoff.datum.payload.decision = "Reject and replace the exact candidate.";
@@ -2081,7 +2531,11 @@ describe("bootstrap Scenario participation Policies", () => {
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [...fixture.records, ...foundation, ...passingReviews],
+      records: [
+        ...fixture.records,
+        ...foundation,
+        ...passingReviewPairs.flatMap(({ context, review }) => [context, review]),
+      ],
       dependencyComparisons: [],
     });
 
@@ -2105,6 +2559,7 @@ describe("bootstrap Scenario participation Policies", () => {
       verification_intent: "Observe an export.",
       stakeholder: "report author",
       priority: "must",
+      system_context: "product",
     });
     const secondMember = lifecycleDatum("STK", "STK-4K3M9Q2D8G", {
       title: "Second rejected requirement",
@@ -2113,6 +2568,7 @@ describe("bootstrap Scenario participation Policies", () => {
       verification_intent: "Observe retention.",
       stakeholder: "report author",
       priority: "must",
+      system_context: "product",
     });
     fixture.candidate.datum.payload.definition_members = [
       firstMember.datum.revision_id,
@@ -2172,17 +2628,22 @@ describe("bootstrap Scenario participation Policies", () => {
     const firstReplacement = replacementFor(firstMember, secondRejection);
     const secondReplacement = replacementFor(secondMember, secondRejection);
     const passingReviewFor = (subject: LifecycleRecord, id: string) =>
-      lifecycleDatum("REV", id, {
-        title: `Passing Review of ${subject.datum.revision_id}`,
-        review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        findings: [],
-        outcome: "pass",
-      }, {
+      lifecycleDatum(
+        "REV",
+        id,
+        {
+          title: `Passing Review of ${subject.datum.revision_id}`,
+          review_kind: "independent",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          findings: [],
+          outcome: "pass",
+        },
+        {
         frozen: true,
         links: [{ type: "reviews", target: subject.datum.revision_id }],
         scenario: "review-datum-in-context@2",
-      });
+      },
+      );
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,

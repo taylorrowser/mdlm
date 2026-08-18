@@ -113,6 +113,26 @@ Also stop on dirty initial state, stale or exhausted Assignment, typed inability
 failed doctor, unexpected diff, genuine ambiguity, or command failure. Never
 invent Lifecycle Data or an undeclared Scenario to escape a stop.
 
+## Proportional package behavior
+
+Fresh repositories select `mdlm-bootstrap@0.67.0`; do not migrate or resume
+0.66.0 Lifecycle Data or Assignments. Treat `system_context` as a
+solution-independent responsibility/trust grouping key, not a component name.
+One Assignment may therefore bind several STKs to one shared ASP by default, or
+to the smallest justified architecture partition. Each architecture may similarly
+produce one cohesive many-parent DWP by default or a small justified slice set.
+Do not split either kind of work merely because several requirements are present.
+
+Author prompts require an ephemeral rubric preflight. Perform it privately,
+correct blocking defects before submission, and publish no preflight REV,
+transcript, score, or telemetry. Never send preflight observations to the later
+independent reviewer. The package selects generic `exact-baseline@1`
+materialization for `create-review-context@1`; the runtime fulfills a real internal
+Assignment from every-and-only the package-selected exact bindings before
+returning reviewer work, without a second repository inspection. Context
+membership, evidence partitioning, hashing, response provenance, and freeze are
+package/kernel-owned rather than operator judgment.
+
 ## Performance diagnostics
 
 Set `MDLM_PERFORMANCE=json` on a single command to emit one

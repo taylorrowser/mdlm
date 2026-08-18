@@ -90,7 +90,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         findings: [],
         outcome: "pass",
       },
@@ -129,6 +129,138 @@ describe("evaluateLifecycle review flow", () => {
     ).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
   });
 
+  it("rejects a current Review when its context omits currently required support", () => {
+    const parent = record("PSP", "PSP-7M4R8T2V9K", {
+      title: "Parent specification",
+      rationale: "Own stakeholder scope.",
+      problem: "Support must remain exact.",
+      users: ["owner"],
+      goals: ["exact contexts"],
+      non_goals: [],
+      success_measures: ["missing support invalidates reuse"],
+    });
+    const subject = record(
+      "STK",
+      "STK-7M4R8T2V9K",
+      {
+        title: "Supported requirement",
+        statement: "The product shall retain its exact parent context.",
+        verification_intent: "Inspect the generated context membership.",
+        system_context: "product",
+      },
+      { links: [{ type: "derived-from", target: parent.datum.revision_id }] },
+    );
+    const incompleteContext = record(
+      "BSL",
+      "BSL-7M4R8T2V9K",
+      {
+        title: "Incomplete Review Context",
+        kind: "review-context",
+        role: "review-context",
+        scope: subject.datum.revision_id,
+        group: "DEFAULT",
+        definition_members: [subject.datum.revision_id],
+        evidence: [],
+      },
+      { frozen: true, scenario: "create-review-context@1" },
+    );
+    const review = record(
+      "REV",
+      "REV-7M4R8T2V9K",
+      {
+        title: "Review with incomplete support",
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [],
+        outcome: "pass",
+      },
+      {
+        scenario: "review-datum-in-context@2",
+        links: [
+          { type: "reviews", target: subject.datum.revision_id },
+          { type: "contextualizes", target: incompleteContext.datum.revision_id },
+        ],
+      },
+    );
+
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [parent, subject, incompleteContext, review],
+      dependencyComparisons: [],
+    });
+    expect(
+      evaluation.obligations.find(
+        (item) =>
+          item.subject === subject.datum.revision_id &&
+          item.obligation === "passing-review-required",
+      ),
+    ).toEqual(expect.objectContaining({ satisfied: false }));
+  });
+
+  it("rejects passing Review reuse from an old package or superseded exact context", () => {
+    const subject = record("PSP", "PSP-6M4R8T2V9K", {
+      title: "Current reviewed subject",
+      rationale: "Keep ordinary Review reuse exact.",
+      problem: "Stale Review authority could be reused.",
+      users: ["owner"],
+      goals: ["current Review authority"],
+      non_goals: [],
+      success_measures: ["stale authority is rejected"],
+    });
+    const context = record("BSL", "BSL-6M4R8T2V9K", {
+      title: "Current exact Review Context",
+      kind: "review-context",
+      role: "review-context",
+      scope: subject.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [subject.datum.revision_id],
+      evidence: [],
+    }, { frozen: true, scenario: "create-review-context@1" });
+    const review = record("REV", "REV-6M4R8T2V9K", {
+      title: "Passing exact Review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    }, {
+      frozen: true,
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: subject.datum.revision_id },
+        { type: "contextualizes", target: context.datum.revision_id },
+      ],
+    });
+
+    const oldPackageReview = structuredClone(review);
+    oldPackageReview.datum.created_by.process_ref = "git:old-package";
+    const oldPackageEvaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [subject, context, oldPackageReview],
+      dependencyComparisons: [],
+    });
+    expect(oldPackageEvaluation.obligations.find((item) =>
+      item.subject === subject.datum.revision_id &&
+      item.obligation === "passing-review-required"
+    )).toEqual(expect.objectContaining({ satisfied: false }));
+
+    const replacementContext = structuredClone(context);
+    replacementContext.datum.revision = 2;
+    replacementContext.datum.revision_id = `${context.datum.id}-r00002`;
+    replacementContext.datum.payload.title = "Replacement exact Review Context";
+    const staleContextEvaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:current",
+      phaseId: "phase-0-wayfinding",
+      records: [subject, context, replacementContext, review],
+      dependencyComparisons: [],
+    });
+    expect(staleContextEvaluation.obligations.find((item) =>
+      item.subject === subject.datum.revision_id &&
+      item.obligation === "passing-review-required"
+    )).toEqual(expect.objectContaining({ satisfied: false }));
+  });
+
   it("keeps historical failed Reviews without requiring more work on replaced Revisions", () => {
     const original = record("PSP", "PSP-7K3M9Q2D8F", {
       title: "Lifecycle manager",
@@ -158,10 +290,15 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "Original PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         findings: [
           {
             severity: "blocking",
+            criterion: "A failed historical Review must not create new correction work after its subject has an active replacement.",
+            evidence:
+              "The failed Review targets a superseded Revision whose corrected replacement is already current.",
+            material_consequence:
+              "Reopening the historical failure would duplicate correction work on an inactive subject.",
             summary: "Clarify the intended outcome.",
             disposition: "open",
           },
@@ -230,7 +367,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-2BC4DF6GHJ",
       {
         title: "Replacement PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         findings: [],
         outcome: "pass",
       },
@@ -402,12 +539,12 @@ describe("evaluateLifecycle review flow", () => {
       non_goals: [],
       success_measures: ["reviewed intent"],
     });
-    const { obligationInstance, waiver, review } = exactContextWaiverFor(psp, "git:current");
+    const { obligationInstance, waiver, context, review } = exactContextWaiverFor(psp, "git:current");
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
-      records: [psp, waiver, review],
+      records: [psp, waiver, context, review],
       dependencyComparisons: [],
     });
     const waived = evaluation.obligations.find(
@@ -451,7 +588,7 @@ describe("evaluateLifecycle review flow", () => {
       non_goals: [],
       success_measures: ["reviewed intent"],
     });
-    const { obligationInstance, waiver, review } = exactContextWaiverFor(
+    const { obligationInstance, waiver, context, review } = exactContextWaiverFor(
       psp,
       "git:current",
     );
@@ -461,7 +598,7 @@ describe("evaluateLifecycle review flow", () => {
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
-      records: [psp, waiver, review],
+      records: [psp, waiver, context, review],
       dependencyComparisons: [],
     });
 
@@ -489,12 +626,12 @@ describe("evaluateLifecycle review flow", () => {
     revisedPsp.datum.revision = 2;
     revisedPsp.datum.revision_id = `${psp.datum.id}-r00002`;
     revisedPsp.datum.payload.title = "Revised lifecycle manager";
-    const { obligationInstance, waiver, review } = exactContextWaiverFor(psp, "git:current");
+    const { obligationInstance, waiver, context, review } = exactContextWaiverFor(psp, "git:current");
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
       phaseId: "phase-0-wayfinding",
-      records: [psp, revisedPsp, waiver, review],
+      records: [psp, revisedPsp, waiver, context, review],
       dependencyComparisons: [],
     });
     expect(
@@ -550,7 +687,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         findings: [],
         outcome: "pass",
       },
@@ -629,19 +766,24 @@ describe("evaluateLifecycle review flow", () => {
       definition_members: [psp.datum.revision_id],
       evidence: [],
     }, { frozen: true, scenario: "create-review-context@1" });
-    const pspReview = record("REV", "REV-8ZT5KQ3P9M", {
-      title: "Passing PSP Review",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [],
-      outcome: "pass",
-    }, {
+    const pspReview = record(
+      "REV",
+      "REV-8ZT5KQ3P9M",
+      {
+        title: "Passing PSP Review",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [],
+        outcome: "pass",
+      },
+      {
       frozen: true,
       scenario: "review-datum-in-context@2",
       links: [
         { type: "reviews", target: psp.datum.revision_id },
         { type: "contextualizes", target: pspContext.datum.revision_id },
       ],
-    });
+    },
+    );
     const candidate = record("BSL", "BSL-4F6H8JK2MN", {
       title: "Failed intent candidate",
       kind: "intent-level-candidate",
@@ -663,33 +805,50 @@ describe("evaluateLifecycle review flow", () => {
       ],
       evidence: [],
     }, { frozen: true, scenario: "create-review-context@1" });
-    const passingCandidateReview = record("REV", "REV-1BC3DF5GHK", {
-      title: "Earlier passing candidate Review",
-      review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      outcome: "pass",
-    }, {
+    const passingCandidateReview = record(
+      "REV",
+      "REV-1BC3DF5GHK",
+      {
+        title: "Earlier passing candidate Review",
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        outcome: "pass",
+      },
+      {
       frozen: true,
       scenario: "review-datum-in-context@2",
       links: [
         { type: "reviews", target: candidate.datum.revision_id },
         { type: "contextualizes", target: candidateContext.datum.revision_id },
       ],
-    });
-    const failedReview = record("REV", "REV-2BC4DF6GHJ", {
-      title: "Failed candidate Review",
-      review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      simplification: {
-        target: candidate.datum.revision_id,
-        findings: [{
-          id: "F-001",
-          severity: "blocking",
-          summary: "The candidate retains unnecessary product scope.",
-        }],
+    },
+    );
+    const failedReview = record(
+      "REV",
+      "REV-2BC4DF6GHJ",
+      {
+        title: "Failed candidate Review",
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        simplification: {
+          target: candidate.datum.revision_id,
+          findings: [
+            {
+              id: "F-001",
+              severity: "blocking",
+              criterion:
+                "A failed intent-candidate Review must be corrected by an exact superseding candidate Revision.",
+              evidence:
+                "The current intent candidate has a primary blocking Review finding in its frozen context.",
+              material_consequence:
+                "The candidate cannot authorize accepted intent until superseded by a corrected candidate.",
+              summary: "The candidate retains unnecessary product scope.",
+            },
+          ],
+        },
+        outcome: "fail",
       },
-      outcome: "fail",
-    }, {
+      {
       frozen: true,
       scenario: "review-datum-in-context@2",
       links: [
@@ -697,7 +856,8 @@ describe("evaluateLifecycle review flow", () => {
         { type: "contextualizes", target: candidateContext.datum.revision_id },
         { type: "blocks", target: candidate.datum.revision_id },
       ],
-    });
+    },
+    );
 
     const evaluation = evaluateLifecycle(processPackage, {
       processRef: "git:current",
@@ -807,7 +967,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         findings: [],
         outcome: "pass",
       },
@@ -853,7 +1013,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-2BC4DF6GHJ",
       {
         title: "Candidate review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
         findings: [],
         outcome: "pass",
       },
@@ -1036,15 +1196,22 @@ describe("evaluateLifecycle review flow", () => {
         {
           title: "Failed Review",
           review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-          findings: [{
-            id: "F-001",
-            target: subject.datum.revision_id,
-            relationship: "primary",
-            severity: "blocking",
-            summary: "Correction required",
-            evidence: "Exact finding evidence",
-          }],
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          findings: [
+            {
+              id: "F-001",
+              target: subject.datum.revision_id,
+              relationship: "primary",
+              severity: "blocking",
+              criterion:
+                "Current VSP and pilot VER Revisions with primary blockers require exact autonomous correction routes.",
+              evidence:
+                "The Reviews reject the current strategy and verification evidence Revisions, not historical replacements.",
+              material_consequence:
+                "Assurance cannot proceed using rejected current verification definitions.",
+              summary: "Correction required",
+            },
+          ],
           outcome: "fail",
         },
         {
@@ -1159,5 +1326,4 @@ describe("evaluateLifecycle review flow", () => {
       }),
     }));
   });
-
 });

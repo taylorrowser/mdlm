@@ -14,41 +14,20 @@ query:
     && context.payload.scope == subject.identity.revision_id
     && context.storage.frozen == true
     && state(context, "validity") == "valid"
+    && every("review-context-members@1", {context: context}, context_member =>
+      context_member == subject
+      || !every("review-context-members-for@1", {subject: subject}, required =>
+        required != context_member))
+    && (subject.identity.type == "ENV"
+      || none("review-context-evidence@1", {context: context}))
+    && none("composed-baselines-for-review-context@1", {context: context})
+    && context.provenance.process_ref == process.current_ref
     && every("review-context-members-for@1", {subject: subject}, member =>
       exists("review-context-contains-required-support@1",
-        {subject: subject, context: context, required_support: member})
-      || (subject.identity.type == "STK" && member.identity.type == "PSP"
-        && context.provenance.process_ref != process.current_ref)
-      || (subject.identity.type == "VER"
-        && !every("legacy-thin-ver-review-contexts-for@1", {subject: subject}, legacy =>
-          legacy != context))
-      || (subject.identity.type == "DWP"
-        && !every("legacy-thin-dwp-review-contexts-for@1", {subject: subject}, legacy =>
-          legacy != context)))
-    && (subject.identity.type != "VER"
-      || !every("legacy-thin-ver-review-contexts-for@1", {subject: subject}, legacy =>
-        legacy != context)
-      || (context.provenance.process_ref == process.current_ref
-        && every("review-context-members@1", {context: context}, context_member =>
-          context_member == subject
-          || !every("review-context-members-for@1", {subject: subject}, required =>
-            required != context_member))
-        && none("review-context-evidence@1", {context: context})
-        && none("composed-baselines-for-review-context@1", {context: context})))
+        {subject: subject, context: context, required_support: member}))
     && (subject.identity.type != "DWP"
       || subject.payload.stage != "planning"
-      || (exists("planning-dwp-review-support-is-current@1", {plan: subject})
-        && (!every("legacy-thin-dwp-review-contexts-for@1", {subject: subject}, legacy =>
-          legacy != context)
-        || ((context.provenance.process_ref == process.current_ref
-            || !every("historical-exact-dwp-review-contexts-for@1",
-              {subject: subject}, historical => historical != context))
-          && every("review-context-members@1", {context: context}, context_member =>
-            context_member == subject
-            || !every("review-context-members-for@1", {subject: subject}, required =>
-              required != context_member))
-          && none("review-context-evidence@1", {context: context})
-          && none("composed-baselines-for-review-context@1", {context: context})))))
+      || exists("planning-dwp-review-context-support-is-current@1", {plan: subject}))
     && (subject.identity.type != "ENV"
       || exists("environment-assurance-context-matches@1",
         {environment: subject, context: context}))

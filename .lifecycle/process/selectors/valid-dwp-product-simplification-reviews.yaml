@@ -17,19 +17,8 @@ query:
     && every("phase-2-contexts-for-review@1", {review: review}, context =>
       exists("planning-dwp-review-context-matches@1",
         {plan: plan, context: context})
-      && (
-        (context.provenance.process_ref == process.current_ref
-          && review.provenance.process_ref == process.current_ref)
-        || (!every("historical-exact-dwp-review-contexts-for@1",
-            {subject: plan}, historical => historical != context)
-          && review.provenance.process_ref in [
-            context.provenance.process_ref,
-            process.current_ref
-          ])
-        || (!every("legacy-thin-dwp-review-contexts-for@1",
-            {subject: plan}, legacy => legacy != context)
-          && review.provenance.process_ref == process.current_ref)
-      ))
+      && context.provenance.process_ref == process.current_ref
+      && review.provenance.process_ref == process.current_ref)
     && (
       ((review.payload.outcome == "pass"
         || (review.payload.outcome == "cancelled"

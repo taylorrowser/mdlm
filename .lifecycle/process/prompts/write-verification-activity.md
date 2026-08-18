@@ -17,3 +17,6 @@ private implementation notes. Define one activity expected to succeed for a
 declared supported behavior and one expected to expose intentionally unsupported
 or incorrect behavior. The activity evaluates whether the verification design is
 executable and discriminating; it does not accept the requirement.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

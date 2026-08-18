@@ -41,7 +41,7 @@ const definitionMembers = [
   "ICSP-0REPRT1CSP-r00001",
   "SYS-0EXPRTREQ0-r00001",
 ];
-const currentDwpContext = "BSL-FMKW2W7Z71-r00001";
+const currentDwpContext = "BSL-A8S7MK45TQ-r00001";
 const currentDwpReview = "REV-0DWPREV001-r00001";
 
 async function fixture(name: string): Promise<Snapshot> {
@@ -92,10 +92,10 @@ function failedSimplification(
 ): Snapshot {
   const result = structuredClone(snapshot);
   const review = result.records.find(
-    (record) => record.datum.revision_id === "REV-0REQSMP100-r00001",
+    (record) => record.datum.revision_id === "REV-0ARCSMP100-r00001",
   );
   if (!review)
-    throw new Error("missing retained requirement simplification Review");
+    throw new Error("missing retained late semantic simplification Review");
   const blockers =
     correctionSet === "subject"
     ? ["SYS-0EXPRTREQ0-r00001"]
@@ -111,6 +111,11 @@ function failedSimplification(
       {
         id: "F-001",
         severity: "blocking",
+        criterion: "Late Phase 2 simplification must identify an exact removable member or complete definition-consistency correction set.",
+        evidence:
+          "The Review rejects the exact Phase 2 definition scope represented by its blockers.",
+        material_consequence:
+          "The decomposition cannot complete while the semantic simplification defect remains.",
         summary: "Correct the exact declared scope.",
       },
     ],
@@ -175,7 +180,7 @@ function expectReady(
   );
 }
 
-describe("Phase 2 hardening routes from retained exact lifecycle evidence", () => {
+describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
   let processPackage: ProcessPackage;
   let completionReady: Snapshot;
 
@@ -194,7 +199,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       (record) => record.datum.revision_id === "REV-EFXYWYJQ9S-r00001",
     );
     if (!retainedContext || !retainedReview) {
-      throw new Error("missing retained DWP Review evidence");
+      throw new Error("missing synthetic DWP Review state");
     }
     const review = structuredClone(retainedReview);
     review.datum.id = "REV-0DWPREV001";
@@ -215,7 +220,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       processPackage,
       withoutRecordAndDependents(completionReady, plan),
       "decomposition-planning-required",
-      "define-decomposition-work-package@2",
+      "define-decomposition-work-package@3",
       "STK-HJGTM8026G-r00001",
     );
   });
@@ -237,7 +242,12 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       (selected.result as Array<{ identity: { revision_id: string } }>).map(
         (item) => item.identity.revision_id,
       ),
-    ).toEqual(["ASP-0REPRTARCH-r00001", "ICSP-0REPRT1CSP-r00001"]);
+    ).toEqual([
+      "ASP-0REPRTARCH-r00001",
+      "ICSP-0REPRT1CSP-r00001",
+      "STK-HJGTM8026G-r00001",
+      "VSP-KBQHB74Z6S-r00001",
+    ]);
   });
 
   it("adds only the exact current SYS output to planning-DWP Review support", () => {
@@ -256,7 +266,9 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
     ).toEqual([
       "ASP-0REPRTARCH-r00001",
       "ICSP-0REPRT1CSP-r00001",
+      "STK-HJGTM8026G-r00001",
       "SYS-0EXPRTREQ0-r00001",
+      "VSP-KBQHB74Z6S-r00001",
     ]);
   });
 
@@ -309,9 +321,11 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       { plan },
     );
     expect(
-      (compatibleArchitecture.result as Array<{ identity: { revision_id: string } }>).map(
-        (item) => item.identity.revision_id,
-      ),
+      (
+        compatibleArchitecture.result as Array<{
+          identity: { revision_id: string };
+        }>
+      ).map((item) => item.identity.revision_id),
     ).toEqual(["ASP-0REPRTARCH-r00002"]);
     expect(
       obligation(processPackage, snapshot, "review-context-required", plan),
@@ -528,7 +542,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
           )
           .replace(
             /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-            "scenarios:\n  - create-review-context@1\n  - review-datum-in-context@2\n  - revise-phase-2-subject-after-review@1\n  - reevaluate-shared-system-consumer@1\n  - replan-stale-decomposition-work-package@1\n  - define-decomposition-work-package@2\n  - record-gate-signoff@3\n" +
+            "scenarios:\n  - create-review-context@1\n  - review-datum-in-context@2\n  - revise-phase-2-subject-after-review@1\n  - reevaluate-shared-system-consumer@1\n  - replan-stale-decomposition-work-package@1\n  - define-decomposition-work-package@3\n  - record-gate-signoff@3\n" +
               "obligations:\n  - review-context-required@2\n  - passing-review-required@2\n  - phase-2-review-correction-required@1\n  - shared-system-consumer-reevaluation-required@1\n  - stale-decomposition-plan-correction-required@1\n  - decomposition-planning-required@1\noutputs:",
           ),
       );
@@ -546,7 +560,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       await selectProcessPackageFixture(repository, processRoot);
       const loaded = await loadProcessPackage(processRoot);
       if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-      const fixtureProcessRef = `mdlm-bootstrap@0.66.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.67.0#${await processPackageDigest(processRoot)}`;
 
       const wanted = new Set([plan, "SYS-0EXPRTREQ0-r00001"]);
       let changed = true;
@@ -619,8 +633,10 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
         "ASP-0REPRTARCH-r00001",
         plan,
         "ICSP-0REPRT1CSP-r00001",
+        "STK-HJGTM8026G-r00001",
         "SYS-0EXPRTREQ0-r00001",
         "SYS-0PARENTREQ-r00001",
+        "VSP-KBQHB74Z6S-r00001",
       ];
       sourceContext.payload.evidence = [];
       delete sourceContext.payload.snapshot;
@@ -652,6 +668,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       sourceInterfaceContext.created_by.process_ref = fixtureProcessRef;
       sourceInterfaceContext.payload.definition_members = [
         "ICSP-0REPRT1CSP-r00001",
+        "ASP-0REPRTARCH-r00001",
       ];
       sourceInterfaceContext.payload.evidence = [];
       delete sourceInterfaceContext.payload.snapshot;
@@ -699,7 +716,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
               payload: {
                 title: "Review ICSP-0REPRT1CSP-r00001",
                 review_kind: "contextual",
-                rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+                rubric_ref: "policies/rubrics/bootstrap-review.md@2",
                 findings: [],
                 outcome: "pass",
               },
@@ -738,8 +755,10 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
           expect(inputRevisions(prepared, "context_members")).toEqual([
             "ASP-0REPRTARCH-r00001",
             "ICSP-0REPRT1CSP-r00001",
+            "STK-HJGTM8026G-r00001",
             "SYS-0EXPRTREQ0-r00001",
             "SYS-0PARENTREQ-r00001",
+            "VSP-KBQHB74Z6S-r00001",
           ]);
           const contextRevision = inputRevision(prepared, "review_context");
           const submitted = submitAssignment(outcomeRepository, prepared, [
@@ -752,22 +771,28 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
                 payload: {
                   title: `Review ${plan}`,
                   review_kind: "simplification-product-definition",
-                  rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@2",
                   outcome,
                   ...(outcome === "fail"
                     ? {
-                      simplification: {
-                        target: plan,
+                        simplification: {
+                          target: plan,
                           findings: [
                             {
-                          id: "F-001",
-                          severity: "blocking",
+                              id: "F-001",
+                              severity: "blocking",
+                              criterion:
+                                "A planning-DWP product-definition Review must assess the exact plan and all current ASP, ICSP, STK, SYS, and VSP support.",
+                              evidence:
+                                "The failed Review identifies a blocker in the exact generated planning-DWP context.",
+                              material_consequence:
+                                "The plan cannot execute until the cited product-definition defect is corrected.",
                               summary:
                                 "Clarify the exact decomposition boundary.",
                             },
                           ],
-                      },
-                    }
+                        },
+                      }
                     : {}),
                   ...(outcome === "cancelled"
                     ? {
@@ -833,7 +858,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       processPackage,
       withoutRecordAndDependents(completionReady, "ASP-0REPRTARCH-r00001"),
       "system-architecture-required",
-      "define-system-architecture@2",
+      "define-system-architecture@3",
       "STK-HJGTM8026G-r00001",
     );
   });
@@ -845,27 +870,6 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       "interface-control-specification-required",
       "define-interface-control-specification@2",
       "ASP-0REPRTARCH-r00001",
-    );
-  });
-
-  it("returns the earliest exact definition context to requirement simplification Review", () => {
-    const snapshot = withoutRecordAndDependents(
-      completionReady,
-      "REV-0REQSMP100-r00001",
-    );
-    expect(
-      obligation(
-        processPackage,
-        snapshot,
-        "decomposition-simplification-required",
-        plan,
-      ),
-    ).toEqual(
-      expect.objectContaining({
-        status: "awaiting-review",
-        dispatchable: true,
-        actionableResolver: "simplify-requirement-set@2",
-      }),
     );
   });
 
@@ -890,6 +894,44 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
     );
   });
 
+  it("instantiates one architecture-wide simplification boundary for sibling plans", () => {
+    const snapshot = withoutRecordAndDependents(
+      completionReady,
+      "REV-0ARCSMP100-r00001",
+    );
+    const sourcePlan = snapshot.records.find(
+      (record) => record.datum.revision_id === plan,
+    );
+    const sourceOutput = snapshot.records.find(
+      (record) => record.datum.revision_id === "SYS-0EXPRTREQ0-r00001",
+    );
+    if (!sourcePlan || !sourceOutput)
+      throw new Error("missing Phase 2 fixture records");
+    const siblingPlan = structuredClone(sourcePlan);
+    siblingPlan.datum.id = "DWP-0SBLNG0000";
+    siblingPlan.datum.revision_id = "DWP-0SBLNG0000-r00001";
+    siblingPlan.datum.payload.title = "Sibling architecture slice";
+    const siblingOutput = structuredClone(sourceOutput);
+    siblingOutput.datum.id = "SYS-0SBLNG0000";
+    siblingOutput.datum.revision_id = "SYS-0SBLNG0000-r00001";
+    siblingOutput.datum.links = siblingOutput.datum.links.map((link) =>
+      link.type === "decomposes"
+        ? { ...link, target: siblingPlan.datum.revision_id }
+        : link,
+    );
+    snapshot.records.push(siblingPlan, siblingOutput);
+
+    const simplification = evaluateLifecycle(
+      processPackage,
+      snapshot,
+    ).obligations.filter(
+      (item) =>
+        item.obligation === "architecture-interface-simplification-required",
+    );
+    expect(simplification).toHaveLength(1);
+    expect(simplification[0]?.subject).toBe(plan);
+  });
+
   it("accepts a canonical passing planning-DWP product-definition Review", () => {
     const selected = evaluateProcessDefinition(
       processPackage,
@@ -902,7 +944,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       (selected.result as Array<{ identity: { revision_id: string } }>).map(
         (item) => item.identity.revision_id,
       ),
-    ).toEqual([currentDwpReview]);
+    ).toEqual([currentDwpReview, "REV-EFXYWYJQ9S-r00001"]);
   });
 
   it("accepts only canonical planning-DWP product-definition outcomes and blockers", () => {
@@ -932,6 +974,12 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
             {
               id: "F-001",
               severity: "blocking",
+              criterion:
+                "A canonical planning-DWP failure must identify blockers that are present in the exact Review Context.",
+              evidence:
+                "The Review blocker names an exact context member with a concrete definition defect.",
+              material_consequence:
+                "Correction could otherwise alter a datum the independent reviewer did not assess.",
               summary: "Clarify the exact decomposition boundary.",
             },
           ],
@@ -966,280 +1014,16 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
         {
           id: "F-001",
           severity: "blocking",
+          criterion: "A planning-DWP blocker must preserve exact every-and-only Review causality.",
+          evidence:
+            "The Review includes a blocker outside the exact subject-support context.",
+          material_consequence:
+            "Using the malformed blocker would route unrelated correction work.",
           summary: "Wrong exact target.",
         },
       ],
     };
     expect(selectedReviewIds(wrongTarget.snapshot)).toEqual([]);
-  });
-
-  it("package-authoring selector unit: constrains current and authenticated historical DWP contexts", () => {
-    const selectedContextIds = (snapshot: Snapshot) =>
-      (
-        evaluateProcessDefinition(
-        processPackage,
-        snapshot,
-        "selector",
-        "valid-review-contexts-for@1",
-        { subject: plan },
-        ).result as Array<{ identity: { revision_id: string } }>
-      ).map((item) => item.identity.revision_id);
-    const current = () => {
-      const snapshot = structuredClone(completionReady);
-      const context = snapshot.records.find(
-        (record) => record.datum.revision_id === "BSL-A8S7MK45TQ-r00001",
-      );
-      if (!context) throw new Error("missing planning DWP Review Context");
-      const payload = context.datum.payload as {
-        role: string;
-        definition_members: string[];
-        evidence: string[];
-        snapshot: { process_provenance: { process_ref: string } };
-      };
-      payload.definition_members = [
-        "ASP-0REPRTARCH-r00001",
-        plan,
-        "ICSP-0REPRT1CSP-r00001",
-        "SYS-0EXPRTREQ0-r00001",
-      ];
-      payload.evidence = [];
-      context.datum.created_by.process_ref = snapshot.processRef;
-      payload.snapshot.process_provenance.process_ref = snapshot.processRef;
-      return { snapshot, context, payload };
-    };
-
-    expect(selectedContextIds(current().snapshot)).toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const historicalExact = current();
-    const historical065 =
-      "mdlm-bootstrap@0.65.0#sha256:585b32dad15327e6fc7822cc4ea08c42c14d63301a55b6659b7bfa63297a5c0e";
-    historicalExact.context.datum.created_by.process_ref = historical065;
-    historicalExact.payload.snapshot.process_provenance.process_ref =
-      historical065;
-    expect(selectedContextIds(historicalExact.snapshot)).toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const historicalReview = historicalExact.snapshot.records.find(
-      (record) => record.datum.revision_id === "REV-EFXYWYJQ9S-r00001",
-    );
-    if (!historicalReview) throw new Error("missing completed DWP Review");
-    historicalReview.datum.created_by.process_ref = historical065;
-    historicalReview.datum.payload = {
-      ...historicalReview.datum.payload,
-      review_kind: "simplification-product-definition",
-      outcome: "pass",
-    };
-    expect(
-      (
-        evaluateProcessDefinition(
-      processPackage,
-      historicalExact.snapshot,
-      "selector",
-      "passing-reviews-for@1",
-      { subject: plan },
-        ).result as Array<{ identity: { revision_id: string } }>
-      ).map((review) => review.identity.revision_id),
-    ).toContain("REV-EFXYWYJQ9S-r00001");
-    historicalReview.datum.created_by.process_ref =
-      "foreign-package@9.9.9#sha256:" + "f".repeat(64);
-    expect(
-      (
-        evaluateProcessDefinition(
-      processPackage,
-      historicalExact.snapshot,
-      "selector",
-      "passing-reviews-for@1",
-      { subject: plan },
-        ).result as Array<{ identity: { revision_id: string } }>
-      ).map((review) => review.identity.revision_id),
-    ).not.toContain("REV-EFXYWYJQ9S-r00001");
-    const foreignHistorical = current();
-    foreignHistorical.context.datum.created_by.process_ref = historical065;
-    expect(selectedContextIds(foreignHistorical.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const augmentedHistorical = current();
-    augmentedHistorical.context.datum.created_by.process_ref = historical065;
-    augmentedHistorical.payload.snapshot.process_provenance.process_ref =
-      historical065;
-    augmentedHistorical.payload.definition_members.push(
-      "QST-3RYPAB0KQZ-r00001",
-    );
-    expect(selectedContextIds(augmentedHistorical.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const historicalEvidence = current();
-    historicalEvidence.context.datum.created_by.process_ref = historical065;
-    historicalEvidence.payload.snapshot.process_provenance.process_ref =
-      historical065;
-    historicalEvidence.payload.evidence = ["BSL-R6SFPZ4R31-r00001"];
-    expect(selectedContextIds(historicalEvidence.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const wrongRole = current();
-    wrongRole.payload.role = "candidate";
-    expect(selectedContextIds(wrongRole.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const unrelated = current();
-    unrelated.payload.definition_members.push("QST-3RYPAB0KQZ-r00001");
-    expect(selectedContextIds(unrelated.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const incomplete = current();
-    incomplete.payload.definition_members =
-      incomplete.payload.definition_members.filter(
-      (revision) => revision !== "ICSP-0REPRT1CSP-r00001",
-    );
-    expect(selectedContextIds(incomplete.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const stale = current();
-    const architecture = stale.snapshot.records.find(
-      (record) => record.datum.revision_id === "ASP-0REPRTARCH-r00001",
-    );
-    if (!architecture) throw new Error("missing exact architecture support");
-    const newerArchitecture = structuredClone(architecture);
-    newerArchitecture.datum.revision = 2;
-    newerArchitecture.datum.revision_id = "ASP-0REPRTARCH-r00002";
-    newerArchitecture.datum.created_by.process_ref = stale.snapshot.processRef;
-    stale.snapshot.records.push(newerArchitecture);
-    expect(selectedContextIds(stale.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const staleInterface = current();
-    const interfaceRevision = staleInterface.snapshot.records.find(
-      (record) => record.datum.revision_id === "ICSP-0REPRT1CSP-r00001",
-    );
-    if (!interfaceRevision) throw new Error("missing exact interface support");
-    const newerInterface = structuredClone(interfaceRevision);
-    newerInterface.datum.revision = 2;
-    newerInterface.datum.revision_id = "ICSP-0REPRT1CSP-r00002";
-    newerInterface.datum.created_by.process_ref =
-      staleInterface.snapshot.processRef;
-    staleInterface.snapshot.records.push(newerInterface);
-    expect(selectedContextIds(staleInterface.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const staleConsumedSystem = current();
-    const stalePlan = staleConsumedSystem.snapshot.records.find(
-      (record) => record.datum.revision_id === plan,
-    );
-    const system = staleConsumedSystem.snapshot.records.find(
-      (record) => record.datum.revision_id === "SYS-0EXPRTREQ0-r00001",
-    );
-    if (!stalePlan || !system) throw new Error("missing exact SYS support");
-    const parent = structuredClone(system);
-    parent.datum.id = "SYS-0PARENTREQ";
-    parent.datum.revision_id = "SYS-0PARENTREQ-r00001";
-    parent.datum.links = parent.datum.links.filter(
-      (link) => link.type === "derived-from",
-    );
-    const newerParent = structuredClone(parent);
-    newerParent.datum.revision = 2;
-    newerParent.datum.revision_id = "SYS-0PARENTREQ-r00002";
-    stalePlan.datum.links.push({
-      type: "decomposes",
-      target: parent.datum.revision_id,
-    });
-    staleConsumedSystem.payload.definition_members.push(
-      parent.datum.revision_id,
-    );
-    staleConsumedSystem.snapshot.records.push(parent, newerParent);
-    expect(selectedContextIds(staleConsumedSystem.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    expect(
-      obligation(
-        processPackage,
-        staleConsumedSystem.snapshot,
-        "review-context-required",
-        plan,
-      ),
-    ).toBeUndefined();
-    expectReady(
-      processPackage,
-      staleConsumedSystem.snapshot,
-      "shared-system-consumer-reevaluation-required",
-      "reevaluate-shared-system-consumer@1",
-      plan,
-    );
-    const invalidUnreplacedParent = structuredClone(parent);
-    invalidUnreplacedParent.datum.id = "SYS-0UNREPLACE";
-    invalidUnreplacedParent.datum.revision_id = "SYS-0UNREPLACE-r00001";
-    invalidUnreplacedParent.integrity.hash_valid = false;
-    stalePlan.datum.links.push({
-      type: "decomposes",
-      target: invalidUnreplacedParent.datum.revision_id,
-    });
-    staleConsumedSystem.payload.definition_members.push(
-      invalidUnreplacedParent.datum.revision_id,
-    );
-    staleConsumedSystem.snapshot.records.push(invalidUnreplacedParent);
-    expect(
-      obligation(
-        processPackage,
-        staleConsumedSystem.snapshot,
-        "shared-system-consumer-reevaluation-required",
-        plan,
-      ),
-    ).toEqual(
-      expect.objectContaining({ status: "blocked", dispatchable: false }),
-    );
-    stalePlan.datum.links = stalePlan.datum.links.filter(
-      (link) => link.target !== invalidUnreplacedParent.datum.revision_id,
-    );
-    staleConsumedSystem.payload.definition_members =
-      staleConsumedSystem.payload.definition_members.filter(
-        (member) => member !== invalidUnreplacedParent.datum.revision_id,
-      );
-    staleConsumedSystem.snapshot.records =
-      staleConsumedSystem.snapshot.records.filter(
-        (record) => record !== invalidUnreplacedParent,
-      );
-    newerParent.integrity.hash_valid = false;
-    expect(
-      obligation(
-      processPackage,
-      staleConsumedSystem.snapshot,
-      "shared-system-consumer-reevaluation-required",
-      plan,
-      ),
-    ).toEqual(
-      expect.objectContaining({ status: "blocked", dispatchable: false }),
-    );
-    expect(
-      obligation(
-        processPackage,
-        staleConsumedSystem.snapshot,
-        "stale-decomposition-plan-correction-required",
-        plan,
-      ),
-    ).toEqual(
-      expect.objectContaining({ status: "blocked", dispatchable: false }),
-    );
-    const nonExact = current();
-    nonExact.payload.definition_members =
-      nonExact.payload.definition_members.map((revision) =>
-        revision === "ICSP-0REPRT1CSP-r00001" ? "ICSP-0REPRT1CSP" : revision,
-    );
-    expect(selectedContextIds(nonExact.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const evidenceBearing = current();
-    evidenceBearing.payload.evidence = ["BSL-R6SFPZ4R31-r00001"];
-    expect(selectedContextIds(evidenceBearing.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const composed = current();
-    composed.context.datum.links.push({
-      type: "composes",
-      target: "BSL-R6SFPZ4R31-r00001",
-    });
-    expect(selectedContextIds(composed.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
   });
 
   it("does not recognize DWP Review evidence attached to invalid support", () => {
@@ -1414,106 +1198,6 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
     expect(selectedReviewIds(foreign.snapshot)).not.toContain(currentDwpReview);
   });
 
-  it("accepts only authenticated unaugmented historical thin DWP contexts", () => {
-    const selectedContextIds = (snapshot: Snapshot) =>
-      (
-        evaluateProcessDefinition(
-        processPackage,
-        snapshot,
-        "selector",
-        "valid-review-contexts-for@1",
-        { subject: plan },
-        ).result as Array<{ identity: { revision_id: string } }>
-      ).map((item) => item.identity.revision_id);
-    const historical = (processRef: string) => {
-      const snapshot = structuredClone(completionReady);
-      const context = snapshot.records.find(
-        (record) => record.datum.revision_id === "BSL-A8S7MK45TQ-r00001",
-      );
-      if (!context) throw new Error("missing historical DWP Review Context");
-      const payload = context.datum.payload as {
-        definition_members: string[];
-        evidence: string[];
-        snapshot: { process_provenance: { process_ref: string } };
-      };
-      payload.definition_members = [plan];
-      payload.evidence = [];
-      context.datum.created_by.process_ref = processRef;
-      payload.snapshot.process_provenance.process_ref = processRef;
-      return { snapshot, context, payload };
-    };
-
-    const historicalRefs = [
-      "mdlm-bootstrap@0.63.0#sha256:76edf328dd3aa2ff1a3d536b768d648b1ec328678fa4bce0b6420b47bf0fac7d",
-      "mdlm-bootstrap@0.64.0#sha256:e3759f865e15cb62a7014d1cd3c05b25bee3f2858966a1cc7ed59bfda5476c8b",
-    ];
-    for (const processRef of historicalRefs) {
-      const accepted = historical(processRef);
-      expect(selectedContextIds(accepted.snapshot)).toContain(
-        "BSL-A8S7MK45TQ-r00001",
-      );
-      const review = accepted.snapshot.records.find(
-        (record) => record.datum.revision_id === currentDwpReview,
-      );
-      if (!review) throw new Error("missing planning DWP Review");
-      review.datum.links = review.datum.links.map((link) =>
-        link.type === "contextualizes"
-          ? { ...link, target: "BSL-A8S7MK45TQ-r00001" }
-          : link,
-      );
-      expect(
-        (
-          evaluateProcessDefinition(
-          processPackage,
-          accepted.snapshot,
-          "selector",
-          "passing-reviews-for@1",
-          { subject: plan },
-          ).result as Array<{ identity: { revision_id: string } }>
-        ).map((item) => item.identity.revision_id),
-      ).toContain(currentDwpReview);
-      const augmented = historical(processRef);
-      augmented.payload.definition_members.push("QST-3RYPAB0KQZ-r00001");
-      expect(selectedContextIds(augmented.snapshot)).not.toContain(
-        "BSL-A8S7MK45TQ-r00001",
-      );
-    }
-    const staleSupport = historical(historicalRefs[1]!);
-    const architecture = staleSupport.snapshot.records.find(
-      (record) => record.datum.revision_id === "ASP-0REPRTARCH-r00001",
-    );
-    if (!architecture)
-      throw new Error("missing historical architecture support");
-    const newerArchitecture = structuredClone(architecture);
-    newerArchitecture.datum.revision = 2;
-    newerArchitecture.datum.revision_id = "ASP-0REPRTARCH-r00002";
-    staleSupport.snapshot.records.push(newerArchitecture);
-    expect(selectedContextIds(staleSupport.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const evidenceBearing = historical(historicalRefs[1]!);
-    evidenceBearing.payload.evidence = ["BSL-R6SFPZ4R31-r00001"];
-    expect(selectedContextIds(evidenceBearing.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const composed = historical(historicalRefs[1]!);
-    composed.context.datum.links.push({
-      type: "composes",
-      target: "BSL-R6SFPZ4R31-r00001",
-    });
-    expect(selectedContextIds(composed.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-    const foreign = historical(historicalRefs[1]!);
-    const foreignRef =
-      "foreign-process@1.0.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    foreign.context.datum.created_by.process_ref = foreignRef;
-    foreign.payload.snapshot.process_provenance.process_ref = foreignRef;
-    expect(selectedContextIds(foreign.snapshot)).not.toContain(
-      "BSL-A8S7MK45TQ-r00001",
-    );
-  });
-
   it("rejects a non-product-definition planning-DWP Review", () => {
     const snapshot = structuredClone(completionReady);
     const review = snapshot.records.find(
@@ -1534,19 +1218,6 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
         (item) => item.identity.revision_id,
       ),
     ).not.toContain(currentDwpReview);
-  });
-
-  it("accepts the retained passing requirement simplification Review without correction work", () => {
-    expect(
-      obligation(
-      processPackage,
-      completionReady,
-      "decomposition-simplification-required",
-      plan,
-      ),
-    ).toEqual(
-      expect.objectContaining({ satisfied: true, status: "satisfied" }),
-    );
   });
 
   it("accepts the retained passing architecture and interface simplification Review without correction work", () => {
@@ -1593,7 +1264,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       (record) => record.datum.revision_id === "BSL-FMKW2W7Z71-r00001",
     );
     const review = snapshot.records.find(
-      (record) => record.datum.revision_id === "REV-0REQSMP100-r00001",
+      (record) => record.datum.revision_id === "REV-0ARCSMP100-r00001",
     );
     if (!originalSystem || !context || !review) {
       throw new Error("missing retained Phase 2 scope-reduction evidence");
@@ -1621,8 +1292,13 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       correction_set: "definition-consistency",
       primary_findings: [
         {
-        id: "F-001",
-        severity: "blocking",
+          id: "F-001",
+          severity: "blocking",
+          criterion: "Scope reduction may remove SYS output only when the complete definition set remains consistent and covered.",
+          evidence:
+            "The Review observes that removing the proper SYS subset leaves the declared Phase 2 definition inconsistent.",
+          material_consequence:
+            "The reduced output set would omit required system behavior or traceability.",
           summary:
             "Keep export behavior while removing the duplicate print output.",
         },
@@ -1659,7 +1335,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       ).map((item) => item.identity.revision_id);
     const currentSystems = selectedIds("decomposition-outputs-for@1", { plan });
     const removedSystems = selectedIds("phase-2-removed-outputs-for-review@1", {
-      review: "REV-0REQSMP100-r00001",
+      review: "REV-0ARCSMP100-r00001",
     });
 
     expect(currentSystems).toEqual([retainedSystem, removedSystem]);
@@ -1670,7 +1346,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
     ).toEqual([retainedSystem]);
     expect(
       selectedIds("phase-2-simplification-blockers-for-review@1", {
-      review: "REV-0REQSMP100-r00001",
+        review: "REV-0ARCSMP100-r00001",
       }),
     ).toEqual(exactBlockers);
     const simplification = review.datum.payload.definition_simplification as {
@@ -1682,10 +1358,10 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
     });
     expect(
       selectedIds("valid-phase-2-simplification-review@1", {
-      review: "REV-0REQSMP100-r00001",
-      plan,
+        review: "REV-0ARCSMP100-r00001",
+        plan,
       }),
-    ).toEqual(["REV-0REQSMP100-r00001"]);
+    ).toEqual(["REV-0ARCSMP100-r00001"]);
 
     const corrections = evaluateLifecycle(
       processPackage,
@@ -1719,7 +1395,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       snapshot,
       "selector",
       "valid-phase-2-simplification-review@1",
-      { review: "REV-0REQSMP100-r00001", plan },
+      { review: "REV-0ARCSMP100-r00001", plan },
     );
     expect(selected.result).toEqual([]);
     expect(
@@ -1744,21 +1420,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
         "decomposition-simplification-required",
         plan,
       ),
-    ).toEqual(
-      expect.objectContaining({
-        status: "awaiting-review",
-        actionableResolver: "simplify-requirement-set@2",
-      }),
-    );
-    expect(operatorOutcome(processPackage, snapshot)).toEqual(
-      expect.objectContaining({
-      kind: "assignment",
-      work: expect.objectContaining({
-        definition: "decomposition-simplification-required",
-        scenario: "simplify-requirement-set@2",
-      }),
-      }),
-    );
+    ).toBeUndefined();
   });
 
   it("rejects complete removal of the current SYS set instead of fabricating correction work", () => {
@@ -1774,7 +1436,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
       snapshot,
       "selector",
       "valid-phase-2-simplification-review@1",
-      { review: "REV-0REQSMP100-r00001", plan },
+      { review: "REV-0ARCSMP100-r00001", plan },
     );
     expect(selected.result).toEqual([]);
     expect(
@@ -1799,16 +1461,7 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
         "decomposition-simplification-required",
         plan,
       ),
-    ).toEqual(expect.objectContaining({ status: "awaiting-review" }));
-    expect(operatorOutcome(processPackage, snapshot)).toEqual(
-      expect.objectContaining({
-      kind: "assignment",
-      work: expect.objectContaining({
-        definition: "decomposition-simplification-required",
-        scenario: "simplify-requirement-set@2",
-      }),
-      }),
-    );
+    ).toBeUndefined();
   });
 
   it("derives exact DWP completion from the retained completion predecessor", async () => {
@@ -1847,11 +1500,16 @@ describe("Phase 2 hardening routes from retained exact lifecycle evidence", () =
     review.datum.payload.outcome = "fail";
     review.datum.payload.findings = [
       {
-      id: "F-001",
-      target: "BSL-2YPGCAM8D1-r00002",
-      relationship: "primary",
-      severity: "blocking",
-      summary: "Correct the exact reviewed candidate.",
+        id: "F-001",
+        target: "BSL-2YPGCAM8D1-r00002",
+        relationship: "primary",
+        severity: "blocking",
+        criterion: "A failed system candidate Review must be corrected by an exact superseding candidate Revision.",
+        evidence:
+          "The Review rejects the current candidate against its frozen Phase 2 definition context.",
+        material_consequence:
+          "The rejected candidate cannot authorize system-level progression.",
+        summary: "Correct the exact reviewed candidate.",
       },
     ];
     expectReady(

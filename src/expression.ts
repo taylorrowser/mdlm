@@ -6,7 +6,7 @@ type ValueType = "array" | "boolean" | "entity" | "integer" | "null" | "number" 
 type ExpectedType = ValueType | "any";
 type ComparisonOperator = "eq" | "ne" | "gt" | "gte" | "in" | "lt" | "lte";
 type LogicalOperator = "and" | "or";
-type SelectorOperation = "count" | "exists" | "none" | "one" | "select";
+type SelectorOperation = "count" | "exists" | "first" | "none" | "one" | "select";
 
 function valueTypeCompatible(actual: ValueType, expected: ExpectedType): boolean {
   return expected === "any" || actual === "unknown" || actual === expected ||
@@ -49,6 +49,7 @@ const expressionHostFunctions = [
   "count",
   "every",
   "exists",
+  "first",
   "none",
   "one",
   "policy",
@@ -492,7 +493,7 @@ class ExpressionParser {
     }
     if (
       token.kind === "identifier" &&
-      ["count", "exists", "none", "one", "select"].includes(token.text)
+      ["count", "exists", "first", "none", "one", "select"].includes(token.text)
     ) {
       return this.parseSelectorCall(token.text as SelectorOperation);
     }
@@ -773,6 +774,7 @@ class ExpressionParser {
     const valueTypes: Record<SelectorOperation, ValueType> = {
       count: "integer",
       exists: "boolean",
+      first: "entity",
       none: "boolean",
       one: "entity",
       select: "array",
@@ -784,7 +786,7 @@ class ExpressionParser {
       reference,
       arguments: argumentsNode,
       valueType: valueTypes[operation],
-      ...(["one", "select"].includes(operation) && typeof definition.result_kind === "string"
+      ...(["first", "one", "select"].includes(operation) && typeof definition.result_kind === "string"
         ? { domainKind: definition.result_kind }
         : {}),
       ...(lifecycleTypes === undefined ? {} : { lifecycleTypes }),
@@ -2632,6 +2634,7 @@ function evaluateNode(
       switch (node.operation) {
         case "select": return results;
         case "exists": return results.length > 0;
+        case "first": return results[0];
         case "none": return results.length === 0;
         case "count": return results.length;
         case "one": return results.length === 1 ? results[0] : undefined;

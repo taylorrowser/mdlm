@@ -92,7 +92,7 @@ describe("clean mdlm command application", () => {
       ["scenario", "execute", "establish-initial-wayfinding-map@1", "--adapter", adapter],
       ["question", "resolve", "--adapter", adapter],
       ["process", "install", path.join(projectRoot, ".lifecycle/process")],
-      ["process", "use", "mdlm-bootstrap@0.59.0"],
+      ["process", "use", "mdlm-bootstrap@0.67.0"],
       ["process", "init", path.join(parent, "package")],
       ["process", "definition", "new", "type", "NEW"],
       ["process", "fixture", "new", "new-fixture"],
@@ -106,15 +106,17 @@ describe("clean mdlm command application", () => {
     await expect(fs.stat(marker)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("publishes only through scenario submit and retains inspection, package, and baseline readers", async () => {
-    const next = mdlm(repository, "next");
-    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-    const assignment = JSON.parse(next.stdout).assignment.id as string;
-    const prepared = mdlm(repository, "scenario", "prepare", assignment);
-    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-    const packet = JSON.parse(prepared.stdout);
-    const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
-    const submitted = mdlmWithInput(
+  it(
+    "publishes only through scenario submit and retains inspection, package, and baseline readers",
+    async () => {
+      const next = mdlm(repository, "next");
+      expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+      const assignment = JSON.parse(next.stdout).assignment.id as string;
+      const prepared = mdlm(repository, "scenario", "prepare", assignment);
+      expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+      const packet = JSON.parse(prepared.stdout);
+      const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
+      const submitted = mdlmWithInput(
       repository,
       `${JSON.stringify({
         contract: "mdlm-assignment-response@1",
@@ -147,12 +149,12 @@ describe("clean mdlm command application", () => {
       "scenario",
       "submit",
     );
-    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
-    expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).not.toBe(before);
-    const execution = JSON.parse(submitted.stdout).execution;
-    const datum = execution.outputs[0].lifecycleDatum;
+      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).not.toBe(before);
+      const execution = JSON.parse(submitted.stdout).execution;
+      const datum = execution.outputs[0].lifecycleDatum;
 
-    for (const arguments_ of [
+      for (const arguments_ of [
       ["show", datum.revisionId],
       ["list"],
       ["history", datum.id],
@@ -171,91 +173,60 @@ describe("clean mdlm command application", () => {
       expect(result.status, `${arguments_.join(" ")}\n${result.stderr}${result.stdout}`).toBe(0);
     }
 
-    const capabilities = mdlm(
+      const capabilities = mdlm(
       repository,
       "process",
       "capabilities",
       "--json",
     );
-    expect(capabilities.status, `${capabilities.stderr}${capabilities.stdout}`).toBe(0);
-    expect(JSON.parse(capabilities.stdout).capabilities.hostFunctions).toContain(
-      "array_has_field",
-    );
+      expect(capabilities.status, `${capabilities.stderr}${capabilities.stdout}`).toBe(0);
+      expect(JSON.parse(capabilities.stdout).capabilities.hostFunctions).toEqual(
+        expect.arrayContaining(["array_has_field", "first"]),
+      );
 
-    expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
-    const committed = git(
+      expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
+      const committed = git(
       repository,
       "-c", "user.name=MDLM Test",
       "-c", "user.email=mdlm-test@localhost",
       "-c", "commit.gpgSign=false",
       "commit", "--quiet", "--no-verify", "-m", "Publish inspection tracer",
     );
-    expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
+      expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
 
-    const baselineNext = mdlm(repository, "next");
-    expect(baselineNext.status, baselineNext.stderr).toBe(0);
-    const baselineAssignment = JSON.parse(baselineNext.stdout).assignment.id as string;
-    const baselinePrepared = mdlm(
+      const baselineNext = mdlm(repository, "next");
+      expect(baselineNext.status, baselineNext.stderr).toBe(0);
+      const baselineAssignment = JSON.parse(baselineNext.stdout).assignment.id as string;
+      const baselinePrepared = mdlm(
       repository,
       "scenario",
       "prepare",
       baselineAssignment,
     );
-    expect(
+      expect(
       baselinePrepared.status,
       `${baselinePrepared.stderr}${baselinePrepared.stdout}`,
     ).toBe(0);
-    const baselinePacket = JSON.parse(baselinePrepared.stdout);
-    expect(baselinePacket.scenario.reference).toBe("create-review-context@1");
-    const baselineSubmitted = mdlmWithInput(
-      repository,
-      `${JSON.stringify({
-        contract: "mdlm-assignment-response@1",
-        assignment: baselineAssignment,
-        kind: "proposal",
-        proposal: {
-          outputs: [{
-            localId: "context",
-            name: "context",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "BSL",
-              payload: {
-                title: "Exact inspection Review Context",
-                kind: "review-context",
-                role: "review-context",
-                scope: datum.revisionId,
-                group: "phase-0-wayfinding",
-                definition_members: [datum.revisionId],
-                evidence: [],
-              },
-              links: [],
-              body: "Exact context for retained baseline inspection.\n",
-            },
-          }],
-          completionEvidence: { summary: "Froze the exact Review Context." },
-          loadedSkillRefs: baselinePacket.prompt.skills.map(
-            (skill: { reference: string }) => skill.reference,
-          ),
-          authoritySupplies: [],
-          standingDelegations: [],
-        },
-      })}\n`,
-      "scenario",
-      "submit",
-    );
-    expect(
-      baselineSubmitted.status,
-      `${baselineSubmitted.stderr}${baselineSubmitted.stdout}`,
-    ).toBe(0);
-    const baseline = JSON.parse(baselineSubmitted.stdout).execution.outputs[0]
-      .lifecycleDatum;
-    for (const arguments_ of [
-      ["baseline", "verify", baseline.id],
-      ["baseline", "diff", baseline.id, baseline.id],
-    ]) {
+      expect(JSON.parse(baselinePrepared.stdout).scenario.reference).toBe(
+        "compile-psp@2",
+      );
+      const dataFiles = await fs.readdir(
+        path.join(repository, ".lifecycle", "data"),
+        { recursive: true },
+      );
+      const baselineFile = dataFiles.find((file) =>
+        /(?:^|\/)BSL\/BSL-[0-9A-HJKMNP-TV-Z]{10,12}\/r00001\.md$/.test(file),
+      );
+      expect(baselineFile).toBeDefined();
+      const baselineId = path.basename(path.dirname(baselineFile!));
+      for (const arguments_ of [
+        ["baseline", "verify", baselineId],
+        ["baseline", "diff", baselineId, baselineId],
+      ]) {
       const result = mdlm(repository, ...arguments_, "--json");
       expect(result.status, `${arguments_.join(" ")}\n${result.stderr}${result.stdout}`).toBe(0);
     }
-  }, commandApplicationTimeout);
+    },
+    commandApplicationTimeout,
+  );
 });

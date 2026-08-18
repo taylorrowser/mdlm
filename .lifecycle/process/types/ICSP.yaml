@@ -2,7 +2,7 @@ kind: type-definition
 id: ICSP
 version: 2
 name: Interface Control Specification
-description: Normative externally observable contract across one controlled architecture boundary.
+description: Normative externally observable contract covering every independently controlled boundary of one architecture.
 extends: rationale-bearing@1
 lifecycle:
   authorship: authored
@@ -10,16 +10,20 @@ lifecycle:
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  required: [architecture_revision, boundary, operations, schemas, units, timing, errors, security, ordering, compatibility, interface_version]
+  required: [architecture_revision, boundaries, operations, schemas, units, timing, errors, security, ordering, compatibility, interface_version]
   properties:
     architecture_revision: {type: string, pattern: '^ASP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
-    boundary:
-      type: object
-      additionalProperties: false
-      required: [from_element, to_element]
-      properties:
-        from_element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
-        to_element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
+    boundaries:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items:
+        type: object
+        additionalProperties: false
+        required: [from_element, to_element]
+        properties:
+          from_element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
+          to_element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
     operations: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
     schemas: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
     units: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}

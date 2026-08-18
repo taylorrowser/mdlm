@@ -1,0 +1,15 @@
+kind: selector-definition
+id: qualification-activities-for-environment-review-context
+version: 1
+description: Valid qualification activities structurally governing one environment for Review Context construction.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: environment, link: qualifies, emit: source, types: [VER]}
+  as: activity
+  where: >-
+    activity.payload.kind == "qualification"
+    && state(activity, "validity") == "valid"
+  distinct: true
+  order_by: [identity.revision_id]

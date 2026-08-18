@@ -760,6 +760,24 @@ async function migrateRepositoryPackage(
     };
   }
 
+  const targetCompatibility = targetLoaded.package.manifest.compatibility;
+  const migrationPolicy =
+    typeof targetCompatibility === "object" && targetCompatibility !== null
+      ? (targetCompatibility as Record<string, unknown>).repository_migration
+      : undefined;
+  if (
+    migrationPolicy === "fresh-only" &&
+    previous.reference !== target.reference
+  ) {
+    return {
+      ...failure(
+        "fresh-repository-required",
+        `Process Package '${target.reference}' requires initialization in a fresh repository and cannot migrate '${previous.reference}'`,
+      ),
+      command,
+    };
+  }
+
   const targetProcessReference = `${target.reference}#${target.digest}`;
   const inspection = await loadRepositoryInspection(
     repositoryRoot,

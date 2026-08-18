@@ -4,9 +4,9 @@ import { testFiles } from "./vitest.suites.mjs";
 export default defineConfig({
   test: {
     include: testFiles,
-    // Reserve one logical CPU for the CLI and Git subprocesses spawned by tests;
-    // four Vitest workers contend with those children and make cold runs unstable.
-    maxWorkers: 3,
+    // Two long public routes occupy separate workers while the remaining suite
+    // advances in parallel; four workers keep the complete gate bounded.
+    maxWorkers: 4,
     testTimeout: 45_000,
   },
 });

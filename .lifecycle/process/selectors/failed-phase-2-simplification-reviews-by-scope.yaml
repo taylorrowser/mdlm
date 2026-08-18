@@ -10,7 +10,7 @@ query:
   from: {collection: revisions, types: [REV]}
   as: review
   where: >-
-    review.payload.review_kind in ["simplification-requirements", "simplification-architecture-interfaces"]
+    review.payload.review_kind == "simplification-architecture-interfaces"
     && review.payload.decomposition_plan_revision == plan.identity.revision_id
     && review.payload.outcome == "fail"
     && review.payload.definition_simplification.correction_set == correction_set

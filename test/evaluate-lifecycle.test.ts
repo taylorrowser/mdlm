@@ -95,7 +95,7 @@ describe("evaluateLifecycle", () => {
         unresolvedBindings: [],
         resolver: {
           scenario: "create-review-context@1",
-          promptRef: "prompts/create-review-context.md@1",
+          promptRef: "prompts/create-review-context.md@2",
           expectedOutputs: [
             {
               name: "context",
@@ -131,7 +131,7 @@ describe("evaluateLifecycle", () => {
         unresolvedBindings: ["review_context"],
         resolver: {
           scenario: "review-datum-in-context@2",
-          promptRef: "prompts/review-datum-in-context.md@2",
+          promptRef: "prompts/review-datum-in-context.md@3",
           expectedOutputs: [
             {
               name: "review",
@@ -212,7 +212,7 @@ describe("evaluateLifecycle", () => {
             links: [],
             created_by: {
               scenario: "create-review-context@1",
-              prompt_ref: "prompts/create-review-context.md@1",
+              prompt_ref: "prompts/create-review-context.md@2",
               process_ref: "git:current",
               loaded_skill_refs: [],
               policy_refs: ["review-applicability@1"],

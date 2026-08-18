@@ -23,12 +23,12 @@ query:
     && none("unexpected-environment-review-context-evidence@1",
       {environment: environment, context: context})
     && none("composed-baselines-for-review-context@1", {context: context})
-    && count("complete-environment-assurance-for-environment@1", {environment: environment}) == 1
-    && count("complete-environment-qualification-for-environment@1", {environment: environment}) == 1
+    && count("complete-environment-assurance-for-environment-review-context@1", {environment: environment}) == 1
+    && count("complete-environment-qualification-for-environment-review-context@1", {environment: environment}) == 1
     && every("strategies-for-environment@1", {environment: environment}, strategy =>
       exists("context-contains-definition@1",
         {context: context, subject: strategy}))
-    && every("complete-environment-qualification-for-environment@1", {environment: environment}, implementation =>
+    && every("complete-environment-qualification-for-environment-review-context@1", {environment: environment}, implementation =>
       exists("context-contains-evidence@1",
         {context: context, subject: implementation})
       && count("verification-activities-for-implementation@1", {implementation: implementation}) == 1

@@ -1,9 +1,9 @@
 kind: obligation-definition
 id: architecture-interface-simplification-required
 version: 1
-description: Every earliest complete Phase 2 definition set requires one passing architecture and interface simplification Review.
+description: Every complete architecture-wide Phase 2 definition set requires one passing semantic simplification Review.
 phases: [phase-2-system-definition]
-for_each: 'select("decomposition-plans@1", {})'
+for_each: 'select("architecture-definition-set-representative-plans@1", {})'
 subject_as: plan
 satisfied_when: 'exists("architecture-simplification-reviews-for@1", {plan: plan})'
 status_rules:
@@ -30,7 +30,7 @@ status_rules:
     blocked_by:
       - obligation: decomposition-execution-required@1
         subjects: '[plan]'
-      - obligation: review-context-required@2
+      - obligation: phase-2-definition-review-context-required@1
         subjects: '[plan]'
       - obligation: review-context-required@2
         subjects: 'select("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})'

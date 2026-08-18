@@ -31,3 +31,6 @@ In the same atomic response, record the exact authorization DEC with
 `effective_scope` equal to the VAI Revision and a `justifies` link to that Revision.
 Do not access product source, product unit tests, private functions, classes,
 implementation notes, or uncontrolled shortcuts.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

@@ -1,18 +1,18 @@
 kind: scenario-definition
 id: define-system-architecture
-version: 2
-description: Define exact system architecture elements and context for one bounded decomposition slice.
+version: 3
+description: Define the smallest justified one-or-more architecture contexts for one coherent accepted requirement group after ephemeral topology simplification.
 phases: [phase-2-system-definition]
 inputs:
   - {name: requirements, types: [STK, SYS], cardinality: one-or-more, identity: revision}
 outputs:
   - name: architecture
     types: [ASP]
-    cardinality: one
+    cardinality: one-or-more
     required_links:
-      - {link: governs, target: {input: requirements}}
+      - {link: governs, target: {input: requirements}, distribution: partition}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/define-system-architecture.md@1
+prompt_ref: prompts/define-system-architecture.md@2
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
 resolves: [system-architecture-required]

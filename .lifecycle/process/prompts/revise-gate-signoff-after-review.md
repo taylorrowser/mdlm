@@ -15,3 +15,6 @@ only those findings, and state `approve` or `reject` explicitly. After two causa
 replacements fail, this same attended interface is the explicit exhausted-lineage
 escalation; do not introduce another recovery path. The replacement requires a
 fresh independent Review before it can authorize progression.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

@@ -1,8 +1,8 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 34
+version: 35
 status: experimental
-description: Narrow profile validating typed kernel/process seams through reviewed intent, qualification/pilot, bounded system decomposition, exact accepted-STK and two-consumer shared-SYS change control, and a reviewed expansion Decision.
+description: Complete bootstrap profile with proportional grouped system definition, reviewed intent, qualification/pilot, exact accepted-STK and shared-SYS change control, and a reviewed expansion Decision.
 enabled:
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
@@ -67,6 +67,11 @@ success_criteria:
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
   - the complete required Phase 0 foundation emerges from package Obligations, including exact correction and re-Review after failure
   - the exact intent candidate is the earliest complete evidence-bearing product set and receives independent product-simplification judgment before downstream verification or decomposition
+  - lifecycle information is allocated once at its authoritative level without upward or downward restatement
+  - coherent STK responsibility and trust contexts share the smallest justified ASP and many-to-many DWP while materially distinct contexts remain separate
+  - every definition author runs bounded ephemeral rubric preflight without publishing or disclosing it to independent Review
+  - every primary blocking Review Finding names an exact criterion, concrete evidence, and material consequence
+  - current Review Context membership is derived exactly from package selectors and kernel-finalized without agent context choice
   - blocking simplification findings derive exact causal member or candidate correction, fresh independent Review, bounded autonomous retries, and attended escalation through one correction interface
   - a reviewed gate rejection derives exact implicated-member or candidate correction, fresh Reviews, a superseding candidate with unaffected evidence preserved, and re-entry to the same gate without implying terminal disposition
   - reviewed approving gate evidence mechanically publishes one exact accepted-intent baseline before declarative entry to Phase 1 without redundant authority

@@ -21,3 +21,6 @@ Revision or rely on repository knowledge absent from the Assignment. Resolve Sta
 links, capture hashes and exact Process Package provenance, freeze atomically, and
 verify. The candidate itself requires a fresh contextual Review before gate
 authorization.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

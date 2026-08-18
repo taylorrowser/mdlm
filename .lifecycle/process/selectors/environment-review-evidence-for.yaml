@@ -9,7 +9,7 @@ query:
   from: {collection: revisions, types: [VER, VAI, RUN, RES]}
   as: evidence
   where: >-
-    !every("qualification-activities-for-environment@1", {environment: environment}, activity =>
+    !every("qualification-activities-for-environment-review-context@1", {environment: environment}, activity =>
       activity != evidence)
     || !every("qualification-implementations-for-environment@1", {environment: environment}, implementation =>
       implementation != evidence

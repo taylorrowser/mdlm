@@ -979,7 +979,29 @@ export async function publishScenarioMutation(
 ): Promise<RepositoryResult<ScenarioMutationPublication>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
-  const currentData = loaded.value.map((item) => item.lifecycleDatum.datum)
+  return publishScenarioMutationData(
+    root,
+    processPackage,
+    loaded.value,
+    expectedData,
+    data,
+    executionId,
+    executionRecord,
+    kernelFinalizedOutputs,
+  );
+}
+
+export async function publishScenarioMutationData(
+  root: string,
+  processPackage: ProcessPackage,
+  parsed: ParsedDatum[],
+  expectedData: DatumEnvelope[],
+  data: DatumEnvelope[],
+  executionId: string,
+  executionRecord: unknown,
+  kernelFinalizedOutputs: readonly KernelFinalizedScenarioOutput[] = [],
+): Promise<RepositoryResult<ScenarioMutationPublication>> {
+  const currentData = parsed.map((item) => item.lifecycleDatum.datum)
     .sort((left, right) => left.revision_id.localeCompare(right.revision_id));
   const expected = expectedData.slice()
     .sort((left, right) => left.revision_id.localeCompare(right.revision_id));
@@ -994,7 +1016,7 @@ export async function publishScenarioMutation(
     };
   }
   const diagnostics: ProcessDiagnostic[] = [];
-  const existing = loaded.value;
+  const existing = parsed;
   const proposedIds = new Set<string>();
   const proposedRevisions = new Set<string>();
   for (const datum of data) {

@@ -1,0 +1,19 @@
+kind: selector-definition
+id: decomposition-plans-sharing-architecture-with
+version: 1
+description: Current planning DWPs allocated to the same exact architecture as the supplied plan.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from:
+    selector: decomposition-plans@1
+    arguments: {}
+  as: candidate
+  where: >-
+    count("architectures-for-decomposition@1", {plan: plan}) == 1
+    && count("architectures-for-decomposition@1", {plan: candidate}) == 1
+    && one("architectures-for-decomposition@1", {plan: candidate})
+      == one("architectures-for-decomposition@1", {plan: plan})
+  distinct: true
+  order_by: [identity.revision_id]

@@ -42,11 +42,11 @@ function waivedRecords(): LifecycleRecord[] {
       success_measures: ["The exact waiver remains visible."],
     },
   );
-  const { waiver, review } = exactContextWaiverFor(
+  const { waiver, context, review } = exactContextWaiverFor(
     subject,
     "git:mdlm-lifecycle",
   );
-  return [subject, waiver, review];
+  return [subject, waiver, context, review];
 }
 
 describe("mdlm lifecycle status and next work", () => {
@@ -73,15 +73,16 @@ describe("mdlm lifecycle status and next work", () => {
     );
 
     expect(result.status, result.stderr).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
-      ok: true,
-      command: "phase.status",
-      phaseStatus: expect.objectContaining({
-        id: "phase-2-system-definition",
-        version: 8,
-        entry: expect.objectContaining({ satisfied: false }),
-        candidateSelection: expect.objectContaining({ entities: [] }),
-        obligations: {
+    expect(JSON.parse(result.stdout)).toEqual(
+      expect.objectContaining({
+        ok: true,
+        command: "phase.status",
+        phaseStatus: expect.objectContaining({
+          id: "phase-2-system-definition",
+          version: 9,
+          entry: expect.objectContaining({ satisfied: false }),
+          candidateSelection: expect.objectContaining({ entities: [] }),
+          obligations: {
           total: 6,
           satisfied: 0,
           looseEnds: 6,
@@ -91,15 +92,16 @@ describe("mdlm lifecycle status and next work", () => {
             ready: expect.objectContaining({ count: 3 }),
           },
         },
-        gate: { required: true, evaluations: [] },
-        blockers: expect.objectContaining({
+          gate: { required: true, evaluations: [] },
+          blockers: expect.objectContaining({
           instanceIds: expect.arrayContaining([
             "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:prototype",
           ]),
         }),
+        }),
+        diagnostics: [],
       }),
-      diagnostics: [],
-    }));
+    );
 
     const human = mdlm(
       repositoryRoot,
@@ -110,12 +112,145 @@ describe("mdlm lifecycle status and next work", () => {
       prototypeSnapshot,
     );
     expect(human.status, human.stderr).toBe(0);
-    expect(human.stdout).toContain("Phase: phase-2-system-definition@8");
+    expect(human.stdout).toContain("Phase: phase-2-system-definition@9");
     expect(human.stdout).toContain("Entry Satisfied: false");
     expect(human.stdout).toContain("Candidates: none");
     expect(human.stdout).toContain("Obligations: total=6");
     expect(human.stdout).toContain("Gate Required: true");
     expect(human.stdout).toContain("Phase Blockers:");
+  });
+
+  it("routes one architecture per coherent context through the compiled CLI", async () => {
+    const processRef = "mdlm-bootstrap@0.67.0#sha256:grouped-cli-regression";
+    const groupedSnapshot = async (
+      name: string,
+      contexts: string[],
+      withFirstArchitecture = false,
+    ): Promise<string> => {
+      const product = frozenLifecycleRecord(
+        processRef,
+        "PSP",
+        "PSP-0CLIGROUP0",
+        {
+          title: "Grouped CLI product",
+          rationale: "Exercise public proportional routing.",
+        },
+      );
+      const requirements = contexts.map((context, index) =>
+        frozenLifecycleRecord(
+          processRef,
+          "STK",
+          `STK-0CLIGRP10${index}`,
+          {
+            title: `${context} commitment ${index}`,
+            rationale: "Keep multiplicity tied to a material context.",
+            statement: `${context} shall expose behavior ${index}.`,
+            verification_intent: `Observe ${context} behavior ${index}.`,
+            stakeholder: "operator",
+            priority: "must",
+            system_context: context,
+          },
+          {
+            links: [{ type: "derived-from", target: product.datum.id }],
+          },
+        ),
+      );
+      const architecture = frozenLifecycleRecord(
+        processRef,
+        "ASP",
+        "ASP-0CLIGRPA00",
+        {
+          title: "First coherent-context architecture",
+          rationale: "One architecture governs the complete first context.",
+        },
+        {
+          links: requirements
+            .filter((_, index) => contexts[index] === contexts[0])
+            .map((requirement) => ({
+              type: "governs",
+              target: requirement.datum.revision_id,
+            })),
+        },
+      );
+      const accepted = frozenLifecycleRecord(
+        processRef,
+        "BSL",
+        `BSL-0CLIGRP10${contexts.length}`,
+        {
+          title: "Accepted grouped CLI intent",
+          kind: "intent-approved",
+          role: "accepted",
+          scope: name,
+          group: "DEFAULT",
+          definition_members: [
+            product.datum.revision_id,
+            ...requirements.map((requirement) => requirement.datum.revision_id),
+          ],
+          evidence: [],
+        },
+        { scenario: "accept-phase-0-intent@1" },
+      );
+      return writeSnapshot(repositoryRoot, name, {
+        processRef,
+        phaseId: "phase-2-system-definition",
+        records: [
+          product,
+          ...requirements,
+          accepted,
+          ...(withFirstArchitecture ? [architecture] : []),
+        ],
+        dependencyComparisons: [],
+      });
+    };
+    const architectureWork = (snapshotPath: string) => {
+      const result = mdlm(
+        repositoryRoot,
+        "loose-ends",
+        "--snapshot",
+        snapshotPath,
+        "--json",
+      );
+      expect(result.status, result.stderr).toBe(0);
+      return JSON.parse(result.stdout).looseEnds.items.filter(
+        (item: { obligation: string; status: string }) =>
+          item.obligation === "system-architecture-required" &&
+          item.status === "ready",
+      );
+    };
+
+    const simpleBefore = await groupedSnapshot(
+      "one-context-before",
+      ["product", "product"],
+    );
+    expect(architectureWork(simpleBefore)).toEqual([
+      expect.objectContaining({
+        actionableResolver: "define-system-architecture@3",
+        dispatchable: true,
+      }),
+    ]);
+    const simple = await groupedSnapshot(
+      "one-context",
+      ["product", "product"],
+      true,
+    );
+    expect(architectureWork(simple)).toEqual([]);
+
+    const separatedBefore = await groupedSnapshot(
+      "two-contexts-before",
+      ["client", "service"],
+    );
+    expect(architectureWork(separatedBefore)).toHaveLength(2);
+    const separated = await groupedSnapshot(
+      "two-contexts",
+      ["client", "service"],
+      true,
+    );
+    expect(architectureWork(separated)).toEqual([
+      expect.objectContaining({
+        actionableResolver: "define-system-architecture@3",
+        dispatchable: true,
+      }),
+    ]);
   });
 
   it("reports ready and blocked Loose Ends without collapsing resolver, Dispatchability, output, or waiver dimensions", () => {

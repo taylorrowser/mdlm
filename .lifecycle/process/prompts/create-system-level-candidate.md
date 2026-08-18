@@ -10,3 +10,6 @@ Publish one frozen `level-candidate` BSL that composes the exact reviewed group
 candidate. Its definition members contain exactly the supplied architecture,
 interface, and verification-strategy Revisions. Preserve the exact `composes`
 link and do not add group-local definitions or historical Revisions.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

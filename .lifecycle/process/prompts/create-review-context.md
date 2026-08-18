@@ -1,6 +1,6 @@
 ---
 id: create-review-context
-version: 1
+version: 2
 scenario: create-review-context
 ---
 
@@ -12,12 +12,11 @@ Read, in order:
 2. `skills/traceability.md@1`
 3. `skills/baseline-model.md@1`
 
-For each input subject, create a review-context BSL whose `scope` is that exact
-subject Revision and whose definition contains the subject plus the minimum
-complete context needed to judge it. Include applicable
-parents, siblings in the same authored set, governing decisions, and the
-candidate baseline when one exists. The Assignment supplies every exact `context_members` Revision mandatory beside
-the subject. For an STK subject, include each supplied exact current PSP parent
+For each input subject, materialize a review-context BSL whose `scope` is that
+exact subject Revision. Context construction is package-owned, not an authoring
+judgment: `definition_members` must equal the subject plus every and only supplied
+`context_members`, in canonical order. Do not search for, add, omit, or substitute
+context. For an STK subject, the supplied set includes each exact current PSP parent
 resolved from its stable `derived-from` link. For a Phase 0 candidate or an
 executed Phase 2 planning DWP, include all supplied members so later independent
 Assignments receive the complete exact set. Do not include unrelated artifacts
@@ -33,5 +32,7 @@ the exact ENV and realized VSP as definition members, and include the exact
 qualification VER, VAI, completed RUN, and passing RES as evidence. Do not ask for
 Review before that complete assurance boundary is available.
 
-A batch may share one context only when every subject genuinely has the same
-required context; otherwise create separate BSLs.
+A batch may share one context only when the Assignment supplies the same exact
+required set for every subject; otherwise create separate BSLs. The kernel owns
+source-byte hashing, stable-link resolution, process provenance, atomic freeze,
+and verification. The operator contributes no semantic context decision.

@@ -28,3 +28,6 @@ A deferral is not an answer, and uncertainty must remain visible.
 
 Validate both outputs and record exact provenance. The DEC is reviewed when the
 resolved review policy marks it consequential.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

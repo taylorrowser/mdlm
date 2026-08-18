@@ -13,3 +13,6 @@ simplification Review, approving gate DEC, and gate-Decision Review as evidence.
 Link `promotes` to the exact candidate and preserve scope and group exactly. This
 is mechanical publication of already reviewed authorization; do not request or
 invent another stakeholder decision.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

@@ -11,14 +11,15 @@ query:
   where: >-
     member != subject
     && (
-      (exists("intent-candidates-matching-subject@1", {subject: subject})
+      !every("direct-review-support-for@1", {subject: subject}, support =>
+        support != member)
+      || (exists("intent-candidates-matching-subject@1", {subject: subject})
         && exists("candidate-members-matching@1",
           {candidate: one("intent-candidates-matching-subject@1", {subject: subject}), required_member: member}))
       || (subject.identity.type == "STK"
         && member.identity.type == "PSP"
-        && !every("stakeholder-requirements-for@1", {product_specification: member},
-          requirement => requirement != subject)
-        && none("newer-revisions-for@1", {subject: member}))
+        && !every("stakeholder-requirements-for-review-context@1",
+          {product_specification: member}, requirement => requirement != subject))
       || (subject.identity.type == "ENV"
         && (
           !every("strategies-for-environment@1", {environment: subject}, strategy =>
@@ -58,9 +59,12 @@ query:
               dependent != member
               && every("revisions-tracing-subject@1", {subject: dependent}, downstream => downstream != member)))
         ))
+      || (subject.identity.type == "DWP"
+        && !every("system-requirements-consumed-by@1", {consumer: subject}, requirement =>
+          requirement != member))
       || !every("changes-changed-under-subject@1", {subject: subject}, change =>
         change != member
-        && every("recorded-change-approval-decisions-for@2", {change: change}, decision =>
+        && every("change-approval-decisions-for-review-context@1", {change: change}, decision =>
           decision != member))
     )
   distinct: true

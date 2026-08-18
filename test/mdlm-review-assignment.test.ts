@@ -3,7 +3,11 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
+import {
+  mdlm,
+  mdlmWithEnvironment,
+  mdlmWithInput,
+} from "./helpers/mdlm.js";
 
 const timeout = 60_000;
 
@@ -13,7 +17,10 @@ type Packet = {
   scenario: { reference: string };
   prompt: { skills: { reference: string }[] };
   exactInputs: {
-    inputs: { name: string; values: { identity: { revision_id?: string; id: string } }[] }[];
+    inputs: {
+      name: string;
+      values: { identity: { revision_id?: string; id: string } }[];
+    }[];
   }[];
   policies: {
     role: string;
@@ -22,10 +29,20 @@ type Packet = {
       invocation: number;
       arguments: Record<string, unknown>;
       result: Record<string, unknown>;
-      assets: { reference: string; path: string; digest: string; content: string }[];
+      assets: {
+        reference: string;
+        path: string;
+        digest: string;
+        content: string;
+      }[];
     }[];
   }[];
-  assets: { reference: string; path: string; digest: string; content: string }[];
+  assets: {
+    reference: string;
+    path: string;
+    digest: string;
+    content: string;
+  }[];
 };
 
 function git(repository: string, ...arguments_: string[]) {
@@ -116,9 +133,11 @@ describe("delegated Review Assignment packets", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
-  it("supplies the exact resolved rubric and accepts an unchanged packet-only judgment", () => {
-    const mapPacket = prepareNext(repository);
-    const mapSubmission = submitProposal(repository, mapPacket, [{
+  it(
+    "supplies the exact resolved rubric and accepts an unchanged packet-only judgment",
+    async () => {
+      const mapPacket = prepareNext(repository);
+      const mapSubmission = submitProposal(repository, mapPacket, [{
       localId: "map",
       name: "map",
       invocation: 0,
@@ -133,39 +152,14 @@ describe("delegated Review Assignment packets", () => {
         body: "The packet must contain everything needed for independent judgment.\n",
       },
     }]);
-    const mapRevision = mapSubmission.execution.outputs.find(
+      const mapRevision = mapSubmission.execution.outputs.find(
       (output: { name: string }) => output.name === "map",
     ).lifecycleDatum.revisionId as string;
-    commitLifecycleData(repository, "Publish review packet regression map");
+      commitLifecycleData(repository, "Publish review packet regression map");
 
-    const contextPacket = prepareNext(repository);
-    expect(contextPacket.scenario.reference).toBe("create-review-context@1");
-    const contextSubmission = submitProposal(repository, contextPacket, [{
-      localId: "context",
-      name: "context",
-      invocation: 0,
-      lifecycleDatum: {
-        type: "BSL",
-        payload: {
-          title: "Review packet regression context",
-          kind: "review-context",
-          role: "review-context",
-          scope: mapRevision,
-          group: "review-packet-regression",
-          definition_members: [mapRevision],
-          evidence: [],
-        },
-        links: [],
-        body: "One exact frozen context for the review packet regression.\n",
-      },
-    }]);
-    const contextRevision = contextSubmission.execution.outputs[0].lifecycleDatum
-      .revisionId as string;
-    commitLifecycleData(repository, "Publish review packet regression context");
-
-    const productPacket = prepareNext(repository);
-    expect(productPacket.scenario.reference).toBe("compile-psp@2");
-    const productSubmission = submitProposal(repository, productPacket, [{
+      const productPacket = prepareNext(repository);
+      expect(productPacket.scenario.reference).toBe("compile-psp@2");
+      const productSubmission = submitProposal(repository, productPacket, [{
       localId: "product",
       name: "product_specification",
       invocation: 0,
@@ -184,133 +178,125 @@ describe("delegated Review Assignment packets", () => {
         body: "A minimal product definition used only to reach the Review route.\n",
       },
     }]);
-    const productRevision = productSubmission.execution.outputs.find(
-      (output: { name: string }) => output.name === "product_specification",
-    ).lifecycleDatum.revisionId as string;
-    commitLifecycleData(repository, "Publish review packet regression product");
+      commitLifecycleData(repository, "Publish review packet regression product");
 
-    const productContextPacket = prepareNext(repository);
-    expect(productContextPacket.scenario.reference).toBe("create-review-context@1");
-    expect(exactInput(productContextPacket, "subject")).toBe(productRevision);
-    submitProposal(repository, productContextPacket, [{
-      localId: "context",
-      name: "context",
-      invocation: 0,
-      lifecycleDatum: {
-        type: "BSL",
-        payload: {
-          title: "Product review packet regression context",
-          kind: "review-context",
-          role: "review-context",
-          scope: productRevision,
-          group: "review-packet-regression",
-          definition_members: [productRevision],
-          evidence: [],
-        },
-        links: [],
-        body: "One exact frozen context for the product review route.\n",
-      },
-    }]);
-    commitLifecycleData(repository, "Publish product review context");
-
-    const requirementPacket = prepareNext(repository);
-    expect(requirementPacket.scenario.reference).toBe(
+      const requirementPacket = prepareNext(repository);
+      expect(requirementPacket.scenario.reference).toBe(
       "draft-stakeholder-requirements@2",
     );
-    const requirementSubmission = submitProposal(repository, requirementPacket, [{
-      localId: "requirement",
-      name: "requirements",
-      invocation: 0,
-      lifecycleDatum: {
-        type: "STK",
-        payload: {
-          title: "Resolved review evidence requirement",
-          rationale: "Independent reviewers need the exact applicable rubric.",
-          statement: "The prepared packet supplies exact resolved policy assets.",
-          verification_intent: "Submit a judgment using only packet evidence.",
-          stakeholder: "independent reviewer",
-          priority: "must",
-        },
-        links: [{
+      const requirementSubmission = submitProposal(
+        repository,
+        requirementPacket,
+        [
+          {
+            localId: "requirement",
+            name: "requirements",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "STK",
+              payload: {
+                title: "Resolved review evidence requirement",
+                rationale: "Independent reviewers need the exact applicable rubric.",
+                statement: "The prepared packet supplies exact resolved policy assets.",
+                verification_intent: "Submit a judgment using only packet evidence.",
+                stakeholder: "independent reviewer",
+                priority: "must",
+                system_context: "product",
+              },
+              links: [{
           type: "derived-from",
           target: exactInput(requirementPacket, "product_specification").replace(
             /-r[0-9]{5}$/,
             "",
           ),
         }],
-        body: "One stakeholder-visible packet completeness commitment.\n",
-      },
-    }]);
-    const requirementRevision = requirementSubmission.execution.outputs.find(
-      (output: { name: string }) => output.name === "requirements",
-    ).lifecycleDatum.revisionId as string;
-    commitLifecycleData(repository, "Publish packet evidence requirement");
+              body: "One stakeholder-visible packet completeness commitment.\n",
+            },
+          },
+        ],
+      );
+      expect(requirementSubmission.execution.outputs).toHaveLength(1);
+      commitLifecycleData(repository, "Publish packet evidence requirement");
 
-    const requirementContextPacket = prepareNext(repository);
-    expect(requirementContextPacket.scenario.reference).toBe(
-      "create-review-context@1",
-    );
-    expect(exactInput(requirementContextPacket, "subject")).toBe(
-      requirementRevision,
-    );
-    submitProposal(repository, requirementContextPacket, [{
-      localId: "context",
-      name: "context",
-      invocation: 0,
-      lifecycleDatum: {
-        type: "BSL",
-        payload: {
-          title: "Requirement review packet regression context",
-          kind: "review-context",
-          role: "review-context",
-          scope: requirementRevision,
-          group: "review-packet-regression",
-          definition_members: [
-            requirementRevision,
-            exactInput(requirementContextPacket, "context_members"),
-          ],
-          evidence: [],
-        },
-        links: [],
-        body: "One exact frozen context for the requirement review route.\n",
-      },
-    }]);
-    commitLifecycleData(repository, "Publish requirement review context");
+      const nextReview = mdlmWithEnvironment(
+        repository,
+        { MDLM_PERFORMANCE: "json" },
+        "next",
+        "--json",
+      );
+      expectSuccess(nextReview, "mdlm next with automatic exact baseline");
+      const performance = JSON.parse(nextReview.stderr);
+      expect(performance).toEqual(expect.objectContaining({
+        contract: "mdlm-performance@1",
+        repository: expect.objectContaining({ loads: 1 }),
+      }));
+      const reviewAssignment = JSON.parse(nextReview.stdout).assignment.id as string;
+      const preparedReview = mdlm(
+        repository,
+        "scenario", "prepare", reviewAssignment, "--json",
+      );
+      expectSuccess(preparedReview, "mdlm scenario prepare Review");
+      const reviewPacket = JSON.parse(preparedReview.stdout) as Packet;
+      expect(reviewPacket.contract).toBe("mdlm-assignment-packet@2");
+      expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
+      expect(exactInput(reviewPacket, "subject")).toBe(mapRevision);
+      expect(exactInput(reviewPacket, "review_context")).toMatch(
+        /^BSL-[0-9A-HJKMNP-TV-Z]{10,12}-r00001$/,
+      );
+      const transactionRoot = path.join(repository, ".lifecycle/data/.transactions");
+      const executionFiles = (await fs.readdir(transactionRoot)).map((id) =>
+        path.join(transactionRoot, id, "execution.json")
+      );
+      const executions = await Promise.all(executionFiles.map(async (file) =>
+        JSON.parse(await fs.readFile(file, "utf8")) as {
+          definition?: { scenario?: string };
+          response?: { assignment?: string };
+        }
+      ));
+      const materializationExecution = executions.find((execution) =>
+        execution.definition?.scenario === "create-review-context@1"
+      );
+      expect(materializationExecution?.response?.assignment).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+      expect(materializationExecution?.response?.assignment).not.toMatch(/^kernel-/);
 
-    const reviewPacket = prepareNext(repository);
-    expect(reviewPacket.contract).toBe("mdlm-assignment-packet@2");
-    expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
-    expect(exactInput(reviewPacket, "subject")).toBe(mapRevision);
-    expect(exactInput(reviewPacket, "review_context")).toBe(contextRevision);
-
-    const reviewPolicy = reviewPacket.policies.find((policy) =>
+      const reviewPolicy = reviewPacket.policies.find((policy) =>
       policy.role === "review"
     );
-    expect(reviewPolicy).toEqual(expect.objectContaining({
-      reference: "review-applicability@1",
-      evaluations: [{
-        invocation: 0,
-        arguments: { subject: mapRevision },
-        result: {
-          required: true,
-          rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        },
-        assets: [expect.objectContaining({
-          reference: "policies/rubrics/bootstrap-review.md@1",
-          path: "policies/rubrics/bootstrap-review.md",
-          digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
-          content: expect.stringContaining("# Bootstrap review policy"),
-        })],
-      }],
-    }));
-    expect(reviewPacket.assets).toContainEqual(expect.objectContaining({
-      reference: "policies/rubrics/bootstrap-review.md@1",
-      digest: reviewPolicy?.evaluations?.[0]?.assets[0]?.digest,
-      content: reviewPolicy?.evaluations?.[0]?.assets[0]?.content,
-    }));
+      expect(reviewPolicy).toEqual(
+        expect.objectContaining({
+          reference: "review-applicability@1",
+          evaluations: [
+            {
+              invocation: 0,
+              arguments: { subject: mapRevision },
+              result: {
+                required: true,
+                rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+              },
+              assets: [
+                expect.objectContaining({
+                  reference: "policies/rubrics/bootstrap-review.md@2",
+                  path: "policies/rubrics/bootstrap-review.md",
+                  digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+                  content: expect.stringContaining("# Bootstrap review policy"),
+                }),
+              ],
+            },
+          ],
+        }),
+      );
+      expect(reviewPacket.assets).toContainEqual(
+        expect.objectContaining({
+          reference: "policies/rubrics/bootstrap-review.md@2",
+          digest: reviewPolicy?.evaluations?.[0]?.assets[0]?.digest,
+          content: reviewPolicy?.evaluations?.[0]?.assets[0]?.content,
+        }),
+      );
 
-    const rubricReference = reviewPolicy?.evaluations?.[0]?.result.rubric_ref;
-    const reviewOutput = {
+      const rubricReference = reviewPolicy?.evaluations?.[0]?.result.rubric_ref;
+      const reviewOutput = {
       localId: "review",
       name: "review",
       invocation: 0,
@@ -333,7 +319,7 @@ describe("delegated Review Assignment packets", () => {
         body: "Independent judgment: the exact map passes the supplied rubric.\n",
       },
     };
-    const substitutedRubricResponse = {
+      const substitutedRubricResponse = {
       contract: "mdlm-assignment-response@1",
       assignment: reviewPacket.assignment.id,
       kind: "proposal",
@@ -354,13 +340,13 @@ describe("delegated Review Assignment packets", () => {
         standingDelegations: [],
       },
     };
-    const rejected = mdlmWithInput(
+      const rejected = mdlmWithInput(
       repository,
       `${JSON.stringify(substitutedRubricResponse)}\n`,
       "scenario", "submit", "-", "--json",
     );
-    expect(rejected.status, rejected.stderr).toBe(1);
-    expect(JSON.parse(rejected.stdout)).toEqual(expect.objectContaining({
+      expect(rejected.status, rejected.stderr).toBe(1);
+      expect(JSON.parse(rejected.stdout)).toEqual(expect.objectContaining({
       disposition: "correction-required",
       malformedResponse: expect.objectContaining({ correctionsRemaining: 1 }),
       diagnostics: expect.arrayContaining([
@@ -368,17 +354,19 @@ describe("delegated Review Assignment packets", () => {
       ]),
     }));
 
-    const reviewSubmission = submitProposal(
+      const reviewSubmission = submitProposal(
       repository,
       reviewPacket,
       [reviewOutput],
       ["independent-reviewer"],
     );
-    expect(reviewSubmission.execution.outputs[0].data.payload).toEqual(
-      expect.objectContaining({
-        rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-        outcome: "pass",
-      }),
-    );
-  }, timeout);
+      expect(reviewSubmission.execution.outputs[0].data.payload).toEqual(
+        expect.objectContaining({
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          outcome: "pass",
+        }),
+      );
+    },
+    timeout,
+  );
 });

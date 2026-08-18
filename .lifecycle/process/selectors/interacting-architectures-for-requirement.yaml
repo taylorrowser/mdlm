@@ -1,0 +1,15 @@
+kind: selector-definition
+id: interacting-architectures-for-requirement
+version: 1
+description: Current exact architecture for a requirement that declares at least one interaction requiring interface definition.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from:
+    selector: current-architectures-for-requirement@1
+    arguments: {requirement: requirement}
+  as: architecture
+  where: 'architecture.payload.controlled_boundaries != []'
+  distinct: true
+  order_by: [identity.revision_id]

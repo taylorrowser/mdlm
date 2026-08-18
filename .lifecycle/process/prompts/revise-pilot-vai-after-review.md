@@ -2,7 +2,7 @@
 id: revise-pilot-vai-after-review
 version: 1
 scenario: revise-pilot-vai-after-review
-skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation.md@1, skills/verification-independence.md@1, skills/reproducibility.md@1, skills/verification-run-model.md@1]
+skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation.md@1, skills/verification-independence.md@1, skills/reproducibility.md@1, skills/verification-run-model.md@1, skills/author-preflight.md@1]
 ---
 
 # Correct one failed source-blind pilot procedure
@@ -24,3 +24,6 @@ Publish one exact `authorization` DEC with `effective_scope` equal to
 `$proposal.<replacement-local-id>.revision_id` and a `justifies` link to the
 replacement. Use `kind: decision` for autonomous participation and `kind: scope`
 for attended participation.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

@@ -6,7 +6,7 @@ scenario: revise-phase-2-subject-after-review
 
 # Correct one Phase 2 definition subject
 
-Read `skills/lifecycle-data.md@1`, `skills/contextual-artifact-review.md@1`,
+Read `skills/lifecycle-data.md@1`, `skills/contextual-artifact-review.md@2`,
 `skills/traceability.md@1`, and the subject-specific requirement, architecture,
 interface, or DWP skill.
 
@@ -19,3 +19,6 @@ and independent Review through normal reevaluation.
 
 When participation is attended, also publish the exact scope DEC required by the
 Assignment; it authorizes this Correction but does not replace fresh Review.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

@@ -26,3 +26,6 @@ Do not mutate the prior plan, copy its Stable identity into a new lineage, retai
 invalid or superseded support, silently add unrelated definitions, or claim that
 stale decomposition outputs apply to the replacement plan. The replacement must
 receive a fresh Review Context and independent Review through normal reevaluation.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

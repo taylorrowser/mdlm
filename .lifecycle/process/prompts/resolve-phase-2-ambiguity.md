@@ -16,3 +16,6 @@ definition and preserve it as immutable history. The Decision must receive fresh
 independent Review before cancellation affects package selection. If this exact
 Revision should remain, return typed inability rather than cancelling a different
 subject or inventing an arbitrary latest rule.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

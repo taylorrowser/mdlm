@@ -7,8 +7,7 @@ import { evaluateLifecycle, loadProcessPackage, resolveType, type ProcessPackage
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
-
-const processRef = "mdlm-bootstrap@0.59.0#sha256:hardening-contracts";
+const processRef = "mdlm-bootstrap@0.67.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
 
 function record(
@@ -37,6 +36,60 @@ function requirement(title: string) {
   };
 }
 
+function passingReview(subject: ReturnType<typeof record>, id: string) {
+  const directSupportTypes = new Set([
+    "STK",
+    "ASP",
+    "ICSP",
+    "DWP",
+    "SYS",
+    "VSP",
+    "PAS",
+  ]);
+  const exactTarget = (target: string) =>
+    /-r[0-9]{5}$/.test(target) ? target : `${target}-r00001`;
+  const support = directSupportTypes.has(subject.datum.type)
+    ? subject.datum.links.map((link) => exactTarget(link.target))
+    : subject.datum.type === "DEC" &&
+        subject.datum.payload.kind === "pilot-expansion"
+      ? subject.datum.links.map((link) => exactTarget(link.target))
+      : [];
+  const context = record(
+    "BSL",
+    id.replace("REV", "BSL"),
+    {
+      title: `Exact context for ${subject.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: subject.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        ...new Set([subject.datum.revision_id, ...support]),
+      ].sort(),
+      evidence: [],
+    },
+    [],
+    "create-review-context@1",
+  );
+  const review = record(
+    "REV",
+    id,
+    {
+      title: `Passing ${subject.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    },
+    [
+      { type: "reviews", target: subject.datum.revision_id },
+      { type: "contextualizes", target: context.datum.revision_id },
+    ],
+    "review-datum-in-context@2",
+  );
+  return { context, review };
+}
+
 describe("Phase-hardening domain route contracts", () => {
   let processPackage: ProcessPackage;
 
@@ -45,7 +98,6 @@ describe("Phase-hardening domain route contracts", () => {
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
     processPackage = loaded.package;
   });
-
 
   it("derives exact Phase 0 Review work from a published product specification", () => {
     const product = record("PSP", "PSP-HARDEN0001", {
@@ -83,9 +135,18 @@ describe("Phase-hardening domain route contracts", () => {
       title: "Phase 1 product", rationale: "Exercise package assurance.", problem: "Malformed input must be rejected.",
       users: ["operator"], goals: ["exact assurance"], non_goals: [], success_measures: ["discriminating evidence"],
     }, [], "compile-psp@2");
-    const stk = record("STK", "STK-HARDENP100", {
-      ...requirement("Reject malformed commands"), stakeholder: "operator", priority: "must",
-    }, [{ type: "derived-from", target: psp.datum.id }], "draft-stakeholder-requirements@2");
+    const stk = record(
+      "STK",
+      "STK-HARDENP100",
+      {
+        ...requirement("Reject malformed commands"),
+        stakeholder: "operator",
+        priority: "must",
+        system_context: "product",
+      },
+      [{ type: "derived-from", target: psp.datum.id }],
+      "draft-stakeholder-requirements@2",
+    );
     const baseSnapshot = { processRef, phaseId: "phase-1-product-assurance", records: [psp, stk], dependencyComparisons: [] };
     expect(evaluateLifecycle(processPackage, baseSnapshot).looseEnds.find((item) =>
       item.obligation === "verification-strategy-required"
@@ -101,10 +162,11 @@ describe("Phase-hardening domain route contracts", () => {
       evidence_policy: "Retain exact observations.", assessment_policy: "Require discrimination.",
       environment_profile: { id: "public-command", purpose: "Exercise commands.", capabilities },
     }, [{ type: "governs", target: stk.datum.id }, { type: "governs-revision", target: stk.datum.revision_id }], "define-verification-strategy@1");
-    const strategyReview = record("REV", "REV-HARDENP100", {
-      title: "Passing strategy Review", review_kind: "contextual", rubric_ref: "policies/rubrics/bootstrap-review.md@1", findings: [], outcome: "pass",
-    }, [{ type: "reviews", target: strategy.datum.revision_id }], "review-datum-in-context@2");
-    const planned = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview] });
+    const strategyReview = passingReview(strategy, "REV-HARDENP100");
+    const planned = evaluateLifecycle(processPackage, {
+      ...baseSnapshot,
+      records: [psp, stk, strategy, strategyReview.context, strategyReview.review],
+    });
     expect(planned.looseEnds).toEqual(expect.arrayContaining([
       expect.objectContaining({ obligation: "environment-assurance-required", actionableResolver: "realize-verification-environment@1" }),
       expect.objectContaining({ obligation: "pilot-verification-activity-required", actionableResolver: "write-verification-activity@1" }),
@@ -141,7 +203,7 @@ describe("Phase-hardening domain route contracts", () => {
       },
     };
     const target = record("ART", "ART-HARDENP100", targetPayload, [{ type: "derived-from", target: stk.datum.revision_id }], "register-pilot-target@1");
-    const targetWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview, activity] });
+    const targetWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity] });
     expect(targetWork.looseEnds.find((item) => item.obligation === "pilot-target-required")).toEqual(expect.objectContaining({
       status: "ready", actionableResolver: "register-pilot-target@1",
     }));
@@ -153,7 +215,7 @@ describe("Phase-hardening domain route contracts", () => {
     }, [{ type: "realizes", target: strategy.datum.revision_id }], "realize-verification-environment@1");
     expect(evaluateScenarioParticipation(
       processPackage,
-      { ...baseSnapshot, records: [psp, stk, strategy, strategyReview, activity, environment, target] },
+      { ...baseSnapshot, records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target] },
       "implement-verification-activity@1",
       [{ activity: activity.datum.revision_id, environment: environment.datum.revision_id, execution_target: target.datum.revision_id }],
     )).toEqual([expect.objectContaining({
@@ -177,7 +239,7 @@ describe("Phase-hardening domain route contracts", () => {
       { type: "uses", target: environment.datum.revision_id },
       { type: "targets", target: target.datum.revision_id },
     ], "implement-verification-activity@1");
-    const runWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview, activity, environment, target, implementation] });
+    const runWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation] });
     expect(runWork.looseEnds.find((item) =>
       item.obligation === "verification-run-required" && item.subject === implementation.datum.revision_id
     )).toEqual(expect.objectContaining({ eventualResolver: "execute-verification-run@1" }));
@@ -191,19 +253,38 @@ describe("Phase-hardening domain route contracts", () => {
     const malformedImplementation = structuredClone(implementation.datum.payload) as Record<string, any>;
     malformedImplementation.execution_procedure.timeout.reaping = "child-only";
     expect(vai.ok && ajv.compile(vai.type.payloadSchema)(malformedImplementation)).toBe(false);
-    expect((implementation.datum.payload.execution_procedure as Record<string, unknown>)).toMatchObject({
+    expect(
+      implementation.datum.payload.execution_procedure as Record<string, unknown>,
+    ).toMatchObject({
       timeout: { termination: "process-group-sigterm-then-sigkill", reaping: "all-descendants", capture_partial_raw_observation: true },
       cleanup: "guaranteed", aggregation: "continue-through-all-cases",
     });
 
-    const failedImplementationReview = record("REV", "REV-HARDENVAI1", {
-      title: "Failed VAI Review", review_kind: "contextual", rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{ id: "F-001", target: implementation.datum.revision_id, relationship: "primary", severity: "blocking", summary: "Preserve process cleanup." }],
-      outcome: "fail",
-    }, [{ type: "reviews", target: implementation.datum.revision_id }], "review-datum-in-context@2");
+    const failedImplementationReview = record(
+      "REV",
+      "REV-HARDENVAI1",
+      {
+        title: "Failed VAI Review",
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [{
+          id: "F-001",
+          target: implementation.datum.revision_id,
+          relationship: "primary",
+          severity: "blocking",
+          summary: "Preserve process cleanup.",
+          criterion: "A pilot VAI must terminate and reap the complete process group.",
+          evidence: "The reviewed procedure specifies child-only reaping after timeout.",
+          material_consequence: "Descendant processes can survive and contaminate later cases.",
+        }],
+        outcome: "fail",
+      },
+      [{ type: "reviews", target: implementation.datum.revision_id }],
+      "review-datum-in-context@2",
+    );
     const correctionSnapshot = {
       ...baseSnapshot,
-      records: [psp, stk, strategy, strategyReview, activity, environment, target, implementation, failedImplementationReview],
+      records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation, failedImplementationReview],
     };
     expect(evaluateLifecycle(processPackage, correctionSnapshot).looseEnds.find((item) =>
       item.obligation === "pilot-vai-review-correction-required" && item.subject === implementation.datum.revision_id
@@ -229,7 +310,6 @@ describe("Phase-hardening domain route contracts", () => {
     ], "register-pilot-target@1");
     expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, activity, target, competingTarget] }).terminalOutcome)
       .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
-
   });
 
   it("evaluates exact Phase 2 completion, candidate, acceptance, and progression snapshots", async () => {
@@ -284,13 +364,29 @@ describe("Phase-hardening domain route contracts", () => {
       limitations: [],
     });
     const assessment = record("PAS", "PAS-HARDEN0001", assessmentPayload("proceed"), [{ type: "measures", target: "BSL-HARDENPAS1-r00001" }], "assess-phase-0-2-pilot@1");
-    const failedReview = (subject: ReturnType<typeof record>, id: string) => record("REV", id, {
-      title: `Failed ${subject.datum.revision_id}`,
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [{ id: "F-001", target: subject.datum.revision_id, relationship: "primary", severity: "blocking", summary: "Correct the assessment." }],
-      outcome: "fail",
-    }, [{ type: "reviews", target: subject.datum.revision_id }], "review-datum-in-context@2");
+    const failedReview = (subject: ReturnType<typeof record>, id: string) =>
+      record(
+        "REV",
+        id,
+        {
+          title: `Failed ${subject.datum.revision_id}`,
+          review_kind: "contextual",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          findings: [{
+            id: "F-001",
+            target: subject.datum.revision_id,
+            relationship: "primary",
+            severity: "blocking",
+            summary: "Correct the assessment.",
+            criterion: "A Pilot Assessment must report exact measured evidence for its recommendation.",
+            evidence: "The reviewed assessment recommendation is unsupported by its recorded measurements.",
+            material_consequence: "Stakeholders cannot safely authorize expansion from this assessment.",
+          }],
+          outcome: "fail",
+        },
+        [{ type: "reviews", target: subject.datum.revision_id }],
+        "review-datum-in-context@2",
+      );
     const firstFailure = failedReview(assessment, "REV-HARDEN0001");
     const second = record("PAS", assessment.datum.id, { ...assessment.datum.payload }, [
       { type: "corrects-review", target: firstFailure.datum.revision_id },
@@ -360,13 +456,6 @@ describe("Phase-hardening domain route contracts", () => {
       }),
     ]);
 
-    const passingReview = (subject: ReturnType<typeof record>, id: string) => record("REV", id, {
-      title: `Passing ${subject.datum.revision_id}`,
-      review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1",
-      findings: [],
-      outcome: "pass",
-    }, [{ type: "reviews", target: subject.datum.revision_id }], "review-datum-in-context@2");
     for (const recommendation of ["proceed", "change", "stop"] as const) {
       const currentAssessment = record(
         "PAS",
@@ -379,7 +468,7 @@ describe("Phase-hardening domain route contracts", () => {
       const beforeDecision = evaluateLifecycle(processPackage, {
         processRef,
         phaseId: "phase-2-pilot-assessment",
-        records: [currentAssessment, assessmentReview],
+        records: [currentAssessment, assessmentReview.context, assessmentReview.review],
         dependencyComparisons: [],
       });
       expect(beforeDecision.looseEnds.find((item) =>
@@ -400,7 +489,7 @@ describe("Phase-hardening domain route contracts", () => {
         effective_scope: "Phase 3–6 Example Process Package expansion",
       }, [
         { type: "justifies", target: currentAssessment.datum.revision_id },
-        { type: "relies-on-review", target: assessmentReview.datum.revision_id },
+        { type: "relies-on-review", target: assessmentReview.review.datum.revision_id },
       ], "decide-pilot-expansion@2");
       const decisionReview = passingReview(decision, `REV-HARDEN${recommendation.toUpperCase()}D`);
       const resultingPhase = recommendation === "change"
@@ -409,7 +498,14 @@ describe("Phase-hardening domain route contracts", () => {
       const terminal = evaluateLifecycle(processPackage, {
         processRef,
         phaseId: resultingPhase,
-        records: [currentAssessment, assessmentReview, decision, decisionReview],
+        records: [
+          currentAssessment,
+          assessmentReview.context,
+          assessmentReview.review,
+          decision,
+          decisionReview.context,
+          decisionReview.review,
+        ],
         dependencyComparisons: [],
       });
       if (recommendation === "stop") {
@@ -432,13 +528,19 @@ describe("Phase-hardening domain route contracts", () => {
       effective_scope: "Phase 3–6 Example Process Package expansion",
     }, [
       { type: "justifies", target: reviewedAssessment.datum.revision_id },
-      { type: "relies-on-review", target: reviewedAssessmentReview.datum.revision_id },
+      { type: "relies-on-review", target: reviewedAssessmentReview.review.datum.revision_id },
     ], "decide-pilot-expansion@2");
     const failedDecisionReview = failedReview(failedDecision, "REV-HARDENDECF");
     const failedDecisionEvaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-2-pilot-assessment",
-      records: [reviewedAssessment, reviewedAssessmentReview, failedDecision, failedDecisionReview],
+      records: [
+        reviewedAssessment,
+        reviewedAssessmentReview.context,
+        reviewedAssessmentReview.review,
+        failedDecision,
+        failedDecisionReview,
+      ],
       dependencyComparisons: [],
     });
     expect(failedDecisionEvaluation.looseEnds.find((item) =>
@@ -494,7 +596,14 @@ describe("Phase-hardening domain route contracts", () => {
       path.join(process.cwd(), "test/fixtures/phase-hardening/shared-closed.json"),
       "utf8",
     ));
-    const sharedRecords = closedSharedSnapshot.records as Array<{ datum: { id: string; revision_id: string; type: string; payload: Record<string, unknown> } }>;
+    const sharedRecords = closedSharedSnapshot.records as Array<{
+      datum: {
+        id: string;
+        revision_id: string;
+        type: string;
+        payload: Record<string, unknown>;
+      };
+    }>;
     expect(sharedRecords.filter((item) => item.datum.type === "DWP" && [
       "DWP-1020000001", "DWP-1020000002",
     ].includes(item.datum.id)).map((item) => item.datum.revision_id).sort()).toEqual([
@@ -534,31 +643,58 @@ describe("Phase-hardening domain route contracts", () => {
       path.join(process.cwd(), "test/fixtures/phase-hardening/change-closed.json"),
       "utf8",
     ));
+    const pilotEvidence = record("BSL", "BSL-HARDENCHG1", {
+      title: "Exact change assessment evidence",
+      kind: "phase-2-complete",
+      role: "evidence",
+      scope: "phase-0-through-2",
+      group: "DEFAULT",
+      definition_members: [],
+      evidence: [],
+    });
     const pilotAssessment = record("PAS", "PAS-HARDENCHG1", {
       title: "Reviewed change assessment", rationale: "Enter bounded change control.",
       pilot_scope: "phase-0-through-2", measurements: {}, recommendation: "change", limitations: [],
     }, [{ type: "measures", target: "BSL-HARDENCHG1-r00001" }], "assess-phase-0-2-pilot@1");
-    const pilotAssessmentReview = record("REV", "REV-HARDENCHGA", {
-      title: "Passing assessment Review", review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1", findings: [], outcome: "pass",
-    }, [{ type: "reviews", target: pilotAssessment.datum.revision_id }], "review-datum-in-context@2");
+    const pilotAssessmentReview = passingReview(pilotAssessment, "REV-HARDENCHGA");
+    pilotAssessmentReview.context.datum.payload.definition_members = [
+      pilotAssessment.datum.revision_id,
+      pilotEvidence.datum.revision_id,
+    ];
     const expansionDecision = record("DEC", "DEC-HARDENCHG1", {
       title: "Enter change control", rationale: "Adopt the reviewed recommendation.",
       kind: "pilot-expansion", decision: "change", alternatives: ["proceed", "stop"],
       effective_scope: "Phase 3–6 Example Process Package expansion",
     }, [
       { type: "justifies", target: pilotAssessment.datum.revision_id },
-      { type: "relies-on-review", target: pilotAssessmentReview.datum.revision_id },
+      { type: "relies-on-review", target: pilotAssessmentReview.review.datum.revision_id },
     ], "decide-pilot-expansion@2");
-    const expansionDecisionReview = record("REV", "REV-HARDENCHGD", {
-      title: "Passing expansion Review", review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@1", findings: [], outcome: "pass",
-    }, [{ type: "reviews", target: expansionDecision.datum.revision_id }], "review-datum-in-context@2");
-    closedSnapshot.records.push(
+    const expansionDecisionReview = passingReview(expansionDecision, "REV-HARDENCHGD");
+    expansionDecisionReview.context.datum.payload.definition_members = [
+      expansionDecision.datum.revision_id,
+      pilotAssessment.datum.revision_id,
+      pilotAssessmentReview.review.datum.revision_id,
+    ];
+    const appended = [
+      pilotEvidence,
       pilotAssessment,
-      pilotAssessmentReview,
+      pilotAssessmentReview.context,
+      pilotAssessmentReview.review,
       expansionDecision,
-      expansionDecisionReview,
+      expansionDecisionReview.context,
+      expansionDecisionReview.review,
+    ];
+    for (const item of appended) {
+      item.datum.created_by.process_ref = closedSnapshot.processRef;
+    }
+    closedSnapshot.records.push(
+      pilotEvidence,
+      pilotAssessment,
+      pilotAssessmentReview.context,
+      pilotAssessmentReview.review,
+      expansionDecision,
+      expansionDecisionReview.context,
+      expansionDecisionReview.review,
     );
     const closed = evaluateLifecycle(processPackage, closedSnapshot);
     expect(closed.terminalOutcome).toEqual(expect.objectContaining({
@@ -571,6 +707,5 @@ describe("Phase-hardening domain route contracts", () => {
       "stakeholder-change-candidate-required",
       "change-closure-required",
     ].includes(item.obligation))).toEqual([]);
-
   });
 });

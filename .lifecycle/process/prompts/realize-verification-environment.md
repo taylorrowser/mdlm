@@ -19,3 +19,6 @@ minimal qualification VER and VAI needed to exercise those capabilities,
 including a positive capability check and a negative control. Qualification may
 inspect environment implementation details, but it must not make or imply a
 product requirement acceptance claim.
+
+Before proposing authored Lifecycle Data, apply the bounded ephemeral
+`skills/author-preflight.md@1` contract.

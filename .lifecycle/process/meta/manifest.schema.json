@@ -27,7 +27,12 @@
         "expressions": {"const": "mdlm-expression@1"}
       }
     },
-    "compatibility": {"type": "object"},
+    "compatibility": {
+      "type": "object",
+      "properties": {
+        "repository_migration": {"enum": ["compatible", "fresh-only"]}
+      }
+    },
     "catalog": {"type": "object"},
     "assets": {
       "type": "object",
