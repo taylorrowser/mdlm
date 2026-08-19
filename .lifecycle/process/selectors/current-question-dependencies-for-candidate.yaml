@@ -1,0 +1,17 @@
+kind: selector-definition
+id: current-question-dependencies-for-candidate
+version: 1
+description: Current active Questions referenced by exact definition members of one candidate baseline.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST]}
+  as: question
+  where: >-
+    none("newer-revisions-for@1", {subject: question})
+    && state(question, "disposition") == "active"
+    && exists("candidate-members-linking-question@1",
+      {candidate: candidate, question: question})
+  distinct: true
+  order_by: [identity.id, identity.revision]

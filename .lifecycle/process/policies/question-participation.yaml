@@ -74,6 +74,12 @@ rules:
       attention_timing: immediate
       attention_checkpoint: null
       consolidation_group: null
+  - priority: 425
+    when: >-
+      question.payload.kind == "preferential"
+      && exists("failed-intent-candidates-depending-on-question@1",
+        {question: question})
+    result: *immediate-stakeholder
   - priority: 400
     when: >-
       question.payload.kind == "preferential"

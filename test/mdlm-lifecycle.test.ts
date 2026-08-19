@@ -121,7 +121,7 @@ describe("mdlm lifecycle status and next work", () => {
   });
 
   it("routes one architecture per coherent context through the compiled CLI", async () => {
-    const processRef = "mdlm-bootstrap@0.67.0#sha256:grouped-cli-regression";
+    const processRef = "mdlm-bootstrap@0.68.0#sha256:grouped-cli-regression";
     const groupedSnapshot = async (
       name: string,
       contexts: string[],

@@ -142,7 +142,7 @@ rows:
       - route: candidate creation
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: publishes a complete candidate atomically through create-phase-0-intent-candidate with exact frozen membership
+          test: publishes a complete candidate and selects its attended indexed Question before correction at the public command seam
         evidence:
           facts: The complete current passing MAP, PSP, and STK definition set and one frozen intent candidate.
           links: Candidate definition membership names every exact current foundation Revision.

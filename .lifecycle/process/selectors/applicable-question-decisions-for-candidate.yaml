@@ -1,0 +1,19 @@
+kind: selector-definition
+id: applicable-question-decisions-for-candidate
+version: 1
+description: Applicable reviewed Decisions that authorize current Question dispositions referenced by one candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DEC]}
+  as: decision
+  where: >-
+    !every("current-question-dependencies-for-candidate@1",
+      {candidate: candidate}, question =>
+        every("applicable-question-answers-for@1",
+          {question: question}, answer => answer != decision)
+        && every("applicable-question-dispositions-for@1",
+          {question: question}, disposition => disposition != decision))
+  distinct: true
+  order_by: [identity.id, identity.revision]

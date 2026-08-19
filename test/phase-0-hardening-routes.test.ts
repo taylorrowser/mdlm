@@ -30,7 +30,7 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-const processRef = "mdlm-bootstrap@0.67.0#sha256:phase-0-route-evidence";
+const processRef = "mdlm-bootstrap@0.68.0#sha256:phase-0-route-evidence";
 const revisionId = (id: string, revision = 1) =>
   `${id}-r${String(revision).padStart(5, "0")}`;
 
@@ -366,6 +366,42 @@ async function initializedRepository(prefix: string): Promise<{
   return { parent, repository };
 }
 
+function indexedPreferentialMapOutput(): ProposedOutput[] {
+  return [{
+    localId: "map",
+    name: "map",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "MAP",
+      payload: {
+        title: "Exact public Phase 0 frontier",
+        purpose: "Resolve the exact stakeholder choice before correcting its candidate.",
+        frontier: ["$proposal.question.revision_id"],
+      },
+      links: [{ type: "indexes", target: "$proposal.question.id" }],
+      body: "The candidate depends on one exact indexed stakeholder Question.\n",
+    },
+  }, {
+    localId: "question",
+    name: "questions",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "QST",
+      payload: {
+        title: "Exact stakeholder product boundary",
+        kind: "preferential",
+        question: "Which exact product boundary should remain?",
+        state: "open",
+        blocking_impact: "The candidate cannot be reassembled before disposition.",
+        attention_checkpoint: "phase-0-gate",
+        consolidation_group: "phase-0-stakeholder-questions",
+      },
+      links: [],
+      body: "Stakeholder authority is required for this exact product choice.\n",
+    },
+  }];
+}
+
 function mapOutput(empiricalEvidenceAvailable?: boolean): ProposedOutput[] {
   const withEmpiricalQuestion = empiricalEvidenceAvailable !== undefined;
   return [{
@@ -460,7 +496,10 @@ function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
 async function advancePhase0To(
   repository: string,
   targetScenario: string,
-  options: { empiricalEvidenceAvailable?: boolean } = {},
+  options: {
+    empiricalEvidenceAvailable?: boolean;
+    indexedPreferentialQuestion?: boolean;
+  } = {},
 ): Promise<{ prepared: PreparedAssignment; reviewRevisions: string[] }> {
   const reviewRevisions: string[] = [];
   for (let step = 0; step < 20; step += 1) {
@@ -470,7 +509,9 @@ async function advancePhase0To(
     let outputs: ProposedOutput[];
     switch (scenario) {
       case "establish-initial-wayfinding-map@1":
-        outputs = mapOutput(options.empiricalEvidenceAvailable);
+        outputs = options.indexedPreferentialQuestion
+          ? indexedPreferentialMapOutput()
+          : mapOutput(options.empiricalEvidenceAvailable);
         break;
       case "create-review-context@1":
         outputs = reviewContextOutput(prepared);
@@ -845,12 +886,13 @@ describe("Phase 0 missing hardening routes", () => {
     }));
   });
 
-  it("publishes a complete candidate atomically through create-phase-0-intent-candidate with exact frozen membership", async () => {
+  it("publishes a complete candidate and selects its attended indexed Question before correction at the public command seam", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-candidate-");
     try {
       const { prepared, reviewRevisions } = await advancePhase0To(
         repository,
         "create-phase-0-intent-candidate@1",
+        { indexedPreferentialQuestion: true },
       );
       const members = inputRevisions(prepared, "definition_members");
       expect(members.map((revision) => revision.slice(0, 3)).sort()).toEqual([
@@ -908,16 +950,80 @@ describe("Phase 0 missing hardening routes", () => {
         }),
       });
       expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-      const next = prepareNextAssignment(repository);
-      expect(next.packet.scenario.reference).not.toBe(
-        "create-review-context@1",
+      const candidateRevision = output.lifecycleDatum.revisionId as string;
+      const review = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
       );
+      expect(inputRevision(review, "subject")).toBe(candidateRevision);
       expect(
-        await hasGeneratedReviewContext(
-          repository,
-          output.lifecycleDatum.revisionId,
-        ),
+        await hasGeneratedReviewContext(repository, candidateRevision),
       ).toBe(true);
+      const contextRevision = inputRevision(review, "review_context");
+      const failedReview = submitAssignment(repository, review, [{
+        localId: "review",
+        name: "review",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "REV",
+          payload: {
+            title: "Failed candidate Review with an unresolved indexed Question",
+            review_kind: "simplification-product-definition",
+            rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+            simplification: {
+              target: candidateRevision,
+              findings: [{
+                id: "F-162",
+                severity: "blocking",
+                criterion: "The candidate must dispose every indexed stakeholder Question.",
+                evidence: "Its exact MAP member still indexes an open preferential Question.",
+                material_consequence: "Correction cannot reassemble authorized product intent.",
+                summary: "Resolve the exact Question before candidate correction.",
+              }],
+            },
+            outcome: "fail",
+          },
+          links: [
+            { type: "reviews", target: candidateRevision },
+            { type: "contextualizes", target: contextRevision },
+            { type: "blocks", target: candidateRevision },
+          ],
+          body: "The independent Review preserves the exact causal blocker.\n",
+        },
+      }]);
+      expect(failedReview.status, `${failedReview.stderr}${failedReview.stdout}`)
+        .toBe(0);
+
+      const mapRevision = members.find((revision) =>
+        revision.startsWith("MAP-")
+      )!;
+      const questionRevision = output.data.payload.snapshot.resolved_links[
+        mapRevision
+      ][0] as string;
+      expect(questionRevision).toMatch(/^QST-.+-r\d{5}$/);
+
+      const next = prepareNextAssignment(repository, "resolve-question@2");
+      expect(next.outcome).toEqual(expect.objectContaining({
+        outcome: "attention-required",
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        },
+      }));
+      expect(inputRevision(next, "question")).toBe(questionRevision);
+
+      const looseEnds = mdlm(repository, "loose-ends", "--json");
+      expect(looseEnds.status, `${looseEnds.stderr}${looseEnds.stdout}`).toBe(0);
+      expect(JSON.parse(looseEnds.stdout).looseEnds.items).toContainEqual(
+        expect.objectContaining({
+          obligation: "intent-candidate-review-correction-required",
+          subject: candidateRevision,
+          status: "blocked",
+          dispatchable: false,
+          actionableResolver: "resolve-question@2",
+        }),
+      );
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }

@@ -8,6 +8,17 @@ subject_as: candidate
 satisfied_when: 'exists("complete-superseding-intent-candidates-for@1", {candidate: candidate})'
 status_rules:
   - status: blocked
+    priority: 350
+    when: >-
+      exists("unresolved-question-dependencies-for-candidate@1",
+        {candidate: candidate})
+    reason: Candidate replacement waits for every Question referenced by an exact definition member to receive its applicable authorized disposition.
+    blocked_by:
+      - obligation: open-question-resolution@3
+        subjects: >-
+          select("unresolved-question-dependencies-for-candidate@1",
+            {candidate: candidate})
+  - status: blocked
     priority: 300
     when: >-
       (
@@ -64,4 +75,10 @@ resolve_with:
       select("cited-failing-reviews-by-correction@1", {replacement: candidate})
     failed_reviews: 'select("failing-reviews-for@1", {subject: candidate})'
     gate_rejections: 'select("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})'
+    question_dispositions: >-
+      select("current-question-dependencies-for-candidate@1",
+        {candidate: candidate})
+    question_decisions: >-
+      select("applicable-question-decisions-for-candidate@1",
+        {candidate: candidate})
 waiver_policy_ref: waiver-applicability@1

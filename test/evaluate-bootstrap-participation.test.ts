@@ -6,11 +6,12 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { nextWorkProjection } from "../src/lifecycle-inspection.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.67.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.68.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -2279,6 +2280,291 @@ describe("bootstrap Scenario participation Policies", () => {
       .toEqual([expect.objectContaining({
         identity: expect.objectContaining({ revision_id: reviews[2]!.datum.revision_id }),
       })]);
+  });
+
+  it("resolves an indexed question before correcting its dependent intent candidate", async () => {
+    const fixture = reviewedGateFixture(processRef);
+    const openQuestion = question(
+      "QST-7K3M9Q2D8J",
+      "Choose the exact stakeholder product boundary",
+      "preferential",
+      {
+        attentionCheckpoint: "phase-0-gate",
+        consolidationGroup: "phase-0-stakeholder-questions",
+      },
+    );
+    openQuestion.storage = { editable: false, frozen: true };
+    const sourceBoundary = lifecycleDatum("BSL", "BSL-7K3M9Q2D8J", {
+      title: "Exact source boundary",
+      kind: "source-boundary",
+      role: "source-boundary",
+      scope: openQuestion.datum.revision_id,
+      group: "SAME-LINEAGE",
+      definition_members: [openQuestion.datum.revision_id],
+      evidence: [],
+    }, { frozen: true, scenario: "freeze-source-boundary@1" });
+    sourceBoundary.integrity.scenario_execution_valid = true;
+    const map = lifecycleDatum("MAP", "MAP-7K3M9Q2D8J", {
+      title: "Stakeholder decision frontier",
+      purpose: "Index exact open decisions before product-intent approval.",
+      frontier: ["Resolve the stakeholder product boundary."],
+    }, {
+      frozen: true,
+      links: [{ type: "indexes", target: openQuestion.datum.id }],
+    });
+    const reviewedMap = contextualPassingReview(map, "REV-7K3M9Q2D8J");
+    const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8J", {
+      title: "Bounded stakeholder product",
+      rationale: "Preserve only the explicitly selected product intent.",
+      problem: "The product boundary requires an authorized choice.",
+      users: ["stakeholder"],
+      goals: ["Deliver the selected bounded outcome."],
+      non_goals: ["Infer additional stakeholder scope."],
+      success_measures: ["The reviewed commitment matches the selected boundary."],
+    }, { frozen: true });
+    const reviewedProduct = contextualPassingReview(product, "REV-7K3M9Q2D8N");
+    const requirement = lifecycleDatum("STK", "STK-7K3M9Q2D8J", {
+      title: "Selected stakeholder outcome",
+      rationale: "Capture the authorized boundary as an assessable commitment.",
+      statement: "The product shall deliver the selected bounded outcome.",
+      verification_intent: "Observe the selected outcome without added scope.",
+      stakeholder: "stakeholder",
+      priority: "must",
+      system_context: "bounded-product",
+    }, {
+      frozen: true,
+      links: [{ type: "derived-from", target: product.datum.id }],
+    });
+    const reviewedRequirement = contextualPassingReview(
+      requirement,
+      "REV-7K3M9Q2D8P",
+    );
+    const foundation = [map, product, requirement];
+    const memberReviews = [
+      reviewedMap.review,
+      reviewedProduct.review,
+      reviewedRequirement.review,
+    ];
+
+    fixture.candidate.datum.payload.definition_members = foundation.map(
+      (member) => member.datum.revision_id,
+    );
+    fixture.candidate.datum.payload.evidence = memberReviews.map(
+      (review) => review.datum.revision_id,
+    );
+    fixture.candidateContext.datum.payload.definition_members = [
+      fixture.candidate.datum.revision_id,
+      ...foundation.map((member) => member.datum.revision_id),
+    ];
+    fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.simplification = {
+      target: fixture.candidate.datum.revision_id,
+      findings: [{
+        id: "F-001",
+        severity: "blocking",
+        criterion: "Intent candidates must not embed an unresolved stakeholder boundary.",
+        evidence: "The exact MAP member indexes the unresolved preferential Question.",
+        material_consequence: "Candidate correction cannot infer the stakeholder answer.",
+        summary: "Resolve the indexed Question before rebuilding the candidate.",
+      }],
+    };
+    fixture.candidateReview.datum.links.push({
+      type: "blocks",
+      target: fixture.candidate.datum.revision_id,
+    });
+
+    const records = [
+      openQuestion,
+      sourceBoundary,
+      ...foundation,
+      reviewedMap.context,
+      reviewedMap.review,
+      reviewedProduct.context,
+      reviewedProduct.review,
+      reviewedRequirement.context,
+      reviewedRequirement.review,
+      fixture.candidate,
+      fixture.candidateContext,
+      fixture.candidateReview,
+    ];
+    const evaluate = () => evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records,
+      dependencyComparisons: [],
+    });
+
+    const initial = evaluate();
+    const blockedCorrection = initial.obligations.find((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    );
+    expect(blockedCorrection).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: "resolve-question@2",
+      explanation: expect.stringMatching(/question/i),
+    }));
+    expect(initial.obligations.find((item) =>
+      item.obligation === "open-question-resolution" &&
+      item.subject === openQuestion.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "resolve-question@2",
+      participation: projectedParticipation(
+        "question-participation@1",
+        "attended",
+        "stakeholder",
+        false,
+        "immediate",
+        null,
+        null,
+        "single",
+      ),
+    }));
+    expect(nextWorkProjection(initial)?.item).toEqual(expect.objectContaining({
+      subject: openQuestion.datum.revision_id,
+      actionableResolver: "resolve-question@2",
+      participation: projectedParticipation(
+        "question-participation@1",
+        "attended",
+        "stakeholder",
+        false,
+        "immediate",
+        null,
+        null,
+        "single",
+      ),
+    }));
+
+    const answeredQuestion = structuredClone(openQuestion);
+    answeredQuestion.datum.revision = 2;
+    answeredQuestion.datum.revision_id = `${openQuestion.datum.id}-r00002`;
+    answeredQuestion.datum.payload.state = "answered";
+    answeredQuestion.storage = { editable: true, frozen: false };
+    const answer = lifecycleDatum("DEC", "DEC-7K3M9Q2D8J", {
+      title: "Authorized stakeholder product boundary",
+      rationale: "The stakeholder selected the exact product boundary.",
+      kind: "scope",
+      decision: "Use the explicitly selected product boundary.",
+      alternatives: ["Infer a boundary autonomously"],
+      effective_scope: answeredQuestion.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [
+        { type: "resolves", target: openQuestion.datum.revision_id },
+        { type: "resolves", target: answeredQuestion.datum.revision_id },
+      ],
+      scenario: "resolve-question@2",
+    });
+    const reviewedAnswer = contextualPassingReview(answer, "REV-7K3M9Q2D8K");
+    const unrelatedQuestion = structuredClone(answeredQuestion);
+    unrelatedQuestion.datum.id = "QST-8K3M9Q2D8F";
+    unrelatedQuestion.datum.revision_id = "QST-8K3M9Q2D8F-r00001";
+    unrelatedQuestion.datum.revision = 1;
+    const unrelatedAnswer = lifecycleDatum("DEC", "DEC-8K3M9Q2D8F", {
+      title: "Unrelated authorized boundary",
+      rationale: "Another question received its own stakeholder disposition.",
+      kind: "scope",
+      decision: "Use an unrelated product boundary.",
+      alternatives: ["Infer the unrelated boundary autonomously"],
+      effective_scope: unrelatedQuestion.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [{ type: "resolves", target: unrelatedQuestion.datum.revision_id }],
+      scenario: "resolve-question@2",
+    });
+    const reviewedUnrelatedAnswer = contextualPassingReview(
+      unrelatedAnswer,
+      "REV-8K3M9Q2D8F",
+    );
+    records.push(
+      answeredQuestion,
+      answer,
+      reviewedAnswer.context,
+      reviewedAnswer.review,
+      unrelatedQuestion,
+      unrelatedAnswer,
+      reviewedUnrelatedAnswer.context,
+      reviewedUnrelatedAnswer.review,
+    );
+
+    const readyCorrection = evaluate().obligations.find((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      item.subject === fixture.candidate.datum.revision_id
+    );
+    expect(readyCorrection).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-intent-candidate-after-review@3",
+    }));
+    expect(readyCorrection).toBeDefined();
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-0-wayfinding",
+        records,
+        dependencyComparisons: [],
+      },
+      "revise-intent-candidate-after-review@3",
+      readyCorrection!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "question_dispositions",
+        values: [expect.objectContaining({
+          identity: expect.objectContaining({
+            revision_id: answeredQuestion.datum.revision_id,
+          }),
+        })],
+      }),
+      expect.objectContaining({
+        name: "question_decisions",
+        values: [expect.objectContaining({
+          identity: expect.objectContaining({ revision_id: answer.datum.revision_id }),
+        })],
+      }),
+    ]));
+
+    const replacement = structuredClone(fixture.candidate);
+    replacement.datum.revision = 2;
+    replacement.datum.revision_id = `${fixture.candidate.datum.id}-r00002`;
+    replacement.datum.links = [
+      { type: "supersedes", target: fixture.candidate.datum.revision_id },
+      { type: "corrects-review", target: fixture.candidateReview.datum.revision_id },
+    ];
+    replacement.datum.created_by.scenario =
+      "revise-intent-candidate-after-review@3";
+    const reviewedReplacement = contextualPassingReview(
+      replacement,
+      "REV-7K3M9Q2D8M",
+    );
+    reviewedReplacement.review.datum.payload.review_kind =
+      "simplification-product-definition";
+    reviewedReplacement.review.datum.payload.rubric_ref =
+      "policies/rubrics/bootstrap-review.md@1";
+    reviewedReplacement.review.datum.payload.summary =
+      "The replacement is the smallest sufficient product definition.";
+    records.push(
+      replacement,
+      reviewedReplacement.context,
+      reviewedReplacement.review,
+    );
+    const progressed = evaluate();
+    expect(progressed.obligations.filter((item) =>
+      item.obligation === "intent-candidate-review-correction-required" &&
+      [fixture.candidate.datum.revision_id, replacement.datum.revision_id]
+        .includes(item.subject)
+    )).toEqual([]);
+    expect(progressed.obligations.find((item) =>
+      item.obligation === "passing-review-required" &&
+      item.subject === replacement.datum.revision_id
+    )).toEqual(expect.objectContaining({ satisfied: true }));
   });
 
   it("routes a failed Question Decision through exact attended correction", async () => {

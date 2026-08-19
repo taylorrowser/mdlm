@@ -1,5 +1,5 @@
 {
-  "processRef": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+  "processRef": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
   "phaseId": "phase-2-system-definition",
   "records": [
     {
@@ -29,7 +29,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -81,7 +81,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -134,7 +134,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -183,7 +183,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -230,7 +230,7 @@
         "created_by": {
           "scenario": "freeze-source-boundary@1",
           "prompt_ref": "prompts/freeze-source-boundary.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -282,7 +282,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -336,7 +336,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -390,7 +390,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -444,7 +444,7 @@
         "created_by": {
           "scenario": "create-decomposition-group-candidate@1",
           "prompt_ref": "prompts/create-decomposition-group-candidate.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1",
@@ -517,7 +517,7 @@
         "created_by": {
           "scenario": "define-system-architecture@2",
           "prompt_ref": "prompts/define-system-architecture.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/architecture-specification.md@1",
@@ -567,7 +567,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -619,7 +619,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -712,7 +712,7 @@
         "created_by": {
           "scenario": "revise-phase-2-subject-after-review@1",
           "prompt_ref": "prompts/revise-phase-2-subject-after-review.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -760,7 +760,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -815,7 +815,7 @@
         "created_by": {
           "scenario": "resolve-question@2",
           "prompt_ref": "prompts/resolve-question.md@2",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/clarification-protocol.md@1",
@@ -864,7 +864,7 @@
         "created_by": {
           "scenario": "resolve-question@2",
           "prompt_ref": "prompts/resolve-question.md@2",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/clarification-protocol.md@1",
@@ -920,7 +920,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -996,7 +996,7 @@
         "created_by": {
           "scenario": "define-interface-control-specification@2",
           "prompt_ref": "prompts/define-interface-control-specification.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/interface-control-specification.md@1",
@@ -1045,7 +1045,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -1097,7 +1097,7 @@
         "created_by": {
           "scenario": "simplify-architecture-and-interfaces@2",
           "prompt_ref": "prompts/simplify-architecture-and-interfaces.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/scope-challenge.md@1",
@@ -1147,7 +1147,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -1199,7 +1199,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1264,7 +1264,7 @@
         "created_by": {
           "scenario": "execute-decomposition-work-package@2",
           "prompt_ref": "prompts/execute-decomposition-work-package.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/decomposition.md@1",
@@ -1319,7 +1319,7 @@
         "created_by": {
           "scenario": "record-gate-signoff@3",
           "prompt_ref": "prompts/record-gate-signoff.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/gate-protocol.md@1",
@@ -1369,7 +1369,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -1452,7 +1452,7 @@
         "created_by": {
           "scenario": "complete-decomposition-work-package@2",
           "prompt_ref": "prompts/complete-decomposition-work-package.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/dwp-completion.md@1",
@@ -1523,7 +1523,7 @@
         "created_by": {
           "scenario": "define-decomposition-work-package@2",
           "prompt_ref": "prompts/define-decomposition-work-package.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/dwp-planning.md@1",
@@ -1578,7 +1578,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -1630,7 +1630,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1684,7 +1684,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1736,7 +1736,7 @@
         "created_by": {
           "scenario": "create-phase-2-definition-review-context@1",
           "prompt_ref": "prompts/create-phase-2-definition-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -1799,7 +1799,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1853,7 +1853,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1906,7 +1906,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1955,7 +1955,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -2003,7 +2003,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -2055,7 +2055,7 @@
         "created_by": {
           "scenario": "review-datum-in-context@2",
           "prompt_ref": "prompts/review-datum-in-context.md@3",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -2105,7 +2105,7 @@
         "created_by": {
           "scenario": "create-candidate-baseline@1",
           "prompt_ref": "prompts/create-candidate-baseline.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2157,7 +2157,7 @@
         "created_by": {
           "scenario": "create-candidate-baseline@1",
           "prompt_ref": "prompts/create-candidate-baseline.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2205,7 +2205,7 @@
         "created_by": {
           "scenario": "compile-psp@2",
           "prompt_ref": "prompts/compile-psp.md@2",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2249,7 +2249,7 @@
         "created_by": {
           "scenario": "define-decomposition-work-package@2",
           "prompt_ref": "prompts/define-decomposition-work-package.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2294,7 +2294,7 @@
         "created_by": {
           "scenario": "draft-stakeholder-requirements@2",
           "prompt_ref": "prompts/draft-stakeholder-requirements.md@2",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -2369,7 +2369,7 @@
         "created_by": {
           "scenario": "define-verification-strategy@1",
           "prompt_ref": "prompts/define-verification-strategy.md@1",
-          "process_ref": "mdlm-bootstrap@0.67.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.68.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
