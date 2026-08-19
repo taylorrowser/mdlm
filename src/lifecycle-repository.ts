@@ -14,6 +14,7 @@ import {
   parseObligationInstanceIdentity,
 } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
+import { repositoryGitEnvironment } from "./git-environment.js";
 import { processPackageDigest } from "./process-package-digest.js";
 import {
   measure,
@@ -430,6 +431,7 @@ function gitCommand(
 ): Promise<GitCommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn("git", ["-C", root, ...arguments_], {
+      env: repositoryGitEnvironment(),
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";

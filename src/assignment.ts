@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
+import { repositoryGitEnvironment } from "./git-environment.js";
 import type {
   LifecycleEvaluation,
   LifecycleRecord,
@@ -389,19 +390,11 @@ function failure(code: string, message: string, pathValue?: string): AssignmentR
   };
 }
 
-function gitEnvironment(): NodeJS.ProcessEnv {
-  const environment = { ...process.env };
-  for (const name of Object.keys(environment)) {
-    if (name.startsWith("GIT_")) delete environment[name];
-  }
-  return environment;
-}
-
 async function git(repositoryRoot: string, arguments_: string[]): Promise<string> {
   const result = await executeFile("git", arguments_, {
     cwd: repositoryRoot,
     encoding: "utf8",
-    env: gitEnvironment(),
+    env: repositoryGitEnvironment(),
     maxBuffer: 20 * 1024 * 1024,
   });
   return result.stdout;

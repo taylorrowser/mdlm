@@ -549,7 +549,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(fresh.assignment.id).not.toBe(assignment);
   });
 
-  it("marks a publication-time repository change stale without charging a malformed retry", async () => {
+  it("serializes public publication and marks intervening changes stale without charging a malformed retry", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     const assignment = next.assignment.id as string;
     const packet = JSON.parse(mdlm(
@@ -593,6 +593,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     child.stdin.end(response);
 
     await staged;
+    expect(child.exitCode).toBeNull();
     await fs.writeFile(
       path.join(repository, ".lifecycle/data/intervening.md"),
       "Intervening authoritative Markdown.\n",
