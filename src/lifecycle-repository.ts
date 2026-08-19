@@ -446,26 +446,39 @@ function gitCommand(
   });
 }
 
+interface PublicationLockOwner {
+  createdAt?: unknown;
+  pid?: unknown;
+  processStartedAt?: unknown;
+  token?: unknown;
+}
+
 async function publicationLockOwner(
   root: string,
   objectId: string,
-): Promise<{ pid?: unknown; token?: unknown } | undefined> {
+): Promise<PublicationLockOwner | undefined> {
   const owner = await gitCommand(root, ["cat-file", "-p", objectId]);
   if (owner.code !== 0) return undefined;
   try {
-    return JSON.parse(owner.stdout) as { pid?: unknown; token?: unknown };
+    return JSON.parse(owner.stdout) as PublicationLockOwner;
   } catch {
     return undefined;
   }
 }
 
-function processIsRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code !== "ESRCH";
-  }
+function processStartIdentity(pid: number): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const child = spawn("ps", ["-o", "lstart=", "-p", String(pid)], {
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    let stdout = "";
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => stdout += chunk);
+    child.on("error", () => resolve(undefined));
+    child.on("close", (code) =>
+      resolve(code === 0 && stdout.trim() ? stdout.trim() : undefined)
+    );
+  });
 }
 
 async function updatePublicationLock(
@@ -487,10 +500,19 @@ async function withRepositoryPublicationLock<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const token = randomUUID();
+  const processStartedAt = await processStartIdentity(process.pid);
+  if (!processStartedAt) {
+    throw new Error("Could not identify the repository publication lock owner process");
+  }
   const hashed = await gitCommand(
     root,
     ["hash-object", "-w", "--stdin"],
-    `${JSON.stringify({ pid: process.pid, token })}\n`,
+    `${JSON.stringify({
+      createdAt: Date.now(),
+      pid: process.pid,
+      processStartedAt,
+      token,
+    })}\n`,
   );
   const ownerObjectId = hashed.stdout.trim();
   if (hashed.code !== 0 || !/^[0-9a-f]{40,64}$/.test(ownerObjectId)) {
@@ -515,10 +537,15 @@ async function withRepositoryPublicationLock<T>(
     const currentObjectId = current.stdout.trim();
     if (current.code === 0 && /^[0-9a-f]{40,64}$/.test(currentObjectId)) {
       const owner = await publicationLockOwner(root, currentObjectId);
+      const currentProcessStartedAt = typeof owner?.pid === "number"
+        ? await processStartIdentity(owner.pid)
+        : undefined;
       const abandoned =
-        typeof owner?.pid !== "number" ||
+        typeof owner?.createdAt !== "number" ||
+        typeof owner.pid !== "number" ||
+        typeof owner.processStartedAt !== "string" ||
         typeof owner.token !== "string" ||
-        !processIsRunning(owner.pid);
+        currentProcessStartedAt !== owner.processStartedAt;
       if (
         abandoned &&
         await updatePublicationLock(root, ownerObjectId, currentObjectId)

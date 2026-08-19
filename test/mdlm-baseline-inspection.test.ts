@@ -517,7 +517,12 @@ describe("compiled mdlm baseline inspection", () => {
     );
     holdPublicationLock(
       repository,
-      `${JSON.stringify({ pid: 2_147_483_647, token: "contended-stale-owner" })}\n`,
+      `${JSON.stringify({
+        createdAt: Date.now(),
+        pid: 2_147_483_647,
+        processStartedAt: "exited",
+        token: "contended-stale-owner",
+      })}\n`,
     );
     let commitGuardCalls = 0;
     let firstGuardStarted: (() => void) | undefined;
@@ -597,7 +602,18 @@ describe("compiled mdlm baseline inspection", () => {
   });
 
   it.each([
-    ["owner exited", `${JSON.stringify({ pid: 2_147_483_647, token: "exited-owner" })}\n`],
+    ["owner exited", `${JSON.stringify({
+      createdAt: Date.now(),
+      pid: 2_147_483_647,
+      processStartedAt: "exited",
+      token: "exited-owner",
+    })}\n`],
+    ["the owner PID was reused", `${JSON.stringify({
+      createdAt: Date.now(),
+      pid: process.pid,
+      processStartedAt: "different-process-start",
+      token: "reused-pid",
+    })}\n`],
     ["owner metadata is malformed", "not-json\n"],
   ])("recovers a publication lock when %s", async (_case, owner) => {
     const { processPackage } = await selectedPackage(repository);

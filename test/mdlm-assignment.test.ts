@@ -35,10 +35,23 @@ function git(repository: string, ...arguments_: string[]) {
 }
 
 function holdPublicationLock(repository: string, pid: number): string {
+  const processStartedAt = spawnSync(
+    "ps",
+    ["-o", "lstart=", "-p", String(pid)],
+    { encoding: "utf8" },
+  ).stdout.trim();
   const owner = spawnSync(
     "git",
     ["-C", repository, "hash-object", "-w", "--stdin"],
-    { encoding: "utf8", input: `${JSON.stringify({ pid, token: "test" })}\n` },
+    {
+      encoding: "utf8",
+      input: `${JSON.stringify({
+        createdAt: Date.now(),
+        pid,
+        processStartedAt,
+        token: "test",
+      })}\n`,
+    },
   );
   expect(owner.status, owner.stderr).toBe(0);
   const objectId = owner.stdout.trim();
