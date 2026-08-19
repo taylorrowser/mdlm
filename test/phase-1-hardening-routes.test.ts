@@ -375,6 +375,7 @@ function pilotActivity(number = 1, corrects?: string): LifecycleRecord {
       { type: "verifies", target: "STK-0HARDENP10" },
       { type: "verifies-revision", target: "STK-0HARDENP10-r00001" },
       { type: "governed-by", target: "VSP-0HARDENP10-r00001" },
+      { type: "derived-from", target: "PSP-0HARDENP10-r00001" },
       ...(corrects ? [{ type: "corrects-review", target: corrects }] : []),
     ],
   });
@@ -1186,11 +1187,21 @@ describe("Phase 1 hardening route evidence", () => {
             { type: "verifies", target: requirementInput.id },
             { type: "verifies-revision", target: requirementInput.revision_id },
             { type: "governed-by", target: strategyRevision },
+            { type: "derived-from", target: sourceRecords[0]!.datum.revision_id },
           ],
           body: "Exercise only behavior stated by the exact STK and parent PSP.\n",
         },
       }]);
       expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      const stored = await readRepositoryData(repository, loadedFixture.package);
+      if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
+      const activity = stored.value.map((item) => item.lifecycleDatum).find(
+        (record) => record.datum.type === "VER",
+      );
+      expect(activity?.datum.links).toContainEqual({
+        type: "derived-from",
+        target: sourceRecords[0]!.datum.revision_id,
+      });
     } finally {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(processRoot, { recursive: true, force: true });
@@ -1220,10 +1231,37 @@ describe("Phase 1 hardening route evidence", () => {
       { type: "verifies", target: "STK-0HARDENP10" },
       { type: "verifies-revision", target: "STK-0HARDENP10-r00001" },
       { type: "governed-by", target: currentStrategy.datum.revision_id },
+      { type: "derived-from", target: "PSP-0HARDENP10-r00001" },
     ]);
     expect(evaluation.obligations.find((item) =>
       item.obligation === "pilot-verification-activity-required"
     )).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
+
+    const advancedProduct = record(
+      "PSP",
+      acceptedFoundation[0]!.datum.id,
+      { ...acceptedFoundation[0]!.datum.payload },
+      { revision: 2, scenario: "compile-psp@2" },
+    );
+    const staleActivitySelection = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...acceptedFoundation,
+          advancedProduct,
+          currentStrategy,
+          activity,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "pilot-verification-activities-for-requirement@1",
+      { requirement: acceptedFoundation[1]!.datum.revision_id },
+    );
+    expect(staleActivitySelection.result).toEqual([]);
+
     expect(evaluation.obligations.find((item) =>
       item.obligation === "review-context-required" &&
       item.subject === activity.datum.revision_id
@@ -1690,6 +1728,10 @@ describe("Phase 1 hardening route evidence", () => {
       }),
     ]);
     expect(currentEnvironment).toEqual(exactEnvironment);
+    expect(replacement.datum.links).toContainEqual({
+      type: "derived-from",
+      target: "PSP-0HARDENP10-r00001",
+    });
     expect(replacement.datum.links).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ type: "uses" }),
     ]));

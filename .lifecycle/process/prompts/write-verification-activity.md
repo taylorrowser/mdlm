@@ -16,7 +16,8 @@ Write from the exact requirement, strategy, and accepted parent intent support,
 not product source, unit tests, or private implementation notes. Use the parent
 intent only to resolve terms that the requirement leaves relative, such as the
 supported argument count, accepted units, or closed value set. Do not add behavior
-that the requirement and its parent intent do not state.
+that the requirement and its parent intent do not state. Link `derived-from` to
+that exact supplied PSP Revision so later Review uses the same accepted intent.
 
 Define one activity expected to succeed for a declared supported behavior and one
 expected to expose intentionally unsupported or incorrect behavior. Make both

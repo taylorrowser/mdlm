@@ -17,5 +17,8 @@ query:
     && exists("matching-verification-strategies-for-requirement@1",
       {requirement: requirement,
        strategy: one("strategies-for-verification-activity@1", {activity: activity})})
+    && count("pilot-intent-support-for-activity@1", {activity: activity}) == 1
+    && one("pilot-intent-support-for-activity@1", {activity: activity}) ==
+      one("pilot-intent-support-for-requirement@1", {requirement: requirement})
   distinct: true
   order_by: [identity.id, identity.revision]

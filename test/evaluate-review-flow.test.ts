@@ -1168,6 +1168,7 @@ describe("evaluateLifecycle review flow", () => {
           { type: "verifies", target: requirement.datum.id },
           { type: "verifies-revision", target: requirement.datum.revision_id },
           { type: "governed-by", target: strategy.datum.revision_id },
+          { type: "derived-from", target: psp.datum.revision_id },
         ],
       },
     );

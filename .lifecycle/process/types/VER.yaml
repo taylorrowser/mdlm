@@ -1,6 +1,6 @@
 kind: type-definition
 id: VER
-version: 2
+version: 3
 name: Verification Activity
 description: Source-independent specification of one qualification, pilot, or formal verification claim and its acceptance evidence.
 extends: rationale-bearing@1
@@ -43,6 +43,13 @@ payload_schema:
     expected_success_activity: {type: string, minLength: 1}
     expected_discrimination_activity: {type: string, minLength: 1}
 outgoing_links:
+  - id: derived-from
+    description: Exact accepted product specification Revision used to resolve relative terms in one pilot activity.
+    targets:
+      - {kind: datum, types: [PSP], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: supports-pilot-activity
   - id: corrects-review
     description: Exact failed Review findings addressed by this corrected verification activity Revision.
     targets:

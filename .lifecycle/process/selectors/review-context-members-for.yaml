@@ -62,9 +62,8 @@ query:
         && (
           !every("requirements-for-pilot-activity@1", {activity: subject}, requirement =>
             requirement != member)
-          || !every("requirements-for-pilot-activity@1", {activity: subject}, requirement =>
-            every("pilot-intent-review-support-for-requirement@1",
-              {requirement: requirement}, intent => intent != member))
+          || !every("pilot-intent-support-for-activity@1",
+            {activity: subject}, intent => intent != member)
           || !every("strategies-for-verification-activity@1", {activity: subject}, strategy =>
             strategy != member)
         ))

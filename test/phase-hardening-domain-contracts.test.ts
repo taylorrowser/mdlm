@@ -180,6 +180,7 @@ describe("Phase-hardening domain route contracts", () => {
     }, [
       { type: "verifies", target: stk.datum.id }, { type: "verifies-revision", target: stk.datum.revision_id },
       { type: "governed-by", target: strategy.datum.revision_id },
+      { type: "derived-from", target: psp.datum.revision_id },
     ], "write-verification-activity@2");
     const targetPayload = {
       title: "Exact command target", kind: "prototype", repository_ref: `git:${"b".repeat(40)}`,

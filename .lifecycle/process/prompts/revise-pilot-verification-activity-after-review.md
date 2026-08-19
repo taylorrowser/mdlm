@@ -11,8 +11,9 @@ Create the next Revision in the supplied pilot VER lineage. Address every and on
 the supplied exact failed Review findings while preserving the exact requirement,
 strategy, accepted parent intent, pilot claim, and source-independent boundary.
 Use parent intent only to resolve relative terms in the requirement. Do not add
-behavior absent from those exact definitions. Link `corrects-review` to
-every supplied failed REV. Preserve immutable failed history and do not inspect
+behavior absent from those exact definitions. Link `derived-from` to the exact
+supplied parent PSP Revision and link `corrects-review` to every supplied failed
+REV. Preserve immutable failed history and do not inspect
 product source, unit tests, or private implementation details. The replacement
 requires a fresh exact Review Context and independent Review before implementation.
 

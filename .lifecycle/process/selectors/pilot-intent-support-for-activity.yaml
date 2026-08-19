@@ -1,0 +1,13 @@
+kind: selector-definition
+id: pilot-intent-support-for-activity
+version: 1
+description: Exact product specification Revision recorded by one pilot activity as accepted intent support.
+parameters:
+  - {name: activity, kind: revision, types: [VER]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: activity, link: derived-from, emit: target, types: [PSP]}
+  as: intent_support
+  where: 'state(intent_support, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.id, identity.revision]

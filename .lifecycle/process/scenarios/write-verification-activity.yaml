@@ -15,6 +15,7 @@ outputs:
       - {link: verifies, target: {input: requirement}}
       - {link: verifies-revision, target: {input: requirement}}
       - {link: governed-by, target: {input: strategy}}
+      - {link: derived-from, target: {input: intent_support}}
 prompt_ref: prompts/write-verification-activity.md@2
 review_policy_ref: review-applicability@1
 completion: >-
