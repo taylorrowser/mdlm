@@ -1289,6 +1289,46 @@ describe("Phase 1 hardening route evidence", () => {
       item.obligation === "pilot-verification-activity-required"
     )).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
 
+    const unrelatedProduct = record("PSP", "PSP-0HARDENP11", {
+      title: "Unrelated accepted product",
+      rationale: "Prove candidate co-membership is not parentage.",
+      kind: "software",
+    }, { scenario: "compile-psp@2" });
+    const acceptedWithUnrelatedProduct = record(
+      "BSL",
+      acceptedFoundation[2]!.datum.id,
+      {
+        ...acceptedFoundation[2]!.datum.payload,
+        definition_members: [
+          ...(acceptedFoundation[2]!.datum.payload.definition_members as string[]),
+          unrelatedProduct.datum.revision_id,
+        ],
+      },
+      { scenario: "accept-phase-0-intent@1" },
+    );
+    const exactParentSupport = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          acceptedFoundation[0]!,
+          acceptedFoundation[1]!,
+          unrelatedProduct,
+          acceptedWithUnrelatedProduct,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "pilot-intent-support-for-requirement@1",
+      { requirement: acceptedFoundation[1]!.datum.revision_id },
+    );
+    expect((exactParentSupport.result as Array<{
+      identity: { revision_id: string };
+    }>).map((item) => item.identity.revision_id)).toEqual([
+      acceptedFoundation[0]!.datum.revision_id,
+    ]);
+
     const advancedProduct = record(
       "PSP",
       acceptedFoundation[0]!.datum.id,
