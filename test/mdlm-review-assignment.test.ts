@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import {
   mdlm,
   mdlmWithEnvironment,
@@ -11,6 +12,12 @@ import {
 } from "./helpers/mdlm.js";
 
 const timeout = 60_000;
+
+function parseLifecycleMarkdown(source: string): Record<string, unknown> {
+  const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(source);
+  if (!match?.[1]) throw new Error("Lifecycle Markdown frontmatter unavailable");
+  return { ...(parse(match[1]) as Record<string, unknown>), body: match[2] };
+}
 
 type Packet = {
   contract: string;
@@ -360,12 +367,15 @@ describe("delegated Review Assignment packets", () => {
           "repository.validation.records": expectedLifecycleDataCount,
         },
       });
-      expect(reviewSubmission.execution.outputs[0].data.payload).toEqual(
-        expect.objectContaining({
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
-          outcome: "pass",
-        }),
-      );
+      const publishedOutput = reviewSubmission.execution.outputs[0];
+      expect(publishedOutput.data.payload).toEqual(expect.objectContaining({
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        outcome: "pass",
+      }));
+      expect(parseLifecycleMarkdown(await fs.readFile(
+        path.join(repository, publishedOutput.lifecycleDatum.path),
+        "utf8",
+      ))).toEqual(publishedOutput.data);
     },
     timeout,
   );

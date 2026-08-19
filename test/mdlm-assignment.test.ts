@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -528,6 +528,82 @@ describe("MDLM Assignment leasing and preparation", () => {
     ]);
     const fresh = JSON.parse(mdlm(repository, "next").stdout);
     expect(fresh.assignment.id).not.toBe(assignment);
+  });
+
+  it("marks a publication-time repository change stale without charging a malformed retry", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout) as PreparedPromptPacket;
+    const response = `${JSON.stringify(wayfindingResponse(
+      assignment,
+      packet.prompt.skills.map((skill) => skill.reference),
+    ))}\n`;
+    const lockDirectory = path.join(
+      repository,
+      ".lifecycle/data/.transactions/.publication.lock",
+    );
+    await fs.mkdir(lockDirectory, { recursive: true });
+    await fs.writeFile(
+      path.join(lockDirectory, "owner.json"),
+      `${JSON.stringify({ pid: process.pid })}\n`,
+    );
+    const staged = new Promise<void>((resolve, reject) => {
+      const watcher = watch(path.join(repository, ".lifecycle"), async () => {
+        try {
+          const entries = await fs.readdir(path.join(repository, ".lifecycle"));
+          if (entries.some((entry) =>
+            entry.startsWith(".scenario-") && entry.endsWith(".tmp")
+          )) {
+            watcher.close();
+            resolve();
+          }
+        } catch (error) {
+          watcher.close();
+          reject(error);
+        }
+      });
+    });
+    const child = spawn(
+      process.execPath,
+      [mdlmExecutable, "scenario", "submit"],
+      { cwd: repository, stdio: ["pipe", "pipe", "pipe"] },
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => stdout += chunk);
+    child.stderr.on("data", (chunk: string) => stderr += chunk);
+    child.stdin.end(response);
+
+    await staged;
+    await fs.writeFile(
+      path.join(repository, ".lifecycle/data/intervening.md"),
+      "Intervening authoritative Markdown.\n",
+    );
+    await fs.rm(lockDirectory, { recursive: true, force: true });
+    const status = await new Promise<number | null>((resolve) =>
+      child.on("close", resolve)
+    );
+
+    expect(status, `${stderr}${stdout}`).toBe(1);
+    expect(JSON.parse(stdout)).toEqual(expect.objectContaining({
+      disposition: "stale",
+      diagnostics: [expect.objectContaining({ code: "assignment-stale" })],
+    }));
+    const lease = JSON.parse(await fs.readFile(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ), "utf8"));
+    expect(lease).toEqual(expect.objectContaining({
+      disposition: "stale",
+      malformedResponses: [],
+    }));
   });
 
   it("stops a corrected response when tracked state became stale and publishes nothing", async () => {

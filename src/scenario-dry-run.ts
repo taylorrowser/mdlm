@@ -9,6 +9,7 @@ import {
   scenarioOutputExplanations,
   type DatumEnvelope,
   type ExactTypedEntity,
+  type LifecycleEvaluation,
   type LifecycleSnapshot,
   type ObligationEvaluation,
   type ScenarioOutputExplanation,
@@ -25,6 +26,7 @@ import type {
   VersionedDefinition,
 } from "./index.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
+import { recordWork } from "./performance-diagnostics.js";
 import type { ScenarioParticipation } from "./participation.js";
 
 export interface ScenarioInputCheck {
@@ -591,6 +593,7 @@ async function dryRunScenario(
   scenarioReference: string,
   authorizationRequest: ScenarioDryRunAuthorizationRequest,
   requestedInputs: RequestedInput[],
+  preparedEvaluation?: LifecycleEvaluation,
 ): Promise<ScenarioDryRunResult> {
   const scenario = referenceDefinition(
     processPackage.scenarios,
@@ -666,7 +669,10 @@ async function dryRunScenario(
     expectedOutputs = scenarioOutputExplanations(scenario);
   } else {
     const obligationInstance = authorizationRequest.obligationInstance;
-    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const evaluation = preparedEvaluation ?? (() => {
+      recordWork("lifecycle.evaluation.snapshots");
+      return evaluateLifecycle(processPackage, snapshot);
+    })();
     if (evaluation.diagnostics.length > 0) {
       return { ok: false, diagnostics: evaluation.diagnostics };
     }
@@ -1051,6 +1057,7 @@ export async function dryRunResolverScenario(
   scenarioReference: string,
   obligationInstance: string,
   requestedInputs: RequestedInput[],
+  preparedEvaluation?: LifecycleEvaluation,
 ): Promise<ScenarioDryRunResult> {
   return dryRunScenario(
     processPackage,
@@ -1058,6 +1065,7 @@ export async function dryRunResolverScenario(
     scenarioReference,
     { mode: "dispatchable-obligation", obligationInstance },
     requestedInputs,
+    preparedEvaluation,
   );
 }
 

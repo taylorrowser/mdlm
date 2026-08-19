@@ -414,6 +414,26 @@ export async function verifyRepositoryDataSources(
     : { ok: true, value: undefined, diagnostics: [] };
 }
 
+async function publicationLockIsAbandoned(
+  lockDirectory: string,
+): Promise<boolean> {
+  try {
+    const owner = JSON.parse(await fs.readFile(
+      path.join(lockDirectory, "owner.json"),
+      "utf8",
+    )) as { pid?: unknown };
+    if (typeof owner.pid !== "number") return false;
+    try {
+      process.kill(owner.pid, 0);
+      return false;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === "ESRCH";
+    }
+  } catch {
+    return false;
+  }
+}
+
 async function withRepositoryPublicationLock<T>(
   root: string,
   operation: () => Promise<T>,
@@ -436,6 +456,10 @@ async function withRepositoryPublicationLock<T>(
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
         await fs.rm(lockDirectory, { recursive: true, force: true });
         throw error;
+      }
+      if (await publicationLockIsAbandoned(lockDirectory)) {
+        await fs.rm(lockDirectory, { recursive: true, force: true });
+        continue;
       }
       if (Date.now() >= deadline) {
         throw new Error("Timed out waiting for the repository publication lock");

@@ -810,6 +810,7 @@ async function prepareOperatorWork(
       work.scenario,
       item.id,
       [],
+      evaluation,
     );
     return prepared.ok
       ? {
@@ -2223,6 +2224,11 @@ export async function submitAssignmentResponse(
         prepared,
       );
   if (!submitted.ok) {
+    if (submitted.diagnostics.some((diagnostic) =>
+      diagnostic.code === "scenario-repository-changed"
+    )) {
+      return recordStaleDisposition(repositoryRoot, lease);
+    }
     return recordMalformedResponse(
       repositoryRoot,
       lease,

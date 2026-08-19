@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
@@ -490,48 +490,74 @@ describe("compiled mdlm baseline inspection", () => {
       "QST-1040000303",
       "Concurrent publication source",
     );
-    let completedChecks = 0;
-    let releaseChecks: (() => void) | undefined;
-    const bothChecksCompleted = new Promise<void>((resolve) => {
-      releaseChecks = resolve;
+    let commitGuardCalls = 0;
+    let firstGuardStarted: (() => void) | undefined;
+    const firstGuard = new Promise<void>((resolve) => {
+      firstGuardStarted = resolve;
+    });
+    let releaseFirstGuard: (() => void) | undefined;
+    const firstGuardRelease = new Promise<void>((resolve) => {
+      releaseFirstGuard = resolve;
     });
     const commitGuard = async () => {
-      const checked = await verifyRepositoryDataSources(repository, loaded.value);
-      completedChecks += 1;
-      if (completedChecks === 2) releaseChecks?.();
-      await Promise.race([
-        bothChecksCompleted,
-        new Promise((resolve) => setTimeout(resolve, 100)),
-      ]);
-      return checked;
+      commitGuardCalls += 1;
+      if (commitGuardCalls === 1) {
+        firstGuardStarted?.();
+        await firstGuardRelease;
+      }
+      return verifyRepositoryDataSources(repository, loaded.value);
     };
 
+    const firstPublication = publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      expected,
+      [proposal],
+      "concurrent-publication-left",
+      {},
+      [],
+      commitGuard,
+    );
+    await firstGuard;
+    const secondStaged = new Promise<void>((resolve, reject) => {
+      const watcher = watch(path.join(repository, ".lifecycle"), async () => {
+        try {
+          const entries = await fs.readdir(path.join(repository, ".lifecycle"));
+          if (entries.some((entry) =>
+            entry.startsWith(".scenario-concurrent-publication-right.") &&
+            entry.endsWith(".tmp")
+          )) {
+            watcher.close();
+            resolve();
+          }
+        } catch (error) {
+          watcher.close();
+          reject(error);
+        }
+      });
+    });
+    const secondPublication = publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      expected,
+      [{ ...structuredClone(proposal), body: "Competing publication.\n" }],
+      "concurrent-publication-right",
+      {},
+      [],
+      commitGuard,
+    );
+    await secondStaged;
+    expect(commitGuardCalls).toBe(1);
+    releaseFirstGuard?.();
+
     const results = await Promise.all([
-      publishScenarioMutationData(
-        repository,
-        processPackage,
-        loaded.value,
-        expected,
-        [proposal],
-        "concurrent-publication-left",
-        {},
-        [],
-        commitGuard,
-      ),
-      publishScenarioMutationData(
-        repository,
-        processPackage,
-        loaded.value,
-        expected,
-        [{ ...structuredClone(proposal), body: "Competing publication.\n" }],
-        "concurrent-publication-right",
-        {},
-        [],
-        commitGuard,
-      ),
+      firstPublication,
+      secondPublication,
     ]);
 
-    expect(completedChecks).toBe(2);
+    expect(commitGuardCalls).toBe(2);
     expect(results.filter((result) => result.ok)).toHaveLength(1);
     expect(results.filter((result) => !result.ok)).toEqual([
       expect.objectContaining({
@@ -540,6 +566,37 @@ describe("compiled mdlm baseline inspection", () => {
         })],
       }),
     ]);
+  });
+
+  it("recovers a publication lock whose owner exited", async () => {
+    const { processPackage } = await selectedPackage(repository);
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    const lockDirectory = path.join(
+      repository,
+      ".lifecycle/data/.transactions/.publication.lock",
+    );
+    await fs.mkdir(lockDirectory, { recursive: true });
+    await fs.writeFile(
+      path.join(lockDirectory, "owner.json"),
+      `${JSON.stringify({ pid: 2_147_483_647 })}\n`,
+    );
+
+    const published = await publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      loaded.value.map((item) => item.lifecycleDatum.datum),
+      [],
+      "publication-after-exited-owner",
+      {},
+      [],
+      () => verifyRepositoryDataSources(repository, loaded.value),
+    );
+
+    expect(published.ok).toBe(true);
+    await expect(fs.access(lockDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {
