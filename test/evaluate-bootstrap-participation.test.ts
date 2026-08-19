@@ -6,6 +6,7 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { evaluateProcessDefinition } from "../src/evaluator.js";
 import { nextWorkProjection } from "../src/lifecycle-inspection.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
@@ -206,6 +207,10 @@ describe("bootstrap Scenario participation Policies", () => {
       },
       "revise-environment-assurance-after-review": {
         output: "decision",
+        type: "DEC",
+      },
+      "revise-foundation-correction-decision-after-review": {
+        output: "replacement",
         type: "DEC",
       },
       "revise-gate-signoff-after-review": {
@@ -1194,6 +1199,7 @@ describe("bootstrap Scenario participation Policies", () => {
     deferred.datum.revision = 2;
     deferred.datum.revision_id = `${source.datum.id}-r00002`;
     deferred.datum.payload.state = "deferred";
+    deferred.datum.created_by.scenario = "resolve-question@2";
     deferred.datum.payload.reactivation_condition =
       "Reactivate when the named evidence becomes available.";
     const decision = lifecycleDatum("DEC", "DEC-8ZT5KQ3P9W", {
@@ -1227,6 +1233,10 @@ describe("bootstrap Scenario participation Policies", () => {
     }));
 
     const reviewedDecision = contextualPassingReview(decision, "REV-8ZT5KQ3P9W");
+    reviewedDecision.context.datum.payload.definition_members = [
+      decision.datum.revision_id,
+      deferred.datum.revision_id,
+    ].sort();
     const review = reviewedDecision.review;
     const unboundedDeferral = structuredClone(deferred);
     delete unboundedDeferral.datum.payload.reactivation_condition;
@@ -1267,6 +1277,7 @@ describe("bootstrap Scenario participation Policies", () => {
     cancelled.datum.revision = 2;
     cancelled.datum.revision_id = `${source.datum.id}-r00002`;
     cancelled.datum.payload.state = "cancelled";
+    cancelled.datum.created_by.scenario = "resolve-question@2";
     const decision = lifecycleDatum("DEC", "DEC-8ZT5KQ3P9X", {
       title: "Cancel one exact unsupported question",
       rationale: "The stakeholder explicitly ended this unsupported route.",
@@ -1298,6 +1309,10 @@ describe("bootstrap Scenario participation Policies", () => {
     }));
 
     const reviewedDecision = contextualPassingReview(decision, "REV-8ZT5KQ3P9X");
+    reviewedDecision.context.datum.payload.definition_members = [
+      decision.datum.revision_id,
+      cancelled.datum.revision_id,
+    ].sort();
     const review = reviewedDecision.review;
     const afterReview = evaluateLifecycle(processPackage, {
       processRef,
@@ -2356,7 +2371,8 @@ describe("bootstrap Scenario participation Policies", () => {
     fixture.candidateContext.datum.payload.definition_members = [
       fixture.candidate.datum.revision_id,
       ...foundation.map((member) => member.datum.revision_id),
-    ];
+      openQuestion.datum.revision_id,
+    ].sort();
     fixture.candidateReview.datum.payload.outcome = "fail";
     fixture.candidateReview.datum.payload.simplification = {
       target: fixture.candidate.datum.revision_id,
@@ -2443,6 +2459,7 @@ describe("bootstrap Scenario participation Policies", () => {
     answeredQuestion.datum.revision = 2;
     answeredQuestion.datum.revision_id = `${openQuestion.datum.id}-r00002`;
     answeredQuestion.datum.payload.state = "answered";
+    answeredQuestion.datum.created_by.scenario = "resolve-question@2";
     answeredQuestion.storage = { editable: true, frozen: false };
     const answer = lifecycleDatum("DEC", "DEC-7K3M9Q2D8J", {
       title: "Authorized stakeholder product boundary",
@@ -2459,7 +2476,23 @@ describe("bootstrap Scenario participation Policies", () => {
       ],
       scenario: "resolve-question@2",
     });
+    const deceptiveAnswer = lifecycleDatum("DEC", "DEC-7K3M9Q2D8L", {
+      title: "Deceptively linked product boundary",
+      rationale: "Matching links without exact Question-resolution provenance are insufficient.",
+      kind: "scope",
+      decision: "Claim an unrelated authority route resolved the Question.",
+      alternatives: ["Use the attended Question-resolution route"],
+      effective_scope: answeredQuestion.datum.revision_id,
+    }, {
+      frozen: true,
+      links: [{ type: "resolves", target: answeredQuestion.datum.revision_id }],
+      scenario: "record-consequential-decision@1",
+    });
     const reviewedAnswer = contextualPassingReview(answer, "REV-7K3M9Q2D8K");
+    reviewedAnswer.context.datum.payload.definition_members = [
+      answer.datum.revision_id,
+      answeredQuestion.datum.revision_id,
+    ].sort();
     const unrelatedQuestion = structuredClone(answeredQuestion);
     unrelatedQuestion.datum.id = "QST-8K3M9Q2D8F";
     unrelatedQuestion.datum.revision_id = "QST-8K3M9Q2D8F-r00001";
@@ -2480,9 +2513,14 @@ describe("bootstrap Scenario participation Policies", () => {
       unrelatedAnswer,
       "REV-8K3M9Q2D8F",
     );
+    reviewedUnrelatedAnswer.context.datum.payload.definition_members = [
+      unrelatedAnswer.datum.revision_id,
+      unrelatedQuestion.datum.revision_id,
+    ].sort();
     records.push(
       answeredQuestion,
       answer,
+      deceptiveAnswer,
       reviewedAnswer.context,
       reviewedAnswer.review,
       unrelatedQuestion,
@@ -2490,6 +2528,66 @@ describe("bootstrap Scenario participation Policies", () => {
       reviewedUnrelatedAnswer.context,
       reviewedUnrelatedAnswer.review,
     );
+
+    const candidateResolutionSupport = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-0-wayfinding",
+        records,
+        dependencyComparisons: [],
+      },
+      "selector",
+      "review-context-members-for@1",
+      { subject: fixture.candidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(candidateResolutionSupport.map((item) =>
+      item.identity.revision_id
+    )).toEqual(expect.arrayContaining([
+      answeredQuestion.datum.revision_id,
+      answer.datum.revision_id,
+    ]));
+    expect(candidateResolutionSupport.map((item) =>
+      item.identity.revision_id
+    )).not.toContain(unrelatedQuestion.datum.revision_id);
+    expect(candidateResolutionSupport.map((item) =>
+      item.identity.revision_id
+    )).not.toContain(unrelatedAnswer.datum.revision_id);
+    expect(candidateResolutionSupport.map((item) =>
+      item.identity.revision_id
+    )).not.toContain(deceptiveAnswer.datum.revision_id);
+
+    const refreshedCandidateContext = lifecycleDatum(
+      "BSL",
+      "BSL-9K3M9Q2D8F",
+      {
+        title: "Candidate Review Context with resolved Question authority",
+        kind: "review-context",
+        role: "review-context",
+        scope: fixture.candidate.datum.revision_id,
+        group: "DEFAULT",
+        definition_members: [
+          fixture.candidate.datum.revision_id,
+          ...foundation.map((member) => member.datum.revision_id),
+          answeredQuestion.datum.revision_id,
+          answer.datum.revision_id,
+        ].sort(),
+        evidence: [],
+      },
+      { frozen: true, scenario: "create-review-context@1" },
+    );
+    const refreshedCandidateReview = structuredClone(fixture.candidateReview);
+    refreshedCandidateReview.datum.id = "REV-9K3M9Q2D8F";
+    refreshedCandidateReview.datum.revision_id = "REV-9K3M9Q2D8F-r00001";
+    refreshedCandidateReview.datum.links = [
+      { type: "reviews", target: fixture.candidate.datum.revision_id },
+      {
+        type: "contextualizes",
+        target: refreshedCandidateContext.datum.revision_id,
+      },
+      { type: "blocks", target: fixture.candidate.datum.revision_id },
+    ];
+    records.push(refreshedCandidateContext, refreshedCandidateReview);
 
     const readyCorrection = evaluate().obligations.find((item) =>
       item.obligation === "intent-candidate-review-correction-required" &&
@@ -2545,6 +2643,12 @@ describe("bootstrap Scenario participation Policies", () => {
       replacement,
       "REV-7K3M9Q2D8M",
     );
+    reviewedReplacement.context.datum.payload.definition_members = [
+      replacement.datum.revision_id,
+      ...foundation.map((member) => member.datum.revision_id),
+      answeredQuestion.datum.revision_id,
+      answer.datum.revision_id,
+    ].sort();
     reviewedReplacement.review.datum.payload.review_kind =
       "simplification-product-definition";
     reviewedReplacement.review.datum.payload.rubric_ref =
@@ -2575,7 +2679,7 @@ describe("bootstrap Scenario participation Policies", () => {
       question: "Which export should remain?",
       state: "answered",
       blocking_impact: "The answer controls exact product scope.",
-    }, { frozen: true });
+    }, { frozen: true, scenario: "resolve-question@2" });
     const decision = lifecycleDatum("DEC", "DEC-7K3M9Q2D8F", {
       title: "Retain one export",
       rationale: "The stakeholder chose the smallest sufficient export.",
@@ -2586,6 +2690,7 @@ describe("bootstrap Scenario participation Policies", () => {
     }, {
       frozen: true,
       links: [{ type: "resolves", target: answered.datum.revision_id }],
+      scenario: "resolve-question@2",
     });
     const failedReview = lifecycleDatum(
       "REV",
@@ -2653,6 +2758,33 @@ describe("bootstrap Scenario participation Policies", () => {
       expect.objectContaining({ name: "prior_failed_reviews", values: [] }),
       expect.objectContaining({ name: "failed_reviews", values: [expect.any(Object)] }),
     ]));
+
+    const replacement = lifecycleDatum("DEC", decision.datum.id, {
+      ...decision.datum.payload,
+      rationale: "The stakeholder renewed the exact answer after its failed Review.",
+    }, {
+      frozen: true,
+      links: [
+        { type: "resolves", target: answered.datum.revision_id },
+        { type: "corrects-review", target: failedReview.datum.revision_id },
+      ],
+      scenario: "revise-question-decision-after-review@1",
+    });
+    replacement.datum.revision = 2;
+    replacement.datum.revision_id = `${decision.datum.id}-r00002`;
+    const currentAnswers = evaluateProcessDefinition(
+      processPackage,
+      {
+        ...snapshot,
+        records: [...snapshot.records, replacement],
+      },
+      "selector",
+      "question-answer-decisions-for@1",
+      { question: answered.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(currentAnswers.map((item) => item.identity.revision_id)).toEqual([
+      replacement.datum.revision_id,
+    ]);
   });
 
   it("routes a failed gate Decision Review through exact attended correction", async () => {

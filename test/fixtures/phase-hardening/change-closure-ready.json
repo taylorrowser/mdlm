@@ -73,7 +73,7 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@4",
+          "prompt_ref": "prompts/review-datum-in-context.md@5",
           "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
@@ -283,7 +283,7 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@4",
+          "prompt_ref": "prompts/review-datum-in-context.md@5",
           "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
@@ -1646,7 +1646,7 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@4",
+          "prompt_ref": "prompts/review-datum-in-context.md@5",
           "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
@@ -1699,7 +1699,7 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@4",
+          "prompt_ref": "prompts/review-datum-in-context.md@5",
           "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",

@@ -1,0 +1,24 @@
+kind: selector-definition
+id: phase-0-candidate-correction-support-for
+version: 1
+description: Exact correction lineage, causes, and attended authority for the current foundation members of one Phase 0 candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [MAP, PSP, STK, REV, DEC]}
+  as: support
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    && none("changes-changed-under-subject@1", {subject: candidate})
+    && !every("review-required-members-for@1", {candidate: candidate}, member =>
+      every("prior-foundation-revisions-for@1",
+        {subject: member}, revision => revision != support)
+      && every("all-cited-reviews-by-correction@1",
+        {replacement: member}, review => review != support)
+      && every("all-cited-gate-rejections-by-correction@1",
+        {replacement: member}, rejection => rejection != support)
+      && every("foundation-correction-decisions-for@1",
+        {replacement: member}, decision => decision != support))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

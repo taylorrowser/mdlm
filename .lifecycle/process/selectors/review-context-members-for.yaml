@@ -14,8 +14,23 @@ query:
       !every("direct-review-support-for@1", {subject: subject}, support =>
         support != member)
       || (exists("intent-candidates-matching-subject@1", {subject: subject})
-        && exists("candidate-members-matching@1",
-          {candidate: one("intent-candidates-matching-subject@1", {subject: subject}), required_member: member}))
+        && (
+          exists("candidate-members-matching@1",
+            {candidate: one("intent-candidates-matching-subject@1", {subject: subject}), required_member: member})
+          || !every("phase-0-candidate-correction-support-for@1",
+            {candidate: one("intent-candidates-matching-subject@1", {subject: subject})}, support => support != member)
+          || !every("candidate-question-resolution-support-for@1",
+            {candidate: one("intent-candidates-matching-subject@1", {subject: subject})}, support => support != member)
+        ))
+      || (subject.identity.type == "DEC"
+        && (
+          !every("foundation-correction-causes-for-decision@1",
+            {decision: subject}, cause => cause != member)
+          || !every("prior-foundation-correction-decision-revisions-for@1",
+            {decision: subject}, prior => prior != member)
+          || !every("question-targets-for-decision@1",
+            {decision: subject}, question => question != member)
+        ))
       || (subject.identity.type in ["MAP", "PSP", "STK"]
         && (
           exists("all-cited-reviews-by-correction@1", {replacement: subject})

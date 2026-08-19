@@ -1,0 +1,15 @@
+kind: selector-definition
+id: prior-foundation-correction-decision-revisions-for
+version: 1
+description: Exact prior same-lineage Decision Revisions for one corrected foundation authority Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DEC]}
+  as: prior
+  where: >-
+    prior.identity.id == decision.identity.id
+    && prior.identity.revision < decision.identity.revision
+  distinct: true
+  order_by: [identity.revision]

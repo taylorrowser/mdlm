@@ -1,6 +1,6 @@
 ---
 id: review-datum-in-context
-version: 4
+version: 5
 scenario: review-datum-in-context
 ---
 
@@ -32,9 +32,18 @@ is the durable judgment evidence.
 
 Create one REV with exactly one `reviews` link and one `contextualizes` link.
 Read every exact `context_members` input; the frozen context and its hash
-manifest are not substitutes for the member contents. For an
-`intent-level-candidate`, these members are its complete evidence-bearing
-MAP/PSP/STK set. A candidate linked through `changed-under` additionally receives
+manifest are not substitutes for the member contents. For an `intent-level-candidate`, these members include its complete MAP/PSP/STK
+set plus exact correction lineage, causal failed Reviews, current attended scope
+Decisions, and current referenced Question dispositions selected by the package.
+Treat an exact attended Decision as authority for the choice it records. Do not
+reopen that choice merely because an earlier MAP, PSP, STK, or Review predates the
+Decision. When the latest QST and its exact Decision show that a preferential
+Question is answered, do not report it as unresolved. Still fail a candidate that
+contradicts the Decision, exceeds its effective scope, lacks exact authority, or
+keeps a current unresolved Question. Never infer an answer or authority that is
+absent from `context_members`.
+
+A candidate linked through `changed-under` additionally receives
 the bounded CHG and attended disposition; a replacement STK receives the same
 change context so its judgment is scoped to the approved change.
 For a Phase 2 planning DWP, they are its complete current SYS/ASP/ICSP definition

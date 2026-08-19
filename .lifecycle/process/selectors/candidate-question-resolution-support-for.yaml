@@ -1,0 +1,20 @@
+kind: selector-definition
+id: candidate-question-resolution-support-for
+version: 1
+description: Latest exact Question dispositions and their structurally valid Decisions for one candidate's referenced Questions.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST, DEC]}
+  as: support
+  where: >-
+    !every("latest-question-dependencies-for-candidate@1",
+      {candidate: candidate}, question =>
+        question != support
+        && every("question-answer-decisions-for@1",
+          {question: question}, answer => answer != support)
+        && every("question-disposition-decisions-for@1",
+          {question: question}, disposition => disposition != support))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

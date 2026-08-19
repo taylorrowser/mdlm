@@ -1,0 +1,15 @@
+kind: selector-definition
+id: failed-foundation-correction-decisions
+version: 1
+description: Current trusted Phase 0 foundation correction Decisions with an exact failing Review.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DEC]}
+  as: decision
+  where: >-
+    exists("foundation-correction-replacements-for-decision@1",
+      {decision: decision})
+    && exists("failing-reviews-for@1", {subject: decision})
+  distinct: true
+  order_by: [identity.id, identity.revision]

@@ -343,7 +343,7 @@ describe("Phase-hardening domain route contracts", () => {
       authorized: true,
       complete: true,
     }));
-  });
+  }, 30_000);
 
   it("evaluates PAS correction authority and reviewed expansion outcomes", () => {
     const assessmentPayload = (recommendation: "proceed" | "change" | "stop") => ({

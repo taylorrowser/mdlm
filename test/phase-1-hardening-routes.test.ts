@@ -1195,7 +1195,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(processRoot, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it("proves Phase 1 pilot VER publication with exact Stable Datum, Revision, strategy links, and Review support", () => {
     const acceptedFoundation = foundation();

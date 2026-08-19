@@ -17,7 +17,9 @@ attention_checkpoints:
           none("candidate-members-missing-review@1", {candidate: candidate})
           && exists("product-simplification-reviews-for@1",
             {candidate: candidate, outcome: "pass"})
-          && none("failing-reviews-for@1", {subject: candidate}))
+          && none("failing-reviews-for@1", {subject: candidate})
+          && none("candidate-correction-authorities-requiring-review@1",
+            {candidate: candidate}))
       && none("open-blocking-questions@1", {})
 scenarios:
   - chart-wayfinding-map@1
@@ -29,6 +31,7 @@ scenarios:
   - review-datum-in-context@2
   - resolve-question@2
   - revise-question-decision-after-review@1
+  - revise-foundation-correction-decision-after-review@1
   - resolve-question-with-prototype@2
   - create-phase-0-intent-candidate@1
   - record-gate-signoff@3
@@ -51,6 +54,7 @@ obligations:
   - passing-review-required@2
   - open-question-resolution@3
   - question-decision-review-correction-required@1
+  - foundation-correction-decision-review-correction-required@1
   - prototype-question-resolution@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@3
@@ -66,6 +70,8 @@ progression:
         && exists("product-simplification-reviews-for@1",
           {candidate: candidate, outcome: "pass"})
         && none("failing-reviews-for@1", {subject: candidate})
+        && none("candidate-correction-authorities-requiring-review@1",
+          {candidate: candidate})
         && exists("phase-0-intent-approvals-for@1", {candidate: candidate}))
     && none("open-blocking-questions@1", {})
   authorization:
@@ -73,7 +79,9 @@ progression:
       exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})
       && every("candidate-baselines-of-kind@1",
         {baseline_kind: "intent-level-candidate"}, candidate =>
-          exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+          none("candidate-correction-authorities-requiring-review@1",
+            {candidate: candidate})
+          && exists("applicable-gate-signoffs-for@1", {candidate: candidate})
           && exists("phase-0-intent-approvals-for@1", {candidate: candidate}))
     policy_ref: phase-progression-participation@1
     arguments: {phase: phase}
@@ -93,5 +101,7 @@ gate:
     && exists("product-simplification-reviews-for@1",
       {candidate: candidate, outcome: "pass"})
     && none("failing-reviews-for@1", {subject: candidate})
+    && none("candidate-correction-authorities-requiring-review@1",
+      {candidate: candidate})
     && none("open-blocking-questions@1", {})
     && exists("applicable-gate-signoffs-for@1", {candidate: candidate})

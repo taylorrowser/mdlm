@@ -927,6 +927,54 @@ describe("Phase 0 missing hardening routes", () => {
     }));
   });
 
+  it("keeps a clean first-pass candidate Review free of correction authority at the public command seam", async () => {
+    const { parent, repository } = await initializedRepository(
+      "mdlm-phase0-clean-candidate-",
+    );
+    try {
+      const { prepared } = await advancePhase0To(
+        repository,
+        "create-phase-0-intent-candidate@1",
+      );
+      const members = inputRevisions(prepared, "definition_members");
+      const reviews = inputRevisions(prepared, "member_reviews");
+      const submitted = submitAssignment(repository, prepared, [{
+        localId: "candidate",
+        name: "candidate",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: "Clean first-pass intent candidate",
+            kind: "intent-level-candidate",
+            role: "candidate",
+            scope: "clean-first-pass",
+            group: "DEFAULT",
+            definition_members: members,
+            evidence: reviews,
+          },
+          links: [],
+          body: "The candidate contains only the reviewed first-pass foundation.\n",
+        },
+      }]);
+      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      const candidateRevision = JSON.parse(
+        submitted.stdout,
+      ).execution.outputs[0].lifecycleDatum.revisionId as string;
+      const review = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(review, "subject")).toBe(candidateRevision);
+      const support = inputRevisions(review, "context_members");
+      expect(support).toEqual(expect.arrayContaining(members));
+      expect(support.some((revision) => revision.startsWith("DEC-"))).toBe(false);
+      expect(support.some((revision) => revision.startsWith("QST-"))).toBe(false);
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   it("publishes a complete candidate and selects its attended indexed Question before correction at the public command seam", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-candidate-");
     try {
@@ -1065,10 +1113,144 @@ describe("Phase 0 missing hardening routes", () => {
           actionableResolver: "resolve-question@2",
         }),
       );
+
+      const questionId = exactInput(next, "question").identity.id;
+      const answeredQuestionRevision = `${questionId}-r00002`;
+      const resolved = submitAssignment(repository, next, [{
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Authorized exact product boundary",
+            rationale: "The stakeholder selected the bounded public behavior.",
+            kind: "scope",
+            decision: "Retain the exact bounded public behavior.",
+            alternatives: ["Defer the choice", "Remove the behavior"],
+            effective_scope: answeredQuestionRevision,
+          },
+          links: [
+            { type: "resolves", target: questionRevision },
+            { type: "resolves", target: "$proposal.updated.revision_id" },
+          ],
+          body: "The stakeholder resolves the exact preferential Question.\n",
+        },
+      }, {
+        localId: "updated",
+        name: "updated_question",
+        invocation: 0,
+        lifecycleDatum: {
+          id: questionId,
+          type: "QST",
+          payload: {
+            title: "Exact stakeholder product boundary",
+            kind: "preferential",
+            question: "Which exact product boundary should remain?",
+            state: "answered",
+            blocking_impact: "The candidate must preserve this exact disposition.",
+            attention_checkpoint: "phase-0-gate",
+            consolidation_group: "phase-0-stakeholder-questions",
+          },
+          links: [],
+          body: "The exact stakeholder product boundary is answered.\n",
+        },
+      }]);
+      expect(resolved.status, `${resolved.stderr}${resolved.stdout}`).toBe(0);
+      const resolutionOutputs = JSON.parse(resolved.stdout).execution.outputs as Array<{
+        name: string;
+        lifecycleDatum: { revisionId: string };
+      }>;
+      const decisionRevision = resolutionOutputs.find(
+        (item) => item.name === "decision",
+      )!.lifecycleDatum.revisionId;
+
+      const decisionReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(decisionReview, "subject")).toBe(decisionRevision);
+      expect(inputRevisions(decisionReview, "context_members")).toContain(
+        answeredQuestionRevision,
+      );
+      const acceptedDecision = submitAssignment(
+        repository,
+        decisionReview,
+        passingReviewOutput(decisionReview),
+      );
+      expect(
+        acceptedDecision.status,
+        `${acceptedDecision.stderr}${acceptedDecision.stdout}`,
+      ).toBe(0);
+
+      const correction = prepareNextAssignment(
+        repository,
+        "revise-intent-candidate-after-review@3",
+      );
+      expect(inputRevisions(correction, "question_dispositions")).toEqual([
+        answeredQuestionRevision,
+      ]);
+      expect(inputRevisions(correction, "question_decisions")).toEqual([
+        decisionRevision,
+      ]);
+      const correctedMembers = inputRevisions(correction, "definition_members");
+      const correctedMemberReviews = inputRevisions(correction, "member_reviews");
+      const correctedReviewCauses = [
+        ...inputRevisions(correction, "prior_failed_reviews"),
+        ...inputRevisions(correction, "failed_reviews"),
+      ];
+      const correctedCandidate = submitAssignment(repository, correction, [{
+        localId: "replacement",
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: exactInput(correction, "candidate").identity.id,
+          type: "BSL",
+          payload: {
+            title: "Candidate corrected with exact Question authority",
+            kind: "intent-level-candidate",
+            role: "candidate",
+            scope: "public-candidate-route",
+            group: "DEFAULT",
+            definition_members: correctedMembers,
+            evidence: correctedMemberReviews,
+          },
+          links: [
+            { type: "supersedes", target: candidateRevision },
+            ...correctedReviewCauses.map((target) => ({
+              type: "corrects-review",
+              target,
+            })),
+          ],
+          body: "The replacement uses only the exact reviewed Question disposition.\n",
+        },
+      }]);
+      expect(
+        correctedCandidate.status,
+        `${correctedCandidate.stderr}${correctedCandidate.stdout}`,
+      ).toBe(0);
+      const correctedCandidateRevision = JSON.parse(
+        correctedCandidate.stdout,
+      ).execution.outputs[0].lifecycleDatum.revisionId as string;
+
+      const refreshedCandidateReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(refreshedCandidateReview, "subject")).toBe(
+        correctedCandidateRevision,
+      );
+      expect(inputRevisions(
+        refreshedCandidateReview,
+        "context_members",
+      )).toEqual(expect.arrayContaining([
+        answeredQuestionRevision,
+        decisionRevision,
+      ]));
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 90_000);
+  }, 120_000);
 
   it("supplies complete passing member Reviews when correcting a candidate that omitted them", async () => {
     const foundation = phase0Foundation();
@@ -1380,7 +1562,22 @@ describe("Phase 0 missing hardening routes", () => {
     }));
   });
 
-  it("rejects attended foundation correction without durable minimum-scope option framing at the public repository seam", async () => {
+  it.each([
+    {
+      label: "retain",
+      disposition: "retain" as const,
+      reactivationCondition: undefined,
+    },
+    {
+      label: "defer-or-remove",
+      disposition: "defer-or-remove" as const,
+      reactivationCondition:
+        "Reintroduce the removed behavior only after a reviewed stakeholder requirement needs it.",
+    },
+  ])("carries $label correction authority into candidate Review at the public repository seam", async ({
+    disposition,
+    reactivationCondition,
+  }) => {
     const { parent, repository } = await initializedRepository(
       "mdlm-phase0-correction-scope-",
     );
@@ -1538,14 +1735,16 @@ describe("Phase 0 missing hardening routes", () => {
             title: "Bounded scope correction Decision",
             rationale: "The stakeholder selected the smallest sufficient fix.",
             kind: "scope",
-            decision: "Bound only the ambiguous output convention.",
+            decision: disposition === "retain"
+              ? "Retain only the exact stakeholder-authorized behavior."
+              : "Defer or remove the unsupported behavior until the reactivation condition holds.",
             alternatives: [
               "Defer the output convention",
               "Retain a broader numeric semantics model",
             ],
             effective_scope: `${subject.id}-r00002`,
             scope_correction: {
-              disposition: "bound",
+              disposition,
               options: {
                 bounded: "Clarify only the inconsistent output/failure clause.",
                 defer_or_remove: "Remove the unsupported output commitment until needed.",
@@ -1553,6 +1752,9 @@ describe("Phase 0 missing hardening routes", () => {
               },
               necessity:
                 "One local output clarification is sufficient; numeric limits and machine representation are unnecessary.",
+              ...(reactivationCondition === undefined
+                ? {}
+                : { reactivation_condition: reactivationCondition }),
             },
           },
           links: [{
@@ -1573,12 +1775,95 @@ describe("Phase 0 missing hardening routes", () => {
       const correctionDecision = boundedOutputs.find(
         (output) => output.name === "decision",
       )!.lifecycleDatum.revisionId;
+      let currentCorrectionDecision = correctionDecision;
       expect(corrected).toBe(`${subject.id}-r00002`);
       let freshReview = prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
       if (inputRevision(freshReview, "subject") !== corrected) {
+        if (disposition === "defer-or-remove") {
+          const failedDecision = submitAssignment(
+            repository,
+            freshReview,
+            stakeholderOwnedFailureOutput(freshReview),
+          );
+          expect(
+            failedDecision.status,
+            `${failedDecision.stderr}${failedDecision.stdout}`,
+          ).toBe(0);
+          const failedDecisionReview = JSON.parse(
+            failedDecision.stdout,
+          ).execution.outputs[0].lifecycleDatum.revisionId as string;
+          const authorityCorrection = prepareNextAssignment(
+            repository,
+            "revise-foundation-correction-decision-after-review@1",
+          );
+          expect(inputRevision(authorityCorrection, "corrected_subject")).toBe(
+            corrected,
+          );
+          expect(inputRevisions(
+            authorityCorrection,
+            "failed_reviews",
+          )).toContain(failedDecisionReview);
+          const decisionIdentity = exactInput(
+            authorityCorrection,
+            "decision",
+          ).identity;
+          const renewed = submitAssignment(repository, authorityCorrection, [{
+            localId: "replacement",
+            name: "replacement",
+            invocation: 0,
+            lifecycleDatum: {
+              id: decisionIdentity.id,
+              type: "DEC",
+              payload: {
+                title: "Renewed defer-or-remove correction authority",
+                rationale: "The stakeholder addressed the exact failed authority Review.",
+                kind: "scope",
+                decision: "Defer or remove unsupported behavior until exact need is reviewed.",
+                alternatives: [
+                  "Bound the behavior now",
+                  "Retain broader behavior with explicit necessity",
+                ],
+                effective_scope: corrected,
+                scope_correction: {
+                  disposition,
+                  options: {
+                    bounded: "Correct only the exact ambiguity.",
+                    defer_or_remove: "Remove unsupported behavior until needed.",
+                    retain: "Retain broader behavior only with explicit need.",
+                  },
+                  necessity: "No current accepted intent requires the deferred behavior.",
+                  reactivation_condition: reactivationCondition,
+                },
+              },
+              links: [
+                { type: "justifies", target: corrected },
+                { type: "corrects-review", target: failedDecisionReview },
+              ],
+              body: "Renewed authority preserves exact scope and correction causality.\n",
+            },
+          }]);
+          expect(renewed.status, `${renewed.stderr}${renewed.stdout}`).toBe(0);
+          currentCorrectionDecision = JSON.parse(
+            renewed.stdout,
+          ).execution.outputs[0].lifecycleDatum.revisionId as string;
+          freshReview = prepareNextAssignment(
+            repository,
+            "review-datum-in-context@2",
+          );
+          expect(inputRevision(freshReview, "subject")).toBe(
+            currentCorrectionDecision,
+          );
+          expect(inputRevisions(freshReview, "context_members")).toEqual(
+            expect.arrayContaining([
+              correctionDecision,
+              failedDecisionReview,
+              corrected,
+            ]),
+          );
+        }
         const reviewedDecision = submitAssignment(
           repository,
           freshReview,
@@ -1608,14 +1893,75 @@ describe("Phase 0 missing hardening routes", () => {
         expect.arrayContaining([
           product,
           failedReview,
-          correctionDecision,
+          currentCorrectionDecision,
+          corrected,
+        ]),
+      );
+
+      const acceptedCorrection = submitAssignment(
+        repository,
+        freshReview,
+        passingReviewOutput(freshReview),
+      );
+      expect(
+        acceptedCorrection.status,
+        `${acceptedCorrection.stderr}${acceptedCorrection.stdout}`,
+      ).toBe(0);
+      const { prepared: candidateAssignment } = await advancePhase0To(
+        repository,
+        "create-phase-0-intent-candidate@1",
+      );
+      const candidateMembers = inputRevisions(
+        candidateAssignment,
+        "definition_members",
+      );
+      const candidateReviews = inputRevisions(
+        candidateAssignment,
+        "member_reviews",
+      );
+      const candidateSubmission = submitAssignment(
+        repository,
+        candidateAssignment,
+        [{
+          localId: "candidate",
+          name: "candidate",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Candidate with reviewed correction authority",
+              kind: "intent-level-candidate",
+              role: "candidate",
+              scope: "product-intent",
+              group: "DEFAULT",
+              definition_members: candidateMembers,
+              evidence: candidateReviews,
+            },
+            links: [],
+            body: "The candidate preserves the exact reviewed correction authority.\n",
+          },
+        }],
+      );
+      expect(
+        candidateSubmission.status,
+        `${candidateSubmission.stderr}${candidateSubmission.stdout}`,
+      ).toBe(0);
+      const candidateReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevisions(candidateReview, "context_members")).toEqual(
+        expect.arrayContaining([
+          product,
+          failedReview,
+          currentCorrectionDecision,
           corrected,
         ]),
       );
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 60_000);
+  }, 90_000);
 
   it("makes existing STK Review evidence stale when its stable PSP parent advances", () => {
     const foundation = phase0Foundation();
@@ -1758,6 +2104,244 @@ describe("Phase 0 missing hardening routes", () => {
       decision.datum.revision_id,
     ]));
     expect(selected).not.toContain(unrelated.datum.revision_id);
+  });
+
+  it("carries correction authority into candidate Review and blocks gate readiness when that authority lacks a passing Review", () => {
+    const foundation = phase0Foundation();
+    const original = foundation.product;
+    const [originalContext, failedCorrectionReview] = reviewFor(
+      original,
+      "REV-1030000030",
+      "fail",
+      { correctionAuthority: "stakeholder" },
+    );
+    const corrected = record("PSP", original.datum.id, {
+      ...original.datum.payload,
+      title: "Retained bounded product scope",
+    }, {
+      revision: 2,
+      scenario: "escalate-foundation-review-correction@3",
+      links: [{
+        type: "corrects-review",
+        target: failedCorrectionReview.datum.revision_id,
+      }],
+    });
+    const authority = record("DEC", "DEC-1030000030", {
+      title: "Retain the bounded product scope",
+      rationale: "The stakeholder accepts the exact retained behavior.",
+      kind: "scope",
+      decision: "Retain the bounded behavior.",
+      alternatives: ["Bound it further", "Defer or remove it"],
+      effective_scope: corrected.datum.revision_id,
+      scope_correction: {
+        disposition: "retain",
+        options: {
+          bounded: "Bound the behavior further.",
+          defer_or_remove: "Remove it until exact need is established.",
+          retain: "Retain the exact behavior with stakeholder authority.",
+        },
+        necessity: "The stakeholder requires this exact bounded behavior.",
+      },
+    }, {
+      scenario: "escalate-foundation-review-correction@3",
+      links: [{ type: "justifies", target: corrected.datum.revision_id }],
+    });
+    const unrelatedAuthority = record("DEC", "DEC-1030000039", {
+      title: "Unrelated scope Decision",
+      rationale: "This Decision must not enter candidate correction support.",
+      kind: "scope",
+      decision: "Change unrelated scope.",
+      alternatives: ["Leave unrelated scope unchanged"],
+      effective_scope: corrected.datum.revision_id,
+    }, {
+      scenario: "record-consequential-decision@1",
+      links: [{ type: "justifies", target: corrected.datum.revision_id }],
+    });
+    const correctedContext = record("BSL", "BSL-1030000031", {
+      title: "Exact corrected PSP Review Context",
+      kind: "review-context",
+      role: "review-context",
+      scope: corrected.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        corrected.datum.revision_id,
+        original.datum.revision_id,
+        failedCorrectionReview.datum.revision_id,
+        authority.datum.revision_id,
+      ].sort(),
+      evidence: [],
+    }, { scenario: "create-review-context@1" });
+    const correctedReview = record("REV", "REV-1030000031", {
+      title: "Passing corrected PSP Review",
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    }, {
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: corrected.datum.revision_id },
+        { type: "contextualizes", target: correctedContext.datum.revision_id },
+      ],
+    });
+    const members = [foundation.map, corrected, foundation.requirement];
+    const candidate = record("BSL", "BSL-1030000030", {
+      title: "Corrected intent candidate",
+      kind: "intent-level-candidate",
+      role: "candidate",
+      scope: "product-intent",
+      group: "DEFAULT",
+      definition_members: members.map((member) => member.datum.revision_id),
+      evidence: [
+        foundation.reviews[1]!.datum.revision_id,
+        correctedReview.datum.revision_id,
+        foundation.reviews[5]!.datum.revision_id,
+      ],
+    }, { scenario: "create-phase-0-intent-candidate@1" });
+    const [candidateContext, candidateReview] = passingSimplification(
+      candidate,
+      "REV-1030000032",
+    );
+    const [authorityContext, failedAuthorityReview] = reviewFor(
+      authority,
+      "REV-1030000033",
+      "fail",
+    );
+    const records = [
+      foundation.map,
+      foundation.reviews[0]!,
+      foundation.reviews[1]!,
+      foundation.requirement,
+      foundation.reviews[4]!,
+      foundation.reviews[5]!,
+      original,
+      originalContext,
+      failedCorrectionReview,
+      corrected,
+      authority,
+      unrelatedAuthority,
+      correctedContext,
+      correctedReview,
+      candidate,
+      candidateContext,
+      candidateReview,
+      authorityContext,
+      failedAuthorityReview,
+    ];
+
+    const candidateSupport = evaluateProcessDefinition(
+      processPackage,
+      snapshot(records),
+      "selector",
+      "review-context-members-for@1",
+      { subject: candidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(candidateSupport.map((item) => item.identity.revision_id)).toEqual(
+      expect.arrayContaining([
+        original.datum.revision_id,
+        failedCorrectionReview.datum.revision_id,
+        authority.datum.revision_id,
+        corrected.datum.revision_id,
+      ]),
+    );
+    expect(candidateSupport.map((item) => item.identity.revision_id)).not
+      .toContain(unrelatedAuthority.datum.revision_id);
+
+    const authoritySupport = evaluateProcessDefinition(
+      processPackage,
+      snapshot(records),
+      "selector",
+      "review-context-members-for@1",
+      { subject: authority.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(authoritySupport.map((item) => item.identity.revision_id)).toEqual(
+      expect.arrayContaining([
+        failedCorrectionReview.datum.revision_id,
+        corrected.datum.revision_id,
+      ]),
+    );
+
+    expect(obligation(
+      processPackage,
+      records,
+      "candidate-gate-signoff",
+      candidate.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      blockedBy: [expect.stringMatching(/^passing-review-required@2:/)],
+    }));
+    expect(obligation(
+      processPackage,
+      records,
+      "foundation-correction-decision-review-correction-required",
+      authority.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver:
+        "revise-foundation-correction-decision-after-review@1",
+    }));
+
+    const replacementAuthority = record("DEC", authority.datum.id, {
+      ...authority.datum.payload,
+      rationale: "Renewed stakeholder authority addresses the exact failed Review.",
+    }, {
+      revision: 2,
+      scenario: "revise-foundation-correction-decision-after-review@1",
+      links: [
+        { type: "justifies", target: corrected.datum.revision_id },
+        { type: "corrects-review", target: failedAuthorityReview.datum.revision_id },
+      ],
+    });
+    const replacementRecords = [...records, replacementAuthority];
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(replacementRecords),
+      "selector",
+      "foundation-correction-decisions-for@1",
+      { replacement: corrected.datum.revision_id },
+    ).result).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({
+        revision_id: replacementAuthority.datum.revision_id,
+      }) }),
+    ]);
+    const replacementSupport = evaluateProcessDefinition(
+      processPackage,
+      snapshot(replacementRecords),
+      "selector",
+      "review-context-members-for@1",
+      { subject: replacementAuthority.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(replacementSupport.map((item) => item.identity.revision_id)).toEqual(
+      expect.arrayContaining([
+        authority.datum.revision_id,
+        failedAuthorityReview.datum.revision_id,
+        corrected.datum.revision_id,
+      ]),
+    );
+    const [replacementContext, replacementReview] = reviewFor(
+      replacementAuthority,
+      "REV-1030000033",
+      "pass",
+      { contextId: "BSL-1030000034" },
+    );
+    replacementContext.datum.payload.definition_members = [
+      replacementAuthority.datum.revision_id,
+      ...replacementSupport.map((item) => item.identity.revision_id),
+    ].sort();
+    const reviewedReplacementRecords = [
+      ...replacementRecords,
+      replacementContext,
+      replacementReview,
+    ];
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(reviewedReplacementRecords),
+      "selector",
+      "candidate-correction-authorities-requiring-review@1",
+      { candidate: candidate.datum.revision_id },
+    ).result).toEqual([]);
   });
 
   it("requires an exact reactivation condition only for defer-or-remove scope correction", () => {
@@ -2388,6 +2972,10 @@ describe("Phase 0 missing hardening routes", () => {
     const [context, review] = reviewFor(decision, "REV-1030000017", "pass", {
       contextId: "BSL-1030000010",
     });
+    context.datum.payload.definition_members = [
+      decision.datum.revision_id,
+      answered.datum.revision_id,
+    ].sort();
     const afterReview = [...beforeReview, context, review];
     expect(evaluateProcessDefinition(
       processPackage,
