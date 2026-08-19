@@ -8,6 +8,7 @@ import {
   type PhaseGateEvaluation,
 } from "./evaluator.js";
 import type { ProcessPackage } from "./index.js";
+import { recordWork } from "./performance-diagnostics.js";
 
 export interface ObligationStatusSummary {
   count: number;
@@ -75,6 +76,14 @@ export function initialPhaseId(processPackage: ProcessPackage): string | undefin
     )[0]?.id;
 }
 
+function evaluateLifecycleSnapshot(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+): LifecycleEvaluation {
+  recordWork("lifecycle.evaluation.snapshots");
+  return evaluateLifecycle(processPackage, snapshot);
+}
+
 export function activeLifecycleEvaluation(
   processPackage: ProcessPackage,
   snapshot: LifecycleSnapshot,
@@ -83,14 +92,17 @@ export function activeLifecycleEvaluation(
   const visited = new Set<string>();
   while (!visited.has(phaseId)) {
     visited.add(phaseId);
-    const evaluation = evaluateLifecycle(processPackage, { ...snapshot, phaseId });
+    const evaluation = evaluateLifecycleSnapshot(processPackage, {
+      ...snapshot,
+      phaseId,
+    });
     const nextPhase = evaluation.phase?.progression?.complete
       ? evaluation.phase.progression.nextPhase
       : undefined;
     if (!nextPhase) return evaluation;
     phaseId = nextPhase;
   }
-  return evaluateLifecycle(processPackage, { ...snapshot, phaseId });
+  return evaluateLifecycleSnapshot(processPackage, { ...snapshot, phaseId });
 }
 
 export function phaseStatusProjection(

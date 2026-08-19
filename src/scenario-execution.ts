@@ -15,7 +15,7 @@ import {
 import { evaluateProcessExpression } from "./evaluator.js";
 import { finalizeExactBaselineScenarioOutput } from "./exact-baseline-repository.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
-import { measure } from "./performance-diagnostics.js";
+import { measure, recordWork } from "./performance-diagnostics.js";
 import { authorityEvidenceContract } from "./participation.js";
 import {
   deriveLifecycleRecordStorage,
@@ -919,14 +919,20 @@ async function submitScenario(
     ? prepared.evaluation
     : measure(
       "lifecycle.evaluation",
-      () => evaluateLifecycle(processPackage, snapshot),
+      () => {
+        recordWork("lifecycle.evaluation.snapshots");
+        return evaluateLifecycle(processPackage, snapshot);
+      },
     );
   const beforeObligations = new Set(beforeEvaluation.obligations.map(
     (obligation) => obligation.id,
   ));
   const reevaluation = measure(
     "lifecycle.evaluation",
-    () => evaluateLifecycle(processPackage, resultingSnapshot),
+    () => {
+      recordWork("lifecycle.evaluation.snapshots");
+      return evaluateLifecycle(processPackage, resultingSnapshot);
+    },
   );
   if (reevaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: reevaluation.diagnostics };

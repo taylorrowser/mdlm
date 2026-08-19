@@ -845,6 +845,7 @@ gate:
       repository: { loads: 1, markdownFiles: 1 },
       stages: { "lifecycle.evaluation": { count: 2 } },
       work: {
+        "lifecycle.evaluation.snapshots": 3,
         "repository.parse.records": 1,
         "repository.provenance.records": 1,
         "repository.validation.records": 1,

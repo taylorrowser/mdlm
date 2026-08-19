@@ -414,6 +414,42 @@ export async function verifyRepositoryDataSources(
     : { ok: true, value: undefined, diagnostics: [] };
 }
 
+async function withRepositoryPublicationLock<T>(
+  root: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const lockDirectory = path.join(
+    root,
+    ".lifecycle/data/.transactions/.publication.lock",
+  );
+  await fs.mkdir(path.dirname(lockDirectory), { recursive: true });
+  const deadline = Date.now() + 10_000;
+  while (true) {
+    try {
+      await fs.mkdir(lockDirectory);
+      await fs.writeFile(
+        path.join(lockDirectory, "owner.json"),
+        `${JSON.stringify({ pid: process.pid })}\n`,
+      );
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+        await fs.rm(lockDirectory, { recursive: true, force: true });
+        throw error;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error("Timed out waiting for the repository publication lock");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  try {
+    return await operation();
+  } finally {
+    await fs.rm(lockDirectory, { recursive: true, force: true });
+  }
+}
+
 function referenceParts(reference: string): [string, number] | undefined {
   const match = /^(.*)@([1-9][0-9]*)$/.exec(reference);
   return match?.[1] && match[2] ? [match[1], Number(match[2])] : undefined;
@@ -1164,9 +1200,16 @@ export async function publishScenarioMutationData(
       { flag: "wx" },
     );
     await fs.mkdir(path.dirname(finalDirectory), { recursive: true });
-    const commitReady = await beforeCommit?.();
-    if (commitReady && !commitReady.ok) return commitReady;
-    await fs.rename(temporaryDirectory, finalDirectory);
+    const commitFailure = await withRepositoryPublicationLock(
+      root,
+      async () => {
+        const commitReady = await beforeCommit?.();
+        if (commitReady && !commitReady.ok) return commitReady;
+        await fs.rename(temporaryDirectory, finalDirectory);
+        return undefined;
+      },
+    );
+    if (commitFailure) return commitFailure;
   } catch (error) {
     return {
       ok: false,

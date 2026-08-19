@@ -479,6 +479,69 @@ describe("compiled mdlm baseline inspection", () => {
     ))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("serializes source verification with the publication commit", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    const expected = loaded.value.map((item) => item.lifecycleDatum.datum);
+    const proposal = question(
+      processRef,
+      "QST-1040000303",
+      "Concurrent publication source",
+    );
+    let completedChecks = 0;
+    let releaseChecks: (() => void) | undefined;
+    const bothChecksCompleted = new Promise<void>((resolve) => {
+      releaseChecks = resolve;
+    });
+    const commitGuard = async () => {
+      const checked = await verifyRepositoryDataSources(repository, loaded.value);
+      completedChecks += 1;
+      if (completedChecks === 2) releaseChecks?.();
+      await Promise.race([
+        bothChecksCompleted,
+        new Promise((resolve) => setTimeout(resolve, 100)),
+      ]);
+      return checked;
+    };
+
+    const results = await Promise.all([
+      publishScenarioMutationData(
+        repository,
+        processPackage,
+        loaded.value,
+        expected,
+        [proposal],
+        "concurrent-publication-left",
+        {},
+        [],
+        commitGuard,
+      ),
+      publishScenarioMutationData(
+        repository,
+        processPackage,
+        loaded.value,
+        expected,
+        [{ ...structuredClone(proposal), body: "Competing publication.\n" }],
+        "concurrent-publication-right",
+        {},
+        [],
+        commitGuard,
+      ),
+    ]);
+
+    expect(completedChecks).toBe(2);
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(results.filter((result) => !result.ok)).toEqual([
+      expect.objectContaining({
+        diagnostics: [expect.objectContaining({
+          code: "scenario-repository-changed",
+        })],
+      }),
+    ]);
+  });
+
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {
     const fixture = await arrangeChangedBaselines(repository);
 

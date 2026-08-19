@@ -354,6 +354,7 @@ describe("delegated Review Assignment packets", () => {
         repository: { loads: 1, markdownFiles: expectedLifecycleDataCount },
         stages: { "lifecycle.evaluation": { count: 2 } },
         work: {
+          "lifecycle.evaluation.snapshots": 2,
           "repository.parse.records": expectedLifecycleDataCount,
           "repository.provenance.records": expectedLifecycleDataCount,
           "repository.validation.records": expectedLifecycleDataCount,
