@@ -160,7 +160,7 @@ function schemaDiagnostics(
   }));
 }
 
-function renderDatum(datum: DatumEnvelope): string {
+export function renderLifecycleDatum(datum: DatumEnvelope): string {
   const { body, ...frontmatter } = datum;
   return `---\n${stringify(frontmatter).trimEnd()}\n---\n${body}`;
 }
@@ -518,11 +518,10 @@ async function releasePublicationLock(
   }
 }
 
-async function withRepositoryPublicationLock<T>(
+async function publicationLockObject(
   root: string,
-  operation: () => Promise<T>,
-): Promise<T> {
-  const token = randomUUID();
+  token: string,
+): Promise<string> {
   const hashed = await gitCommand(
     root,
     ["hash-object", "-w", "--stdin"],
@@ -538,6 +537,15 @@ async function withRepositoryPublicationLock<T>(
       `Could not create repository publication lock owner: ${hashed.stderr.trim()}`,
     );
   }
+  return ownerObjectId;
+}
+
+async function withRepositoryPublicationLock<T>(
+  root: string,
+  operation: (renew: () => Promise<void>) => Promise<T>,
+): Promise<T> {
+  const token = randomUUID();
+  let ownerObjectId = await publicationLockObject(root, token);
   const deadline = Date.now() + 10_000;
   while (true) {
     if (
@@ -578,9 +586,17 @@ async function withRepositoryPublicationLock<T>(
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 
+  const renew = async () => {
+    const renewedObjectId = await publicationLockObject(root, token);
+    if (!await updatePublicationLock(root, renewedObjectId, ownerObjectId)) {
+      throw new Error("Repository publication lock ownership was lost before commit");
+    }
+    ownerObjectId = renewedObjectId;
+  };
+
   let result: T;
   try {
-    result = await operation();
+    result = await operation(renew);
   } catch (error) {
     await releasePublicationLock(root, ownerObjectId, token);
     throw error;
@@ -1329,7 +1345,7 @@ export async function publishScenarioMutationData(
         created[index]!.path.slice(transactionRelativePath.length + 1),
       );
       await fs.mkdir(path.dirname(temporaryPath), { recursive: true });
-      await fs.writeFile(temporaryPath, renderDatum(data[index]!), {
+      await fs.writeFile(temporaryPath, renderLifecycleDatum(data[index]!), {
         flag: "wx",
       });
     }
@@ -1341,9 +1357,10 @@ export async function publishScenarioMutationData(
     await fs.mkdir(path.dirname(finalDirectory), { recursive: true });
     const commitFailure = await withRepositoryPublicationLock(
       root,
-      async () => {
+      async (renewLock) => {
         const commitReady = await beforeCommit?.();
         if (commitReady && !commitReady.ok) return commitReady;
+        await renewLock();
         await fs.rename(temporaryDirectory, finalDirectory);
         return undefined;
       },

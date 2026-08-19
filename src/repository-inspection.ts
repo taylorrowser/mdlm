@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import type { DatumEnvelope, ProcessPackage } from "./index.js";
 import type {
   BaselineFreeze,
@@ -15,6 +13,7 @@ import {
   deriveLifecycleRecordStorage,
   readRepositoryData,
   publishScenarioMutationData,
+  renderLifecycleDatum,
   rebuildRepositoryIndexData,
   rebuildRepositoryReportData,
   repositoryLifecycleSnapshotData,
@@ -153,7 +152,7 @@ export async function loadRepositoryInspection(
             ]).slice(-data.length);
             for (const [index, datum] of data.entries()) {
               const created = result.value.created[index]!;
-              const source = await fs.readFile(path.join(root, created.path));
+              const source = renderLifecycleDatum(datum);
               published.push(deepFreeze({
                 lifecycleDatum: stored[index]!,
                 relativePath: created.path,

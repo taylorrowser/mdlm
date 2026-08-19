@@ -639,54 +639,67 @@ describe("compiled mdlm baseline inspection", () => {
     ]).status).not.toBe(0);
   });
 
-  it("recovers locally when Git temporarily blocks lock release", async () => {
+  it("fences a publisher that loses lock ownership before commit", async () => {
     const { processPackage } = await selectedPackage(repository);
     const loaded = await readRepositoryData(repository, processPackage);
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) throw new Error("repository data unavailable");
-    const refLockPath = path.join(
-      repository,
-      ".git/refs/mdlm/publication-lock.lock",
-    );
+    const executionId = "publication-after-lock-takeover";
+    let takeoverObjectId = "";
 
-    const first = await publishScenarioMutationData(
+    const published = await publishScenarioMutationData(
       repository,
       processPackage,
       loaded.value,
       loaded.value.map((item) => item.lifecycleDatum.datum),
       [],
-      "publication-with-blocked-lock-release",
+      executionId,
       {},
       [],
       async () => {
         const sources = await verifyRepositoryDataSources(repository, loaded.value);
         if (!sources.ok) return sources;
-        await fs.mkdir(path.dirname(refLockPath), { recursive: true });
-        await fs.writeFile(refLockPath, "blocked\n");
+        const current = git(repository, [
+          "rev-parse",
+          "--verify",
+          "refs/mdlm/publication-lock",
+        ]).stdout.trim();
+        const takeover = git(
+          repository,
+          ["hash-object", "-w", "--stdin"],
+          `${JSON.stringify({
+            expiresAt: Date.now() + 60_000,
+            pid: process.pid,
+            token: "takeover",
+          })}\n`,
+        );
+        expect(takeover.status, takeover.stderr).toBe(0);
+        takeoverObjectId = takeover.stdout.trim();
+        expect(git(repository, [
+          "update-ref",
+          "refs/mdlm/publication-lock",
+          takeoverObjectId,
+          current,
+        ]).status).toBe(0);
         return sources;
       },
     );
-    expect(first.ok).toBe(true);
-    await fs.rm(refLockPath, { force: true });
 
-    const second = await publishScenarioMutationData(
+    expect(published).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({ code: "scenario-publication-failed" })],
+    });
+    await expect(fs.access(path.join(
       repository,
-      processPackage,
-      loaded.value,
-      loaded.value.map((item) => item.lifecycleDatum.datum),
-      [],
-      "publication-after-blocked-lock-release",
-      {},
-      [],
-      () => verifyRepositoryDataSources(repository, loaded.value),
-    );
-
-    expect(second.ok).toBe(true);
+      ".lifecycle/data/.transactions",
+      executionId,
+    ))).rejects.toMatchObject({ code: "ENOENT" });
     expect(git(repository, [
-      "rev-parse",
-      "--verify",
+      "update-ref",
+      "-d",
       "refs/mdlm/publication-lock",
-    ]).status).not.toBe(0);
+      takeoverObjectId,
+    ]).status).toBe(0);
   });
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {
