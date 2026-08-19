@@ -1035,6 +1035,7 @@ export async function publishScenarioMutation(
     executionId,
     executionRecord,
     kernelFinalizedOutputs,
+    () => verifyRepositoryDataSources(root, loaded.value),
   );
 }
 
@@ -1047,6 +1048,7 @@ export async function publishScenarioMutationData(
   executionId: string,
   executionRecord: unknown,
   kernelFinalizedOutputs: readonly KernelFinalizedScenarioOutput[] = [],
+  beforeCommit?: () => Promise<RepositoryResult<undefined>>,
 ): Promise<RepositoryResult<ScenarioMutationPublication>> {
   const currentData = parsed.map((item) => item.lifecycleDatum.datum)
     .sort((left, right) => left.revision_id.localeCompare(right.revision_id));
@@ -1162,6 +1164,8 @@ export async function publishScenarioMutationData(
       { flag: "wx" },
     );
     await fs.mkdir(path.dirname(finalDirectory), { recursive: true });
+    const commitReady = await beforeCommit?.();
+    if (commitReady && !commitReady.ok) return commitReady;
     await fs.rename(temporaryDirectory, finalDirectory);
   } catch (error) {
     return {

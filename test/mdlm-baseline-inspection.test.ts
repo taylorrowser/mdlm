@@ -6,6 +6,11 @@ import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import {
+  publishScenarioMutationData,
+  readRepositoryData,
+  verifyRepositoryDataSources,
+} from "../src/lifecycle-repository.js";
 import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlm, mdlmWithEnvironment } from "./helpers/mdlm.js";
@@ -423,6 +428,55 @@ describe("compiled mdlm baseline inspection", () => {
         path: written.path,
       })],
     });
+  });
+
+  it("checks authoritative Markdown after staging and before publication", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const written = await writeDatum(
+      repository,
+      question(processRef, "QST-1040000302", "Staged transaction source"),
+    );
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    const executionId = "execution-changed-after-staging";
+    let observedStagingDirectory = false;
+
+    const published = await publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      loaded.value.map((item) => item.lifecycleDatum.datum),
+      [],
+      executionId,
+      {},
+      [],
+      async () => {
+        const lifecycleEntries = await fs.readdir(path.join(repository, ".lifecycle"));
+        observedStagingDirectory = lifecycleEntries.some((entry) =>
+          entry.startsWith(`.scenario-${executionId}.`) && entry.endsWith(".tmp")
+        );
+        await fs.appendFile(
+          path.join(repository, written.path),
+          "Change after staging.\n",
+        );
+        return verifyRepositoryDataSources(repository, loaded.value);
+      },
+    );
+
+    expect(observedStagingDirectory).toBe(true);
+    expect(published).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "scenario-repository-changed",
+        path: written.path,
+      })],
+    });
+    await expect(fs.access(path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      executionId,
+    ))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {

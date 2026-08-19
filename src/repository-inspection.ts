@@ -118,8 +118,6 @@ export async function loadRepositoryInspection(
             kernelFinalizedOutputs = [],
           ) {
             const before = currentData();
-            const unchanged = await verifyRepositoryDataSources(root, before);
-            if (!unchanged.ok) return unchanged;
             const result = await publishScenarioMutationData(
               root,
               processPackage,
@@ -129,6 +127,7 @@ export async function loadRepositoryInspection(
               executionId,
               executionRecord,
               kernelFinalizedOutputs,
+              () => verifyRepositoryDataSources(root, before),
             );
             if (!result.ok) return result;
             const stored = deriveLifecycleRecordStorage(processPackage, [
