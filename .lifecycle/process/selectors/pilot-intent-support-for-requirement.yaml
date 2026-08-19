@@ -10,9 +10,10 @@ query:
   as: intent_support
   where: >-
     state(intent_support, "disposition") == "active"
-    && none("newer-revisions-for@1", {subject: intent_support})
-    && !every("current-product-specifications-for-requirement@1",
-      {requirement: requirement}, parent =>
-        parent.identity.id != intent_support.identity.id)
+    && !every("accepted-intent-candidates-for-requirement@2",
+      {requirement: requirement}, accepted =>
+        exists("newer-revisions-for@1", {subject: accepted})
+        || every("candidate-definition-members@1", {candidate: accepted}, member =>
+          member != intent_support))
   distinct: true
   order_by: [identity.id, identity.revision]

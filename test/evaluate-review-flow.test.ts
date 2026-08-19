@@ -1172,10 +1172,11 @@ describe("evaluateLifecycle review flow", () => {
         ],
       },
     );
-    const failedReview = (
+    const contextualReview = (
       subject: LifecycleRecord,
       contextId: string,
       reviewId: string,
+      outcome: "pass" | "fail" = "fail",
     ) => {
       const context = record(
         "BSL",
@@ -1198,22 +1199,24 @@ describe("evaluateLifecycle review flow", () => {
           title: "Failed Review",
           review_kind: "contextual",
           rubric_ref: "policies/rubrics/bootstrap-review.md@2",
-          findings: [
-            {
-              id: "F-001",
-              target: subject.datum.revision_id,
-              relationship: "primary",
-              severity: "blocking",
-              criterion:
-                "Current VSP and pilot VER Revisions with primary blockers require exact autonomous correction routes.",
-              evidence:
-                "The Reviews reject the current strategy and verification evidence Revisions, not historical replacements.",
-              material_consequence:
-                "Assurance cannot proceed using rejected current verification definitions.",
-              summary: "Correction required",
-            },
-          ],
-          outcome: "fail",
+          findings: outcome === "fail"
+            ? [
+                {
+                  id: "F-001",
+                  target: subject.datum.revision_id,
+                  relationship: "primary",
+                  severity: "blocking",
+                  criterion:
+                    "Current VSP and pilot VER Revisions with primary blockers require exact autonomous correction routes.",
+                  evidence:
+                    "The Reviews reject the current strategy and verification evidence Revisions, not historical replacements.",
+                  material_consequence:
+                    "Assurance cannot proceed using rejected current verification definitions.",
+                  summary: "Correction required",
+                },
+              ]
+            : [],
+          outcome,
         },
         {
           frozen: true,
@@ -1226,12 +1229,29 @@ describe("evaluateLifecycle review flow", () => {
       );
       return [context, review];
     };
-    const strategyReview = failedReview(
+    const acceptedIntent = record(
+      "BSL",
+      "BSL-9999999991",
+      {
+        title: "Accepted exact intent",
+        kind: "intent-approved",
+        role: "accepted",
+        scope: "phase-0-wayfinding",
+        group: "DEFAULT",
+        definition_members: [
+          psp.datum.revision_id,
+          requirement.datum.revision_id,
+        ],
+        evidence: [],
+      },
+      { frozen: true, scenario: "accept-phase-0-intent@1" },
+    );
+    const strategyReview = contextualReview(
       strategy,
       "BSL-5555555555",
       "REV-6666666666",
     );
-    const activityReview = failedReview(
+    const activityReview = contextualReview(
       activity,
       "BSL-7777777777",
       "REV-8888888888",
@@ -1242,6 +1262,7 @@ describe("evaluateLifecycle review flow", () => {
       phaseId: "phase-1-product-assurance",
       records: [
         psp,
+        acceptedIntent,
         requirement,
         strategy,
         activity,

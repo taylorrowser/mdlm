@@ -170,7 +170,19 @@ function foundation(): LifecycleRecord[] {
   }, {
     links: [{ type: "derived-from", target: product.datum.id }],
   });
-  return [product, requirement];
+  const acceptedIntent = record("BSL", "BSL-0HARDP10A", {
+    title: "Accepted Phase 0 intent",
+    kind: "intent-approved",
+    role: "accepted",
+    scope: "phase-0-wayfinding",
+    group: "DEFAULT",
+    definition_members: [
+      product.datum.revision_id,
+      requirement.datum.revision_id,
+    ],
+    evidence: [],
+  }, { scenario: "accept-phase-0-intent@1" });
+  return [product, requirement, acceptedIntent];
 }
 
 function environment(number = 1, corrects?: string): LifecycleRecord {
@@ -1040,19 +1052,16 @@ describe("Phase 1 hardening route evidence", () => {
   });
 
   it("supplies the exact parent PSP to pilot activity authoring", async () => {
-    const product = record("PSP", "PSP-0HARDENP10", {
-      title: "Two-argument temperature converter",
-      rationale: "Define the closed public command boundary.",
-      problem: "Convert between an exact supported unit pair.",
-      users: ["operator"],
-      goals: ["accept exactly two arguments", "support only Celsius and Fahrenheit"],
-      non_goals: ["other units", "additional arguments"],
-      success_measures: ["supported conversions succeed and all other unit/count cases reject"],
-    }, { scenario: "compile-psp@2" });
-    const requirement = foundation()[1]!;
+    const acceptedFoundation = foundation();
+    const product = acceptedFoundation[0]!;
+    const requirement = acceptedFoundation[1]!;
     const currentStrategy = strategy(1);
     const strategyReview = passingReview(currentStrategy, "REV-0HARDVERP");
-    const records = [product!, requirement!, currentStrategy, ...strategyReview];
+    const records = [
+      ...acceptedFoundation,
+      currentStrategy,
+      ...strategyReview,
+    ];
     const route = phase1Evaluation(processPackage, records).obligations.find(
       (item) => item.obligation === "pilot-verification-activity-required",
     );
@@ -1135,11 +1144,30 @@ describe("Phase 1 hardening route evidence", () => {
         links: [{ type: "derived-from", target: product.datum.id }],
       });
       const currentStrategy = strategy(1);
-      const sourceRecords = repositorySafeRecords([
+      const acceptedIntent = record("BSL", "BSL-0HARDP110", {
+        title: "Accepted exact temperature-converter intent",
+        kind: "intent-approved",
+        role: "accepted",
+        scope: "phase-0-wayfinding",
+        group: "DEFAULT",
+        definition_members: [
+          product.datum.revision_id,
+          requirement.datum.revision_id,
+        ],
+        evidence: [],
+      }, { scenario: "accept-phase-0-intent@1" });
+      const fixtureRecords = repositorySafeRecords([
         product,
         requirement,
         currentStrategy,
+        acceptedIntent,
       ]);
+      const fixtureProcessRef = `mdlm-bootstrap@0.70.0#${await processPackageDigest(processRoot)}`;
+      for (const item of fixtureRecords) {
+        item.datum.created_by.process_ref = fixtureProcessRef;
+      }
+      const sourceRecords = fixtureRecords.slice(0, 3);
+      const [sourceAcceptedIntent] = fixtureRecords.slice(3);
       const seeded = await publishScenarioMutation(
         repository,
         loadedFixture.package,
@@ -1149,6 +1177,30 @@ describe("Phase 1 hardening route evidence", () => {
         { contract: "phase-1-intent-support-fixture@1" },
       );
       expect(seeded.ok, JSON.stringify(seeded.diagnostics)).toBe(true);
+      const finalizedAcceptedIntent = await finalizeExactBaselineScenarioOutput(
+        repository,
+        loadedFixture.package,
+        fixtureProcessRef,
+        sourceAcceptedIntent!.datum,
+      );
+      expect(
+        finalizedAcceptedIntent.ok,
+        JSON.stringify(finalizedAcceptedIntent.diagnostics),
+      ).toBe(true);
+      if (!finalizedAcceptedIntent.ok) return;
+      const acceptedIntentPublished = await publishScenarioMutation(
+        repository,
+        loadedFixture.package,
+        sourceRecords.map((item) => item.datum),
+        [finalizedAcceptedIntent.value.output.datum],
+        "accept-phase-0-intent@1",
+        { contract: "phase-1-intent-support-fixture@1" },
+        [finalizedAcceptedIntent.value.output],
+      );
+      expect(
+        acceptedIntentPublished.ok,
+        JSON.stringify(acceptedIntentPublished.diagnostics),
+      ).toBe(true);
 
       const prepared = prepareNextAssignment(
         repository,
@@ -1243,6 +1295,58 @@ describe("Phase 1 hardening route evidence", () => {
       { ...acceptedFoundation[0]!.datum.payload },
       { revision: 2, scenario: "compile-psp@2" },
     );
+    const unreviewedIntentSupport = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...acceptedFoundation, advancedProduct],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "pilot-intent-support-for-requirement@1",
+      { requirement: acceptedFoundation[1]!.datum.revision_id },
+    );
+    expect((unreviewedIntentSupport.result as Array<{
+      identity: { revision_id: string };
+    }>).map((item) => item.identity.revision_id)).toEqual([
+      acceptedFoundation[0]!.datum.revision_id,
+    ]);
+
+    const advancedAcceptedIntent = record(
+      "BSL",
+      acceptedFoundation[2]!.datum.id,
+      {
+        ...acceptedFoundation[2]!.datum.payload,
+        definition_members: [
+          advancedProduct.datum.revision_id,
+          acceptedFoundation[1]!.datum.revision_id,
+        ],
+      },
+      { revision: 2, scenario: "accept-phase-0-intent@1" },
+    );
+    const acceptedIntentSupport = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [
+          ...acceptedFoundation,
+          advancedProduct,
+          advancedAcceptedIntent,
+        ],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "pilot-intent-support-for-requirement@1",
+      { requirement: acceptedFoundation[1]!.datum.revision_id },
+    );
+    expect((acceptedIntentSupport.result as Array<{
+      identity: { revision_id: string };
+    }>).map((item) => item.identity.revision_id)).toEqual([
+      advancedProduct.datum.revision_id,
+    ]);
+
     const staleActivitySelection = evaluateProcessDefinition(
       processPackage,
       {
@@ -1251,6 +1355,7 @@ describe("Phase 1 hardening route evidence", () => {
         records: [
           ...acceptedFoundation,
           advancedProduct,
+          advancedAcceptedIntent,
           currentStrategy,
           activity,
         ],

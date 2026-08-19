@@ -147,7 +147,21 @@ describe("Phase-hardening domain route contracts", () => {
       [{ type: "derived-from", target: psp.datum.id }],
       "draft-stakeholder-requirements@2",
     );
-    const baseSnapshot = { processRef, phaseId: "phase-1-product-assurance", records: [psp, stk], dependencyComparisons: [] };
+    const acceptedIntent = record("BSL", "BSL-HARDENP101", {
+      title: "Accepted exact intent",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: "phase-0-wayfinding",
+      group: "DEFAULT",
+      definition_members: [psp.datum.revision_id, stk.datum.revision_id],
+      evidence: [],
+    }, [], "accept-phase-0-intent@1");
+    const baseSnapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: [psp, acceptedIntent, stk],
+      dependencyComparisons: [],
+    };
     expect(evaluateLifecycle(processPackage, baseSnapshot).looseEnds.find((item) =>
       item.obligation === "verification-strategy-required"
     )).toEqual(expect.objectContaining({
@@ -165,7 +179,7 @@ describe("Phase-hardening domain route contracts", () => {
     const strategyReview = passingReview(strategy, "REV-HARDENP100");
     const planned = evaluateLifecycle(processPackage, {
       ...baseSnapshot,
-      records: [psp, stk, strategy, strategyReview.context, strategyReview.review],
+      records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review],
     });
     expect(planned.looseEnds).toEqual(expect.arrayContaining([
       expect.objectContaining({ obligation: "environment-assurance-required", actionableResolver: "realize-verification-environment@1" }),
@@ -204,7 +218,7 @@ describe("Phase-hardening domain route contracts", () => {
       },
     };
     const target = record("ART", "ART-HARDENP100", targetPayload, [{ type: "derived-from", target: stk.datum.revision_id }], "register-pilot-target@1");
-    const targetWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity] });
+    const targetWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity] });
     expect(targetWork.looseEnds.find((item) => item.obligation === "pilot-target-required")).toEqual(expect.objectContaining({
       status: "ready", actionableResolver: "register-pilot-target@1",
     }));
@@ -216,7 +230,7 @@ describe("Phase-hardening domain route contracts", () => {
     }, [{ type: "realizes", target: strategy.datum.revision_id }], "realize-verification-environment@1");
     expect(evaluateScenarioParticipation(
       processPackage,
-      { ...baseSnapshot, records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target] },
+      { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target] },
       "implement-verification-activity@1",
       [{ activity: activity.datum.revision_id, environment: environment.datum.revision_id, execution_target: target.datum.revision_id }],
     )).toEqual([expect.objectContaining({
@@ -240,7 +254,7 @@ describe("Phase-hardening domain route contracts", () => {
       { type: "uses", target: environment.datum.revision_id },
       { type: "targets", target: target.datum.revision_id },
     ], "implement-verification-activity@1");
-    const runWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation] });
+    const runWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation] });
     expect(runWork.looseEnds.find((item) =>
       item.obligation === "verification-run-required" && item.subject === implementation.datum.revision_id
     )).toEqual(expect.objectContaining({ eventualResolver: "execute-verification-run@1" }));
@@ -285,7 +299,7 @@ describe("Phase-hardening domain route contracts", () => {
     );
     const correctionSnapshot = {
       ...baseSnapshot,
-      records: [psp, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation, failedImplementationReview],
+      records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation, failedImplementationReview],
     };
     expect(evaluateLifecycle(processPackage, correctionSnapshot).looseEnds.find((item) =>
       item.obligation === "pilot-vai-review-correction-required" && item.subject === implementation.datum.revision_id
@@ -299,17 +313,17 @@ describe("Phase-hardening domain route contracts", () => {
     const competingStrategy = record("VSP", "VSP-HARDENP101", { ...strategy.datum.payload, title: "Competing strategy" }, [
       { type: "governs", target: stk.datum.id }, { type: "governs-revision", target: stk.datum.revision_id },
     ], "define-verification-strategy@1");
-    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, competingStrategy] }).terminalOutcome)
+    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, competingStrategy] }).terminalOutcome)
       .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
     const competingEnvironment = record("ENV", "ENV-HARDENP101", { ...environment.datum.payload, title: "Competing environment" }, [
       { type: "realizes", target: strategy.datum.revision_id },
     ], "realize-verification-environment@1");
-    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, environment, competingEnvironment] }).terminalOutcome)
+    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, environment, competingEnvironment] }).terminalOutcome)
       .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
     const competingTarget = record("ART", "ART-HARDENP101", { ...targetPayload, title: "Competing target", repository_ref: `git:${"e".repeat(40)}` }, [
       { type: "derived-from", target: stk.datum.revision_id },
     ], "register-pilot-target@1");
-    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, stk, strategy, activity, target, competingTarget] }).terminalOutcome)
+    expect(evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, activity, target, competingTarget] }).terminalOutcome)
       .toEqual(expect.objectContaining({ outcome: "profile-boundary-reached" }));
   });
 
