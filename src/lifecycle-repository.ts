@@ -367,6 +367,53 @@ async function markdownPaths(root: string): Promise<string[]> {
   return paths.sort();
 }
 
+export async function verifyRepositoryDataSources(
+  root: string,
+  expected: readonly ParsedDatum[],
+): Promise<RepositoryResult<undefined>> {
+  const changed = await measureAsync("repository.integrity", async () => {
+    const currentPaths = await markdownPaths(root);
+    const currentPathSet = new Set(currentPaths);
+    const expectedByPath = new Map(
+      expected.map((item) => [item.relativePath, item.sourceDigest]),
+    );
+    const differingPath = [...new Set([
+      ...currentPaths,
+      ...expectedByPath.keys(),
+    ])].sort().find((relativePath) => !expectedByPath.has(relativePath) ||
+      !currentPathSet.has(relativePath));
+    if (differingPath) return differingPath;
+
+    const digests = await Promise.all(currentPaths.map(async (relativePath) => {
+      try {
+        const source = await fs.readFile(path.join(root, relativePath));
+        return {
+          relativePath,
+          digest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+        };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          return { relativePath, digest: undefined };
+        }
+        throw error;
+      }
+    }));
+    return digests.find(({ relativePath, digest }) =>
+      digest !== expectedByPath.get(relativePath)
+    )?.relativePath;
+  });
+  return changed
+    ? {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-repository-changed",
+        path: changed,
+        message: "Authoritative Lifecycle Data changed after repository inspection",
+      }],
+    }
+    : { ok: true, value: undefined, diagnostics: [] };
+}
+
 function referenceParts(reference: string): [string, number] | undefined {
   const match = /^(.*)@([1-9][0-9]*)$/.exec(reference);
   return match?.[1] && match[2] ? [match[1], Number(match[2])] : undefined;

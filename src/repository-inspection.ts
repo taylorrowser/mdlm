@@ -18,6 +18,7 @@ import {
   rebuildRepositoryIndexData,
   rebuildRepositoryReportData,
   repositoryLifecycleSnapshotData,
+  verifyRepositoryDataSources,
   type KernelFinalizedScenarioOutput,
   type ParsedDatum,
   type RepositoryIndexSummary,
@@ -117,6 +118,8 @@ export async function loadRepositoryInspection(
             kernelFinalizedOutputs = [],
           ) {
             const before = currentData();
+            const unchanged = await verifyRepositoryDataSources(root, before);
+            if (!unchanged.ok) return unchanged;
             const result = await publishScenarioMutationData(
               root,
               processPackage,

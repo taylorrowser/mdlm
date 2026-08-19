@@ -392,6 +392,39 @@ describe("compiled mdlm baseline inspection", () => {
     expect(result.diagnostics.work["baseline.revisions-checked"]).toBe(1);
   });
 
+  it("rejects transaction publication after authoritative Markdown changes", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const written = await writeDatum(
+      repository,
+      question(processRef, "QST-1040000301", "Inspected transaction source"),
+    );
+    const inspection = await loadRepositoryInspection(
+      repository,
+      processPackage,
+      processRef,
+    );
+    expect(inspection.ok).toBe(true);
+    if (!inspection.ok) throw new Error("repository inspection unavailable");
+    const snapshot = inspection.value.lifecycleSnapshot("phase-0-wayfinding");
+    const transaction = inspection.value.beginTransaction();
+
+    await fs.appendFile(path.join(repository, written.path), "Intervening change.\n");
+    const published = await transaction.publishScenarioMutation(
+      snapshot.records.map((record) => record.datum),
+      [],
+      "execution-after-intervening-change",
+      {},
+    );
+
+    expect(published).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "scenario-repository-changed",
+        path: written.path,
+      })],
+    });
+  });
+
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {
     const fixture = await arrangeChangedBaselines(repository);
 
