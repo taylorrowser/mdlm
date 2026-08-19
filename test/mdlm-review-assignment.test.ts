@@ -3,13 +3,21 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parse } from "yaml";
 import {
   mdlm,
   mdlmWithEnvironment,
   mdlmWithInput,
+  mdlmWithInputAndEnvironment,
 } from "./helpers/mdlm.js";
 
 const timeout = 60_000;
+
+function parseLifecycleMarkdown(source: string): Record<string, unknown> {
+  const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(source);
+  if (!match?.[1]) throw new Error("Lifecycle Markdown frontmatter unavailable");
+  return { ...(parse(match[1]) as Record<string, unknown>), body: match[2] };
+}
 
 type Packet = {
   contract: string;
@@ -109,6 +117,13 @@ function submitProposal(
   expectSuccess(submitted, "mdlm scenario submit");
   expect(`${JSON.stringify(response)}\n`).toBe(source);
   return JSON.parse(submitted.stdout);
+}
+
+async function lifecycleDatumCount(repository: string): Promise<number> {
+  const entries = await fs.readdir(path.join(repository, ".lifecycle/data"), {
+    recursive: true,
+  });
+  return entries.filter((entry) => entry.endsWith(".md")).length;
 }
 
 function exactInput(packet: Packet, name: string): string {
@@ -316,18 +331,51 @@ describe("delegated Review Assignment packets", () => {
       ]),
     }));
 
-      const reviewSubmission = submitProposal(
-      repository,
-      reviewPacket,
-      [reviewOutput],
-      ["independent-reviewer"],
-    );
-      expect(reviewSubmission.execution.outputs[0].data.payload).toEqual(
-        expect.objectContaining({
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
-          outcome: "pass",
-        }),
+      const reviewResponse = {
+        contract: "mdlm-assignment-response@1",
+        assignment: reviewPacket.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [reviewOutput],
+          completionEvidence: {
+            summary: `Completed ${reviewPacket.scenario.reference}.`,
+          },
+          loadedSkillRefs: reviewPacket.prompt.skills.map(
+            (skill) => skill.reference,
+          ),
+          authoritySupplies: ["independent-reviewer"],
+          standingDelegations: [],
+        },
+      };
+      const expectedLifecycleDataCount = await lifecycleDatumCount(repository);
+      const submittedReview = mdlmWithInputAndEnvironment(
+        repository,
+        `${JSON.stringify(reviewResponse)}\n`,
+        { MDLM_PERFORMANCE: "json" },
+        "scenario", "submit", "-", "--json",
       );
+      expectSuccess(submittedReview, "mdlm scenario submit with performance diagnostics");
+      const reviewSubmission = JSON.parse(submittedReview.stdout);
+      expect(JSON.parse(submittedReview.stderr)).toMatchObject({
+        contract: "mdlm-performance@1",
+        repository: { loads: 1, markdownFiles: expectedLifecycleDataCount },
+        stages: { "lifecycle.evaluation": { count: 2 } },
+        work: {
+          "lifecycle.evaluation.snapshots": 2,
+          "repository.parse.records": expectedLifecycleDataCount,
+          "repository.provenance.records": expectedLifecycleDataCount,
+          "repository.validation.records": expectedLifecycleDataCount,
+        },
+      });
+      const publishedOutput = reviewSubmission.execution.outputs[0];
+      expect(publishedOutput.data.payload).toEqual(expect.objectContaining({
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        outcome: "pass",
+      }));
+      expect(parseLifecycleMarkdown(await fs.readFile(
+        path.join(repository, publishedOutput.lifecycleDatum.path),
+        "utf8",
+      ))).toEqual(publishedOutput.data);
     },
     timeout,
   );

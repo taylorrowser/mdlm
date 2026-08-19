@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
+import { repositoryGitEnvironment } from "./git-environment.js";
 import type {
   LifecycleEvaluation,
   LifecycleRecord,
@@ -42,10 +43,10 @@ import {
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
 import {
-  submitExplicitScenario,
+  submitPreparedExplicitScenario,
   submitPreparedResolverScenario,
-  submitResolverScenario,
   type PackageExecutionIdentity,
+  type PreparedScenarioSubmission,
   type ScenarioExecution,
   type ScenarioProposal,
 } from "./scenario-execution.js";
@@ -355,6 +356,8 @@ interface ExactAssignment {
   processPackage: ProcessPackage;
   inspection: RepositoryInspection;
   transaction: RepositoryTransaction;
+  snapshot: LifecycleSnapshot;
+  evaluation: LifecycleEvaluation;
   lease: Omit<AssignmentLease, "id">;
   dryRun: ScenarioDryRun;
   scenario: VersionedDefinition;
@@ -387,19 +390,11 @@ function failure(code: string, message: string, pathValue?: string): AssignmentR
   };
 }
 
-function gitEnvironment(): NodeJS.ProcessEnv {
-  const environment = { ...process.env };
-  for (const name of Object.keys(environment)) {
-    if (name.startsWith("GIT_")) delete environment[name];
-  }
-  return environment;
-}
-
 async function git(repositoryRoot: string, arguments_: string[]): Promise<string> {
   const result = await executeFile("git", arguments_, {
     cwd: repositoryRoot,
     encoding: "utf8",
-    env: gitEnvironment(),
+    env: repositoryGitEnvironment(),
     maxBuffer: 20 * 1024 * 1024,
   });
   return result.stdout;
@@ -778,6 +773,7 @@ interface PreparedOperatorWork {
   dryRun: ScenarioDryRun;
   item?: ObligationEvaluation;
   scenario: VersionedDefinition;
+  snapshot: LifecycleSnapshot;
 }
 
 async function prepareOperatorWork(
@@ -807,11 +803,12 @@ async function prepareOperatorWork(
       work.scenario,
       item.id,
       [],
+      evaluation,
     );
     return prepared.ok
       ? {
         ok: true,
-        value: { dryRun: prepared.value, item, scenario },
+        value: { dryRun: prepared.value, item, scenario, snapshot: phaseSnapshot },
         diagnostics: [],
       }
       : prepared;
@@ -827,7 +824,7 @@ async function prepareOperatorWork(
   return prepared.ok
     ? {
       ok: true,
-      value: { dryRun: prepared.value, scenario },
+      value: { dryRun: prepared.value, scenario, snapshot: phaseSnapshot },
       diagnostics: [],
     }
     : prepared;
@@ -838,6 +835,7 @@ function assignmentFromPreparedWork(
   processPackage: ProcessPackage,
   inspection: RepositoryInspection,
   transaction: RepositoryTransaction,
+  evaluation: LifecycleEvaluation,
   fingerprint: RepositoryFingerprint,
   classification: AssignableClassification,
   prepared: PreparedOperatorWork,
@@ -848,6 +846,8 @@ function assignmentFromPreparedWork(
     processPackage,
     inspection,
     transaction,
+    snapshot: prepared.snapshot,
+    evaluation,
     lease: {
       contract: "mdlm-assignment-lease@1",
       disposition: "active",
@@ -930,6 +930,7 @@ async function operatorStateFromSnapshot(
       processPackage,
       inspection,
       transaction,
+      evaluation,
       fingerprint,
       classification,
       prepared.value,
@@ -1232,10 +1233,58 @@ function exactBaselineLineage(
     ?.datum.id;
 }
 
+async function verifyPublicationFingerprint(
+  repositoryRoot: string,
+  expected: RepositoryFingerprint,
+): Promise<AssignmentResult<undefined>> {
+  const current = await repositoryFingerprint(repositoryRoot);
+  if (!current.ok) return current;
+  return isDeepStrictEqual(current.value, expected)
+    ? { ok: true, value: undefined, diagnostics: [] }
+    : failure(
+      "scenario-repository-changed",
+      "The tracked repository changed after Assignment inspection and before publication",
+      repositoryRoot,
+    );
+}
+
+function preparedScenarioSubmission(
+  repositoryRoot: string,
+  exact: ExactAssignment,
+): PreparedScenarioSubmission {
+  return {
+    dryRun: exact.dryRun,
+    evaluation: exact.evaluation,
+    scenario: exact.scenario,
+    snapshot: exact.snapshot,
+    finalizeExactBaseline: (_root, _package, _processRef, proposedDatum) =>
+      exact.transaction.finalizeExactBaseline(proposedDatum),
+    publishMutation: (
+      _root,
+      _package,
+      expectedData,
+      data,
+      executionId,
+      executionRecord,
+      kernelFinalizedOutputs,
+    ) =>
+      exact.transaction.publishScenarioMutation(
+        expectedData,
+        data,
+        executionId,
+        executionRecord,
+        kernelFinalizedOutputs,
+        () => verifyPublicationFingerprint(
+          repositoryRoot,
+          exact.lease.repository,
+        ),
+      ),
+  };
+}
+
 async function materializeExactBaseline(
   repositoryRoot: string,
   exact: ExactAssignment,
-  snapshot: LifecycleSnapshot,
   assignmentId: string,
   materialization: ExactBaselineMaterialization,
 ): Promise<AssignmentResult<ScenarioExecution>> {
@@ -1260,7 +1309,7 @@ async function materializeExactBaseline(
       materialization,
       invocation,
       exactBaselineLineage(
-        snapshot,
+        exact.snapshot,
         baselineType,
         subject,
         materialization,
@@ -1306,29 +1355,7 @@ async function materializeExactBaseline(
       suppliedDelegations: [],
       loadedSkillRefs,
     },
-    {
-      dryRun: exact.dryRun,
-      scenario: exact.scenario,
-      snapshot,
-      finalizeExactBaseline: (_root, _package, _processRef, proposedDatum) =>
-        exact.transaction.finalizeExactBaseline(proposedDatum),
-      publishMutation: (
-        _root,
-        _package,
-        expectedData,
-        data,
-        executionId,
-        executionRecord,
-        kernelFinalizedOutputs,
-      ) =>
-        exact.transaction.publishScenarioMutation(
-          expectedData,
-          data,
-          executionId,
-          executionRecord,
-          kernelFinalizedOutputs,
-        ),
-    },
+    preparedScenarioSubmission(repositoryRoot, exact),
   );
   return submitted;
 }
@@ -1422,7 +1449,6 @@ export async function leaseNextAssignment(
     const materialized = await materializeExactBaseline(
       repositoryRoot,
       exact,
-      state.value.snapshot,
       lease.id,
       materialization,
     );
@@ -2183,8 +2209,9 @@ export async function submitAssignmentResponse(
     suppliedDelegations: proposal.standingDelegations,
     loadedSkillRefs: proposal.loadedSkillRefs,
   };
+  const prepared = preparedScenarioSubmission(repositoryRoot, exact.value);
   const submitted = exact.value.lease.obligation
-    ? await submitResolverScenario(
+    ? await submitPreparedResolverScenario(
         repositoryRoot,
         exact.value.processPackage,
         exact.value.lease.package,
@@ -2192,8 +2219,9 @@ export async function submitAssignmentResponse(
           ...submission,
           obligationInstance: exact.value.lease.obligation.instance,
         },
+        prepared,
       )
-    : await submitExplicitScenario(
+    : await submitPreparedExplicitScenario(
         repositoryRoot,
         exact.value.processPackage,
         exact.value.lease.package,
@@ -2206,8 +2234,19 @@ export async function submitAssignmentResponse(
             }))
           ),
         },
+        prepared,
       );
   if (!submitted.ok) {
+    if (submitted.diagnostics.some((diagnostic) =>
+      diagnostic.code === "scenario-repository-changed"
+    )) {
+      return recordStaleDisposition(repositoryRoot, lease);
+    }
+    if (submitted.diagnostics.some((diagnostic) =>
+      diagnostic.code === "scenario-publication-failed"
+    )) {
+      return { ok: false, diagnostics: submitted.diagnostics };
+    }
     return recordMalformedResponse(
       repositoryRoot,
       lease,

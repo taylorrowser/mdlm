@@ -1,11 +1,16 @@
 import { spawn, spawnSync } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import {
+  publishScenarioMutationData,
+  readRepositoryData,
+  verifyRepositoryDataSources,
+} from "../src/lifecycle-repository.js";
 import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlm, mdlmWithEnvironment } from "./helpers/mdlm.js";
@@ -22,6 +27,31 @@ type BaselineFixture = {
 
 function expectSuccess(result: ReturnType<typeof mdlm>, command: string): void {
   expect(result.status, `${command}\n${result.stderr}${result.stdout}`).toBe(0);
+}
+
+function git(repository: string, arguments_: string[], input?: string) {
+  return spawnSync("git", ["-C", repository, ...arguments_], {
+    encoding: "utf8",
+    ...(input === undefined ? {} : { input }),
+  });
+}
+
+function holdPublicationLock(repository: string, owner: string): string {
+  const hashed = git(
+    repository,
+    ["hash-object", "-w", "--stdin"],
+    owner,
+  );
+  expect(hashed.status, hashed.stderr).toBe(0);
+  const objectId = hashed.stdout.trim();
+  const locked = git(repository, [
+    "update-ref",
+    "refs/mdlm/publication-lock",
+    objectId,
+    "0000000000000000000000000000000000000000",
+  ]);
+  expect(locked.status, locked.stderr).toBe(0);
+  return objectId;
 }
 
 function cloneBaselineHeavyRepository(parent: string, name: string): string {
@@ -390,6 +420,286 @@ describe("compiled mdlm baseline inspection", () => {
     expect(result.value.first.ok).toBe(true);
     expect(result.value.second.ok).toBe(true);
     expect(result.diagnostics.work["baseline.revisions-checked"]).toBe(1);
+  });
+
+  it("rejects transaction publication after authoritative Markdown changes", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const written = await writeDatum(
+      repository,
+      question(processRef, "QST-1040000301", "Inspected transaction source"),
+    );
+    const inspection = await loadRepositoryInspection(
+      repository,
+      processPackage,
+      processRef,
+    );
+    expect(inspection.ok).toBe(true);
+    if (!inspection.ok) throw new Error("repository inspection unavailable");
+    const snapshot = inspection.value.lifecycleSnapshot("phase-0-wayfinding");
+    const transaction = inspection.value.beginTransaction();
+
+    await fs.appendFile(path.join(repository, written.path), "Intervening change.\n");
+    const published = await transaction.publishScenarioMutation(
+      snapshot.records.map((record) => record.datum),
+      [],
+      "execution-after-intervening-change",
+      {},
+    );
+
+    expect(published).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "scenario-repository-changed",
+        path: written.path,
+      })],
+    });
+  });
+
+  it("checks authoritative Markdown after staging and before publication", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const written = await writeDatum(
+      repository,
+      question(processRef, "QST-1040000302", "Staged transaction source"),
+    );
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    const executionId = "execution-changed-after-staging";
+    let observedStagingDirectory = false;
+
+    const published = await publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      loaded.value.map((item) => item.lifecycleDatum.datum),
+      [],
+      executionId,
+      {},
+      [],
+      async () => {
+        const lifecycleEntries = await fs.readdir(path.join(repository, ".lifecycle"));
+        observedStagingDirectory = lifecycleEntries.some((entry) =>
+          entry.startsWith(`.scenario-${executionId}.`) && entry.endsWith(".tmp")
+        );
+        await fs.appendFile(
+          path.join(repository, written.path),
+          "Change after staging.\n",
+        );
+        return verifyRepositoryDataSources(repository, loaded.value);
+      },
+    );
+
+    expect(observedStagingDirectory).toBe(true);
+    expect(published).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "scenario-repository-changed",
+        path: written.path,
+      })],
+    });
+    await expect(fs.access(path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      executionId,
+    ))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("serializes source verification with the publication commit", async () => {
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    const expected = loaded.value.map((item) => item.lifecycleDatum.datum);
+    const proposal = question(
+      processRef,
+      "QST-1040000303",
+      "Concurrent publication source",
+    );
+    holdPublicationLock(
+      repository,
+      `${JSON.stringify({
+        expiresAt: Date.now() + 60_000,
+        pid: 2_147_483_647,
+        token: "contended-stale-owner",
+      })}\n`,
+    );
+    let commitGuardCalls = 0;
+    let firstGuardStarted: (() => void) | undefined;
+    const firstGuard = new Promise<void>((resolve) => {
+      firstGuardStarted = resolve;
+    });
+    let releaseFirstGuard: (() => void) | undefined;
+    const firstGuardRelease = new Promise<void>((resolve) => {
+      releaseFirstGuard = resolve;
+    });
+    const commitGuard = async () => {
+      commitGuardCalls += 1;
+      if (commitGuardCalls === 1) {
+        firstGuardStarted?.();
+        await firstGuardRelease;
+      }
+      return verifyRepositoryDataSources(repository, loaded.value);
+    };
+
+    const secondStaged = new Promise<void>((resolve, reject) => {
+      const watcher = watch(path.join(repository, ".lifecycle"), async () => {
+        try {
+          const entries = await fs.readdir(path.join(repository, ".lifecycle"));
+          if (entries.some((entry) =>
+            entry.startsWith(".scenario-concurrent-publication-right.") &&
+            entry.endsWith(".tmp")
+          )) {
+            watcher.close();
+            resolve();
+          }
+        } catch (error) {
+          watcher.close();
+          reject(error);
+        }
+      });
+    });
+    const firstPublication = publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      expected,
+      [proposal],
+      "concurrent-publication-left",
+      {},
+      [],
+      commitGuard,
+    );
+    const secondPublication = publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      expected,
+      [{ ...structuredClone(proposal), body: "Competing publication.\n" }],
+      "concurrent-publication-right",
+      {},
+      [],
+      commitGuard,
+    );
+    await Promise.all([firstGuard, secondStaged]);
+    expect(commitGuardCalls).toBe(1);
+    releaseFirstGuard?.();
+
+    const results = await Promise.all([
+      firstPublication,
+      secondPublication,
+    ]);
+
+    expect(commitGuardCalls).toBe(2);
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(results.filter((result) => !result.ok)).toEqual([
+      expect.objectContaining({
+        diagnostics: [expect.objectContaining({
+          code: "scenario-repository-changed",
+        })],
+      }),
+    ]);
+  });
+
+  it.each([
+    ["owner exited", `${JSON.stringify({
+      expiresAt: Date.now() + 60_000,
+      pid: 2_147_483_647,
+      token: "exited-owner",
+    })}\n`],
+    ["the owner lease expired", `${JSON.stringify({
+      expiresAt: Date.now() - 1,
+      pid: process.pid,
+      token: "expired-owner",
+    })}\n`],
+    ["owner metadata is malformed", "not-json\n"],
+  ])("recovers a publication lock when %s", async (_case, owner) => {
+    const { processPackage } = await selectedPackage(repository);
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    holdPublicationLock(repository, owner);
+
+    const published = await publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      loaded.value.map((item) => item.lifecycleDatum.datum),
+      [],
+      "publication-after-exited-owner",
+      {},
+      [],
+      () => verifyRepositoryDataSources(repository, loaded.value),
+    );
+
+    expect(published.ok).toBe(true);
+    expect(git(repository, [
+      "rev-parse",
+      "--verify",
+      "refs/mdlm/publication-lock",
+    ]).status).not.toBe(0);
+  });
+
+  it("fences a publisher that loses lock ownership before commit", async () => {
+    const { processPackage } = await selectedPackage(repository);
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    const executionId = "publication-after-lock-takeover";
+    let takeoverObjectId = "";
+
+    const published = await publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      loaded.value.map((item) => item.lifecycleDatum.datum),
+      [],
+      executionId,
+      {},
+      [],
+      async () => {
+        const sources = await verifyRepositoryDataSources(repository, loaded.value);
+        if (!sources.ok) return sources;
+        const current = git(repository, [
+          "rev-parse",
+          "--verify",
+          "refs/mdlm/publication-lock",
+        ]).stdout.trim();
+        const takeover = git(
+          repository,
+          ["hash-object", "-w", "--stdin"],
+          `${JSON.stringify({
+            expiresAt: Date.now() + 60_000,
+            pid: process.pid,
+            token: "takeover",
+          })}\n`,
+        );
+        expect(takeover.status, takeover.stderr).toBe(0);
+        takeoverObjectId = takeover.stdout.trim();
+        expect(git(repository, [
+          "update-ref",
+          "refs/mdlm/publication-lock",
+          takeoverObjectId,
+          current,
+        ]).status).toBe(0);
+        return sources;
+      },
+    );
+
+    expect(published).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({ code: "scenario-publication-failed" })],
+    });
+    await expect(fs.access(path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      executionId,
+    ))).rejects.toMatchObject({ code: "ENOENT" });
+    expect(git(repository, [
+      "update-ref",
+      "-d",
+      "refs/mdlm/publication-lock",
+      takeoverObjectId,
+    ]).status).toBe(0);
   });
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {

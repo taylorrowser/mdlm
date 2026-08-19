@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -13,6 +14,7 @@ import {
   parseObligationInstanceIdentity,
 } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
+import { repositoryGitEnvironment } from "./git-environment.js";
 import { processPackageDigest } from "./process-package-digest.js";
 import {
   measure,
@@ -158,7 +160,7 @@ function schemaDiagnostics(
   }));
 }
 
-function renderDatum(datum: DatumEnvelope): string {
+export function renderLifecycleDatum(datum: DatumEnvelope): string {
   const { body, ...frontmatter } = datum;
   return `---\n${stringify(frontmatter).trimEnd()}\n---\n${body}`;
 }
@@ -365,6 +367,242 @@ async function markdownPaths(root: string): Promise<string[]> {
   }
   await visit(dataRoot);
   return paths.sort();
+}
+
+export async function verifyRepositoryDataSources(
+  root: string,
+  expected: readonly ParsedDatum[],
+): Promise<RepositoryResult<undefined>> {
+  const changed = await measureAsync("repository.integrity", async () => {
+    const currentPaths = await markdownPaths(root);
+    const currentPathSet = new Set(currentPaths);
+    const expectedByPath = new Map(
+      expected.map((item) => [item.relativePath, item.sourceDigest]),
+    );
+    const differingPath = [...new Set([
+      ...currentPaths,
+      ...expectedByPath.keys(),
+    ])].sort().find((relativePath) => !expectedByPath.has(relativePath) ||
+      !currentPathSet.has(relativePath));
+    if (differingPath) return differingPath;
+
+    const digests = await Promise.all(currentPaths.map(async (relativePath) => {
+      try {
+        const source = await fs.readFile(path.join(root, relativePath));
+        return {
+          relativePath,
+          digest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+        };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          return { relativePath, digest: undefined };
+        }
+        throw error;
+      }
+    }));
+    return digests.find(({ relativePath, digest }) =>
+      digest !== expectedByPath.get(relativePath)
+    )?.relativePath;
+  });
+  return changed
+    ? {
+      ok: false,
+      diagnostics: [{
+        code: "scenario-repository-changed",
+        path: changed,
+        message: "Authoritative Lifecycle Data changed after repository inspection",
+      }],
+    }
+    : { ok: true, value: undefined, diagnostics: [] };
+}
+
+const publicationLockRef = "refs/mdlm/publication-lock";
+const locallyReleasedPublicationLocks = new Set<string>();
+
+interface GitCommandResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+function gitCommand(
+  root: string,
+  arguments_: string[],
+  input?: string,
+): Promise<GitCommandResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", ["-C", root, ...arguments_], {
+      env: repositoryGitEnvironment(),
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => stdout += chunk);
+    child.stderr.on("data", (chunk: string) => stderr += chunk);
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout, stderr }));
+    child.stdin.end(input);
+  });
+}
+
+interface PublicationLockOwner {
+  expiresAt?: unknown;
+  pid?: unknown;
+  token?: unknown;
+}
+
+async function publicationLockOwner(
+  root: string,
+  objectId: string,
+): Promise<PublicationLockOwner | undefined> {
+  const owner = await gitCommand(root, ["cat-file", "-p", objectId]);
+  if (owner.code !== 0) return undefined;
+  try {
+    return JSON.parse(owner.stdout) as PublicationLockOwner;
+  } catch {
+    return undefined;
+  }
+}
+
+function processState(pid: number): "running" | "absent" | "unknown" {
+  try {
+    process.kill(pid, 0);
+    return "running";
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === "ESRCH" ? "absent" : "unknown";
+  }
+}
+
+async function updatePublicationLock(
+  root: string,
+  ownerObjectId: string,
+  expectedObjectId: string,
+): Promise<boolean> {
+  const updated = await gitCommand(root, [
+    "update-ref",
+    publicationLockRef,
+    ownerObjectId,
+    expectedObjectId,
+  ]);
+  return updated.code === 0;
+}
+
+async function releasePublicationLock(
+  root: string,
+  ownerObjectId: string,
+  token: string,
+): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (true) {
+    const current = await gitCommand(root, [
+      "rev-parse",
+      "--verify",
+      publicationLockRef,
+    ]);
+    if (current.code !== 0 || current.stdout.trim() !== ownerObjectId) return;
+    const released = await gitCommand(root, [
+      "update-ref",
+      "-d",
+      publicationLockRef,
+      ownerObjectId,
+    ]);
+    if (released.code === 0) return;
+    if (Date.now() >= deadline) {
+      locallyReleasedPublicationLocks.add(token);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+async function publicationLockObject(
+  root: string,
+  token: string,
+): Promise<string> {
+  const hashed = await gitCommand(
+    root,
+    ["hash-object", "-w", "--stdin"],
+    `${JSON.stringify({
+      expiresAt: Date.now() + 60_000,
+      pid: process.pid,
+      token,
+    })}\n`,
+  );
+  const ownerObjectId = hashed.stdout.trim();
+  if (hashed.code !== 0 || !/^[0-9a-f]{40,64}$/.test(ownerObjectId)) {
+    throw new Error(
+      `Could not create repository publication lock owner: ${hashed.stderr.trim()}`,
+    );
+  }
+  return ownerObjectId;
+}
+
+async function withRepositoryPublicationLock<T>(
+  root: string,
+  operation: (renew: () => Promise<void>) => Promise<T>,
+): Promise<T> {
+  const token = randomUUID();
+  let ownerObjectId = await publicationLockObject(root, token);
+  const deadline = Date.now() + 10_000;
+  while (true) {
+    if (
+      await updatePublicationLock(
+        root,
+        ownerObjectId,
+        "0".repeat(ownerObjectId.length),
+      )
+    ) break;
+    const current = await gitCommand(root, [
+      "rev-parse",
+      "--verify",
+      publicationLockRef,
+    ]);
+    const currentObjectId = current.stdout.trim();
+    if (current.code === 0 && /^[0-9a-f]{40,64}$/.test(currentObjectId)) {
+      const owner = await publicationLockOwner(root, currentObjectId);
+      const abandoned =
+        typeof owner?.expiresAt !== "number" ||
+        typeof owner.pid !== "number" ||
+        typeof owner.token !== "string" ||
+        processState(owner.pid) === "absent" ||
+        Date.now() >= owner.expiresAt ||
+        (
+          owner.pid === process.pid &&
+          locallyReleasedPublicationLocks.has(owner.token)
+        );
+      if (
+        abandoned &&
+        await updatePublicationLock(root, ownerObjectId, currentObjectId)
+      ) {
+        break;
+      }
+    }
+    if (Date.now() >= deadline) {
+      throw new Error("Timed out waiting for the repository publication lock");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+
+  const renew = async () => {
+    const renewedObjectId = await publicationLockObject(root, token);
+    if (!await updatePublicationLock(root, renewedObjectId, ownerObjectId)) {
+      throw new Error("Repository publication lock ownership was lost before commit");
+    }
+    ownerObjectId = renewedObjectId;
+  };
+
+  let result: T;
+  try {
+    result = await operation(renew);
+  } catch (error) {
+    await releasePublicationLock(root, ownerObjectId, token);
+    throw error;
+  }
+  await releasePublicationLock(root, ownerObjectId, token);
+  return result;
 }
 
 function referenceParts(reference: string): [string, number] | undefined {
@@ -988,6 +1226,7 @@ export async function publishScenarioMutation(
     executionId,
     executionRecord,
     kernelFinalizedOutputs,
+    () => verifyRepositoryDataSources(root, loaded.value),
   );
 }
 
@@ -1000,6 +1239,7 @@ export async function publishScenarioMutationData(
   executionId: string,
   executionRecord: unknown,
   kernelFinalizedOutputs: readonly KernelFinalizedScenarioOutput[] = [],
+  beforeCommit?: () => Promise<RepositoryResult<undefined>>,
 ): Promise<RepositoryResult<ScenarioMutationPublication>> {
   const currentData = parsed.map((item) => item.lifecycleDatum.datum)
     .sort((left, right) => left.revision_id.localeCompare(right.revision_id));
@@ -1105,7 +1345,7 @@ export async function publishScenarioMutationData(
         created[index]!.path.slice(transactionRelativePath.length + 1),
       );
       await fs.mkdir(path.dirname(temporaryPath), { recursive: true });
-      await fs.writeFile(temporaryPath, renderDatum(data[index]!), {
+      await fs.writeFile(temporaryPath, renderLifecycleDatum(data[index]!), {
         flag: "wx",
       });
     }
@@ -1115,7 +1355,17 @@ export async function publishScenarioMutationData(
       { flag: "wx" },
     );
     await fs.mkdir(path.dirname(finalDirectory), { recursive: true });
-    await fs.rename(temporaryDirectory, finalDirectory);
+    const commitFailure = await withRepositoryPublicationLock(
+      root,
+      async (renewLock) => {
+        const commitReady = await beforeCommit?.();
+        if (commitReady && !commitReady.ok) return commitReady;
+        await renewLock();
+        await fs.rename(temporaryDirectory, finalDirectory);
+        return undefined;
+      },
+    );
+    if (commitFailure) return commitFailure;
   } catch (error) {
     return {
       ok: false,

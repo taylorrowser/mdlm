@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import type { DatumEnvelope, ProcessPackage } from "./index.js";
 import type {
   BaselineFreeze,
@@ -15,9 +13,11 @@ import {
   deriveLifecycleRecordStorage,
   readRepositoryData,
   publishScenarioMutationData,
+  renderLifecycleDatum,
   rebuildRepositoryIndexData,
   rebuildRepositoryReportData,
   repositoryLifecycleSnapshotData,
+  verifyRepositoryDataSources,
   type KernelFinalizedScenarioOutput,
   type ParsedDatum,
   type RepositoryIndexSummary,
@@ -53,6 +53,7 @@ export interface RepositoryTransaction {
     executionId: string,
     executionRecord: unknown,
     kernelFinalizedOutputs?: readonly KernelFinalizedScenarioOutput[],
+    beforeCommit?: () => Promise<RepositoryResult<undefined>>,
   ): Promise<RepositoryResult<ScenarioMutationPublication>>;
 }
 
@@ -115,6 +116,7 @@ export async function loadRepositoryInspection(
             executionId,
             executionRecord,
             kernelFinalizedOutputs = [],
+            beforeCommit,
           ) {
             const before = currentData();
             const result = await publishScenarioMutationData(
@@ -126,6 +128,11 @@ export async function loadRepositoryInspection(
               executionId,
               executionRecord,
               kernelFinalizedOutputs,
+              async () => {
+                const sources = await verifyRepositoryDataSources(root, before);
+                if (!sources.ok || !beforeCommit) return sources;
+                return beforeCommit();
+              },
             );
             if (!result.ok) return result;
             const stored = deriveLifecycleRecordStorage(processPackage, [
@@ -145,7 +152,7 @@ export async function loadRepositoryInspection(
             ]).slice(-data.length);
             for (const [index, datum] of data.entries()) {
               const created = result.value.created[index]!;
-              const source = await fs.readFile(path.join(root, created.path));
+              const source = renderLifecycleDatum(datum);
               published.push(deepFreeze({
                 lifecycleDatum: stored[index]!,
                 relativePath: created.path,

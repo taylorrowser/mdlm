@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -32,6 +32,32 @@ function git(repository: string, ...arguments_: string[]) {
   return spawnSync("git", ["-C", repository, ...arguments_], {
     encoding: "utf8",
   });
+}
+
+function holdPublicationLock(repository: string, pid: number): string {
+  const owner = spawnSync(
+    "git",
+    ["-C", repository, "hash-object", "-w", "--stdin"],
+    {
+      encoding: "utf8",
+      input: `${JSON.stringify({
+        expiresAt: Date.now() + 60_000,
+        pid,
+        token: "test",
+      })}\n`,
+    },
+  );
+  expect(owner.status, owner.stderr).toBe(0);
+  const objectId = owner.stdout.trim();
+  const locked = git(
+    repository,
+    "update-ref",
+    "refs/mdlm/publication-lock",
+    objectId,
+    "0000000000000000000000000000000000000000",
+  );
+  expect(locked.status, locked.stderr).toBe(0);
+  return objectId;
 }
 
 type PreparedPromptPacket = {
@@ -528,6 +554,87 @@ describe("MDLM Assignment leasing and preparation", () => {
     ]);
     const fresh = JSON.parse(mdlm(repository, "next").stdout);
     expect(fresh.assignment.id).not.toBe(assignment);
+  });
+
+  it("serializes public publication and marks intervening tracked changes stale without charging a malformed retry", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout) as PreparedPromptPacket;
+    const response = `${JSON.stringify(wayfindingResponse(
+      assignment,
+      packet.prompt.skills.map((skill) => skill.reference),
+    ))}\n`;
+    const lockOwner = holdPublicationLock(repository, process.pid);
+    const staged = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        watcher.close();
+        reject(new Error("Public submission did not stage publication"));
+      }, 10_000);
+      const watcher = watch(path.join(repository, ".lifecycle"), async () => {
+        try {
+          const entries = await fs.readdir(path.join(repository, ".lifecycle"));
+          if (entries.some((entry) =>
+            entry.startsWith(".scenario-") && entry.endsWith(".tmp")
+          )) {
+            clearTimeout(timeout);
+            watcher.close();
+            resolve();
+          }
+        } catch (error) {
+          clearTimeout(timeout);
+          watcher.close();
+          reject(error);
+        }
+      });
+    });
+    const child = spawn(
+      process.execPath,
+      [mdlmExecutable, "scenario", "submit"],
+      { cwd: repository, stdio: ["pipe", "pipe", "pipe"] },
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => stdout += chunk);
+    child.stderr.on("data", (chunk: string) => stderr += chunk);
+    child.stdin.end(response);
+
+    await staged;
+    expect(child.exitCode).toBeNull();
+    await fs.appendFile(
+      path.join(repository, ".gitignore"),
+      "# Intervening tracked publication input.\n",
+    );
+    expect(git(
+      repository,
+      "update-ref",
+      "-d",
+      "refs/mdlm/publication-lock",
+      lockOwner,
+    ).status).toBe(0);
+    const status = await new Promise<number | null>((resolve) =>
+      child.on("close", resolve)
+    );
+
+    expect(status, `${stderr}${stdout}`).toBe(1);
+    expect(JSON.parse(stdout)).toEqual(expect.objectContaining({
+      disposition: "stale",
+      diagnostics: [expect.objectContaining({ code: "assignment-stale" })],
+    }));
+    const lease = JSON.parse(await fs.readFile(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ), "utf8"));
+    expect(lease).toEqual(expect.objectContaining({
+      disposition: "stale",
+      malformedResponses: [],
+    }));
   });
 
   it("stops a corrected response when tracked state became stale and publishes nothing", async () => {

@@ -36,9 +36,19 @@ export function mdlmWithInput(
   input: string,
   ...arguments_: string[]
 ) {
+  return mdlmWithInputAndEnvironment(cwd, input, {}, ...arguments_);
+}
+
+export function mdlmWithInputAndEnvironment(
+  cwd: string,
+  input: string,
+  environment: NodeJS.ProcessEnv,
+  ...arguments_: string[]
+) {
   return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
     cwd,
     encoding: "utf8",
+    env: { ...process.env, ...environment },
     input,
     maxBuffer: 10 * 1024 * 1024,
   });

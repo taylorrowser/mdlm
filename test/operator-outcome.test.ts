@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,31 +8,12 @@ import {
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
+import {
+  mdlm,
+  mdlmWithInput,
+  mdlmWithInputAndEnvironment,
+} from "./helpers/mdlm.js";
 import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
-
-const projectRoot = process.cwd();
-const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
-
-function mdlm(repository: string, ...arguments_: string[]) {
-  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
-    cwd: repository,
-    encoding: "utf8",
-    maxBuffer: 10 * 1024 * 1024,
-  });
-}
-
-function mdlmWithInput(
-  repository: string,
-  input: string,
-  ...arguments_: string[]
-) {
-  return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
-    cwd: repository,
-    encoding: "utf8",
-    input,
-    maxBuffer: 10 * 1024 * 1024,
-  });
-}
 
 async function recordInstalledPackageChange(
   repository: string,
@@ -621,7 +601,7 @@ describe("public mdlm outcome and status seam", () => {
     );
   });
 
-  it("classifies package-declared Phase progression as immediate attended work", async () => {
+  it("submits package-declared progression in a noninitial Phase from one inspection", async () => {
     const packageRoot = path.join(
       repository,
       ".lifecycle/packages/mdlm-bootstrap@0.70.0",
@@ -633,7 +613,7 @@ id: phase-0-wayfinding
 version: 2
 order: 0
 name: Progression-only profile
-purpose: Prove package-declared progression remains reachable operator work.
+purpose: Reach a noninitial Phase before package-declared progression work.
 coverage: bootstrap-subset
 omitted_capabilities: [all other lifecycle work]
 entry: 'true'
@@ -642,6 +622,38 @@ obligations: [initial-wayfinding-map-required@1]
 outputs: [MAP, DEC]
 progression:
   next_phase: phase-1-product-assurance
+  readiness: 'exists("current-wayfinding-maps@1", {})'
+  authorization:
+    condition: 'exists("current-wayfinding-maps@1", {})'
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: 'phase'}
+    scenario: record-consequential-decision@1
+    subjects: 'select("current-wayfinding-maps@1", {})'
+    evidence_selector: current-wayfinding-maps@1
+gate:
+  required: false
+  candidate_selector: 'select("current-wayfinding-maps@1", {})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@3
+  completion: 'true'
+`,
+    );
+    await fs.writeFile(
+      path.join(packageRoot, "phases/phase-1-product-assurance.yaml"),
+      `kind: phase-definition
+id: phase-1-product-assurance
+version: 3
+order: 1
+name: Noninitial progression profile
+purpose: Prove prepared submission preserves the exact active Phase snapshot.
+coverage: bootstrap-subset
+omitted_capabilities: [all other lifecycle work]
+entry: 'true'
+scenarios: [record-consequential-decision@1]
+obligations: []
+outputs: [DEC]
+progression:
+  next_phase: phase-2-system-definition
   readiness: 'exists("current-wayfinding-maps@1", {})'
   authorization:
     condition: 'false'
@@ -658,6 +670,22 @@ gate:
   completion: 'true'
 `,
     );
+    const participationPath = path.join(
+      packageRoot,
+      "policies/phase-progression-participation.yaml",
+    );
+    const participation = parse(await fs.readFile(participationPath, "utf8"));
+    participation.rules = [];
+    await fs.writeFile(participationPath, stringify(participation));
+    const scenarioPath = path.join(
+      packageRoot,
+      "scenarios/record-consequential-decision.yaml",
+    );
+    const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+    scenario.completion =
+      `phase.id == "phase-1-product-assurance" && (${scenario.completion})`;
+    await fs.writeFile(scenarioPath, stringify(scenario));
+
     const obligationsRoot = path.join(packageRoot, "obligations");
     for (const file of await fs.readdir(obligationsRoot)) {
       if (!file.endsWith(".yaml") || file === "initial-wayfinding-map-required.yaml") {
@@ -666,11 +694,13 @@ gate:
       const obligationPath = path.join(obligationsRoot, file);
       const obligation = parse(await fs.readFile(obligationPath, "utf8"));
       const phases = (obligation.phases as string[]).filter(
-        (phase) => phase !== "phase-0-wayfinding",
+        (phase) =>
+          phase !== "phase-0-wayfinding" &&
+          phase !== "phase-1-product-assurance",
       );
       obligation.phases = phases.length > 0
         ? phases
-        : ["phase-1-product-assurance"];
+        : ["phase-2-system-definition"];
       await fs.writeFile(obligationPath, stringify(obligation));
     }
     await recordInstalledPackageChange(repository, packageRoot);
@@ -753,8 +783,9 @@ gate:
       progressionPacket.status,
       `${progressionPacket.stderr}${progressionPacket.stdout}`,
     ).toBe(0);
-    expect(JSON.parse(progressionPacket.stdout)).toEqual(expect.objectContaining({
-      phase: "phase-0-wayfinding@2",
+    const progression = JSON.parse(progressionPacket.stdout);
+    expect(progression).toEqual(expect.objectContaining({
+      phase: "phase-1-product-assurance@3",
       scenario: expect.objectContaining({
         reference: "record-consequential-decision@1",
       }),
@@ -767,6 +798,67 @@ gate:
         })],
       })],
     }));
+
+    const progressionSubmission = mdlmWithInputAndEnvironment(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment: outcome.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "decision",
+            name: "decision",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "DEC",
+              payload: {
+                title: "Authorize package-declared Phase progression",
+                kind: "scope",
+                rationale: "The current Phase is ready and names this progression.",
+                decision: "Proceed to the exact package-declared next Phase.",
+                alternatives: ["Remain in the completed current Phase."],
+                effective_scope: mapRevision,
+              },
+              links: [{ type: "justifies", target: mapRevision }],
+              body: "The stakeholder authorizes this exact progression subject.\n",
+            },
+          }],
+          completionEvidence: { summary: "Progression explicitly authorized." },
+          loadedSkillRefs: progression.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: ["stakeholder"],
+          standingDelegations: [],
+        },
+      })}\n`,
+      { MDLM_PERFORMANCE: "json" },
+      "scenario",
+      "submit",
+    );
+    expect(
+      progressionSubmission.status,
+      `${progressionSubmission.stderr}${progressionSubmission.stdout}`,
+    ).toBe(0);
+    expect(JSON.parse(progressionSubmission.stderr)).toMatchObject({
+      contract: "mdlm-performance@1",
+      repository: { loads: 1, markdownFiles: 1 },
+      stages: { "lifecycle.evaluation": { count: 2 } },
+      work: {
+        "lifecycle.evaluation.snapshots": 3,
+        "repository.parse.records": 1,
+        "repository.provenance.records": 1,
+        "repository.validation.records": 1,
+      },
+    });
+    expect(JSON.parse(progressionSubmission.stdout)).toMatchObject({
+      contract: "mdlm-scenario-execution@4",
+      execution: {
+        definition: { scenario: "record-consequential-decision@1" },
+        response: { assignment: outcome.assignment.id },
+        outputs: [{ data: { payload: { effective_scope: mapRevision } } }],
+      },
+    });
   });
 
   it("returns a declared Profile Boundary with omitted coverage and exact condition evidence", async () => {
