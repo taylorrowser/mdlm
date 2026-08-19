@@ -7,7 +7,7 @@ scenario: revise-intent-candidate-after-review
 # Replace a failed or rejected intent candidate
 
 Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`, and
-`skills/scope-challenge.md@1`. Use only the exact candidate lineage, complete
+`skills/scope-challenge.md@2`. Use only the exact candidate lineage, complete
 failed Review/finding history, reviewed current foundation members, their exact
 supplied `member_reviews`, reviewed gate rejections, and the exact supplied
 `question_dispositions` with their applicable reviewed `question_decisions`.
@@ -26,4 +26,4 @@ parallel recovery Scenario. The replacement requires a fresh independent
 passing replacement to this same gate; it never implies stop, defer, or cancel.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

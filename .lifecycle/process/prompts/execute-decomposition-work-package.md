@@ -14,8 +14,8 @@ Read, in order:
 4. `skills/requirement-writing.md@1`
 5. `skills/coverage-analysis.md@1`
 6. `skills/traceability.md@1`
-7. `skills/scope-challenge.md@1`
-8. `skills/author-preflight.md@1`
+7. `skills/scope-challenge.md@2`
+8. `skills/author-preflight.md@2`
 
 Produce the smallest sufficient solution-independent SYS set inside the exact
 reviewed plan. Preserve parent, plan, architecture-element, and interface

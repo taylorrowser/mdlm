@@ -30,4 +30,4 @@ Validate both outputs and record exact provenance. The DEC is reviewed when the
 resolved review policy marks it consequential.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

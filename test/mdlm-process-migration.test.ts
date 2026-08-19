@@ -23,7 +23,7 @@ async function packageCopy(
     manifestPath,
     (await fs.readFile(manifestPath, "utf8"))
       .replace("id: mdlm-bootstrap", `id: ${packageId}`)
-      .replace("version: 0.68.0", `version: ${version}`),
+      .replace("version: 0.69.0", `version: ${version}`),
   );
   return root;
 }

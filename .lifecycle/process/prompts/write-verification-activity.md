@@ -19,4 +19,4 @@ or incorrect behavior. The activity evaluates whether the verification design is
 executable and discriminating; it does not accept the requirement.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

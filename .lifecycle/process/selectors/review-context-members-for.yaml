@@ -16,6 +16,22 @@ query:
       || (exists("intent-candidates-matching-subject@1", {subject: subject})
         && exists("candidate-members-matching@1",
           {candidate: one("intent-candidates-matching-subject@1", {subject: subject}), required_member: member}))
+      || (subject.identity.type in ["MAP", "PSP", "STK"]
+        && (
+          exists("all-cited-reviews-by-correction@1", {replacement: subject})
+          || exists("all-cited-gate-rejections-by-correction@1", {replacement: subject})
+          || exists("foundation-correction-decisions-for@1", {replacement: subject})
+        )
+        && (
+          !every("prior-foundation-revisions-for@1",
+            {subject: subject}, revision => revision != member)
+          || !every("all-cited-reviews-by-correction@1",
+            {replacement: subject}, review => review != member)
+          || !every("all-cited-gate-rejections-by-correction@1",
+            {replacement: subject}, rejection => rejection != member)
+          || !every("foundation-correction-decisions-for@1",
+            {replacement: subject}, decision => decision != member)
+        ))
       || (subject.identity.type == "STK"
         && member.identity.type == "PSP"
         && !every("stakeholder-requirements-for-review-context@1",

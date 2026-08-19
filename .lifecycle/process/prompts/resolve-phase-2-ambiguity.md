@@ -18,4 +18,4 @@ Revision should remain, return typed inability rather than cancelling a differen
 subject or inventing an arbitrary latest rule.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

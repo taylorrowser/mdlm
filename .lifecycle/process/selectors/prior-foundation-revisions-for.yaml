@@ -1,0 +1,13 @@
+kind: selector-definition
+id: prior-foundation-revisions-for
+version: 1
+description: Exact earlier same-lineage Revisions of one Phase 0 foundation subject.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: subject, emit: entity}
+  as: revision
+  where: 'revision.identity.revision < subject.identity.revision'
+  distinct: true
+  order_by: [identity.revision]

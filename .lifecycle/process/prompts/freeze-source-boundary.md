@@ -22,4 +22,4 @@ The boundary preserves the source as immutable history and permits the package's
 subsequent same-lineage Scenario to publish the next QST Revision.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

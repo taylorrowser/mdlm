@@ -11,7 +11,7 @@ Read, in order:
 1. `skills/lifecycle-data.md@1`
 2. `skills/verification-strategy-specification.md@1`
 3. `skills/verification-independence.md@1`
-4. `skills/scope-challenge.md@1`
+4. `skills/scope-challenge.md@2`
 
 Define the smallest strategy that can evaluate the exact stakeholder commitments.
 Name the one bounded bootstrap environment-capability profile and state its
@@ -21,4 +21,4 @@ boundary black-box. Do not inspect product source or unit tests and do not inven
 capabilities merely because an implementation could supply them.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

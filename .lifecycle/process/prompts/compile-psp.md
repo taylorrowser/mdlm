@@ -11,7 +11,7 @@ Read, in order:
 1. `skills/lifecycle-data.md@1`
 2. `skills/product-specification.md@1`
 3. `skills/clarification-protocol.md@1`
-4. `skills/scope-challenge.md@1`
+4. `skills/scope-challenge.md@2`
 
 Create exactly one PSP describing the product the user currently intends. Keep it
 concise and link-oriented: do not pre-emptively write system requirements or
@@ -28,4 +28,4 @@ not claim the PSP is candidate-ready; review and baseline obligations are
 computed afterward.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

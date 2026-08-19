@@ -7,7 +7,7 @@ import { evaluateLifecycle, loadProcessPackage, resolveType, type ProcessPackage
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.68.0#sha256:hardening-contracts";
+const processRef = "mdlm-bootstrap@0.69.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
 
 function record(

@@ -1,6 +1,6 @@
 ---
 id: review-datum-in-context
-version: 3
+version: 4
 scenario: review-datum-in-context
 ---
 
@@ -11,14 +11,20 @@ Read, in order:
 1. `skills/lifecycle-data.md@1`
 2. `skills/contextual-artifact-review.md@2`
 3. `skills/traceability.md@1`
-4. `skills/scope-challenge.md@1`
+4. `skills/scope-challenge.md@2`
 
 Review exactly one primary subject revision against the rubric resolved by
 `review-applicability@1` using only its exact frozen context. Author preflight is
 not Review evidence and must not be requested, inferred, or supplied. Judge schema
 validity, clarity, necessity, traceability, consistency with parents and siblings,
 and type-specific quality. For PSP, STK, SYS, and candidate BSL subjects, apply
-the corresponding rubric section.
+the corresponding rubric section. When a corrected MAP, PSP, or STK receives
+prior lineage, causal Reviews, or correction Decisions as context members,
+compare the correction delta explicitly: verify that it resolves the findings,
+matches the recorded scope disposition, and adds no behavior unsupported by
+product purpose or exact authority. A local determinism fix does not by itself
+justify numeric limits, machine representation, protocol, rendering, or
+implementation machinery.
 
 The independent reviewer explicitly supplies `independent-reviewer` authority
 for execution; the resulting REV, not reviewer prose or a completion summary,

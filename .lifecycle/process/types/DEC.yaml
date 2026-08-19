@@ -1,6 +1,6 @@
 kind: type-definition
 id: DEC
-version: 6
+version: 7
 name: Decision Record
 description: Consequential decision, assumption, waiver, scope outcome, deferral, standing authority delegation, disposition, or exact gate sign-off.
 extends: rationale-bearing@1
@@ -21,6 +21,28 @@ payload_schema:
       uniqueItems: true
       items: {type: string, minLength: 1}
     effective_scope: {type: string, minLength: 1}
+    scope_correction:
+      type: object
+      additionalProperties: false
+      required: [disposition, options, necessity]
+      properties:
+        disposition: {enum: [bound, defer-or-remove, retain]}
+        options:
+          type: object
+          additionalProperties: false
+          required: [bounded, defer_or_remove, retain]
+          properties:
+            bounded: {type: string, minLength: 1}
+            defer_or_remove: {type: string, minLength: 1}
+            retain: {type: string, minLength: 1}
+        necessity: {type: string, minLength: 1}
+        reactivation_condition: {type: string, minLength: 1}
+      allOf:
+        - if:
+            properties:
+              disposition: {const: defer-or-remove}
+            required: [disposition]
+          then: {required: [reactivation_condition]}
     pilot_observation:
       type: object
       additionalProperties: false

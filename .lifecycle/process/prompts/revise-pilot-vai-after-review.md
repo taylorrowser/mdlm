@@ -2,7 +2,7 @@
 id: revise-pilot-vai-after-review
 version: 1
 scenario: revise-pilot-vai-after-review
-skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation.md@1, skills/verification-independence.md@1, skills/reproducibility.md@1, skills/verification-run-model.md@1, skills/author-preflight.md@1]
+skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation.md@1, skills/verification-independence.md@1, skills/reproducibility.md@1, skills/verification-run-model.md@1, skills/author-preflight.md@2]
 ---
 
 # Correct one failed source-blind pilot procedure
@@ -26,4 +26,4 @@ replacement. Use `kind: decision` for autonomous participation and `kind: scope`
 for attended participation.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

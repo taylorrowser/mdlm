@@ -12,7 +12,7 @@ Read, in order:
 2. `skills/prototyping.md@1`
 3. `skills/reproducibility.md@1`
 4. `skills/clarification-protocol.md@1`
-5. `skills/scope-challenge.md@1`
+5. `skills/scope-challenge.md@2`
 
 Use only the exact `git:<40-hex-commit>` repository target declared by the input
 QST. Record one ART whose supported and deliberately unsupported behavior exactly
@@ -28,4 +28,4 @@ not represent exploratory prototype findings as qualification RUN/RES evidence o
 as accepted product implementation.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

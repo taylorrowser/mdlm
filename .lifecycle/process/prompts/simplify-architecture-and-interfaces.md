@@ -9,7 +9,7 @@ scenario: simplify-architecture-and-interfaces
 Read, in order:
 
 1. `skills/lifecycle-data.md@1`
-2. `skills/scope-challenge.md@1`
+2. `skills/scope-challenge.md@2`
 3. `skills/architecture-specification.md@1`
 4. `skills/interface-control-specification.md@1`
 5. `skills/contextual-artifact-review.md@2`

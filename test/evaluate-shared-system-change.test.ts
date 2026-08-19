@@ -4,7 +4,7 @@ import { evaluateLifecycle, loadProcessPackage, type ExactTypedEntity, type Life
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 const processRoot = ".lifecycle/process";
-const processRef = "mdlm-bootstrap@0.68.0#sha256:shared-system";
+const processRef = "mdlm-bootstrap@0.69.0#sha256:shared-system";
 let processPackage: ProcessPackage;
 const rev = (id: string, n = 1) => `${id}-r${String(n).padStart(5, "0")}`;
 const ids = { sys: "SYS-1020000001", other: "SYS-1020000002", a: "DWP-1020000001", b: "DWP-1020000002", verification: "VER-1020000001", otherVerification: "VER-1020000002", candidate: "BSL-1020000001", accepted: "BSL-1020000002", problem: "PRB-1020000001", source: "ART-1020000001", change: "CHG-1020000001" };

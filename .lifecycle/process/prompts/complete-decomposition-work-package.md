@@ -25,4 +25,4 @@ coverage requires a separately implemented exact authority route and is not a
 valid completion proposal in this profile.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

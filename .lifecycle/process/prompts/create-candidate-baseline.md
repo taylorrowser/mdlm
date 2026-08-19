@@ -11,7 +11,7 @@ Read, in order:
 1. `skills/lifecycle-data.md@1`
 2. `skills/baseline-model.md@1`
 3. `skills/traceability.md@1`
-4. `skills/scope-challenge.md@1`
+4. `skills/scope-challenge.md@2`
 
 Create one candidate BSL for one explicit role, scope, and group. Every definition
 member must be an exact schema-valid revision with current passing review
@@ -27,4 +27,4 @@ candidate already exists for the same role and scope, use an explicit
 The new candidate itself still requires contextual review and gate sign-off.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

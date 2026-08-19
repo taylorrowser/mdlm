@@ -34,7 +34,7 @@ scenarios:
   - record-gate-signoff@3
   - record-consequential-decision@1
   - revise-foundation-after-review@5
-  - escalate-foundation-review-correction@2
+  - escalate-foundation-review-correction@3
   - revise-intent-candidate-after-review@3
   - revise-gate-signoff-after-review@2
   - accept-phase-0-intent@1

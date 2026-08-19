@@ -21,4 +21,4 @@ When participation is attended, also publish the exact scope DEC required by the
 Assignment; it authorizes this Correction but does not replace fresh Review.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

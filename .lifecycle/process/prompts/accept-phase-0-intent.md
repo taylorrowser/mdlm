@@ -15,4 +15,4 @@ is mechanical publication of already reviewed authorization; do not request or
 invent another stakeholder decision.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

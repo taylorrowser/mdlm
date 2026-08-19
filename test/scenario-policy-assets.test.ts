@@ -53,7 +53,7 @@ describe("package-authored review Policy evidence", () => {
       ok: true,
       references: expect.arrayContaining([
         "skills/information-allocation.md@1",
-        "skills/author-preflight.md@1",
+        "skills/author-preflight.md@2",
       ]),
     });
     expect(architecturePrompt).toMatch(
@@ -101,7 +101,7 @@ describe("package-authored review Policy evidence", () => {
       const references = promptSkillReferences(
         await fs.readFile(path.join(root, promptPath), "utf8"),
       );
-      if (!references.ok || !references.references.includes("skills/author-preflight.md@1")) {
+      if (!references.ok || !references.references.includes("skills/author-preflight.md@2")) {
         missing.push(`${scenario.id}@${scenario.version}`);
       }
     }
