@@ -43,7 +43,7 @@ describe("clean onboarding transaction contract", () => {
       package: {
         reference: "mdlm-bootstrap@0.70.0",
         digest:
-          "sha256:dc59365456d7d465f979998152ef011a2489cf7b677273f660d23f2131cc1cb9",
+          "sha256:bfc2bee8ba30b32fbfdd2cebcf2ba7840c51b3b4fb0d9e894b22b0abc5353cf1",
       },
       repository: { contract: "mdlm-repository@1" },
     });
@@ -70,7 +70,7 @@ describe("clean onboarding transaction contract", () => {
       package: {
         reference: "mdlm-bootstrap@0.70.0",
         digest:
-          "sha256:dc59365456d7d465f979998152ef011a2489cf7b677273f660d23f2131cc1cb9",
+          "sha256:bfc2bee8ba30b32fbfdd2cebcf2ba7840c51b3b4fb0d9e894b22b0abc5353cf1",
       },
       scenario: { reference: "establish-initial-wayfinding-map@1" },
     });

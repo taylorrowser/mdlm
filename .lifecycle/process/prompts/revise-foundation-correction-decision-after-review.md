@@ -16,7 +16,9 @@ or STK. Publish one same-lineage DEC replacement that keeps
 scope correction, and corrects every supplied failed Review.
 
 Do not revise the corrected subject, widen its scope, infer authority, or hide a
-failed finding. Preserve a valid `bound`, `defer-or-remove`, or `retain`
-disposition. A `defer-or-remove` Decision must keep an exact reactivation
-condition. The replacement receives fresh independent Review before any candidate
+failed finding. Preserve the prior Decision's exact `bound`, `defer-or-remove`,
+or `retain` disposition. A `defer-or-remove` Decision must keep the prior exact
+reactivation condition. Review correction may clarify rationale, options, or
+necessity, but it cannot silently choose different stakeholder authority. The
+replacement receives fresh independent Review before any candidate
 may rely on it.

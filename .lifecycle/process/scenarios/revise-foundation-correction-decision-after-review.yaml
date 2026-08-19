@@ -28,6 +28,11 @@ completion: >-
   && replacement.identity.id == decision.identity.id
   && replacement.payload.kind == "scope"
   && replacement.payload.effective_scope == corrected_subject.identity.revision_id
+  && replacement.payload.scope_correction.disposition ==
+    decision.payload.scope_correction.disposition
+  && (decision.payload.scope_correction.disposition != "defer-or-remove"
+    || replacement.payload.scope_correction.reactivation_condition ==
+      decision.payload.scope_correction.reactivation_condition)
   && exists("valid-foundation-correction-decision-replacements-for@1",
     {decision: decision})
 resolves: [foundation-correction-decision-review-correction-required]

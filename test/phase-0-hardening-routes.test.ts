@@ -1810,7 +1810,7 @@ describe("Phase 0 missing hardening routes", () => {
             authorityCorrection,
             "decision",
           ).identity;
-          const renewed = submitAssignment(repository, authorityCorrection, [{
+          const renewedOutput = (condition: string) => [{
             localId: "replacement",
             name: "replacement",
             invocation: 0,
@@ -1835,7 +1835,7 @@ describe("Phase 0 missing hardening routes", () => {
                     retain: "Retain broader behavior only with explicit need.",
                   },
                   necessity: "No current accepted intent requires the deferred behavior.",
-                  reactivation_condition: reactivationCondition,
+                  reactivation_condition: condition,
                 },
               },
               links: [
@@ -1844,7 +1844,22 @@ describe("Phase 0 missing hardening routes", () => {
               ],
               body: "Renewed authority preserves exact scope and correction causality.\n",
             },
-          }]);
+          }];
+          const dataRoot = path.join(repository, ".lifecycle", "data");
+          const beforeChangedCondition = await directoryDigest(dataRoot);
+          const changedCondition = submitAssignment(
+            repository,
+            authorityCorrection,
+            renewedOutput("A different condition chosen during Review correction."),
+          );
+          expect(changedCondition.status).not.toBe(0);
+          expect(await directoryDigest(dataRoot)).toBe(beforeChangedCondition);
+
+          const renewed = submitAssignment(
+            repository,
+            authorityCorrection,
+            renewedOutput(reactivationCondition!),
+          );
           expect(renewed.status, `${renewed.stderr}${renewed.stdout}`).toBe(0);
           currentCorrectionDecision = JSON.parse(
             renewed.stdout,
@@ -1961,7 +1976,7 @@ describe("Phase 0 missing hardening routes", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 90_000);
+  }, 150_000);
 
   it("makes existing STK Review evidence stale when its stable PSP parent advances", () => {
     const foundation = phase0Foundation();
@@ -2282,6 +2297,50 @@ describe("Phase 0 missing hardening routes", () => {
       actionableResolver:
         "revise-foundation-correction-decision-after-review@1",
     }));
+
+    const unframedPayload = structuredClone(authority.datum.payload);
+    delete unframedPayload.scope_correction;
+    const unframedReplacement = record("DEC", authority.datum.id, {
+      ...unframedPayload,
+      rationale: "This replacement improperly omits the correction disposition.",
+    }, {
+      revision: 2,
+      scenario: "revise-foundation-correction-decision-after-review@1",
+      links: [
+        { type: "justifies", target: corrected.datum.revision_id },
+        { type: "corrects-review", target: failedAuthorityReview.datum.revision_id },
+      ],
+    });
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot([...records, unframedReplacement]),
+      "selector",
+      "valid-foundation-correction-decision-replacements-for@1",
+      { decision: authority.datum.revision_id },
+    ).result).toEqual([]);
+
+    const changedDispositionReplacement = record("DEC", authority.datum.id, {
+      ...authority.datum.payload,
+      rationale: "This replacement improperly changes retained authority to bounded authority.",
+      scope_correction: {
+        ...authority.datum.payload.scope_correction as Record<string, unknown>,
+        disposition: "bound",
+      },
+    }, {
+      revision: 2,
+      scenario: "revise-foundation-correction-decision-after-review@1",
+      links: [
+        { type: "justifies", target: corrected.datum.revision_id },
+        { type: "corrects-review", target: failedAuthorityReview.datum.revision_id },
+      ],
+    });
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot([...records, changedDispositionReplacement]),
+      "selector",
+      "valid-foundation-correction-decision-replacements-for@1",
+      { decision: authority.datum.revision_id },
+    ).result).toEqual([]);
 
     const replacementAuthority = record("DEC", authority.datum.id, {
       ...authority.datum.payload,
