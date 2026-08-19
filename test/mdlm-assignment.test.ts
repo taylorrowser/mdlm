@@ -35,20 +35,14 @@ function git(repository: string, ...arguments_: string[]) {
 }
 
 function holdPublicationLock(repository: string, pid: number): string {
-  const processStartedAt = spawnSync(
-    "ps",
-    ["-o", "lstart=", "-p", String(pid)],
-    { encoding: "utf8" },
-  ).stdout.trim();
   const owner = spawnSync(
     "git",
     ["-C", repository, "hash-object", "-w", "--stdin"],
     {
       encoding: "utf8",
       input: `${JSON.stringify({
-        createdAt: Date.now(),
+        expiresAt: Date.now() + 60_000,
         pid,
-        processStartedAt,
         token: "test",
       })}\n`,
     },
@@ -577,16 +571,22 @@ describe("MDLM Assignment leasing and preparation", () => {
     ))}\n`;
     const lockOwner = holdPublicationLock(repository, process.pid);
     const staged = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        watcher.close();
+        reject(new Error("Public submission did not stage publication"));
+      }, 10_000);
       const watcher = watch(path.join(repository, ".lifecycle"), async () => {
         try {
           const entries = await fs.readdir(path.join(repository, ".lifecycle"));
           if (entries.some((entry) =>
             entry.startsWith(".scenario-") && entry.endsWith(".tmp")
           )) {
+            clearTimeout(timeout);
             watcher.close();
             resolve();
           }
         } catch (error) {
+          clearTimeout(timeout);
           watcher.close();
           reject(error);
         }

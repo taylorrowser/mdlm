@@ -518,9 +518,8 @@ describe("compiled mdlm baseline inspection", () => {
     holdPublicationLock(
       repository,
       `${JSON.stringify({
-        createdAt: Date.now(),
+        expiresAt: Date.now() + 60_000,
         pid: 2_147_483_647,
-        processStartedAt: "exited",
         token: "contended-stale-owner",
       })}\n`,
     );
@@ -603,16 +602,14 @@ describe("compiled mdlm baseline inspection", () => {
 
   it.each([
     ["owner exited", `${JSON.stringify({
-      createdAt: Date.now(),
+      expiresAt: Date.now() + 60_000,
       pid: 2_147_483_647,
-      processStartedAt: "exited",
       token: "exited-owner",
     })}\n`],
-    ["the owner PID was reused", `${JSON.stringify({
-      createdAt: Date.now(),
+    ["the owner lease expired", `${JSON.stringify({
+      expiresAt: Date.now() - 1,
       pid: process.pid,
-      processStartedAt: "different-process-start",
-      token: "reused-pid",
+      token: "expired-owner",
     })}\n`],
     ["owner metadata is malformed", "not-json\n"],
   ])("recovers a publication lock when %s", async (_case, owner) => {
