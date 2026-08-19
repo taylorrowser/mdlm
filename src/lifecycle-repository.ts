@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -414,64 +415,140 @@ export async function verifyRepositoryDataSources(
     : { ok: true, value: undefined, diagnostics: [] };
 }
 
-async function publicationLockIsAbandoned(
-  lockDirectory: string,
-): Promise<boolean> {
+const publicationLockRef = "refs/mdlm/publication-lock";
+
+interface GitCommandResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+function gitCommand(
+  root: string,
+  arguments_: string[],
+  input?: string,
+): Promise<GitCommandResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", ["-C", root, ...arguments_], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => stdout += chunk);
+    child.stderr.on("data", (chunk: string) => stderr += chunk);
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout, stderr }));
+    child.stdin.end(input);
+  });
+}
+
+async function publicationLockOwner(
+  root: string,
+  objectId: string,
+): Promise<{ pid?: unknown; token?: unknown } | undefined> {
+  const owner = await gitCommand(root, ["cat-file", "-p", objectId]);
+  if (owner.code !== 0) return undefined;
   try {
-    const owner = JSON.parse(await fs.readFile(
-      path.join(lockDirectory, "owner.json"),
-      "utf8",
-    )) as { pid?: unknown };
-    if (typeof owner.pid !== "number") return false;
-    try {
-      process.kill(owner.pid, 0);
-      return false;
-    } catch (error) {
-      return (error as NodeJS.ErrnoException).code === "ESRCH";
-    }
+    return JSON.parse(owner.stdout) as { pid?: unknown; token?: unknown };
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+function processIsRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== "ESRCH";
+  }
+}
+
+async function updatePublicationLock(
+  root: string,
+  ownerObjectId: string,
+  expectedObjectId: string,
+): Promise<boolean> {
+  const updated = await gitCommand(root, [
+    "update-ref",
+    publicationLockRef,
+    ownerObjectId,
+    expectedObjectId,
+  ]);
+  return updated.code === 0;
 }
 
 async function withRepositoryPublicationLock<T>(
   root: string,
   operation: () => Promise<T>,
 ): Promise<T> {
-  const lockDirectory = path.join(
+  const token = randomUUID();
+  const hashed = await gitCommand(
     root,
-    ".lifecycle/data/.transactions/.publication.lock",
+    ["hash-object", "-w", "--stdin"],
+    `${JSON.stringify({ pid: process.pid, token })}\n`,
   );
-  await fs.mkdir(path.dirname(lockDirectory), { recursive: true });
+  const ownerObjectId = hashed.stdout.trim();
+  if (hashed.code !== 0 || !/^[0-9a-f]{40,64}$/.test(ownerObjectId)) {
+    throw new Error(
+      `Could not create repository publication lock owner: ${hashed.stderr.trim()}`,
+    );
+  }
   const deadline = Date.now() + 10_000;
   while (true) {
-    try {
-      await fs.mkdir(lockDirectory);
-      await fs.writeFile(
-        path.join(lockDirectory, "owner.json"),
-        `${JSON.stringify({ pid: process.pid })}\n`,
-      );
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
-        await fs.rm(lockDirectory, { recursive: true, force: true });
-        throw error;
+    if (
+      await updatePublicationLock(
+        root,
+        ownerObjectId,
+        "0".repeat(ownerObjectId.length),
+      )
+    ) break;
+    const current = await gitCommand(root, [
+      "rev-parse",
+      "--verify",
+      publicationLockRef,
+    ]);
+    const currentObjectId = current.stdout.trim();
+    if (current.code === 0 && /^[0-9a-f]{40,64}$/.test(currentObjectId)) {
+      const owner = await publicationLockOwner(root, currentObjectId);
+      const abandoned =
+        typeof owner?.pid !== "number" ||
+        typeof owner.token !== "string" ||
+        !processIsRunning(owner.pid);
+      if (
+        abandoned &&
+        await updatePublicationLock(root, ownerObjectId, currentObjectId)
+      ) {
+        break;
       }
-      if (await publicationLockIsAbandoned(lockDirectory)) {
-        await fs.rm(lockDirectory, { recursive: true, force: true });
-        continue;
-      }
-      if (Date.now() >= deadline) {
-        throw new Error("Timed out waiting for the repository publication lock");
-      }
-      await new Promise((resolve) => setTimeout(resolve, 10));
     }
+    if (Date.now() >= deadline) {
+      throw new Error("Timed out waiting for the repository publication lock");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
+
+  let result: T;
   try {
-    return await operation();
-  } finally {
-    await fs.rm(lockDirectory, { recursive: true, force: true });
+    result = await operation();
+  } catch (error) {
+    await gitCommand(root, [
+      "update-ref",
+      "-d",
+      publicationLockRef,
+      ownerObjectId,
+    ]);
+    throw error;
   }
+  await gitCommand(root, [
+    "update-ref",
+    "-d",
+    publicationLockRef,
+    ownerObjectId,
+  ]);
+  return result;
 }
 
 function referenceParts(reference: string): [string, number] | undefined {

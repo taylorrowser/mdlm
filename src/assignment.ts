@@ -2229,6 +2229,11 @@ export async function submitAssignmentResponse(
     )) {
       return recordStaleDisposition(repositoryRoot, lease);
     }
+    if (submitted.diagnostics.some((diagnostic) =>
+      diagnostic.code === "scenario-publication-failed"
+    )) {
+      return { ok: false, diagnostics: submitted.diagnostics };
+    }
     return recordMalformedResponse(
       repositoryRoot,
       lease,

@@ -29,6 +29,31 @@ function expectSuccess(result: ReturnType<typeof mdlm>, command: string): void {
   expect(result.status, `${command}\n${result.stderr}${result.stdout}`).toBe(0);
 }
 
+function git(repository: string, arguments_: string[], input?: string) {
+  return spawnSync("git", ["-C", repository, ...arguments_], {
+    encoding: "utf8",
+    ...(input === undefined ? {} : { input }),
+  });
+}
+
+function holdPublicationLock(repository: string, owner: string): string {
+  const hashed = git(
+    repository,
+    ["hash-object", "-w", "--stdin"],
+    owner,
+  );
+  expect(hashed.status, hashed.stderr).toBe(0);
+  const objectId = hashed.stdout.trim();
+  const locked = git(repository, [
+    "update-ref",
+    "refs/mdlm/publication-lock",
+    objectId,
+    "0000000000000000000000000000000000000000",
+  ]);
+  expect(locked.status, locked.stderr).toBe(0);
+  return objectId;
+}
+
 function cloneBaselineHeavyRepository(parent: string, name: string): string {
   const repository = path.join(parent, name);
   const cloned = spawnSync(
@@ -490,6 +515,10 @@ describe("compiled mdlm baseline inspection", () => {
       "QST-1040000303",
       "Concurrent publication source",
     );
+    holdPublicationLock(
+      repository,
+      `${JSON.stringify({ pid: 2_147_483_647, token: "contended-stale-owner" })}\n`,
+    );
     let commitGuardCalls = 0;
     let firstGuardStarted: (() => void) | undefined;
     const firstGuard = new Promise<void>((resolve) => {
@@ -508,18 +537,6 @@ describe("compiled mdlm baseline inspection", () => {
       return verifyRepositoryDataSources(repository, loaded.value);
     };
 
-    const firstPublication = publishScenarioMutationData(
-      repository,
-      processPackage,
-      loaded.value,
-      expected,
-      [proposal],
-      "concurrent-publication-left",
-      {},
-      [],
-      commitGuard,
-    );
-    await firstGuard;
     const secondStaged = new Promise<void>((resolve, reject) => {
       const watcher = watch(path.join(repository, ".lifecycle"), async () => {
         try {
@@ -537,6 +554,17 @@ describe("compiled mdlm baseline inspection", () => {
         }
       });
     });
+    const firstPublication = publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      expected,
+      [proposal],
+      "concurrent-publication-left",
+      {},
+      [],
+      commitGuard,
+    );
     const secondPublication = publishScenarioMutationData(
       repository,
       processPackage,
@@ -548,7 +576,7 @@ describe("compiled mdlm baseline inspection", () => {
       [],
       commitGuard,
     );
-    await secondStaged;
+    await Promise.all([firstGuard, secondStaged]);
     expect(commitGuardCalls).toBe(1);
     releaseFirstGuard?.();
 
@@ -568,20 +596,15 @@ describe("compiled mdlm baseline inspection", () => {
     ]);
   });
 
-  it("recovers a publication lock whose owner exited", async () => {
+  it.each([
+    ["owner exited", `${JSON.stringify({ pid: 2_147_483_647, token: "exited-owner" })}\n`],
+    ["owner metadata is malformed", "not-json\n"],
+  ])("recovers a publication lock when %s", async (_case, owner) => {
     const { processPackage } = await selectedPackage(repository);
     const loaded = await readRepositoryData(repository, processPackage);
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) throw new Error("repository data unavailable");
-    const lockDirectory = path.join(
-      repository,
-      ".lifecycle/data/.transactions/.publication.lock",
-    );
-    await fs.mkdir(lockDirectory, { recursive: true });
-    await fs.writeFile(
-      path.join(lockDirectory, "owner.json"),
-      `${JSON.stringify({ pid: 2_147_483_647 })}\n`,
-    );
+    holdPublicationLock(repository, owner);
 
     const published = await publishScenarioMutationData(
       repository,
@@ -596,7 +619,11 @@ describe("compiled mdlm baseline inspection", () => {
     );
 
     expect(published.ok).toBe(true);
-    await expect(fs.access(lockDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(git(repository, [
+      "rev-parse",
+      "--verify",
+      "refs/mdlm/publication-lock",
+    ]).status).not.toBe(0);
   });
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {

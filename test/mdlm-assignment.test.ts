@@ -34,6 +34,25 @@ function git(repository: string, ...arguments_: string[]) {
   });
 }
 
+function holdPublicationLock(repository: string, pid: number): string {
+  const owner = spawnSync(
+    "git",
+    ["-C", repository, "hash-object", "-w", "--stdin"],
+    { encoding: "utf8", input: `${JSON.stringify({ pid, token: "test" })}\n` },
+  );
+  expect(owner.status, owner.stderr).toBe(0);
+  const objectId = owner.stdout.trim();
+  const locked = git(
+    repository,
+    "update-ref",
+    "refs/mdlm/publication-lock",
+    objectId,
+    "0000000000000000000000000000000000000000",
+  );
+  expect(locked.status, locked.stderr).toBe(0);
+  return objectId;
+}
+
 type PreparedPromptPacket = {
   prompt: { skills: { reference: string }[] };
 };
@@ -543,15 +562,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       assignment,
       packet.prompt.skills.map((skill) => skill.reference),
     ))}\n`;
-    const lockDirectory = path.join(
-      repository,
-      ".lifecycle/data/.transactions/.publication.lock",
-    );
-    await fs.mkdir(lockDirectory, { recursive: true });
-    await fs.writeFile(
-      path.join(lockDirectory, "owner.json"),
-      `${JSON.stringify({ pid: process.pid })}\n`,
-    );
+    const lockOwner = holdPublicationLock(repository, process.pid);
     const staged = new Promise<void>((resolve, reject) => {
       const watcher = watch(path.join(repository, ".lifecycle"), async () => {
         try {
@@ -586,7 +597,13 @@ describe("MDLM Assignment leasing and preparation", () => {
       path.join(repository, ".lifecycle/data/intervening.md"),
       "Intervening authoritative Markdown.\n",
     );
-    await fs.rm(lockDirectory, { recursive: true, force: true });
+    expect(git(
+      repository,
+      "update-ref",
+      "-d",
+      "refs/mdlm/publication-lock",
+      lockOwner,
+    ).status).toBe(0);
     const status = await new Promise<number | null>((resolve) =>
       child.on("close", resolve)
     );
