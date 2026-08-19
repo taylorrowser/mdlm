@@ -3,15 +3,26 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "allowScripts": {
+    "@google/genai": false,
+    "fsevents": false,
+    "protobufjs": false
+  },
   "bin": {
     "mdlm": "./dist/mdlm.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "build:mdlm-pi": "npm run build --workspace=mdlm-pi",
     "test": "node scripts/run-bounded-tests.mjs",
-    "test:all": "npm test",
+    "test:mdlm-pi": "npm test --workspace=mdlm-pi",
+    "test:all": "npm test && npm run test:mdlm-pi",
     "test:watch": "vitest --config vitest.fast.config.ts",
     "typecheck": "tsc --noEmit",
+    "typecheck:mdlm-pi": "npm run typecheck --workspace=mdlm-pi",
     "frontier:start": "node scripts/frontier-loop.mjs start",
     "frontier:reload": "node scripts/frontier-loop.mjs reload",
     "frontier:status": "node scripts/frontier-loop.mjs status",

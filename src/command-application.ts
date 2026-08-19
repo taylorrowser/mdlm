@@ -69,6 +69,7 @@ import {
 } from "./process-package-fixtures.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import {
+  inspectAssignmentState,
   inspectOperatorStatus,
   leaseNextAssignment,
   prepareAssignment,
@@ -76,6 +77,7 @@ import {
   type AssignmentDisposition,
   type AssignmentOutcome,
   type AssignmentPacket,
+  type AssignmentState,
   type AssignmentSubmission,
   type OperatorStatus,
 } from "./assignment.js";
@@ -124,10 +126,15 @@ interface TypeSchemaInspection {
 interface CommandResultBase {
   ok: boolean;
   command?: string;
-  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | OperatorStatus["contract"];
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"];
   outcome?: AssignmentOutcome["outcome"] | "invalid";
   assignment?: { id: string };
-  disposition?: AssignmentDisposition["disposition"];
+  scenarioReference?: string;
+  disposition?: AssignmentDisposition["disposition"] | Extract<AssignmentState, { selected: true }>["disposition"];
+  retryAvailability?: Extract<AssignmentState, { selected: true }>["retryAvailability"];
+  malformedResponses?: Extract<AssignmentState, { selected: true }>["malformedResponses"];
+  response?: Extract<AssignmentState, { selected: true }>["response"];
+  terminalDiagnostics?: Extract<AssignmentState, { selected: true }>["terminalDiagnostics"];
   orchestration?: AssignmentDisposition["orchestration"];
   unable?: Extract<AssignmentDisposition, { disposition: "abandoned" }>["unable"];
   malformedResponse?: Extract<AssignmentDisposition, {
@@ -1121,6 +1128,26 @@ async function showOperatorStatus(
       };
 }
 
+async function showAssignmentState(
+  repositoryRoot: string,
+  assignmentId: string,
+): Promise<CommandResult> {
+  const inspected = await inspectAssignmentState(repositoryRoot, assignmentId);
+  return inspected.ok
+    ? {
+        ok: true,
+        command: "assignment.show",
+        ...inspected.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "assignment.show",
+        contract: "mdlm-assignment-state@1",
+        diagnostics: inspected.diagnostics,
+      };
+}
+
 async function prepareExactAssignment(
   repositoryRoot: string,
   assignmentId: string,
@@ -1864,6 +1891,20 @@ async function dispatchCommand(
             "Expected 'mdlm next' without legacy projection options",
           ),
           command: "next",
+        };
+  }
+  if (operands[0] === "assignment" && operands[1] === "show") {
+    const assignmentArguments = arguments_.filter((argument) => argument !== "--json");
+    return assignmentArguments.length === 3 &&
+        assignmentArguments[2] && !assignmentArguments[2].startsWith("--")
+      ? showAssignmentState(repositoryRoot, assignmentArguments[2])
+      : {
+          ...failure(
+            "assignment-show-arguments-invalid",
+            "Expected 'mdlm assignment show <assignment-id>'",
+          ),
+          command: "assignment.show",
+          contract: "mdlm-assignment-state@1",
         };
   }
   if (operands[0] === "scenario" && operands[1] === "prepare") {

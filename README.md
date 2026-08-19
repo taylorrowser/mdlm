@@ -79,6 +79,7 @@ mdlm schema <type> --json
 mdlm phase status [phase] --json
 mdlm loose-ends --json
 mdlm scenario execution show <execution-id> --json
+mdlm assignment show <assignment-id> --json
 mdlm baseline verify <baseline-revision> --json
 mdlm baseline diff <old-baseline> <new-baseline> --json
 mdlm process show --json
@@ -114,7 +115,8 @@ change is not itself a stop: reevaluation determines the next Operator Outcome.
 ## References
 
 - Canonical domain language: [`CONTEXT.md`](CONTEXT.md)
-- Generic pi harness: [`docs/mdlm-pi-operator.md`](docs/mdlm-pi-operator.md)
+- Foreground pi SDK operator: [`packages/mdlm-pi/README.md`](packages/mdlm-pi/README.md)
+- Generic pi prompt harness: [`docs/mdlm-pi-operator.md`](docs/mdlm-pi-operator.md)
 - Current conformance report: [`docs/mdlm-v0.8-implementation-conformance.md`](docs/mdlm-v0.8-implementation-conformance.md)
 - Phase-hardening proof: [`docs/clean-pilot-103.md`](docs/clean-pilot-103.md)
 - Zero-to-assessment evidence: [`docs/zero-to-assessment-pilot.md`](docs/zero-to-assessment-pilot.md)

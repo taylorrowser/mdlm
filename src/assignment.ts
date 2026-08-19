@@ -120,10 +120,31 @@ interface AssignmentLease {
   terminalDiagnostics?: ProcessDiagnostic[];
 }
 
+export type AssignmentState = {
+  contract: "mdlm-assignment-state@1";
+  assignment: { id: string };
+} & (
+  | { selected: false }
+  | {
+      selected: true;
+      scenarioReference: string;
+      disposition: AssignmentLease["disposition"];
+      retryAvailability: AssignmentLease["retryAvailability"];
+      malformedResponses: MalformedAssignmentResponse[];
+      response?: AssignmentLease["response"];
+      terminalDiagnostics?: ProcessDiagnostic[];
+    }
+);
+
 interface OperatorOutcomeBase {
   package: PackageSummary;
   contract: "mdlm-next@1";
   phase: string;
+  materializedExecutions: {
+    id: string;
+    scenario: string;
+    status: "completed";
+  }[];
 }
 
 export interface AttentionContext {
@@ -410,6 +431,10 @@ function sha256(value: string): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
+function isCanonicalTransactionPath(relativePath: string): boolean {
+  return /^\.lifecycle\/data\/\.transactions\/[^/]+(?:\/|$)/.test(relativePath);
+}
+
 async function repositoryFingerprint(
   repositoryRoot: string,
 ): Promise<AssignmentResult<RepositoryFingerprint>> {
@@ -457,7 +482,10 @@ async function confirmRepositoryFingerprint(
 ): Promise<AssignmentResult<RepositoryFingerprint>> {
   const current = await repositoryFingerprint(repositoryRoot);
   if (!current.ok) return current;
-  if (!isDeepStrictEqual(current.value, expected)) {
+  if (
+    current.value.trackedState !== expected.trackedState &&
+    !(await isTransactionOnlyCommitAdvance(repositoryRoot, expected, current.value))
+  ) {
     return failure(
       "assignment-repository-changed-during-inspection",
       "The tracked repository changed while MDLM prepared its verified command snapshot",
@@ -465,6 +493,27 @@ async function confirmRepositoryFingerprint(
     );
   }
   return current;
+}
+
+async function isTransactionOnlyCommitAdvance(
+  repositoryRoot: string,
+  expected: RepositoryFingerprint,
+  current: RepositoryFingerprint,
+): Promise<boolean> {
+  if (expected.head === current.head) return false;
+  try {
+    await git(repositoryRoot, ["merge-base", "--is-ancestor", expected.head, current.head]);
+    const [committed, staged, unstaged] = await Promise.all([
+      git(repositoryRoot, ["diff", "--name-only", "-z", expected.head, current.head, "--"]),
+      git(repositoryRoot, ["diff", "--name-only", "-z", "--cached", "HEAD", "--"]),
+      git(repositoryRoot, ["diff", "--name-only", "-z", "--"]),
+    ]);
+    const committedPaths = committed.split("\0").filter(Boolean);
+    return staged.length === 0 && unstaged.length === 0 &&
+      committedPaths.every(isCanonicalTransactionPath);
+  } catch {
+    return false;
+  }
 }
 
 function leasePath(repositoryRoot: string): string {
@@ -612,6 +661,44 @@ async function readLease(
         "The active Assignment lease does not satisfy mdlm-assignment-lease@1",
         target,
       );
+}
+
+/** Inspect one durable Assignment lease without allocating or mutating work. */
+export async function inspectAssignmentState(
+  repositoryRoot: string,
+  assignmentId: string,
+): Promise<AssignmentResult<AssignmentState>> {
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.id !== assignmentId) {
+    return {
+      ok: true,
+      value: {
+        contract: "mdlm-assignment-state@1",
+        assignment: { id: assignmentId },
+        selected: false,
+      },
+      diagnostics: [],
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      contract: "mdlm-assignment-state@1",
+      assignment: { id: lease.id },
+      selected: true,
+      scenarioReference: lease.scenario,
+      disposition: lease.disposition,
+      retryAvailability: lease.retryAvailability,
+      malformedResponses: lease.malformedResponses,
+      ...(lease.response ? { response: lease.response } : {}),
+      ...(lease.terminalDiagnostics
+        ? { terminalDiagnostics: lease.terminalDiagnostics }
+        : {}),
+    },
+    diagnostics: [],
+  };
 }
 
 function exactEntityId(value: ScenarioDryRunInvocation["inputs"][number]["values"][number]): string {
@@ -1014,6 +1101,23 @@ function sameAssignment(lease: AssignmentLease, exact: ExactAssignment): boolean
   );
 }
 
+async function reconcileTransactionCommit(
+  repositoryRoot: string,
+  lease: AssignmentLease,
+  exact: ExactAssignment,
+): Promise<AssignmentLease | undefined> {
+  if (sameAssignment(lease, exact)) return lease;
+  const rebased: AssignmentLease = {
+    ...lease,
+    repository: exact.lease.repository,
+  };
+  if (!sameAssignment(rebased, exact)) return undefined;
+  const confirmed = await confirmRepositoryFingerprint(repositoryRoot, lease.repository);
+  if (!confirmed.ok) return undefined;
+  await writeLease(repositoryRoot, rebased);
+  return rebased;
+}
+
 function sameAssignmentSource(
   lease: AssignmentLease,
   exact: ExactAssignment,
@@ -1389,12 +1493,14 @@ function materializedRecords(execution: ScenarioExecution): LifecycleRecord[] {
 function leasedOutcome(
   exact: ExactAssignment,
   assignmentId: string,
+  materializedExecutions: OperatorOutcomeBase["materializedExecutions"],
 ): AssignmentOutcome {
   const base = {
     package: exact.summary,
     contract: "mdlm-next@1" as const,
     phase: exact.lease.phase,
     assignment: { id: assignmentId },
+    materializedExecutions,
   };
   return exact.classification.kind === "attention-required"
     ? {
@@ -1437,6 +1543,7 @@ async function leaseNextAssignmentLocked(
   }
 
   const materializedObligations = new Set<string>();
+  const materializedExecutions: OperatorOutcomeBase["materializedExecutions"] = [];
   while (state.value.assignment) {
     const exact = state.value.assignment;
     const materialization = exactBaselineMaterialization(exact.scenario);
@@ -1488,6 +1595,11 @@ async function leaseNextAssignmentLocked(
     await fs.rm(leasePath(repositoryRoot), { force: true });
     activeLease = undefined;
     if (!materialized.ok) return materialized;
+    materializedExecutions.push({
+      id: materialized.value.id,
+      scenario: materialized.value.definition.scenario,
+      status: "completed",
+    });
     const fingerprint = await repositoryFingerprint(repositoryRoot);
     if (!fingerprint.ok) return fingerprint;
     const snapshot: LifecycleSnapshot = {
@@ -1522,6 +1634,7 @@ async function leaseNextAssignmentLocked(
       package: state.value.summary,
       contract: "mdlm-next@1" as const,
       phase: phaseReference(state.value.evaluation),
+      materializedExecutions,
     };
     const value: AssignmentOutcome = classification.kind === "process-dead-end"
       ? {
@@ -1540,12 +1653,19 @@ async function leaseNextAssignmentLocked(
       "The classified Operator Outcome did not prepare its exact Assignment",
     );
   }
-  if (activeLease && sameAssignment(activeLease, exact)) {
-    return {
-      ok: true,
-      value: leasedOutcome(exact, activeLease.id),
-      diagnostics: [],
-    };
+  if (activeLease) {
+    const reconciled = await reconcileTransactionCommit(
+      repositoryRoot,
+      activeLease,
+      exact,
+    );
+    if (reconciled) {
+      return {
+        ok: true,
+        value: leasedOutcome(exact, reconciled.id, materializedExecutions),
+        diagnostics: [],
+      };
+    }
   }
   if (
     activeLease?.disposition === "active" &&
@@ -1561,7 +1681,7 @@ async function leaseNextAssignmentLocked(
   await writeLease(repositoryRoot, lease);
   return {
     ok: true,
-    value: leasedOutcome(exact, lease.id),
+    value: leasedOutcome(exact, lease.id, materializedExecutions),
     diagnostics: [],
   };
 }
@@ -1782,6 +1902,9 @@ export async function inspectOperatorStatus(
       currentOutcome: statusOutcome(state.value, persisted.value),
       drillDownCommands: [
         "mdlm next",
+        ...(persisted.value
+          ? [`mdlm assignment show ${persisted.value.id} --json`]
+          : []),
         "mdlm loose-ends --json",
         `mdlm phase status ${phase.id} --json`,
         "mdlm doctor --json",
@@ -2313,16 +2436,19 @@ export async function submitAssignmentResponse(
 ): Promise<AssignmentSubmissionResult> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
-  const lease = persisted.value;
+  let lease = persisted.value;
   const parsed = parseAssignmentResponse(responseSource);
   if (!parsed.ok) {
     if (lease?.disposition !== "active") return parsed;
     const exact = await exactAssignment(repositoryRoot);
-    return !exact.ok || !sameAssignment(lease, exact.value)
+    const reconciled = exact.ok
+      ? await reconcileTransactionCommit(repositoryRoot, lease, exact.value)
+      : undefined;
+    return !reconciled
       ? recordStaleDisposition(repositoryRoot, lease)
       : recordMalformedResponse(
           repositoryRoot,
-          lease,
+          reconciled,
           responseSource,
           parsed.diagnostics,
         );
@@ -2338,9 +2464,14 @@ export async function submitAssignmentResponse(
     );
   }
   const exact = await exactAssignment(repositoryRoot);
-  if (!exact.ok || !sameAssignment(lease, exact.value)) {
-    return recordStaleDisposition(repositoryRoot, lease);
-  }
+  if (!exact.ok) return recordStaleDisposition(repositoryRoot, lease);
+  const reconciled = await reconcileTransactionCommit(
+    repositoryRoot,
+    lease,
+    exact.value,
+  );
+  if (!reconciled) return recordStaleDisposition(repositoryRoot, lease);
+  lease = reconciled;
   if (parsed.value.kind === "unable") {
     return recordUnableResponse(
       repositoryRoot,
@@ -2473,7 +2604,12 @@ async function prepareAssignmentLocked(
       assignmentId,
     );
   }
-  if (!sameAssignment(lease, exact.value)) {
+  const reconciled = await reconcileTransactionCommit(
+    repositoryRoot,
+    lease,
+    exact.value,
+  );
+  if (!reconciled) {
     if (sameAssignmentSource(lease, exact.value)) {
       return invalidLease(repositoryRoot);
     }
@@ -2497,7 +2633,7 @@ async function prepareAssignmentLocked(
   }
   return {
     ok: true,
-    value: packet(exact.value, lease),
+    value: packet(exact.value, reconciled),
     diagnostics: [],
   };
 }

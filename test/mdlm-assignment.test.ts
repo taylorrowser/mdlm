@@ -207,6 +207,28 @@ describe("MDLM Assignment leasing and preparation", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
+  it("keeps an exact Assignment across metadata commits but rejects content commits", async () => {
+    const allocated = mdlm(repository, "next", "--json");
+    expect(allocated.status, `${allocated.stderr}${allocated.stdout}`).toBe(0);
+    const assignment = JSON.parse(allocated.stdout).assignment.id as string;
+    const committed = git(repository, "commit", "--allow-empty", "-m", "Operator boundary");
+    expect(committed.status, committed.stderr).toBe(0);
+
+    const prepared = mdlm(repository, "scenario", "prepare", assignment, "--json");
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    expect(JSON.parse(prepared.stdout).assignment.id).toBe(assignment);
+
+    const readme = path.join(repository, "README.md");
+    await fs.appendFile(readme, "\nChanged after Assignment allocation.\n");
+    expect(git(repository, "add", "README.md").status).toBe(0);
+    expect(git(repository, "commit", "-m", "Change repository content").status).toBe(0);
+    const stale = mdlm(repository, "scenario", "prepare", assignment, "--json");
+    expect(stale.status).toBe(1);
+    expect(JSON.parse(stale.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "assignment-stale" }),
+    ]);
+  });
+
   it("leases one exact bundled-package Assignment and prepares its complete packet", async () => {
     const first = mdlm(repository, "next");
     expect(first.status, `${first.stderr}${first.stdout}`).toBe(0);
