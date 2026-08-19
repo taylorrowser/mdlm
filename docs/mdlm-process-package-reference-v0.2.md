@@ -1127,7 +1127,7 @@ that context scopes the exact subject, contains every-and-only the currently sel
 members, and has no newer same-lineage Revision. Every blocking Finding requires an exact criterion, concrete
 evidence or counterexample, and material consequence; usable concerns remain
 triage or advisory. The clean
-0.69.0 package does not read or migrate historical 0.67.0 or earlier Lifecycle Data.
+0.69.0 package does not read or migrate historical 0.68.0 or earlier Lifecycle Data.
 Its reviewed group candidate contains exact DWP, SYS, ASP, and ICSP Revisions. The
 reviewed SYS level candidate composes that exact group while
 retaining shared VSP, ASP, and ICSP members, then reaches exact reviewed gate

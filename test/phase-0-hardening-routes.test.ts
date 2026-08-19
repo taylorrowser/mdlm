@@ -1645,6 +1645,17 @@ describe("Phase 0 missing hardening routes", () => {
       "passing-reviews-for@1",
       { subject: foundation.requirement.datum.revision_id },
     ).result).toEqual([]);
+    expect(obligation(
+      processPackage,
+      records,
+      "review-context-required",
+      foundation.requirement.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      actionableResolver: null,
+      eventualResolver: "create-review-context@1",
+      explanation: expect.stringMatching(/passing independent Review.*current PSP/i),
+    }));
 
     const [productContext, productReview] = reviewFor(
       revisedProduct,
@@ -1724,7 +1735,10 @@ describe("Phase 0 missing hardening routes", () => {
       kind: "scope",
       decision: "Decide unrelated scope.",
       alternatives: ["Leave unrelated scope open"],
-      effective_scope: original.datum.revision_id,
+      effective_scope: corrected.datum.revision_id,
+    }, {
+      scenario: "record-consequential-decision@1",
+      links: [{ type: "justifies", target: corrected.datum.revision_id }],
     });
     const selectedResult = evaluateProcessDefinition(
       processPackage,
@@ -1781,6 +1795,200 @@ describe("Phase 0 missing hardening routes", () => {
           "Reconsider only when an accepted stakeholder outcome requires the deferred behavior.",
       },
     })).toBe(true);
+  });
+
+  it.each([
+    {
+      suffix: "25",
+      disposition: "retain" as const,
+      replacementBody:
+        "Retain the exact complex behavior because the stakeholder supplied concrete necessity.\n",
+      reactivationCondition: undefined,
+    },
+    {
+      suffix: "26",
+      disposition: "defer-or-remove" as const,
+      replacementBody:
+        "Remove the optional behavior until the recorded stakeholder condition becomes true.\n",
+      reactivationCondition:
+        "Reconsider only when an accepted stakeholder outcome requires the deferred behavior.",
+    },
+  ])("allows reviewed $disposition correction authority to proceed to STK work", ({
+    suffix,
+    disposition,
+    replacementBody,
+    reactivationCondition,
+  }) => {
+    const original = record("PSP", `PSP-10300000${suffix}`, {
+      title: "Product requiring exact correction authority",
+      rationale: "Exercise a non-bounded stakeholder disposition.",
+      problem: "One optional behavior has unsettled scope.",
+      users: ["operator"],
+      goals: ["publish only authorized behavior"],
+      non_goals: ["infer stakeholder authority"],
+      success_measures: ["the exact disposition passes independent Review"],
+    });
+    const [failedContext, failed] = reviewFor(
+      original,
+      `REV-10300000${suffix}`,
+      "fail",
+      { correctionAuthority: "stakeholder" },
+    );
+    const corrected = record("PSP", original.datum.id, {
+      ...original.datum.payload,
+      title: `${disposition} corrected product`,
+    }, {
+      revision: 2,
+      scenario: "escalate-foundation-review-correction@3",
+      links: [{ type: "corrects-review", target: failed.datum.revision_id }],
+    });
+    corrected.datum.body = replacementBody;
+    const decision = record("DEC", `DEC-10300000${suffix}`, {
+      title: `${disposition} correction authority`,
+      rationale: "The stakeholder compared all exact correction outcomes.",
+      kind: "scope",
+      decision: `Select ${disposition} for the exact corrected PSP.`,
+      alternatives: ["Bound the behavior", "Select the other exact disposition"],
+      effective_scope: corrected.datum.revision_id,
+      scope_correction: {
+        disposition,
+        options: {
+          bounded: "Correct only the exact ambiguity.",
+          defer_or_remove: "Remove unsupported behavior until needed.",
+          retain: "Retain broader behavior only with explicit need.",
+        },
+        necessity:
+          "The selected outcome is the minimum stakeholder-authorized behavior.",
+        ...(reactivationCondition
+          ? { reactivation_condition: reactivationCondition }
+          : {}),
+      },
+    }, {
+      scenario: "escalate-foundation-review-correction@3",
+      links: [{ type: "justifies", target: corrected.datum.revision_id }],
+    });
+    const comparativeContext = record("BSL", `BSL-10300000${suffix}`, {
+      title: `Comparative Review Context for ${corrected.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: corrected.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        original.datum.revision_id,
+        failed.datum.revision_id,
+        corrected.datum.revision_id,
+        decision.datum.revision_id,
+      ].sort(),
+      evidence: [],
+    }, { scenario: "create-review-context@1" });
+    const correctedReview = record("REV", `REV-20300000${suffix}`, {
+      title: `Passing comparative Review of ${corrected.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    }, {
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: corrected.datum.revision_id },
+        { type: "contextualizes", target: comparativeContext.datum.revision_id },
+      ],
+    });
+    const [decisionContext, decisionReview] = reviewFor(
+      decision,
+      `REV-30300000${suffix}`,
+      "pass",
+      { contextId: `BSL-20300000${suffix}` },
+    );
+    const records = [
+      original,
+      failedContext,
+      failed,
+      corrected,
+      decision,
+      comparativeContext,
+      correctedReview,
+      decisionContext,
+      decisionReview,
+    ];
+    expect(obligation(
+      processPackage,
+      records,
+      "stakeholder-requirements-required",
+      corrected.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "draft-stakeholder-requirements@2",
+    }));
+  });
+
+  it("keeps an ordinary bounded autonomous clarification eligible for normal Review and STK fan-out", () => {
+    const original = record("PSP", "PSP-1030000027", {
+      title: "Ordinary bounded ambiguous product",
+      rationale: "One local observable ambiguity needs correction.",
+      problem: "Success and failure output overlap.",
+      users: ["operator"],
+      goals: ["clarify the one overlapping outcome"],
+      non_goals: ["numeric limits", "machine representation", "rendering machinery"],
+      success_measures: ["each outcome is unambiguous"],
+    });
+    const [failedContext, failed] = reviewFor(
+      original,
+      "REV-1030000027",
+      "fail",
+    );
+    const corrected = record("PSP", original.datum.id, {
+      ...original.datum.payload,
+      title: "Locally clarified bounded product",
+    }, {
+      revision: 2,
+      scenario: "revise-foundation-after-review@5",
+      links: [{ type: "corrects-review", target: failed.datum.revision_id }],
+    });
+    const comparativeContext = record("BSL", "BSL-1030000027", {
+      title: `Comparative Review Context for ${corrected.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: corrected.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        original.datum.revision_id,
+        failed.datum.revision_id,
+        corrected.datum.revision_id,
+      ].sort(),
+      evidence: [],
+    }, { scenario: "create-review-context@1" });
+    const correctedReview = record("REV", "REV-2030000027", {
+      title: `Passing bounded Review of ${corrected.datum.revision_id}`,
+      review_kind: "contextual",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      findings: [],
+      outcome: "pass",
+    }, {
+      scenario: "review-datum-in-context@2",
+      links: [
+        { type: "reviews", target: corrected.datum.revision_id },
+        { type: "contextualizes", target: comparativeContext.datum.revision_id },
+      ],
+    });
+    expect(obligation(
+      processPackage,
+      [
+        original,
+        failedContext,
+        failed,
+        corrected,
+        comparativeContext,
+        correctedReview,
+      ],
+      "stakeholder-requirements-required",
+      corrected.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "draft-stakeholder-requirements@2",
+    }));
   });
 
   it("returns a passing candidate-centered simplification Review to attended Phase 0 gate sign-off", () => {

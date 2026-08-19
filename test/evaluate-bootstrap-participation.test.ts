@@ -1640,6 +1640,7 @@ describe("bootstrap Scenario participation Policies", () => {
     const attended = structuredClone(original);
     attended.datum.revision = 2;
     attended.datum.revision_id = `${original.datum.id}-r00002`;
+    attended.datum.created_by.scenario = "escalate-foundation-review-correction@3";
     attended.datum.links = [{
       type: "corrects-review",
       target: stakeholderFailure.datum.revision_id,
