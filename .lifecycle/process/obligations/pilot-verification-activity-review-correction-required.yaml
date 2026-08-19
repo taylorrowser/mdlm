@@ -13,10 +13,13 @@ status_rules:
     reason: Exact failed pilot activity Review findings require correction; the Scenario participation Policy determines autonomous or attended execution.
 default_status: ready
 resolve_with:
-  scenario: revise-pilot-verification-activity-after-review@2
+  scenario: revise-pilot-verification-activity-after-review@3
   inputs:
     activity: activity
     failed_reviews: 'select("failing-reviews-for@1", {subject: activity})'
     requirement: 'one("requirements-for-pilot-activity@1", {activity: activity})'
     strategy: 'one("strategies-for-verification-activity@1", {activity: activity})'
+    intent_support: >-
+      one("pilot-intent-support-for-requirement@1",
+        {requirement: one("requirements-for-pilot-activity@1", {activity: activity})})
 waiver_policy_ref: waiver-applicability@1

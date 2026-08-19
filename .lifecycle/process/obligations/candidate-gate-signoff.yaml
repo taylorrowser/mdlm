@@ -19,6 +19,17 @@ status_rules:
       - obligation: phase-2-candidate-correction-required@1
         subjects: '[candidate]'
   - status: blocked
+    priority: 350
+    when: >-
+      exists("candidate-correction-authorities-requiring-review@1",
+        {candidate: candidate})
+    reason: A correction Decision relied upon by an exact candidate member awaits a valid passing Review.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: >-
+          select("candidate-correction-authorities-requiring-review@1",
+            {candidate: candidate})
+  - status: blocked
     priority: 300
     when: >-
       exists("gate-signoff-decisions-for@1", {candidate: candidate})
@@ -41,6 +52,8 @@ status_rules:
         && none("passing-reviews-for@1", {subject: candidate})
       )
       || exists("failing-reviews-for@1", {subject: candidate})
+      || exists("candidate-correction-authorities-requiring-review@1",
+        {candidate: candidate})
       || exists("open-blocking-questions@1", {})
     reason: Candidate reviews, member reviews, or blocking questions remain unresolved.
     blocked_by:
@@ -64,6 +77,8 @@ status_rules:
           && exists("passing-reviews-for@1", {subject: candidate}))
       )
       && none("failing-reviews-for@1", {subject: candidate})
+      && none("candidate-correction-authorities-requiring-review@1",
+        {candidate: candidate})
       && none("open-blocking-questions@1", {})
     reason: The exact frozen candidate is ready for an explicit gate decision.
 default_status: blocked

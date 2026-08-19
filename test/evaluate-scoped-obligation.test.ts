@@ -12,7 +12,7 @@ import {
 } from "./helpers/process-package.js";
 
 const PROCESS_REF =
-  "mdlm-bootstrap@0.69.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  "mdlm-bootstrap@0.70.0#sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 async function scopedProcessPackage(
   scope: "phase" | "process" = "phase",

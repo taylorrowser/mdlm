@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.69.0
+version: 0.70.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -51,6 +51,8 @@ catalog:
     - stakeholder-requirements-for
     - stakeholder-requirements-for-review-context
     - current-product-specifications-for-requirement
+    - pilot-intent-support-for-requirement
+    - pilot-intent-support-for-activity
     - current-phase-1-stakeholder-requirements
     - verification-strategies-for-requirement
     - matching-verification-strategies-for-requirement
@@ -68,6 +70,8 @@ catalog:
     - pilot-target-matches-implementation
     - pilot-implementation-authorizations-for
     - complete-pilot-implementations-for-activity
+    - pilot-results-completing-run
+    - exercised-pilot-runs-for-implementation
     - failed-current-pilot-verification-implementations
     - corrected-pilot-verification-implementation-revisions-for
     - environments-for-strategy
@@ -110,6 +114,9 @@ catalog:
     - candidate-members-matching
     - candidate-definition-members
     - phase-0-candidate-review-context-members
+    - phase-0-candidate-correction-support-for
+    - latest-question-dependencies-for-candidate
+    - candidate-question-resolution-support-for
     - review-context-members-for
     - review-context-members
     - review-context-evidence
@@ -125,6 +132,12 @@ catalog:
     - cited-reviews-by-correction
     - foundation-correction-history
     - foundation-correction-decisions-for
+    - foundation-correction-replacements-for-decision
+    - foundation-correction-causes-for-decision
+    - prior-foundation-correction-decision-revisions-for
+    - failed-foundation-correction-decisions
+    - valid-foundation-correction-decision-replacements-for
+    - candidate-correction-authorities-requiring-review
     - prior-foundation-revisions-for
     - foundation-review-failures-at-stage
     - review-correction-history-for
@@ -391,6 +404,7 @@ catalog:
     - intent-candidate-review-correction-required
     - gate-signoff-review-correction-required
     - question-decision-review-correction-required
+    - foundation-correction-decision-review-correction-required
     - intent-approval-required
     - review-context-required
     - passing-review-required
@@ -464,6 +478,7 @@ catalog:
     - revise-intent-candidate-after-review
     - revise-gate-signoff-after-review
     - revise-question-decision-after-review
+    - revise-foundation-correction-decision-after-review
     - accept-phase-0-intent
     - define-verification-strategy
     - realize-verification-environment
@@ -517,7 +532,7 @@ assets:
     - prompts/derive-system-requirements.md@1
     - prompts/create-review-context.md@2
     - prompts/create-phase-2-definition-review-context.md@1
-    - prompts/review-datum-in-context.md@4
+    - prompts/review-datum-in-context.md@5
     - prompts/resolve-question.md@2
     - prompts/freeze-source-boundary.md@1
     - prompts/resolve-question-with-prototype.md@2
@@ -530,16 +545,17 @@ assets:
     - prompts/revise-intent-candidate-after-review.md@4
     - prompts/revise-gate-signoff-after-review.md@2
     - prompts/revise-question-decision-after-review.md@1
+    - prompts/revise-foundation-correction-decision-after-review.md@1
     - prompts/accept-phase-0-intent.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
-    - prompts/write-verification-activity.md@1
+    - prompts/write-verification-activity.md@2
     - prompts/register-pilot-target.md@1
     - prompts/implement-verification-activity.md@1
-    - prompts/execute-verification-run.md@1
+    - prompts/execute-verification-run.md@2
     - prompts/revise-verification-strategy-after-review.md@1
     - prompts/revise-environment-assurance-after-review.md@1
-    - prompts/revise-pilot-verification-activity-after-review.md@1
+    - prompts/revise-pilot-verification-activity-after-review.md@2
     - prompts/revise-pilot-vai-after-review.md@1
     - prompts/define-system-architecture.md@2
     - prompts/define-interface-control-specification.md@2

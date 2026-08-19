@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.69.0");
+    expect(result.package.manifest.version).toBe("0.70.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(335);
+    expect(Object.keys(result.package.selectors)).toHaveLength(348);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
@@ -41,6 +41,11 @@ describe("loadProcessPackage", () => {
         "applicable-question-decisions-for-candidate": expect.any(Object),
         "revision-links-question": expect.any(Object),
         "phase-0-candidate-review-context-members": expect.any(Object),
+        "phase-0-candidate-correction-support-for": expect.any(Object),
+        "candidate-question-resolution-support-for": expect.any(Object),
+        "foundation-correction-causes-for-decision": expect.any(Object),
+        "failed-foundation-correction-decisions": expect.any(Object),
+        "valid-foundation-correction-decision-replacements-for": expect.any(Object),
         "phase-0-foundation-member-reviews": expect.any(Object),
         "review-context-members-for": expect.any(Object),
         "current-exact-review-contexts-cited-by": expect.any(Object),
@@ -86,8 +91,8 @@ describe("loadProcessPackage", () => {
       }),
     );
     expect(Object.keys(result.package.policies)).toHaveLength(14);
-    expect(Object.keys(result.package.obligations)).toHaveLength(60);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(62);
+    expect(Object.keys(result.package.obligations)).toHaveLength(61);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(63);
     expect(result.package.scenarios["define-system-architecture"]?.outputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -161,7 +166,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.obligations["pilot-verification-activity-review-correction-required"])
       .toEqual(expect.objectContaining({
         resolve_with: expect.objectContaining({
-          scenario: "revise-pilot-verification-activity-after-review@2",
+          scenario: "revise-pilot-verification-activity-after-review@3",
         }),
       }));
     expect(result.package.obligations["pilot-target-required"])

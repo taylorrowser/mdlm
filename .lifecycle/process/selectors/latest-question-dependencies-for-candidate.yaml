@@ -1,0 +1,17 @@
+kind: selector-definition
+id: latest-question-dependencies-for-candidate
+version: 1
+description: Latest exact Questions referenced by current definition members of one candidate, regardless of disposition.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST]}
+  as: question
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    && none("newer-revisions-for@1", {subject: question})
+    && exists("candidate-members-linking-question@1",
+      {candidate: candidate, question: question})
+  distinct: true
+  order_by: [identity.id, identity.revision]

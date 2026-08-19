@@ -1,0 +1,21 @@
+kind: selector-definition
+id: foundation-correction-causes-for-decision
+version: 1
+description: Exact failed Reviews and gate rejections that caused the corrected foundation Revision justified by one Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV, DEC]}
+  as: cause
+  where: >-
+    !every("all-cited-reviews-by-correction@1",
+      {replacement: decision}, review => review != cause)
+    || !every("foundation-correction-replacements-for-decision@1",
+      {decision: decision}, replacement =>
+        every("all-cited-reviews-by-correction@1",
+          {replacement: replacement}, review => review != cause)
+        && every("all-cited-gate-rejections-by-correction@1",
+          {replacement: replacement}, rejection => rejection != cause))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

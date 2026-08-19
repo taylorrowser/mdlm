@@ -1,11 +1,15 @@
 kind: obligation-definition
 id: verification-run-required
 version: 1
-description: Every qualification or pilot implementation requires one completed exact run and scoped immutable result.
+description: Every qualification implementation requires a completed exact run, while every pilot implementation requires a completed run with exercised success and discrimination evidence.
 phases: [phase-1-product-assurance]
 for_each: 'select("verification-implementations-requiring-run@1", {})'
 subject_as: implementation
-satisfied_when: 'exists("completed-runs-for-implementation@1", {implementation: implementation})'
+satisfied_when: >-
+  (implementation.payload.kind == "qualification"
+    && exists("completed-runs-for-implementation@1", {implementation: implementation}))
+  || (implementation.payload.kind == "pilot"
+    && exists("exercised-pilot-runs-for-implementation@1", {implementation: implementation}))
 status_rules:
   - status: blocked
     priority: 400
@@ -45,7 +49,7 @@ status_rules:
   - status: ready
     priority: 100
     when: 'implementation.payload.kind in ["qualification", "pilot"]'
-    reason: Exact activity, environment, target, and independence provenance permit one bounded execution.
+    reason: Exact activity, environment, target, and independence provenance permit a bounded execution; completed inconclusive pilot attempts remain durable evidence but do not prevent a fresh attempt.
 default_status: blocked
 resolve_with:
   scenario: execute-verification-run@1

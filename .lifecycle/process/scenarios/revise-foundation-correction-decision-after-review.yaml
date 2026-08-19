@@ -1,0 +1,40 @@
+kind: scenario-definition
+id: revise-foundation-correction-decision-after-review
+version: 1
+description: Replace one failed foundation correction Decision without changing its exact corrected subject.
+phases: [phase-0-wayfinding]
+inputs:
+  - {name: decision, types: [DEC], cardinality: one, identity: revision}
+  - {name: corrected_subject, types: [MAP, PSP, STK], cardinality: one, identity: revision}
+  - {name: lineage, types: [DEC], cardinality: one-or-more, identity: revision}
+  - {name: prior_failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
+  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: replacement
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {input: corrected_subject}}
+      - {link: corrects-review, target: {input: prior_failed_reviews}}
+      - {link: corrects-review, target: {input: failed_reviews}}
+prompt_ref: prompts/revise-foundation-correction-decision-after-review.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: consequential-decision-participation@1
+  arguments: {subject: corrected_subject}
+authority_evidence: {output: replacement, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == decision.identity.id
+  && replacement.payload.kind == "scope"
+  && replacement.payload.effective_scope == corrected_subject.identity.revision_id
+  && replacement.payload.scope_correction.disposition ==
+    decision.payload.scope_correction.disposition
+  && (decision.payload.scope_correction.disposition != "defer-or-remove"
+    || replacement.payload.scope_correction.reactivation_condition ==
+      decision.payload.scope_correction.reactivation_condition)
+  && exists("valid-foundation-correction-decision-replacements-for@1",
+    {decision: decision})
+resolves: [foundation-correction-decision-review-correction-required]
+prohibited_inputs: [changed corrected subject, invented stakeholder preference, suppressed failed Review, mutation of immutable history]
+batching: single

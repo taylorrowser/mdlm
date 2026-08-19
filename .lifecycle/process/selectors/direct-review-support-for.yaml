@@ -12,6 +12,10 @@ query:
     support != subject
     && (subject.identity.type in ["STK", "ASP", "ICSP", "DWP", "SYS", "VSP", "PAS"]
       || (subject.identity.type == "DEC"
-        && subject.payload.kind == "pilot-expansion"))
+        && (
+          subject.payload.kind == "pilot-expansion"
+          || exists("foundation-correction-replacements-for-decision@1",
+            {decision: subject})
+        )))
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

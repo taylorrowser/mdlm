@@ -11,6 +11,15 @@ query:
   where: >-
     (
       (
+        decision.provenance.scenario == "resolve-question@2"
+        && question.provenance.scenario == "resolve-question@2"
+      )
+      || decision.provenance.scenario ==
+        "revise-question-decision-after-review@1"
+    )
+    && none("newer-revisions-for@1", {subject: decision})
+    && (
+      (
         question.payload.state == "deferred"
         && present(question.payload.reactivation_condition)
         && decision.payload.kind == "deferral"

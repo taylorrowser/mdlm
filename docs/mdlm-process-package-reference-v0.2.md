@@ -1037,10 +1037,13 @@ prior exact strategy cannot satisfy a replacement. Multiple applicable
 strategies, environments, or pilot targets reach the narrow profile's declared
 boundary rather than arbitrary selection or Process Dead End; missing or incomplete
 evidence remains ordinary Obligation, Question, or validation work.
-Exact requirement and VSP Revision evidence then derives pilot VER work. Each
+Exact requirement and VSP Revision evidence then derives pilot VER work. Initial
+and corrective authoring packets also include the exact current parent PSP Revision
+needed to interpret relative STK terms such as argument count or a closed unit set.
+That support may clarify accepted intent but cannot add product behavior. Each
 current-package pilot VER Review Context freezes the exact VER together with its
-linked STK and governing VSP Revisions, and independent Review packets project
-those two exact support Revisions. Current VER Review Contexts may neither add
+parent PSP, linked STK, and governing VSP Revisions, and independent Review packets
+project those three exact support Revisions. Current VER Review Contexts may neither add
 Review evidence nor compose unrelated baselines. The clean-break package accepts
 no thin historical Review Context compatibility.
 The presence of current pilot activity work also derives exact ART registration when
@@ -1071,10 +1074,13 @@ Package schemas distinguish qualification `environment-capability`, pilot
 `verification-design`, and formal `requirement` claims. RUN and RES are
 package-declared generated terminal types: generic direct creation and revision
 are refused, validated Scenario execution publishes them atomically, and terminal outcomes are
-immutable. Qualification support artifacts do not link to a requirement. A pilot
-must record positive success and negative discrimination observations; Scenario
-completion rejects a formal claim from that pilot even when the proposed RES is
-otherwise schema-valid.
+immutable. Qualification support artifacts do not link to a requirement. A pilot records success and discrimination observations separately from procedure
+completion; Scenario completion rejects a formal claim from that pilot even when
+the proposed RES is otherwise schema-valid. Every valid completed RUN and RES
+remains durable history. Only an accepted `suitable` pilot RES with both expected
+success and expected discrimination observed satisfies run work and permits Phase
+1 progression. Setup failure, safe refusal, timeout, and all-not-launched evidence
+remain non-progressing and permit another bounded run.
 
 The Phase 2 tracer allocates information once according to
 `skills/information-allocation.md@1`. Accepted STKs with the same exact PSP parent
@@ -1127,7 +1133,7 @@ that context scopes the exact subject, contains every-and-only the currently sel
 members, and has no newer same-lineage Revision. Every blocking Finding requires an exact criterion, concrete
 evidence or counterexample, and material consequence; usable concerns remain
 triage or advisory. The clean
-0.69.0 package does not read or migrate historical 0.68.0 or earlier Lifecycle Data.
+0.70.0 package does not read or migrate historical 0.69.0 or earlier Lifecycle Data.
 Its reviewed group candidate contains exact DWP, SYS, ASP, and ICSP Revisions. The
 reviewed SYS level candidate composes that exact group while
 retaining shared VSP, ASP, and ICSP members, then reaches exact reviewed gate

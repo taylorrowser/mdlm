@@ -1,0 +1,22 @@
+kind: selector-definition
+id: pilot-intent-support-for-requirement
+version: 1
+description: Exact current product specification Revisions needed to interpret one Phase 1 stakeholder requirement without adding unstated behavior.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [PSP]}
+  as: intent_support
+  where: >-
+    state(intent_support, "disposition") == "active"
+    && !every("current-product-specifications-for-requirement@1",
+      {requirement: requirement}, parent =>
+        parent.identity.id != intent_support.identity.id)
+    && !every("accepted-intent-candidates-for-requirement@2",
+      {requirement: requirement}, accepted =>
+        exists("newer-revisions-for@1", {subject: accepted})
+        || every("candidate-definition-members@1", {candidate: accepted}, member =>
+          member != intent_support))
+  distinct: true
+  order_by: [identity.id, identity.revision]

@@ -1,0 +1,30 @@
+kind: selector-definition
+id: valid-foundation-correction-decision-replacements-for
+version: 1
+description: Current causal same-lineage replacements preserving one failed foundation correction Decision's exact corrected scope.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from:
+    selector: newer-revisions-for@1
+    arguments: {subject: decision}
+  as: replacement
+  where: >-
+    replacement.identity.id == decision.identity.id
+    && replacement.payload.kind == "scope"
+    && replacement.payload.effective_scope == decision.payload.effective_scope
+    && replacement.payload.scope_correction.disposition ==
+      decision.payload.scope_correction.disposition
+    && (decision.payload.scope_correction.disposition != "defer-or-remove"
+      || replacement.payload.scope_correction.reactivation_condition ==
+        decision.payload.scope_correction.reactivation_condition)
+    && replacement.provenance.scenario ==
+      "revise-foundation-correction-decision-after-review@1"
+    && state(replacement, "disposition") == "active"
+    && state(replacement, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: replacement})
+    && exists("foundation-correction-replacements-for-decision@1",
+      {decision: replacement})
+  distinct: true
+  order_by: [identity.revision]

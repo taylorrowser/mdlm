@@ -115,8 +115,8 @@ invent Lifecycle Data or an undeclared Scenario to escape a stop.
 
 ## Proportional package behavior
 
-Fresh repositories select `mdlm-bootstrap@0.69.0`; do not migrate or resume
-0.68.0 or earlier Lifecycle Data or Assignments. Treat `system_context` as a
+Fresh repositories select `mdlm-bootstrap@0.70.0`; do not migrate or resume
+0.69.0 or earlier Lifecycle Data or Assignments. Treat `system_context` as a
 solution-independent responsibility/trust grouping key, not a component name.
 One Assignment may therefore bind several STKs to one shared ASP by default, or
 to the smallest justified architecture partition. Each architecture may similarly

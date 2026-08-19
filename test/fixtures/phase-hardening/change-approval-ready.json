@@ -1,5 +1,5 @@
 {
-  "processRef": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+  "processRef": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
   "phaseId": "phase-7-change-control",
   "records": [
     {
@@ -27,7 +27,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -85,7 +85,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -128,7 +128,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -175,7 +175,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -221,7 +221,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -263,7 +263,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -309,7 +309,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -357,7 +357,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -402,7 +402,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -447,7 +447,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -492,7 +492,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -556,7 +556,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -620,7 +620,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -693,7 +693,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -738,7 +738,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -794,7 +794,7 @@
         "created_by": {
           "scenario": "analyze-change-impact@2",
           "prompt_ref": "prompts/analyze-change-impact.md@2",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1",
@@ -837,7 +837,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/create-review-context.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/traceability.md@1",
@@ -884,7 +884,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -927,7 +927,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -970,7 +970,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1014,7 +1014,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1058,7 +1058,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1101,7 +1101,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1144,7 +1144,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1191,7 +1191,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1238,7 +1238,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1284,8 +1284,8 @@
         ],
         "created_by": {
           "scenario": "review-datum-in-context@2",
-          "prompt_ref": "prompts/review-datum-in-context.md@4",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "prompt_ref": "prompts/review-datum-in-context.md@5",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [
             "skills/lifecycle-data.md@1",
             "skills/contextual-artifact-review.md@1",
@@ -1339,7 +1339,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1386,7 +1386,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1433,7 +1433,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1480,7 +1480,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1527,7 +1527,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1569,7 +1569,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1616,7 +1616,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.69.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
