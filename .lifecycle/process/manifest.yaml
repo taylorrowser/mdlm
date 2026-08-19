@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.67.0
+version: 0.68.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -146,6 +146,12 @@ catalog:
     - question-disposition-decisions-for
     - applicable-question-dispositions-for
     - question-answer-decisions-for
+    - revision-links-question
+    - candidate-members-linking-question
+    - current-question-dependencies-for-candidate
+    - unresolved-question-dependencies-for-candidate
+    - failed-intent-candidates-depending-on-question
+    - applicable-question-decisions-for-candidate
     - question-targets-for-decision
     - failed-question-decisions
     - valid-question-decision-replacements-for
@@ -519,7 +525,7 @@ assets:
     - prompts/record-consequential-decision.md@1
     - prompts/revise-foundation-after-review.md@4
     - prompts/escalate-foundation-review-correction.md@2
-    - prompts/revise-intent-candidate-after-review.md@3
+    - prompts/revise-intent-candidate-after-review.md@4
     - prompts/revise-gate-signoff-after-review.md@2
     - prompts/revise-question-decision-after-review.md@1
     - prompts/accept-phase-0-intent.md@1

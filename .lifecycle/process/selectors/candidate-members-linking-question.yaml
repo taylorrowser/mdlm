@@ -1,0 +1,14 @@
+kind: selector-definition
+id: candidate-members-linking-question
+version: 1
+description: Exact members of one baseline that carry an outgoing reference to one Question identity.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: question, kind: revision, types: [QST]}
+result_kind: revision
+query:
+  from: {relation: baseline-members, of: candidate, emit: entity}
+  as: member
+  where: 'exists("revision-links-question@1", {subject: member, question: question})'
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

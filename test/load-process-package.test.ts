@@ -24,16 +24,22 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.67.0");
+    expect(result.package.manifest.version).toBe("0.68.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(327);
+    expect(Object.keys(result.package.selectors)).toHaveLength(333);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
         "blocking-product-simplification-reviews-for": expect.any(Object),
         "candidate-correction-decisions-for": expect.any(Object),
         "candidate-definition-members": expect.any(Object),
+        "candidate-members-linking-question": expect.any(Object),
+        "current-question-dependencies-for-candidate": expect.any(Object),
+        "unresolved-question-dependencies-for-candidate": expect.any(Object),
+        "failed-intent-candidates-depending-on-question": expect.any(Object),
+        "applicable-question-decisions-for-candidate": expect.any(Object),
+        "revision-links-question": expect.any(Object),
         "phase-0-candidate-review-context-members": expect.any(Object),
         "phase-0-foundation-member-reviews": expect.any(Object),
         "review-context-members-for": expect.any(Object),

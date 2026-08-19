@@ -14,6 +14,14 @@ inputs:
     types: [DEC]
     cardinality: zero-or-more
     identity: revision
+  - name: question_dispositions
+    types: [QST]
+    cardinality: zero-or-more
+    identity: revision
+  - name: question_decisions
+    types: [DEC]
+    cardinality: zero-or-more
+    identity: revision
 outputs:
   - name: replacement
     types: [BSL]
@@ -28,7 +36,7 @@ outputs:
     cardinality: zero-or-one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/revise-intent-candidate-after-review.md@3
+prompt_ref: prompts/revise-intent-candidate-after-review.md@4
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: intent-candidate-correction-participation@1
@@ -37,6 +45,14 @@ authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && member_reviews == select("phase-0-foundation-member-reviews@1", {})
+  && question_dispositions
+    == select("current-question-dependencies-for-candidate@1",
+      {candidate: candidate})
+  && question_decisions
+    == select("applicable-question-decisions-for-candidate@1",
+      {candidate: candidate})
+  && none("unresolved-question-dependencies-for-candidate@1",
+    {candidate: candidate})
   && exists("complete-superseding-intent-candidates-for@1",
     {candidate: candidate})
   && (
@@ -56,5 +72,5 @@ completion: >-
           && state(authority, "validity") == "valid"))
   )
 resolves: [intent-candidate-review-correction-required]
-prohibited_inputs: [mutation of the prior candidate, unreviewed definition Revisions, omitted or unrelated member Review evidence, omission of unaffected evidence, inferred terminal disposition]
+prohibited_inputs: [mutation of the prior candidate, unreviewed definition Revisions, omitted or unrelated member Review evidence, omission of unaffected evidence, inferred Question disposition, inferred terminal disposition]
 batching: single

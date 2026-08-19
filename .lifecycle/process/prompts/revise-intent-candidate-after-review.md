@@ -1,6 +1,6 @@
 ---
 id: revise-intent-candidate-after-review
-version: 3
+version: 4
 scenario: revise-intent-candidate-after-review
 ---
 
@@ -9,7 +9,9 @@ scenario: revise-intent-candidate-after-review
 Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`, and
 `skills/scope-challenge.md@1`. Use only the exact candidate lineage, complete
 failed Review/finding history, reviewed current foundation members, their exact
-supplied `member_reviews`, and reviewed gate rejections supplied by the Assignment.
+supplied `member_reviews`, reviewed gate rejections, and the exact supplied
+`question_dispositions` with their applicable reviewed `question_decisions`.
+Never infer a Question answer or disposition from a finding, member, or candidate.
 Publish one frozen replacement Revision in the same BSL lineage. Its evidence must
 contain every supplied current member Review, retain prior non-Review evidence,
 and omit obsolete or unrelated Review evidence. Link `supersedes` to the prior
