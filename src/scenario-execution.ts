@@ -5,6 +5,7 @@ import {
   evaluateLifecycle,
   resolveType,
   type DatumEnvelope,
+  type LifecycleEvaluation,
   type LifecycleRecord,
   type LifecycleSnapshot,
   type ProcessDiagnostic,
@@ -14,6 +15,7 @@ import {
 import { evaluateProcessExpression } from "./evaluator.js";
 import { finalizeExactBaselineScenarioOutput } from "./exact-baseline-repository.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
+import { measure } from "./performance-diagnostics.js";
 import { authorityEvidenceContract } from "./participation.js";
 import {
   deriveLifecycleRecordStorage,
@@ -534,10 +536,7 @@ async function submitScenario(
     proposal: ScenarioProposal;
     loadedSkillRefs: string[];
   },
-  prepared?: Extract<RepositoryScenarioPreparationResult, { ok: true }>["value"] & {
-    finalizeExactBaseline?: typeof finalizeExactBaselineScenarioOutput;
-    publishMutation?: typeof publishScenarioMutation;
-  },
+  prepared?: PreparedScenarioSubmission,
 ): Promise<ScenarioExecutionResult> {
   const dryRunResult: RepositoryScenarioPreparationResult = prepared
     ? { ok: true, value: prepared, diagnostics: [] }
@@ -916,10 +915,19 @@ async function submitScenario(
     completionEvaluations.push({ invocation: index, result: true });
   }
 
-  const beforeObligations = new Set(evaluateLifecycle(processPackage, snapshot).obligations.map(
+  const beforeEvaluation = prepared
+    ? prepared.evaluation
+    : measure(
+      "lifecycle.evaluation",
+      () => evaluateLifecycle(processPackage, snapshot),
+    );
+  const beforeObligations = new Set(beforeEvaluation.obligations.map(
     (obligation) => obligation.id,
   ));
-  const reevaluation = evaluateLifecycle(processPackage, resultingSnapshot);
+  const reevaluation = measure(
+    "lifecycle.evaluation",
+    () => evaluateLifecycle(processPackage, resultingSnapshot),
+  );
   if (reevaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: reevaluation.diagnostics };
   }
@@ -1035,6 +1043,7 @@ export async function submitResolverScenario(
 
 export interface PreparedScenarioSubmission {
   dryRun: ScenarioDryRun;
+  evaluation: LifecycleEvaluation;
   scenario: VersionedDefinition;
   snapshot: LifecycleSnapshot;
   finalizeExactBaseline?: typeof finalizeExactBaselineScenarioOutput;
@@ -1075,11 +1084,12 @@ export interface ExplicitScenarioSubmission
   requestedInputs: { name: string; value: string }[];
 }
 
-export async function submitExplicitScenario(
+function executeExplicitScenarioSubmission(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   packageIdentity: PackageExecutionIdentity,
   submission: ExplicitScenarioSubmission,
+  prepared?: PreparedScenarioSubmission,
 ): Promise<ScenarioExecutionResult> {
   return submitScenario(
     repositoryRoot,
@@ -1096,6 +1106,21 @@ export async function submitExplicitScenario(
       proposal: submission.proposal,
       loadedSkillRefs: submission.loadedSkillRefs,
     },
+    prepared,
+  );
+}
+
+export async function submitExplicitScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  submission: ExplicitScenarioSubmission,
+): Promise<ScenarioExecutionResult> {
+  return executeExplicitScenarioSubmission(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    submission,
   );
 }
 
@@ -1106,21 +1131,11 @@ export async function submitPreparedExplicitScenario(
   submission: ExplicitScenarioSubmission,
   prepared: PreparedScenarioSubmission,
 ): Promise<ScenarioExecutionResult> {
-  return submitScenario(
+  return executeExplicitScenarioSubmission(
     repositoryRoot,
     processPackage,
     packageIdentity,
-    submission.scenarioReference,
-    { mode: "explicit-initiation" },
-    submission.requestedInputs,
-    submission.suppliedAuthorities,
-    submission.suppliedDelegations,
-    {
-      assignment: submission.assignment,
-      digest: submission.responseDigest,
-      proposal: submission.proposal,
-      loadedSkillRefs: submission.loadedSkillRefs,
-    },
+    submission,
     prepared,
   );
 }

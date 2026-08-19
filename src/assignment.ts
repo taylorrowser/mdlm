@@ -356,6 +356,7 @@ interface ExactAssignment {
   inspection: RepositoryInspection;
   transaction: RepositoryTransaction;
   snapshot: LifecycleSnapshot;
+  evaluation: LifecycleEvaluation;
   lease: Omit<AssignmentLease, "id">;
   dryRun: ScenarioDryRun;
   scenario: VersionedDefinition;
@@ -779,6 +780,7 @@ interface PreparedOperatorWork {
   dryRun: ScenarioDryRun;
   item?: ObligationEvaluation;
   scenario: VersionedDefinition;
+  snapshot: LifecycleSnapshot;
 }
 
 async function prepareOperatorWork(
@@ -812,7 +814,7 @@ async function prepareOperatorWork(
     return prepared.ok
       ? {
         ok: true,
-        value: { dryRun: prepared.value, item, scenario },
+        value: { dryRun: prepared.value, item, scenario, snapshot: phaseSnapshot },
         diagnostics: [],
       }
       : prepared;
@@ -828,7 +830,7 @@ async function prepareOperatorWork(
   return prepared.ok
     ? {
       ok: true,
-      value: { dryRun: prepared.value, scenario },
+      value: { dryRun: prepared.value, scenario, snapshot: phaseSnapshot },
       diagnostics: [],
     }
     : prepared;
@@ -839,7 +841,7 @@ function assignmentFromPreparedWork(
   processPackage: ProcessPackage,
   inspection: RepositoryInspection,
   transaction: RepositoryTransaction,
-  snapshot: LifecycleSnapshot,
+  evaluation: LifecycleEvaluation,
   fingerprint: RepositoryFingerprint,
   classification: AssignableClassification,
   prepared: PreparedOperatorWork,
@@ -850,7 +852,8 @@ function assignmentFromPreparedWork(
     processPackage,
     inspection,
     transaction,
-    snapshot,
+    snapshot: prepared.snapshot,
+    evaluation,
     lease: {
       contract: "mdlm-assignment-lease@1",
       disposition: "active",
@@ -933,7 +936,7 @@ async function operatorStateFromSnapshot(
       processPackage,
       inspection,
       transaction,
-      snapshot,
+      evaluation,
       fingerprint,
       classification,
       prepared.value,
@@ -1241,6 +1244,7 @@ function preparedScenarioSubmission(
 ): PreparedScenarioSubmission {
   return {
     dryRun: exact.dryRun,
+    evaluation: exact.evaluation,
     scenario: exact.scenario,
     snapshot: exact.snapshot,
     finalizeExactBaseline: (_root, _package, _processRef, proposedDatum) =>

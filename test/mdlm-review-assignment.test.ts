@@ -112,7 +112,7 @@ function submitProposal(
   return JSON.parse(submitted.stdout);
 }
 
-async function markdownRecordCount(repository: string): Promise<number> {
+async function lifecycleDatumCount(repository: string): Promise<number> {
   const entries = await fs.readdir(path.join(repository, ".lifecycle/data"), {
     recursive: true,
   });
@@ -340,7 +340,7 @@ describe("delegated Review Assignment packets", () => {
           standingDelegations: [],
         },
       };
-      const expectedRecords = await markdownRecordCount(repository);
+      const expectedLifecycleDataCount = await lifecycleDatumCount(repository);
       const submittedReview = mdlmWithInputAndEnvironment(
         repository,
         `${JSON.stringify(reviewResponse)}\n`,
@@ -351,11 +351,12 @@ describe("delegated Review Assignment packets", () => {
       const reviewSubmission = JSON.parse(submittedReview.stdout);
       expect(JSON.parse(submittedReview.stderr)).toMatchObject({
         contract: "mdlm-performance@1",
-        repository: { loads: 1, markdownFiles: expectedRecords },
+        repository: { loads: 1, markdownFiles: expectedLifecycleDataCount },
+        stages: { "lifecycle.evaluation": { count: 2 } },
         work: {
-          "repository.parse.records": expectedRecords,
-          "repository.provenance.records": expectedRecords,
-          "repository.validation.records": expectedRecords,
+          "repository.parse.records": expectedLifecycleDataCount,
+          "repository.provenance.records": expectedLifecycleDataCount,
+          "repository.validation.records": expectedLifecycleDataCount,
         },
       });
       expect(reviewSubmission.execution.outputs[0].data.payload).toEqual(
