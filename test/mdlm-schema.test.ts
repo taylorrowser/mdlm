@@ -37,8 +37,8 @@ describe("mdlm schema", () => {
       command: "schema",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.69.0",
-        reference: "mdlm-bootstrap@0.69.0",
+        version: "0.70.0",
+        reference: "mdlm-bootstrap@0.70.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -185,7 +185,7 @@ describe("mdlm schema", () => {
       ok: false,
       command: "schema",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.69.0",
+        reference: "mdlm-bootstrap@0.70.0",
       }),
       selected: true,
       diagnostics: [{
@@ -216,7 +216,7 @@ describe("mdlm schema", () => {
     selectBootstrapProcessPackage(repositoryRoot);
     const selectedType = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.69.0/types/STK.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.70.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 

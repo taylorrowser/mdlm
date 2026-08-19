@@ -1,11 +1,12 @@
 kind: scenario-definition
 id: write-verification-activity
-version: 1
-description: Write a source-independent pilot activity with explicit success and discrimination behavior.
+version: 2
+description: Write a source-independent pilot activity with explicit success and discrimination behavior from its exact accepted intent.
 phases: [phase-1-product-assurance]
 inputs:
   - {name: requirement, types: [STK], cardinality: one, identity: revision}
   - {name: strategy, types: [VSP], cardinality: one, identity: revision}
+  - {name: intent_support, types: [PSP], cardinality: one, identity: revision}
 outputs:
   - name: activity
     types: [VER]
@@ -14,13 +15,15 @@ outputs:
       - {link: verifies, target: {input: requirement}}
       - {link: verifies-revision, target: {input: requirement}}
       - {link: governed-by, target: {input: strategy}}
-prompt_ref: prompts/write-verification-activity.md@1
+prompt_ref: prompts/write-verification-activity.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && activity.payload.kind == "pilot"
   && activity.payload.claim.scope == "verification-design"
   && activity.payload.claim.formal_evidence_eligible == false
+  && intent_support == one("pilot-intent-support-for-requirement@1",
+    {requirement: requirement})
 resolves: [pilot-verification-activity-required]
-prohibited_inputs: [product source code, product unit tests, private implementation details, formal acceptance conclusion]
+prohibited_inputs: [product source code, product unit tests, private implementation details, unstated product behavior, formal acceptance conclusion]
 batching: single

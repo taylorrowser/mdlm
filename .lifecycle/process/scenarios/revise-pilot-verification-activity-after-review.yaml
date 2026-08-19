@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: revise-pilot-verification-activity-after-review
-version: 2
+version: 3
 description: Correct one failed Phase 1 pilot verification activity through bounded autonomous cycles and the same exact attended escalation interface.
 phases: [phase-1-product-assurance]
 inputs:
@@ -35,6 +35,7 @@ inputs:
       count("strategies-for-verification-activity@1", {activity: activity}) == 1
       && strategy == one("strategies-for-verification-activity@1",
         {activity: activity})
+  - {name: intent_support, types: [PSP], cardinality: one, identity: revision}
 outputs:
   - name: replacement
     types: [VER]
@@ -49,7 +50,7 @@ outputs:
     cardinality: zero-or-one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/revise-pilot-verification-activity-after-review.md@1
+prompt_ref: prompts/revise-pilot-verification-activity-after-review.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: phase-1-assurance-correction-participation@1
@@ -62,6 +63,8 @@ completion: >-
   && replacement.payload.kind == "pilot"
   && replacement.payload.claim.scope == "verification-design"
   && replacement.payload.claim.formal_evidence_eligible == false
+  && intent_support == one("pilot-intent-support-for-requirement@1",
+    {requirement: requirement})
   && exists("corrected-pilot-verification-activity-revisions-for@1", {activity: activity})
   && (
     (policy("phase-1-assurance-correction-participation@1",
@@ -74,5 +77,5 @@ completion: >-
         {replacement: replacement}) == 1)
   )
 resolves: [pilot-verification-activity-review-correction-required]
-prohibited_inputs: [mutation of failed activity or Review history, changed requirement or strategy boundary, product source, product unit tests]
+prohibited_inputs: [mutation of failed activity or Review history, changed requirement or strategy boundary, unstated product behavior, product source, product unit tests]
 batching: single

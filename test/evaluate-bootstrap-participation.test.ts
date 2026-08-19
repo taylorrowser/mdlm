@@ -11,7 +11,7 @@ import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.69.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.70.0#sha256:test";
 
 function lifecycleDatum(
   type: string,

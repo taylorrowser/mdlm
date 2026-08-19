@@ -1,0 +1,16 @@
+kind: selector-definition
+id: pilot-intent-review-support-for-requirement
+version: 1
+description: Exact latest product specification Revision structurally supporting pilot activity Review without depending on Review validity.
+parameters:
+  - {name: requirement, kind: revision, types: [STK]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [PSP]}
+  as: intent_support
+  where: >-
+    none("newer-revisions-for@1", {subject: intent_support})
+    && !every("stakeholder-requirements-for-review-context@1",
+      {product_specification: intent_support}, candidate => candidate != requirement)
+  distinct: true
+  order_by: [identity.id, identity.revision]

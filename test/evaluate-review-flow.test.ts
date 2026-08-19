@@ -1270,7 +1270,7 @@ describe("evaluateLifecycle review flow", () => {
         subject: activity.datum.revision_id,
         status: "ready",
         dispatchable: true,
-        actionableResolver: "revise-pilot-verification-activity-after-review@2",
+        actionableResolver: "revise-pilot-verification-activity-after-review@3",
         participation: [expect.objectContaining({
           authorityRequirement: expect.objectContaining({
             mode: "autonomous",

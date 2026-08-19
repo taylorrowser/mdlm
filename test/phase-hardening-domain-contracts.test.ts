@@ -7,7 +7,7 @@ import { evaluateLifecycle, loadProcessPackage, resolveType, type ProcessPackage
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.69.0#sha256:hardening-contracts";
+const processRef = "mdlm-bootstrap@0.70.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
 
 function record(
@@ -169,7 +169,7 @@ describe("Phase-hardening domain route contracts", () => {
     });
     expect(planned.looseEnds).toEqual(expect.arrayContaining([
       expect.objectContaining({ obligation: "environment-assurance-required", actionableResolver: "realize-verification-environment@1" }),
-      expect.objectContaining({ obligation: "pilot-verification-activity-required", actionableResolver: "write-verification-activity@1" }),
+      expect.objectContaining({ obligation: "pilot-verification-activity-required", actionableResolver: "write-verification-activity@2" }),
     ]));
 
     const activity = record("VER", "VER-HARDENP100", {
@@ -180,7 +180,7 @@ describe("Phase-hardening domain route contracts", () => {
     }, [
       { type: "verifies", target: stk.datum.id }, { type: "verifies-revision", target: stk.datum.revision_id },
       { type: "governed-by", target: strategy.datum.revision_id },
-    ], "write-verification-activity@1");
+    ], "write-verification-activity@2");
     const targetPayload = {
       title: "Exact command target", kind: "prototype", repository_ref: `git:${"b".repeat(40)}`,
       supported_behavior: ["valid input"], unsupported_behavior: ["malformed input"],

@@ -31,8 +31,9 @@ status_rules:
     reason: The exact requirement Revision and its applicable strategy are ready for source-independent pilot activity authoring.
 default_status: blocked
 resolve_with:
-  scenario: write-verification-activity@1
+  scenario: write-verification-activity@2
   inputs:
     requirement: requirement
     strategy: 'one("verification-strategies-for-requirement@1", {requirement: requirement})'
+    intent_support: 'one("pilot-intent-support-for-requirement@1", {requirement: requirement})'
 waiver_policy_ref: waiver-applicability@1

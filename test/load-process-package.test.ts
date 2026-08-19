@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.69.0");
+    expect(result.package.manifest.version).toBe("0.70.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(335);
+    expect(Object.keys(result.package.selectors)).toHaveLength(339);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
@@ -161,7 +161,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.obligations["pilot-verification-activity-review-correction-required"])
       .toEqual(expect.objectContaining({
         resolve_with: expect.objectContaining({
-          scenario: "revise-pilot-verification-activity-after-review@2",
+          scenario: "revise-pilot-verification-activity-after-review@3",
         }),
       }));
     expect(result.package.obligations["pilot-target-required"])

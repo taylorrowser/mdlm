@@ -1234,7 +1234,7 @@ rows:
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - write-verification-activity@1
+          - write-verification-activity@2
         next:
           - assignment
         budget: No lifecycle Correction cycle is consumed.
@@ -1402,7 +1402,7 @@ rows:
             - phase-1-assurance-correction-participation@1
           authority: package-evidence
         resolvers:
-          - revise-pilot-verification-activity-after-review@2
+          - revise-pilot-verification-activity-after-review@3
         next:
           - assignment
         budget: This route consumes one exact autonomous replacement-and-fresh-Review cycle.
@@ -1426,7 +1426,7 @@ rows:
             - phase-1-assurance-correction-participation@1
           authority: stakeholder
         resolvers:
-          - revise-pilot-verification-activity-after-review@2
+          - revise-pilot-verification-activity-after-review@3
         next:
           - attention-required
         budget: Both autonomous replacement-and-fresh-Review cycles are exhausted.

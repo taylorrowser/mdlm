@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.69.0
+version: 0.70.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -51,6 +51,8 @@ catalog:
     - stakeholder-requirements-for
     - stakeholder-requirements-for-review-context
     - current-product-specifications-for-requirement
+    - pilot-intent-support-for-requirement
+    - pilot-intent-review-support-for-requirement
     - current-phase-1-stakeholder-requirements
     - verification-strategies-for-requirement
     - matching-verification-strategies-for-requirement
@@ -68,6 +70,8 @@ catalog:
     - pilot-target-matches-implementation
     - pilot-implementation-authorizations-for
     - complete-pilot-implementations-for-activity
+    - pilot-results-completing-run
+    - exercised-pilot-runs-for-implementation
     - failed-current-pilot-verification-implementations
     - corrected-pilot-verification-implementation-revisions-for
     - environments-for-strategy
@@ -533,13 +537,13 @@ assets:
     - prompts/accept-phase-0-intent.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
-    - prompts/write-verification-activity.md@1
+    - prompts/write-verification-activity.md@2
     - prompts/register-pilot-target.md@1
     - prompts/implement-verification-activity.md@1
-    - prompts/execute-verification-run.md@1
+    - prompts/execute-verification-run.md@2
     - prompts/revise-verification-strategy-after-review.md@1
     - prompts/revise-environment-assurance-after-review.md@1
-    - prompts/revise-pilot-verification-activity-after-review.md@1
+    - prompts/revise-pilot-verification-activity-after-review.md@2
     - prompts/revise-pilot-vai-after-review.md@1
     - prompts/define-system-architecture.md@2
     - prompts/define-interface-control-specification.md@2
