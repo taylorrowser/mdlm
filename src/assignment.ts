@@ -42,10 +42,10 @@ import {
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
 import {
-  submitExplicitScenario,
+  submitPreparedExplicitScenario,
   submitPreparedResolverScenario,
-  submitResolverScenario,
   type PackageExecutionIdentity,
+  type PreparedScenarioSubmission,
   type ScenarioExecution,
   type ScenarioProposal,
 } from "./scenario-execution.js";
@@ -355,6 +355,7 @@ interface ExactAssignment {
   processPackage: ProcessPackage;
   inspection: RepositoryInspection;
   transaction: RepositoryTransaction;
+  snapshot: LifecycleSnapshot;
   lease: Omit<AssignmentLease, "id">;
   dryRun: ScenarioDryRun;
   scenario: VersionedDefinition;
@@ -838,6 +839,7 @@ function assignmentFromPreparedWork(
   processPackage: ProcessPackage,
   inspection: RepositoryInspection,
   transaction: RepositoryTransaction,
+  snapshot: LifecycleSnapshot,
   fingerprint: RepositoryFingerprint,
   classification: AssignableClassification,
   prepared: PreparedOperatorWork,
@@ -848,6 +850,7 @@ function assignmentFromPreparedWork(
     processPackage,
     inspection,
     transaction,
+    snapshot,
     lease: {
       contract: "mdlm-assignment-lease@1",
       disposition: "active",
@@ -930,6 +933,7 @@ async function operatorStateFromSnapshot(
       processPackage,
       inspection,
       transaction,
+      snapshot,
       fingerprint,
       classification,
       prepared.value,
@@ -1232,10 +1236,37 @@ function exactBaselineLineage(
     ?.datum.id;
 }
 
+function preparedScenarioSubmission(
+  exact: ExactAssignment,
+): PreparedScenarioSubmission {
+  return {
+    dryRun: exact.dryRun,
+    scenario: exact.scenario,
+    snapshot: exact.snapshot,
+    finalizeExactBaseline: (_root, _package, _processRef, proposedDatum) =>
+      exact.transaction.finalizeExactBaseline(proposedDatum),
+    publishMutation: (
+      _root,
+      _package,
+      expectedData,
+      data,
+      executionId,
+      executionRecord,
+      kernelFinalizedOutputs,
+    ) =>
+      exact.transaction.publishScenarioMutation(
+        expectedData,
+        data,
+        executionId,
+        executionRecord,
+        kernelFinalizedOutputs,
+      ),
+  };
+}
+
 async function materializeExactBaseline(
   repositoryRoot: string,
   exact: ExactAssignment,
-  snapshot: LifecycleSnapshot,
   assignmentId: string,
   materialization: ExactBaselineMaterialization,
 ): Promise<AssignmentResult<ScenarioExecution>> {
@@ -1260,7 +1291,7 @@ async function materializeExactBaseline(
       materialization,
       invocation,
       exactBaselineLineage(
-        snapshot,
+        exact.snapshot,
         baselineType,
         subject,
         materialization,
@@ -1306,29 +1337,7 @@ async function materializeExactBaseline(
       suppliedDelegations: [],
       loadedSkillRefs,
     },
-    {
-      dryRun: exact.dryRun,
-      scenario: exact.scenario,
-      snapshot,
-      finalizeExactBaseline: (_root, _package, _processRef, proposedDatum) =>
-        exact.transaction.finalizeExactBaseline(proposedDatum),
-      publishMutation: (
-        _root,
-        _package,
-        expectedData,
-        data,
-        executionId,
-        executionRecord,
-        kernelFinalizedOutputs,
-      ) =>
-        exact.transaction.publishScenarioMutation(
-          expectedData,
-          data,
-          executionId,
-          executionRecord,
-          kernelFinalizedOutputs,
-        ),
-    },
+    preparedScenarioSubmission(exact),
   );
   return submitted;
 }
@@ -1422,7 +1431,6 @@ export async function leaseNextAssignment(
     const materialized = await materializeExactBaseline(
       repositoryRoot,
       exact,
-      state.value.snapshot,
       lease.id,
       materialization,
     );
@@ -2183,8 +2191,9 @@ export async function submitAssignmentResponse(
     suppliedDelegations: proposal.standingDelegations,
     loadedSkillRefs: proposal.loadedSkillRefs,
   };
+  const prepared = preparedScenarioSubmission(exact.value);
   const submitted = exact.value.lease.obligation
-    ? await submitResolverScenario(
+    ? await submitPreparedResolverScenario(
         repositoryRoot,
         exact.value.processPackage,
         exact.value.lease.package,
@@ -2192,8 +2201,9 @@ export async function submitAssignmentResponse(
           ...submission,
           obligationInstance: exact.value.lease.obligation.instance,
         },
+        prepared,
       )
-    : await submitExplicitScenario(
+    : await submitPreparedExplicitScenario(
         repositoryRoot,
         exact.value.processPackage,
         exact.value.lease.package,
@@ -2206,6 +2216,7 @@ export async function submitAssignmentResponse(
             }))
           ),
         },
+        prepared,
       );
   if (!submitted.ok) {
     return recordMalformedResponse(

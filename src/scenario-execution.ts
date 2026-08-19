@@ -1033,18 +1033,20 @@ export async function submitResolverScenario(
   );
 }
 
+export interface PreparedScenarioSubmission {
+  dryRun: ScenarioDryRun;
+  scenario: VersionedDefinition;
+  snapshot: LifecycleSnapshot;
+  finalizeExactBaseline?: typeof finalizeExactBaselineScenarioOutput;
+  publishMutation?: typeof publishScenarioMutation;
+}
+
 export async function submitPreparedResolverScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
   packageIdentity: PackageExecutionIdentity,
   submission: ResolverScenarioSubmission,
-  prepared: {
-    dryRun: ScenarioDryRun;
-    scenario: VersionedDefinition;
-    snapshot: LifecycleSnapshot;
-    finalizeExactBaseline?: typeof finalizeExactBaselineScenarioOutput;
-    publishMutation?: typeof publishScenarioMutation;
-  },
+  prepared: PreparedScenarioSubmission,
 ): Promise<ScenarioExecutionResult> {
   return submitScenario(
     repositoryRoot,
@@ -1094,6 +1096,32 @@ export async function submitExplicitScenario(
       proposal: submission.proposal,
       loadedSkillRefs: submission.loadedSkillRefs,
     },
+  );
+}
+
+export async function submitPreparedExplicitScenario(
+  repositoryRoot: string,
+  processPackage: ProcessPackage,
+  packageIdentity: PackageExecutionIdentity,
+  submission: ExplicitScenarioSubmission,
+  prepared: PreparedScenarioSubmission,
+): Promise<ScenarioExecutionResult> {
+  return submitScenario(
+    repositoryRoot,
+    processPackage,
+    packageIdentity,
+    submission.scenarioReference,
+    { mode: "explicit-initiation" },
+    submission.requestedInputs,
+    submission.suppliedAuthorities,
+    submission.suppliedDelegations,
+    {
+      assignment: submission.assignment,
+      digest: submission.responseDigest,
+      proposal: submission.proposal,
+      loadedSkillRefs: submission.loadedSkillRefs,
+    },
+    prepared,
   );
 }
 
