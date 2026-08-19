@@ -16,4 +16,4 @@ rewrite an unfavorable Review or infer a different preference. Normal
 reevaluation must require a fresh independent Review of the replacement.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

@@ -17,4 +17,4 @@ DEC, and gate-Decision Review as evidence. Do not substitute chat, a completion
 summary, an older candidate, or an unreviewed exact member.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

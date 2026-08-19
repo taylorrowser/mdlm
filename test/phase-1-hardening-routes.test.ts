@@ -37,7 +37,7 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, selectProcessPackageFixture } from "./helpers/mdlm.js";
 import { copiedProcessPackage } from "./helpers/process-package.js";
 
-const processRef = "mdlm-bootstrap@0.68.0#sha256:phase-1-route-evidence";
+const processRef = "mdlm-bootstrap@0.69.0#sha256:phase-1-route-evidence";
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
 
@@ -2385,7 +2385,7 @@ describe("Phase 1 hardening route evidence", () => {
         replacement,
         replacementContext,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.68.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.69.0#${await processPackageDigest(processRoot)}`;
       for (const item of sourceRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -2452,7 +2452,7 @@ describe("Phase 1 hardening route evidence", () => {
         if (!pilotReviewPackage.ok) {
           throw new Error(JSON.stringify(pilotReviewPackage.diagnostics));
         }
-        const pilotReviewProcessRef = `mdlm-bootstrap@0.68.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
+        const pilotReviewProcessRef = `mdlm-bootstrap@0.69.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
         const pilotReviewRecords = structuredClone(baseRecords);
         for (const item of pilotReviewRecords) {
           item.datum.created_by.process_ref = pilotReviewProcessRef;

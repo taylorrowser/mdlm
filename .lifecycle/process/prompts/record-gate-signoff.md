@@ -39,4 +39,4 @@ Record exact provenance. Because gate sign-off is consequential, the DEC remains
 subject to the bootstrap DEC review policy before its evidence is applicable.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

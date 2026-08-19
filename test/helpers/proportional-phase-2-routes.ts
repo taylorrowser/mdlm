@@ -533,7 +533,7 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
     await fs.writeFile(path.join(root, relative), stringify(value));
   }
   const seedPrompt = (id: string, scenario: string) =>
-    `---\nid: ${id}\nversion: 1\nscenario: ${scenario}\nskills: [skills/lifecycle-data.md@1, skills/author-preflight.md@1]\n---\n\n# Public regression seed\n\nUse only the exact bounded test inputs and apply ephemeral author preflight.\n`;
+    `---\nid: ${id}\nversion: 1\nscenario: ${scenario}\nskills: [skills/lifecycle-data.md@1, skills/author-preflight.md@2]\n---\n\n# Public regression seed\n\nUse only the exact bounded test inputs and apply ephemeral author preflight.\n`;
   await fs.writeFile(
     path.join(root, "prompts/seed-public-phase-2-definitions.md"),
     seedPrompt(

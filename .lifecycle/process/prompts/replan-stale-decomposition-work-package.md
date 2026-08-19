@@ -28,4 +28,4 @@ stale decomposition outputs apply to the replacement plan. The replacement must
 receive a fresh Review Context and independent Review through normal reevaluation.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

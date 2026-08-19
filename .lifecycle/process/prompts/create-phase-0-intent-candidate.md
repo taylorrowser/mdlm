@@ -11,7 +11,7 @@ Read, in order:
 1. `skills/lifecycle-data.md@1`
 2. `skills/baseline-model.md@1`
 3. `skills/traceability.md@1`
-4. `skills/scope-challenge.md@1`
+4. `skills/scope-challenge.md@2`
 
 Create one `intent-level-candidate` BSL from the supplied exact reviewed MAP, PSP,
 and STK Revisions. Include only artifacts necessary to define the product intent.
@@ -23,4 +23,4 @@ verify. The candidate itself requires a fresh contextual Review before gate
 authorization.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

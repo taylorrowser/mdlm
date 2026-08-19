@@ -12,4 +12,4 @@ interface, and verification-strategy Revisions. Preserve the exact `composes`
 link and do not add group-local definitions or historical Revisions.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

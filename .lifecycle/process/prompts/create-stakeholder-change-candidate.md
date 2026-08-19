@@ -16,4 +16,4 @@ Read:
 Freeze one candidate under the exact Change Request. Include the supplied same-lineage STK or SYS replacement, every supplied updated DWP consumer, all fresh exact Review evidence, and every supplied unaffected definition and evidence Revision exactly. Exclude replaced definitions and traceability-affected historical evidence. Do not copy requirement lineages, coordinate hidden groups, or introduce later lifecycle levels.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

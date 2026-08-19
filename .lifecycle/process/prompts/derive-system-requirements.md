@@ -12,7 +12,7 @@ Read, in order:
 2. `skills/requirement-writing.md@1`
 3. `skills/traceability.md@1`
 4. `skills/clarification-protocol.md@1`
-5. `skills/scope-challenge.md@1`
+5. `skills/scope-challenge.md@2`
 
 Use only exact STK revisions authorized by the signed-off Phase 0 candidate and
 applicable DECs. Derive the smallest sufficient set of singular,
@@ -30,4 +30,4 @@ Before completion, perform an adversarial deletion and merge pass, validate all
 schemas and links, and record exact provenance.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

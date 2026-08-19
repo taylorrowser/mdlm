@@ -11,7 +11,7 @@ import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.68.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.69.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -1547,13 +1547,13 @@ describe("bootstrap Scenario participation Policies", () => {
     expect(escalation).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "escalate-foundation-review-correction@2",
+      actionableResolver: "escalate-foundation-review-correction@3",
     }));
     expect(escalation).toBeDefined();
     const prepared = await dryRunResolverScenario(
       processPackage,
       snapshot,
-      "escalate-foundation-review-correction@2",
+      "escalate-foundation-review-correction@3",
       escalation!.id,
       [],
     );
@@ -1654,7 +1654,7 @@ describe("bootstrap Scenario participation Policies", () => {
     }, {
       frozen: true,
       links: [{ type: "justifies", target: attended.datum.revision_id }],
-      scenario: "escalate-foundation-review-correction@2",
+      scenario: "escalate-foundation-review-correction@3",
     });
     const attendedFailure = failedReview(attended, "REV-9K3M9Q2D8G");
     const firstAutonomous = structuredClone(original);
@@ -1738,7 +1738,7 @@ describe("bootstrap Scenario participation Policies", () => {
     const escalation = correctionFor(exhausted, secondAutonomous);
     expect(escalation).toEqual(expect.objectContaining({
       obligation: "foundation-review-escalation-required",
-      actionableResolver: "escalate-foundation-review-correction@2",
+      actionableResolver: "escalate-foundation-review-correction@3",
     }));
     expect(exhausted.obligations.some((item) =>
       item.obligation === "foundation-review-correction-required" &&
@@ -1755,7 +1755,7 @@ describe("bootstrap Scenario participation Policies", () => {
     const prepared = await dryRunResolverScenario(
       processPackage,
       snapshot,
-      "escalate-foundation-review-correction@2",
+      "escalate-foundation-review-correction@3",
       escalation!.id,
       [],
     );

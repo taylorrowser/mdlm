@@ -9,7 +9,7 @@ scenario: revise-phase-2-subject-after-simplification
 Read, in order:
 
 1. `skills/lifecycle-data.md@1`
-2. `skills/scope-challenge.md@1`
+2. `skills/scope-challenge.md@2`
 3. `skills/requirement-writing.md@1`
 4. `skills/traceability.md@1`
 
@@ -20,4 +20,4 @@ The corrected Revision requires a fresh exact Review Context, contextual Review,
 and complete-set simplification judgment before DWP completion can resume.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

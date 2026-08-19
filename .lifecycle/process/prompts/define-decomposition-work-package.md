@@ -15,7 +15,7 @@ Read, in order:
 5. `skills/coverage-analysis.md@1`
 6. `skills/traceability.md@1`
 7. `skills/clarification-protocol.md@1`
-8. `skills/author-preflight.md@1`
+8. `skills/author-preflight.md@2`
 
 Prefer one bounded cohesive many-to-many change-and-verification slice covering
 all exact supplied parents governed by the architecture. Produce a small set only

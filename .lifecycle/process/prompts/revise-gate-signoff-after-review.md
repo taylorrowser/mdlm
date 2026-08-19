@@ -17,4 +17,4 @@ escalation; do not introduce another recovery path. The replacement requires a
 fresh independent Review before it can authorize progression.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

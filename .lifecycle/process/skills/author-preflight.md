@@ -1,6 +1,6 @@
 ---
 id: author-preflight
-version: 1
+version: 2
 ---
 
 # Ephemeral author preflight
@@ -15,7 +15,15 @@ the applicable independent-Review rubric and the exact Assignment packet.
    that prevents safe use. Correct every such concern before publication.
 3. Correct clear `needs-triage` concerns when they are local and authorized.
    Do not expand scope to satisfy advisory preferences.
-4. For a definition set, perform a deletion/merge pass and confirm every split is
+4. For a correction, compare the proposal with the exact prior Revision. Name
+   each behavior or commitment added, removed, strengthened, or deferred, and
+   trace every change to a blocking finding or exact authority. Prefer the
+   smallest local delta that resolves the finding. Explicitly compare a bounded
+   correction, deferral or removal, and retention of broader behavior; do not
+   infer stakeholder need from determinism, prior elaboration, or an agent
+   proposal. If safe correction requires a new stakeholder-visible choice that
+   is not supplied, stop rather than elaborate.
+5. For a definition set, perform a deletion/merge pass and confirm every split is
    justified by distinct behavior, responsibility, boundary, risk, trust context,
    or verification need.
 

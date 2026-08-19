@@ -24,10 +24,10 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.68.0");
+    expect(result.package.manifest.version).toBe("0.69.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(333);
+    expect(Object.keys(result.package.selectors)).toHaveLength(335);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),

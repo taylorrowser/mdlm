@@ -13,8 +13,8 @@ Read, in order:
 3. `skills/requirement-writing.md@1`
 4. `skills/traceability.md@1`
 5. `skills/clarification-protocol.md@1`
-6. `skills/scope-challenge.md@1`
-7. `skills/author-preflight.md@1`
+6. `skills/scope-challenge.md@2`
+7. `skills/author-preflight.md@2`
 
 Use only the exact input PSP revision and explicit decisions as product intent.
 Create the smallest set of singular stakeholder-visible commitments needed to

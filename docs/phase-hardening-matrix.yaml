@@ -340,7 +340,7 @@ rows:
             - consequential-decision-participation@1
           authority: stakeholder
         resolvers:
-          - escalate-foundation-review-correction@2
+          - escalate-foundation-review-correction@3
         next:
           - attention-required
         budget: The second failed replacement exhausts both autonomous cycles; no third autonomous correction is available.
@@ -369,11 +369,11 @@ rows:
             - consequential-decision-participation@1
           authority: stakeholder
         resolvers:
-          - escalate-foundation-review-correction@2
+          - escalate-foundation-review-correction@3
         next:
           - attention-required
         budget: Stakeholder-owned work attends immediately and consumes none of the two later autonomous cycles.
-        disposition: The unfinished route yields Attention Required for escalate-foundation-review-correction@2, never Process
+        disposition: The unfinished route yields Attention Required for escalate-foundation-review-correction@3, never Process
           Dead End.
         reuse: Failed evidence remains immutable; the attended replacement later receives fresh context and Review.
       - route: post-attended fresh cycles

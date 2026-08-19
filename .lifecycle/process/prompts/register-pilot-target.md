@@ -2,7 +2,7 @@
 id: register-pilot-target
 version: 1
 scenario: register-pilot-target
-skills: [skills/lifecycle-data.md@1, skills/reproducibility.md@1, skills/traceability.md@1, skills/scope-challenge.md@1, skills/author-preflight.md@1]
+skills: [skills/lifecycle-data.md@1, skills/reproducibility.md@1, skills/traceability.md@1, skills/scope-challenge.md@2, skills/author-preflight.md@2]
 ---
 
 # Register an exact pilot target
@@ -41,4 +41,4 @@ register a mutable branch or tag. Publication records existing repository eviden
 it does not authorize product scope.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

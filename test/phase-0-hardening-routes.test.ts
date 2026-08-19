@@ -16,6 +16,7 @@ import {
   evaluateProcessDefinition,
   evaluateScenarioParticipation,
 } from "../src/evaluator.js";
+import { readRepositoryData } from "../src/lifecycle-repository.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import {
   directoryDigest,
@@ -30,7 +31,7 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-const processRef = "mdlm-bootstrap@0.68.0#sha256:phase-0-route-evidence";
+const processRef = "mdlm-bootstrap@0.69.0#sha256:phase-0-route-evidence";
 const revisionId = (id: string, revision = 1) =>
   `${id}-r${String(revision).padStart(5, "0")}`;
 
@@ -491,6 +492,46 @@ function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
       },
     },
   ];
+}
+
+function stakeholderOwnedFailureOutput(
+  prepared: PreparedAssignment,
+): ProposedOutput[] {
+  const subject = inputRevision(prepared, "subject");
+  const context = inputRevision(prepared, "review_context");
+  return [{
+    localId: "review",
+    name: "review",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "REV",
+      payload: {
+        title: `Failed independent Review of ${subject}`,
+        review_kind: "contextual",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        findings: [{
+          id: "F-001",
+          target: subject,
+          relationship: "primary",
+          severity: "blocking",
+          criterion:
+            "Consequential ambiguity requires stakeholder-owned minimum-scope correction.",
+          evidence:
+            "Bounded and substantially broader deterministic behaviors both satisfy the underspecified subject.",
+          material_consequence:
+            "Autonomous correction could add stakeholder-visible scope and avoidable downstream work.",
+          summary: "Obtain exact stakeholder disposition of the ambiguity.",
+        }],
+        correction_authority: "stakeholder",
+        outcome: "fail",
+      },
+      links: [
+        { type: "reviews", target: subject },
+        { type: "contextualizes", target: context },
+      ],
+      body: "The ambiguity requires exact stakeholder correction authority.\n",
+    },
+  }];
 }
 
 async function advancePhase0To(
@@ -1274,7 +1315,7 @@ describe("Phase 0 missing hardening routes", () => {
     expect(escalation).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "escalate-foundation-review-correction@2",
+      actionableResolver: "escalate-foundation-review-correction@3",
       participation: [expect.objectContaining({
         authorityRequirement: expect.objectContaining({
           mode: "attended",
@@ -1286,7 +1327,7 @@ describe("Phase 0 missing hardening routes", () => {
     const prepared = await dryRunResolverScenario(
       processPackage,
       snapshot(records),
-      "escalate-foundation-review-correction@2",
+      "escalate-foundation-review-correction@3",
       escalation!.id,
       [],
     );
@@ -1296,7 +1337,7 @@ describe("Phase 0 missing hardening routes", () => {
       "skills/lifecycle-data.md@1",
       "skills/clarification-protocol.md@1",
       "skills/requirement-writing.md@1",
-      "skills/author-preflight.md@1",
+      "skills/author-preflight.md@2",
     ]);
     expect(prepared.value.invocations[0]!.inputs.find((input) =>
       input.name === "lineage"
@@ -1327,7 +1368,7 @@ describe("Phase 0 missing hardening routes", () => {
       subject.datum.revision_id,
     )).toEqual(expect.objectContaining({
       status: "ready",
-      actionableResolver: "escalate-foundation-review-correction@2",
+      actionableResolver: "escalate-foundation-review-correction@3",
       explanation: expect.stringMatching(/stakeholder attention.*immediately/i),
       participation: [expect.objectContaining({
         authorityRequirement: expect.objectContaining({
@@ -1337,6 +1378,409 @@ describe("Phase 0 missing hardening routes", () => {
         attentionSchedule: expect.objectContaining({ timing: "immediate" }),
       })],
     }));
+  });
+
+  it("rejects attended foundation correction without durable minimum-scope option framing at the public repository seam", async () => {
+    const { parent, repository } = await initializedRepository(
+      "mdlm-phase0-correction-scope-",
+    );
+    try {
+      const { prepared: compile } = await advancePhase0To(
+        repository,
+        "compile-psp@2",
+      );
+      const published = submitAssignment(repository, compile, [{
+        localId: "product",
+        name: "product_specification",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "PSP",
+          payload: {
+            title: "Tiny ambiguous public product",
+            rationale: "Exercise minimum-sufficient ambiguity correction.",
+            problem: "The operator needs one bounded deterministic result.",
+            users: ["operator"],
+            goals: ["produce one deterministic result"],
+            non_goals: ["production-scale semantic machinery"],
+            success_measures: ["the bounded result is independently reviewable"],
+          },
+          links: [],
+          body: "The exact result convention remains preferentially ambiguous.\n",
+        },
+      }]);
+      expect(published.status, `${published.stderr}${published.stdout}`).toBe(0);
+      const product = JSON.parse(published.stdout).execution.outputs[0]
+        .lifecycleDatum.revisionId as string;
+
+      let review = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      if (inputRevision(review, "subject") !== product) {
+        const reviewedMap = submitAssignment(
+          repository,
+          review,
+          passingReviewOutput(review),
+        );
+        expect(
+          reviewedMap.status,
+          `${reviewedMap.stderr}${reviewedMap.stdout}`,
+        ).toBe(0);
+        review = prepareNextAssignment(
+          repository,
+          "review-datum-in-context@2",
+        );
+      }
+      expect(inputRevision(review, "subject")).toBe(product);
+      const failedSubmission = submitAssignment(
+        repository,
+        review,
+        stakeholderOwnedFailureOutput(review),
+      );
+      expect(
+        failedSubmission.status,
+        `${failedSubmission.stderr}${failedSubmission.stdout}`,
+      ).toBe(0);
+      const failedReview = JSON.parse(failedSubmission.stdout).execution.outputs[0]
+        .lifecycleDatum.revisionId as string;
+
+      const correction = prepareNextAssignment(
+        repository,
+        "escalate-foundation-review-correction@3",
+      );
+      expect(correction.outcome).toEqual(expect.objectContaining({
+        outcome: "attention-required",
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+      }));
+      const subject = exactInput(correction, "subject").identity;
+      const beforeInvalid = await directoryDigest(
+        path.join(repository, ".lifecycle", "data"),
+      );
+      const invalid = submitAssignment(repository, correction, [{
+        localId: "replacement",
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: subject.id,
+          type: "PSP",
+          payload: {
+            title: "Unframed deterministic product correction",
+            rationale: "Choose one deterministic convention.",
+            problem: "The operator needs one bounded deterministic result.",
+            users: ["operator"],
+            goals: ["produce one deterministic result"],
+            non_goals: ["production-scale semantic machinery"],
+            success_measures: ["the selected result is independently reviewable"],
+          },
+          links: [{ type: "corrects-review", target: failedReview }],
+          body: "This replacement omits the required comparative disposition.\n",
+        },
+      }, {
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Unframed scope Decision",
+            rationale: "The stakeholder selected a deterministic convention.",
+            kind: "scope",
+            decision: "Retain a deterministic result convention.",
+            alternatives: ["Use another deterministic convention"],
+            effective_scope: `${subject.id}-r00002`,
+          },
+          links: [{
+            type: "justifies",
+            target: "$proposal.replacement.revision_id",
+          }],
+          body: "No bounded, defer-or-remove, and retain comparison is recorded.\n",
+        },
+      }]);
+      expect(invalid.status).toBe(1);
+      expect(JSON.parse(invalid.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      );
+      expect(await directoryDigest(
+        path.join(repository, ".lifecycle", "data"),
+      )).toBe(beforeInvalid);
+
+      const bounded = submitAssignment(repository, correction, [{
+        localId: "replacement",
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: subject.id,
+          type: "PSP",
+          payload: {
+            title: "Bounded deterministic product correction",
+            rationale: "Resolve only the reviewed output ambiguity.",
+            problem: "The operator needs one bounded deterministic result.",
+            users: ["operator"],
+            goals: ["produce one deterministic result"],
+            non_goals: ["numeric limits", "machine representation rules"],
+            success_measures: ["the selected result is independently reviewable"],
+          },
+          links: [{ type: "corrects-review", target: failedReview }],
+          body: "The correction remains local to the exact reviewed ambiguity.\n",
+        },
+      }, {
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Bounded scope correction Decision",
+            rationale: "The stakeholder selected the smallest sufficient fix.",
+            kind: "scope",
+            decision: "Bound only the ambiguous output convention.",
+            alternatives: [
+              "Defer the output convention",
+              "Retain a broader numeric semantics model",
+            ],
+            effective_scope: `${subject.id}-r00002`,
+            scope_correction: {
+              disposition: "bound",
+              options: {
+                bounded: "Clarify only the inconsistent output/failure clause.",
+                defer_or_remove: "Remove the unsupported output commitment until needed.",
+                retain: "Retain broader numeric semantics only with explicit need.",
+              },
+              necessity:
+                "One local output clarification is sufficient; numeric limits and machine representation are unnecessary.",
+            },
+          },
+          links: [{
+            type: "justifies",
+            target: "$proposal.replacement.revision_id",
+          }],
+          body: "The exact comparison preserves stakeholder authority.\n",
+        },
+      }]);
+      expect(bounded.status, `${bounded.stderr}${bounded.stdout}`).toBe(0);
+      const boundedOutputs = JSON.parse(bounded.stdout).execution.outputs as Array<{
+        name: string;
+        lifecycleDatum: { revisionId: string };
+      }>;
+      const corrected = boundedOutputs.find(
+        (output) => output.name === "replacement",
+      )!.lifecycleDatum.revisionId;
+      const correctionDecision = boundedOutputs.find(
+        (output) => output.name === "decision",
+      )!.lifecycleDatum.revisionId;
+      expect(corrected).toBe(`${subject.id}-r00002`);
+      let freshReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      if (inputRevision(freshReview, "subject") !== corrected) {
+        const reviewedDecision = submitAssignment(
+          repository,
+          freshReview,
+          passingReviewOutput(freshReview),
+        );
+        expect(
+          reviewedDecision.status,
+          `${reviewedDecision.stderr}${reviewedDecision.stdout}`,
+        ).toBe(0);
+        freshReview = prepareNextAssignment(
+          repository,
+          "review-datum-in-context@2",
+        );
+      }
+      expect(inputRevision(freshReview, "subject")).toBe(corrected);
+      const comparativeContextRevision = inputRevision(
+        freshReview,
+        "review_context",
+      );
+      const stored = await readRepositoryData(repository, processPackage);
+      expect(stored.ok, JSON.stringify(stored.diagnostics)).toBe(true);
+      if (!stored.ok) return;
+      const comparativeContext = stored.value.find((item) =>
+        item.lifecycleDatum.datum.revision_id === comparativeContextRevision
+      )?.lifecycleDatum.datum;
+      expect(comparativeContext?.payload.definition_members).toEqual(
+        expect.arrayContaining([
+          product,
+          failedReview,
+          correctionDecision,
+          corrected,
+        ]),
+      );
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("makes existing STK Review evidence stale when its stable PSP parent advances", () => {
+    const foundation = phase0Foundation();
+    const revisedProduct = record("PSP", foundation.product.datum.id, {
+      ...foundation.product.datum.payload,
+      title: "Revised exact Phase 0 product",
+    }, { revision: 2, scenario: "compile-psp@2" });
+    const records = [
+      ...foundation.members,
+      ...foundation.reviews,
+      revisedProduct,
+    ];
+    expect(obligation(
+      processPackage,
+      records,
+      "stakeholder-requirements-required",
+      revisedProduct.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      actionableResolver: "create-review-context@1",
+      blockedBy: [expect.stringMatching(/^passing-review-required@2:/)],
+    }));
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(records),
+      "selector",
+      "passing-reviews-for@1",
+      { subject: foundation.requirement.datum.revision_id },
+    ).result).toEqual([]);
+
+    const [productContext, productReview] = reviewFor(
+      revisedProduct,
+      "REV-1030000023",
+      "pass",
+      { contextId: "BSL-1030000023" },
+    );
+    const afterProductReview = [...records, productContext, productReview];
+    expect(obligation(
+      processPackage,
+      afterProductReview,
+      "stakeholder-requirements-required",
+      revisedProduct.datum.revision_id,
+    )?.satisfied).toBe(true);
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(afterProductReview),
+      "selector",
+      "passing-reviews-for@1",
+      { subject: foundation.requirement.datum.revision_id },
+    ).result).toEqual([]);
+    expect(obligation(
+      processPackage,
+      afterProductReview,
+      "passing-review-required",
+      foundation.requirement.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      actionableResolver: "create-review-context@1",
+    }));
+  });
+
+  it("excludes unrelated Decisions from corrected foundation Review Context support", () => {
+    const original = record("PSP", "PSP-1030000021", {
+      title: "Original bounded product",
+      rationale: "Preserve the exact correction comparison.",
+      problem: "One product ambiguity remains.",
+      users: ["operator"],
+      goals: ["resolve one ambiguity"],
+      non_goals: ["unrelated behavior"],
+      success_measures: ["one exact outcome is reviewable"],
+    });
+    const [, failed] = reviewFor(original, "REV-1030000021", "fail", {
+      correctionAuthority: "stakeholder",
+    });
+    const corrected = record("PSP", original.datum.id, {
+      ...original.datum.payload,
+      title: "Corrected bounded product",
+    }, {
+      revision: 2,
+      scenario: "escalate-foundation-review-correction@3",
+      links: [{ type: "corrects-review", target: failed.datum.revision_id }],
+    });
+    const decision = record("DEC", "DEC-1030000021", {
+      title: "Exact correction authority",
+      rationale: "The stakeholder selected the bounded correction.",
+      kind: "scope",
+      decision: "Bound the correction.",
+      alternatives: ["defer it", "retain broader behavior"],
+      effective_scope: corrected.datum.revision_id,
+      scope_correction: {
+        disposition: "bound",
+        options: {
+          bounded: "Correct one ambiguity.",
+          defer_or_remove: "Remove the unsupported behavior.",
+          retain: "Retain broader behavior with explicit need.",
+        },
+        necessity: "The bounded behavior alone satisfies the product goal.",
+      },
+    }, {
+      scenario: "escalate-foundation-review-correction@3",
+      links: [{ type: "justifies", target: corrected.datum.revision_id }],
+    });
+    const unrelated = record("DEC", "DEC-1030000022", {
+      title: "Unrelated scope Decision",
+      rationale: "Exercise exact causal exclusion.",
+      kind: "scope",
+      decision: "Decide unrelated scope.",
+      alternatives: ["Leave unrelated scope open"],
+      effective_scope: original.datum.revision_id,
+    });
+    const selectedResult = evaluateProcessDefinition(
+      processPackage,
+      snapshot([original, failed, corrected, decision, unrelated]),
+      "selector",
+      "review-context-members-for@1",
+      { subject: corrected.datum.revision_id },
+    ).result;
+    expect(Array.isArray(selectedResult)).toBe(true);
+    if (!Array.isArray(selectedResult)) return;
+    const selected = selectedResult.map(
+      (item: { identity: { revision_id: string } }) => item.identity.revision_id,
+    );
+    expect(selected).toEqual(expect.arrayContaining([
+      original.datum.revision_id,
+      failed.datum.revision_id,
+      decision.datum.revision_id,
+    ]));
+    expect(selected).not.toContain(unrelated.datum.revision_id);
+  });
+
+  it("requires an exact reactivation condition only for defer-or-remove scope correction", () => {
+    const resolved = resolveType(processPackage, "DEC");
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    formatsPlugin.default(ajv);
+    const validate = ajv.compile(resolved.type.payloadSchema);
+    const payload = (disposition: "bound" | "defer-or-remove" | "retain") => ({
+      title: `Structured ${disposition} correction`,
+      rationale: "Exercise the exact structured scope contract.",
+      kind: "scope",
+      decision: `Select ${disposition}.`,
+      alternatives: ["Select another exact disposition"],
+      effective_scope: "PSP-1030000024-r00002",
+      scope_correction: {
+        disposition,
+        options: {
+          bounded: "Correct only the exact ambiguity.",
+          defer_or_remove: "Remove unsupported behavior until needed.",
+          retain: "Retain broader behavior only with explicit need.",
+        },
+        necessity: "The selected option is the minimum authorized outcome.",
+      },
+    });
+    expect(validate(payload("bound"))).toBe(true);
+    expect(validate(payload("retain"))).toBe(true);
+    expect(validate(payload("defer-or-remove"))).toBe(false);
+    expect(validate({
+      ...payload("defer-or-remove"),
+      scope_correction: {
+        ...payload("defer-or-remove").scope_correction,
+        reactivation_condition:
+          "Reconsider only when an accepted stakeholder outcome requires the deferred behavior.",
+      },
+    })).toBe(true);
   });
 
   it("returns a passing candidate-centered simplification Review to attended Phase 0 gate sign-off", () => {
@@ -1880,6 +2324,12 @@ describe("Phase 0 missing hardening routes", () => {
       "pass",
       { contextId: "BSL-1030000012" },
     );
+    correctedContext.datum.payload.definition_members = [
+      correctedRequirement.datum.revision_id,
+      foundation.product.datum.revision_id,
+      foundation.requirement.datum.revision_id,
+      rejection.datum.revision_id,
+    ].sort();
     const correctedFoundation = {
       ...foundation,
       requirement: correctedRequirement,

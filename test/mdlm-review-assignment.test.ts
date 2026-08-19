@@ -180,44 +180,6 @@ describe("delegated Review Assignment packets", () => {
     }]);
       commitLifecycleData(repository, "Publish review packet regression product");
 
-      const requirementPacket = prepareNext(repository);
-      expect(requirementPacket.scenario.reference).toBe(
-      "draft-stakeholder-requirements@2",
-    );
-      const requirementSubmission = submitProposal(
-        repository,
-        requirementPacket,
-        [
-          {
-            localId: "requirement",
-            name: "requirements",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "STK",
-              payload: {
-                title: "Resolved review evidence requirement",
-                rationale: "Independent reviewers need the exact applicable rubric.",
-                statement: "The prepared packet supplies exact resolved policy assets.",
-                verification_intent: "Submit a judgment using only packet evidence.",
-                stakeholder: "independent reviewer",
-                priority: "must",
-                system_context: "product",
-              },
-              links: [{
-          type: "derived-from",
-          target: exactInput(requirementPacket, "product_specification").replace(
-            /-r[0-9]{5}$/,
-            "",
-          ),
-        }],
-              body: "One stakeholder-visible packet completeness commitment.\n",
-            },
-          },
-        ],
-      );
-      expect(requirementSubmission.execution.outputs).toHaveLength(1);
-      commitLifecycleData(repository, "Publish packet evidence requirement");
-
       const nextReview = mdlmWithEnvironment(
         repository,
         { MDLM_PERFORMANCE: "json" },

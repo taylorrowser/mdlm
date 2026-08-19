@@ -12,9 +12,9 @@ Read, in order:
 2. `skills/information-allocation.md@1`
 3. `skills/architecture-specification.md@1`
 4. `skills/architecture-elements.md@1`
-5. `skills/scope-challenge.md@1`
+5. `skills/scope-challenge.md@2`
 6. `skills/clarification-protocol.md@1`
-7. `skills/author-preflight.md@1`
+7. `skills/author-preflight.md@2`
 
 First run the ephemeral preflight as an early whole-topology simplification
 checkpoint over every exact supplied STK. Confirm that this group is justified by

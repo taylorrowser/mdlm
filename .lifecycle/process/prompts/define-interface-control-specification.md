@@ -13,7 +13,7 @@ Read, in order:
 3. `skills/interface-control-specification.md@1`
 4. `skills/boundary-definition.md@1`
 5. `skills/clarification-protocol.md@1`
-6. `skills/author-preflight.md@1`
+6. `skills/author-preflight.md@2`
 
 Define one contract covering every independently controlled black-box boundary
 listed by the supplied architecture, using the same exact `from_element` and

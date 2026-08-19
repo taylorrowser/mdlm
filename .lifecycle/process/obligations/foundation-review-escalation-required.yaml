@@ -22,7 +22,7 @@ status_rules:
     reason: Stakeholder attention is required because both autonomous replacement-and-Review cycles failed and the correction lineage is exhausted.
 default_status: ready
 resolve_with:
-  scenario: escalate-foundation-review-correction@2
+  scenario: escalate-foundation-review-correction@3
   inputs:
     subject: subject
     lineage: 'select("foundation-correction-history@1", {subject: subject, view: "lineage"})'

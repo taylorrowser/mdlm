@@ -2,7 +2,7 @@
 id: revise-verification-strategy-after-review
 version: 1
 scenario: revise-verification-strategy-after-review
-skills: [skills/lifecycle-data.md@1, skills/verification-strategy-specification.md@1, skills/contextual-artifact-review.md@2, skills/verification-independence.md@1, skills/author-preflight.md@1]
+skills: [skills/lifecycle-data.md@1, skills/verification-strategy-specification.md@1, skills/contextual-artifact-review.md@2, skills/verification-independence.md@1, skills/author-preflight.md@2]
 ---
 
 # Correct a failed verification strategy
@@ -24,4 +24,4 @@ to the replacement Revision. This DEC records the stakeholder's authority for th
 exact correction; it does not replace or suppress the failed Review.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

@@ -9,7 +9,7 @@ scenario: revise-phase-2-definition-set-after-simplification
 Read, in order:
 
 1. `skills/lifecycle-data.md@1`
-2. `skills/scope-challenge.md@1`
+2. `skills/scope-challenge.md@2`
 3. `skills/architecture-specification.md@1`
 4. `skills/interface-control-specification.md@1`
 5. `skills/dwp-planning.md@1`
@@ -34,4 +34,4 @@ replacement still requires fresh contextual Review, then both fresh complete-set
 simplification judgments, before DWP completion resumes.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

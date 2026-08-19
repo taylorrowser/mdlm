@@ -33,7 +33,7 @@ outputs:
       - {link: corrects-review, target: {input: failed_reviews}}
       - {link: corrects-review, target: {input: simplification_reviews}}
       - {link: corrects-gate-rejection, target: {input: gate_rejections}}
-prompt_ref: prompts/revise-foundation-after-review.md@4
+prompt_ref: prompts/revise-foundation-after-review.md@5
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

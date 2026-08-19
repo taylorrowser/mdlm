@@ -16,4 +16,4 @@ Read:
 Use the exact passing-reviewed approve Decision and bounded CHG impact to create the next Revision in the affected STK or SYS Stable Datum. Preserve valid source-owned links, add `changed-under` to the exact CHG, and change only approved content. The same-lineage replacement precedes fresh Review Context and Review; a shared SYS then drives one serial fresh coverage Revision per exact consumer before candidate and closure. Never mutate or reclassify the accepted historical Revision, copy a shared SYS lineage, or apply this Scenario to draft correction.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
-`skills/author-preflight.md@1` contract.
+`skills/author-preflight.md@2` contract.

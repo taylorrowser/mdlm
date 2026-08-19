@@ -1,0 +1,12 @@
+kind: selector-definition
+id: all-cited-gate-rejections-by-correction
+version: 1
+description: Every exact gate-rejection Decision targeted by a Phase 0 correction Revision, regardless of current Review validity.
+parameters:
+  - {name: replacement, kind: revision, types: [MAP, PSP, STK]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: replacement, link: corrects-gate-rejection, emit: target, types: [DEC]}
+  as: rejection
+  distinct: true
+  order_by: [identity.revision_id]
