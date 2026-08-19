@@ -7,6 +7,7 @@ import {
   mdlm,
   mdlmWithEnvironment,
   mdlmWithInput,
+  mdlmWithInputAndEnvironment,
 } from "./helpers/mdlm.js";
 
 const timeout = 60_000;
@@ -109,6 +110,13 @@ function submitProposal(
   expectSuccess(submitted, "mdlm scenario submit");
   expect(`${JSON.stringify(response)}\n`).toBe(source);
   return JSON.parse(submitted.stdout);
+}
+
+async function markdownRecordCount(repository: string): Promise<number> {
+  const entries = await fs.readdir(path.join(repository, ".lifecycle/data"), {
+    recursive: true,
+  });
+  return entries.filter((entry) => entry.endsWith(".md")).length;
 }
 
 function exactInput(packet: Packet, name: string): string {
@@ -316,12 +324,40 @@ describe("delegated Review Assignment packets", () => {
       ]),
     }));
 
-      const reviewSubmission = submitProposal(
-      repository,
-      reviewPacket,
-      [reviewOutput],
-      ["independent-reviewer"],
-    );
+      const reviewResponse = {
+        contract: "mdlm-assignment-response@1",
+        assignment: reviewPacket.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [reviewOutput],
+          completionEvidence: {
+            summary: `Completed ${reviewPacket.scenario.reference}.`,
+          },
+          loadedSkillRefs: reviewPacket.prompt.skills.map(
+            (skill) => skill.reference,
+          ),
+          authoritySupplies: ["independent-reviewer"],
+          standingDelegations: [],
+        },
+      };
+      const expectedRecords = await markdownRecordCount(repository);
+      const submittedReview = mdlmWithInputAndEnvironment(
+        repository,
+        `${JSON.stringify(reviewResponse)}\n`,
+        { MDLM_PERFORMANCE: "json" },
+        "scenario", "submit", "-", "--json",
+      );
+      expectSuccess(submittedReview, "mdlm scenario submit with performance diagnostics");
+      const reviewSubmission = JSON.parse(submittedReview.stdout);
+      expect(JSON.parse(submittedReview.stderr)).toMatchObject({
+        contract: "mdlm-performance@1",
+        repository: { loads: 1, markdownFiles: expectedRecords },
+        work: {
+          "repository.parse.records": expectedRecords,
+          "repository.provenance.records": expectedRecords,
+          "repository.validation.records": expectedRecords,
+        },
+      });
       expect(reviewSubmission.execution.outputs[0].data.payload).toEqual(
         expect.objectContaining({
           rubric_ref: "policies/rubrics/bootstrap-review.md@2",

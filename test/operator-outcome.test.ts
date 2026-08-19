@@ -27,9 +27,19 @@ function mdlmWithInput(
   input: string,
   ...arguments_: string[]
 ) {
+  return mdlmWithInputAndEnvironment(repository, input, {}, ...arguments_);
+}
+
+function mdlmWithInputAndEnvironment(
+  repository: string,
+  input: string,
+  environment: NodeJS.ProcessEnv,
+  ...arguments_: string[]
+) {
   return spawnSync(process.execPath, [mdlmExecutable, ...arguments_], {
     cwd: repository,
     encoding: "utf8",
+    env: { ...process.env, ...environment },
     input,
     maxBuffer: 10 * 1024 * 1024,
   });
@@ -753,7 +763,8 @@ gate:
       progressionPacket.status,
       `${progressionPacket.stderr}${progressionPacket.stdout}`,
     ).toBe(0);
-    expect(JSON.parse(progressionPacket.stdout)).toEqual(expect.objectContaining({
+    const progression = JSON.parse(progressionPacket.stdout);
+    expect(progression).toEqual(expect.objectContaining({
       phase: "phase-0-wayfinding@2",
       scenario: expect.objectContaining({
         reference: "record-consequential-decision@1",
@@ -767,6 +778,65 @@ gate:
         })],
       })],
     }));
+
+    const progressionSubmission = mdlmWithInputAndEnvironment(
+      repository,
+      `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment: outcome.assignment.id,
+        kind: "proposal",
+        proposal: {
+          outputs: [{
+            localId: "decision",
+            name: "decision",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "DEC",
+              payload: {
+                title: "Authorize package-declared Phase progression",
+                kind: "scope",
+                rationale: "The current Phase is ready and names this progression.",
+                decision: "Proceed to the exact package-declared next Phase.",
+                alternatives: ["Remain in the completed current Phase."],
+                effective_scope: mapRevision,
+              },
+              links: [{ type: "justifies", target: mapRevision }],
+              body: "The stakeholder authorizes this exact progression subject.\n",
+            },
+          }],
+          completionEvidence: { summary: "Progression explicitly authorized." },
+          loadedSkillRefs: progression.prompt.skills.map(
+            (skill: { reference: string }) => skill.reference,
+          ),
+          authoritySupplies: ["stakeholder"],
+          standingDelegations: [],
+        },
+      })}\n`,
+      { MDLM_PERFORMANCE: "json" },
+      "scenario",
+      "submit",
+    );
+    expect(
+      progressionSubmission.status,
+      `${progressionSubmission.stderr}${progressionSubmission.stdout}`,
+    ).toBe(0);
+    expect(JSON.parse(progressionSubmission.stderr)).toMatchObject({
+      contract: "mdlm-performance@1",
+      repository: { loads: 1, markdownFiles: 1 },
+      work: {
+        "repository.parse.records": 1,
+        "repository.provenance.records": 1,
+        "repository.validation.records": 1,
+      },
+    });
+    expect(JSON.parse(progressionSubmission.stdout)).toMatchObject({
+      contract: "mdlm-scenario-execution@4",
+      execution: {
+        definition: { scenario: "record-consequential-decision@1" },
+        response: { assignment: outcome.assignment.id },
+        outputs: [{ data: { payload: { effective_scope: mapRevision } } }],
+      },
+    });
   });
 
   it("returns a declared Profile Boundary with omitted coverage and exact condition evidence", async () => {
