@@ -417,6 +417,7 @@ export async function verifyRepositoryDataSources(
 }
 
 const publicationLockRef = "refs/mdlm/publication-lock";
+const locallyReleasedPublicationLocks = new Set<string>();
 
 interface GitCommandResult {
   code: number | null;
@@ -495,6 +496,34 @@ async function updatePublicationLock(
   return updated.code === 0;
 }
 
+async function releasePublicationLock(
+  root: string,
+  ownerObjectId: string,
+  token: string,
+): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (true) {
+    const current = await gitCommand(root, [
+      "rev-parse",
+      "--verify",
+      publicationLockRef,
+    ]);
+    if (current.code !== 0 || current.stdout.trim() !== ownerObjectId) return;
+    const released = await gitCommand(root, [
+      "update-ref",
+      "-d",
+      publicationLockRef,
+      ownerObjectId,
+    ]);
+    if (released.code === 0) return;
+    if (Date.now() >= deadline) {
+      locallyReleasedPublicationLocks.add(token);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
 async function withRepositoryPublicationLock<T>(
   root: string,
   operation: () => Promise<T>,
@@ -545,7 +574,11 @@ async function withRepositoryPublicationLock<T>(
         typeof owner.pid !== "number" ||
         typeof owner.processStartedAt !== "string" ||
         typeof owner.token !== "string" ||
-        currentProcessStartedAt !== owner.processStartedAt;
+        currentProcessStartedAt !== owner.processStartedAt ||
+        (
+          owner.pid === process.pid &&
+          locallyReleasedPublicationLocks.has(owner.token)
+        );
       if (
         abandoned &&
         await updatePublicationLock(root, ownerObjectId, currentObjectId)
@@ -563,20 +596,10 @@ async function withRepositoryPublicationLock<T>(
   try {
     result = await operation();
   } catch (error) {
-    await gitCommand(root, [
-      "update-ref",
-      "-d",
-      publicationLockRef,
-      ownerObjectId,
-    ]);
+    await releasePublicationLock(root, ownerObjectId, token);
     throw error;
   }
-  await gitCommand(root, [
-    "update-ref",
-    "-d",
-    publicationLockRef,
-    ownerObjectId,
-  ]);
+  await releasePublicationLock(root, ownerObjectId, token);
   return result;
 }
 

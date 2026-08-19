@@ -642,6 +642,56 @@ describe("compiled mdlm baseline inspection", () => {
     ]).status).not.toBe(0);
   });
 
+  it("recovers locally when Git temporarily blocks lock release", async () => {
+    const { processPackage } = await selectedPackage(repository);
+    const loaded = await readRepositoryData(repository, processPackage);
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error("repository data unavailable");
+    const refLockPath = path.join(
+      repository,
+      ".git/refs/mdlm/publication-lock.lock",
+    );
+
+    const first = await publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      loaded.value.map((item) => item.lifecycleDatum.datum),
+      [],
+      "publication-with-blocked-lock-release",
+      {},
+      [],
+      async () => {
+        const sources = await verifyRepositoryDataSources(repository, loaded.value);
+        if (!sources.ok) return sources;
+        await fs.mkdir(path.dirname(refLockPath), { recursive: true });
+        await fs.writeFile(refLockPath, "blocked\n");
+        return sources;
+      },
+    );
+    expect(first.ok).toBe(true);
+    await fs.rm(refLockPath, { force: true });
+
+    const second = await publishScenarioMutationData(
+      repository,
+      processPackage,
+      loaded.value,
+      loaded.value.map((item) => item.lifecycleDatum.datum),
+      [],
+      "publication-after-blocked-lock-release",
+      {},
+      [],
+      () => verifyRepositoryDataSources(repository, loaded.value),
+    );
+
+    expect(second.ok).toBe(true);
+    expect(git(repository, [
+      "rev-parse",
+      "--verify",
+      "refs/mdlm/publication-lock",
+    ]).status).not.toBe(0);
+  });
+
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {
     const fixture = await arrangeChangedBaselines(repository);
 

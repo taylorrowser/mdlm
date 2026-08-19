@@ -1233,7 +1233,23 @@ function exactBaselineLineage(
     ?.datum.id;
 }
 
+async function verifyPublicationFingerprint(
+  repositoryRoot: string,
+  expected: RepositoryFingerprint,
+): Promise<AssignmentResult<undefined>> {
+  const current = await repositoryFingerprint(repositoryRoot);
+  if (!current.ok) return current;
+  return isDeepStrictEqual(current.value, expected)
+    ? { ok: true, value: undefined, diagnostics: [] }
+    : failure(
+      "scenario-repository-changed",
+      "The tracked repository changed after Assignment inspection and before publication",
+      repositoryRoot,
+    );
+}
+
 function preparedScenarioSubmission(
+  repositoryRoot: string,
   exact: ExactAssignment,
 ): PreparedScenarioSubmission {
   return {
@@ -1258,6 +1274,10 @@ function preparedScenarioSubmission(
         executionId,
         executionRecord,
         kernelFinalizedOutputs,
+        () => verifyPublicationFingerprint(
+          repositoryRoot,
+          exact.lease.repository,
+        ),
       ),
   };
 }
@@ -1335,7 +1355,7 @@ async function materializeExactBaseline(
       suppliedDelegations: [],
       loadedSkillRefs,
     },
-    preparedScenarioSubmission(exact),
+    preparedScenarioSubmission(repositoryRoot, exact),
   );
   return submitted;
 }
@@ -2189,7 +2209,7 @@ export async function submitAssignmentResponse(
     suppliedDelegations: proposal.standingDelegations,
     loadedSkillRefs: proposal.loadedSkillRefs,
   };
-  const prepared = preparedScenarioSubmission(exact.value);
+  const prepared = preparedScenarioSubmission(repositoryRoot, exact.value);
   const submitted = exact.value.lease.obligation
     ? await submitPreparedResolverScenario(
         repositoryRoot,

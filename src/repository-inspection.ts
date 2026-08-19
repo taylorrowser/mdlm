@@ -54,6 +54,7 @@ export interface RepositoryTransaction {
     executionId: string,
     executionRecord: unknown,
     kernelFinalizedOutputs?: readonly KernelFinalizedScenarioOutput[],
+    beforeCommit?: () => Promise<RepositoryResult<undefined>>,
   ): Promise<RepositoryResult<ScenarioMutationPublication>>;
 }
 
@@ -116,6 +117,7 @@ export async function loadRepositoryInspection(
             executionId,
             executionRecord,
             kernelFinalizedOutputs = [],
+            beforeCommit,
           ) {
             const before = currentData();
             const result = await publishScenarioMutationData(
@@ -127,7 +129,11 @@ export async function loadRepositoryInspection(
               executionId,
               executionRecord,
               kernelFinalizedOutputs,
-              () => verifyRepositoryDataSources(root, before),
+              async () => {
+                const sources = await verifyRepositoryDataSources(root, before);
+                if (!sources.ok || !beforeCommit) return sources;
+                return beforeCommit();
+              },
             );
             if (!result.ok) return result;
             const stored = deriveLifecycleRecordStorage(processPackage, [
