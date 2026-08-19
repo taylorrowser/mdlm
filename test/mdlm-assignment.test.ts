@@ -34,7 +34,11 @@ function git(repository: string, ...arguments_: string[]) {
   });
 }
 
-function holdPublicationLock(repository: string, pid: number): string {
+function holdRepositoryLock(
+  repository: string,
+  reference: string,
+  pid: number,
+): string {
   const owner = spawnSync(
     "git",
     ["-C", repository, "hash-object", "-w", "--stdin"],
@@ -43,7 +47,7 @@ function holdPublicationLock(repository: string, pid: number): string {
       input: `${JSON.stringify({
         expiresAt: Date.now() + 60_000,
         pid,
-        token: "test",
+        token: `test-${reference}`,
       })}\n`,
     },
   );
@@ -52,12 +56,20 @@ function holdPublicationLock(repository: string, pid: number): string {
   const locked = git(
     repository,
     "update-ref",
-    "refs/mdlm/publication-lock",
+    reference,
     objectId,
     "0000000000000000000000000000000000000000",
   );
   expect(locked.status, locked.stderr).toBe(0);
   return objectId;
+}
+
+function holdPublicationLock(repository: string, pid: number): string {
+  return holdRepositoryLock(
+    repository,
+    "refs/mdlm/publication-lock",
+    pid,
+  );
 }
 
 type PreparedPromptPacket = {
@@ -636,6 +648,312 @@ describe("MDLM Assignment leasing and preparation", () => {
       malformedResponses: [],
     }));
   });
+
+  it("does not let a losing concurrent submission overwrite a fresh Assignment", async () => {
+    const next = JSON.parse(mdlm(repository, "next").stdout);
+    const assignment = next.assignment.id as string;
+    const packet = JSON.parse(mdlm(
+      repository,
+      "scenario",
+      "prepare",
+      assignment,
+    ).stdout) as PreparedPromptPacket;
+    const response = `${JSON.stringify(wayfindingResponse(
+      assignment,
+      packet.prompt.skills.map((skill) => skill.reference),
+    ))}\n`;
+    const lockOwner = holdPublicationLock(repository, process.pid);
+    const activeLeasePath = path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    );
+    const stagingRoot = path.join(repository, ".lifecycle");
+    const waitForStagingCount = async (expected: number): Promise<void> => {
+      const staged = () => fs.readdir(stagingRoot).then((entries) =>
+        entries.filter((entry) =>
+          entry.startsWith(".scenario-") && entry.endsWith(".tmp")
+        ).length
+      );
+      if (await staged() >= expected) return;
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          watcher.close();
+          reject(new Error(`Expected ${expected} staged submissions`));
+        }, 10_000);
+        const watcher = watch(stagingRoot, async () => {
+          try {
+            if (await staged() >= expected) {
+              clearTimeout(timeout);
+              watcher.close();
+              resolve();
+            }
+          } catch (error) {
+            clearTimeout(timeout);
+            watcher.close();
+            reject(error);
+          }
+        });
+      });
+    };
+    const runSubmission = () => {
+      const child = spawn(
+        process.execPath,
+        [mdlmExecutable, "scenario", "submit"],
+        { cwd: repository, stdio: ["pipe", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => stdout += chunk);
+      child.stderr.on("data", (chunk: string) => stderr += chunk);
+      child.stdin.end(response);
+      const closed = new Promise<number | null>((resolve) =>
+        child.on("close", resolve)
+      );
+      return { child, closed, output: () => ({ stdout, stderr }) };
+    };
+
+    const losing = runSubmission();
+    await waitForStagingCount(1);
+    expect(losing.child.pid).toBeTypeOf("number");
+    process.kill(losing.child.pid!, "SIGSTOP");
+    const winning = runSubmission();
+    await waitForStagingCount(2);
+    expect(git(
+      repository,
+      "update-ref",
+      "-d",
+      "refs/mdlm/publication-lock",
+      lockOwner,
+    ).status).toBe(0);
+
+    const winningStatus = await winning.closed;
+    const winningOutput = winning.output();
+    expect(
+      winningStatus,
+      `${winningOutput.stderr}${winningOutput.stdout}`,
+    ).toBe(0);
+    const fresh = JSON.parse(mdlm(repository, "next").stdout);
+    expect(fresh.assignment.id).not.toBe(assignment);
+    const freshLease = await fs.readFile(activeLeasePath, "utf8");
+
+    process.kill(losing.child.pid!, "SIGCONT");
+    const losingStatus = await losing.closed;
+    const losingOutput = losing.output();
+    expect(
+      losingStatus,
+      `${losingOutput.stderr}${losingOutput.stdout}`,
+    ).toBe(1);
+    expect(JSON.parse(losingOutput.stdout)).toEqual(expect.objectContaining({
+      diagnostics: [expect.objectContaining({
+        code: "assignment-unavailable",
+      })],
+    }));
+    expect(await fs.readFile(activeLeasePath, "utf8")).toBe(freshLease);
+  });
+
+  it.each([
+    ["malformed", "{not-json\n"],
+    ["unable", undefined],
+  ] as const)(
+    "does not let a %s response overwrite a fresh Assignment after a valid response publishes",
+    async (kind, malformedSource) => {
+      const next = JSON.parse(mdlm(repository, "next").stdout);
+      const assignment = next.assignment.id as string;
+      const packet = JSON.parse(mdlm(
+        repository,
+        "scenario",
+        "prepare",
+        assignment,
+      ).stdout) as PreparedPromptPacket;
+      const validResponse = `${JSON.stringify(wayfindingResponse(
+        assignment,
+        packet.prompt.skills.map((skill) => skill.reference),
+      ))}\n`;
+      const losingResponse = malformedSource ?? `${JSON.stringify({
+        contract: "mdlm-assignment-response@1",
+        assignment,
+        kind: "unable",
+        unable: {
+          reason: "execution-failure",
+          diagnostics: [{
+            code: "unable-execution-failure",
+            message: "The concurrent worker could not complete.",
+            path: "assignment",
+          }],
+        },
+      })}\n`;
+      const leaseLockRef = "refs/mdlm/assignment-lease-lock";
+      const lockOwner = holdRepositoryLock(
+        repository,
+        leaseLockRef,
+        process.pid,
+      );
+      const barrierRoot = path.join(parent, "git-barrier");
+      const barrierSignal = path.join(barrierRoot, "lease-lock-attempted");
+      const realGit = spawnSync("which", ["git"], { encoding: "utf8" })
+        .stdout.trim();
+      await fs.mkdir(barrierRoot);
+      const gitWrapper = path.join(barrierRoot, "git");
+      await fs.writeFile(gitWrapper, `#!/bin/sh\ncase " $* " in\n  *" ${leaseLockRef} "*) : > "$MDLM_TEST_LOCK_SIGNAL" ;;\nesac\nexec "${realGit}" "$@"\n`);
+      await fs.chmod(gitWrapper, 0o755);
+      const waitForPath = async (
+        watchedRoot: string,
+        target: string,
+        message: string,
+      ): Promise<void> => {
+        try {
+          await fs.access(target);
+          return;
+        } catch {
+          // Wait for the process-level barrier below.
+        }
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            watcher.close();
+            reject(new Error(message));
+          }, 10_000);
+          const watcher = watch(watchedRoot, async () => {
+            try {
+              await fs.access(target);
+              clearTimeout(timeout);
+              watcher.close();
+              resolve();
+            } catch {
+              // The observed event was unrelated to the barrier.
+            }
+          });
+        });
+      };
+      const spawnSubmission = (
+        response: string,
+        environment: NodeJS.ProcessEnv,
+      ) => {
+        const child = spawn(
+          process.execPath,
+          [mdlmExecutable, "scenario", "submit"],
+          {
+            cwd: repository,
+            env: environment,
+            stdio: ["pipe", "pipe", "pipe"],
+          },
+        );
+        let stdout = "";
+        let stderr = "";
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk: string) => stdout += chunk);
+        child.stderr.on("data", (chunk: string) => stderr += chunk);
+        child.stdin.end(response);
+        const closed = new Promise<number | null>((resolve) =>
+          child.on("close", resolve)
+        );
+        return { child, closed, output: () => ({ stdout, stderr }) };
+      };
+      const losing = spawnSubmission(losingResponse, {
+        ...process.env,
+        PATH: `${barrierRoot}:${process.env.PATH}`,
+        MDLM_TEST_LOCK_SIGNAL: barrierSignal,
+      });
+      await waitForPath(
+        barrierRoot,
+        barrierSignal,
+        `${kind} response did not reach the Assignment lease lock`,
+      );
+      process.kill(losing.child.pid!, "SIGSTOP");
+
+      const winning = spawnSubmission(validResponse, {
+        ...process.env,
+        MDLM_PERFORMANCE: "json",
+      });
+      const transactionsRoot = path.join(
+        repository,
+        ".lifecycle/data/.transactions",
+      );
+      const waitForPublishedTransaction = async (): Promise<void> => {
+        const published = async () => {
+          try {
+            const entries = await fs.readdir(transactionsRoot);
+            return entries.length === 1;
+          } catch {
+            return false;
+          }
+        };
+        if (await published()) return;
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            watcher.close();
+            reject(new Error("Valid response did not publish its transaction"));
+          }, 10_000);
+          const watcher = watch(
+            path.join(repository, ".lifecycle/data"),
+            { recursive: true },
+            async () => {
+              if (await published()) {
+                clearTimeout(timeout);
+                watcher.close();
+                resolve();
+              }
+            },
+          );
+        });
+      };
+      await waitForPublishedTransaction();
+      expect(git(
+        repository,
+        "update-ref",
+        "-d",
+        leaseLockRef,
+        lockOwner,
+      ).status).toBe(0);
+      const winningStatus = await winning.closed;
+      const winningOutput = winning.output();
+      expect(
+        winningStatus,
+        `${winningOutput.stderr}${winningOutput.stdout}`,
+      ).toBe(0);
+      const performance = JSON.parse(
+        winningOutput.stderr.split("\n").find((line) => line.startsWith("{"))!,
+      );
+      expect(performance.repository.loads).toBe(1);
+      expect(performance.work).toEqual(expect.objectContaining({
+        "repository.parse.records": 0,
+        "repository.provenance.records": 0,
+        "repository.validation.records": 0,
+      }));
+
+      const fresh = JSON.parse(mdlm(repository, "next").stdout);
+      expect(fresh.assignment.id).not.toBe(assignment);
+      const activeLeasePath = path.join(
+        repository,
+        ".lifecycle/work/active-assignment.json",
+      );
+      const freshLease = await fs.readFile(activeLeasePath, "utf8");
+      process.kill(losing.child.pid!, "SIGCONT");
+      const losingStatus = await losing.closed;
+      const losingOutput = losing.output();
+      expect(
+        losingStatus,
+        `${losingOutput.stderr}${losingOutput.stdout}`,
+      ).toBe(1);
+      expect(JSON.parse(losingOutput.stdout).diagnostics).toEqual([
+        expect.objectContaining({ code: "assignment-unavailable" }),
+      ]);
+      expect(await fs.readFile(activeLeasePath, "utf8")).toBe(freshLease);
+      const transactions = await Promise.all(
+        (await fs.readdir(transactionsRoot)).map((entry) =>
+          fs.readFile(path.join(transactionsRoot, entry, "execution.json"), "utf8")
+            .then(JSON.parse)
+        ),
+      );
+      expect(transactions.filter((transaction) =>
+        transaction.response?.assignment === assignment
+      )).toHaveLength(1);
+      const doctor = mdlm(repository, "doctor", "--json");
+      expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+    },
+  );
 
   it("stops a corrected response when tracked state became stale and publishes nothing", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
