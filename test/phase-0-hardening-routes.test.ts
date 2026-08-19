@@ -2262,6 +2262,41 @@ describe("Phase 0 missing hardening routes", () => {
     expect(candidateSupport.map((item) => item.identity.revision_id)).not
       .toContain(unrelatedAuthority.datum.revision_id);
 
+    const change = record("CHG", "CHG-1030000030", {
+      title: "Bounded change carrying corrected intent forward",
+      rationale: "Prove change authority is additional to correction authority.",
+      scope: "accepted product intent",
+      planned_changes: ["carry the reviewed correction forward"],
+      implementation_order: "intent then review",
+      closure_criteria: ["the changed candidate preserves exact authority"],
+    }, { scenario: "analyze-change-impact@2" });
+    const changedCandidate = record("BSL", "BSL-1030000038", {
+      ...candidate.datum.payload,
+      title: "Changed candidate preserving foundation correction authority",
+    }, {
+      scenario: "create-stakeholder-change-candidate@1",
+      links: [{ type: "changed-under", target: change.datum.revision_id }],
+    });
+    const changedCandidateSupport = evaluateProcessDefinition(
+      processPackage,
+      snapshot([...records, change, changedCandidate]),
+      "selector",
+      "review-context-members-for@1",
+      { subject: changedCandidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(changedCandidateSupport.map((item) =>
+      item.identity.revision_id
+    )).toEqual(expect.arrayContaining([
+      change.datum.revision_id,
+      original.datum.revision_id,
+      failedCorrectionReview.datum.revision_id,
+      authority.datum.revision_id,
+      corrected.datum.revision_id,
+    ]));
+    expect(changedCandidateSupport.map((item) =>
+      item.identity.revision_id
+    )).not.toContain(unrelatedAuthority.datum.revision_id);
+
     const authoritySupport = evaluateProcessDefinition(
       processPackage,
       snapshot(records),

@@ -10,7 +10,6 @@ query:
   as: question
   where: >-
     candidate.payload.kind == "intent-level-candidate"
-    && none("changes-changed-under-subject@1", {subject: candidate})
     && none("newer-revisions-for@1", {subject: question})
     && exists("candidate-members-linking-question@1",
       {candidate: candidate, question: question})

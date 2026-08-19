@@ -2557,6 +2557,62 @@ describe("bootstrap Scenario participation Policies", () => {
       item.identity.revision_id
     )).not.toContain(deceptiveAnswer.datum.revision_id);
 
+    const change = lifecycleDatum("CHG", "CHG-9K3M9Q2D8F", {
+      title: "Bounded change carrying accepted intent forward",
+      rationale: "Prove change context does not replace Question authority.",
+      scope: "accepted product intent",
+      planned_changes: ["carry the exact accepted definition forward"],
+      implementation_order: "intent then review",
+      closure_criteria: ["the changed candidate preserves exact authority"],
+    }, { frozen: true, scenario: "analyze-change-impact@2" });
+    const changedCandidate = structuredClone(fixture.candidate);
+    changedCandidate.datum.id = "BSL-9K3M9Q2D8G";
+    changedCandidate.datum.revision_id = "BSL-9K3M9Q2D8G-r00001";
+    changedCandidate.datum.links = [{
+      type: "changed-under",
+      target: change.datum.revision_id,
+    }];
+    changedCandidate.datum.created_by.scenario =
+      "create-stakeholder-change-candidate@1";
+    const changedRecords = [...records, change, changedCandidate];
+    const changedCandidateSupport = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-7-change-control",
+        records: changedRecords,
+        dependencyComparisons: [],
+      },
+      "selector",
+      "review-context-members-for@1",
+      { subject: changedCandidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(changedCandidateSupport.map((item) =>
+      item.identity.revision_id
+    )).toEqual(expect.arrayContaining([
+      answeredQuestion.datum.revision_id,
+      answer.datum.revision_id,
+      change.datum.revision_id,
+    ]));
+    const unreviewedChangedAuthorities = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-7-change-control",
+        records: changedRecords.filter((record) =>
+          record.datum.revision_id !== reviewedAnswer.context.datum.revision_id
+          && record.datum.revision_id !== reviewedAnswer.review.datum.revision_id
+        ),
+        dependencyComparisons: [],
+      },
+      "selector",
+      "candidate-correction-authorities-requiring-review@1",
+      { candidate: changedCandidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(unreviewedChangedAuthorities.map((item) =>
+      item.identity.revision_id
+    )).toContain(answer.datum.revision_id);
+
     const refreshedCandidateContext = lifecycleDatum(
       "BSL",
       "BSL-9K3M9Q2D8F",
