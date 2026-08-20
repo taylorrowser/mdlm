@@ -1,4 +1,4 @@
-# MDLM bootstrap Example Process Package v0.59
+# MDLM bootstrap Example Process Package v0.73
 
 This package is the bounded Example Process Package shipped with the
 concept-validating MDLM profile. It defines `MAP`, `QST`, `DEC`, `ART`, `PSP`,
@@ -59,11 +59,16 @@ baselines; attended Gate Sign-off; and mechanically accepted intent. Failed
 Reviews and gate rejection remain immutable evidence and route to causal
 Correction, fresh Review, and return to the same gate.
 
-Questions preserve empirical and preferential participation. The mandatory
-initial product-intent Question receives immediate attended resolution before
-other Question work becomes eligible. Exact source boundaries freeze a QST
-Revision before same-lineage resolution. Checkpoint attention groups compatible
-Questions without satisfying or deferring them.
+Questions preserve empirical and preferential participation. The mandatory initial product-intent Question receives immediate attended
+resolution before other Question work becomes eligible. Its answered Revision
+stores one normalized, self-contained attended answer rather than a transcript.
+The initial Decision retains that answer exactly. A same-lineage correction may
+change it only through an explicit attended narrow, defer, or remove authority.
+Exact Review Contexts preserve the Question lineage, source boundary, answer
+authority, causal failed Review, and correction support. `compile-psp@3`
+receives the accepted current Decision without source access. Exact source
+boundaries freeze a QST Revision before same-lineage resolution. Checkpoint
+attention groups compatible Questions without satisfying or deferring them.
 Deferral and cancellation require exact scoped Decision evidence and Review.
 
 ### Phase 1 — assurance and pilot evidence

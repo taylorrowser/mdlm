@@ -19,12 +19,16 @@ reactivation condition and blocking impact. Cancellation must be intentional and
 reasoned.
 
 For a consequential answer, any deferral, or any cancellation, create one DEC
-with a `resolves` link to the exact input QST revision. A routine autonomous
-empirical answer may publish only the next QST Revision and its cited evidence;
+with a `resolves` link to the exact input QST revision. Normalize an attended
+product answer into one self-contained `attended_answer` on the answered QST.
+Keep the supplied behavior, boundaries, and constraints. Do not store a chat
+transcript. Copy that normalized answer exactly into the initial DEC `decision`.
+A routine autonomous empirical answer may publish only the next QST Revision and its cited evidence;
 do not manufacture a DEC merely to repeat the answer. Always create the next
 QST revision with state `answered`, `deferred`, or `cancelled`. Preserve the
 input QST's exact `kind`, `intent_scope`, and question text. An initial
-`intent_scope: product` Question must be answered, not deferred or cancelled.
+`intent_scope: product` Question must be answered, not deferred or cancelled,
+and its normalized attended answer must be self-contained.
 Do not rewrite the old question. Record alternatives and effective scope when material.
 A deferral is not an answer, and uncertainty must remain visible.
 

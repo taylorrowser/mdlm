@@ -34,7 +34,13 @@ completion: >-
   && updated_question.payload.state in ["answered", "deferred", "cancelled"]
   && (
     question.payload.intent_scope != "product"
-    || updated_question.payload.state == "answered"
+    || (
+      updated_question.payload.state == "answered"
+      && present(updated_question.payload.attended_answer)
+      && decision != null
+      && decision.payload.decision == updated_question.payload.attended_answer
+      && !present(decision.payload.attended_answer_change)
+    )
   )
   && (
     question.payload.kind != "empirical"

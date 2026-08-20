@@ -15,6 +15,7 @@ payload_schema:
     kind: {enum: [preferential, empirical]}
     intent_scope: {enum: [product]}
     question: {type: string, minLength: 1}
+    attended_answer: {type: string, minLength: 1}
     state: {enum: [open, answered, deferred, cancelled]}
     blocking_impact: {type: string, minLength: 1}
     reactivation_condition: {type: string, minLength: 1}
@@ -48,6 +49,18 @@ payload_schema:
     resolution_evidence: [prototype_evidence]
     prototype_evidence: [resolution_evidence]
   allOf:
+    - if:
+        properties:
+          intent_scope: {const: product}
+          state: {const: answered}
+        required: [intent_scope, state]
+      then:
+        required: [attended_answer]
+    - if: {required: [attended_answer]}
+      then:
+        properties:
+          kind: {const: preferential}
+          state: {const: answered}
     - if:
         properties:
           state: {const: deferred}
