@@ -11,16 +11,17 @@ for terminal input only when MDLM returns `attention-required`; otherwise it
 continues until MDLM reports a terminal outcome or a typed stop.
 
 The repository must start clean. Each successful Scenario transaction is checked
-with `mdlm doctor`, staged only from its exact canonical transaction directory,
-and committed as:
+with `mdlm doctor`, compared with the execution's exact declared output paths,
+staged only from those paths, checked again, and committed as:
 
 ```text
 mdlm: publish <scenario-reference> (<execution-id>)
 ```
 
-Run state is stored beneath the repository's private Git directory. Restarting the
-same command recovers a journaled `mdlm next` kernel materialization, submission,
-publication, doctor result, or Git commit. Every deterministic execution reported
+Run state is stored beneath the worktree's private Git directory, while ownership
+is locked at the common Git directory so linked worktrees cannot run concurrently.
+Restarting the same command recovers a captured response, journaled `mdlm next`
+kernel materialization, submission, publication, doctor result, or Git commit. Every deterministic execution reported
 by `mdlm-next@1.materializedExecutions` is doctor-checked and committed at its own
 transaction boundary. The final Assignment response bytes are durable. For an
 active checkpoint group, only the final normalized conclusions are retained and
@@ -52,6 +53,13 @@ mdlm-pi run . --mdlm /path/to/mdlm
 - `MDLM_PI_ASSIGNMENT_TIMEOUT_MS` — one pi Assignment timeout (default 900000)
 - `MDLM_PI_PROVIDER_RETRIES` — provider retry count (default 2)
 
-Exit status is `0` for Lifecycle Complete or Profile Boundary Reached, `2` for a
+`SIGHUP`, `SIGINT`, and `SIGTERM` abort the active MDLM process group and pi
+session before releasing ownership. Exit status is `0` for Lifecycle Complete or
+Profile Boundary Reached, `2` for a
 Process Dead End, `3` for Invalid, `4` for an Assignment disposition stop, `5` for
-a lock conflict, and `1` for operational failure.
+a lock conflict, and `1` for operational failure. Signal exits use `129`, `130`,
+or `143` respectively.
+
+The default package suite uses fake sessions and subprocesses. Set `MDLM_PI_LIVE=1`
+after both builds to enable the credentialed scratch-repository smoke test;
+`MDLM_PI_LIVE_PROVIDER` and `MDLM_PI_LIVE_MODEL` may constrain model selection.

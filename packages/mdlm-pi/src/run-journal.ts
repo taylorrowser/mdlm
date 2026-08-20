@@ -47,6 +47,7 @@ interface JournalBase {
     previousTransactionId: string | null;
     baseCommit: string;
     previousMalformedResponseDigests: string[];
+    completedProcesses: SubmissionProcess[];
     process?: SubmissionProcess;
   };
 }
@@ -59,6 +60,17 @@ export type RunJournalRecord =
         baseCommit: string;
         previousTransactionId: string | null;
         pending: PublicationEvidence[];
+      };
+    }
+  | {
+      contract: typeof journalContract;
+      phase: "captured";
+      assignment: { id: string; scenario: string };
+      submission: {
+        source: string;
+        digest: `sha256:${string}`;
+        replacementDigest: `sha256:${string}` | null;
+        completedProcesses: SubmissionProcess[];
       };
     }
   | JournalBase & { phase: "submitting" }
@@ -183,14 +195,56 @@ export class RunJournal {
     });
   }
 
-  async beginSubmission(intent: SubmissionIntent): Promise<void> {
-    if (await this.load() !== null) {
-      throw new RunJournalError("Cannot begin submission while recovery work remains in the run journal");
+  async captureSubmission(input: {
+    assignmentId: string;
+    scenario: string;
+    response: PreparedAssignmentSubmission;
+    replacementDigest?: `sha256:${string}`;
+  }): Promise<void> {
+    const current = await this.load();
+    let completedProcesses: SubmissionProcess[] = [];
+    if (input.replacementDigest === undefined) {
+      if (current !== null) {
+        throw new RunJournalError("Cannot capture a response while recovery work remains in the run journal");
+      }
+    } else {
+      if (
+        current?.phase !== "submitting" ||
+        current.assignment.id !== input.assignmentId ||
+        current.submission.digest !== input.replacementDigest ||
+        current.submission.process !== undefined
+      ) {
+        throw new RunJournalError("Cannot capture a correction without its exact completed submission");
+      }
+      completedProcesses = current.submission.completedProcesses;
     }
-    const sourceDigest = digest(intent.response.source);
-    if (sourceDigest !== intent.response.digest) {
-      throw new RunJournalError("Cannot journal an Assignment response whose digest does not match its exact source");
+    assertPreparedResponse(input.response);
+    await this.#write({
+      contract: journalContract,
+      phase: "captured",
+      assignment: { id: input.assignmentId, scenario: input.scenario },
+      submission: {
+        source: input.response.source,
+        digest: input.response.digest,
+        replacementDigest: input.replacementDigest ?? null,
+        completedProcesses,
+      },
+    });
+  }
+
+  async promoteCapturedSubmission(intent: SubmissionIntent): Promise<void> {
+    const current = await this.load();
+    if (
+      current?.phase !== "captured" || current.assignment.id !== intent.assignmentId ||
+      current.assignment.scenario !== intent.scenario ||
+      current.submission.source !== intent.response.source ||
+      current.submission.digest !== intent.response.digest ||
+      (current.submission.replacementDigest !== null &&
+        intent.previousMalformedResponseDigests.at(-1) !== current.submission.replacementDigest)
+    ) {
+      throw new RunJournalError("Submission facts do not match the exact captured response");
     }
+    assertPreparedResponse(intent.response);
     await this.#write({
       contract: journalContract,
       phase: "submitting",
@@ -201,8 +255,18 @@ export class RunJournal {
         previousTransactionId: intent.previousTransactionId,
         baseCommit: intent.baseCommit,
         previousMalformedResponseDigests: intent.previousMalformedResponseDigests,
+        completedProcesses: current.submission.completedProcesses,
       },
     });
+  }
+
+  async beginSubmission(intent: SubmissionIntent): Promise<void> {
+    await this.captureSubmission({
+      assignmentId: intent.assignmentId,
+      scenario: intent.scenario,
+      response: intent.response,
+    });
+    await this.promoteCapturedSubmission(intent);
   }
 
   async recordSubmissionProcess(process: SubmissionProcess): Promise<void> {
@@ -224,34 +288,12 @@ export class RunJournal {
     if (current?.phase !== "submitting" || current.submission.process === undefined) {
       throw new RunJournalError("A completed child process requires one started submission intent");
     }
-    const { process: _process, ...submission } = current.submission;
-    await this.#write({ ...current, submission });
-  }
-
-  async replaceSubmission(
-    expectedDigest: `sha256:${string}`,
-    intent: SubmissionIntent,
-  ): Promise<void> {
-    const current = await this.load();
-    if (current?.phase !== "submitting" || current.submission.digest !== expectedDigest) {
-      throw new RunJournalError("Cannot replace a submission without its exact correction journal");
-    }
-    if (current.assignment.id !== intent.assignmentId) {
-      throw new RunJournalError("Cannot replace a submission with a different Assignment");
-    }
-    if (digest(intent.response.source) !== intent.response.digest) {
-      throw new RunJournalError("Cannot journal an Assignment response whose digest does not match its exact source");
-    }
+    const { process, ...submission } = current.submission;
     await this.#write({
-      contract: journalContract,
-      phase: "submitting",
-      assignment: { id: intent.assignmentId, scenario: intent.scenario },
+      ...current,
       submission: {
-        source: intent.response.source,
-        digest: intent.response.digest,
-        previousTransactionId: intent.previousTransactionId,
-        baseCommit: intent.baseCommit,
-        previousMalformedResponseDigests: intent.previousMalformedResponseDigests,
+        ...submission,
+        completedProcesses: [...submission.completedProcesses, process],
       },
     });
   }
@@ -279,8 +321,30 @@ export class RunJournal {
   }
 
   async clear(): Promise<void> {
+    const current = await this.load();
+    if (current !== null && current.phase !== "advancing") {
+      const processes = current.phase === "captured"
+        ? current.submission.completedProcesses
+        : [
+            ...current.submission.completedProcesses,
+            ...(current.submission.process === undefined ? [] : [current.submission.process]),
+          ];
+      await Promise.all(processes.flatMap((process) => [
+        this.#removeAttemptFile(process.stdoutPath),
+        this.#removeAttemptFile(process.stderrPath),
+      ]));
+    }
     await rm(this.#journalPath, { force: true });
     await syncDirectory(this.#directory);
+  }
+
+  async #removeAttemptFile(filePath: string): Promise<void> {
+    const attemptsDirectory = path.resolve(this.#directory, "attempts");
+    const resolved = path.resolve(filePath);
+    if (path.dirname(resolved) !== attemptsDirectory) {
+      throw new RunJournalError(`Refusing to remove an attempt file outside '${attemptsDirectory}'`);
+    }
+    await rm(resolved, { force: true });
   }
 
   async #write(record: RunJournalRecord): Promise<void> {
@@ -364,6 +428,34 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
       },
     };
   }
+  if (value.phase === "captured") {
+    const assignment = value.assignment;
+    const submission = value.submission;
+    if (
+      !isObject(assignment) || typeof assignment.id !== "string" ||
+      typeof assignment.scenario !== "string" || !isObject(submission) ||
+      typeof submission.source !== "string" || typeof submission.digest !== "string" ||
+      !/^sha256:[0-9a-f]{64}$/.test(submission.digest) ||
+      (submission.replacementDigest !== null &&
+        (typeof submission.replacementDigest !== "string" ||
+          !/^sha256:[0-9a-f]{64}$/.test(submission.replacementDigest))) ||
+      !validCompletedProcesses(submission.completedProcesses) ||
+      digest(submission.source) !== submission.digest
+    ) {
+      throw new RunJournalError(`Malformed captured response journal: ${journalPath}`);
+    }
+    return {
+      contract: journalContract,
+      phase: "captured",
+      assignment: { id: assignment.id, scenario: assignment.scenario },
+      submission: {
+        source: submission.source,
+        digest: submission.digest as `sha256:${string}`,
+        replacementDigest: submission.replacementDigest as `sha256:${string}` | null,
+        completedProcesses: submission.completedProcesses,
+      },
+    };
+  }
   if (value.phase !== "submitting" && value.phase !== "published" && value.phase !== "doctor-passed") {
     throw new RunJournalError(`Unsupported run journal phase: ${journalPath}`);
   }
@@ -379,7 +471,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
     !Array.isArray(submission.previousMalformedResponseDigests) ||
     !submission.previousMalformedResponseDigests.every((item) =>
       typeof item === "string" && /^sha256:[0-9a-f]{64}$/.test(item)
-    )
+    ) || !validCompletedProcesses(submission.completedProcesses)
   ) {
     throw new RunJournalError(`Malformed run journal: ${journalPath}`);
   }
@@ -398,6 +490,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
       previousTransactionId: submission.previousTransactionId,
       baseCommit: submission.baseCommit,
       previousMalformedResponseDigests: submission.previousMalformedResponseDigests,
+      completedProcesses: submission.completedProcesses,
       ...(submission.process ? { process: submission.process } : {}),
     },
   };
@@ -443,6 +536,18 @@ function validSubmissionProcess(value: unknown): value is SubmissionProcess {
     typeof value.pid === "number" && Number.isSafeInteger(value.pid) && value.pid > 0 &&
     typeof value.stdoutPath === "string" && value.stdoutPath.length > 0 &&
     typeof value.stderrPath === "string" && value.stderrPath.length > 0;
+}
+
+function validCompletedProcesses(value: unknown): value is SubmissionProcess[] {
+  return Array.isArray(value) && value.every(validSubmissionProcess);
+}
+
+function assertPreparedResponse(response: PreparedAssignmentSubmission): void {
+  if (digest(response.source) !== response.digest) {
+    throw new RunJournalError(
+      "Cannot journal an Assignment response whose digest does not match its exact source",
+    );
+  }
 }
 
 function digest(source: string): `sha256:${string}` {

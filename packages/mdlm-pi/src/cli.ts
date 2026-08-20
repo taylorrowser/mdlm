@@ -26,7 +26,8 @@ async function main(arguments_: string[]): Promise<number> {
   const repository = path.resolve(parsed.repository);
   const git = new GitPublisher({ repository });
   const stateDirectory = path.join(await git.gitDirectory(), "mdlm-pi");
-  const lock = await RunLock.acquire(stateDirectory);
+  const ownerDirectory = path.join(await git.commonGitDirectory(), "mdlm-pi-owner");
+  const lock = await RunLock.acquire(ownerDirectory);
   try {
     const io = new TerminalOperatorIO();
     const assignments = new PiAssignmentRunner({
@@ -41,25 +42,48 @@ async function main(arguments_: string[]): Promise<number> {
       ...(parsed.thinking ? { thinkingLevel: parsed.thinking } : {}),
       onText: (text) => process.stdout.write(text),
     });
+    const mdlm = new MdlmClient({
+      repository,
+      command: { program: parsed.mdlm },
+      timeoutMs: environmentInteger("MDLM_PI_COMMAND_TIMEOUT_MS", 30_000),
+      attemptDirectory: path.join(stateDirectory, "attempts"),
+    });
+    const interruption = new AbortController();
+    let interruptedBy: NodeJS.Signals | undefined;
+    const handlers = new Map<NodeJS.Signals, () => void>();
+    for (const signal of ["SIGHUP", "SIGINT", "SIGTERM"] as const) {
+      const handler = () => {
+        interruptedBy = signal;
+        interruption.abort();
+        mdlm.abort();
+        void assignments.dispose();
+      };
+      handlers.set(signal, handler);
+      process.once(signal, handler);
+    }
     try {
       const controller = new RunController({
-        mdlm: new MdlmClient({
-          repository,
-          command: { program: parsed.mdlm },
-          timeoutMs: environmentInteger("MDLM_PI_COMMAND_TIMEOUT_MS", 30_000),
-          attemptDirectory: path.join(stateDirectory, "attempts"),
-        }),
+        mdlm,
         assignments,
         io,
         git,
         journal: new RunJournal(stateDirectory),
+        signal: interruption.signal,
       });
-      const stopped = await controller.run();
-      if (stopped.successful) return 0;
-      if (stopped.status === "process-dead-end") return exitStatus.processDeadEnd;
-      if (stopped.status === "invalid") return exitStatus.invalid;
-      return exitStatus.assignmentStopped;
+      try {
+        const stopped = await controller.run();
+        if (stopped.successful) return 0;
+        if (stopped.status === "process-dead-end") return exitStatus.processDeadEnd;
+        if (stopped.status === "invalid") return exitStatus.invalid;
+        return exitStatus.assignmentStopped;
+      } catch (error) {
+        if (interruptedBy === undefined) throw error;
+        io.stopped("interrupted", { signal: interruptedBy });
+        return signalExitStatus(interruptedBy);
+      }
     } finally {
+      for (const [signal, handler] of handlers) process.removeListener(signal, handler);
+      mdlm.abort();
       await assignments.dispose();
     }
   } finally {
@@ -97,6 +121,12 @@ function parseArguments(arguments_: string[]): {
 
 function isThinkingLevel(value: string): value is ThinkingLevel {
   return ["off", "minimal", "low", "medium", "high", "xhigh", "max"].includes(value);
+}
+
+function signalExitStatus(signal: NodeJS.Signals): number {
+  if (signal === "SIGHUP") return 129;
+  if (signal === "SIGINT") return 130;
+  return 143;
 }
 
 function environmentInteger(name: string, fallback: number): number {

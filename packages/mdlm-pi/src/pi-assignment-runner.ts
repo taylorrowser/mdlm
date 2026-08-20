@@ -19,6 +19,22 @@ An attended conclusion supplies only the packet's exact named authority; normali
 Call complete_assignment exactly once as your final action.
 Return typed inability instead of asking a user or fabricating missing facts.`;
 
+export function assignmentCompletionParameters(packet: AssignmentPacket) {
+  return Type.Unsafe(packet.responseSchema);
+}
+
+export function assignmentRetryPolicy(assignmentTimeoutMs: number, providerRetries: number) {
+  return {
+    enabled: true,
+    maxRetries: providerRetries,
+    provider: {
+      maxRetries: providerRetries,
+      timeoutMs: Math.min(assignmentTimeoutMs, 120_000),
+      maxRetryDelayMs: 30_000,
+    },
+  };
+}
+
 export interface AssignmentCorrection {
   previousResponse: JsonObject;
   diagnostics: JsonValue;
@@ -65,6 +81,7 @@ interface ActiveSession {
   unsubscribe: () => void;
   acceptingResponse: boolean;
   response?: JsonObject;
+  completionError?: PiAssignmentRunnerError;
 }
 
 /** One isolated probabilistic worker behind one structured Assignment seam. */
@@ -96,9 +113,6 @@ export class PiAssignmentRunner {
     if (active !== undefined && options.correction === undefined) {
       throw new PiAssignmentRunnerError(`Assignment '${assignmentId}' already owns a Pi session`);
     }
-    if (active === undefined) active = await this.#createActiveSession(packet);
-    delete active.response;
-    active.acceptingResponse = true;
 
     const timeout = AbortSignal.timeout(this.#assignmentTimeoutMs);
     const timedOut = new Promise<never>((_resolve, reject) => {
@@ -108,24 +122,36 @@ export class PiAssignmentRunner {
         ));
       }, { once: true });
     });
+    let creating: Promise<ActiveSession> | undefined;
+    if (active === undefined) {
+      creating = this.#createActiveSession(packet);
+      try {
+        active = await Promise.race([creating, timedOut]);
+      } catch (error) {
+        void creating.then(() => this.close(assignmentId)).catch(() => {});
+        throw error;
+      }
+    }
+    delete active.response;
+    delete active.completionError;
+    active.acceptingResponse = true;
 
     try {
       await Promise.race([
         active.session.prompt(buildPrompt(packet, options), { expandPromptTemplates: false }),
         timedOut,
       ]);
+      if (active.completionError !== undefined) throw active.completionError;
+      if (active.response === undefined) {
+        throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
+      }
+      return active.response;
     } catch (error) {
       await this.close(assignmentId);
       throw error;
     } finally {
       active.acceptingResponse = false;
     }
-
-    if (active.response === undefined) {
-      await this.close(assignmentId);
-      throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
-    }
-    return active.response;
   }
 
   async close(assignmentId: string): Promise<void> {
@@ -146,8 +172,16 @@ export class PiAssignmentRunner {
   async #createActiveSession(packet: AssignmentPacket): Promise<ActiveSession> {
     let active: ActiveSession | undefined;
     const capture = (response: JsonObject) => {
-      if (active === undefined || !active.acceptingResponse || active.response !== undefined) {
-        throw new Error(`Assignment '${packet.assignment.id}' called complete_assignment more than once`);
+      if (active === undefined || !active.acceptingResponse) {
+        throw new PiAssignmentRunnerError(
+          `Assignment '${packet.assignment.id}' completed outside its response window`,
+        );
+      }
+      if (active.response !== undefined) {
+        active.completionError = new PiAssignmentRunnerError(
+          `Assignment '${packet.assignment.id}' called complete_assignment more than once`,
+        );
+        return;
       }
       active.response = response;
     };
@@ -173,7 +207,7 @@ export class PiAssignmentRunner {
       name: "complete_assignment",
       label: "Complete Assignment",
       description: "Return the complete MDLM Assignment Response as the final action.",
-      parameters: Type.Unsafe(packet.responseSchema),
+      parameters: assignmentCompletionParameters(packet),
       async execute(_toolCallId, parameters) {
         if (!isJsonObject(parameters)) {
           throw new PiAssignmentRunnerError("complete_assignment returned a non-object response");
@@ -191,15 +225,7 @@ export class PiAssignmentRunner {
       ...(this.#model ? { defaultModel: this.#model } : {}),
       ...(this.#thinkingLevel ? { defaultThinkingLevel: this.#thinkingLevel } : {}),
       compaction: { enabled: false },
-      retry: {
-        enabled: true,
-        maxRetries: this.#providerRetries,
-        provider: {
-          maxRetries: this.#providerRetries,
-          timeoutMs: Math.min(this.#assignmentTimeoutMs, 120_000),
-          maxRetryDelayMs: 30_000,
-        },
-      },
+      retry: assignmentRetryPolicy(this.#assignmentTimeoutMs, this.#providerRetries),
     });
     const { session } = await createAgentSession({
       cwd: this.#repository,

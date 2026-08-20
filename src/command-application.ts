@@ -128,6 +128,7 @@ interface CommandResultBase {
   command?: string;
   contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"];
   outcome?: AssignmentOutcome["outcome"] | "invalid";
+  materializedExecutions?: AssignmentOutcome["materializedExecutions"];
   assignment?: { id: string };
   scenarioReference?: string;
   disposition?: AssignmentDisposition["disposition"] | Extract<AssignmentState, { selected: true }>["disposition"];
@@ -1100,6 +1101,7 @@ async function showNextAssignment(
         contract: "mdlm-next@1",
         outcome: "invalid",
         integrity: { status: "invalid" },
+        materializedExecutions: [],
         diagnostics: leased.diagnostics,
       };
 }
@@ -1124,6 +1126,7 @@ async function showOperatorStatus(
           outcome: "invalid",
           diagnostics: inspected.diagnostics,
         },
+        recentTransaction: { available: false },
         diagnostics: inspected.diagnostics,
       };
 }

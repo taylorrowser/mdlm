@@ -80,6 +80,71 @@ describe("GitPublisher", () => {
     expect(git("status", "--short")).toBe("");
   });
 
+  it("refuses extra paths even when they are inside the transaction directory", async () => {
+    const transaction = path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      executionId,
+    );
+    await fs.mkdir(transaction, { recursive: true });
+    await fs.writeFile(path.join(transaction, "datum.md"), "published\n");
+    await fs.writeFile(path.join(transaction, "extra.md"), "not declared\n");
+
+    await expect(publisher.publicationCommitState(publication, baseCommit))
+      .resolves.toMatchObject({ state: "ambiguous" });
+    await expect(publisher.commit(publication, baseCommit))
+      .rejects.toThrow("paths differ");
+  });
+
+  it("fails before staging when configured Git identity is unavailable", async () => {
+    git("config", "user.name", "");
+    git("config", "user.email", "");
+    const transaction = path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      executionId,
+    );
+    await fs.mkdir(transaction, { recursive: true });
+    await fs.writeFile(path.join(transaction, "datum.md"), "published\n");
+
+    await expect(publisher.commit(publication, baseCommit))
+      .rejects.toThrow("user.name and user.email");
+    expect(git("diff", "--cached", "--name-only")).toBe("");
+  });
+
+  it("reports a failed ordinary Git commit and leaves the exact staged transaction", async () => {
+    const transaction = path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      executionId,
+    );
+    await fs.mkdir(transaction, { recursive: true });
+    await fs.writeFile(path.join(transaction, "datum.md"), "published\n");
+    const hook = path.join(repository, ".git/hooks/pre-commit");
+    await fs.writeFile(hook, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+
+    await expect(publisher.commit(publication, baseCommit))
+      .rejects.toBeInstanceOf(GitPublisherError);
+    expect(git("diff", "--cached", "--name-only").trim()).toBe(
+      `.lifecycle/data/.transactions/${executionId}/datum.md`,
+    );
+    expect(await publisher.head()).toBe(baseCommit);
+  });
+
+  it("ignores ambient GIT_DIR redirection", async () => {
+    const other = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-other-git-"));
+    const previous = process.env.GIT_DIR;
+    try {
+      execFileSync("git", ["init", "--quiet"], { cwd: other });
+      process.env.GIT_DIR = path.join(other, ".git");
+      await expect(publisher.head()).resolves.toBe(baseCommit);
+    } finally {
+      if (previous === undefined) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = previous;
+      await fs.rm(other, { recursive: true, force: true });
+    }
+  });
+
   it("refuses to absorb a path outside the canonical transaction", async () => {
     const transaction = path.join(
       repository,

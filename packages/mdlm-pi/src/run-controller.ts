@@ -28,8 +28,9 @@ type GitPort = Pick<GitPublisher,
 >;
 type JournalPort = Pick<RunJournal,
   "load" | "beginAdvancement" | "recordAdvancementExecutions" |
-  "completeAdvancementExecution" | "beginSubmission" | "replaceSubmission" |
-  "recordSubmissionProcess" | "clearSubmissionProcess" | "recordPublication" |
+  "completeAdvancementExecution" | "captureSubmission" |
+  "promoteCapturedSubmission" | "recordSubmissionProcess" |
+  "clearSubmissionProcess" | "recordPublication" |
   "recordDoctorPassed" | "clear" | "loadAttendedConclusions" |
   "recordAttendedConclusions" | "clearAttendedConclusions"
 >;
@@ -40,6 +41,7 @@ export interface RunControllerOptions {
   io: OperatorIO;
   git: GitPort;
   journal: JournalPort;
+  signal?: AbortSignal;
 }
 
 export interface RunStop {
@@ -65,6 +67,7 @@ export class RunController {
   readonly #io: OperatorIO;
   readonly #git: GitPort;
   readonly #journal: JournalPort;
+  readonly #signal: AbortSignal | undefined;
 
   constructor(options: RunControllerOptions) {
     this.#mdlm = options.mdlm;
@@ -72,13 +75,25 @@ export class RunController {
     this.#io = options.io;
     this.#git = options.git;
     this.#journal = options.journal;
+    this.#signal = options.signal;
   }
 
   async run(): Promise<RunStop> {
+    this.#ensureRunning();
     const recovered = await this.#recover();
     if (recovered?.kind === "stopped") return this.#report(recovered.stop);
     if (recovered?.kind === "correction") {
       const packet = await this.#mdlm.prepare(recovered.assignmentId);
+      const status = await this.#mdlm.status();
+      const outcome = status.currentOutcome;
+      let attendedContext: JsonObject | undefined;
+      if (outcome.outcome === "attention-required") {
+        const assignment = asObject(outcome.assignment, "status.currentOutcome.assignment");
+        if (assignment.id !== recovered.assignmentId) {
+          throw new Error("Correction recovery observed a different attended Assignment");
+        }
+        attendedContext = await this.#attendedContext(outcome);
+      }
       const corrected = await this.#completeAssignment(
         packet,
         {
@@ -86,6 +101,7 @@ export class RunController {
             previousResponse: recovered.previousResponse,
             diagnostics: recovered.diagnostics,
           },
+          ...(attendedContext === undefined ? {} : { attendedContext }),
         },
         recovered.replacementDigest,
       );
@@ -94,6 +110,7 @@ export class RunController {
 
     await this.#git.assertClean();
     while (true) {
+      this.#ensureRunning();
       const status = await this.#mdlm.status();
       const outcome = status.currentOutcome;
       if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
@@ -164,7 +181,13 @@ export class RunController {
     const supplied = await this.#io.attention(outcome);
     const recorded = await this.#journal.recordAttendedConclusions({
       ...group,
-      conclusion: supplied.conclusion,
+      conclusion: {
+        authority: group.authority,
+        checkpoint: group.checkpoint,
+        consolidationGroup: group.consolidationGroup,
+        itemInstances: group.items,
+        conclusion: supplied.conclusion,
+      },
     });
     return attendedAuthorityContext(outcome, recorded.conclusion);
   }
@@ -210,7 +233,14 @@ export class RunController {
         await this.#assignments.close?.(packet.assignment.id);
         throw error;
       }
-      const submitted = await this.#submit(packet, response, replacementDigest);
+      const prepared = this.#mdlm.prepareSubmission(response);
+      await this.#journal.captureSubmission({
+        assignmentId: packet.assignment.id,
+        scenario: packet.scenario.reference,
+        response: prepared,
+        ...(replacementDigest === undefined ? {} : { replacementDigest }),
+      });
+      const submitted = await this.#submitCaptured(packet, response, prepared);
       if (submitted.kind === "published") {
         await this.#assignments.close?.(packet.assignment.id);
         return null;
@@ -234,34 +264,29 @@ export class RunController {
     }
   }
 
-  async #submit(
+  async #submitCaptured(
     packet: AssignmentPacket,
     response: JsonObject,
-    replacementDigest?: `sha256:${string}`,
+    prepared: PreparedAssignmentSubmission,
   ): Promise<SubmissionResult> {
     const assignmentState = await this.#mdlm.assignment(packet.assignment.id);
     if (!assignmentState.selected || assignmentState.disposition !== "active") {
       throw new Error(`Assignment '${packet.assignment.id}' is not an active durable lease`);
     }
     const status = await this.#mdlm.status();
-    const prepared = this.#mdlm.prepareSubmission(response);
-    const intent = {
+    await this.#journal.promoteCapturedSubmission({
       assignmentId: packet.assignment.id,
       scenario: packet.scenario.reference,
       previousTransactionId: recentTransactionId(status.recentTransaction),
       baseCommit: await this.#git.head(),
       previousMalformedResponseDigests: malformedDigests(assignmentState),
       response: prepared,
-    };
-    if (replacementDigest === undefined) {
-      await this.#journal.beginSubmission(intent);
-    } else {
-      await this.#journal.replaceSubmission(replacementDigest, intent);
-    }
+    });
 
     const submission = await this.#mdlm.submit(prepared, {
       started: (process) => this.#journal.recordSubmissionProcess(process),
     });
+    await this.#completeObservedSubmissionProcess();
     return this.#consumeSubmission(packet, response, prepared, submission);
   }
 
@@ -292,7 +317,6 @@ export class RunController {
         replacementDigest: prepared.digest,
       };
     }
-    await this.#journal.clear();
     return {
       kind: "stopped",
       stop: {
@@ -316,11 +340,49 @@ export class RunController {
   > {
     let record = await this.#journal.load();
     if (record === null) return null;
+    if (record.phase === "captured") {
+      this.#io.progress(`Recovering captured response for Assignment ${record.assignment.id}`);
+      const packet = await this.#mdlm.prepare(record.assignment.id);
+      if (packet.scenario.reference !== record.assignment.scenario) {
+        throw new Error(`Captured Assignment '${record.assignment.id}' changed Scenario identity`);
+      }
+      const response = parseResponseSource(record.submission.source);
+      const submitted = await this.#submitCaptured(packet, response, {
+        response,
+        source: record.submission.source,
+        digest: record.submission.digest,
+      });
+      if (submitted.kind === "published") return null;
+      if (submitted.kind === "stopped") return submitted;
+      return {
+        kind: "correction",
+        assignmentId: record.assignment.id,
+        previousResponse: submitted.previousResponse,
+        diagnostics: submitted.diagnostics,
+        replacementDigest: submitted.replacementDigest,
+      };
+    }
     if (record.phase === "advancing") {
       this.#io.progress("Recovering interrupted mdlm next materialization");
       if (record.advancement.pending.length === 0) {
+        if (await this.#git.head() !== record.advancement.baseCommit) {
+          throw new Error("HEAD changed during interrupted mdlm next recovery");
+        }
+        const pendingIds = await this.#git.pendingTransactionIds();
+        const status = await this.#mdlm.status();
+        const recentId = recentTransactionId(status.recentTransaction);
+        if (pendingIds.length === 0) {
+          if (recentId !== record.advancement.previousTransactionId) {
+            throw new Error("mdlm next changed recent transaction without visible transaction files");
+          }
+        } else if (
+          recentId === null || recentId === record.advancement.previousTransactionId ||
+          !pendingIds.includes(recentId)
+        ) {
+          throw new Error("mdlm next worktree and recent transaction evidence contradict each other");
+        }
         const publications = await Promise.all(
-          (await this.#git.pendingTransactionIds()).map(async (id) =>
+          pendingIds.map(async (id) =>
             publicationFromMaterialization((await this.#mdlm.execution(id)).execution)
           ),
         );
@@ -400,7 +462,6 @@ export class RunController {
       if (persistedResponse?.digest !== record.submission.digest) {
         throw new Error(`Abandoned Assignment '${record.assignment.id}' has an unexpected response digest`);
       }
-      await this.#journal.clear();
       return {
         kind: "stopped",
         stop: {
@@ -411,7 +472,6 @@ export class RunController {
       };
     }
     if (state.disposition === "exhausted" || state.disposition === "stale") {
-      await this.#journal.clear();
       return {
         kind: "stopped",
         stop: {
@@ -452,6 +512,7 @@ export class RunController {
     const submission = await this.#mdlm.submit(prepared, {
       started: (process) => this.#journal.recordSubmissionProcess(process),
     });
+    await this.#completeObservedSubmissionProcess();
     if (submission.contract === "mdlm-scenario-execution@4") {
       const publication = publicationFromCommand(submission, {
         assignmentId: record.assignment.id,
@@ -472,11 +533,17 @@ export class RunController {
         replacementDigest: record.submission.digest,
       };
     }
-    await this.#journal.clear();
     return {
       kind: "stopped",
       stop: { status: `assignment-${disposition}`, details: submission, successful: false },
     };
+  }
+
+  async #completeObservedSubmissionProcess(): Promise<void> {
+    const current = await this.#journal.load();
+    if (current?.phase === "submitting" && current.submission.process !== undefined) {
+      await this.#journal.clearSubmissionProcess();
+    }
   }
 
   async #finishAdvancement(): Promise<void> {
@@ -507,7 +574,10 @@ export class RunController {
 
   async #finishPublication(): Promise<void> {
     let record = await this.#journal.load();
-    if (record === null || record.phase === "submitting" || record.phase === "advancing") {
+    if (
+      record === null || record.phase === "captured" ||
+      record.phase === "submitting" || record.phase === "advancing"
+    ) {
       throw new Error("Publication finalization requires journaled execution evidence");
     }
     if (record.phase === "published") {
@@ -522,6 +592,10 @@ export class RunController {
     const commit = await this.#git.commit(record.publication, record.submission.baseCommit);
     this.#io.progress(`Committed ${commit}: ${record.assignment.scenario}`);
     await this.#journal.clear();
+  }
+
+  #ensureRunning(): void {
+    if (this.#signal?.aborted) throw new Error("mdlm-pi run interrupted");
   }
 
   #report(stop: RunStop): RunStop {

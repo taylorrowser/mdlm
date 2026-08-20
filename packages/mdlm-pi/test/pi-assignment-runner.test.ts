@@ -1,6 +1,9 @@
+import { Check } from "typebox/value";
 import { describe, expect, it, vi } from "vitest";
 import type { AssignmentPacket, JsonObject } from "../src/mdlm-client.js";
 import {
+  assignmentCompletionParameters,
+  assignmentRetryPolicy,
   PiAssignmentRunner,
   type PiAssignmentSession,
 } from "../src/pi-assignment-runner.js";
@@ -9,7 +12,7 @@ const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
 
 function packet(
   id = assignmentId,
-  scenario = "review-datum-in-context@2",
+  scenario = "independent-judgment@1",
 ): AssignmentPacket {
   return {
     contract: "mdlm-assignment-packet@2",
@@ -22,6 +25,42 @@ function packet(
 }
 
 describe("PiAssignmentRunner", () => {
+  it("binds the terminating tool to the exact packet response schema", () => {
+    const exactPacket = packet();
+    exactPacket.responseSchema = {
+      type: "object",
+      required: ["assignment", "proposal"],
+      properties: {
+        assignment: { const: assignmentId },
+        proposal: {
+          type: "object",
+          required: ["outputs"],
+          properties: { outputs: { type: "array" } },
+        },
+      },
+    };
+    const parameters = assignmentCompletionParameters(exactPacket);
+
+    expect(Check(parameters, { assignment: assignmentId })).toBe(false);
+    expect(Check(parameters, {
+      assignment: assignmentId,
+      proposal: { outputs: [] },
+    })).toBe(true);
+  });
+
+  it("uses a finite two-retry provider policy bounded by the Assignment timeout", () => {
+    expect(assignmentRetryPolicy(15 * 60_000, 2)).toEqual({
+      enabled: true,
+      maxRetries: 2,
+      provider: {
+        maxRetries: 2,
+        timeoutMs: 120_000,
+        maxRetryDelayMs: 30_000,
+      },
+    });
+    expect(assignmentRetryPolicy(5_000, 2).provider.timeoutMs).toBe(5_000);
+  });
+
   it("uses one isolated session for the initial response and its sole correction", async () => {
     const malformed: JsonObject = { assignment: assignmentId, malformed: true };
     const corrected: JsonObject = { assignment: assignmentId, corrected: true };
@@ -87,7 +126,7 @@ describe("PiAssignmentRunner", () => {
       sessionFactory,
     });
 
-    await runner.run(packet(authorId, "author-datum@1"), {
+    await runner.run(packet(authorId, "author-work@1"), {
       attendedContext: { conclusion: "private attended conclusion" },
     });
     await runner.close(authorId);
@@ -126,6 +165,37 @@ describe("PiAssignmentRunner", () => {
       "complete_assignment more than once",
     );
     expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts and disposes a session when the finite Assignment timeout expires", async () => {
+    const abort = vi.fn(async () => undefined);
+    const dispose = vi.fn();
+    const session: PiAssignmentSession = {
+      get isIdle() { return false; },
+      prompt: vi.fn(async () => new Promise<void>(() => {})),
+      abort,
+      dispose,
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 20,
+      sessionFactory: vi.fn(async () => session),
+    });
+
+    await expect(runner.run(packet())).rejects.toThrow("exceeded 20ms");
+    expect(abort).toHaveBeenCalledTimes(1);
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds session creation as part of the Assignment timeout", async () => {
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 20,
+      sessionFactory: vi.fn(async () => new Promise<PiAssignmentSession>(() => {})),
+    });
+
+    await expect(runner.run(packet())).rejects.toThrow("exceeded 20ms");
   });
 
   it("aborts and disposes a session that settles without a response", async () => {

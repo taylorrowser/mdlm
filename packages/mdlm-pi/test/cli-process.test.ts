@@ -3,16 +3,14 @@ import { chmod, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } fro
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { MdlmClient } from "../src/mdlm-client.js";
+import { RunJournal } from "../src/run-journal.js";
 
 const executeFile = promisify(execFile);
 const projectRoot = path.resolve(import.meta.dirname, "../../..");
 const cli = path.join(projectRoot, "packages/mdlm-pi/dist/cli.js");
 const temporaryRoots: string[] = [];
-
-beforeAll(async () => {
-  await executeFile("npm", ["run", "build:mdlm-pi"], { cwd: projectRoot });
-});
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((root) =>
@@ -41,6 +39,171 @@ describe("mdlm-pi run process boundary", () => {
     }]);
   });
 
+  it("maps a complete typed Invalid status to stable exit 3", async () => {
+    const fixture = await processFixture({ currentOutcome: {
+      outcome: "invalid",
+      diagnostics: [{ code: "INVALID", message: "fixture invalid" }],
+    } });
+    const result = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      fixture.repository,
+      "--mdlm",
+      fixture.mdlm,
+    ], fixture.invocationDirectory);
+
+    expect(result.status).toBe(3);
+    expect(JSON.parse(result.stdout)).toMatchObject({ status: "invalid" });
+    expect(result.stderr).toBe("");
+  });
+
+  it("stops foreground progress and its MDLM child when the terminal sends SIGHUP", async () => {
+    const fixture = await processFixture({ blockStatus: true });
+    const operator = spawn(process.execPath, [
+      cli,
+      "run",
+      fixture.repository,
+      "--mdlm",
+      fixture.mdlm,
+    ], {
+      cwd: fixture.invocationDirectory,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    await waitForFile(fixture.ready, operator);
+
+    operator.kill("SIGHUP");
+    const stopped = await collect(operator);
+
+    expect(stopped.status).toBe(129);
+    expect(stopped.stdout).toContain('"status": "interrupted"');
+  });
+
+  it("reconciles an interrupted live submit without invoking submission twice", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-submit-recovery-"));
+    temporaryRoots.push(root);
+    const repository = path.join(root, "repository");
+    const invocationDirectory = path.join(root, "invocation");
+    const fakeMdlm = path.join(root, "fake-submit-mdlm.mjs");
+    const ready = path.join(root, "submit-ready");
+    const published = path.join(root, "published");
+    const submissions = path.join(root, "submissions");
+    const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
+    const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
+    const scenario = "package-neutral-example@1";
+    await mkdir(repository);
+    await mkdir(invocationDirectory);
+    await executeFile("git", ["init", "--quiet"], { cwd: repository });
+    await executeFile("git", ["config", "user.name", "MDLM Pi Test"], { cwd: repository });
+    await executeFile("git", ["config", "user.email", "mdlm-pi@localhost"], { cwd: repository });
+    await writeFile(path.join(repository, "README.md"), "fixture\n");
+    await executeFile("git", ["add", "README.md"], { cwd: repository });
+    await executeFile("git", ["commit", "--quiet", "-m", "fixture"], { cwd: repository });
+    const response = new MdlmClient({ repository }).prepareSubmission({
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: { outputs: [] },
+    });
+    const stateDirectory = path.join(repository, ".git/mdlm-pi");
+    await new RunJournal(stateDirectory).captureSubmission({
+      assignmentId,
+      scenario,
+      response,
+    });
+    const outputPath = `.lifecycle/data/.transactions/${executionId}/datum.md`;
+    await writeFile(fakeMdlm, `#!/usr/bin/env node
+import { access, appendFile, mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+const args = process.argv.slice(2);
+const published = ${JSON.stringify(published)};
+const ready = ${JSON.stringify(ready)};
+const submissions = ${JSON.stringify(submissions)};
+const assignmentId = ${JSON.stringify(assignmentId)};
+const executionId = ${JSON.stringify(executionId)};
+const scenario = ${JSON.stringify(scenario)};
+const digest = ${JSON.stringify(response.digest)};
+const outputPath = ${JSON.stringify(outputPath)};
+let hasPublication = false;
+try { await access(published); hasPublication = true; } catch {}
+const execution = {
+  contract: "mdlm-scenario-execution@4", id: executionId, status: "completed",
+  definition: { scenario }, response: { assignment: assignmentId, digest },
+  outputs: [{ lifecycleDatum: { path: outputPath } }]
+};
+if (args[0] === "scenario" && args[1] === "submit") {
+  for await (const _chunk of process.stdin) {}
+  await appendFile(submissions, "submit\\n");
+  await mkdir(path.join(process.cwd(), path.dirname(outputPath)), { recursive: true });
+  await writeFile(path.join(process.cwd(), outputPath), "published\\n");
+  await writeFile(published, "published\\n");
+  await writeFile(ready, String(process.pid));
+  setInterval(() => {}, 1000);
+} else if (args[0] === "scenario" && args[1] === "prepare") {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-assignment-packet@2", command: "scenario.prepare", ok: true,
+    assignment: { id: assignmentId }, scenario: { reference: scenario }, responseSchema: { type: "object" }
+  }));
+} else if (args[0] === "assignment") {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-assignment-state@1", command: "assignment.show", ok: true,
+    assignment: { id: assignmentId }, selected: true, scenarioReference: scenario,
+    disposition: "active", retryAvailability: {}, malformedResponses: []
+  }));
+} else if (args[0] === "scenario" && args[1] === "execution") {
+  process.stdout.write(JSON.stringify({
+    command: "scenario.execution.show", ok: true, execution
+  }));
+} else if (args[0] === "doctor") {
+  process.stdout.write(JSON.stringify({ command: "doctor", ok: true, diagnostics: [] }));
+} else if (args[0] === "status") {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-status@1", command: "status", ok: true,
+    currentOutcome: hasPublication
+      ? { outcome: "lifecycle-complete" }
+      : { outcome: "assignment", assignment: { allocation: "active", id: assignmentId } },
+    recentTransaction: hasPublication
+      ? { available: true, id: executionId }
+      : { available: false }
+  }));
+} else {
+  process.stderr.write("unexpected args: " + JSON.stringify(args));
+  process.exitCode = 2;
+}
+`);
+    await chmod(fakeMdlm, 0o755);
+    const interrupted = spawn(process.execPath, [
+      cli,
+      "run",
+      repository,
+      "--mdlm",
+      fakeMdlm,
+    ], {
+      cwd: invocationDirectory,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    await waitForFile(ready, interrupted);
+    interrupted.kill("SIGHUP");
+    expect((await collect(interrupted)).status).toBe(129);
+
+    const recovered = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      repository,
+      "--mdlm",
+      fakeMdlm,
+    ], invocationDirectory);
+
+    expect(recovered.status).toBe(0);
+    expect((await readFile(submissions, "utf8")).trim().split("\n")).toEqual(["submit"]);
+    expect((await executeFile("git", ["log", "-1", "--format=%s"], {
+      cwd: repository,
+    })).stdout.trim()).toBe(`mdlm: publish ${scenario} (${executionId})`);
+    expect((await executeFile("git", ["status", "--porcelain"], {
+      cwd: repository,
+    })).stdout).toBe("");
+    expect(await new RunJournal(stateDirectory).load()).toBeNull();
+  });
+
   it("allows only one writer for a repository across separate operator processes", async () => {
     const fixture = await processFixture({ blockStatus: true });
     const alias = path.join(path.dirname(fixture.repository), "repository-alias");
@@ -67,6 +230,22 @@ describe("mdlm-pi run process boundary", () => {
 
     expect(contender.status).toBe(5);
     expect(contender.stderr).toContain("Another mdlm-pi run owns");
+
+    const linkedWorktree = path.join(path.dirname(fixture.repository), "linked-worktree");
+    await executeFile(
+      "git",
+      ["worktree", "add", "--quiet", "-b", "linked-contender", linkedWorktree],
+      { cwd: fixture.repository },
+    );
+    const linkedContender = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      linkedWorktree,
+      "--mdlm",
+      fixture.mdlm,
+    ], fixture.invocationDirectory);
+    expect(linkedContender.status).toBe(5);
+    expect(linkedContender.stderr).toContain("Another mdlm-pi run owns");
     expect(await commandLog(fixture.log)).toHaveLength(1);
 
     await writeFile(fixture.release, "release\n");
@@ -76,7 +255,10 @@ describe("mdlm-pi run process boundary", () => {
   });
 });
 
-async function processFixture(options: { blockStatus?: boolean } = {}): Promise<{
+async function processFixture(options: {
+  blockStatus?: boolean;
+  currentOutcome?: Record<string, unknown>;
+} = {}): Promise<{
   repository: string;
   invocationDirectory: string;
   mdlm: string;
@@ -116,7 +298,9 @@ process.stdout.write(JSON.stringify({
   contract: "mdlm-status@1",
   command: "status",
   ok: true,
-  currentOutcome: { outcome: "lifecycle-complete", explanation: "fixture complete" },
+  currentOutcome: ${JSON.stringify(
+    options.currentOutcome ?? { outcome: "lifecycle-complete", explanation: "fixture complete" },
+  )},
   recentTransaction: { available: false },
 }));
 `);

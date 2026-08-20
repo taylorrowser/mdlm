@@ -305,6 +305,13 @@ describe("RunController", () => {
       conclusion: attendedAnswer,
       rawTranscript: "must-not-persist",
     };
+    const normalizedConclusion = {
+      authority: "stakeholder",
+      checkpoint: "checkpoint-1",
+      consolidationGroup: "group-1",
+      itemInstances: ["question-1", "question-2"],
+      conclusion: attendedAnswer,
+    };
     const io = {
       progress: vi.fn(),
       attention: vi.fn(async () => attendedExchange),
@@ -321,7 +328,7 @@ describe("RunController", () => {
             authority: "stakeholder",
             source: "attended-authority-holder",
           },
-          conclusion: attendedAnswer,
+          conclusion: normalizedConclusion,
           attentionContext: outcome.attentionContext,
           checkpointConversation: outcome.checkpointConversation,
         });
@@ -350,6 +357,166 @@ describe("RunController", () => {
     expect(assignments.run).toHaveBeenCalledTimes(2);
     expect(await journal.load()).toBeNull();
     expect(await journal.loadAttendedConclusions()).toBeNull();
+  });
+
+  it("submits an exact captured response after restart without rerunning the worker", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-captured-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const response: JsonObject = { assignment: assignmentId, exact: "captured" };
+    const source = `${JSON.stringify(response)}\n`;
+    const digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
+    await journal.captureSubmission({
+      assignmentId,
+      scenario,
+      response: { response, source, digest },
+    });
+    const statuses: MdlmStatus[] = [
+      assignmentStatus(true),
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: { outcome: "lifecycle-complete" },
+        recentTransaction: { available: true, id: executionId },
+      },
+    ];
+    const mdlm = {
+      status: vi.fn(async () => statuses.shift()!),
+      next: vi.fn(),
+      assignment: vi.fn(async () => activeAssignmentState()),
+      prepare: vi.fn(async () => packet()),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(async (prepared: PreparedAssignmentSubmission) => ({
+        contract: "mdlm-scenario-execution@4" as const,
+        command: "scenario.submit" as const,
+        ok: true,
+        execution: executionRecord(prepared.digest),
+      })),
+      execution: vi.fn(),
+      doctor: vi.fn(async () => ({ command: "doctor" as const, ok: true })),
+    };
+    const assignments = { run: vi.fn() };
+    const git = {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(async () => "base-commit"),
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(async () => []),
+      commit: vi.fn(async () => "publication-commit"),
+    };
+    const io = { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() };
+
+    await expect(new RunController({ mdlm, assignments, git, io, journal }).run())
+      .resolves.toMatchObject({ status: "lifecycle-complete", successful: true });
+    expect(assignments.run).not.toHaveBeenCalled();
+    expect(mdlm.submit).toHaveBeenCalledWith(
+      { response, source, digest },
+      expect.any(Object),
+    );
+    expect(await journal.load()).toBeNull();
+  });
+
+  it("retains a terminal Assignment journal so restart cannot allocate replacement work", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-abandoned-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const response: JsonObject = { assignment: assignmentId, kind: "unable" };
+    const source = `${JSON.stringify(response)}\n`;
+    const digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
+    await journal.beginSubmission({
+      assignmentId,
+      scenario,
+      previousTransactionId: null,
+      baseCommit: "base-commit",
+      previousMalformedResponseDigests: [],
+      response: { response, source, digest },
+    });
+    const state: AssignmentState = {
+      contract: "mdlm-assignment-state@1",
+      command: "assignment.show",
+      ok: true,
+      assignment: { id: assignmentId },
+      selected: true,
+      scenarioReference: scenario,
+      disposition: "abandoned",
+      retryAvailability: {},
+      malformedResponses: [],
+      response: { digest },
+    };
+    const mdlm = {
+      status: vi.fn(async () => assignmentStatus(true)),
+      next: vi.fn(),
+      assignment: vi.fn(async () => state),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const dependencies = {
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(),
+        head: vi.fn(),
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    };
+
+    await expect(new RunController(dependencies).run()).resolves.toMatchObject({
+      status: "assignment-abandoned",
+    });
+    await expect(new RunController(dependencies).run()).resolves.toMatchObject({
+      status: "assignment-abandoned",
+    });
+    expect(mdlm.next).not.toHaveBeenCalled();
+    expect(await journal.load()).toMatchObject({ phase: "submitting" });
+  });
+
+  it("stops on contradictory interrupted advancement facts", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-advance-ambiguity-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    await journal.beginAdvancement({
+      baseCommit: "base-commit",
+      previousTransactionId: null,
+    });
+    const mdlm = {
+      status: vi.fn(async () => ({
+        ...assignmentStatus(false),
+        recentTransaction: { available: true, id: executionId },
+      })),
+      next: vi.fn(),
+      assignment: vi.fn(),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(),
+        head: vi.fn(async () => "base-commit"),
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(async () => []),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    });
+
+    await expect(controller.run()).rejects.toThrow(
+      "changed recent transaction without visible transaction files",
+    );
+    expect(mdlm.next).not.toHaveBeenCalled();
+    expect(await journal.load()).toMatchObject({ phase: "advancing" });
   });
 
   it("recovers a recorded malformed response by correcting the same durable Assignment", async () => {
@@ -385,6 +552,7 @@ describe("RunController", () => {
       malformedResponses: [{ digest: malformedDigest, diagnostics: [{ code: "FIX", message: "Fix it" }] }],
     };
     const statuses: MdlmStatus[] = [
+      assignmentStatus(true),
       assignmentStatus(true),
       assignmentStatus(true),
       {

@@ -4,7 +4,10 @@ import { relative, resolve, sep } from "node:path";
 import { testFiles } from "../vitest.suites.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
-const testRoot = resolve(repositoryRoot, "test");
+const testRoots = [
+  resolve(repositoryRoot, "test"),
+  resolve(repositoryRoot, "packages/mdlm-pi/test"),
+];
 
 function discoverTests(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -16,7 +19,7 @@ function discoverTests(directory) {
   });
 }
 
-const discovered = discoverTests(testRoot).sort();
+const discovered = testRoots.flatMap(discoverTests).sort();
 const classified = [...testFiles].sort();
 const duplicates = classified.filter((path, index) => classified.indexOf(path) !== index);
 const missing = discovered.filter((path) => !classified.includes(path));

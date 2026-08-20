@@ -145,6 +145,7 @@ export class MdlmClient {
   readonly #timeoutMs: number;
   readonly #maxOutputBytes: number;
   readonly #attemptDirectory: string | undefined;
+  readonly #activeTerminators = new Set<() => void>();
 
   constructor(options: MdlmClientOptions) {
     this.#repository = options.repository;
@@ -155,6 +156,10 @@ export class MdlmClient {
     this.#timeoutMs = options.timeoutMs ?? 30_000;
     this.#maxOutputBytes = options.maxOutputBytes ?? 10 * 1024 * 1024;
     this.#attemptDirectory = options.attemptDirectory;
+  }
+
+  abort(): void {
+    for (const terminate of this.#activeTerminators) terminate();
   }
 
   async status(): Promise<MdlmStatus> {
@@ -257,8 +262,8 @@ export class MdlmClient {
         detached: process.platform !== "win32",
         stdio: [
           standardInput === undefined ? "ignore" : "pipe",
-          durable?.stdout.fd ?? "pipe",
-          durable?.stderr.fd ?? "pipe",
+          "pipe",
+          "pipe",
         ],
       },
     );
@@ -298,48 +303,62 @@ export class MdlmClient {
     }, this.#timeoutMs);
     timeout.unref();
 
-    const collect = (target: Buffer[]) => (chunk: Buffer) => {
+    this.#activeTerminators.add(terminate);
+    let durableWrites = Promise.resolve();
+    const collect = (
+      target: Buffer[],
+      file: Awaited<ReturnType<typeof open>> | undefined,
+    ) => (chunk: Buffer) => {
+      const previousBytes = outputBytes;
       outputBytes += chunk.byteLength;
+      const retained = previousBytes >= this.#maxOutputBytes
+        ? Buffer.alloc(0)
+        : chunk.subarray(0, this.#maxOutputBytes - previousBytes);
+      if (retained.byteLength > 0) {
+        if (file === undefined) target.push(retained);
+        else durableWrites = durableWrites.then(async () => { await file.write(retained); });
+      }
       if (outputBytes > this.#maxOutputBytes && failure === undefined) {
         failure = new MdlmClientError(
           `MDLM command exceeded ${this.#maxOutputBytes} output bytes`,
           { arguments: [...arguments_] },
         );
         terminate();
-        return;
       }
-      target.push(chunk);
     };
-    child.stdout?.on("data", collect(stdout));
-    child.stderr?.on("data", collect(stderr));
+    child.stdout?.on("data", collect(stdout, durable?.stdout));
+    child.stderr?.on("data", collect(stderr, durable?.stderr));
 
     const completed = new Promise<number>((resolve, reject) => {
       child.once("error", reject);
       child.once("close", (code) => resolve(code ?? 1));
     });
 
+    let observerError: unknown;
     if (durable !== undefined) {
-      await Promise.all([durable.stdout.close(), durable.stderr.close()]);
       if (child.pid === undefined) {
-        await completed;
-        throw new MdlmClientError("MDLM child process did not expose a PID");
-      }
-      try {
-        await observer!.started({
-          id: durable.id,
-          pid: child.pid,
-          stdoutPath: durable.stdoutPath,
-          stderrPath: durable.stderrPath,
-        });
-      } catch (error) {
         terminate();
-        child.stdin?.destroy();
-        await completed.catch(() => {});
-        throw error;
+        observerError = new MdlmClientError("MDLM child process did not expose a PID");
+      } else {
+        try {
+          await observer!.started({
+            id: durable.id,
+            pid: child.pid,
+            stdoutPath: durable.stdoutPath,
+            stderrPath: durable.stderrPath,
+          });
+        } catch (error) {
+          observerError = error;
+          terminate();
+        }
       }
     }
 
-    if (standardInput !== undefined) child.stdin?.end(standardInput);
+    if (standardInput !== undefined && observerError === undefined) {
+      child.stdin?.end(standardInput);
+    } else if (observerError !== undefined) {
+      child.stdin?.destroy();
+    }
 
     let exitCode: number;
     try {
@@ -352,7 +371,14 @@ export class MdlmClient {
     } finally {
       clearTimeout(timeout);
       if (forceKillTimer !== undefined) clearTimeout(forceKillTimer);
+      this.#activeTerminators.delete(terminate);
+      if (durable !== undefined) {
+        await durableWrites;
+        await Promise.all([durable.stdout.sync(), durable.stderr.sync()]);
+        await Promise.all([durable.stdout.close(), durable.stderr.close()]);
+      }
     }
+    if (observerError !== undefined) throw observerError;
 
     if (durable !== undefined) {
       const [durableStdout, durableStderr] = await Promise.all([
@@ -422,9 +448,19 @@ function parseStatus(output: JsonObject): MdlmStatus {
   expectLiteral(output, "contract", "mdlm-status@1");
   expectBoolean(output, "ok");
   const currentOutcome = expectObject(output, "currentOutcome");
-  expectString(currentOutcome, "outcome");
+  const outcome = expectString(currentOutcome, "outcome");
+  assertOperatorOutcome(outcome, output);
+  if (outcome === "assignment" || outcome === "attention-required") {
+    const assignment = expectObject(currentOutcome, "assignment");
+    const allocation = expectString(assignment, "allocation");
+    if (allocation !== "active" && allocation !== "not-allocated") {
+      throw contractError(`Unsupported Assignment allocation '${allocation}'`, output);
+    }
+    if (allocation === "active") expectString(assignment, "id");
+  }
   const recentTransaction = expectObject(output, "recentTransaction");
-  expectBoolean(recentTransaction, "available");
+  const available = expectBoolean(recentTransaction, "available");
+  if (available) expectString(recentTransaction, "id");
   return output as MdlmStatus;
 }
 
@@ -433,17 +469,7 @@ function parseNext(output: JsonObject): MdlmNext {
   expectLiteral(output, "contract", "mdlm-next@1");
   expectBoolean(output, "ok");
   const outcome = expectString(output, "outcome");
-  const outcomes = new Set([
-    "assignment",
-    "attention-required",
-    "profile-boundary-reached",
-    "lifecycle-complete",
-    "process-dead-end",
-    "invalid",
-  ]);
-  if (!outcomes.has(outcome)) {
-    throw contractError(`Unsupported MDLM outcome '${outcome}'`, output);
-  }
+  assertOperatorOutcome(outcome, output);
   if (outcome === "assignment" || outcome === "attention-required") {
     expectString(expectObject(output, "assignment"), "id");
   }
@@ -499,7 +525,32 @@ function parseSubmission(output: JsonObject): AssignmentSubmission {
   if (contract !== "mdlm-scenario-execution@4" && contract !== "mdlm-assignment-disposition@1") {
     throw contractError(`Unsupported Scenario submission contract '${contract}'`, output);
   }
+  if (contract === "mdlm-scenario-execution@4") {
+    const execution = expectObject(output, "execution");
+    expectLiteral(execution, "contract", "mdlm-scenario-execution@4");
+    expectString(execution, "id");
+    expectString(execution, "status");
+  } else {
+    expectString(expectObject(output, "assignment"), "id");
+    const disposition = expectString(output, "disposition");
+    if (!["correction-required", "abandoned", "exhausted", "stale"].includes(disposition)) {
+      throw contractError(`Unsupported Assignment submission disposition '${disposition}'`, output);
+    }
+  }
   return output as AssignmentSubmission;
+}
+
+function assertOperatorOutcome(outcome: string, output: JsonObject): void {
+  if (![
+    "assignment",
+    "attention-required",
+    "profile-boundary-reached",
+    "lifecycle-complete",
+    "process-dead-end",
+    "invalid",
+  ].includes(outcome)) {
+    throw contractError(`Unsupported MDLM outcome '${outcome}'`, output);
+  }
 }
 
 function isObject(value: unknown): value is JsonObject {

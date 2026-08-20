@@ -24,6 +24,9 @@ export class TerminalOperatorIO implements OperatorIO {
     if (outcome.authorityRequirement !== undefined) {
       stdout.write(`${JSON.stringify(outcome.authorityRequirement, null, 2)}\n`);
     }
+    if (outcome.attentionContext !== undefined) {
+      stdout.write(`${JSON.stringify(outcome.attentionContext, null, 2)}\n`);
+    }
     if (outcome.checkpointConversation !== undefined) {
       stdout.write(`${JSON.stringify(outcome.checkpointConversation, null, 2)}\n`);
     }
@@ -32,7 +35,7 @@ export class TerminalOperatorIO implements OperatorIO {
       const response = await terminal.question(
         "Explicit conclusion from the named authority holder (not chat approval): ",
       );
-      return { conclusion: response };
+      return { conclusion: { statement: response } };
     } finally {
       terminal.close();
     }

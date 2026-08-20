@@ -8,6 +8,7 @@ import {
   type AssignmentPacket,
   type JsonObject,
   MdlmClient,
+  MdlmClientError,
 } from "../src/mdlm-client.js";
 
 const executeFile = promisify(execFile);
@@ -185,6 +186,7 @@ describe("MdlmClient", () => {
       ok: false,
       command: "scenario.submit",
       contract: "mdlm-assignment-disposition@1",
+      assignment: { id: "fixture-assignment" },
       disposition: "abandoned",
     });
     await writeFile(script, `
@@ -212,6 +214,100 @@ process.exitCode = 1;
     expect(await readFile(attempt!.stderrPath, "utf8")).toBe(
       `CWD:${await realpath(repository)}\nARGS:["scenario","submit","-","--json"]\nINPUT:${response.source}`,
     );
+  });
+
+  it("bounds command waits and terminates a timed-out child", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-timeout-"));
+    temporaryRoots.push(root);
+    const script = path.join(root, "hang.mjs");
+    await writeFile(script, "setInterval(() => {}, 1000);\n");
+    const client = new MdlmClient({
+      repository: root,
+      command: { program: process.execPath, arguments: [script] },
+      timeoutMs: 25,
+    });
+
+    await expect(client.status()).rejects.toThrow("exceeded 25ms");
+  });
+
+  it("bounds durable submit streams while retaining the exact bounded prefix", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-output-bound-"));
+    temporaryRoots.push(root);
+    const script = path.join(root, "large.mjs");
+    const attempts = path.join(root, "attempts");
+    await writeFile(script, "process.stdout.write('x'.repeat(100000));\n");
+    const client = new MdlmClient({
+      repository: root,
+      command: { program: process.execPath, arguments: [script] },
+      attemptDirectory: attempts,
+      maxOutputBytes: 64,
+      timeoutMs: 1_000,
+    });
+    let stdoutPath: string | undefined;
+
+    await expect(client.submit(client.prepareSubmission({ exact: true }), {
+      started: async (process) => { stdoutPath = process.stdoutPath; },
+    })).rejects.toThrow("exceeded 64 output bytes");
+    expect((await readFile(stdoutPath!)).byteLength).toBe(64);
+  });
+
+  it("rejects malformed JSON and wrong contract versions", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-contract-"));
+    temporaryRoots.push(root);
+    const script = path.join(root, "result.mjs");
+    await writeFile(script, "process.stdout.write(process.env.RESULT ?? '');\n");
+    const client = () => new MdlmClient({
+      repository: root,
+      command: { program: process.execPath, arguments: [script] },
+      timeoutMs: 1_000,
+    });
+    const previous = process.env.RESULT;
+    try {
+      process.env.RESULT = "not-json";
+      await expect(client().status()).rejects.toBeInstanceOf(MdlmClientError);
+      process.env.RESULT = JSON.stringify({
+        contract: "mdlm-status@999",
+        command: "status",
+        ok: true,
+        currentOutcome: { outcome: "lifecycle-complete" },
+        recentTransaction: { available: false },
+      });
+      await expect(client().status()).rejects.toThrow("mdlm-status@1");
+    } finally {
+      if (previous === undefined) delete process.env.RESULT;
+      else process.env.RESULT = previous;
+    }
+  });
+
+  it("accepts complete typed invalid status and next contracts", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-invalid-"));
+    temporaryRoots.push(root);
+    const script = path.join(root, "invalid.mjs");
+    await writeFile(script, `
+const command = process.argv[2];
+process.stdout.write(JSON.stringify(command === "status" ? {
+  contract: "mdlm-status@1", command: "status", ok: false,
+  currentOutcome: { outcome: "invalid", diagnostics: [] },
+  recentTransaction: { available: false }, diagnostics: []
+} : {
+  contract: "mdlm-next@1", command: "next", ok: false, outcome: "invalid",
+  materializedExecutions: [], diagnostics: []
+}));
+process.exitCode = 1;
+`);
+    const client = new MdlmClient({
+      repository: root,
+      command: { program: process.execPath, arguments: [script] },
+    });
+
+    await expect(client.status()).resolves.toMatchObject({
+      currentOutcome: { outcome: "invalid" },
+      recentTransaction: { available: false },
+    });
+    await expect(client.next()).resolves.toMatchObject({
+      outcome: "invalid",
+      materializedExecutions: [],
+    });
   });
 
   it("recovers exact publication identity through the public execution inspection", async () => {

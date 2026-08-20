@@ -35,6 +35,14 @@ export class GitPublisher {
     return (await this.#git(["rev-parse", "--absolute-git-dir"])).trim();
   }
 
+  async commonGitDirectory(): Promise<string> {
+    return (await this.#git([
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-common-dir",
+    ])).trim();
+  }
+
   async head(): Promise<string> {
     return (await this.#git(["rev-parse", "HEAD"])).trim();
   }
@@ -69,6 +77,7 @@ export class GitPublisher {
   ): Promise<PublicationCommitState> {
     const currentHead = await this.head();
     const transactionDirectory = transactionPath(publication.executionId);
+    const expectedPaths = publicationPaths(publication);
     const allowedPendingDirectories = allowedPendingExecutionIds.map(transactionPath);
     const changes = await this.#changes();
     const allowedChange = (change: string) =>
@@ -82,13 +91,16 @@ export class GitPublisher {
           explanation: `Changes outside recovered transaction '${publication.executionId}': ${invalid.join(", ")}`,
         };
       }
-      const transactionChanges = changes.filter((change) => isInside(change, transactionDirectory));
-      return transactionChanges.length === 0
-        ? {
-            state: "ambiguous",
-            explanation: `Transaction '${publication.executionId}' is neither committed nor visible in the worktree`,
-          }
-        : { state: "needs-commit" };
+      const transactionChanges = changes
+        .filter((change) => isInside(change, transactionDirectory))
+        .sort();
+      if (!samePaths(transactionChanges, expectedPaths)) {
+        return {
+          state: "ambiguous",
+          explanation: `Transaction '${publication.executionId}' paths differ from its execution outputs`,
+        };
+      }
+      return { state: "needs-commit" };
     }
 
     const invalid = changes.filter((change) =>
@@ -117,10 +129,7 @@ export class GitPublisher {
       "-z",
       "HEAD",
     ]));
-    if (
-      committedPaths.length === 0 ||
-      committedPaths.some((changedPath) => !isInside(changedPath, transactionDirectory))
-    ) {
+    if (!samePaths(committedPaths.sort(), expectedPaths)) {
       return { state: "ambiguous", explanation: "The new HEAD is not the exact journaled transaction" };
     }
     const subject = (await this.#git(["show", "-s", "--format=%s", "HEAD"])).trim();
@@ -143,21 +152,44 @@ export class GitPublisher {
     if (state.state === "committed") return state.commit;
     if (state.state === "ambiguous") throw new GitPublisherError(state.explanation);
 
-    const transactionDirectory = transactionPath(publication.executionId);
-    await this.#git(["add", "--", transactionDirectory]);
+    const expectedPaths = publicationPaths(publication);
+    await this.#configuredIdentity();
+    await this.#git(["diff", "--check", "--", ...expectedPaths]);
+    await this.#git(["add", "--", ...expectedPaths]);
     const staged = splitNull(await this.#git([
       "diff",
       "--cached",
       "--name-only",
       "-z",
-      "--",
-      transactionDirectory,
-    ]));
-    if (staged.length === 0 || staged.some((changedPath) => !isInside(changedPath, transactionDirectory))) {
-      throw new GitPublisherError("Git staging did not contain exactly the canonical Scenario transaction");
+    ])).sort();
+    if (!samePaths(staged, expectedPaths)) {
+      throw new GitPublisherError("Git staging did not contain exactly the Scenario execution outputs");
     }
-    await this.#git(["commit", "-m", commitMessage(publication)]);
-    return this.head();
+    await this.#git(["diff", "--cached", "--check", "--", ...expectedPaths]);
+    await this.#git(["commit", "-m", commitMessage(publication), "--", ...expectedPaths]);
+    const committed = await this.publicationCommitState(
+      publication,
+      baseCommit,
+      allowedPendingExecutionIds,
+    );
+    if (committed.state !== "committed") {
+      throw new GitPublisherError(
+        committed.state === "ambiguous"
+          ? committed.explanation
+          : "Git commit did not advance HEAD to the exact Scenario transaction",
+      );
+    }
+    return committed.commit;
+  }
+
+  async #configuredIdentity(): Promise<void> {
+    const [name, email] = await Promise.all([
+      this.#git(["config", "--get", "user.name"]),
+      this.#git(["config", "--get", "user.email"]),
+    ]);
+    if (name.trim().length === 0 || email.trim().length === 0) {
+      throw new GitPublisherError("Git user.name and user.email must be configured before publication");
+    }
   }
 
   async #changes(): Promise<string[]> {
@@ -182,6 +214,7 @@ export class GitPublisher {
     try {
       const result = await executeFile("git", arguments_, {
         cwd: this.#repository,
+        env: repositoryGitEnvironment(),
         encoding: "utf8",
         timeout: this.#timeoutMs,
         maxBuffer: 10 * 1024 * 1024,
@@ -201,6 +234,18 @@ function transactionPath(executionId: string): string {
   return `.lifecycle/data/.transactions/${executionId}`;
 }
 
+function publicationPaths(publication: PublicationEvidence): string[] {
+  const transactionDirectory = transactionPath(publication.executionId);
+  const paths = [...new Set(publication.outputPaths)].sort();
+  if (
+    paths.length === 0 || paths.length !== publication.outputPaths.length ||
+    paths.some((outputPath) => !isInside(outputPath, transactionDirectory))
+  ) {
+    throw new GitPublisherError("Scenario execution outputs do not name unique canonical transaction paths");
+  }
+  return paths;
+}
+
 function isInside(changedPath: string, directory: string): boolean {
   return changedPath === directory || changedPath.startsWith(`${directory}/`);
 }
@@ -211,4 +256,16 @@ function commitMessage(publication: PublicationEvidence): string {
 
 function splitNull(value: string): string[] {
   return value.split("\0").filter((item) => item.length > 0);
+}
+
+function samePaths(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+function repositoryGitEnvironment(): NodeJS.ProcessEnv {
+  const environment = { ...process.env };
+  for (const name of Object.keys(environment)) {
+    if (name.startsWith("GIT_")) delete environment[name];
+  }
+  return environment;
 }

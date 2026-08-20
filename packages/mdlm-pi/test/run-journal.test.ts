@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -56,6 +56,7 @@ describe("RunJournal", () => {
         previousTransactionId: "transaction-0",
         baseCommit: "0123456789abcdef",
         previousMalformedResponseDigests: ["sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+        completedProcesses: [],
         process: {
           id: "attempt-1",
           pid: 12345,
@@ -89,6 +90,62 @@ describe("RunJournal", () => {
     expect(await new RunJournal(storagePath).load()).toBeNull();
   });
 
+  it("makes a captured response durable before submission facts are inspected", async () => {
+    const storagePath = await journalPath();
+    const journal = new RunJournal(storagePath);
+    const response = new MdlmClient({ repository: "." }).prepareSubmission({ exact: true });
+
+    await journal.captureSubmission({
+      assignmentId: "assignment-1",
+      scenario: "example-scenario@1",
+      response,
+    });
+
+    expect(await new RunJournal(storagePath).load()).toEqual({
+      contract: "mdlm-pi-run-journal@1",
+      phase: "captured",
+      assignment: { id: "assignment-1", scenario: "example-scenario@1" },
+      submission: {
+        source: response.source,
+        digest: response.digest,
+        replacementDigest: null,
+        completedProcesses: [],
+      },
+    });
+  });
+
+  it("removes bounded completed attempt streams when the transaction journal clears", async () => {
+    const storagePath = await journalPath();
+    const journal = new RunJournal(storagePath);
+    const response = new MdlmClient({ repository: "." }).prepareSubmission({ exact: true });
+    await journal.beginSubmission({
+      assignmentId: "assignment-1",
+      scenario: "example-scenario@1",
+      previousTransactionId: null,
+      baseCommit: "base",
+      previousMalformedResponseDigests: [],
+      response,
+    });
+    const attempts = path.join(storagePath, "attempts");
+    await mkdir(attempts, { recursive: true });
+    const stdoutPath = path.join(attempts, "attempt.stdout");
+    const stderrPath = path.join(attempts, "attempt.stderr");
+    await writeFile(stdoutPath, "stdout");
+    await writeFile(stderrPath, "stderr");
+    await journal.recordSubmissionProcess({
+      id: "attempt",
+      pid: 12345,
+      stdoutPath,
+      stderrPath,
+    });
+    await journal.clearSubmissionProcess();
+
+    await journal.clear();
+
+    await expect(readFile(stdoutPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(stderrPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("atomically replaces a malformed response while retaining correction recovery", async () => {
     const storagePath = await journalPath();
     const journal = new RunJournal(storagePath);
@@ -104,7 +161,21 @@ describe("RunJournal", () => {
     });
 
     const corrected = client.prepareSubmission({ corrected: true });
-    await journal.replaceSubmission(malformed.digest, {
+    await journal.captureSubmission({
+      assignmentId: "assignment-1",
+      scenario: "example-scenario@1",
+      replacementDigest: malformed.digest,
+      response: corrected,
+    });
+    expect(await journal.load()).toMatchObject({
+      phase: "captured",
+      submission: {
+        source: corrected.source,
+        digest: corrected.digest,
+        replacementDigest: malformed.digest,
+      },
+    });
+    await journal.promoteCapturedSubmission({
       assignmentId: "assignment-1",
       scenario: "example-scenario@1",
       previousTransactionId: null,
@@ -112,7 +183,6 @@ describe("RunJournal", () => {
       previousMalformedResponseDigests: [malformed.digest],
       response: corrected,
     });
-
     expect(await journal.load()).toMatchObject({
       phase: "submitting",
       submission: {
@@ -121,13 +191,5 @@ describe("RunJournal", () => {
         previousMalformedResponseDigests: [malformed.digest],
       },
     });
-    await expect(journal.replaceSubmission(malformed.digest, {
-      assignmentId: "assignment-1",
-      scenario: "example-scenario@1",
-      previousTransactionId: null,
-      baseCommit: "base",
-      previousMalformedResponseDigests: [],
-      response: malformed,
-    })).rejects.toThrow("exact correction journal");
   });
 });
