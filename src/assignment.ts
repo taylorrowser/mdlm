@@ -56,6 +56,10 @@ import { withRepositoryLock } from "./repository-lock.js";
 
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
+// Every lease writer takes this lock. The first response to acquire it owns the
+// Assignment outcome; a valid proposal retains ownership through publication
+// and lease retirement. Waiters reread the exact lease and return unavailable.
+// Valid proposals acquire the publication lock only while holding this lock.
 const leaseLockRef = "refs/mdlm/assignment-lease-lock";
 const unableReasonCategories = [
   "stale-scope",
@@ -1295,6 +1299,7 @@ async function materializeExactBaseline(
   exact: ExactAssignment,
   assignmentId: string,
   materialization: ExactBaselineMaterialization,
+  verifyAssignment: () => Promise<AssignmentResult<undefined>>,
 ): Promise<AssignmentResult<ScenarioExecution>> {
   const baselineType = exact.processPackage.kernelCapabilities[materialization.kind]?.type;
   if (!baselineType || !exact.lease.obligation) {
@@ -1363,7 +1368,7 @@ async function materializeExactBaseline(
       suppliedDelegations: [],
       loadedSkillRefs,
     },
-    preparedScenarioSubmission(repositoryRoot, exact),
+    preparedScenarioSubmission(repositoryRoot, exact, verifyAssignment),
   );
   return submitted;
 }
@@ -1468,6 +1473,18 @@ async function leaseNextAssignmentLocked(
       exact,
       lease.id,
       materialization,
+      async () => {
+        await renewLeaseLock();
+        const current = await readLease(repositoryRoot);
+        if (!current.ok) return current;
+        return exactActiveLease(current.value, lease)
+          ? { ok: true, value: undefined, diagnostics: [] }
+          : failure(
+            "scenario-repository-changed",
+            "The active Assignment changed before exact Baseline publication",
+            leasePath(repositoryRoot),
+          );
+      },
     );
     await renewLeaseLock();
     await fs.rm(leasePath(repositoryRoot), { force: true });
@@ -2412,25 +2429,36 @@ export async function submitAssignmentResponse(
 async function prepareAssignmentLocked(
   repositoryRoot: string,
   assignmentId: string,
+  expectedLease: AssignmentLease,
+  exact: AssignmentResult<ExactAssignment>,
   renewLeaseLock: () => Promise<void>,
 ): Promise<AssignmentResult<AssignmentPacket>> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
-  const lease = persisted.value;
-  if (
-    !lease || lease.disposition !== "active" || lease.id !== assignmentId
-  ) {
-    return failure(
-      "assignment-unavailable",
-      `Assignment '${assignmentId}' is not the active Assignment`,
-      assignmentId,
-    );
+  if (!exactActiveLease(persisted.value, expectedLease)) {
+    return unavailableSubmission(assignmentId);
   }
-  const exact = await exactAssignment(repositoryRoot);
+  const lease = persisted.value;
   if (!exact.ok) {
     if (exact.diagnostics.some((item) =>
       item.code === "assignment-repository-fingerprint-failed"
     )) return exact;
+    await renewLeaseLock();
+    await fs.rm(leasePath(repositoryRoot), { force: true });
+    return failure(
+      "assignment-stale",
+      `Assignment '${assignmentId}' no longer matches the current exact repository state; prepare will not rebase it`,
+      assignmentId,
+    );
+  }
+  const unchanged = await confirmRepositoryFingerprint(
+    repositoryRoot,
+    exact.value.lease.repository,
+  );
+  if (!unchanged.ok) {
+    if (unchanged.diagnostics.some((item) =>
+      item.code === "assignment-repository-fingerprint-failed"
+    )) return unchanged;
     await renewLeaseLock();
     await fs.rm(leasePath(repositoryRoot), { force: true });
     return failure(
@@ -2496,6 +2524,13 @@ export async function prepareAssignment(
   return withRepositoryLock(
     repositoryRoot,
     leaseLockRef,
-    (renew) => prepareAssignmentLocked(repositoryRoot, assignmentId, renew),
+    (renew) =>
+      prepareAssignmentLocked(
+        repositoryRoot,
+        assignmentId,
+        lease,
+        exact,
+        renew,
+      ),
   );
 }

@@ -796,11 +796,11 @@ process.exit(result.status ?? 1);
   });
 
   it.each([
-    ["malformed", "{not-json\n"],
-    ["unable", undefined],
+    ["malformed", "a fresh Assignment", "{not-json\n", false],
+    ["unable", "newer Assignment coordinates that retain its id", undefined, true],
   ] as const)(
-    "does not let a %s response overwrite newer Assignment coordinates that retain its id",
-    async (kind, malformedSource) => {
+    "does not let a %s response overwrite %s",
+    async (kind, _newerLease, malformedSource, retainAssignmentId) => {
       const next = JSON.parse(mdlm(repository, "next").stdout);
       const assignment = next.assignment.id as string;
       const packet = JSON.parse(mdlm(
@@ -933,6 +933,11 @@ process.exit(result.status ?? 1);
         winningOutput.stderr.split("\n").find((line) => line.startsWith("{"))!,
       );
       expect(performance.repository.loads).toBe(1);
+      expect(performance.stages).toEqual(expect.objectContaining({
+        "repository.parse": expect.objectContaining({ count: 1 }),
+        "repository.provenance": expect.objectContaining({ count: 1 }),
+        "repository.validation": expect.objectContaining({ count: 1 }),
+      }));
       expect(performance.work).toEqual(expect.objectContaining({
         "repository.parse.records": 0,
         "repository.provenance.records": 0,
@@ -948,7 +953,7 @@ process.exit(result.status ?? 1);
       const freshLeaseValue = JSON.parse(
         await fs.readFile(activeLeasePath, "utf8"),
       );
-      freshLeaseValue.id = assignment;
+      if (retainAssignmentId) freshLeaseValue.id = assignment;
       const freshLease = `${JSON.stringify(freshLeaseValue, null, 2)}\n`;
       await fs.writeFile(activeLeasePath, freshLease);
       await fs.writeFile(barrierRelease, "continue");
