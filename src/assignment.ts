@@ -52,9 +52,15 @@ import {
 } from "./scenario-execution.js";
 import { selectedRepositoryPackage } from "./selected-package.js";
 import type { PackageSummary } from "./repository-contract.js";
+import { withRepositoryLock } from "./repository-lock.js";
 
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
+// Every lease writer takes this lock. The first response to acquire it owns the
+// Assignment outcome; a valid proposal retains ownership through publication
+// and lease retirement. Waiters reread the exact lease and return unavailable.
+// Valid proposals acquire the publication lock only while holding this lock.
+const leaseLockRef = "refs/mdlm/assignment-lease-lock";
 const unableReasonCategories = [
   "stale-scope",
   "insufficient-declared-inputs",
@@ -1251,6 +1257,7 @@ async function verifyPublicationFingerprint(
 function preparedScenarioSubmission(
   repositoryRoot: string,
   exact: ExactAssignment,
+  verifyAssignment: () => Promise<AssignmentResult<undefined>>,
 ): PreparedScenarioSubmission {
   return {
     dryRun: exact.dryRun,
@@ -1274,10 +1281,13 @@ function preparedScenarioSubmission(
         executionId,
         executionRecord,
         kernelFinalizedOutputs,
-        () => verifyPublicationFingerprint(
-          repositoryRoot,
-          exact.lease.repository,
-        ),
+        async () => {
+          const fingerprint = await verifyPublicationFingerprint(
+            repositoryRoot,
+            exact.lease.repository,
+          );
+          return fingerprint.ok ? verifyAssignment() : fingerprint;
+        },
       ),
   };
 }
@@ -1287,6 +1297,7 @@ async function materializeExactBaseline(
   exact: ExactAssignment,
   assignmentId: string,
   materialization: ExactBaselineMaterialization,
+  verifyAssignment: () => Promise<AssignmentResult<undefined>>,
 ): Promise<AssignmentResult<ScenarioExecution>> {
   const baselineType = exact.processPackage.kernelCapabilities[materialization.kind]?.type;
   if (!baselineType || !exact.lease.obligation) {
@@ -1355,7 +1366,7 @@ async function materializeExactBaseline(
       suppliedDelegations: [],
       loadedSkillRefs,
     },
-    preparedScenarioSubmission(repositoryRoot, exact),
+    preparedScenarioSubmission(repositoryRoot, exact, verifyAssignment),
   );
   return submitted;
 }
@@ -1404,8 +1415,9 @@ function leasedOutcome(
 }
 
 /** Classify the current repository and lease its one exact Assignment when present. */
-export async function leaseNextAssignment(
+async function leaseNextAssignmentLocked(
   repositoryRoot: string,
+  renewLeaseLock: () => Promise<void>,
 ): Promise<AssignmentResult<AssignmentOutcome>> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
@@ -1417,7 +1429,10 @@ export async function leaseNextAssignment(
       !state.diagnostics.some((item) =>
         item.code === "assignment-repository-fingerprint-failed"
       )
-    ) await fs.rm(leasePath(repositoryRoot), { force: true });
+    ) {
+      await renewLeaseLock();
+      await fs.rm(leasePath(repositoryRoot), { force: true });
+    }
     return state;
   }
 
@@ -1435,14 +1450,19 @@ export async function leaseNextAssignment(
       );
     }
     materializedObligations.add(obligation);
-    if (activeLease) await fs.rm(leasePath(repositoryRoot), { force: true });
+    if (activeLease) {
+      await renewLeaseLock();
+      await fs.rm(leasePath(repositoryRoot), { force: true });
+    }
     const lease: AssignmentLease = { ...exact.lease, id: randomUUID() };
+    await renewLeaseLock();
     await writeLease(repositoryRoot, lease);
     const unchanged = await confirmRepositoryFingerprint(
       repositoryRoot,
       exact.lease.repository,
     );
     if (!unchanged.ok) {
+      await renewLeaseLock();
       await fs.rm(leasePath(repositoryRoot), { force: true });
       return unchanged;
     }
@@ -1451,7 +1471,20 @@ export async function leaseNextAssignment(
       exact,
       lease.id,
       materialization,
+      async () => {
+        await renewLeaseLock();
+        const current = await readLease(repositoryRoot);
+        if (!current.ok) return current;
+        return exactActiveLease(current.value, lease)
+          ? { ok: true, value: undefined, diagnostics: [] }
+          : failure(
+            "scenario-repository-changed",
+            "The active Assignment changed before exact Baseline publication",
+            leasePath(repositoryRoot),
+          );
+      },
     );
+    await renewLeaseLock();
     await fs.rm(leasePath(repositoryRoot), { force: true });
     activeLease = undefined;
     if (!materialized.ok) return materialized;
@@ -1480,7 +1513,10 @@ export async function leaseNextAssignment(
     state.value.classification.kind !== "assignment" &&
     state.value.classification.kind !== "attention-required"
   ) {
-    if (activeLease) await fs.rm(leasePath(repositoryRoot), { force: true });
+    if (activeLease) {
+      await renewLeaseLock();
+      await fs.rm(leasePath(repositoryRoot), { force: true });
+    }
     const classification = state.value.classification;
     const base = {
       package: state.value.summary,
@@ -1521,12 +1557,24 @@ export async function leaseNextAssignment(
     ...exact.lease,
     id: randomUUID(),
   };
+  await renewLeaseLock();
   await writeLease(repositoryRoot, lease);
   return {
     ok: true,
     value: leasedOutcome(exact, lease.id),
     diagnostics: [],
   };
+}
+
+/** Classify the repository and atomically own every resulting lease transition. */
+export function leaseNextAssignment(
+  repositoryRoot: string,
+): Promise<AssignmentResult<AssignmentOutcome>> {
+  return withRepositoryLock(
+    repositoryRoot,
+    leaseLockRef,
+    (renew) => leaseNextAssignmentLocked(repositoryRoot, renew),
+  );
 }
 
 async function recentTransaction(
@@ -2066,11 +2114,47 @@ function dispositionBase(assignmentId: string): {
   };
 }
 
-async function recordMalformedResponse(
+function unavailableSubmission<T>(
+  assignmentId: string,
+): AssignmentResult<T> {
+  return failure(
+    "assignment-unavailable",
+    `Assignment '${assignmentId}' is not the active Assignment`,
+    assignmentId,
+  );
+}
+
+function exactActiveLease(
+  current: AssignmentLease | undefined,
+  expected: AssignmentLease,
+): current is AssignmentLease {
+  return current?.disposition === "active" &&
+    isDeepStrictEqual(current, expected);
+}
+
+function withExactActiveLease(
+  repositoryRoot: string,
+  expectedLease: AssignmentLease,
+  operation: (
+    lease: AssignmentLease,
+    renew: () => Promise<void>,
+  ) => Promise<AssignmentSubmissionResult>,
+): Promise<AssignmentSubmissionResult> {
+  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
+    const persisted = await readLease(repositoryRoot);
+    if (!persisted.ok) return persisted;
+    return exactActiveLease(persisted.value, expectedLease)
+      ? operation(persisted.value, renew)
+      : unavailableSubmission(expectedLease.id);
+  });
+}
+
+async function writeMalformedResponse(
   repositoryRoot: string,
   lease: AssignmentLease,
   responseSource: string,
   diagnostics: ProcessDiagnostic[],
+  renew: () => Promise<void>,
 ): Promise<AssignmentSubmissionResult> {
   const malformedResponses = [
     ...lease.malformedResponses,
@@ -2102,6 +2186,7 @@ async function recordMalformedResponse(
           diagnostics,
         },
       };
+  await renew();
   await writeLease(repositoryRoot, {
     ...lease,
     disposition: correctionRequired ? "active" : "exhausted",
@@ -2112,15 +2197,37 @@ async function recordMalformedResponse(
   return { ok: false, disposition, diagnostics };
 }
 
-async function recordStaleDisposition(
+async function recordMalformedResponse(
+  repositoryRoot: string,
+  expectedLease: AssignmentLease,
+  responseSource: string,
+  diagnostics: ProcessDiagnostic[],
+): Promise<AssignmentSubmissionResult> {
+  return withExactActiveLease(
+    repositoryRoot,
+    expectedLease,
+    (lease, renew) =>
+      writeMalformedResponse(
+        repositoryRoot,
+        lease,
+        responseSource,
+        diagnostics,
+        renew,
+      ),
+  );
+}
+
+async function writeStaleDisposition(
   repositoryRoot: string,
   lease: AssignmentLease,
+  renew: () => Promise<void>,
 ): Promise<AssignmentSubmissionResult> {
   const diagnostics = failure(
     "assignment-stale",
     `Assignment '${lease.id}' no longer matches the current exact repository state; submit will not rebase it`,
     lease.id,
   ).diagnostics;
+  await renew();
   await writeLease(repositoryRoot, {
     ...lease,
     disposition: "stale",
@@ -2136,6 +2243,67 @@ async function recordStaleDisposition(
     },
     diagnostics,
   };
+}
+
+async function recordStaleDisposition(
+  repositoryRoot: string,
+  expectedLease: AssignmentLease,
+): Promise<AssignmentSubmissionResult> {
+  return withExactActiveLease(
+    repositoryRoot,
+    expectedLease,
+    (lease, renew) => writeStaleDisposition(repositoryRoot, lease, renew),
+  );
+}
+
+async function writeUnableResponse(
+  repositoryRoot: string,
+  lease: AssignmentLease,
+  responseSource: string,
+  unable: UnableAssignmentResponse["unable"],
+  renew: () => Promise<void>,
+): Promise<AssignmentSubmissionResult> {
+  await renew();
+  await writeLease(repositoryRoot, {
+    ...lease,
+    disposition: "abandoned",
+    retryAvailability: { malformedResponseCorrection: 0 },
+    response: {
+      kind: "unable",
+      digest: sha256(responseSource),
+      unable,
+    },
+  });
+  return {
+    ok: true,
+    value: {
+      ...dispositionBase(lease.id),
+      disposition: "abandoned",
+      orchestration: { action: "stop", automaticReplacement: false },
+      unable,
+    },
+    diagnostics: [],
+  };
+}
+
+async function recordUnableResponse(
+  repositoryRoot: string,
+  expectedLease: AssignmentLease,
+  responseSource: string,
+  unable: UnableAssignmentResponse["unable"],
+): Promise<AssignmentSubmissionResult> {
+  return withExactActiveLease(
+    repositoryRoot,
+    expectedLease,
+    (lease, renew) =>
+      writeUnableResponse(
+        repositoryRoot,
+        lease,
+        responseSource,
+        unable,
+        renew,
+      ),
+  );
 }
 
 /** Apply one harness response to the active exact Assignment. */
@@ -2174,27 +2342,12 @@ export async function submitAssignmentResponse(
     return recordStaleDisposition(repositoryRoot, lease);
   }
   if (parsed.value.kind === "unable") {
-    const digest = sha256(responseSource);
-    await writeLease(repositoryRoot, {
-      ...lease,
-      disposition: "abandoned",
-      retryAvailability: { malformedResponseCorrection: 0 },
-      response: {
-        kind: "unable",
-        digest,
-        unable: parsed.value.unable,
-      },
-    });
-    return {
-      ok: true,
-      value: {
-        ...dispositionBase(lease.id),
-        disposition: "abandoned",
-        orchestration: { action: "stop", automaticReplacement: false },
-        unable: parsed.value.unable,
-      },
-      diagnostics: [],
-    };
+    return recordUnableResponse(
+      repositoryRoot,
+      lease,
+      responseSource,
+      parsed.value.unable,
+    );
   }
   const proposal = parsed.value.proposal;
   const submission = {
@@ -2209,81 +2362,110 @@ export async function submitAssignmentResponse(
     suppliedDelegations: proposal.standingDelegations,
     loadedSkillRefs: proposal.loadedSkillRefs,
   };
-  const prepared = preparedScenarioSubmission(repositoryRoot, exact.value);
-  const submitted = exact.value.lease.obligation
-    ? await submitPreparedResolverScenario(
-        repositoryRoot,
-        exact.value.processPackage,
-        exact.value.lease.package,
-        {
-          ...submission,
-          obligationInstance: exact.value.lease.obligation.instance,
-        },
-        prepared,
-      )
-    : await submitPreparedExplicitScenario(
-        repositoryRoot,
-        exact.value.processPackage,
-        exact.value.lease.package,
-        {
-          ...submission,
-          requestedInputs: exact.value.lease.bindings.flatMap((invocation) =>
-            invocation.inputs.map((input) => ({
-              name: input.name,
-              value: input.values.join(","),
-            }))
-          ),
-        },
-        prepared,
-      );
-  if (!submitted.ok) {
-    if (submitted.diagnostics.some((diagnostic) =>
-      diagnostic.code === "scenario-repository-changed"
-    )) {
-      return recordStaleDisposition(repositoryRoot, lease);
-    }
-    if (submitted.diagnostics.some((diagnostic) =>
-      diagnostic.code === "scenario-publication-failed"
-    )) {
-      return { ok: false, diagnostics: submitted.diagnostics };
-    }
-    return recordMalformedResponse(
+  return withExactActiveLease(repositoryRoot, lease, async (lease, renew) => {
+    const verifyAssignment = async (): Promise<AssignmentResult<undefined>> => {
+      await renew();
+      const committedLease = await readLease(repositoryRoot);
+      if (!committedLease.ok) return committedLease;
+      return exactActiveLease(committedLease.value, lease)
+        ? { ok: true, value: undefined, diagnostics: [] }
+        : failure(
+          "scenario-repository-changed",
+          "The active Assignment changed before publication",
+          leasePath(repositoryRoot),
+        );
+    };
+    const prepared = preparedScenarioSubmission(
       repositoryRoot,
-      lease,
-      responseSource,
-      submitted.diagnostics,
+      exact.value,
+      verifyAssignment,
     );
-  }
-  await fs.rm(leasePath(repositoryRoot), { force: true });
-  return {
-    ok: true,
-    value: submitted.value as AssignmentSubmission,
-    diagnostics: [],
-  };
+    const submitted = exact.value.lease.obligation
+      ? await submitPreparedResolverScenario(
+          repositoryRoot,
+          exact.value.processPackage,
+          exact.value.lease.package,
+          {
+            ...submission,
+            obligationInstance: exact.value.lease.obligation.instance,
+          },
+          prepared,
+        )
+      : await submitPreparedExplicitScenario(
+          repositoryRoot,
+          exact.value.processPackage,
+          exact.value.lease.package,
+          {
+            ...submission,
+            requestedInputs: exact.value.lease.bindings.flatMap((invocation) =>
+              invocation.inputs.map((input) => ({
+                name: input.name,
+                value: input.values.join(","),
+              }))
+            ),
+          },
+          prepared,
+        );
+    if (!submitted.ok) {
+      if (submitted.diagnostics.some((diagnostic) =>
+        diagnostic.code === "scenario-repository-changed"
+      )) return writeStaleDisposition(repositoryRoot, lease, renew);
+      if (submitted.diagnostics.some((diagnostic) =>
+        diagnostic.code === "scenario-publication-failed"
+      )) return { ok: false, diagnostics: submitted.diagnostics };
+      return writeMalformedResponse(
+        repositoryRoot,
+        lease,
+        responseSource,
+        submitted.diagnostics,
+        renew,
+      );
+    }
+    await renew();
+    await fs.rm(leasePath(repositoryRoot), { force: true });
+    return {
+      ok: true,
+      value: submitted.value as AssignmentSubmission,
+      diagnostics: [],
+    };
+  });
 }
 
 /** Revalidate one active exact Assignment and expand its harness-neutral packet. */
-export async function prepareAssignment(
+async function prepareAssignmentLocked(
   repositoryRoot: string,
   assignmentId: string,
+  expectedLease: AssignmentLease,
+  exact: AssignmentResult<ExactAssignment>,
+  renewLeaseLock: () => Promise<void>,
 ): Promise<AssignmentResult<AssignmentPacket>> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
-  const lease = persisted.value;
-  if (
-    !lease || lease.disposition !== "active" || lease.id !== assignmentId
-  ) {
-    return failure(
-      "assignment-unavailable",
-      `Assignment '${assignmentId}' is not the active Assignment`,
-      assignmentId,
-    );
+  if (!exactActiveLease(persisted.value, expectedLease)) {
+    return unavailableSubmission(assignmentId);
   }
-  const exact = await exactAssignment(repositoryRoot);
+  const lease = persisted.value;
   if (!exact.ok) {
     if (exact.diagnostics.some((item) =>
       item.code === "assignment-repository-fingerprint-failed"
     )) return exact;
+    await renewLeaseLock();
+    await fs.rm(leasePath(repositoryRoot), { force: true });
+    return failure(
+      "assignment-stale",
+      `Assignment '${assignmentId}' no longer matches the current exact repository state; prepare will not rebase it`,
+      assignmentId,
+    );
+  }
+  const unchanged = await confirmRepositoryFingerprint(
+    repositoryRoot,
+    exact.value.lease.repository,
+  );
+  if (!unchanged.ok) {
+    if (unchanged.diagnostics.some((item) =>
+      item.code === "assignment-repository-fingerprint-failed"
+    )) return unchanged;
+    await renewLeaseLock();
     await fs.rm(leasePath(repositoryRoot), { force: true });
     return failure(
       "assignment-stale",
@@ -2297,6 +2479,7 @@ export async function prepareAssignment(
     }
     const rebased = await packageMigrationRebase(repositoryRoot, lease, exact.value);
     if (rebased) {
+      await renewLeaseLock();
       await writeLease(repositoryRoot, rebased);
       return {
         ok: true,
@@ -2304,6 +2487,7 @@ export async function prepareAssignment(
         diagnostics: [],
       };
     }
+    await renewLeaseLock();
     await fs.rm(leasePath(repositoryRoot), { force: true });
     return failure(
       "assignment-stale",
@@ -2316,4 +2500,43 @@ export async function prepareAssignment(
     value: packet(exact.value, lease),
     diagnostics: [],
   };
+}
+
+/** Revalidate preparation without locking unless the lease must change. */
+export async function prepareAssignment(
+  repositoryRoot: string,
+  assignmentId: string,
+): Promise<AssignmentResult<AssignmentPacket>> {
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.disposition !== "active" || lease.id !== assignmentId) {
+    return unavailableSubmission(assignmentId);
+  }
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok && exact.diagnostics.some((item) =>
+    item.code === "assignment-repository-fingerprint-failed"
+  )) return exact;
+  if (exact.ok && sameAssignment(lease, exact.value)) {
+    return {
+      ok: true,
+      value: packet(exact.value, lease),
+      diagnostics: [],
+    };
+  }
+  if (exact.ok && sameAssignmentSource(lease, exact.value)) {
+    return invalidLease(repositoryRoot);
+  }
+  return withRepositoryLock(
+    repositoryRoot,
+    leaseLockRef,
+    (renew) =>
+      prepareAssignmentLocked(
+        repositoryRoot,
+        assignmentId,
+        lease,
+        exact,
+        renew,
+      ),
+  );
 }
