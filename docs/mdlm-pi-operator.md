@@ -61,7 +61,11 @@ judgment.
 - Attention Required uses the exact projected Authority Requirement and
   `attentionContext.invocations`. The harness conducts the conversation, preserves
   each package-owned input, and normalizes explicit conclusions into the prepared
-  response shape. It does not infer approval from prose.
+  response shape. It also carries the exact attended authority into
+  `proposal.authoritySupplies` when the worker omits it. A nonmatching worker
+  authority stops the run before response capture or submission. Autonomous and
+  independently reviewed Assignments receive no attended authority. The harness
+  does not infer approval from prose.
 - Exact reviewed Standing Delegation may be used only when the prepared packet
   projects it as applicable. It is not a substitute for nondelegable attended
   authority.
@@ -122,11 +126,15 @@ Interpret the returned Operator Outcome, never a remembered package sequence:
 
 A `correction-required` disposition with `correctionsRemaining: 1` keeps the same
 Assignment active for exactly one corrected submission. Correct the complete
-response and submit it once; a malformed correction exhausts the lease and reports
-`correctionsRemaining: 0`.
+response and submit it once; attended correction retains the exact conclusion and
+attended authority from the original conversation. A malformed correction exhausts
+the lease and reports `correctionsRemaining: 0`.
 
-Before a submission side effect, a crash-resumable harness records the exact
-response bytes and their SHA-256 digest. After interruption it uses
+Before worker execution, `mdlm-pi` records the normalized attended conclusion,
+exact authority, Assignment package identity, and repository identity. Recovery
+reuses that context only for the same Assignment boundary; a changed package or
+repository stops the run. Before a submission side effect, the harness records the
+exact response bytes and their SHA-256 digest. After interruption it uses
 `mdlm assignment show <assignment-id> --json` to distinguish an unattempted active
 lease from a recorded malformed response, exhaustion, staleness, or typed
 inability. It uses `mdlm scenario execution show <execution-id> --json` to match a

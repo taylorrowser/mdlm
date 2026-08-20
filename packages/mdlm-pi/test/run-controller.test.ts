@@ -8,9 +8,14 @@ import type {
   AssignmentPacket,
   AssignmentState,
   JsonObject,
+  JsonValue,
   MdlmStatus,
   PreparedAssignmentSubmission,
 } from "../src/mdlm-client.js";
+import {
+  PiAssignmentRunner,
+  type PiAssignmentSession,
+} from "../src/pi-assignment-runner.js";
 import { RunController } from "../src/run-controller.js";
 import { RunJournal } from "../src/run-journal.js";
 import type { UncapturedPublicationEvidence } from "../src/run-journal.js";
@@ -144,6 +149,369 @@ describe("RunController", () => {
       "lifecycle-complete",
       expect.objectContaining({ outcome: "lifecycle-complete" }),
     );
+  });
+
+  it("carries attended authority omitted by the worker into submission", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-attended-authority-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const authorityRequirement = {
+      mode: "attended",
+      authority: "stakeholder",
+      delegationAllowed: false,
+    };
+    const attendedOutcome = {
+      outcome: "attention-required",
+      assignment: { allocation: "active", id: assignmentId },
+      authorityRequirement,
+      attentionContext: { invocations: [{ question: "Use the exact accepted boundary?" }] },
+    };
+    const statuses: MdlmStatus[] = [
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        package: packageIdentity,
+        currentOutcome: attendedOutcome,
+        recentTransaction: { available: false },
+      },
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: attendedOutcome,
+        recentTransaction: { available: false },
+      },
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: { outcome: "lifecycle-complete" },
+        recentTransaction: { available: true, id: executionId },
+      },
+    ];
+    const workerResponse: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: {
+        outputs: [],
+        completionEvidence: { summary: "Used the attended conclusion exactly." },
+        loadedSkillRefs: [],
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    };
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const assignments = new PiAssignmentRunner({
+      repository: root,
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(workerResponse); });
+        return session;
+      }),
+    });
+    const mdlm = {
+      status: vi.fn(async () => statuses.shift()!),
+      next: vi.fn(),
+      assignment: vi.fn(async () => activeAssignmentState()),
+      prepare: vi.fn(async () => packet()),
+      prepareSubmission: vi.fn((value: JsonObject): PreparedAssignmentSubmission => {
+        const source = `${JSON.stringify(value)}\n`;
+        return {
+          response: value,
+          source,
+          digest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+        };
+      }),
+      submit: vi.fn(async (prepared: PreparedAssignmentSubmission) => ({
+        contract: "mdlm-scenario-execution@4" as const,
+        command: "scenario.submit" as const,
+        ok: true,
+        execution: executionRecord(prepared.digest),
+      })),
+      execution: vi.fn(),
+      doctor: vi.fn(async () => ({ command: "doctor" as const, ok: true })),
+    };
+    const git = {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(async () => "base-commit"),
+      repositoryFingerprint: baseAdvancementRepository,
+      capturePublication,
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(async () => []),
+      commit: vi.fn(async () => "publication-commit"),
+    };
+    const conclusion = { statement: "Use the exact accepted boundary." };
+    const io = {
+      progress: vi.fn(),
+      attention: vi.fn(async () => ({ conclusion })),
+      stopped: vi.fn(),
+    };
+
+    await expect(new RunController({ mdlm, assignments, git, io, journal }).run())
+      .resolves.toMatchObject({ status: "lifecycle-complete", successful: true });
+
+    expect(mdlm.submit).toHaveBeenCalledTimes(1);
+    expect(mdlm.submit.mock.calls[0]?.[0].response).toEqual({
+      ...workerResponse,
+      proposal: {
+        ...(workerResponse.proposal as JsonObject),
+        authoritySupplies: ["stakeholder"],
+      },
+    });
+    expect(io.attention).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers one exact immediate attended context before worker response capture", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-immediate-attended-recovery-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const authorityRequirement = {
+      mode: "attended",
+      authority: "stakeholder",
+      delegationAllowed: false,
+    };
+    const outcome = {
+      outcome: "attention-required",
+      assignment: { allocation: "active", id: assignmentId },
+      authorityRequirement,
+      attentionContext: { invocations: [{ question: "Preserve this exact conclusion?" }] },
+    };
+    const mdlm = {
+      status: vi.fn(async (): Promise<MdlmStatus> => ({
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        package: packageIdentity,
+        currentOutcome: outcome,
+        recentTransaction: { available: false },
+      })),
+      next: vi.fn(),
+      assignment: vi.fn(),
+      prepare: vi.fn(async () => packet()),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const git = {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(),
+      repositoryFingerprint: baseAdvancementRepository,
+      capturePublication,
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(),
+      commit: vi.fn(),
+    };
+    const conclusion = {
+      statement: "Preserve the accepted conclusion exactly.\nIncluding this line.",
+    };
+    const io = {
+      progress: vi.fn(),
+      attention: vi.fn(async () => ({
+        conclusion,
+        rawTranscript: "must-not-persist",
+      })),
+      stopped: vi.fn(),
+    };
+    const expectedContext = {
+      authorityRequirement,
+      authoritySupply: {
+        authority: "stakeholder",
+        source: "attended-authority-holder",
+      },
+      conclusion,
+      attentionContext: outcome.attentionContext,
+    };
+    const firstAssignments = {
+      run: vi.fn(async () => { throw new Error("worker crashed before response capture"); }),
+    };
+
+    await expect(new RunController({ mdlm, assignments: firstAssignments, git, io, journal }).run())
+      .rejects.toThrow("worker crashed before response capture");
+
+    for (const changedPacket of [
+      { ...packet(), package: { ...packageIdentity, digest: `sha256:${"e".repeat(64)}` } },
+      { ...packet(), repository: { ...repositoryFingerprint, head: "changed-head" } },
+    ]) {
+      const changedAssignments = { run: vi.fn() };
+      await expect(new RunController({
+        mdlm: { ...mdlm, prepare: vi.fn(async () => changedPacket) },
+        assignments: changedAssignments,
+        git,
+        io,
+        journal: new RunJournal(path.join(root, "state")),
+      }).run()).rejects.toThrow(`Assignment '${assignmentId}' attended recovery boundary changed`);
+      expect(changedAssignments.run).not.toHaveBeenCalled();
+    }
+
+    const recoveredAssignments = {
+      run: vi.fn(async (_packet: AssignmentPacket, options?: { attendedContext?: JsonValue }) => {
+        expect(options?.attendedContext).toEqual(expectedContext);
+        throw new Error("recovered exact attended context");
+      }),
+    };
+    await expect(new RunController({
+      mdlm,
+      assignments: recoveredAssignments,
+      git,
+      io,
+      journal: new RunJournal(path.join(root, "state")),
+    }).run()).rejects.toThrow("recovered exact attended context");
+
+    expect(io.attention).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(conclusion)).not.toContain("must-not-persist");
+  });
+
+  it("carries the same attended authority through malformed-response correction", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-attended-correction-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const authorityRequirement = {
+      mode: "attended",
+      authority: "stakeholder",
+      delegationAllowed: false,
+    };
+    const attendedOutcome = {
+      outcome: "attention-required",
+      assignment: { allocation: "active", id: assignmentId },
+      authorityRequirement,
+      attentionContext: { invocations: [{ question: "Keep the exact conclusion?" }] },
+    };
+    const status = (outcome: JsonObject, recentId?: string): MdlmStatus => ({
+      contract: "mdlm-status@1",
+      command: "status",
+      ok: true,
+      package: packageIdentity,
+      currentOutcome: outcome as MdlmStatus["currentOutcome"],
+      recentTransaction: recentId === undefined
+        ? { available: false }
+        : { available: true, id: recentId },
+    });
+    const statuses = [
+      status(attendedOutcome),
+      status(attendedOutcome),
+      status(attendedOutcome),
+      status({ outcome: "lifecycle-complete" }, executionId),
+    ];
+    const response = (revision: string): JsonObject => ({
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: {
+        outputs: [],
+        completionEvidence: { revision },
+        loadedSkillRefs: [],
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    });
+    const workerResponses = [response("initial"), response("corrected")];
+    const prompts: string[] = [];
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const assignments = new PiAssignmentRunner({
+      repository: root,
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async (prompt: string) => {
+          prompts.push(prompt);
+          capture(workerResponses.shift()!);
+        });
+        return session;
+      }),
+    });
+    let malformedDigest: `sha256:${string}` | undefined;
+    let submissionCount = 0;
+    const submittedResponses: JsonObject[] = [];
+    const mdlm = {
+      status: vi.fn(async () => statuses.shift()!),
+      next: vi.fn(),
+      assignment: vi.fn(async () => ({
+        ...activeAssignmentState(),
+        malformedResponses: malformedDigest === undefined
+          ? []
+          : [{ digest: malformedDigest, diagnostics: [{ code: "FIX", message: "Correct output" }] }],
+      })),
+      prepare: vi.fn(async () => packet()),
+      prepareSubmission: vi.fn((value: JsonObject): PreparedAssignmentSubmission => {
+        const source = `${JSON.stringify(value)}\n`;
+        return {
+          response: value,
+          source,
+          digest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+        };
+      }),
+      submit: vi.fn(async (prepared: PreparedAssignmentSubmission) => {
+        submittedResponses.push(prepared.response);
+        if (submissionCount++ === 0) {
+          malformedDigest = prepared.digest;
+          return {
+            contract: "mdlm-assignment-disposition@1" as const,
+            command: "scenario.submit" as const,
+            ok: false,
+            assignment: { id: assignmentId },
+            disposition: "correction-required",
+            malformedResponse: {
+              attempt: 1,
+              correctionsRemaining: 1,
+              diagnostics: [{ code: "FIX", message: "Correct output" }],
+            },
+          };
+        }
+        return {
+          contract: "mdlm-scenario-execution@4" as const,
+          command: "scenario.submit" as const,
+          ok: true,
+          execution: executionRecord(prepared.digest),
+        };
+      }),
+      execution: vi.fn(),
+      doctor: vi.fn(async () => ({ command: "doctor" as const, ok: true })),
+    };
+    const git = {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(async () => "base-commit"),
+      repositoryFingerprint: baseAdvancementRepository,
+      capturePublication,
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(async () => []),
+      commit: vi.fn(async () => "publication-commit"),
+    };
+    const conclusion = { statement: "Keep the accepted conclusion byte-for-byte." };
+    const io = {
+      progress: vi.fn(),
+      attention: vi.fn(async () => ({ conclusion })),
+      stopped: vi.fn(),
+    };
+
+    await expect(new RunController({ mdlm, assignments, git, io, journal }).run())
+      .resolves.toMatchObject({ status: "lifecycle-complete", successful: true });
+
+    expect(submittedResponses).toHaveLength(2);
+    expect(submittedResponses[0]?.proposal).toMatchObject({
+      completionEvidence: { revision: "initial" },
+      authoritySupplies: ["stakeholder"],
+    });
+    expect(submittedResponses[1]?.proposal).toMatchObject({
+      completionEvidence: { revision: "corrected" },
+      authoritySupplies: ["stakeholder"],
+    });
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain(JSON.stringify(conclusion));
+    expect(io.attention).toHaveBeenCalledTimes(1);
   });
 
   it("stops on an exact recovery mismatch instead of leasing replacement work", async () => {
@@ -955,11 +1323,23 @@ describe("RunController", () => {
     expect(await journal.loadAttendedConclusions()).toBeNull();
   });
 
-  it("submits an exact captured response after restart without rerunning the worker", async () => {
+  it("submits exact captured attended response bytes after restart without rerunning the worker", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-captured-"));
     roots.push(root);
     const journal = new RunJournal(path.join(root, "state"));
-    const response: JsonObject = { assignment: assignmentId, exact: "captured" };
+    const exactConclusion = "Keep line one.\nKeep line two byte-for-byte.";
+    const response: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: {
+        outputs: [],
+        completionEvidence: { conclusion: exactConclusion },
+        loadedSkillRefs: [],
+        authoritySupplies: ["stakeholder"],
+        standingDelegations: [],
+      },
+    };
     const source = `${JSON.stringify(response)}\n`;
     const digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
     await journal.captureSubmission({
