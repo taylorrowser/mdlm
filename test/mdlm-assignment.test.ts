@@ -216,6 +216,11 @@ describe("MDLM Assignment leasing and preparation", () => {
       expect.objectContaining({ code: "scenario-prepare-arguments-invalid" }),
     ]);
 
+    const looseObjectsBeforePrepare = git(
+      repository,
+      "count-objects",
+      "-v",
+    ).stdout;
     const prepared = mdlm(
       repository,
       "scenario",
@@ -223,6 +228,9 @@ describe("MDLM Assignment leasing and preparation", () => {
       outcome.assignment.id,
     );
     expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    expect(git(repository, "count-objects", "-v").stdout).toBe(
+      looseObjectsBeforePrepare,
+    );
     const packet = JSON.parse(prepared.stdout);
     expect(Object.keys(packet).sort()).toEqual([
       "allowedProjections",
@@ -649,7 +657,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     }));
   });
 
-  it("does not let a losing concurrent submission overwrite a fresh Assignment", async () => {
+  it("allows only one concurrent valid response to publish for an Assignment", async () => {
     const next = JSON.parse(mdlm(repository, "next").stdout);
     const assignment = next.assignment.id as string;
     const packet = JSON.parse(mdlm(
@@ -662,44 +670,62 @@ describe("MDLM Assignment leasing and preparation", () => {
       assignment,
       packet.prompt.skills.map((skill) => skill.reference),
     ))}\n`;
-    const lockOwner = holdPublicationLock(repository, process.pid);
-    const activeLeasePath = path.join(
-      repository,
-      ".lifecycle/work/active-assignment.json",
-    );
+    const publicationOwner = holdPublicationLock(repository, process.pid);
     const stagingRoot = path.join(repository, ".lifecycle");
-    const waitForStagingCount = async (expected: number): Promise<void> => {
-      const staged = () => fs.readdir(stagingRoot).then((entries) =>
-        entries.filter((entry) =>
-          entry.startsWith(".scenario-") && entry.endsWith(".tmp")
-        ).length
-      );
-      if (await staged() >= expected) return;
+    const staged = () => fs.readdir(stagingRoot).then((entries) =>
+      entries.filter((entry) =>
+        entry.startsWith(".scenario-") && entry.endsWith(".tmp")
+      )
+    );
+    const waitForPath = async (target: string, message: string): Promise<void> => {
+      try {
+        await fs.access(target);
+        return;
+      } catch {
+        // Wait for the process-level barrier below.
+      }
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           watcher.close();
-          reject(new Error(`Expected ${expected} staged submissions`));
+          reject(new Error(message));
         }, 10_000);
-        const watcher = watch(stagingRoot, async () => {
+        const watcher = watch(path.dirname(target), async () => {
           try {
-            if (await staged() >= expected) {
-              clearTimeout(timeout);
-              watcher.close();
-              resolve();
-            }
-          } catch (error) {
+            await fs.access(target);
             clearTimeout(timeout);
             watcher.close();
-            reject(error);
+            resolve();
+          } catch {
+            // The observed event was unrelated to the barrier.
           }
         });
       });
     };
-    const runSubmission = () => {
+    const waitForStaging = async (): Promise<void> => {
+      if ((await staged()).length === 1) return;
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          watcher.close();
+          reject(new Error("First submission did not stage publication"));
+        }, 10_000);
+        const watcher = watch(stagingRoot, async () => {
+          if ((await staged()).length === 1) {
+            clearTimeout(timeout);
+            watcher.close();
+            resolve();
+          }
+        });
+      });
+    };
+    const runSubmission = (environment = process.env) => {
       const child = spawn(
         process.execPath,
         [mdlmExecutable, "scenario", "submit"],
-        { cwd: repository, stdio: ["pipe", "pipe", "pipe"] },
+        {
+          cwd: repository,
+          env: environment,
+          stdio: ["pipe", "pipe", "pipe"],
+        },
       );
       let stdout = "";
       let stderr = "";
@@ -714,50 +740,66 @@ describe("MDLM Assignment leasing and preparation", () => {
       return { child, closed, output: () => ({ stdout, stderr }) };
     };
 
-    const losing = runSubmission();
-    await waitForStagingCount(1);
-    expect(losing.child.pid).toBeTypeOf("number");
-    process.kill(losing.child.pid!, "SIGSTOP");
-    const winning = runSubmission();
-    await waitForStagingCount(2);
+    const first = runSubmission();
+    await waitForStaging();
+    const barrierRoot = path.join(parent, "valid-response-barrier");
+    const barrierSignal = path.join(barrierRoot, "assignment-lock-attempted");
+    await fs.mkdir(barrierRoot);
+    const gitWrapper = path.join(barrierRoot, "git");
+    await fs.writeFile(gitWrapper, `#!/usr/bin/env node
+const fs = require("node:fs");
+const { spawnSync } = require("node:child_process");
+if (process.argv.includes("refs/mdlm/assignment-lease-lock")) fs.writeFileSync(process.env.MDLM_TEST_LOCK_SIGNAL, "");
+const env = { ...process.env, PATH: process.env.MDLM_TEST_REAL_PATH };
+delete env.MDLM_TEST_LOCK_SIGNAL;
+delete env.MDLM_TEST_REAL_PATH;
+const result = spawnSync("git", process.argv.slice(2), { env, stdio: "inherit" });
+process.exit(result.status ?? 1);
+`);
+    await fs.chmod(gitWrapper, 0o755);
+    const second = runSubmission({
+      ...process.env,
+      PATH: `${barrierRoot}:${process.env.PATH}`,
+      MDLM_TEST_LOCK_SIGNAL: barrierSignal,
+      MDLM_TEST_REAL_PATH: process.env.PATH,
+    });
+    await waitForPath(
+      barrierSignal,
+      "Second valid response did not reach the Assignment lock",
+    );
+    expect(await staged()).toHaveLength(1);
+    expect(second.child.exitCode).toBeNull();
     expect(git(
       repository,
       "update-ref",
       "-d",
       "refs/mdlm/publication-lock",
-      lockOwner,
+      publicationOwner,
     ).status).toBe(0);
 
-    const winningStatus = await winning.closed;
-    const winningOutput = winning.output();
-    expect(
-      winningStatus,
-      `${winningOutput.stderr}${winningOutput.stdout}`,
-    ).toBe(0);
-    const fresh = JSON.parse(mdlm(repository, "next").stdout);
-    expect(fresh.assignment.id).not.toBe(assignment);
-    const freshLease = await fs.readFile(activeLeasePath, "utf8");
-
-    process.kill(losing.child.pid!, "SIGCONT");
-    const losingStatus = await losing.closed;
-    const losingOutput = losing.output();
-    expect(
-      losingStatus,
-      `${losingOutput.stderr}${losingOutput.stdout}`,
-    ).toBe(1);
-    expect(JSON.parse(losingOutput.stdout)).toEqual(expect.objectContaining({
-      diagnostics: [expect.objectContaining({
-        code: "assignment-unavailable",
-      })],
-    }));
-    expect(await fs.readFile(activeLeasePath, "utf8")).toBe(freshLease);
+    const [firstStatus, secondStatus] = await Promise.all([
+      first.closed,
+      second.closed,
+    ]);
+    const firstOutput = first.output();
+    const secondOutput = second.output();
+    expect(firstStatus, `${firstOutput.stderr}${firstOutput.stdout}`).toBe(0);
+    expect(secondStatus, `${secondOutput.stderr}${secondOutput.stdout}`).toBe(1);
+    expect(JSON.parse(secondOutput.stdout).diagnostics).toEqual([
+      expect.objectContaining({ code: "assignment-unavailable" }),
+    ]);
+    const transactionsRoot = path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+    );
+    expect(await fs.readdir(transactionsRoot)).toHaveLength(1);
   });
 
   it.each([
     ["malformed", "{not-json\n"],
     ["unable", undefined],
   ] as const)(
-    "does not let a %s response overwrite a fresh Assignment after a valid response publishes",
+    "does not let a %s response overwrite newer Assignment coordinates that retain its id",
     async (kind, malformedSource) => {
       const next = JSON.parse(mdlm(repository, "next").stdout);
       const assignment = next.assignment.id as string;
@@ -785,18 +827,27 @@ describe("MDLM Assignment leasing and preparation", () => {
         },
       })}\n`;
       const leaseLockRef = "refs/mdlm/assignment-lease-lock";
-      const lockOwner = holdRepositoryLock(
-        repository,
-        leaseLockRef,
-        process.pid,
-      );
       const barrierRoot = path.join(parent, "git-barrier");
       const barrierSignal = path.join(barrierRoot, "lease-lock-attempted");
-      const realGit = spawnSync("which", ["git"], { encoding: "utf8" })
-        .stdout.trim();
+      const barrierRelease = path.join(barrierRoot, "release");
       await fs.mkdir(barrierRoot);
       const gitWrapper = path.join(barrierRoot, "git");
-      await fs.writeFile(gitWrapper, `#!/bin/sh\ncase " $* " in\n  *" ${leaseLockRef} "*) : > "$MDLM_TEST_LOCK_SIGNAL" ;;\nesac\nexec "${realGit}" "$@"\n`);
+      await fs.writeFile(gitWrapper, `#!/usr/bin/env node
+const fs = require("node:fs");
+const { spawnSync } = require("node:child_process");
+if (process.argv.includes("${leaseLockRef}")) {
+  fs.writeFileSync(process.env.MDLM_TEST_LOCK_SIGNAL, "");
+  while (!fs.existsSync(process.env.MDLM_TEST_LOCK_RELEASE)) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+  }
+}
+const env = { ...process.env, PATH: process.env.MDLM_TEST_REAL_PATH };
+delete env.MDLM_TEST_LOCK_SIGNAL;
+delete env.MDLM_TEST_LOCK_RELEASE;
+delete env.MDLM_TEST_REAL_PATH;
+const result = spawnSync("git", process.argv.slice(2), { env, stdio: "inherit" });
+process.exit(result.status ?? 1);
+`);
       await fs.chmod(gitWrapper, 0o755);
       const waitForPath = async (
         watchedRoot: string,
@@ -855,13 +906,14 @@ describe("MDLM Assignment leasing and preparation", () => {
         ...process.env,
         PATH: `${barrierRoot}:${process.env.PATH}`,
         MDLM_TEST_LOCK_SIGNAL: barrierSignal,
+        MDLM_TEST_LOCK_RELEASE: barrierRelease,
+        MDLM_TEST_REAL_PATH: process.env.PATH,
       });
       await waitForPath(
         barrierRoot,
         barrierSignal,
         `${kind} response did not reach the Assignment lease lock`,
       );
-      process.kill(losing.child.pid!, "SIGSTOP");
 
       const winning = spawnSubmission(validResponse, {
         ...process.env,
@@ -871,42 +923,6 @@ describe("MDLM Assignment leasing and preparation", () => {
         repository,
         ".lifecycle/data/.transactions",
       );
-      const waitForPublishedTransaction = async (): Promise<void> => {
-        const published = async () => {
-          try {
-            const entries = await fs.readdir(transactionsRoot);
-            return entries.length === 1;
-          } catch {
-            return false;
-          }
-        };
-        if (await published()) return;
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            watcher.close();
-            reject(new Error("Valid response did not publish its transaction"));
-          }, 10_000);
-          const watcher = watch(
-            path.join(repository, ".lifecycle/data"),
-            { recursive: true },
-            async () => {
-              if (await published()) {
-                clearTimeout(timeout);
-                watcher.close();
-                resolve();
-              }
-            },
-          );
-        });
-      };
-      await waitForPublishedTransaction();
-      expect(git(
-        repository,
-        "update-ref",
-        "-d",
-        leaseLockRef,
-        lockOwner,
-      ).status).toBe(0);
       const winningStatus = await winning.closed;
       const winningOutput = winning.output();
       expect(
@@ -929,8 +945,13 @@ describe("MDLM Assignment leasing and preparation", () => {
         repository,
         ".lifecycle/work/active-assignment.json",
       );
-      const freshLease = await fs.readFile(activeLeasePath, "utf8");
-      process.kill(losing.child.pid!, "SIGCONT");
+      const freshLeaseValue = JSON.parse(
+        await fs.readFile(activeLeasePath, "utf8"),
+      );
+      freshLeaseValue.id = assignment;
+      const freshLease = `${JSON.stringify(freshLeaseValue, null, 2)}\n`;
+      await fs.writeFile(activeLeasePath, freshLease);
+      await fs.writeFile(barrierRelease, "continue");
       const losingStatus = await losing.closed;
       const losingOutput = losing.output();
       expect(
@@ -953,6 +974,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       const doctor = mdlm(repository, "doctor", "--json");
       expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
     },
+    30_000,
   );
 
   it("stops a corrected response when tracked state became stale and publishes nothing", async () => {
