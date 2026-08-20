@@ -2384,7 +2384,7 @@ export async function submitAssignmentResponse(
 ): Promise<AssignmentSubmissionResult> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
-  let lease = persisted.value;
+  const lease = persisted.value;
   const parsed = parseAssignmentResponse(responseSource);
   if (!parsed.ok) {
     if (lease?.disposition !== "active") return parsed;

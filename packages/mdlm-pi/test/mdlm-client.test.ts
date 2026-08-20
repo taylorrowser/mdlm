@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -190,7 +190,7 @@ describe("MdlmClient", () => {
     await writeFile(script, `
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
-process.stderr.write("ARGS:" + JSON.stringify(process.argv.slice(2)) + "\\nINPUT:" + input);
+process.stderr.write("CWD:" + process.cwd() + "\\nARGS:" + JSON.stringify(process.argv.slice(2)) + "\\nINPUT:" + input);
 process.stdout.write(${JSON.stringify(output)});
 process.exitCode = 1;
 `);
@@ -210,7 +210,7 @@ process.exitCode = 1;
     expect(attempt?.pid).toBeGreaterThan(0);
     expect(await readFile(attempt!.stdoutPath, "utf8")).toBe(output);
     expect(await readFile(attempt!.stderrPath, "utf8")).toBe(
-      `ARGS:["scenario","submit","-","--json"]\nINPUT:${response.source}`,
+      `CWD:${await realpath(repository)}\nARGS:["scenario","submit","-","--json"]\nINPUT:${response.source}`,
     );
   });
 

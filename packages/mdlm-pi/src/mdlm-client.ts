@@ -444,7 +444,7 @@ function parseNext(output: JsonObject): MdlmNext {
   if (!outcomes.has(outcome)) {
     throw contractError(`Unsupported MDLM outcome '${outcome}'`, output);
   }
-  if (outcome === "assignment") {
+  if (outcome === "assignment" || outcome === "attention-required") {
     expectString(expectObject(output, "assignment"), "id");
   }
   if (!Array.isArray(output.materializedExecutions)) {

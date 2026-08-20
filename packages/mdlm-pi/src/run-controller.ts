@@ -30,7 +30,8 @@ type JournalPort = Pick<RunJournal,
   "load" | "beginAdvancement" | "recordAdvancementExecutions" |
   "completeAdvancementExecution" | "beginSubmission" | "replaceSubmission" |
   "recordSubmissionProcess" | "clearSubmissionProcess" | "recordPublication" |
-  "recordDoctorPassed" | "clear"
+  "recordDoctorPassed" | "clear" | "loadAttendedConclusions" |
+  "recordAttendedConclusions" | "clearAttendedConclusions"
 >;
 
 export interface RunControllerOptions {
@@ -96,6 +97,7 @@ export class RunController {
       const status = await this.#mdlm.status();
       const outcome = status.currentOutcome;
       if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
+        await this.#journal.clearAttendedConclusions();
         return this.#report(stopForOutcome(outcome));
       }
 
@@ -104,10 +106,20 @@ export class RunController {
       if (allocation.allocation === "active") {
         allocated = outcome;
       } else {
-        allocated = await this.#advance(status);
+        const advancement = await this.#advance(status);
+        if (advancement.materializedExecutions.length > 0) {
+          // Committing automatic materialization changes the repository fingerprint and
+          // retires the Assignment lease returned by the pre-commit `next`.
+          continue;
+        }
+        allocated = advancement;
         if (allocated.outcome !== "assignment" && allocated.outcome !== "attention-required") {
+          await this.#journal.clearAttendedConclusions();
           return this.#report(stopForOutcome(allocated));
         }
+      }
+      if (allocated.outcome !== "attention-required") {
+        await this.#journal.clearAttendedConclusions();
       }
       const assignment = asObject(allocated.assignment, "outcome.assignment");
       const assignmentId = asString(assignment.id, "outcome.assignment.id");
@@ -116,15 +128,45 @@ export class RunController {
 
       let attendedContext: JsonValue | undefined;
       if (allocated.outcome === "attention-required") {
-        attendedContext = await this.#io.attention(allocated);
+        attendedContext = await this.#attendedContext(allocated);
       }
       const stopped = await this.#completeAssignment(
         packet,
         attendedContext === undefined ? {} : { attendedContext },
       );
-      if (stopped) return this.#report(stopped);
+      if (stopped) {
+        await this.#journal.clearAttendedConclusions();
+        return this.#report(stopped);
+      }
       await this.#git.assertClean();
     }
+  }
+
+  async #attendedContext(outcome: JsonObject): Promise<JsonObject> {
+    const group = attendedGroup(outcome);
+    if (group === null) {
+      return attendedAuthorityContext(
+        outcome,
+        (await this.#io.attention(outcome)).conclusion,
+      );
+    }
+
+    const persisted = await this.#journal.loadAttendedConclusions();
+    if (
+      persisted !== null && persisted.checkpoint === group.checkpoint &&
+      persisted.consolidationGroup === group.consolidationGroup &&
+      persisted.authority === group.authority &&
+      group.items.every((item) => persisted.items.includes(item))
+    ) {
+      return attendedAuthorityContext(outcome, persisted.conclusion);
+    }
+    if (persisted !== null) await this.#journal.clearAttendedConclusions();
+    const supplied = await this.#io.attention(outcome);
+    const recorded = await this.#journal.recordAttendedConclusions({
+      ...group,
+      conclusion: supplied.conclusion,
+    });
+    return attendedAuthorityContext(outcome, recorded.conclusion);
   }
 
   async #advance(status: MdlmStatus): Promise<MdlmNext> {
@@ -159,6 +201,7 @@ export class RunController {
   ): Promise<RunStop | null> {
     let options = initialOptions;
     let replacementDigest = initialReplacementDigest;
+    let correctionPrepared = initialOptions.correction !== undefined;
     while (true) {
       let response: JsonObject;
       try {
@@ -176,6 +219,11 @@ export class RunController {
         await this.#assignments.close?.(packet.assignment.id);
         return submitted.stop;
       }
+      if (correctionPrepared) {
+        await this.#assignments.close?.(packet.assignment.id);
+        throw new Error(`Assignment '${packet.assignment.id}' requested more than one correction`);
+      }
+      correctionPrepared = true;
       options = {
         correction: {
           previousResponse: submitted.previousResponse,
@@ -480,6 +528,82 @@ export class RunController {
     this.#io.stopped(stop.status, stop.details);
     return stop;
   }
+}
+
+function attendedGroup(outcome: JsonObject): {
+  checkpoint: string;
+  consolidationGroup: string | null;
+  authority: string;
+  items: string[];
+} | null {
+  if (outcome.checkpointConversation === undefined) return null;
+  const conversation = asObject(
+    outcome.checkpointConversation,
+    "attention-required.checkpointConversation",
+  );
+  const checkpoint = asString(
+    conversation.checkpoint,
+    "attention-required.checkpointConversation.checkpoint",
+  );
+  const consolidationGroup = conversation.consolidationGroup;
+  if (consolidationGroup !== null && typeof consolidationGroup !== "string") {
+    throw new Error(
+      "Expected attention-required.checkpointConversation.consolidationGroup to be a string or null",
+    );
+  }
+  if (!Array.isArray(conversation.items) || conversation.items.length === 0) {
+    throw new Error("Attention checkpoint conversation must contain exact items");
+  }
+  const items = conversation.items.map((item, index) =>
+    asString(
+      asObject(item, `attention-required.checkpointConversation.items[${index}]`).instance,
+      `attention-required.checkpointConversation.items[${index}].instance`,
+    )
+  );
+  const authorityRequirement = asObject(
+    outcome.authorityRequirement,
+    "attention-required.authorityRequirement",
+  );
+  if (authorityRequirement.mode !== "attended") {
+    throw new Error("Attention Required must name an attended Authority Requirement");
+  }
+  return {
+    checkpoint,
+    consolidationGroup,
+    authority: asString(
+      authorityRequirement.authority,
+      "attention-required.authorityRequirement.authority",
+    ),
+    items,
+  };
+}
+
+function attendedAuthorityContext(outcome: JsonObject, conclusion: JsonValue): JsonObject {
+  const authorityRequirement = asObject(
+    outcome.authorityRequirement,
+    "attention-required.authorityRequirement",
+  );
+  if (authorityRequirement.mode !== "attended") {
+    throw new Error("Attention Required must name an attended Authority Requirement");
+  }
+  const authority = asString(
+    authorityRequirement.authority,
+    "attention-required.authorityRequirement.authority",
+  );
+  return {
+    authorityRequirement,
+    authoritySupply: {
+      authority,
+      source: "attended-authority-holder",
+    },
+    conclusion,
+    ...(outcome.attentionContext === undefined
+      ? {}
+      : { attentionContext: outcome.attentionContext }),
+    ...(outcome.checkpointConversation === undefined
+      ? {}
+      : { checkpointConversation: outcome.checkpointConversation }),
+  };
 }
 
 function processAlive(pid: number): boolean {

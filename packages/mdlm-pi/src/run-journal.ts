@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import type { PreparedAssignmentSubmission } from "./mdlm-client.js";
+import type { JsonValue, PreparedAssignmentSubmission } from "./mdlm-client.js";
 
 const journalContract = "mdlm-pi-run-journal@1" as const;
+const attendedConclusionsContract = "mdlm-pi-attended-conclusions@1" as const;
 
 export interface SubmissionIntent {
   assignmentId: string;
@@ -26,6 +27,15 @@ export interface SubmissionProcess {
   pid: number;
   stdoutPath: string;
   stderrPath: string;
+}
+
+export interface AttendedConclusions {
+  contract: typeof attendedConclusionsContract;
+  checkpoint: string;
+  consolidationGroup: string | null;
+  authority: string;
+  items: string[];
+  conclusion: JsonValue;
 }
 
 interface JournalBase {
@@ -66,10 +76,12 @@ export class RunJournalError extends Error {
 export class RunJournal {
   readonly #directory: string;
   readonly #journalPath: string;
+  readonly #attendedConclusionsPath: string;
 
   constructor(directory: string) {
     this.#directory = directory;
     this.#journalPath = path.join(directory, "run.json");
+    this.#attendedConclusionsPath = path.join(directory, "attended-conclusions.json");
   }
 
   async load(): Promise<RunJournalRecord | null> {
@@ -87,6 +99,48 @@ export class RunJournal {
       throw new RunJournalError(`Run journal is not valid JSON: ${this.#journalPath}`);
     }
     return parseJournal(value, this.#journalPath);
+  }
+
+  async loadAttendedConclusions(): Promise<AttendedConclusions | null> {
+    let source: string;
+    try {
+      source = await readFile(this.#attendedConclusionsPath, "utf8");
+    } catch (error) {
+      if (isErrorCode(error, "ENOENT")) return null;
+      throw error;
+    }
+    let value: unknown;
+    try {
+      value = JSON.parse(source);
+    } catch {
+      throw new RunJournalError(
+        `Attended conclusions are not valid JSON: ${this.#attendedConclusionsPath}`,
+      );
+    }
+    return parseAttendedConclusions(value, this.#attendedConclusionsPath);
+  }
+
+  async recordAttendedConclusions(
+    conclusions: Omit<AttendedConclusions, "contract">,
+  ): Promise<AttendedConclusions> {
+    if (await this.loadAttendedConclusions() !== null) {
+      throw new RunJournalError("Cannot replace attended conclusions without clearing their exact group");
+    }
+    const record: AttendedConclusions = {
+      contract: attendedConclusionsContract,
+      ...conclusions,
+    };
+    await this.#writeFile(
+      this.#attendedConclusionsPath,
+      "attended",
+      record,
+    );
+    return record;
+  }
+
+  async clearAttendedConclusions(): Promise<void> {
+    await rm(this.#attendedConclusionsPath, { force: true });
+    await syncDirectory(this.#directory);
   }
 
   async beginAdvancement(intent: {
@@ -230,26 +284,56 @@ export class RunJournal {
   }
 
   async #write(record: RunJournalRecord): Promise<void> {
+    await this.#writeFile(this.#journalPath, "run", record);
+  }
+
+  async #writeFile(filePath: string, prefix: string, value: unknown): Promise<void> {
     await mkdir(this.#directory, { recursive: true, mode: 0o700 });
     const temporaryPath = path.join(
       this.#directory,
-      `.run-${process.pid}-${randomUUID()}.tmp`,
+      `.${prefix}-${process.pid}-${randomUUID()}.tmp`,
     );
     const file = await open(temporaryPath, "wx", 0o600);
     try {
-      await file.writeFile(`${JSON.stringify(record, null, 2)}\n`, "utf8");
+      await file.writeFile(`${JSON.stringify(value, null, 2)}\n`, "utf8");
       await file.sync();
     } finally {
       await file.close();
     }
     try {
-      await rename(temporaryPath, this.#journalPath);
+      await rename(temporaryPath, filePath);
       await syncDirectory(this.#directory);
     } catch (error) {
       await rm(temporaryPath, { force: true });
       throw error;
     }
   }
+}
+
+function parseAttendedConclusions(
+  value: unknown,
+  conclusionsPath: string,
+): AttendedConclusions {
+  if (
+    !isObject(value) || value.contract !== attendedConclusionsContract ||
+    typeof value.checkpoint !== "string" || value.checkpoint.length === 0 ||
+    (value.consolidationGroup !== null &&
+      typeof value.consolidationGroup !== "string") ||
+    typeof value.authority !== "string" || value.authority.length === 0 ||
+    !Array.isArray(value.items) || value.items.length === 0 ||
+    !value.items.every((item) => typeof item === "string" && item.length > 0) ||
+    !isJsonValue(value.conclusion)
+  ) {
+    throw new RunJournalError(`Malformed attended conclusions: ${conclusionsPath}`);
+  }
+  return {
+    contract: attendedConclusionsContract,
+    checkpoint: value.checkpoint,
+    consolidationGroup: value.consolidationGroup,
+    authority: value.authority,
+    items: value.items,
+    conclusion: value.conclusion,
+  };
 }
 
 function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
@@ -367,6 +451,13 @@ function digest(source: string): `sha256:${string}` {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(isJsonValue);
+  return isObject(value) && Object.values(value).every(isJsonValue);
 }
 
 function isErrorCode(error: unknown, code: string): boolean {

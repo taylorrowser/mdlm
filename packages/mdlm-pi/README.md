@@ -22,8 +22,9 @@ Run state is stored beneath the repository's private Git directory. Restarting t
 same command recovers a journaled `mdlm next` kernel materialization, submission,
 publication, doctor result, or Git commit. Every deterministic execution reported
 by `mdlm-next@1.materializedExecutions` is doctor-checked and committed at its own
-transaction boundary. The final Assignment response bytes are durable; raw
-attended conversation is not.
+transaction boundary. The final Assignment response bytes are durable. For an
+active checkpoint group, only the final normalized conclusions are retained and
+reused across serial reevaluation; raw attended conversation is not.
 
 ## Model and credentials
 

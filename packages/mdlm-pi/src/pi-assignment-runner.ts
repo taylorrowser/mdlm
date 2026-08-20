@@ -15,6 +15,7 @@ export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhi
 const systemPrompt = `You complete exactly one MDLM Assignment.
 Use only the supplied Assignment Packet and attended context; do not infer repository or Process Package facts outside them.
 Follow the packet prompt, assets, exact inputs, policies, participation, authority, prohibitions, output contracts, completion contract, and response schema.
+An attended conclusion supplies only the packet's exact named authority; normalize it into the required output and never treat chat prose itself as Lifecycle Data.
 Call complete_assignment exactly once as your final action.
 Return typed inability instead of asking a user or fabricating missing facts.`;
 
@@ -62,6 +63,7 @@ export class PiAssignmentRunnerError extends Error {
 interface ActiveSession {
   session: PiAssignmentSession;
   unsubscribe: () => void;
+  acceptingResponse: boolean;
   response?: JsonObject;
 }
 
@@ -95,7 +97,8 @@ export class PiAssignmentRunner {
       throw new PiAssignmentRunnerError(`Assignment '${assignmentId}' already owns a Pi session`);
     }
     if (active === undefined) active = await this.#createActiveSession(packet);
-    active.response = undefined;
+    delete active.response;
+    active.acceptingResponse = true;
 
     const timeout = AbortSignal.timeout(this.#assignmentTimeoutMs);
     const timedOut = new Promise<never>((_resolve, reject) => {
@@ -114,6 +117,8 @@ export class PiAssignmentRunner {
     } catch (error) {
       await this.close(assignmentId);
       throw error;
+    } finally {
+      active.acceptingResponse = false;
     }
 
     if (active.response === undefined) {
@@ -140,10 +145,11 @@ export class PiAssignmentRunner {
 
   async #createActiveSession(packet: AssignmentPacket): Promise<ActiveSession> {
     let active: ActiveSession | undefined;
-    let earlyResponse: JsonObject | undefined;
     const capture = (response: JsonObject) => {
-      if (active === undefined) earlyResponse = response;
-      else active.response = response;
+      if (active === undefined || !active.acceptingResponse || active.response !== undefined) {
+        throw new Error(`Assignment '${packet.assignment.id}' called complete_assignment more than once`);
+      }
+      active.response = response;
     };
     const session = this.#sessionFactory === undefined
       ? await this.#createDefaultSession(packet, capture)
@@ -154,7 +160,7 @@ export class PiAssignmentRunner {
           if (!isTextDeltaEvent(event)) return;
           this.#onText?.(event.assistantMessageEvent.delta);
         });
-    active = { session, unsubscribe, ...(earlyResponse ? { response: earlyResponse } : {}) };
+    active = { session, unsubscribe, acceptingResponse: false };
     this.#sessions.set(packet.assignment.id, active);
     return active;
   }

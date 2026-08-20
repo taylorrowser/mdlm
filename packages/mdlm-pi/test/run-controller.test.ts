@@ -1,8 +1,9 @@
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type {
   AssignmentPacket,
   AssignmentState,
@@ -134,18 +135,29 @@ describe("RunController", () => {
     );
   });
 
-  it("journals and commits deterministic materialization performed by mdlm next", async () => {
+  it("commits automatic materialization before reevaluating instead of using its stale lease", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-advance-"));
     roots.push(root);
     const journal = new RunJournal(path.join(root, "state"));
     const digest = `sha256:${"a".repeat(64)}` as const;
+    const statuses: MdlmStatus[] = [
+      assignmentStatus(false),
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: { outcome: "lifecycle-complete", explanation: "done" },
+        recentTransaction: { available: true, id: executionId },
+      },
+    ];
     const mdlm = {
-      status: vi.fn(async () => assignmentStatus(false)),
+      status: vi.fn(async () => statuses.shift()!),
       next: vi.fn(async () => ({
         contract: "mdlm-next@1" as const,
         command: "next" as const,
         ok: true,
-        outcome: "lifecycle-complete" as const,
+        outcome: "assignment" as const,
+        assignment: { id: "pre-commit-stale-assignment" },
         materializedExecutions: [{ id: executionId, scenario, status: "completed" as const }],
       })),
       assignment: vi.fn(),
@@ -185,47 +197,71 @@ describe("RunController", () => {
       [],
     );
     expect(mdlm.doctor).toHaveBeenCalledTimes(1);
+    expect(mdlm.status).toHaveBeenCalledTimes(2);
+    expect(mdlm.assignment).not.toHaveBeenCalled();
+    expect(mdlm.prepare).not.toHaveBeenCalled();
     expect(await journal.load()).toBeNull();
   });
 
-  it("asks only for attended authority and never journals the raw answer", async () => {
+  it("reuses one normalized attended conclusion across a checkpoint group without persisting raw conversation", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-attended-"));
     roots.push(root);
     const journal = new RunJournal(path.join(root, "state"));
-    const attendedOutcome = {
+    const secondAssignmentId = "c3171fc4-54c2-4524-8d92-02968ff2f6a0";
+    const secondExecutionId = "b7fcab68-7094-45db-bfb2-bfa3de4c6c24";
+    const authorityRequirement = {
+      mode: "attended",
+      authority: "stakeholder",
+      delegationAllowed: false,
+    };
+    const firstOutcome = {
       outcome: "attention-required",
       assignment: { allocation: "active", id: assignmentId },
-      checkpointConversation: { consolidationGroup: "group-1" },
+      authorityRequirement,
+      attentionContext: { invocations: [{ question: "Choose both exact boundaries" }] },
+      checkpointConversation: {
+        checkpoint: "checkpoint-1",
+        consolidationGroup: "group-1",
+        items: [{ instance: "question-1" }, { instance: "question-2" }],
+      },
     };
+    const secondOutcome = {
+      ...firstOutcome,
+      assignment: { allocation: "active", id: secondAssignmentId },
+      attentionContext: { invocations: [{ question: "Choose the second exact boundary" }] },
+      checkpointConversation: {
+        ...firstOutcome.checkpointConversation,
+        items: [{ instance: "question-2" }],
+      },
+    };
+    const status = (
+      currentOutcome: MdlmStatus["currentOutcome"],
+      recentId?: string,
+    ): MdlmStatus => ({
+      contract: "mdlm-status@1",
+      command: "status",
+      ok: true,
+      currentOutcome,
+      recentTransaction: recentId === undefined
+        ? { available: false }
+        : { available: true, id: recentId },
+    });
     const statuses: MdlmStatus[] = [
-      {
-        contract: "mdlm-status@1",
-        command: "status",
-        ok: true,
-        currentOutcome: attendedOutcome,
-        recentTransaction: { available: false },
-      },
-      {
-        contract: "mdlm-status@1",
-        command: "status",
-        ok: true,
-        currentOutcome: attendedOutcome,
-        recentTransaction: { available: false },
-      },
-      {
-        contract: "mdlm-status@1",
-        command: "status",
-        ok: true,
-        currentOutcome: { outcome: "lifecycle-complete" },
-        recentTransaction: { available: true, id: executionId },
-      },
+      status(firstOutcome),
+      status(firstOutcome),
+      status(secondOutcome, executionId),
+      status(secondOutcome, executionId),
+      status({ outcome: "lifecycle-complete" }, secondExecutionId),
     ];
-    const response: JsonObject = { assignment: assignmentId, attended: true };
+    let submissionIndex = 0;
     const mdlm = {
       status: vi.fn(async () => statuses.shift()!),
       next: vi.fn(),
-      assignment: vi.fn(async () => activeAssignmentState()),
-      prepare: vi.fn(async () => packet()),
+      assignment: vi.fn(async (id: string) => ({
+        ...activeAssignmentState(),
+        assignment: { id },
+      })),
+      prepare: vi.fn(async (id: string) => packet(id)),
       prepareSubmission: vi.fn((value: JsonObject): PreparedAssignmentSubmission => {
         const source = `${JSON.stringify(value)}\n`;
         return {
@@ -234,26 +270,66 @@ describe("RunController", () => {
           digest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
         };
       }),
-      submit: vi.fn(async (prepared: PreparedAssignmentSubmission) => ({
-        contract: "mdlm-scenario-execution@4" as const,
-        command: "scenario.submit" as const,
-        ok: true,
-        execution: executionRecord(prepared.digest),
-      })),
+      submit: vi.fn(async (prepared: PreparedAssignmentSubmission) => {
+        const id = submissionIndex++ === 0 ? executionId : secondExecutionId;
+        const submittedAssignment = prepared.response.assignment;
+        if (typeof submittedAssignment !== "string") {
+          throw new Error("Attended response omitted its Assignment ID");
+        }
+        return {
+          contract: "mdlm-scenario-execution@4" as const,
+          command: "scenario.submit" as const,
+          ok: true,
+          execution: {
+            contract: "mdlm-scenario-execution@4",
+            id,
+            status: "completed",
+            definition: { scenario },
+            response: {
+              assignment: submittedAssignment,
+              digest: prepared.digest,
+            },
+            outputs: [{
+              lifecycleDatum: {
+                path: `.lifecycle/data/.transactions/${id}/map.md`,
+              },
+            }],
+          },
+        };
+      }),
       execution: vi.fn(),
       doctor: vi.fn(async () => ({ command: "doctor" as const, ok: true })),
     };
-    const attendedAnswer = { explicitAuthority: "approved", transcript: "must-not-persist" };
+    const attendedAnswer = { first: "inside", second: "outside" };
+    const attendedExchange = {
+      conclusion: attendedAnswer,
+      rawTranscript: "must-not-persist",
+    };
     const io = {
       progress: vi.fn(),
-      attention: vi.fn(async () => attendedAnswer),
+      attention: vi.fn(async () => attendedExchange),
       stopped: vi.fn(),
     };
     const assignments = {
-      run: vi.fn(async (_packet: AssignmentPacket, options?: { attendedContext?: unknown }) => {
-        expect(options?.attendedContext).toEqual(attendedAnswer);
+      run: vi.fn(async (assignmentPacket: AssignmentPacket, options?: { attendedContext?: unknown }) => {
+        const outcome = assignmentPacket.assignment.id === assignmentId
+          ? firstOutcome
+          : secondOutcome;
+        expect(options?.attendedContext).toEqual({
+          authorityRequirement,
+          authoritySupply: {
+            authority: "stakeholder",
+            source: "attended-authority-holder",
+          },
+          conclusion: attendedAnswer,
+          attentionContext: outcome.attentionContext,
+          checkpointConversation: outcome.checkpointConversation,
+        });
         expect(await journal.load()).toBeNull();
-        return response;
+        expect(JSON.stringify(await journal.loadAttendedConclusions())).not.toContain(
+          "must-not-persist",
+        );
+        return { assignment: assignmentPacket.assignment.id, attended: true };
       }),
     };
     const git = {
@@ -269,9 +345,11 @@ describe("RunController", () => {
       status: "lifecycle-complete",
       successful: true,
     });
-    expect(io.attention).toHaveBeenCalledWith(attendedOutcome);
-    expect(assignments.run).toHaveBeenCalledTimes(1);
+    expect(io.attention).toHaveBeenCalledTimes(1);
+    expect(io.attention).toHaveBeenCalledWith(firstOutcome);
+    expect(assignments.run).toHaveBeenCalledTimes(2);
     expect(await journal.load()).toBeNull();
+    expect(await journal.loadAttendedConclusions()).toBeNull();
   });
 
   it("recovers a recorded malformed response by correcting the same durable Assignment", async () => {
@@ -427,9 +505,15 @@ describe("RunController", () => {
     expect(await journal.load()).toBeNull();
   });
 
-  it("does not retry a journaled submission while its child PID is alive", async () => {
+  it("does not retry a hidden journaled submission child while it is alive", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-live-submit-"));
     roots.push(root);
+    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      stdio: "ignore",
+    });
+    const childPid = child.pid;
+    if (childPid === undefined) throw new Error("Submission fixture did not start");
+    onTestFinished(() => { child.kill("SIGTERM"); });
     const journal = new RunJournal(path.join(root, "state"));
     const response: JsonObject = { assignment: assignmentId, complete: true };
     const source = `${JSON.stringify(response)}\n`;
@@ -444,7 +528,7 @@ describe("RunController", () => {
     });
     await journal.recordSubmissionProcess({
       id: "live-attempt",
-      pid: process.pid,
+      pid: childPid,
       stdoutPath: path.join(root, "state", "attempts", "live.stdout"),
       stderrPath: path.join(root, "state", "attempts", "live.stderr"),
     });
@@ -476,13 +560,13 @@ describe("RunController", () => {
     await expect(controller.run()).resolves.toMatchObject({
       status: "submission-child-active",
       successful: false,
-      details: { pid: process.pid, stdoutPath: expect.any(String), stderrPath: expect.any(String) },
+      details: { pid: childPid, stdoutPath: expect.any(String), stderrPath: expect.any(String) },
     });
     expect(mdlm.status).not.toHaveBeenCalled();
     expect(mdlm.submit).not.toHaveBeenCalled();
     expect(await journal.load()).toMatchObject({
       phase: "submitting",
-      submission: { process: { pid: process.pid } },
+      submission: { process: { pid: childPid } },
     });
   });
 
@@ -617,12 +701,12 @@ function executionRecord(digest: `sha256:${string}`): JsonObject & {
   };
 }
 
-function packet(): AssignmentPacket {
+function packet(id = assignmentId): AssignmentPacket {
   return {
     contract: "mdlm-assignment-packet@2",
     ok: true,
     command: "scenario.prepare",
-    assignment: { id: assignmentId },
+    assignment: { id },
     scenario: { reference: scenario },
     prompt: { exact: "complete it", skills: [] },
     responseSchema: {},
