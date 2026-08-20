@@ -137,11 +137,16 @@ catalog:
     - prior-foundation-correction-decision-revisions-for
     - failed-foundation-correction-decisions
     - valid-foundation-correction-decision-replacements-for
+    - failed-candidate-correction-decisions
+    - valid-candidate-correction-decision-replacements-for
     - candidate-correction-authorities-requiring-review
     - prior-foundation-revisions-for
     - foundation-review-failures-at-stage
     - review-correction-history-for
     - candidate-correction-decisions-for
+    - candidate-correction-candidates-for-decision
+    - candidate-correction-authority-decisions-for-review
+    - candidate-correction-decision-review-support-for
     - failed-intent-candidates
     - failed-gate-signoff-decisions
     - gate-rejection-blockers-for
@@ -152,6 +157,10 @@ catalog:
     - matching-cited-gate-rejection-by-correction
     - gate-rejection-corrections-for-subject
     - gate-candidates-for-decision
+    - gate-decision-review-support-for
+    - structural-passing-candidate-reviews-for-review
+    - gate-candidate-reviews-for-decision
+    - gate-candidate-authority-support-for-decision
     - other-gate-candidates-for-decision
     - valid-gate-signoff-replacements-for
     - review-required-revisions
@@ -405,6 +414,7 @@ catalog:
     - gate-signoff-review-correction-required
     - question-decision-review-correction-required
     - foundation-correction-decision-review-correction-required
+    - candidate-correction-decision-review-correction-required
     - intent-approval-required
     - review-context-required
     - passing-review-required
@@ -479,6 +489,7 @@ catalog:
     - revise-gate-signoff-after-review
     - revise-question-decision-after-review
     - revise-foundation-correction-decision-after-review
+    - revise-candidate-correction-decision-after-review
     - accept-phase-0-intent
     - define-verification-strategy
     - realize-verification-environment
@@ -546,6 +557,7 @@ assets:
     - prompts/revise-gate-signoff-after-review.md@2
     - prompts/revise-question-decision-after-review.md@1
     - prompts/revise-foundation-correction-decision-after-review.md@1
+    - prompts/revise-candidate-correction-decision-after-review.md@1
     - prompts/accept-phase-0-intent.md@1
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1

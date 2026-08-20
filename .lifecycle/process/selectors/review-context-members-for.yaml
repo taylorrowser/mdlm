@@ -21,10 +21,22 @@ query:
             {candidate: one("intent-candidates-matching-subject@1", {subject: subject})}, support => support != member)
           || !every("candidate-question-resolution-support-for@1",
             {candidate: one("intent-candidates-matching-subject@1", {subject: subject})}, support => support != member)
+          || !every("candidate-correction-authority-decisions-for-review@1",
+            {candidate: one("intent-candidates-matching-subject@1", {subject: subject})}, authority => authority != member)
+          || !every("all-cited-reviews-by-correction@1",
+            {replacement: one("intent-candidates-matching-subject@1", {subject: subject})}, review => review != member)
         ))
       || (subject.identity.type == "DEC"
         && (
-          !every("foundation-correction-causes-for-decision@1",
+          !every("candidate-correction-decision-review-support-for@1",
+            {decision: subject}, support => support != member)
+          || !every("gate-decision-review-support-for@1",
+            {decision: subject}, support => support != member)
+          || !every("gate-candidate-reviews-for-decision@1",
+            {decision: subject}, review => review != member)
+          || !every("gate-candidate-authority-support-for-decision@1",
+            {decision: subject}, authority => authority != member)
+          || !every("foundation-correction-causes-for-decision@1",
             {decision: subject}, cause => cause != member)
           || !every("prior-foundation-correction-decision-revisions-for@1",
             {decision: subject}, prior => prior != member)

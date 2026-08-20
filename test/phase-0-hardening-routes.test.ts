@@ -327,6 +327,11 @@ function gateRejection(
     "pass",
     { contextId: "BSL-1030000006" },
   );
+  context.datum.payload.definition_members = [
+    rejection.datum.revision_id,
+    candidate.datum.revision_id,
+    revisionId("REV-1030000004"),
+  ].sort();
   return [rejection, context, review];
 }
 
@@ -978,7 +983,7 @@ describe("Phase 0 missing hardening routes", () => {
     }
   }, 60_000);
 
-  it("publishes a complete candidate and selects its attended indexed Question before correction at the public command seam", async () => {
+  it("candidate-authority public route reaches corrected gate review and Phase 0 acceptance", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-candidate-");
     try {
       const { prepared, reviewRevisions } = await advancePhase0To(
@@ -1284,10 +1289,238 @@ describe("Phase 0 missing hardening routes", () => {
             }]),
           }),
         }));
+      const correctionDecisionRevision = correctionOutputs.find(
+        (item) => item.name === "decision",
+      )!.lifecycleDatum.revisionId;
+
+      const candidateReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(candidateReview, "subject")).toBe(
+        correctedCandidateRevision,
+      );
+      expect(inputRevisions(candidateReview, "context_members")).toEqual(
+        expect.arrayContaining([
+          answeredQuestionRevision,
+          decisionRevision,
+          correctionDecisionRevision,
+        ]),
+      );
+      const acceptedCandidateReview = submitAssignment(
+        repository,
+        candidateReview,
+        passingSimplificationReviewOutput(candidateReview),
+      );
+      expect(
+        acceptedCandidateReview.status,
+        `${acceptedCandidateReview.stderr}${acceptedCandidateReview.stdout}`,
+      ).toBe(0);
+      const candidateReviewRevision = (
+        JSON.parse(acceptedCandidateReview.stdout).execution.outputs as Array<{
+          lifecycleDatum: { revisionId: string };
+        }>
+      )[0]!.lifecycleDatum.revisionId;
+
+      const correctionDecisionReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(correctionDecisionReview, "subject")).toBe(
+        correctionDecisionRevision,
+      );
+      expect(inputRevisions(correctionDecisionReview, "context_members")).toEqual(
+        [
+          correctedCandidateRevision,
+          ...correctedReviewCauses,
+          answeredQuestionRevision,
+          decisionRevision,
+          ...correctedMembers,
+          ...correctedMemberReviews,
+        ].sort(),
+      );
+      const acceptedCorrectionDecisionReview = submitAssignment(
+        repository,
+        correctionDecisionReview,
+        passingReviewOutput(correctionDecisionReview),
+      );
+      expect(
+        acceptedCorrectionDecisionReview.status,
+        `${acceptedCorrectionDecisionReview.stderr}${acceptedCorrectionDecisionReview.stdout}`,
+      ).toBe(0);
+
+      const gate = prepareNextAssignment(repository, "record-gate-signoff@3");
+      expect(inputRevision(gate, "candidate")).toBe(correctedCandidateRevision);
+      expect(inputRevisions(gate, "context_members")).toEqual(
+        [
+          correctedCandidateRevision,
+          candidateReviewRevision,
+          answeredQuestionRevision,
+          decisionRevision,
+          correctionDecisionRevision,
+        ].sort(),
+      );
+      const gateDecisionRevision = revisionId("DEC-0000000200");
+      const acceptedGate = submitAssignment(repository, gate, [{
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "DEC-0000000200",
+          type: "DEC",
+          payload: {
+            title: "Approve corrected candidate",
+            rationale: "The exact candidate and its correction authority passed Review.",
+            kind: "gate-signoff",
+            decision: "Approve the corrected candidate.",
+            alternatives: ["Reject the corrected candidate"],
+            effective_scope: correctedCandidateRevision,
+            gate_outcome: "approve",
+          },
+          links: [
+            { type: "justifies", target: correctedCandidateRevision },
+            { type: "references", target: candidateReviewRevision },
+            { type: "references", target: answeredQuestionRevision },
+            { type: "references", target: decisionRevision },
+            { type: "references", target: correctionDecisionRevision },
+          ],
+          body: "The exact corrected candidate is authorized for Phase 0 acceptance.\n",
+        },
+      }]);
+      expect(
+        acceptedGate.status,
+        `${acceptedGate.stderr}${acceptedGate.stdout}`,
+      ).toBe(0);
+
+      const gateReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(gateReview, "subject")).toBe(gateDecisionRevision);
+      expect(inputRevisions(gateReview, "context_members")).toEqual(
+        [
+          correctedCandidateRevision,
+          candidateReviewRevision,
+          answeredQuestionRevision,
+          decisionRevision,
+          correctionDecisionRevision,
+        ].sort(),
+      );
+      const failedGateReview = submitAssignment(
+        repository,
+        gateReview,
+        stakeholderOwnedFailureOutput(gateReview),
+      );
+      expect(
+        failedGateReview.status,
+        `${failedGateReview.stderr}${failedGateReview.stdout}`,
+      ).toBe(0);
+      const failedGateReviewRevision = (
+        JSON.parse(failedGateReview.stdout).execution.outputs as Array<{
+          lifecycleDatum: { revisionId: string };
+        }>
+      )[0]!.lifecycleDatum.revisionId;
+
+      const gateCorrection = prepareNextAssignment(
+        repository,
+        "revise-gate-signoff-after-review@2",
+      );
+      expect(inputRevision(gateCorrection, "decision")).toBe(
+        gateDecisionRevision,
+      );
+      expect(inputRevisions(gateCorrection, "failed_reviews")).toEqual([
+        failedGateReviewRevision,
+      ]);
+      const correctedGateRevision = `${exactInput(gateCorrection, "decision").identity.id}-r00002`;
+      const acceptedGateCorrection = submitAssignment(
+        repository,
+        gateCorrection,
+        [{
+          localId: "replacement",
+          name: "replacement",
+          invocation: 0,
+          lifecycleDatum: {
+            id: exactInput(gateCorrection, "decision").identity.id,
+            type: "DEC",
+            payload: {
+              title: "Approve corrected candidate after Review correction",
+              rationale: "The stakeholder corrected the failed gate authority.",
+              kind: "gate-signoff",
+              decision: "Approve the corrected candidate with the Review finding addressed.",
+              alternatives: ["Reject the corrected candidate"],
+              effective_scope: correctedCandidateRevision,
+              gate_outcome: "approve",
+            },
+            links: [
+              { type: "justifies", target: correctedCandidateRevision },
+              { type: "references", target: candidateReviewRevision },
+              { type: "references", target: answeredQuestionRevision },
+              { type: "references", target: decisionRevision },
+              { type: "references", target: correctionDecisionRevision },
+              {
+                type: "corrects-review",
+                target: failedGateReviewRevision,
+              },
+            ],
+            body: "The corrected gate Decision addresses the exact failed Review.\n",
+          },
+        }],
+      );
+      expect(
+        acceptedGateCorrection.status,
+        `${acceptedGateCorrection.stderr}${acceptedGateCorrection.stdout}`,
+      ).toBe(0);
+
+      const correctedGateReview = prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(correctedGateReview, "subject")).toBe(
+        correctedGateRevision,
+      );
+      expect(inputRevisions(correctedGateReview, "context_members")).toEqual(
+        [
+          gateDecisionRevision,
+          failedGateReviewRevision,
+          correctedCandidateRevision,
+          candidateReviewRevision,
+          answeredQuestionRevision,
+          decisionRevision,
+          correctionDecisionRevision,
+        ].sort(),
+      );
+      const acceptedCorrectedGateReview = submitAssignment(
+        repository,
+        correctedGateReview,
+        passingReviewOutput(correctedGateReview),
+      );
+      expect(
+        acceptedCorrectedGateReview.status,
+        `${acceptedCorrectedGateReview.stderr}${acceptedCorrectedGateReview.stdout}`,
+      ).toBe(0);
+      const correctedGateReviewRevision = (
+        JSON.parse(acceptedCorrectedGateReview.stdout).execution.outputs as Array<{
+          lifecycleDatum: { revisionId: string };
+        }>
+      )[0]!.lifecycleDatum.revisionId;
+
+      const acceptance = prepareNextAssignment(
+        repository,
+        "accept-phase-0-intent@1",
+      );
+      expect(inputRevision(acceptance, "gate_decision")).toBe(
+        correctedGateRevision,
+      );
+      expect(inputRevision(acceptance, "gate_review")).toBe(
+        correctedGateReviewRevision,
+      );
+      expect(inputRevision(acceptance, "candidate")).toBe(
+        correctedCandidateRevision,
+      );
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 120_000);
+  }, 300_000);
 
   it("supplies complete passing member Reviews when correcting a candidate that omitted them", async () => {
     const foundation = phase0Foundation();
@@ -2495,6 +2728,266 @@ describe("Phase 0 missing hardening routes", () => {
     ).result).toEqual([]);
   });
 
+  it("blocks Phase 0 gate readiness until candidate-correction authority passes exact Review", () => {
+    const foundation = phase0Foundation();
+    const candidate = intentCandidate(foundation);
+    candidate.datum.provenance.scenario =
+      "revise-intent-candidate-after-review@3";
+    const authority = record("DEC", "DEC-1030000061", {
+      title: "Authorize the exact corrected candidate",
+      rationale: "The stakeholder chose the bounded correction.",
+      kind: "scope",
+      decision: "Accept only the exact corrected candidate.",
+      alternatives: ["Revise the candidate again"],
+      effective_scope: candidate.datum.revision_id,
+    }, {
+      scenario: "revise-intent-candidate-after-review@3",
+      links: [{ type: "justifies", target: candidate.datum.revision_id }],
+    });
+    const [candidateContext, candidateReview] = passingSimplification(
+      candidate,
+      "REV-1030000061",
+    );
+    candidateContext.datum.payload.definition_members = [
+      candidate.datum.revision_id,
+      ...foundation.members.map((member) => member.datum.revision_id),
+      authority.datum.revision_id,
+    ].sort();
+    const records = [
+      ...foundation.members,
+      ...foundation.reviews,
+      candidate,
+      authority,
+      candidateContext,
+      candidateReview,
+    ];
+
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(records),
+      "selector",
+      "candidate-correction-authorities-requiring-review@1",
+      { candidate: candidate.datum.revision_id },
+    ).result).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({
+        revision_id: authority.datum.revision_id,
+      }) }),
+    ]);
+    expect(obligation(
+      processPackage,
+      records,
+      "candidate-gate-signoff",
+      candidate.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "blocked",
+      dispatchable: false,
+      blockedBy: [expect.stringMatching(/^passing-review-required@2:/)],
+    }));
+
+    const support = evaluateProcessDefinition(
+      processPackage,
+      snapshot(records),
+      "selector",
+      "review-context-members-for@1",
+      { subject: authority.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(support.map((item) => item.identity.revision_id)).toEqual(
+      [
+        candidate.datum.revision_id,
+        ...foundation.members.map((member) => member.datum.revision_id),
+        ...foundation.reviews.map((review) => review.datum.revision_id),
+      ].sort(),
+    );
+    const [authorityContext, authorityReview] = reviewFor(
+      authority,
+      "REV-1030000062",
+      "pass",
+      { contextId: "BSL-1030000062" },
+    );
+    authorityContext.datum.payload.definition_members = [
+      authority.datum.revision_id,
+      ...support.map((item) => item.identity.revision_id),
+    ].sort();
+    const reviewedRecords = [...records, authorityContext, authorityReview];
+
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(reviewedRecords),
+      "selector",
+      "candidate-correction-authorities-requiring-review@1",
+      { candidate: candidate.datum.revision_id },
+    ).result).toEqual([]);
+    expect(obligation(
+      processPackage,
+      reviewedRecords,
+      "candidate-gate-signoff",
+      candidate.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "record-gate-signoff@3",
+    }));
+  });
+
+  it("rejects no-op candidate authority replacement and keeps a substantive same-lineage correction reviewable", async () => {
+    const foundation = phase0Foundation();
+    const candidate = intentCandidate(foundation);
+    candidate.datum.provenance.scenario =
+      "revise-intent-candidate-after-review@3";
+    const authority = record("DEC", "DEC-1030000063", {
+      title: "Authorize the exact corrected candidate",
+      rationale: "The stakeholder chose the bounded correction.",
+      kind: "scope",
+      decision: "Accept only the exact corrected candidate.",
+      alternatives: ["Revise the candidate again"],
+      effective_scope: candidate.datum.revision_id,
+    }, {
+      scenario: "revise-intent-candidate-after-review@3",
+      links: [{ type: "justifies", target: candidate.datum.revision_id }],
+    });
+    const baseRecords = [
+      ...foundation.members,
+      ...foundation.reviews,
+      candidate,
+      authority,
+    ];
+    const support = evaluateProcessDefinition(
+      processPackage,
+      snapshot(baseRecords),
+      "selector",
+      "review-context-members-for@1",
+      { subject: authority.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    const [authorityContext, failedAuthorityReview] = reviewFor(
+      authority,
+      "REV-1030000063",
+      "fail",
+      {
+        contextId: "BSL-1030000063",
+        correctionAuthority: "stakeholder",
+      },
+    );
+    authorityContext.datum.payload.definition_members = [
+      authority.datum.revision_id,
+      ...support.map((item) => item.identity.revision_id),
+    ].sort();
+    const failedRecords = [
+      ...baseRecords,
+      authorityContext,
+      failedAuthorityReview,
+    ];
+    const correction = obligation(
+      processPackage,
+      failedRecords,
+      "candidate-correction-decision-review-correction-required",
+      authority.datum.revision_id,
+    );
+    expect(correction).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver:
+        "revise-candidate-correction-decision-after-review@1",
+    }));
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot(failedRecords),
+      "revise-candidate-correction-decision-after-review@1",
+      correction!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+
+    const replacementOptions = {
+      revision: 2,
+      scenario: "revise-candidate-correction-decision-after-review@1",
+      links: [
+        { type: "justifies", target: candidate.datum.revision_id },
+        {
+          type: "corrects-review",
+          target: failedAuthorityReview.datum.revision_id,
+        },
+      ],
+    };
+    const noOp = record("DEC", authority.datum.id, {
+      ...authority.datum.payload,
+      title: "Retitled but unchanged candidate authority",
+    }, replacementOptions);
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot([...failedRecords, noOp]),
+      "selector",
+      "valid-candidate-correction-decision-replacements-for@1",
+      { decision: authority.datum.revision_id },
+    ).result).toEqual([]);
+
+    const replacement = record("DEC", authority.datum.id, {
+      ...authority.datum.payload,
+      rationale:
+        "Renewed stakeholder authority addresses the exact failed Review.",
+    }, replacementOptions);
+    const replacementRecords = [...failedRecords, replacement];
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(replacementRecords),
+      "selector",
+      "valid-candidate-correction-decision-replacements-for@1",
+      { decision: authority.datum.revision_id },
+    ).result).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({
+        revision_id: replacement.datum.revision_id,
+      }) }),
+    ]);
+
+    const replacementSupport = evaluateProcessDefinition(
+      processPackage,
+      snapshot(replacementRecords),
+      "selector",
+      "review-context-members-for@1",
+      { subject: replacement.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(replacementSupport.map((item) => item.identity.revision_id)).toEqual(
+      [
+        authority.datum.revision_id,
+        failedAuthorityReview.datum.revision_id,
+        candidate.datum.revision_id,
+        ...foundation.members.map((member) => member.datum.revision_id),
+        ...foundation.reviews.map((review) => review.datum.revision_id),
+      ].sort(),
+    );
+    const [replacementContext, replacementReview] = reviewFor(
+      replacement,
+      "REV-1030000064",
+      "pass",
+      { contextId: "BSL-1030000064" },
+    );
+    replacementContext.datum.payload.definition_members = [
+      replacement.datum.revision_id,
+      ...replacementSupport.map((item) => item.identity.revision_id),
+    ].sort();
+    const reviewedReplacementRecords = [
+      ...replacementRecords,
+      replacementContext,
+      replacementReview,
+    ];
+    expect(evaluateProcessDefinition(
+      processPackage,
+      snapshot(reviewedReplacementRecords),
+      "selector",
+      "candidate-correction-decisions-for@1",
+      { replacement: candidate.datum.revision_id },
+    ).result).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({
+        revision_id: replacement.datum.revision_id,
+      }) }),
+    ]);
+    expect(obligation(
+      processPackage,
+      reviewedReplacementRecords,
+      "candidate-correction-decision-review-correction-required",
+      authority.datum.revision_id,
+    )?.satisfied).toBe(true);
+  });
+
   it("requires an exact reactivation condition only for defer-or-remove scope correction", () => {
     const resolved = resolveType(processPackage, "DEC");
     expect(resolved.ok).toBe(true);
@@ -3217,6 +3710,77 @@ describe("Phase 0 missing hardening routes", () => {
       .toBe(change.datum.revision_id);
     expect(inputs.find((input) => input.name === "failed_reviews")?.values[0]?.identity.revision_id)
       .toBe(failed.datum.revision_id);
+  });
+
+  it("keeps corrected gate Decision Review Context exact to its lineage, failure, candidate, and current Review", () => {
+    const foundation = phase0Foundation();
+    const candidate = intentCandidate(foundation);
+    const [candidateContext, candidateReview] = passingSimplification(candidate);
+    const gate = record("DEC", "DEC-1030000065", {
+      title: "Approve the exact Phase 0 candidate",
+      rationale: "The candidate passed simplification Review.",
+      kind: "gate-signoff",
+      decision: "Approve the candidate.",
+      alternatives: ["Reject the candidate"],
+      effective_scope: candidate.datum.revision_id,
+      gate_outcome: "approve",
+    }, {
+      scenario: "record-gate-signoff@3",
+      links: [{ type: "justifies", target: candidate.datum.revision_id }],
+    });
+    const [gateContext, failedGateReview] = reviewFor(
+      gate,
+      "REV-1030000065",
+      "fail",
+      {
+        contextId: "BSL-1030000065",
+        correctionAuthority: "stakeholder",
+      },
+    );
+    gateContext.datum.payload.definition_members = [
+      gate.datum.revision_id,
+      candidate.datum.revision_id,
+      candidateReview.datum.revision_id,
+    ].sort();
+    const correctedGate = record("DEC", gate.datum.id, {
+      ...gate.datum.payload,
+      rationale: "The corrected Decision addresses the exact failed Review.",
+    }, {
+      revision: 2,
+      scenario: "revise-gate-signoff-after-review@2",
+      links: [
+        { type: "justifies", target: candidate.datum.revision_id },
+        {
+          type: "corrects-review",
+          target: failedGateReview.datum.revision_id,
+        },
+      ],
+    });
+    const records = [
+      ...foundation.members,
+      ...foundation.reviews,
+      candidate,
+      candidateContext,
+      candidateReview,
+      gate,
+      gateContext,
+      failedGateReview,
+      correctedGate,
+    ];
+
+    const selected = evaluateProcessDefinition(
+      processPackage,
+      snapshot(records),
+      "selector",
+      "review-context-members-for@1",
+      { subject: correctedGate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(selected.map((item) => item.identity.revision_id)).toEqual([
+      gate.datum.revision_id,
+      failedGateReview.datum.revision_id,
+      candidate.datum.revision_id,
+      candidateReview.datum.revision_id,
+    ].sort());
   });
 
   it("keeps a reviewed exact Phase 0 gate rejection nonterminal and dispatches causal correction", () => {

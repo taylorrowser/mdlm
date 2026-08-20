@@ -32,6 +32,7 @@ scenarios:
   - resolve-question@2
   - revise-question-decision-after-review@1
   - revise-foundation-correction-decision-after-review@1
+  - revise-candidate-correction-decision-after-review@1
   - resolve-question-with-prototype@2
   - create-phase-0-intent-candidate@1
   - record-gate-signoff@3
@@ -55,6 +56,7 @@ obligations:
   - open-question-resolution@3
   - question-decision-review-correction-required@1
   - foundation-correction-decision-review-correction-required@1
+  - candidate-correction-decision-review-correction-required@1
   - prototype-question-resolution@1
   - candidate-members-reviewed@2
   - candidate-gate-signoff@3

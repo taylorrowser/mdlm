@@ -1,0 +1,19 @@
+kind: selector-definition
+id: structural-passing-candidate-reviews-for-review
+version: 1
+description: Current structurally passing product-simplification Reviews for Review Context assembly without operational disposition recursion.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: candidate, link: reviews, emit: source, types: [REV]}
+  as: review
+  where: >-
+    review.provenance.scenario == "review-datum-in-context@2"
+    && review.payload.review_kind == "simplification-product-definition"
+    && review.payload.outcome == "pass"
+    && !present(review.payload.simplification)
+    && none("product-simplification-blockers-for-review@1", {review: review})
+    && none("newer-revisions-for@1", {subject: review})
+  distinct: true
+  order_by: [identity.revision_id]

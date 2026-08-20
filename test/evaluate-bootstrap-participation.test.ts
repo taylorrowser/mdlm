@@ -201,6 +201,10 @@ describe("bootstrap Scenario participation Policies", () => {
       "resolve-question": { output: "decision", type: "DEC" },
       "resolve-question-with-prototype": { output: "finding", type: "DEC" },
       "review-datum-in-context": { output: "review", type: "REV" },
+      "revise-candidate-correction-decision-after-review": {
+        output: "replacement",
+        type: "DEC",
+      },
       "revise-change-disposition-after-review": {
         output: "replacement",
         type: "DEC",

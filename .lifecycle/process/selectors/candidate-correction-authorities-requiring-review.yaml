@@ -20,6 +20,8 @@ query:
             {question: question}, answer => answer != decision)
           && every("question-disposition-decisions-for@1",
             {question: question}, disposition => disposition != decision))
+      || !every("candidate-correction-decisions-for@1",
+        {replacement: candidate}, authority => authority != decision)
     )
     && (
       none("passing-reviews-for@1", {subject: decision})
