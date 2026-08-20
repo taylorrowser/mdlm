@@ -37,7 +37,8 @@ type JournalPort = Pick<RunJournal,
   "promoteCapturedSubmission" | "recordSubmissionProcess" |
   "clearSubmissionProcess" | "recordPublication" |
   "recordDoctorPassed" | "clear" | "loadAttendedConclusions" |
-  "recordAttendedConclusions" | "clearAttendedConclusions"
+  "recordAttendedConclusions" | "clearAttendedConclusions" |
+  "loadAttendedAssignment" | "recordAttendedAssignment" | "clearAttendedAssignment"
 >;
 
 export interface RunControllerOptions {
@@ -109,7 +110,7 @@ export class RunController {
       recoveredStatus = undefined;
       const outcome = status.currentOutcome;
       if (reevaluationRequired && outcome.outcome === "invalid") {
-        await this.#journal.clearAttendedConclusions();
+        await this.#clearAttendedState();
         return this.#report(stopForOutcome(outcome));
       }
       if (reevaluationRequired && !statusWasVerified) {
@@ -117,7 +118,7 @@ export class RunController {
       }
       if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
         if (reevaluationRequired) await this.#journal.clear();
-        await this.#journal.clearAttendedConclusions();
+        await this.#clearAttendedState();
         return this.#report(stopForOutcome(outcome));
       }
 
@@ -143,12 +144,12 @@ export class RunController {
         reevaluationRequired = false;
         allocated = advancement;
         if (allocated.outcome !== "assignment" && allocated.outcome !== "attention-required") {
-          await this.#journal.clearAttendedConclusions();
+          await this.#clearAttendedState();
           return this.#report(stopForOutcome(allocated));
         }
       }
       if (allocated.outcome !== "attention-required") {
-        await this.#journal.clearAttendedConclusions();
+        await this.#clearAttendedState();
       }
       const assignment = asObject(allocated.assignment, "outcome.assignment");
       const assignmentId = asString(assignment.id, "outcome.assignment.id");
@@ -157,16 +158,17 @@ export class RunController {
 
       let attendedContext: JsonValue | undefined;
       if (allocated.outcome === "attention-required") {
-        attendedContext = await this.#attendedContext(allocated);
+        attendedContext = await this.#attendedContext(allocated, packet);
       }
       const stopped = await this.#completeAssignment(
         packet,
         attendedContext === undefined ? {} : { attendedContext },
       );
       if (stopped) {
-        await this.#journal.clearAttendedConclusions();
+        await this.#clearAttendedState();
         return this.#report(stopped);
       }
+      await this.#journal.clearAttendedAssignment();
       await this.#git.assertClean();
     }
   }
@@ -182,38 +184,63 @@ export class RunController {
     });
   }
 
-  async #attendedContext(outcome: JsonObject): Promise<JsonObject> {
+  async #attendedContext(
+    outcome: JsonObject,
+    packet: AssignmentPacket,
+  ): Promise<JsonObject> {
+    const assignment = recoveryAssignment(packet);
+    const attendedAssignment = await this.#journal.loadAttendedAssignment();
+    if (attendedAssignment !== null) {
+      if (attendedAssignment.assignment.id !== assignment.id) {
+        await this.#journal.clearAttendedAssignment();
+      } else {
+        if (!isDeepStrictEqual(attendedAssignment.assignment, assignment)) {
+          throw new Error(`Assignment '${assignment.id}' attended recovery boundary changed`);
+        }
+        return attendedAssignment.context;
+      }
+    }
+
     const group = attendedGroup(outcome);
+    let context: JsonObject;
     if (group === null) {
-      return attendedAuthorityContext(
+      context = attendedAuthorityContext(
         outcome,
         (await this.#io.attention(outcome)).conclusion,
       );
+    } else {
+      const persisted = await this.#journal.loadAttendedConclusions();
+      if (
+        persisted !== null && isDeepStrictEqual(persisted.package, group.package) &&
+        persisted.checkpoint === group.checkpoint &&
+        persisted.consolidationGroup === group.consolidationGroup &&
+        persisted.authority === group.authority &&
+        group.items.every((item) => persisted.items.includes(item))
+      ) {
+        context = attendedAuthorityContext(outcome, persisted.conclusion);
+      } else {
+        if (persisted !== null) await this.#journal.clearAttendedConclusions();
+        const supplied = await this.#io.attention(outcome);
+        const recorded = await this.#journal.recordAttendedConclusions({
+          ...group,
+          conclusion: {
+            authority: group.authority,
+            checkpoint: group.checkpoint,
+            consolidationGroup: group.consolidationGroup,
+            itemInstances: group.items,
+            conclusion: supplied.conclusion,
+          },
+        });
+        context = attendedAuthorityContext(outcome, recorded.conclusion);
+      }
     }
+    await this.#journal.recordAttendedAssignment({ assignment, context });
+    return context;
+  }
 
-    const persisted = await this.#journal.loadAttendedConclusions();
-    if (
-      persisted !== null && isDeepStrictEqual(persisted.package, group.package) &&
-      persisted.checkpoint === group.checkpoint &&
-      persisted.consolidationGroup === group.consolidationGroup &&
-      persisted.authority === group.authority &&
-      group.items.every((item) => persisted.items.includes(item))
-    ) {
-      return attendedAuthorityContext(outcome, persisted.conclusion);
-    }
-    if (persisted !== null) await this.#journal.clearAttendedConclusions();
-    const supplied = await this.#io.attention(outcome);
-    const recorded = await this.#journal.recordAttendedConclusions({
-      ...group,
-      conclusion: {
-        authority: group.authority,
-        checkpoint: group.checkpoint,
-        consolidationGroup: group.consolidationGroup,
-        itemInstances: group.items,
-        conclusion: supplied.conclusion,
-      },
-    });
-    return attendedAuthorityContext(outcome, recorded.conclusion);
+  async #clearAttendedState(): Promise<void> {
+    await this.#journal.clearAttendedAssignment();
+    await this.#journal.clearAttendedConclusions();
   }
 
   async #advance(status: MdlmStatus): Promise<MdlmNext> {
@@ -282,6 +309,9 @@ export class RunController {
       }
       correctionPrepared = true;
       options = {
+        ...(initialOptions.attendedContext === undefined
+          ? {}
+          : { attendedContext: initialOptions.attendedContext }),
         correction: {
           previousResponse: submitted.previousResponse,
           diagnostics: submitted.diagnostics,

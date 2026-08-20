@@ -145,7 +145,7 @@ export class PiAssignmentRunner {
       if (active.response === undefined) {
         throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
       }
-      return active.response;
+      return carryAttendedAuthority(active.response, options.attendedContext, assignmentId);
     } catch (error) {
       await this.close(assignmentId);
       throw error;
@@ -289,6 +289,59 @@ async function boundedAbort(abort: Promise<void>): Promise<void> {
     abort.catch(() => {}),
     new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
   ]);
+}
+
+function carryAttendedAuthority(
+  response: JsonObject,
+  attendedContext: JsonValue | undefined,
+  assignmentId: string,
+): JsonObject {
+  if (attendedContext === undefined || response.kind !== "proposal") return response;
+  if (!isJsonObject(attendedContext)) {
+    throw new PiAssignmentRunnerError(
+      `Assignment '${assignmentId}' has malformed attended authority context`,
+    );
+  }
+  const requirement = attendedContext.authorityRequirement;
+  const supply = attendedContext.authoritySupply;
+  if (
+    !isJsonObject(requirement) || requirement.mode !== "attended" ||
+    typeof requirement.authority !== "string" || requirement.authority.length === 0 ||
+    !isJsonObject(supply) || supply.authority !== requirement.authority ||
+    supply.source !== "attended-authority-holder"
+  ) {
+    throw new PiAssignmentRunnerError(
+      `Assignment '${assignmentId}' has malformed attended authority context`,
+    );
+  }
+  const proposal = response.proposal;
+  if (!isJsonObject(proposal) || !Array.isArray(proposal.authoritySupplies)) {
+    throw new PiAssignmentRunnerError(
+      `Assignment '${assignmentId}' proposal cannot carry attended authority '${requirement.authority}'`,
+    );
+  }
+  const supplied = proposal.authoritySupplies;
+  if (!supplied.every((authority) => typeof authority === "string")) {
+    throw new PiAssignmentRunnerError(
+      `Assignment '${assignmentId}' proposal has malformed authority supplies`,
+    );
+  }
+  if (
+    supplied.length > 0 &&
+    (supplied.length !== 1 || supplied[0] !== requirement.authority)
+  ) {
+    throw new PiAssignmentRunnerError(
+      `Assignment '${assignmentId}' worker authority ${JSON.stringify(supplied)} conflicts with attended authority '${requirement.authority}'`,
+    );
+  }
+  if (supplied.length === 1) return response;
+  return {
+    ...response,
+    proposal: {
+      ...proposal,
+      authoritySupplies: [requirement.authority],
+    },
+  };
 }
 
 function isJsonObject(value: unknown): value is JsonObject {

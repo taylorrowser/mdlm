@@ -1,8 +1,17 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type {
+  AssignmentPacket,
+  JsonObject,
+} from "../packages/mdlm-pi/src/mdlm-client.js";
 import {
+  PiAssignmentRunner,
+  type PiAssignmentSession,
+} from "../packages/mdlm-pi/src/pi-assignment-runner.js";
+import {
+  assignmentResponse,
   directoryDigest,
   inputRevision,
   inputRevisions,
@@ -11,7 +20,7 @@ import {
   type PreparedAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
-import { mdlm } from "./helpers/mdlm.js";
+import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 function reviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
   const subject = inputRevision(prepared, "subject");
@@ -290,9 +299,50 @@ describe("initial product-intent authority", () => {
       expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
         .toBe(beforeIncompleteAnswer);
 
-      const resolved = submitAssignment(repository, resolution, resolutionOutputs);
+      const workerResponse = assignmentResponse(resolution, resolutionOutputs) as JsonObject;
+      const workerProposal = workerResponse.proposal as JsonObject;
+      workerProposal.authoritySupplies = [];
+      const session: PiAssignmentSession = {
+        get isIdle() { return true; },
+        prompt: vi.fn(async () => undefined),
+        abort: vi.fn(async () => undefined),
+        dispose: vi.fn(),
+        subscribe: vi.fn(() => () => {}),
+      };
+      const runner = new PiAssignmentRunner({
+        repository,
+        assignmentTimeoutMs: 1_000,
+        sessionFactory: vi.fn(async (_packet, capture) => {
+          session.prompt = vi.fn(async () => { capture(workerResponse); });
+          return session;
+        }),
+      });
+      const carriedResponse = await runner.run(
+        resolution.packet as AssignmentPacket,
+        {
+          attendedContext: {
+            authorityRequirement: resolution.outcome.authorityRequirement,
+            authoritySupply: {
+              authority: "stakeholder",
+              source: "attended-authority-holder",
+            },
+            conclusion: {
+              statement: "Build the exact four-operation command-line calculator.",
+            },
+          },
+        },
+      );
+      const resolved = mdlmWithInput(
+        repository,
+        `${JSON.stringify(carriedResponse)}\n`,
+        "scenario",
+        "submit",
+      );
+      await runner.dispose();
       expect(resolved.status, `${resolved.stderr}${resolved.stdout}`).toBe(0);
-      const decision = JSON.parse(resolved.stdout).execution.outputs.find(
+      const resolutionExecution = JSON.parse(resolved.stdout).execution;
+      expect(resolutionExecution.authority.supplied).toEqual(["stakeholder"]);
+      const decision = resolutionExecution.outputs.find(
         (output: { name: string }) => output.name === "decision",
       ).lifecycleDatum;
 

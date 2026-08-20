@@ -302,6 +302,7 @@ if (args[0] === "next") {
     const ready = path.join(root, "submit-ready");
     const published = path.join(root, "published");
     const submissions = path.join(root, "submissions");
+    const submittedResponse = path.join(root, "submitted-response.json");
     const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
     const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
     const scenario = "package-neutral-example@1";
@@ -323,7 +324,15 @@ if (args[0] === "next") {
       contract: "mdlm-assignment-response@1",
       assignment: assignmentId,
       kind: "proposal",
-      proposal: { outputs: [] },
+      proposal: {
+        outputs: [],
+        completionEvidence: {
+          conclusion: "Keep the attended conclusion byte-for-byte.\nSecond exact line.",
+        },
+        loadedSkillRefs: [],
+        authoritySupplies: ["stakeholder"],
+        standingDelegations: [],
+      },
     });
     const stateDirectory = path.join(repository, ".git/mdlm-pi");
     await new RunJournal(stateDirectory).captureSubmission({
@@ -341,6 +350,7 @@ const args = process.argv.slice(2);
 const published = ${JSON.stringify(published)};
 const ready = ${JSON.stringify(ready)};
 const submissions = ${JSON.stringify(submissions)};
+const submittedResponse = ${JSON.stringify(submittedResponse)};
 const assignmentId = ${JSON.stringify(assignmentId)};
 const executionId = ${JSON.stringify(executionId)};
 const scenario = ${JSON.stringify(scenario)};
@@ -354,7 +364,9 @@ const execution = {
   outputs: [{ lifecycleDatum: { path: outputPath } }]
 };
 if (args[0] === "scenario" && args[1] === "submit") {
-  for await (const _chunk of process.stdin) {}
+  let responseSource = "";
+  for await (const chunk of process.stdin) responseSource += chunk;
+  await writeFile(submittedResponse, responseSource);
   await appendFile(submissions, "submit\\n");
   await mkdir(path.join(process.cwd(), path.dirname(outputPath)), { recursive: true });
   await writeFile(path.join(process.cwd(), outputPath), "published\\n");
@@ -422,6 +434,7 @@ if (args[0] === "scenario" && args[1] === "submit") {
 
     expect(recovered.status).toBe(0);
     expect((await readFile(submissions, "utf8")).trim().split("\n")).toEqual(["submit"]);
+    expect(await readFile(submittedResponse, "utf8")).toBe(response.source);
     expect((await executeFile("git", ["log", "-1", "--format=%s"], {
       cwd: repository,
     })).stdout.trim()).toBe(`mdlm: publish ${scenario} (${executionId})`);
