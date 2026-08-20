@@ -230,11 +230,17 @@ export interface OperatorStatus {
   currentOutcome:
     | {
         outcome: "assignment";
-        assignment: { allocation: "active"; id: string } | { allocation: "not-allocated" };
+        assignment: { allocation: "active"; id: string } | {
+          allocation: "not-allocated";
+          id?: string;
+        };
       }
     | {
         outcome: "attention-required";
-        assignment: { allocation: "active"; id: string } | { allocation: "not-allocated" };
+        assignment: { allocation: "active"; id: string } | {
+          allocation: "not-allocated";
+          id?: string;
+        };
         authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
         attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
         explanation: string;
@@ -1739,7 +1745,10 @@ function statusOutcome(
   const exact = state.assignment;
   const assignment = exact && activeLease && sameAssignment(activeLease, exact)
     ? { allocation: "active" as const, id: activeLease.id }
-    : { allocation: "not-allocated" as const };
+    : {
+        allocation: "not-allocated" as const,
+        ...(activeLease?.disposition === "active" ? { id: activeLease.id } : {}),
+      };
   if (classification.kind !== "attention-required") {
     return { outcome: "assignment", assignment };
   }

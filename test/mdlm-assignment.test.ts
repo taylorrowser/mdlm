@@ -213,6 +213,12 @@ describe("MDLM Assignment leasing and preparation", () => {
     const staleAssignment = JSON.parse(allocated.stdout).assignment.id as string;
     const committed = git(repository, "commit", "--allow-empty", "-m", "Operator boundary");
     expect(committed.status, committed.stderr).toBe(0);
+    const status = mdlm(repository, "status", "--json");
+    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+    expect(JSON.parse(status.stdout).currentOutcome).toEqual({
+      outcome: "assignment",
+      assignment: { allocation: "not-allocated", id: staleAssignment },
+    });
 
     const refreshed = mdlm(repository, "next", "--json");
     expect(refreshed.status, `${refreshed.stderr}${refreshed.stdout}`).toBe(0);

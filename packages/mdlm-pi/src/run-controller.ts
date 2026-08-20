@@ -111,8 +111,12 @@ export class RunController {
 
       const allocation = asObject(outcome.assignment, "status.currentOutcome.assignment");
       let allocated: JsonObject;
-      if (allocation.allocation === "active") {
-        allocated = outcome;
+      if (allocation.allocation === "active" || allocation.id !== undefined) {
+        asString(allocation.id, "status.currentOutcome.assignment.id");
+        allocated = {
+          ...outcome,
+          ...(status.package === undefined ? {} : { package: status.package }),
+        };
       } else {
         const advancement = await this.#advance(status);
         if (advancement.materializedExecutions.length > 0) {
@@ -372,6 +376,11 @@ export class RunController {
           throw new Error("HEAD changed during interrupted mdlm next recovery");
         }
         const pendingIds = await this.#git.pendingTransactionIds();
+        if (pendingIds.length > 1) {
+          throw new Error(
+            "Interrupted mdlm next materialization order cannot be proven",
+          );
+        }
         const status = await this.#mdlm.status();
         const recentId = recentTransactionId(status.recentTransaction);
         if (pendingIds.length === 0) {

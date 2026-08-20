@@ -141,6 +141,54 @@ describe("RunController", () => {
     );
   });
 
+  it("stops on an exact recovery mismatch instead of leasing replacement work", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-pre-response-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const mdlm = {
+      status: vi.fn(async (): Promise<MdlmStatus> => ({
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        package: { reference: "changed-package@1", digest: "sha256:changed" },
+        currentOutcome: {
+          outcome: "assignment",
+          assignment: { allocation: "not-allocated", id: assignmentId },
+        },
+        recentTransaction: { available: false },
+      })),
+      next: vi.fn(async () => {
+        throw new Error("replacement work was leased");
+      }),
+      assignment: vi.fn(),
+      prepare: vi.fn(async () => {
+        throw new Error(`Assignment '${assignmentId}' selected Process Package changed during recovery`);
+      }),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(async () => undefined),
+        head: vi.fn(async () => "changed-head"),
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(async () => []),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    });
+
+    await expect(controller.run()).rejects.toThrow("changed during recovery");
+    expect(mdlm.prepare).toHaveBeenCalledWith(assignmentId);
+    expect(mdlm.next).not.toHaveBeenCalled();
+  });
+
   it("commits automatic materialization before reevaluating instead of using its stale lease", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-advance-"));
     roots.push(root);
@@ -208,6 +256,78 @@ describe("RunController", () => {
     expect(mdlm.assignment).not.toHaveBeenCalled();
     expect(mdlm.prepare).not.toHaveBeenCalled();
     expect(await journal.load()).toBeNull();
+  });
+
+  it("asks again for an active attended Assignment whose package identity is at status root", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-attended-restart-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const outcome = {
+      outcome: "attention-required",
+      assignment: { allocation: "active", id: assignmentId },
+      authorityRequirement: {
+        mode: "attended",
+        authority: "stakeholder",
+        delegationAllowed: false,
+      },
+      checkpointConversation: {
+        checkpoint: "checkpoint-1",
+        consolidationGroup: "group-1",
+        items: [{ instance: "question-1" }],
+      },
+    };
+    const mdlm = {
+      status: vi.fn(async (): Promise<MdlmStatus> => ({
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        package: packageIdentity,
+        currentOutcome: outcome,
+        recentTransaction: { available: false },
+      })),
+      next: vi.fn(),
+      assignment: vi.fn(),
+      prepare: vi.fn(async () => packet()),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const io = {
+      progress: vi.fn(),
+      attention: vi.fn(async () => ({
+        conclusion: { answer: "inside" },
+        rawTranscript: "must-not-persist",
+      })),
+      stopped: vi.fn(),
+    };
+    const assignments = {
+      run: vi.fn(async (assignmentPacket: AssignmentPacket) => {
+        expect(assignmentPacket.assignment.id).toBe(assignmentId);
+        throw new Error("attended Assignment reached worker");
+      }),
+    };
+    const controller = new RunController({
+      mdlm,
+      assignments,
+      git: {
+        assertClean: vi.fn(async () => undefined),
+        head: vi.fn(),
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(),
+        commit: vi.fn(),
+      },
+      io,
+      journal,
+    });
+
+    await expect(controller.run()).rejects.toThrow("attended Assignment reached worker");
+    expect(io.attention).toHaveBeenCalledWith({ ...outcome, package: packageIdentity });
+    expect(assignments.run).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(await journal.loadAttendedConclusions())).not.toContain(
+      "must-not-persist",
+    );
   });
 
   it("reuses one normalized attended conclusion across a checkpoint group without persisting raw conversation", async () => {
@@ -581,6 +701,75 @@ describe("RunController", () => {
       "changed recent transaction without visible transaction files",
     );
     expect(mdlm.next).not.toHaveBeenCalled();
+    expect(await journal.load()).toMatchObject({ phase: "advancing" });
+  });
+
+  it("stops when interrupted multi-transaction materialization order was not journaled", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-advance-order-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    await journal.beginAdvancement({
+      baseCommit: "base-commit",
+      previousTransactionId: null,
+    });
+    const firstId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    const secondId = "00000000-0000-4000-8000-000000000000";
+    const digest = `sha256:${"a".repeat(64)}` as const;
+    const statuses: MdlmStatus[] = [
+      {
+        ...assignmentStatus(false),
+        recentTransaction: { available: true, id: secondId },
+      },
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: { outcome: "lifecycle-complete" },
+        recentTransaction: { available: true, id: secondId },
+      },
+    ];
+    const mdlm = {
+      status: vi.fn(async () => statuses.shift()!),
+      next: vi.fn(),
+      assignment: vi.fn(),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(async (id: string) => ({
+        ok: true as const,
+        command: "scenario.execution.show" as const,
+        execution: {
+          ...executionRecord(digest),
+          id,
+          outputs: [{
+            lifecycleDatum: {
+              path: `.lifecycle/data/.transactions/${id}/map.md`,
+            },
+          }],
+        },
+      })),
+      doctor: vi.fn(async () => ({ command: "doctor" as const, ok: true })),
+    };
+    const git = {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(async () => "base-commit"),
+      capturePublication,
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(async () => [secondId, firstId]),
+      commit: vi.fn(async () => "materialization-commit"),
+    };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git,
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    });
+
+    await expect(controller.run()).rejects.toThrow(
+      "materialization order cannot be proven",
+    );
+    expect(git.commit).not.toHaveBeenCalled();
     expect(await journal.load()).toMatchObject({ phase: "advancing" });
   });
 

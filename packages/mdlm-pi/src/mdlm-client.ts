@@ -460,7 +460,9 @@ function parseStatus(output: JsonObject): MdlmStatus {
     if (allocation !== "active" && allocation !== "not-allocated") {
       throw contractError(`Unsupported Assignment allocation '${allocation}'`, output);
     }
-    if (allocation === "active") expectString(assignment, "id");
+    if (allocation === "active" || assignment.id !== undefined) {
+      expectString(assignment, "id");
+    }
   }
   const recentTransaction = expectObject(output, "recentTransaction");
   const available = expectBoolean(recentTransaction, "available");
