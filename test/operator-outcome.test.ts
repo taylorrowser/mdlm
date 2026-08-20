@@ -47,6 +47,27 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
   const obligation = parse(await fs.readFile(obligationPath, "utf8"));
   obligation.status_rules[0].when = "false";
   await fs.writeFile(obligationPath, stringify(obligation));
+  const scenarioPath = path.join(
+    packageRoot,
+    "scenarios/establish-initial-wayfinding-map.yaml",
+  );
+  const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+  scenario.outputs
+    .find((output: { name: string }) => output.name === "product_intent")
+    .required_payload.state = "answered";
+  await fs.writeFile(scenarioPath, stringify(scenario));
+  const initialQuestionSelectorPath = path.join(
+    packageRoot,
+    "selectors/current-initial-product-intent-questions.yaml",
+  );
+  const initialQuestionSelector = parse(
+    await fs.readFile(initialQuestionSelectorPath, "utf8"),
+  );
+  initialQuestionSelector.query.where = "false";
+  await fs.writeFile(
+    initialQuestionSelectorPath,
+    stringify(initialQuestionSelector),
+  );
   await recordInstalledPackageChange(repository, packageRoot);
 
   const first = JSON.parse(mdlm(repository, "next").stdout);
@@ -57,6 +78,7 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
     first.assignment.id,
   ).stdout);
   const questions = [
+    ["Bounded product intent", "What product is intended?", "The answer establishes product scope."],
     ["Choose the retained boundary", "Which boundary should remain?", "The answer changes product scope."],
     ["Choose the public name", "Which name should be public?", "The answer changes the public label."],
   ].map(([title, question, blockingImpact], index) => ({
@@ -70,10 +92,12 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
         kind: "preferential",
         ...(index === 0 ? { intent_scope: "product" } : {}),
         question,
-        state: "open",
+        state: index === 0 ? "answered" : "open",
         blocking_impact: blockingImpact,
-        attention_checkpoint: "phase-0-gate",
-        consolidation_group: "phase-0-stakeholder-questions",
+        ...(index === 0 ? {} : {
+          attention_checkpoint: "phase-0-gate",
+          consolidation_group: "phase-0-stakeholder-questions",
+        }),
       },
       links: [],
       body: "Checkpoint-scheduled stakeholder question.\n",
@@ -95,9 +119,17 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
             payload: {
               title: "Checkpoint conversation tracer",
               purpose: "Exercise consolidated stakeholder attention.",
-              frontier: ["$proposal.question-1.revision_id"],
+              frontier: [
+                "$proposal.question-1.revision_id",
+                "$proposal.question-2.revision_id",
+                "$proposal.question-3.revision_id",
+              ],
             },
-            links: [{ type: "indexes", target: "$proposal.question-1.id" }],
+            links: [
+              { type: "indexes", target: "$proposal.question-1.id" },
+              { type: "indexes", target: "$proposal.question-2.id" },
+              { type: "indexes", target: "$proposal.question-3.id" },
+            ],
             body: "Public operator-seam checkpoint tracer.\n",
           },
         }, ...questions],
