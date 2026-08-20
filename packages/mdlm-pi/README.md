@@ -29,9 +29,11 @@ transactions, reevaluates the repository, and allocates fresh work against the n
 commit when needed. Recovery is limited to the same selected Process Package and
 repository state. A package or repository fingerprint mismatch stops the run;
 `mdlm-pi` does not migrate package versions or recover an Assignment across
-versions. The final Assignment response bytes are durable. For an active Consolidation
-Group, only the final normalized conclusions are retained and reused across serial
-reevaluation; raw attended conversation is not.
+versions. Before worker execution, an attended Assignment's normalized conclusion,
+authority, package identity, and repository identity are durable. The final Assignment
+response bytes are also durable. For an active Consolidation Group, only the final
+normalized conclusions are retained and reused across serial reevaluation; raw attended
+conversation is not.
 
 ## Model and credentials
 
@@ -45,7 +47,11 @@ mdlm-pi run . --provider anthropic --model claude-sonnet-4-5 --thinking high
 The harness does not copy credentials into the target repository or run journal.
 It loads no ambient prompts, skills, extensions, AGENTS files, or coding tools;
 the worker sees only the prepared Assignment Packet, optional attended answer,
-and the packet-schema `complete_assignment` tool.
+and the packet-schema `complete_assignment` tool. For an attended Assignment,
+`mdlm-pi` carries the packet's exact attended authority into the proposal when the
+worker omits it, including after one malformed-response correction. A conflicting
+worker authority stops the run before submission. Autonomous and independently
+reviewed Assignments are unchanged.
 
 For development or a nonstandard installation, select the public MDLM executable:
 

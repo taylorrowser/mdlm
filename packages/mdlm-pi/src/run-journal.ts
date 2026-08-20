@@ -7,6 +7,7 @@ import type { RepositoryFingerprint } from "./git-publisher.js";
 
 const journalContract = "mdlm-pi-run-journal@1" as const;
 const attendedConclusionsContract = "mdlm-pi-attended-conclusions@1" as const;
+const attendedAssignmentContract = "mdlm-pi-attended-assignment@1" as const;
 
 export interface RecoveryBoundary {
   package: JsonObject;
@@ -56,6 +57,12 @@ export interface AttendedConclusions {
   authority: string;
   items: string[];
   conclusion: JsonValue;
+}
+
+export interface AttendedAssignment {
+  contract: typeof attendedAssignmentContract;
+  assignment: RecoveryAssignment;
+  context: JsonObject;
 }
 
 interface JournalBase {
@@ -110,16 +117,18 @@ export class RunJournalError extends Error {
   }
 }
 
-/** Durable intent and reconciliation evidence for external side effects only. */
+/** Durable attended input, side-effect intent, and reconciliation evidence. */
 export class RunJournal {
   readonly #directory: string;
   readonly #journalPath: string;
   readonly #attendedConclusionsPath: string;
+  readonly #attendedAssignmentPath: string;
 
   constructor(directory: string) {
     this.#directory = directory;
     this.#journalPath = path.join(directory, "run.json");
     this.#attendedConclusionsPath = path.join(directory, "attended-conclusions.json");
+    this.#attendedAssignmentPath = path.join(directory, "attended-assignment.json");
   }
 
   async load(): Promise<RunJournalRecord | null> {
@@ -137,6 +146,44 @@ export class RunJournal {
       throw new RunJournalError(`Run journal is not valid JSON: ${this.#journalPath}`);
     }
     return parseJournal(value, this.#journalPath);
+  }
+
+  async loadAttendedAssignment(): Promise<AttendedAssignment | null> {
+    let source: string;
+    try {
+      source = await readFile(this.#attendedAssignmentPath, "utf8");
+    } catch (error) {
+      if (isErrorCode(error, "ENOENT")) return null;
+      throw error;
+    }
+    let value: unknown;
+    try {
+      value = JSON.parse(source);
+    } catch {
+      throw new RunJournalError(
+        `Attended Assignment is not valid JSON: ${this.#attendedAssignmentPath}`,
+      );
+    }
+    return parseAttendedAssignment(value, this.#attendedAssignmentPath);
+  }
+
+  async recordAttendedAssignment(
+    assignment: Omit<AttendedAssignment, "contract">,
+  ): Promise<AttendedAssignment> {
+    if (await this.loadAttendedAssignment() !== null) {
+      throw new RunJournalError("Cannot replace an attended Assignment without clearing it");
+    }
+    const record: AttendedAssignment = {
+      contract: attendedAssignmentContract,
+      ...assignment,
+    };
+    await this.#writeFile(this.#attendedAssignmentPath, "attended-assignment", record);
+    return record;
+  }
+
+  async clearAttendedAssignment(): Promise<void> {
+    await rm(this.#attendedAssignmentPath, { force: true });
+    await syncDirectory(this.#directory);
   }
 
   async loadAttendedConclusions(): Promise<AttendedConclusions | null> {
@@ -464,6 +511,24 @@ export class RunJournal {
       throw error;
     }
   }
+}
+
+function parseAttendedAssignment(
+  value: unknown,
+  assignmentPath: string,
+): AttendedAssignment {
+  if (
+    !isObject(value) || value.contract !== attendedAssignmentContract ||
+    !parseRecoveryAssignment(value.assignment) ||
+    !isObject(value.context) || !isJsonValue(value.context)
+  ) {
+    throw new RunJournalError(`Malformed attended Assignment: ${assignmentPath}`);
+  }
+  return {
+    contract: attendedAssignmentContract,
+    assignment: value.assignment,
+    context: value.context,
+  };
 }
 
 function parseAttendedConclusions(

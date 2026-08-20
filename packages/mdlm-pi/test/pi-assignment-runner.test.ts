@@ -104,6 +104,75 @@ describe("PiAssignmentRunner", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects worker authority that conflicts with attended authority", async () => {
+    const response: JsonObject = {
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: { authoritySupplies: ["release-manager"] },
+    };
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(response); });
+        return session;
+      }),
+    });
+
+    await expect(runner.run(packet(), {
+      attendedContext: {
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        },
+        authoritySupply: {
+          authority: "stakeholder",
+          source: "attended-authority-holder",
+        },
+        conclusion: { statement: "Use the accepted scope." },
+      },
+    })).rejects.toThrow(
+      `worker authority ["release-manager"] conflicts with attended authority 'stakeholder'`,
+    );
+  });
+
+  it.each([
+    ["autonomous", []],
+    ["independent review", ["independent-reviewer"]],
+  ])("does not infer attended authority for %s work", async (_kind, authoritySupplies) => {
+    const response: JsonObject = {
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: { authoritySupplies },
+    };
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(response); });
+        return session;
+      }),
+    });
+
+    await expect(runner.run(packet())).resolves.toEqual(response);
+    await runner.dispose();
+  });
+
   it("does not reuse an author's session or attended context for a review Assignment", async () => {
     const authorId = "9c1616d4-c016-4766-81e3-0ce2a6987518";
     const prompts: string[] = [];
