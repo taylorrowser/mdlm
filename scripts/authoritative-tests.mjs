@@ -14,6 +14,13 @@ for (const arguments_ of [
   ["./node_modules/typescript/bin/tsc", "-p", "packages/mdlm-pi/tsconfig.build.json"],
   ["scripts/verify-test-suites.mjs"],
   ["./node_modules/vitest/vitest.mjs", "run", "--config", "vitest.fast.config.ts"],
+  [
+    "./node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "packages/mdlm-pi",
+    "--testTimeout=30000",
+  ],
   ["--test", "scripts/frontier-loop-tests.mjs"],
 ]) {
   const status = run(arguments_);
