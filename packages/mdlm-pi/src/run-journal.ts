@@ -3,9 +3,15 @@ import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { JsonObject, JsonValue, PreparedAssignmentSubmission } from "./mdlm-client.js";
+import type { RepositoryFingerprint } from "./git-publisher.js";
 
 const journalContract = "mdlm-pi-run-journal@1" as const;
 const attendedConclusionsContract = "mdlm-pi-attended-conclusions@1" as const;
+
+export interface RecoveryBoundary {
+  package: JsonObject;
+  repository: RepositoryFingerprint;
+}
 
 export interface RecoveryAssignment {
   id: string;
@@ -70,11 +76,17 @@ export type RunJournalRecord =
   | {
       contract: typeof journalContract;
       phase: "advancing";
-      advancement: {
+      advancement: RecoveryBoundary & {
         baseCommit: string;
         previousTransactionId: string | null;
+        purpose: "ordinary-allocation" | "post-materialization-reevaluation";
         pending: PublicationEvidence[];
       };
+    }
+  | {
+      contract: typeof journalContract;
+      phase: "reevaluating";
+      boundary: RecoveryBoundary;
     }
   | {
       contract: typeof journalContract;
@@ -169,17 +181,49 @@ export class RunJournal {
     await syncDirectory(this.#directory);
   }
 
-  async beginAdvancement(intent: {
-    baseCommit: string;
+  async beginAdvancement(intent: RecoveryBoundary & {
     previousTransactionId: string | null;
   }): Promise<void> {
-    if (await this.load() !== null) {
+    const current = await this.load();
+    if (current !== null && current.phase !== "reevaluating") {
       throw new RunJournalError("Cannot advance while recovery work remains in the run journal");
+    }
+    if (current?.phase === "reevaluating" && !isDeepStrictEqual(current.boundary, {
+      package: intent.package,
+      repository: intent.repository,
+    })) {
+      throw new RunJournalError("Fresh advancement does not match the reevaluation recovery boundary");
     }
     await this.#write({
       contract: journalContract,
       phase: "advancing",
-      advancement: { ...intent, pending: [] },
+      advancement: {
+        ...intent,
+        baseCommit: intent.repository.head,
+        purpose: current?.phase === "reevaluating"
+          ? "post-materialization-reevaluation"
+          : "ordinary-allocation",
+        pending: [],
+      },
+    });
+  }
+
+  async restoreReevaluation(): Promise<void> {
+    const current = await this.load();
+    if (
+      current?.phase !== "advancing" ||
+      current.advancement.purpose !== "post-materialization-reevaluation" ||
+      current.advancement.pending.length !== 0
+    ) {
+      throw new RunJournalError("Only an unobserved reevaluation advancement can be restored");
+    }
+    await this.#write({
+      contract: journalContract,
+      phase: "reevaluating",
+      boundary: {
+        package: current.advancement.package,
+        repository: current.advancement.repository,
+      },
     });
   }
 
@@ -194,19 +238,34 @@ export class RunJournal {
     });
   }
 
-  async completeAdvancementExecution(executionId: string, commit: string): Promise<void> {
+  async completeAdvancementExecution(
+    executionId: string,
+    commit: string,
+    repository: RepositoryFingerprint,
+  ): Promise<void> {
     const current = await this.load();
     if (current?.phase !== "advancing" || current.advancement.pending[0]?.executionId !== executionId) {
       throw new RunJournalError("Advancement commits must complete in journaled execution order");
     }
-    await this.#write({
-      ...current,
-      advancement: {
-        ...current.advancement,
-        baseCommit: commit,
-        pending: current.advancement.pending.slice(1),
-      },
-    });
+    if (repository.head !== commit) {
+      throw new RunJournalError("Advancement commit does not match its repository fingerprint");
+    }
+    const pending = current.advancement.pending.slice(1);
+    await this.#write(pending.length === 0
+      ? {
+          contract: journalContract,
+          phase: "reevaluating",
+          boundary: { package: current.advancement.package, repository },
+        }
+      : {
+          ...current,
+          advancement: {
+            ...current.advancement,
+            baseCommit: commit,
+            repository,
+            pending,
+          },
+        });
   }
 
   async captureSubmission(input: {
@@ -352,7 +411,10 @@ export class RunJournal {
 
   async clear(): Promise<void> {
     const current = await this.load();
-    if (current !== null && current.phase !== "advancing") {
+    if (
+      current !== null && current.phase !== "advancing" &&
+      current.phase !== "reevaluating"
+    ) {
       const processes = current.phase === "captured"
         ? current.submission.completedProcesses
         : [
@@ -441,6 +503,10 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
     if (
       !isObject(advancement) || typeof advancement.baseCommit !== "string" ||
       advancement.baseCommit.length === 0 ||
+      !parseRecoveryBoundary(advancement) ||
+      advancement.repository.head !== advancement.baseCommit ||
+      (advancement.purpose !== "ordinary-allocation" &&
+        advancement.purpose !== "post-materialization-reevaluation") ||
       (advancement.previousTransactionId !== null &&
         typeof advancement.previousTransactionId !== "string") ||
       !Array.isArray(advancement.pending)
@@ -456,8 +522,21 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
       advancement: {
         baseCommit: advancement.baseCommit,
         previousTransactionId: advancement.previousTransactionId,
+        purpose: advancement.purpose,
+        package: advancement.package,
+        repository: advancement.repository,
         pending: advancement.pending,
       },
+    };
+  }
+  if (value.phase === "reevaluating") {
+    if (!parseRecoveryBoundary(value.boundary)) {
+      throw new RunJournalError(`Malformed reevaluation journal: ${journalPath}`);
+    }
+    return {
+      contract: journalContract,
+      phase: "reevaluating",
+      boundary: value.boundary,
     };
   }
   if (value.phase === "captured") {
@@ -563,6 +642,19 @@ function parsePublication(
   ) {
     throw new RunJournalError(`Malformed publication evidence in run journal: ${journalPath}`);
   }
+}
+
+function parseRecoveryBoundary(value: unknown): value is RecoveryBoundary {
+  return isObject(value) && isObject(value.package) && isJsonValue(value.package) &&
+    typeof value.package.reference === "string" && value.package.reference.length > 0 &&
+    typeof value.package.digest === "string" &&
+    /^sha256:[0-9a-f]{64}$/.test(value.package.digest) &&
+    typeof value.package.language === "string" && value.package.language.length > 0 &&
+    isObject(value.repository) &&
+    typeof value.repository.head === "string" &&
+    /^[0-9a-f]{40}$/.test(value.repository.head) &&
+    typeof value.repository.trackedState === "string" &&
+    /^sha256:[0-9a-f]{64}$/.test(value.repository.trackedState);
 }
 
 function parseRecoveryAssignment(value: unknown): value is RecoveryAssignment {

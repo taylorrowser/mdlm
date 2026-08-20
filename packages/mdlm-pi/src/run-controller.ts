@@ -28,12 +28,12 @@ type AssignmentPort = Pick<PiAssignmentRunner, "run"> & {
   close?: (assignmentId: string) => Promise<void>;
 };
 type GitPort = Pick<GitPublisher,
-  "assertClean" | "head" | "capturePublication" | "commit" |
-  "publicationCommitState" | "pendingTransactionIds"
+  "assertClean" | "head" | "repositoryFingerprint" | "capturePublication" |
+  "commit" | "publicationCommitState" | "pendingTransactionIds"
 >;
 type JournalPort = Pick<RunJournal,
-  "load" | "beginAdvancement" | "recordAdvancementExecutions" |
-  "completeAdvancementExecution" | "captureSubmission" |
+  "load" | "beginAdvancement" | "restoreReevaluation" |
+  "recordAdvancementExecutions" | "completeAdvancementExecution" | "captureSubmission" |
   "promoteCapturedSubmission" | "recordSubmissionProcess" |
   "clearSubmissionProcess" | "recordPublication" |
   "recordDoctorPassed" | "clear" | "loadAttendedConclusions" |
@@ -98,20 +98,35 @@ export class RunController {
         successful: false,
       });
     }
+    let reevaluationRequired = recovered?.kind === "reevaluate";
+    let recoveredStatus = recovered?.kind === "reevaluate" ? recovered.status : undefined;
 
     await this.#git.assertClean();
     while (true) {
       this.#ensureRunning();
-      const status = await this.#mdlm.status();
+      const statusWasVerified = recoveredStatus !== undefined;
+      const status = recoveredStatus ?? await this.#mdlm.status();
+      recoveredStatus = undefined;
       const outcome = status.currentOutcome;
+      if (reevaluationRequired && outcome.outcome === "invalid") {
+        await this.#journal.clearAttendedConclusions();
+        return this.#report(stopForOutcome(outcome));
+      }
+      if (reevaluationRequired && !statusWasVerified) {
+        await this.#assertCurrentReevaluationBoundary(status);
+      }
       if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
+        if (reevaluationRequired) await this.#journal.clear();
         await this.#journal.clearAttendedConclusions();
         return this.#report(stopForOutcome(outcome));
       }
 
       const allocation = asObject(outcome.assignment, "status.currentOutcome.assignment");
       let allocated: JsonObject;
-      if (allocation.allocation === "active" || allocation.id !== undefined) {
+      if (
+        !reevaluationRequired &&
+        (allocation.allocation === "active" || allocation.id !== undefined)
+      ) {
         asString(allocation.id, "status.currentOutcome.assignment.id");
         allocated = {
           ...outcome,
@@ -122,8 +137,10 @@ export class RunController {
         if (advancement.materializedExecutions.length > 0) {
           // Committing automatic materialization changes the repository fingerprint and
           // retires the Assignment lease returned by the pre-commit `next`.
+          reevaluationRequired = true;
           continue;
         }
+        reevaluationRequired = false;
         allocated = advancement;
         if (allocated.outcome !== "assignment" && allocated.outcome !== "attention-required") {
           await this.#journal.clearAttendedConclusions();
@@ -152,6 +169,17 @@ export class RunController {
       }
       await this.#git.assertClean();
     }
+  }
+
+  async #assertCurrentReevaluationBoundary(status: MdlmStatus): Promise<void> {
+    const record = await this.#journal.load();
+    if (record?.phase !== "reevaluating") {
+      throw new Error("Reevaluation requires its exact recovery boundary");
+    }
+    assertReevaluationBoundary(record.boundary, {
+      package: statusPackage(status, "reevaluation recovery"),
+      repository: await this.#git.repositoryFingerprint(),
+    });
   }
 
   async #attendedContext(outcome: JsonObject): Promise<JsonObject> {
@@ -190,7 +218,8 @@ export class RunController {
 
   async #advance(status: MdlmStatus): Promise<MdlmNext> {
     await this.#journal.beginAdvancement({
-      baseCommit: await this.#git.head(),
+      package: statusPackage(status, "advancement"),
+      repository: await this.#git.repositoryFingerprint(),
       previousTransactionId: recentTransactionId(status.recentTransaction),
     });
     const outcome = await this.#mdlm.next();
@@ -337,10 +366,22 @@ export class RunController {
         replacementDigest: `sha256:${string}`;
       }
     | { kind: "stopped"; stop: RunStop }
+    | { kind: "reevaluate"; status: MdlmStatus }
     | null
   > {
     let record = await this.#journal.load();
     if (record === null) return null;
+    if (record.phase === "reevaluating") {
+      const status = await this.#mdlm.status();
+      if (status.currentOutcome.outcome === "invalid") {
+        return { kind: "stopped", stop: stopForOutcome(status.currentOutcome) };
+      }
+      assertReevaluationBoundary(record.boundary, {
+        package: statusPackage(status, "reevaluation recovery"),
+        repository: await this.#git.repositoryFingerprint(),
+      });
+      return { kind: "reevaluate", status };
+    }
     if (record.phase === "captured") {
       this.#io.progress(`Recovering captured response for Assignment ${record.assignment.id}`);
       const state = await this.#mdlm.assignment(record.assignment.id);
@@ -371,6 +412,16 @@ export class RunController {
     }
     if (record.phase === "advancing") {
       this.#io.progress("Recovering interrupted mdlm next materialization");
+      const status = await this.#mdlm.status();
+      if (status.currentOutcome.outcome === "invalid") {
+        return { kind: "stopped", stop: stopForOutcome(status.currentOutcome) };
+      }
+      if (!isDeepStrictEqual(
+        statusPackage(status, "advancement recovery"),
+        record.advancement.package,
+      )) {
+        throw new Error("Selected Process Package changed during interrupted mdlm next recovery");
+      }
       if (record.advancement.pending.length === 0) {
         if (await this.#git.head() !== record.advancement.baseCommit) {
           throw new Error("HEAD changed during interrupted mdlm next recovery");
@@ -381,11 +432,20 @@ export class RunController {
             "Interrupted mdlm next materialization order cannot be proven",
           );
         }
-        const status = await this.#mdlm.status();
         const recentId = recentTransactionId(status.recentTransaction);
         if (pendingIds.length === 0) {
+          if (!isDeepStrictEqual(
+            await this.#git.repositoryFingerprint(),
+            record.advancement.repository,
+          )) {
+            throw new Error("Repository fingerprint changed during interrupted mdlm next recovery");
+          }
           if (recentId !== record.advancement.previousTransactionId) {
             throw new Error("mdlm next changed recent transaction without visible transaction files");
+          }
+          if (record.advancement.purpose === "post-materialization-reevaluation") {
+            await this.#journal.restoreReevaluation();
+            return { kind: "reevaluate", status };
           }
         } else if (
           recentId === null || recentId === record.advancement.previousTransactionId ||
@@ -400,8 +460,20 @@ export class RunController {
         );
         await this.#journal.recordAdvancementExecutions(publications);
       }
-      await this.#finishAdvancement();
-      return null;
+      if (!(await this.#finishAdvancement())) return null;
+      const reevaluation = await this.#journal.load();
+      if (reevaluation?.phase !== "reevaluating") {
+        throw new Error("Materialization recovery lost its reevaluation boundary");
+      }
+      const reevaluatedStatus = await this.#mdlm.status();
+      if (reevaluatedStatus.currentOutcome.outcome === "invalid") {
+        return { kind: "stopped", stop: stopForOutcome(reevaluatedStatus.currentOutcome) };
+      }
+      assertReevaluationBoundary(reevaluation.boundary, {
+        package: statusPackage(reevaluatedStatus, "reevaluation recovery"),
+        repository: await this.#git.repositoryFingerprint(),
+      });
+      return { kind: "reevaluate", status: reevaluatedStatus };
     }
     this.#io.progress(`Recovering ${record.phase} transaction for Assignment ${record.assignment.id}`);
 
@@ -562,7 +634,7 @@ export class RunController {
     }
   }
 
-  async #finishAdvancement(): Promise<void> {
+  async #finishAdvancement(): Promise<boolean> {
     let record = await this.#journal.load();
     if (record?.phase !== "advancing") {
       throw new Error("Advancement finalization requires a durable advancement intent");
@@ -578,21 +650,28 @@ export class RunController {
         allowedPending,
       );
       this.#io.progress(`Committed ${commit}: ${publication.scenario}`);
-      await this.#journal.completeAdvancementExecution(publication.executionId, commit);
+      await this.#journal.completeAdvancementExecution(
+        publication.executionId,
+        commit,
+        await this.#git.repositoryFingerprint(),
+      );
       const next = await this.#journal.load();
+      if (next?.phase === "reevaluating") return true;
       if (next?.phase !== "advancing") {
         throw new Error("Run journal lost advancement evidence during commit finalization");
       }
       record = next;
     }
     await this.#journal.clear();
+    return false;
   }
 
   async #finishPublication(): Promise<void> {
     let record = await this.#journal.load();
     if (
       record === null || record.phase === "captured" ||
-      record.phase === "submitting" || record.phase === "advancing"
+      record.phase === "submitting" || record.phase === "advancing" ||
+      record.phase === "reevaluating"
     ) {
       throw new Error("Publication finalization requires journaled execution evidence");
     }
@@ -617,6 +696,41 @@ export class RunController {
   #report(stop: RunStop): RunStop {
     this.#io.stopped(stop.status, stop.details);
     return stop;
+  }
+}
+
+function statusPackage(status: MdlmStatus, boundary: string): JsonObject {
+  const packageIdentity = asObject(status.package, `${boundary}.package`);
+  const reference = asString(packageIdentity.reference, `${boundary}.package.reference`);
+  if (reference.length === 0) {
+    throw new Error(`Expected ${boundary}.package.reference to be nonempty`);
+  }
+  const digest = asString(packageIdentity.digest, `${boundary}.package.digest`);
+  if (!/^sha256:[0-9a-f]{64}$/.test(digest)) {
+    throw new Error(`Expected ${boundary}.package.digest to be an exact sha256 identity`);
+  }
+  const language = asString(packageIdentity.language, `${boundary}.package.language`);
+  if (language.length === 0) {
+    throw new Error(`Expected ${boundary}.package.language to be nonempty`);
+  }
+  return packageIdentity;
+}
+
+function assertReevaluationBoundary(
+  expected: {
+    package: JsonObject;
+    repository: { head: string; trackedState: string };
+  },
+  actual: {
+    package: JsonObject;
+    repository: { head: string; trackedState: string };
+  },
+): void {
+  if (!isDeepStrictEqual(actual.package, expected.package)) {
+    throw new Error("selected Process Package changed during reevaluation recovery");
+  }
+  if (!isDeepStrictEqual(actual.repository, expected.repository)) {
+    throw new Error("repository fingerprint changed during reevaluation recovery");
   }
 }
 

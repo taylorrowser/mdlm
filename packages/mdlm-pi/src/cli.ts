@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { GitPublisher } from "./git-publisher.js";
-import { MdlmClient } from "./mdlm-client.js";
+import { MdlmClient, MdlmClientError } from "./mdlm-client.js";
 import { TerminalOperatorIO } from "./operator-io.js";
 import { PiAssignmentRunner, type ThinkingLevel } from "./pi-assignment-runner.js";
 import { RunController } from "./run-controller.js";
@@ -146,6 +146,9 @@ try {
   process.stderr.write(`${JSON.stringify({
     status: lockConflict ? "lock-conflict" : "operational-failure",
     error: error instanceof Error ? error.message : String(error),
+    ...(error instanceof MdlmClientError && error.details !== undefined
+      ? { details: error.details }
+      : {}),
   }, null, 2)}\n`);
   process.exitCode = lockConflict
     ? exitStatus.lockConflict
