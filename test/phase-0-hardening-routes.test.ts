@@ -1571,7 +1571,7 @@ describe("Phase 0 missing hardening routes", () => {
 
   });
 
-  it("routes a stakeholder-owned foundation failure immediately to attended escalation with required Decision evidence", async () => {
+  it("routes a stakeholder-owned foundation failure immediately to attended escalation without spending an autonomous cycle", async () => {
     const subject = phase0Foundation().requirement;
     const [context, failed] = reviewFor(subject, "REV-1030000016", "fail", {
       correctionAuthority: "stakeholder",
