@@ -1537,12 +1537,12 @@ describe("Phase 0 missing hardening routes", () => {
         repository,
         "accept-phase-0-intent@1",
       );
-      expect(inputRevision(acceptance, "gate_decision")).toBe(
+      expect(inputRevision(acceptance, "gate_signoff")).toBe(
         correctedGateRevision,
       );
-      expect(inputRevision(acceptance, "gate_review")).toBe(
+      expect(inputRevisions(acceptance, "signoff_reviews")).toEqual([
         correctedGateReviewRevision,
-      );
+      ]);
       expect(inputRevision(acceptance, "candidate")).toBe(
         correctedCandidateRevision,
       );
