@@ -14,10 +14,11 @@ its Decision kind and exact Question scope. Link `resolves` to that exact QST
 Revision and `corrects-review` to every supplied failed Review. The answered QST
 contains the normalized attended answer. Retain that answer exactly unless the
 stakeholder explicitly narrows, defers, or removes behavior in this correction.
-For such a change, record `attended_answer_change.disposition` and a specific
-`attended_answer_change.rationale`, then make the replacement `decision` the
-complete current authority. Do not reinterpret omitted Decision text as an
-attended change. Do not rewrite an unfavorable Review or infer a different
+For such a change, record `attended_answer_change.disposition`, the exact
+`previous_answer`, the complete `revised_answer`, and a specific `rationale`.
+The previous answer must equal the supplied QST authority, and the revised
+answer must equal the replacement `decision`. Do not reinterpret omitted
+Decision text as an attended change. Do not rewrite an unfavorable Review or infer a different
 preference. Normal reevaluation must require a fresh independent Review of the
 replacement.
 

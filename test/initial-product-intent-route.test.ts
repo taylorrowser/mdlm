@@ -451,13 +451,20 @@ describe("initial product-intent authority", () => {
         "Build a command-line temperature converter for uppercase F and C.";
       const dataRoot = path.join(repository, ".lifecycle", "data");
       const beforeLossyCorrection = await directoryDigest(dataRoot);
-      const rejectedLossyCorrection = submitAssignment(
+      const markerOnlyLossyCorrection = structuredClone(lossyCorrection);
+      markerOnlyLossyCorrection.lifecycleDatum.payload.attended_answer_change = {
+        disposition: "narrow",
+        previous_answer: attendedAnswer,
+        revised_answer: attendedAnswer,
+        rationale: "Claim that the shorter text is an attended narrowing.",
+      };
+      const rejectedMarkerOnlyCorrection = submitAssignment(
         repository,
         correction,
-        [lossyCorrection],
+        [markerOnlyLossyCorrection],
       );
-      expect(rejectedLossyCorrection.status).toBe(1);
-      expect(JSON.parse(rejectedLossyCorrection.stdout).diagnostics).toEqual(
+      expect(rejectedMarkerOnlyCorrection.status).toBe(1);
+      expect(JSON.parse(rejectedMarkerOnlyCorrection.stdout).diagnostics).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ code: "scenario-completion-failed" }),
         ]),

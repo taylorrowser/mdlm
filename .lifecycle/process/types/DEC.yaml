@@ -24,9 +24,11 @@ payload_schema:
     attended_answer_change:
       type: object
       additionalProperties: false
-      required: [disposition, rationale]
+      required: [disposition, previous_answer, revised_answer, rationale]
       properties:
         disposition: {enum: [narrow, defer, remove]}
+        previous_answer: {type: string, minLength: 1}
+        revised_answer: {type: string, minLength: 1}
         rationale: {type: string, minLength: 1}
     scope_correction:
       type: object

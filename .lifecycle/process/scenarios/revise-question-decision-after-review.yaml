@@ -32,7 +32,11 @@ completion: >-
   && (
     question.payload.intent_scope != "product"
     || replacement.payload.decision == question.payload.attended_answer
-    || present(replacement.payload.attended_answer_change)
+    || (
+      present(replacement.payload.attended_answer_change)
+      && replacement.payload.attended_answer_change.previous_answer == question.payload.attended_answer
+      && replacement.payload.attended_answer_change.revised_answer == replacement.payload.decision
+    )
   )
   && exists("valid-question-decision-replacements-for@1", {decision: decision})
 resolves: [question-decision-review-correction-required]
