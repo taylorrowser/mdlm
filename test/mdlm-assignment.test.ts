@@ -28,6 +28,58 @@ function mdlmWithInput(repository: string, input: string, ...arguments_: string[
   return invokeMdlm(repository, arguments_, input);
 }
 
+function spawnMdlmWithInput(
+  repository: string,
+  input: string,
+  environment: NodeJS.ProcessEnv,
+) {
+  const child = spawn(
+    process.execPath,
+    [mdlmExecutable, "scenario", "submit"],
+    {
+      cwd: repository,
+      env: environment,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => stdout += chunk);
+  child.stderr.on("data", (chunk: string) => stderr += chunk);
+  child.stdin.end(input);
+  const closed = new Promise<number | null>((resolve) =>
+    child.on("close", resolve)
+  );
+  return { child, closed, output: () => ({ stdout, stderr }) };
+}
+
+async function waitForPath(target: string, message: string): Promise<void> {
+  try {
+    await fs.access(target);
+    return;
+  } catch {
+    // Wait for the process-level barrier below.
+  }
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      watcher.close();
+      reject(new Error(message));
+    }, 10_000);
+    const watcher = watch(path.dirname(target), async () => {
+      try {
+        await fs.access(target);
+        clearTimeout(timeout);
+        watcher.close();
+        resolve();
+      } catch {
+        // The observed event was unrelated to the barrier.
+      }
+    });
+  });
+}
+
 function git(repository: string, ...arguments_: string[]) {
   return spawnSync("git", ["-C", repository, ...arguments_], {
     encoding: "utf8",
@@ -677,30 +729,6 @@ describe("MDLM Assignment leasing and preparation", () => {
         entry.startsWith(".scenario-") && entry.endsWith(".tmp")
       )
     );
-    const waitForPath = async (target: string, message: string): Promise<void> => {
-      try {
-        await fs.access(target);
-        return;
-      } catch {
-        // Wait for the process-level barrier below.
-      }
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          watcher.close();
-          reject(new Error(message));
-        }, 10_000);
-        const watcher = watch(path.dirname(target), async () => {
-          try {
-            await fs.access(target);
-            clearTimeout(timeout);
-            watcher.close();
-            resolve();
-          } catch {
-            // The observed event was unrelated to the barrier.
-          }
-        });
-      });
-    };
     const waitForStaging = async (): Promise<void> => {
       if ((await staged()).length === 1) return;
       await new Promise<void>((resolve, reject) => {
@@ -717,30 +745,7 @@ describe("MDLM Assignment leasing and preparation", () => {
         });
       });
     };
-    const runSubmission = (environment = process.env) => {
-      const child = spawn(
-        process.execPath,
-        [mdlmExecutable, "scenario", "submit"],
-        {
-          cwd: repository,
-          env: environment,
-          stdio: ["pipe", "pipe", "pipe"],
-        },
-      );
-      let stdout = "";
-      let stderr = "";
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk: string) => stdout += chunk);
-      child.stderr.on("data", (chunk: string) => stderr += chunk);
-      child.stdin.end(response);
-      const closed = new Promise<number | null>((resolve) =>
-        child.on("close", resolve)
-      );
-      return { child, closed, output: () => ({ stdout, stderr }) };
-    };
-
-    const first = runSubmission();
+    const first = spawnMdlmWithInput(repository, response, process.env);
     await waitForStaging();
     const barrierRoot = path.join(parent, "valid-response-barrier");
     const barrierSignal = path.join(barrierRoot, "assignment-lock-attempted");
@@ -757,7 +762,7 @@ const result = spawnSync("git", process.argv.slice(2), { env, stdio: "inherit" }
 process.exit(result.status ?? 1);
 `);
     await fs.chmod(gitWrapper, 0o755);
-    const second = runSubmission({
+    const second = spawnMdlmWithInput(repository, response, {
       ...process.env,
       PATH: `${barrierRoot}:${process.env.PATH}`,
       MDLM_TEST_LOCK_SIGNAL: barrierSignal,
@@ -849,60 +854,7 @@ const result = spawnSync("git", process.argv.slice(2), { env, stdio: "inherit" }
 process.exit(result.status ?? 1);
 `);
       await fs.chmod(gitWrapper, 0o755);
-      const waitForPath = async (
-        watchedRoot: string,
-        target: string,
-        message: string,
-      ): Promise<void> => {
-        try {
-          await fs.access(target);
-          return;
-        } catch {
-          // Wait for the process-level barrier below.
-        }
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            watcher.close();
-            reject(new Error(message));
-          }, 10_000);
-          const watcher = watch(watchedRoot, async () => {
-            try {
-              await fs.access(target);
-              clearTimeout(timeout);
-              watcher.close();
-              resolve();
-            } catch {
-              // The observed event was unrelated to the barrier.
-            }
-          });
-        });
-      };
-      const spawnSubmission = (
-        response: string,
-        environment: NodeJS.ProcessEnv,
-      ) => {
-        const child = spawn(
-          process.execPath,
-          [mdlmExecutable, "scenario", "submit"],
-          {
-            cwd: repository,
-            env: environment,
-            stdio: ["pipe", "pipe", "pipe"],
-          },
-        );
-        let stdout = "";
-        let stderr = "";
-        child.stdout.setEncoding("utf8");
-        child.stderr.setEncoding("utf8");
-        child.stdout.on("data", (chunk: string) => stdout += chunk);
-        child.stderr.on("data", (chunk: string) => stderr += chunk);
-        child.stdin.end(response);
-        const closed = new Promise<number | null>((resolve) =>
-          child.on("close", resolve)
-        );
-        return { child, closed, output: () => ({ stdout, stderr }) };
-      };
-      const losing = spawnSubmission(losingResponse, {
+      const losing = spawnMdlmWithInput(repository, losingResponse, {
         ...process.env,
         PATH: `${barrierRoot}:${process.env.PATH}`,
         MDLM_TEST_LOCK_SIGNAL: barrierSignal,
@@ -910,12 +862,11 @@ process.exit(result.status ?? 1);
         MDLM_TEST_REAL_PATH: process.env.PATH,
       });
       await waitForPath(
-        barrierRoot,
         barrierSignal,
         `${kind} response did not reach the Assignment lease lock`,
       );
 
-      const winning = spawnSubmission(validResponse, {
+      const winning = spawnMdlmWithInput(repository, validResponse, {
         ...process.env,
         MDLM_PERFORMANCE: "json",
       });

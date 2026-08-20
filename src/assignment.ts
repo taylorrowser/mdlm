@@ -1257,7 +1257,7 @@ async function verifyPublicationFingerprint(
 function preparedScenarioSubmission(
   repositoryRoot: string,
   exact: ExactAssignment,
-  verifyAssignment?: () => Promise<AssignmentResult<undefined>>,
+  verifyAssignment: () => Promise<AssignmentResult<undefined>>,
 ): PreparedScenarioSubmission {
   return {
     dryRun: exact.dryRun,
@@ -1286,9 +1286,7 @@ function preparedScenarioSubmission(
             repositoryRoot,
             exact.lease.repository,
           );
-          return !fingerprint.ok || !verifyAssignment
-            ? fingerprint
-            : verifyAssignment();
+          return fingerprint.ok ? verifyAssignment() : fingerprint;
         },
       ),
   };
@@ -2134,6 +2132,23 @@ function exactActiveLease(
     isDeepStrictEqual(current, expected);
 }
 
+function withExactActiveLease(
+  repositoryRoot: string,
+  expectedLease: AssignmentLease,
+  operation: (
+    lease: AssignmentLease,
+    renew: () => Promise<void>,
+  ) => Promise<AssignmentSubmissionResult>,
+): Promise<AssignmentSubmissionResult> {
+  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
+    const persisted = await readLease(repositoryRoot);
+    if (!persisted.ok) return persisted;
+    return exactActiveLease(persisted.value, expectedLease)
+      ? operation(persisted.value, renew)
+      : unavailableSubmission(expectedLease.id);
+  });
+}
+
 async function writeMalformedResponse(
   repositoryRoot: string,
   lease: AssignmentLease,
@@ -2188,19 +2203,18 @@ async function recordMalformedResponse(
   responseSource: string,
   diagnostics: ProcessDiagnostic[],
 ): Promise<AssignmentSubmissionResult> {
-  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
-    const persisted = await readLease(repositoryRoot);
-    if (!persisted.ok) return persisted;
-    return exactActiveLease(persisted.value, expectedLease)
-      ? writeMalformedResponse(
-          repositoryRoot,
-          persisted.value,
-          responseSource,
-          diagnostics,
-          renew,
-        )
-      : unavailableSubmission(expectedLease.id);
-  });
+  return withExactActiveLease(
+    repositoryRoot,
+    expectedLease,
+    (lease, renew) =>
+      writeMalformedResponse(
+        repositoryRoot,
+        lease,
+        responseSource,
+        diagnostics,
+        renew,
+      ),
+  );
 }
 
 async function writeStaleDisposition(
@@ -2235,13 +2249,11 @@ async function recordStaleDisposition(
   repositoryRoot: string,
   expectedLease: AssignmentLease,
 ): Promise<AssignmentSubmissionResult> {
-  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
-    const persisted = await readLease(repositoryRoot);
-    if (!persisted.ok) return persisted;
-    return exactActiveLease(persisted.value, expectedLease)
-      ? writeStaleDisposition(repositoryRoot, persisted.value, renew)
-      : unavailableSubmission(expectedLease.id);
-  });
+  return withExactActiveLease(
+    repositoryRoot,
+    expectedLease,
+    (lease, renew) => writeStaleDisposition(repositoryRoot, lease, renew),
+  );
 }
 
 async function writeUnableResponse(
@@ -2280,19 +2292,18 @@ async function recordUnableResponse(
   responseSource: string,
   unable: UnableAssignmentResponse["unable"],
 ): Promise<AssignmentSubmissionResult> {
-  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
-    const persisted = await readLease(repositoryRoot);
-    if (!persisted.ok) return persisted;
-    return exactActiveLease(persisted.value, expectedLease)
-      ? writeUnableResponse(
-          repositoryRoot,
-          persisted.value,
-          responseSource,
-          unable,
-          renew,
-        )
-      : unavailableSubmission(expectedLease.id);
-  });
+  return withExactActiveLease(
+    repositoryRoot,
+    expectedLease,
+    (lease, renew) =>
+      writeUnableResponse(
+        repositoryRoot,
+        lease,
+        responseSource,
+        unable,
+        renew,
+      ),
+  );
 }
 
 /** Apply one harness response to the active exact Assignment. */
@@ -2351,12 +2362,7 @@ export async function submitAssignmentResponse(
     suppliedDelegations: proposal.standingDelegations,
     loadedSkillRefs: proposal.loadedSkillRefs,
   };
-  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
-    const current = await readLease(repositoryRoot);
-    if (!current.ok) return current;
-    if (!exactActiveLease(current.value, lease)) {
-      return unavailableSubmission(lease.id);
-    }
+  return withExactActiveLease(repositoryRoot, lease, async (lease, renew) => {
     const verifyAssignment = async (): Promise<AssignmentResult<undefined>> => {
       await renew();
       const committedLease = await readLease(repositoryRoot);
