@@ -84,6 +84,14 @@ operator journals advancement before invoking `next`, checks and commits each ex
 transaction directory after doctor, and can recover interrupted advancement from
 those canonical directories plus `mdlm scenario execution show`.
 
+That commit changes the repository state and makes any Assignment returned by the
+same `next` stale. MDLM does not rebase the Assignment. After the controller commits
+all journaled materialization transactions, it reevaluates the repository and, when
+work remains, allocates a fresh Assignment against the new commit. Recovery is
+limited to the same selected Process Package and repository state. A package or
+repository fingerprint mismatch stops the run; MDLM does not migrate package
+versions or recover an Assignment across versions.
+
 After successful submission and doctor:
 
 ```bash

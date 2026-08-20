@@ -21,11 +21,17 @@ mdlm: publish <scenario-reference> (<execution-id>)
 Run state is stored beneath the worktree's private Git directory, while ownership
 is locked at the common Git directory so linked worktrees cannot run concurrently.
 Restarting the same command recovers a captured response, journaled `mdlm next`
-kernel materialization, submission, publication, doctor result, or Git commit. Every deterministic execution reported
-by `mdlm-next@1.materializedExecutions` is doctor-checked and committed at its own
-transaction boundary. The final Assignment response bytes are durable. For an
-active checkpoint group, only the final normalized conclusions are retained and
-reused across serial reevaluation; raw attended conversation is not.
+kernel materialization, submission, publication, doctor result, or Git commit.
+Every deterministic execution reported by `mdlm-next@1.materializedExecutions` is
+doctor-checked and committed at its own transaction boundary. MDLM does not rebase
+an Assignment returned before that commit. The controller finishes the journaled
+transactions, reevaluates the repository, and allocates fresh work against the new
+commit when needed. Recovery is limited to the same selected Process Package and
+repository state. A package or repository fingerprint mismatch stops the run;
+`mdlm-pi` does not migrate package versions or recover an Assignment across
+versions. The final Assignment response bytes are durable. For an active checkpoint
+group, only the final normalized conclusions are retained and reused across serial
+reevaluation; raw attended conversation is not.
 
 ## Model and credentials
 

@@ -10,6 +10,7 @@ import { RunJournal } from "../src/run-journal.js";
 const executeFile = promisify(execFile);
 const projectRoot = path.resolve(import.meta.dirname, "../../..");
 const cli = path.join(projectRoot, "packages/mdlm-pi/dist/cli.js");
+const runLockStaleMs = 10_000;
 const temporaryRoots: string[] = [];
 
 afterEach(async () => {
@@ -77,6 +78,121 @@ describe("mdlm-pi run process boundary", () => {
     expect(stopped.status).toBe(129);
     expect(stopped.stdout).toContain('"status": "interrupted"');
   });
+
+  it("recovers a killed controller while mdlm next is materializing one transaction", async () => {
+    if (!["darwin", "linux"].includes(process.platform)) return;
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-next-recovery-"));
+    temporaryRoots.push(root);
+    const repository = path.join(root, "repository");
+    const invocationDirectory = path.join(root, "invocation");
+    const fakeMdlm = path.join(root, "fake-next-mdlm.mjs");
+    const ready = path.join(root, "next-ready");
+    const materialized = path.join(root, "materialized");
+    const nextInvocations = path.join(root, "next-invocations");
+    const executionId = "f2ca1127-9fd3-4fb6-bdd1-fc54590b4ed0";
+    const scenario = "package-neutral-materialization@1";
+    const responseDigest = `sha256:${"b".repeat(64)}`;
+    const outputPath = `.lifecycle/data/.transactions/${executionId}/datum.md`;
+    await mkdir(repository);
+    await mkdir(invocationDirectory);
+    await executeFile("git", ["init", "--quiet"], { cwd: repository });
+    await executeFile("git", ["config", "user.name", "MDLM Pi Test"], { cwd: repository });
+    await executeFile("git", ["config", "user.email", "mdlm-pi@localhost"], { cwd: repository });
+    await writeFile(path.join(repository, "README.md"), "fixture\n");
+    await executeFile("git", ["add", "README.md"], { cwd: repository });
+    await executeFile("git", ["commit", "--quiet", "-m", "fixture"], { cwd: repository });
+    await writeFile(fakeMdlm, `#!/usr/bin/env node
+import { access, appendFile, mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+const args = process.argv.slice(2);
+const ready = ${JSON.stringify(ready)};
+const materialized = ${JSON.stringify(materialized)};
+const nextInvocations = ${JSON.stringify(nextInvocations)};
+const executionId = ${JSON.stringify(executionId)};
+const scenario = ${JSON.stringify(scenario)};
+const responseDigest = ${JSON.stringify(responseDigest)};
+const outputPath = ${JSON.stringify(outputPath)};
+let hasMaterialization = false;
+try { await access(materialized); hasMaterialization = true; } catch {}
+const execution = {
+  contract: "mdlm-scenario-execution@4", id: executionId, status: "completed",
+  definition: { scenario }, response: { digest: responseDigest },
+  outputs: [{ lifecycleDatum: { path: outputPath } }]
+};
+if (args[0] === "next") {
+  await appendFile(nextInvocations, "next\\n");
+  await mkdir(path.join(process.cwd(), path.dirname(outputPath)), { recursive: true });
+  await writeFile(path.join(process.cwd(), outputPath), "materialized\\n");
+  await writeFile(materialized, "materialized\\n");
+  await writeFile(ready, String(process.pid));
+  setInterval(() => {}, 1000);
+} else if (args[0] === "status") {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-status@1", command: "status", ok: true,
+    currentOutcome: hasMaterialization
+      ? { outcome: "lifecycle-complete" }
+      : { outcome: "assignment", assignment: { allocation: "not-allocated" } },
+    recentTransaction: hasMaterialization
+      ? { available: true, id: executionId }
+      : { available: false }
+  }));
+} else if (args[0] === "scenario" && args[1] === "execution") {
+  process.stdout.write(JSON.stringify({
+    command: "scenario.execution.show", ok: true, execution
+  }));
+} else if (args[0] === "doctor") {
+  process.stdout.write(JSON.stringify({ command: "doctor", ok: true, diagnostics: [] }));
+} else {
+  process.stderr.write("unexpected args: " + JSON.stringify(args));
+  process.exitCode = 2;
+}
+`);
+    await chmod(fakeMdlm, 0o755);
+    const operatorArguments = [
+      cli,
+      "run",
+      repository,
+      "--mdlm",
+      fakeMdlm,
+    ];
+    const interrupted = spawn(process.execPath, operatorArguments, {
+      cwd: invocationDirectory,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    await waitForFile(ready, interrupted);
+    const nextPid = Number(await readFile(ready, "utf8"));
+    interrupted.kill("SIGKILL");
+    const killed = await collect(interrupted);
+    expect(killed.status).toBeNull();
+    await killProcessGroup(nextPid);
+
+    const recovered = await runAfterStaleLock(
+      process.execPath,
+      operatorArguments,
+      invocationDirectory,
+    );
+
+    expect(recovered.status).toBe(0);
+    expect((await readFile(nextInvocations, "utf8")).trim().split("\n"))
+      .toEqual(["next"]);
+    expect((await executeFile("git", ["log", "-1", "--format=%s"], {
+      cwd: repository,
+    })).stdout.trim()).toBe(`mdlm: publish ${scenario} (${executionId})`);
+    expect((await executeFile("git", ["rev-list", "--count", "HEAD"], {
+      cwd: repository,
+    })).stdout.trim()).toBe("2");
+    expect((await executeFile("git", [
+      "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+    ], { cwd: repository })).stdout.trim()).toBe(outputPath);
+    expect((await executeFile("git", ["show", `HEAD:${outputPath}`], {
+      cwd: repository,
+    })).stdout).toBe("materialized\n");
+    expect((await executeFile("git", ["status", "--porcelain"], {
+      cwd: repository,
+    })).stdout).toBe("");
+    expect(await new RunJournal(path.join(repository, ".git/mdlm-pi")).load())
+      .toBeNull();
+  }, 45_000);
 
   it("reconciles an interrupted live submit without invoking submission twice", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-submit-recovery-"));
@@ -325,6 +441,45 @@ async function waitForFile(file: string, child: ChildProcess): Promise<void> {
   }
   child.kill("SIGTERM");
   throw new Error("Timed out waiting for the owner process");
+}
+
+async function killProcessGroup(pid: number): Promise<void> {
+  if (!Number.isSafeInteger(pid) || pid <= 0) {
+    throw new Error(`Invalid process group leader: ${pid}`);
+  }
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) {
+      throw error;
+    }
+    return;
+  }
+  for (let attempts = 0; attempts < 100; attempts += 1) {
+    try {
+      process.kill(-pid, 0);
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ESRCH") return;
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Process group ${pid} survived SIGKILL`);
+}
+
+async function runAfterStaleLock(
+  program: string,
+  arguments_: string[],
+  cwd: string,
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  const blocked = await executeFileResult(program, arguments_, cwd);
+  if (blocked.status !== 5 || !blocked.stderr.includes("Another mdlm-pi run owns")) {
+    throw new Error(
+      `Killed controller did not leave a live owner lock: ${JSON.stringify(blocked)}`,
+    );
+  }
+  await new Promise((resolve) => setTimeout(resolve, runLockStaleMs + 250));
+  return await executeFileResult(program, arguments_, cwd);
 }
 
 async function executeFileResult(
