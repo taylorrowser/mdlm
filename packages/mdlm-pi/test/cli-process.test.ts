@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import { GitPublisher } from "../src/git-publisher.js";
 import { MdlmClient } from "../src/mdlm-client.js";
 import { RunJournal } from "../src/run-journal.js";
 
@@ -56,6 +57,53 @@ describe("mdlm-pi run process boundary", () => {
     expect(result.status).toBe(3);
     expect(JSON.parse(result.stdout)).toMatchObject({ status: "invalid" });
     expect(result.stderr).toBe("");
+  });
+
+  it("preserves Invalid exit 3 and reevaluation state after materialization", async () => {
+    const invalid = {
+      outcome: "invalid",
+      diagnostics: [{ code: "INVALID", message: "post-materialization invalid" }],
+    };
+    const fixture = await processFixture({ currentOutcome: invalid });
+    const git = new GitPublisher({ repository: fixture.repository });
+    const repository = await git.repositoryFingerprint();
+    const journal = new RunJournal(path.join(await git.gitDirectory(), "mdlm-pi"));
+    const packageIdentity = {
+      reference: "package-neutral@1",
+      digest: `sha256:${"a".repeat(64)}`,
+      language: "mdlm-expression@1",
+    };
+    const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
+    await journal.beginAdvancement({
+      package: packageIdentity,
+      repository,
+      previousTransactionId: null,
+    });
+    await journal.recordAdvancementExecutions([{
+      executionId,
+      scenario: "automatic-materialization@1",
+      responseDigest: `sha256:${"b".repeat(64)}`,
+      outputPaths: [`.lifecycle/data/.transactions/${executionId}/datum.md`],
+      blobs: [{
+        path: `.lifecycle/data/.transactions/${executionId}/datum.md`,
+        oid: "c".repeat(40),
+      }],
+    }]);
+    await journal.completeAdvancementExecution(executionId, repository.head, repository);
+    const expectedJournal = await journal.load();
+
+    const result = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      fixture.repository,
+      "--mdlm",
+      fixture.mdlm,
+    ], fixture.invocationDirectory);
+
+    expect(result.status).toBe(3);
+    expect(JSON.parse(result.stdout)).toMatchObject({ status: "invalid" });
+    expect(result.stderr).toBe("");
+    expect(await journal.load()).toEqual(expectedJournal);
   });
 
   it("retains exact MDLM diagnostics when Assignment preparation fails", async () => {
@@ -155,7 +203,8 @@ const responseDigest = ${JSON.stringify(responseDigest)};
 const outputPath = ${JSON.stringify(outputPath)};
 const packageIdentity = {
   reference: "package-neutral@1",
-  digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  language: "mdlm-expression@1"
 };
 let hasMaterialization = false;
 try { await access(materialized); hasMaterialization = true; } catch {}
@@ -259,6 +308,7 @@ if (args[0] === "next") {
     const packageIdentity = {
       reference: "package-neutral@1",
       digest: `sha256:${"a".repeat(64)}`,
+      language: "mdlm-expression@1",
     };
     const repositoryFingerprint = { head: "fixture", lifecycle: "sha256:lifecycle" };
     await mkdir(repository);

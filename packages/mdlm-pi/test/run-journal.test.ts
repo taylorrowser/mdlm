@@ -118,6 +118,104 @@ describe("RunJournal", () => {
     );
   });
 
+  it.each([
+    {
+      defect: "empty package reference",
+      boundary: {
+        package: {
+          reference: "",
+          digest: `sha256:${"a".repeat(64)}`,
+          language: "mdlm-expression@1",
+        },
+        repository: {
+          head: "a".repeat(40),
+          trackedState: `sha256:${"b".repeat(64)}`,
+        },
+      },
+    },
+    {
+      defect: "non-sha256 package digest",
+      boundary: {
+        package: {
+          reference: "package@1",
+          digest: "sha256:not-exact",
+          language: "mdlm-expression@1",
+        },
+        repository: {
+          head: "a".repeat(40),
+          trackedState: `sha256:${"b".repeat(64)}`,
+        },
+      },
+    },
+    {
+      defect: "missing expression language",
+      boundary: {
+        package: {
+          reference: "package@1",
+          digest: `sha256:${"a".repeat(64)}`,
+        },
+        repository: {
+          head: "a".repeat(40),
+          trackedState: `sha256:${"b".repeat(64)}`,
+        },
+      },
+    },
+    {
+      defect: "empty expression language",
+      boundary: {
+        package: {
+          reference: "package@1",
+          digest: `sha256:${"a".repeat(64)}`,
+          language: "",
+        },
+        repository: {
+          head: "a".repeat(40),
+          trackedState: `sha256:${"b".repeat(64)}`,
+        },
+      },
+    },
+    {
+      defect: "non-Git HEAD",
+      boundary: {
+        package: {
+          reference: "package@1",
+          digest: `sha256:${"a".repeat(64)}`,
+          language: "mdlm-expression@1",
+        },
+        repository: {
+          head: "not-a-git-object",
+          trackedState: `sha256:${"b".repeat(64)}`,
+        },
+      },
+    },
+    {
+      defect: "uppercase Git HEAD",
+      boundary: {
+        package: {
+          reference: "package@1",
+          digest: `sha256:${"a".repeat(64)}`,
+          language: "mdlm-expression@1",
+        },
+        repository: {
+          head: "A".repeat(40),
+          trackedState: `sha256:${"b".repeat(64)}`,
+        },
+      },
+    },
+  ])("rejects a reevaluation marker with $defect", async ({ boundary }) => {
+    const storagePath = await journalPath();
+    await mkdir(storagePath, { recursive: true });
+    await writeFile(path.join(storagePath, "run.json"), `${JSON.stringify({
+      contract: "mdlm-pi-run-journal@1",
+      phase: "reevaluating",
+      boundary,
+    })}\n`);
+
+    await expect(new RunJournal(storagePath).load()).rejects.toThrow(
+      "Malformed reevaluation journal",
+    );
+  });
+
   it("makes a captured response durable before submission facts are inspected", async () => {
     const storagePath = await journalPath();
     const journal = new RunJournal(storagePath);

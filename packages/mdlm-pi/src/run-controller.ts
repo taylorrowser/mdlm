@@ -32,8 +32,8 @@ type GitPort = Pick<GitPublisher,
   "commit" | "publicationCommitState" | "pendingTransactionIds"
 >;
 type JournalPort = Pick<RunJournal,
-  "load" | "beginAdvancement" | "recordAdvancementExecutions" |
-  "completeAdvancementExecution" | "captureSubmission" |
+  "load" | "beginAdvancement" | "restoreReevaluation" |
+  "recordAdvancementExecutions" | "completeAdvancementExecution" | "captureSubmission" |
   "promoteCapturedSubmission" | "recordSubmissionProcess" |
   "clearSubmissionProcess" | "recordPublication" |
   "recordDoctorPassed" | "clear" | "loadAttendedConclusions" |
@@ -104,10 +104,17 @@ export class RunController {
     await this.#git.assertClean();
     while (true) {
       this.#ensureRunning();
+      const statusWasVerified = recoveredStatus !== undefined;
       const status = recoveredStatus ?? await this.#mdlm.status();
       recoveredStatus = undefined;
-      if (reevaluationRequired) await this.#assertCurrentReevaluationBoundary(status);
       const outcome = status.currentOutcome;
+      if (reevaluationRequired && outcome.outcome === "invalid") {
+        await this.#journal.clearAttendedConclusions();
+        return this.#report(stopForOutcome(outcome));
+      }
+      if (reevaluationRequired && !statusWasVerified) {
+        await this.#assertCurrentReevaluationBoundary(status);
+      }
       if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
         if (reevaluationRequired) await this.#journal.clear();
         await this.#journal.clearAttendedConclusions();
@@ -366,6 +373,9 @@ export class RunController {
     if (record === null) return null;
     if (record.phase === "reevaluating") {
       const status = await this.#mdlm.status();
+      if (status.currentOutcome.outcome === "invalid") {
+        return { kind: "stopped", stop: stopForOutcome(status.currentOutcome) };
+      }
       assertReevaluationBoundary(record.boundary, {
         package: statusPackage(status, "reevaluation recovery"),
         repository: await this.#git.repositoryFingerprint(),
@@ -403,6 +413,9 @@ export class RunController {
     if (record.phase === "advancing") {
       this.#io.progress("Recovering interrupted mdlm next materialization");
       const status = await this.#mdlm.status();
+      if (status.currentOutcome.outcome === "invalid") {
+        return { kind: "stopped", stop: stopForOutcome(status.currentOutcome) };
+      }
       if (!isDeepStrictEqual(
         statusPackage(status, "advancement recovery"),
         record.advancement.package,
@@ -430,6 +443,10 @@ export class RunController {
           if (recentId !== record.advancement.previousTransactionId) {
             throw new Error("mdlm next changed recent transaction without visible transaction files");
           }
+          if (record.advancement.purpose === "post-materialization-reevaluation") {
+            await this.#journal.restoreReevaluation();
+            return { kind: "reevaluate", status };
+          }
         } else if (
           recentId === null || recentId === record.advancement.previousTransactionId ||
           !pendingIds.includes(recentId)
@@ -449,6 +466,9 @@ export class RunController {
         throw new Error("Materialization recovery lost its reevaluation boundary");
       }
       const reevaluatedStatus = await this.#mdlm.status();
+      if (reevaluatedStatus.currentOutcome.outcome === "invalid") {
+        return { kind: "stopped", stop: stopForOutcome(reevaluatedStatus.currentOutcome) };
+      }
       assertReevaluationBoundary(reevaluation.boundary, {
         package: statusPackage(reevaluatedStatus, "reevaluation recovery"),
         repository: await this.#git.repositoryFingerprint(),
@@ -680,7 +700,20 @@ export class RunController {
 }
 
 function statusPackage(status: MdlmStatus, boundary: string): JsonObject {
-  return asObject(status.package, `${boundary}.package`);
+  const packageIdentity = asObject(status.package, `${boundary}.package`);
+  const reference = asString(packageIdentity.reference, `${boundary}.package.reference`);
+  if (reference.length === 0) {
+    throw new Error(`Expected ${boundary}.package.reference to be nonempty`);
+  }
+  const digest = asString(packageIdentity.digest, `${boundary}.package.digest`);
+  if (!/^sha256:[0-9a-f]{64}$/.test(digest)) {
+    throw new Error(`Expected ${boundary}.package.digest to be an exact sha256 identity`);
+  }
+  const language = asString(packageIdentity.language, `${boundary}.package.language`);
+  if (language.length === 0) {
+    throw new Error(`Expected ${boundary}.package.language to be nonempty`);
+  }
+  return packageIdentity;
 }
 
 function assertReevaluationBoundary(

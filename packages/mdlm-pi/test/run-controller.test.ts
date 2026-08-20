@@ -21,6 +21,7 @@ const scenario = "example@1";
 const packageIdentity = {
   reference: "example-package@1",
   digest: `sha256:${"d".repeat(64)}`,
+  language: "mdlm-expression@1",
 };
 const repositoryFingerprint = { head: "base-commit", lifecycle: "sha256:lifecycle" };
 
@@ -202,10 +203,7 @@ describe("RunController", () => {
     const freshAssignmentId = "e9ab75f1-d9eb-411d-8c76-5813594af02a";
     const freshExecutionId = "66d46c68-94e9-4de4-ae9c-0a13f31e915a";
     const staleAssignmentId = "pre-commit-stale-assignment";
-    const postCommitRepository = {
-      head: "materialization-commit",
-      trackedState: `sha256:${"b".repeat(64)}` as const,
-    };
+    const postCommitRepository = advancementRepository("materialization-commit", "b");
     const statuses: MdlmStatus[] = [
       assignmentStatus(false),
       {
@@ -257,7 +255,7 @@ describe("RunController", () => {
       },
     ];
     const response: JsonObject = { assignment: freshAssignmentId, complete: true };
-    let currentHead = "base-commit";
+    let currentHead = advancementRepository("base-commit", "a").head;
     const mdlm = {
       status: vi.fn(async () => statuses.shift()!),
       next: vi.fn(async () => nextOutcomes.shift()!),
@@ -303,18 +301,22 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(async () => currentHead),
-      repositoryFingerprint: vi.fn(async () => currentHead === "base-commit"
-        ? advancementRepository("base-commit", "a")
-        : postCommitRepository),
+      repositoryFingerprint: vi.fn(async () =>
+        currentHead === advancementRepository("base-commit", "a").head
+          ? advancementRepository("base-commit", "a")
+          : postCommitRepository
+      ),
       capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () =>
-        currentHead === "base-commit" ? [executionId] : []
+        currentHead === advancementRepository("base-commit", "a").head ? [executionId] : []
       ),
       commit: vi.fn(async (publication: { executionId: string }) => {
-        currentHead = publication.executionId === executionId
-          ? "materialization-commit"
-          : "assignment-commit";
+        const materialization = publication.executionId === executionId;
+        currentHead = advancementRepository(
+          materialization ? "materialization-commit" : "assignment-commit",
+          materialization ? "b" : "c",
+        ).head;
         return currentHead;
       }),
     };
@@ -343,13 +345,13 @@ describe("RunController", () => {
         executionId,
         responseDigest: materializationDigest,
       }),
-      "base-commit",
+      advancementRepository("base-commit", "a").head,
       [],
     );
     expect(git.commit).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ executionId: freshExecutionId }),
-      "materialization-commit",
+      advancementRepository("materialization-commit", "b").head,
     );
     expect(mdlm.doctor).toHaveBeenCalledTimes(2);
     expect(await journal.load()).toBeNull();
@@ -432,8 +434,230 @@ describe("RunController", () => {
 
   it.each([
     {
+      boundary: "before next with a stale pre-commit projection",
+      statusAssignment: {
+        allocation: "not-allocated",
+        id: "pre-commit-stale-assignment",
+      },
+    },
+    {
+      boundary: "after next allocated its hidden durable lease",
+      statusAssignment: {
+        allocation: "active",
+        id: "9fa386f9-76d8-441c-80d8-b46fe1dbea94",
+      },
+    },
+  ])("retries reevaluation after crashing $boundary", async ({ statusAssignment }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-reevaluate-next-gap-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    await materializationReevaluationJournal(journal);
+    await journal.beginAdvancement({
+      package: packageIdentity,
+      repository: advancementRepository("materialization-commit", "b"),
+      previousTransactionId: executionId,
+    });
+    expect(await journal.load()).toMatchObject({
+      phase: "advancing",
+      advancement: { purpose: "post-materialization-reevaluation" },
+    });
+    const staleAssignmentId = "pre-commit-stale-assignment";
+    const freshAssignmentId = "9fa386f9-76d8-441c-80d8-b46fe1dbea94";
+    const staleStatus: MdlmStatus = {
+      contract: "mdlm-status@1",
+      command: "status",
+      ok: true,
+      package: packageIdentity,
+      currentOutcome: {
+        outcome: "assignment",
+        assignment: statusAssignment,
+      },
+      recentTransaction: { available: true, id: executionId },
+    };
+    const mdlm = {
+      status: vi.fn(async () => staleStatus),
+      next: vi.fn(async () => ({
+        contract: "mdlm-next@1" as const,
+        command: "next" as const,
+        ok: true,
+        outcome: "assignment" as const,
+        assignment: { id: freshAssignmentId },
+        materializedExecutions: [],
+      })),
+      assignment: vi.fn(),
+      prepare: vi.fn(async (id: string) => {
+        if (id === staleAssignmentId) throw new Error("stale Assignment was prepared");
+        throw new Error("fresh reevaluated Assignment was prepared");
+      }),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(async () => undefined),
+        head: vi.fn(async () => advancementRepository("materialization-commit", "b").head),
+        repositoryFingerprint: vi.fn(async () =>
+          advancementRepository("materialization-commit", "b")
+        ),
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(async () => []),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    });
+
+    await expect(controller.run()).rejects.toThrow(
+      "fresh reevaluated Assignment was prepared",
+    );
+    expect(mdlm.status).toHaveBeenCalledTimes(1);
+    expect(mdlm.next).toHaveBeenCalledTimes(1);
+    expect(mdlm.prepare).toHaveBeenCalledWith(freshAssignmentId);
+    expect(await journal.load()).toBeNull();
+  });
+
+  it("reports Invalid after materialization without crossing or clearing its boundary", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-reevaluate-invalid-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    await materializationReevaluationJournal(journal);
+    const expectedJournal = await journal.load();
+    const invalid = {
+      outcome: "invalid",
+      diagnostics: [{ code: "INVALID", message: "post-materialization invalid" }],
+    };
+    const mdlm = {
+      status: vi.fn(async (): Promise<MdlmStatus> => ({
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: false,
+        currentOutcome: invalid,
+        recentTransaction: { available: true, id: executionId },
+      })),
+      next: vi.fn(),
+      assignment: vi.fn(),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const io = { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(),
+        head: vi.fn(),
+        repositoryFingerprint: vi.fn(),
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(),
+        commit: vi.fn(),
+      },
+      io,
+      journal,
+    });
+
+    await expect(controller.run()).resolves.toEqual({
+      status: "invalid",
+      details: invalid,
+      successful: false,
+    });
+    expect(io.stopped).toHaveBeenCalledWith("invalid", invalid);
+    expect(mdlm.next).not.toHaveBeenCalled();
+    expect(await journal.load()).toEqual(expectedJournal);
+  });
+
+  it.each([
+    {
+      boundary: "empty package reference",
+      currentPackage: { ...packageIdentity, reference: "" },
+      expectedError: "Expected reevaluation recovery.package.reference to be nonempty",
+    },
+    {
+      boundary: "non-sha256 package digest",
+      currentPackage: { ...packageIdentity, digest: "sha256:not-exact" },
+      expectedError: "Expected reevaluation recovery.package.digest to be an exact sha256 identity",
+    },
+    {
+      boundary: "missing expression language",
+      currentPackage: {
+        reference: packageIdentity.reference,
+        digest: packageIdentity.digest,
+      },
+      expectedError: "Expected reevaluation recovery.package.language",
+    },
+    {
+      boundary: "changed expression language",
+      currentPackage: { ...packageIdentity, language: "mdlm-expression@older" },
+      expectedError: "selected Process Package changed during reevaluation recovery",
+    },
+  ])("stops before allocation for $boundary in status", async ({
+    currentPackage,
+    expectedError,
+  }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-status-package-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    await materializationReevaluationJournal(journal);
+    const expectedJournal = await journal.load();
+    const mdlm = {
+      status: vi.fn(async (): Promise<MdlmStatus> => ({
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        package: currentPackage,
+        currentOutcome: {
+          outcome: "assignment",
+          assignment: { allocation: "not-allocated" },
+        },
+        recentTransaction: { available: true, id: executionId },
+      })),
+      next: vi.fn(),
+      assignment: vi.fn(),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(),
+        head: vi.fn(),
+        repositoryFingerprint: vi.fn(async () =>
+          advancementRepository("materialization-commit", "b")
+        ),
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    });
+
+    await expect(controller.run()).rejects.toThrow(expectedError);
+    expect(mdlm.next).not.toHaveBeenCalled();
+    expect(await journal.load()).toEqual(expectedJournal);
+  });
+
+  it.each([
+    {
       boundary: "selected Process Package",
-      currentPackage: { reference: "changed-package@1", digest: "sha256:changed" },
+      currentPackage: {
+        reference: "changed-package@1",
+        digest: `sha256:${"e".repeat(64)}`,
+        language: "mdlm-expression@1",
+      },
       currentHead: "materialization-commit",
       expectedError: "selected Process Package changed during reevaluation recovery",
     },
@@ -937,14 +1161,11 @@ describe("RunController", () => {
         outputPaths: [`.lifecycle/data/.transactions/${secondId}/map.md`],
       }),
     ]));
-    let currentHead = "base-commit";
+    let currentHead = advancementRepository("base-commit", "a").head;
     if (firstAlreadyCommitted) {
-      currentHead = "first-materialization-commit";
-      await journal.completeAdvancementExecution(
-        executionId,
-        currentHead,
-        advancementRepository(currentHead, "b"),
-      );
+      const repository = advancementRepository("first-materialization-commit", "b");
+      currentHead = repository.head;
+      await journal.completeAdvancementExecution(executionId, currentHead, repository);
     }
     const status: MdlmStatus = {
       contract: "mdlm-status@1",
@@ -977,20 +1198,27 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(async () => currentHead),
-      repositoryFingerprint: vi.fn(async () =>
-        advancementRepository(
-          currentHead,
-          currentHead === "base-commit" ? "a" : currentHead.startsWith("first") ? "b" : "c",
-        )
-      ),
+      repositoryFingerprint: vi.fn(async () => ({
+        head: currentHead,
+        trackedState: `sha256:${(
+          currentHead === advancementRepository("base-commit", "a").head
+            ? "a"
+            : currentHead === advancementRepository("first-materialization-commit", "b").head
+              ? "b"
+              : "c"
+        ).repeat(64)}` as const,
+      })),
       capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => []),
       commit: vi.fn(async (publication: { executionId: string }) => {
         committed.push(publication.executionId);
-        currentHead = publication.executionId === executionId
-          ? "first-materialization-commit"
-          : "second-materialization-commit";
+        currentHead = advancementRepository(
+          publication.executionId === executionId
+            ? "first-materialization-commit"
+            : "second-materialization-commit",
+          publication.executionId === executionId ? "b" : "c",
+        ).head;
         return currentHead;
       }),
     };
@@ -1023,6 +1251,10 @@ describe("RunController", () => {
       repository: advancementRepository("base-commit", "a"),
       previousTransactionId: null,
     });
+    expect(await journal.load()).toMatchObject({
+      phase: "advancing",
+      advancement: { purpose: "ordinary-allocation" },
+    });
     const mdlm = {
       status: vi.fn(async () => ({
         ...assignmentStatus(false),
@@ -1041,7 +1273,7 @@ describe("RunController", () => {
       assignments: { run: vi.fn() },
       git: {
         assertClean: vi.fn(),
-        head: vi.fn(async () => "base-commit"),
+        head: vi.fn(async () => advancementRepository("base-commit", "a").head),
         repositoryFingerprint: baseAdvancementRepository,
         capturePublication,
         publicationCommitState: vi.fn(),
@@ -1108,7 +1340,7 @@ describe("RunController", () => {
     };
     const git = {
       assertClean: vi.fn(async () => undefined),
-      head: vi.fn(async () => "base-commit"),
+      head: vi.fn(async () => advancementRepository("base-commit", "a").head),
       repositoryFingerprint: baseAdvancementRepository,
       capturePublication,
       publicationCommitState: vi.fn(),
@@ -1460,16 +1692,25 @@ async function materializationReevaluationJournal(journal: RunJournal): Promise<
     responseDigest: digest,
     outputPaths: [`.lifecycle/data/.transactions/${executionId}/map.md`],
   })]);
+  const repository = advancementRepository("materialization-commit", "b");
   await journal.completeAdvancementExecution(
     executionId,
-    "materialization-commit",
-    advancementRepository("materialization-commit", "b"),
+    repository.head,
+    repository,
   );
 }
 
 function advancementRepository(head: string, digestCharacter: string) {
+  const aliases: Record<string, string> = {
+    "base-commit": "1".repeat(40),
+    "materialization-commit": "2".repeat(40),
+    "assignment-commit": "3".repeat(40),
+    "external-clean-commit": "4".repeat(40),
+    "first-materialization-commit": "5".repeat(40),
+    "second-materialization-commit": "6".repeat(40),
+  };
   return {
-    head,
+    head: aliases[head] ?? head,
     trackedState: `sha256:${digestCharacter.repeat(64)}` as const,
   };
 }

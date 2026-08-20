@@ -79,6 +79,7 @@ export type RunJournalRecord =
       advancement: RecoveryBoundary & {
         baseCommit: string;
         previousTransactionId: string | null;
+        purpose: "ordinary-allocation" | "post-materialization-reevaluation";
         pending: PublicationEvidence[];
       };
     }
@@ -199,7 +200,29 @@ export class RunJournal {
       advancement: {
         ...intent,
         baseCommit: intent.repository.head,
+        purpose: current?.phase === "reevaluating"
+          ? "post-materialization-reevaluation"
+          : "ordinary-allocation",
         pending: [],
+      },
+    });
+  }
+
+  async restoreReevaluation(): Promise<void> {
+    const current = await this.load();
+    if (
+      current?.phase !== "advancing" ||
+      current.advancement.purpose !== "post-materialization-reevaluation" ||
+      current.advancement.pending.length !== 0
+    ) {
+      throw new RunJournalError("Only an unobserved reevaluation advancement can be restored");
+    }
+    await this.#write({
+      contract: journalContract,
+      phase: "reevaluating",
+      boundary: {
+        package: current.advancement.package,
+        repository: current.advancement.repository,
       },
     });
   }
@@ -482,6 +505,8 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
       advancement.baseCommit.length === 0 ||
       !parseRecoveryBoundary(advancement) ||
       advancement.repository.head !== advancement.baseCommit ||
+      (advancement.purpose !== "ordinary-allocation" &&
+        advancement.purpose !== "post-materialization-reevaluation") ||
       (advancement.previousTransactionId !== null &&
         typeof advancement.previousTransactionId !== "string") ||
       !Array.isArray(advancement.pending)
@@ -497,6 +522,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
       advancement: {
         baseCommit: advancement.baseCommit,
         previousTransactionId: advancement.previousTransactionId,
+        purpose: advancement.purpose,
         package: advancement.package,
         repository: advancement.repository,
         pending: advancement.pending,
@@ -623,8 +649,10 @@ function parseRecoveryBoundary(value: unknown): value is RecoveryBoundary {
     typeof value.package.reference === "string" && value.package.reference.length > 0 &&
     typeof value.package.digest === "string" &&
     /^sha256:[0-9a-f]{64}$/.test(value.package.digest) &&
+    typeof value.package.language === "string" && value.package.language.length > 0 &&
     isObject(value.repository) &&
-    typeof value.repository.head === "string" && value.repository.head.length > 0 &&
+    typeof value.repository.head === "string" &&
+    /^[0-9a-f]{40}$/.test(value.repository.head) &&
     typeof value.repository.trackedState === "string" &&
     /^sha256:[0-9a-f]{64}$/.test(value.repository.trackedState);
 }
