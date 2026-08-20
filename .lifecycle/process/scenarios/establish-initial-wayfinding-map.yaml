@@ -28,6 +28,9 @@ review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && map.payload.frontier != []
+  && count("product-intent-questions-from-initial-map@1", {}) == 1
+  && every("product-intent-questions-from-initial-map@1", {}, question =>
+    question == product_intent)
   && product_intent.payload.question != ""
   && product_intent.payload.blocking_impact != ""
   && !present(product_intent.payload.attention_checkpoint)

@@ -149,7 +149,46 @@ describe("initial product-intent authority", () => {
         repository,
         "establish-initial-wayfinding-map@2",
       );
-      const publishedMap = submitAssignment(repository, freshMap, mapOutputs);
+      const duplicateProductIntent = structuredClone(mapOutputs);
+      duplicateProductIntent[2]!.lifecycleDatum.payload.kind = "preferential";
+      duplicateProductIntent[2]!.lifecycleDatum.payload.intent_scope = "product";
+      delete duplicateProductIntent[2]!.lifecycleDatum.payload.evidence_available;
+      const duplicated = submitAssignment(
+        repository,
+        freshMap,
+        duplicateProductIntent,
+      );
+      expect(duplicated.status).toBe(1);
+      expect(JSON.parse(duplicated.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      );
+      expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
+        .toBe(beforeUnindexed);
+
+      const deferredProductIntent = structuredClone(mapOutputs);
+      deferredProductIntent[1]!.lifecycleDatum.payload.resolution_disposition =
+        "defer";
+      const deferred = submitAssignment(
+        repository,
+        freshMap,
+        deferredProductIntent,
+      );
+      expect(deferred.status).toBe(1);
+      expect(JSON.parse(deferred.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      );
+      expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
+        .toBe(beforeUnindexed);
+
+      const validMap = prepareNextAssignment(
+        repository,
+        "establish-initial-wayfinding-map@2",
+      );
+      const publishedMap = submitAssignment(repository, validMap, mapOutputs);
       expect(publishedMap.status, `${publishedMap.stderr}${publishedMap.stdout}`).toBe(0);
       const mapExecution = JSON.parse(publishedMap.stdout).execution;
       const openQuestion = mapExecution.outputs.find(

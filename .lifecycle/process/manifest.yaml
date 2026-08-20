@@ -53,6 +53,7 @@ catalog:
     - structural-initial-product-intent-targets-for-decision
     - initial-product-intent-boundaries-for-decision
     - current-initial-product-intent-questions
+    - product-intent-questions-from-initial-map
     - applicable-initial-product-intent-decisions
     - product-intent-authorities-for-foundation-subject
     - current-product-specifications
