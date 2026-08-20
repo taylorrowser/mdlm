@@ -2714,6 +2714,7 @@ describe("bootstrap Scenario participation Policies", () => {
       ...foundation.map((member) => member.datum.revision_id),
       answeredQuestion.datum.revision_id,
       answer.datum.revision_id,
+      fixture.candidateReview.datum.revision_id,
     ].sort();
     reviewedReplacement.review.datum.payload.review_kind =
       "simplification-product-definition";

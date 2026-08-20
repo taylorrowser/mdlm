@@ -1,0 +1,15 @@
+kind: selector-definition
+id: product-intent-questions-from-initial-map
+version: 1
+description: Product-scoped QST revisions authored by the initial wayfinding Scenario.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST]}
+  as: question
+  where: >-
+    question.payload.intent_scope == "product"
+    && question.provenance.scenario == "establish-initial-wayfinding-map@2"
+    && question.provenance.process_ref == process.current_ref
+  distinct: true
+  order_by: [identity.revision_id]

@@ -41,9 +41,9 @@ describe("clean onboarding transaction contract", () => {
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
     expect(JSON.parse(initialized.stdout)).toMatchObject({
       package: {
-        reference: "mdlm-bootstrap@0.71.0",
+        reference: "mdlm-bootstrap@0.72.0",
         digest:
-          "sha256:9f917c152d0d279aa96c42d64bcb19210360dc6f7bf07fd10e2f1ee877c5f4c3",
+          "sha256:49942ff2fe0747593800fb300f785b2a0a29c4be32aaa462104d1d201e7ed933",
       },
       repository: { contract: "mdlm-repository@1" },
     });
@@ -68,11 +68,11 @@ describe("clean onboarding transaction contract", () => {
     expect(packet).toMatchObject({
       contract: "mdlm-assignment-packet@2",
       package: {
-        reference: "mdlm-bootstrap@0.71.0",
+        reference: "mdlm-bootstrap@0.72.0",
         digest:
-          "sha256:9f917c152d0d279aa96c42d64bcb19210360dc6f7bf07fd10e2f1ee877c5f4c3",
+          "sha256:49942ff2fe0747593800fb300f785b2a0a29c4be32aaa462104d1d201e7ed933",
       },
-      scenario: { reference: "establish-initial-wayfinding-map@1" },
+      scenario: { reference: "establish-initial-wayfinding-map@2" },
     });
 
     const response = {
@@ -88,11 +88,28 @@ describe("clean onboarding transaction contract", () => {
             type: "MAP",
             payload: {
               title: "Zero-to-assessment clean pilot",
-              purpose: "Prove autonomous onboarding through the public process.",
-              frontier: ["Define the smallest sufficient product intent"],
+              purpose: "Obtain exact product intent before autonomous compilation.",
+              frontier: ["$proposal.product_intent.revision_id"],
+            },
+            links: [{ type: "indexes", target: "$proposal.product_intent.id" }],
+            body: "One bounded Product Wayfinding frontier.\n",
+          },
+        }, {
+          localId: "product_intent",
+          name: "product_intent",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "QST",
+            payload: {
+              title: "Initial intended product",
+              kind: "preferential",
+              intent_scope: "product",
+              question: "What product do you currently intend to build?",
+              state: "open",
+              blocking_impact: "PSP compilation requires the stakeholder's answer.",
             },
             links: [],
-            body: "One bounded Product Wayfinding frontier.\n",
+            body: "The initial product intent requires attended resolution.\n",
           },
         }],
         completionEvidence: { summary: "Established the exact pilot frontier." },

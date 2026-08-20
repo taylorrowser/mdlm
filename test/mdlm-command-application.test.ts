@@ -89,11 +89,11 @@ describe("clean mdlm command application", () => {
       ["baseline", "evidence", "remove", "BSL-0123456789", "REV-0123456789-r00001"],
       ["baseline", "compose", "BSL-0123456789", "BSL-ABCDEFGHIJ-r00001"],
       ["baseline", "freeze", "BSL-0123456789"],
-      ["scenario", "dry-run", "establish-initial-wayfinding-map@1"],
-      ["scenario", "execute", "establish-initial-wayfinding-map@1", "--adapter", adapter],
+      ["scenario", "dry-run", "establish-initial-wayfinding-map@2"],
+      ["scenario", "execute", "establish-initial-wayfinding-map@2", "--adapter", adapter],
       ["question", "resolve", "--adapter", adapter],
       ["process", "install", path.join(projectRoot, ".lifecycle/process")],
-      ["process", "use", "mdlm-bootstrap@0.71.0"],
+      ["process", "use", "mdlm-bootstrap@0.72.0"],
       ["process", "init", path.join(parent, "package")],
       ["process", "definition", "new", "type", "NEW"],
       ["process", "fixture", "new", "new-fixture"],
@@ -190,10 +190,30 @@ describe("clean mdlm command application", () => {
               payload: {
                 title: "Clean interface inspection tracer",
                 purpose: "Publish one normal datum only through scenario submit.",
-                frontier: ["Inspect the exact published Revision"],
+                frontier: ["$proposal.product-intent.revision_id"],
+              },
+              links: [{
+                type: "indexes",
+                target: "$proposal.product-intent.id",
+              }],
+              body: "One canonical publication.\n",
+            },
+          }, {
+            localId: "product-intent",
+            name: "product_intent",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "QST",
+              payload: {
+                title: "Exact inspection product intent",
+                kind: "preferential",
+                intent_scope: "product",
+                question: "Which exact product should the inspection trace pursue?",
+                state: "open",
+                blocking_impact: "PSP compilation waits for the attended answer.",
               },
               links: [],
-              body: "One canonical publication.\n",
+              body: "The initial frontier carries one exact product-intent Question.\n",
             },
           }],
           completionEvidence: { summary: "Published the inspection tracer." },
@@ -266,7 +286,7 @@ describe("clean mdlm command application", () => {
       `${baselinePrepared.stderr}${baselinePrepared.stdout}`,
     ).toBe(0);
       expect(JSON.parse(baselinePrepared.stdout).scenario.reference).toBe(
-        "compile-psp@2",
+        "freeze-source-boundary@1",
       );
       const dataFiles = await fs.readdir(
         path.join(repository, ".lifecycle", "data"),

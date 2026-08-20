@@ -143,7 +143,7 @@ describe("Phase-hardening matrix", () => {
   it("enumerates source-boundary publication with each exact successor outcome", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     const phases = [
-      "phase-0-wayfinding@4",
+      "phase-0-wayfinding@5",
       "phase-1-product-assurance@5",
       "phase-2-system-definition@9",
     ];
@@ -234,7 +234,7 @@ describe("Phase-hardening matrix", () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     const row = matrix.rows.find((candidate) => candidate.id === "assignment-response-transport");
     const phases = [
-      "phase-0-wayfinding@4",
+      "phase-0-wayfinding@5",
       "phase-1-product-assurance@5",
       "phase-2-system-definition@9",
       "phase-2-pilot-assessment@3",

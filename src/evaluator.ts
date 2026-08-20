@@ -498,6 +498,7 @@ class LifecycleEvaluator {
   evaluateExpressionTarget(
     target: string,
     suppliedBindings: Record<string, unknown>,
+    collectEvidence = true,
   ): ProcessExpressionEvaluation {
     const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)#(.+)$/.exec(target);
     if (!match?.[1] || !match[2] || !match[3]) {
@@ -572,7 +573,7 @@ class LifecycleEvaluator {
     }
     const previousEvidence = this.definitionEvidence;
     const evidence: ProcessDefinitionEvidence[] = [];
-    this.definitionEvidence = evidence;
+    this.definitionEvidence = collectEvidence ? evidence : undefined;
     try {
       const result = this.value(expression, {
         ...this.baseContext,
@@ -2356,6 +2357,16 @@ export function evaluateProcessExpression(
 ): ProcessExpressionEvaluation {
   return new LifecycleEvaluator(processPackage, snapshot)
     .evaluateExpressionTarget(target, bindings);
+}
+
+export function evaluateProcessExpressionResult(
+  processPackage: ProcessPackage,
+  snapshot: LifecycleSnapshot,
+  target: string,
+  bindings: Record<string, unknown>,
+): unknown {
+  return new LifecycleEvaluator(processPackage, snapshot)
+    .evaluateExpressionTarget(target, bindings, false).result;
 }
 
 export function evaluateLifecycle(

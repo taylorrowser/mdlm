@@ -1,0 +1,17 @@
+kind: selector-definition
+id: current-open-question-sources-ready-for-resolution
+version: 1
+description: Current open product-intent QST sources, plus other current open QST sources after exact initial product intent passes Review.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: current-open-question-sources@1
+    arguments: {}
+  as: source
+  where: >-
+    source.payload.intent_scope == "product"
+    || none("current-initial-product-intent-questions@1", {})
+    || exists("applicable-initial-product-intent-decisions@1", {})
+  distinct: true
+  order_by: [identity.id, identity.revision]

@@ -10,7 +10,7 @@ query:
   as: support
   where: >-
     support != subject
-    && (subject.identity.type in ["STK", "ASP", "ICSP", "DWP", "SYS", "VSP", "PAS"]
+    && (subject.identity.type in ["PSP", "STK", "ASP", "ICSP", "DWP", "SYS", "VSP", "PAS"]
       || (subject.identity.type == "DEC"
         && (
           subject.payload.kind == "pilot-expansion"

@@ -24,7 +24,10 @@ product purpose and the complete blocking finding set:
 
 After explicit stakeholder judgment, publish one same-lineage replacement that
 cites every supplied failed Review through `corrects-review` and every supplied
-gate rejection through `corrects-gate-rejection`, plus one exact scope DEC whose
+gate rejection through `corrects-gate-rejection`. When correcting a PSP,
+preserve the supplied exact `product_intent_authority` through `derived-from`;
+the new correction Decision does not replace the initial product authority.
+Publish one exact scope DEC whose
 `effective_scope` and `justifies` link name the replacement. Record the comparison
 in `payload.scope_correction`: select `bound`, `defer-or-remove`, or `retain` as
 `disposition`; describe all three alternatives in `options.bounded`,

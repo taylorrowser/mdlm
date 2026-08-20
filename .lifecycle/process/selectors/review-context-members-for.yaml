@@ -42,6 +42,10 @@ query:
             {decision: subject}, prior => prior != member)
           || !every("question-targets-for-decision@1",
             {decision: subject}, question => question != member)
+          || !every("structural-initial-product-intent-sources-for-decision@1",
+            {decision: subject}, source => source != member)
+          || !every("initial-product-intent-boundaries-for-decision@1",
+            {decision: subject}, boundary => boundary != member)
         ))
       || (subject.identity.type in ["MAP", "PSP", "STK"]
         && (

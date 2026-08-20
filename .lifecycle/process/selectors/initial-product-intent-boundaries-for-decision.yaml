@@ -1,0 +1,17 @@
+kind: selector-definition
+id: initial-product-intent-boundaries-for-decision
+version: 1
+description: Exact frozen source boundary for the open product-intent Question resolved by one Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: boundary
+  where: >-
+    count("structural-initial-product-intent-sources-for-decision@1", {decision: decision}) == 1
+    && !every("source-boundaries-for@1",
+      {source: one("structural-initial-product-intent-sources-for-decision@1", {decision: decision})},
+      source_boundary => source_boundary != boundary)
+  distinct: true
+  order_by: [identity.revision_id]

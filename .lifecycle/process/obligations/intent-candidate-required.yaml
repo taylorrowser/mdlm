@@ -1,6 +1,6 @@
 kind: obligation-definition
 id: intent-candidate-required
-version: 2
+version: 3
 description: The reviewed current Phase 0 foundation requires one exact frozen intent-level candidate.
 phases: [phase-0-wayfinding]
 for_each: '[phase]'
@@ -25,9 +25,9 @@ status_rules:
       || exists("open-blocking-questions@1", {})
     reason: Candidate construction waits for the complete reviewed foundation and resolution of blocking questions.
     blocked_by:
-      - obligation: initial-wayfinding-map-required@1
+      - obligation: initial-wayfinding-map-required@2
         subjects: '[required_phase]'
-      - obligation: product-specification-required@1
+      - obligation: product-specification-required@2
         subjects: '[required_phase]'
       - obligation: stakeholder-requirements-required@1
         subjects: 'select("current-product-specifications@1", {})'

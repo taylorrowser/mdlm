@@ -1,25 +1,33 @@
 kind: obligation-definition
 id: product-specification-required
-version: 1
-description: The current Phase 0 requires one product specification after wayfinding begins.
+version: 2
+description: The current Phase 0 requires one product specification after exact attended initial product intent is applicable.
 phases: [phase-0-wayfinding]
 for_each: '[phase]'
 subject_as: required_phase
 satisfied_when: 'exists("current-product-specifications@1", {})'
 status_rules:
   - status: blocked
-    priority: 200
+    priority: 300
     when: 'none("current-wayfinding-maps@1", {})'
-    reason: Product specification waits for the initial wayfinding frontier.
+    reason: Product specification waits for the initial wayfinding frontier and its exact product-intent Question.
     blocked_by:
-      - obligation: initial-wayfinding-map-required@1
+      - obligation: initial-wayfinding-map-required@2
         subjects: '[required_phase]'
+  - status: blocked
+    priority: 200
+    when: 'none("applicable-initial-product-intent-decisions@1", {})'
+    reason: Product specification waits for an attended answer and passing-reviewed exact scope Decision for the initial product-intent Question.
+    blocked_by:
+      - obligation: open-question-resolution@3
+        subjects: 'select("open-questions@1", {})'
   - status: ready
     priority: 100
-    when: 'exists("current-wayfinding-maps@1", {})'
-    reason: The wayfinding frontier is ready to compile into product intent.
+    when: 'exists("applicable-initial-product-intent-decisions@1", {})'
+    reason: Exact passing-reviewed attended product intent is ready to compile.
 default_status: blocked
 resolve_with:
-  scenario: compile-psp@2
-  inputs: {}
+  scenario: compile-psp@3
+  inputs:
+    product_intent_authority: 'first("applicable-initial-product-intent-decisions@1", {})'
 waiver_policy_ref: waiver-applicability@1

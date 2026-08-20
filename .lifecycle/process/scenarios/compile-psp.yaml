@@ -1,15 +1,24 @@
 kind: scenario-definition
 id: compile-psp
-version: 2
-description: Compile a concise product specification from available user intent without inventing stakeholder commitments.
+version: 3
+description: Compile a concise product specification from one exact passing-reviewed attended product-intent Decision.
 phases: [phase-0-wayfinding]
-inputs: []
+inputs:
+  - name: product_intent_authority
+    types: [DEC]
+    cardinality: one
+    identity: revision
+    conditions: '!every("applicable-initial-product-intent-decisions@1", {}, authority => authority != product_intent_authority)'
 outputs:
-  - {name: product_specification, types: [PSP], cardinality: one, required_links: []}
+  - name: product_specification
+    types: [PSP]
+    cardinality: one
+    required_links:
+      - {link: derived-from, target: {input: product_intent_authority}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/compile-psp.md@2
+prompt_ref: prompts/compile-psp.md@3
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
 resolves: [product-specification-required]
-prohibited_inputs: [product source code, unstated stakeholder preferences]
+prohibited_inputs: [product source code, unstated stakeholder preferences, repository-name inference, ambient AGENTS.md]
 batching: single

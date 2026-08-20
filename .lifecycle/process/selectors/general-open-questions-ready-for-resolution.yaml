@@ -1,0 +1,17 @@
+kind: selector-definition
+id: general-open-questions-ready-for-resolution
+version: 1
+description: Open product-intent QST revisions, plus other general open QST revisions after exact initial product intent passes Review.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: general-open-questions@1
+    arguments: {}
+  as: question
+  where: >-
+    question.payload.intent_scope == "product"
+    || none("current-initial-product-intent-questions@1", {})
+    || exists("applicable-initial-product-intent-decisions@1", {})
+  distinct: true
+  order_by: [identity.id]

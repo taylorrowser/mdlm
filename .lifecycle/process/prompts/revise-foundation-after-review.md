@@ -13,7 +13,9 @@ findings and frozen Review Contexts.
 
 Publish one replacement Revision in the same Stable Datum lineage and lifecycle
 type. Link `corrects-review` to every supplied ordinary or simplification Review and
-`corrects-gate-rejection` to every supplied rejection. Correct the complete
+`corrects-gate-rejection` to every supplied rejection. When correcting a PSP,
+preserve the supplied exact `product_intent_authority` through `derived-from`; do
+not replace it with correction evidence or infer a different authority. Correct the complete
 blocking finding set, preserve unaffected claims, and do not delete or rewrite
 any prior Revision, Review, candidate, or Decision. Do not broaden unrelated
 scope.

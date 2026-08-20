@@ -160,20 +160,24 @@ function wayfindingResponse(assignment: string, loadedSkillRefs: string[]) {
           payload: {
             title: "Initial product wayfinding",
             purpose: "Bound the first product-intent conversation.",
-            frontier: ["$proposal.question.revision_id"],
+            frontier: ["$proposal.product-intent.revision_id"],
           },
-          links: [],
+          links: [{
+            type: "indexes",
+            target: "$proposal.product-intent.id",
+          }],
           body: "One exact initial decision frontier.\n",
         },
       }, {
-        localId: "question",
-        name: "questions",
+        localId: "product-intent",
+        name: "product_intent",
         invocation: 0,
         lifecycleDatum: {
           type: "QST",
           payload: {
             title: "Clarify the intended product outcome",
             kind: "preferential",
+            intent_scope: "product",
             question: "Which exact product outcome should this repository pursue?",
             state: "open",
             blocking_impact: "Product intent cannot advance without this answer.",
@@ -262,20 +266,20 @@ describe("MDLM Assignment leasing and preparation", () => {
         id: outcome.assignment.id,
         disposition: "active",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.71.0",
+          reference: "mdlm-bootstrap@0.72.0",
           digest: expect.stringMatching(/^sha256:/),
         }),
         repository: {
         head: expect.stringMatching(/^[0-9a-f]{40}$/),
         trackedState: expect.stringMatching(/^sha256:/),
       },
-        phase: "phase-0-wayfinding@4",
+        phase: "phase-0-wayfinding@5",
         obligation: {
-        instance: expect.stringContaining("initial-wayfinding-map-required@1:"),
-        definition: "initial-wayfinding-map-required@1",
-        subject: "phase-0-wayfinding@4",
+        instance: expect.stringContaining("initial-wayfinding-map-required@2:"),
+        definition: "initial-wayfinding-map-required@2",
+        subject: "phase-0-wayfinding@5",
       },
-        scenario: "establish-initial-wayfinding-map@1",
+        scenario: "establish-initial-wayfinding-map@2",
         bindings: [{ invocation: 0, inputs: [] }],
         participation: [],
         retryAvailability: { malformedResponseCorrection: 1 },
@@ -345,18 +349,18 @@ describe("MDLM Assignment leasing and preparation", () => {
         language: lease.package.language,
       },
       repository: lease.repository,
-      phase: "phase-0-wayfinding@4",
+      phase: "phase-0-wayfinding@5",
       obligation: lease.obligation,
       scenario: expect.objectContaining({
-        reference: "establish-initial-wayfinding-map@1",
+        reference: "establish-initial-wayfinding-map@2",
       }),
       prompt: expect.objectContaining({
-        reference: "prompts/establish-initial-wayfinding-map.md@1",
+        reference: "prompts/establish-initial-wayfinding-map.md@2",
         content: expect.stringContaining("# Establish the initial wayfinding map"),
       }),
       assets: expect.arrayContaining([
         expect.objectContaining({
-          reference: "prompts/establish-initial-wayfinding-map.md@1",
+          reference: "prompts/establish-initial-wayfinding-map.md@2",
         }),
         expect.objectContaining({ reference: "skills/lifecycle-data.md@1" }),
         expect.objectContaining({ reference: "skills/wayfinding-map.md@1" }),
@@ -394,7 +398,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       ],
       outputs: expect.arrayContaining([
         expect.objectContaining({ name: "map", types: ["MAP"], cardinality: "one" }),
-        expect.objectContaining({ name: "questions", types: ["QST"], cardinality: "zero-or-more" }),
+        expect.objectContaining({ name: "product_intent", types: ["QST"], cardinality: "one" }),
       ]),
       outputLinks: expect.any(Array),
       completion: expect.objectContaining({
@@ -576,10 +580,30 @@ describe("MDLM Assignment leasing and preparation", () => {
               payload: {
                 title: "Corrected Assignment Response",
                 purpose: "Prove one contract-form correction can publish.",
-                frontier: ["Continue from the exact corrected response"],
+                frontier: ["$proposal.product-intent.revision_id"],
+              },
+              links: [{
+                type: "indexes",
+                target: "$proposal.product-intent.id",
+              }],
+              body: "The same Assignment publishes after one correction.\n",
+            },
+          }, {
+            localId: "product-intent",
+            name: "product_intent",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "QST",
+              payload: {
+                title: "Corrected initial product intent",
+                kind: "preferential",
+                intent_scope: "product",
+                question: "Which exact product should this work pursue?",
+                state: "open",
+                blocking_impact: "PSP compilation waits for the attended answer.",
               },
               links: [],
-              body: "The same Assignment publishes after one correction.\n",
+              body: "The corrected response includes the required product-intent Question.\n",
             },
           }],
           completionEvidence: { summary: "The corrected response is complete." },
@@ -1368,10 +1392,30 @@ process.exit(result.status ?? 1);
             payload: {
               title: "File transport proposal",
               purpose: "Prove a harness can submit one complete response file.",
-              frontier: ["One exact product decision"],
+              frontier: ["$proposal.product-intent.revision_id"],
+            },
+            links: [{
+              type: "indexes",
+              target: "$proposal.product-intent.id",
+            }],
+            body: "One proposal transported without standard input.\n",
+          },
+        }, {
+          localId: "product-intent",
+          name: "product_intent",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "QST",
+            payload: {
+              title: "File-transported product intent",
+              kind: "preferential",
+              intent_scope: "product",
+              question: "Which exact product should this work pursue?",
+              state: "open",
+              blocking_impact: "PSP compilation waits for the attended answer.",
             },
             links: [],
-            body: "One proposal transported without standard input.\n",
+            body: "The file includes the required product-intent Question.\n",
           },
         }],
         completionEvidence: { summary: "The initial frontier is explicit." },
@@ -1526,7 +1570,7 @@ process.exit(result.status ?? 1);
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.71.0/prompts/establish-initial-wayfinding-map.md",
+        ".lifecycle/packages/mdlm-bootstrap@0.72.0/prompts/establish-initial-wayfinding-map.md",
       ),
       "\nPackage change.\n",
     );
@@ -1542,7 +1586,7 @@ process.exit(result.status ?? 1);
   it("invalidates the active lease when next observes a package change", async () => {
     const first = JSON.parse(mdlm(repository, "next").stdout);
     const promptRelative =
-      ".lifecycle/packages/mdlm-bootstrap@0.71.0/prompts/establish-initial-wayfinding-map.md";
+      ".lifecycle/packages/mdlm-bootstrap@0.72.0/prompts/establish-initial-wayfinding-map.md";
     await fs.appendFile(path.join(repository, promptRelative), "\nPackage change.\n");
 
     const changed = mdlm(repository, "next");
