@@ -132,6 +132,26 @@ function passingReview(
   });
 }
 
+function selectedBy(
+  records: LifecycleRecord[],
+  selector: string,
+): string[] {
+  const evaluation = evaluateProcessDefinition(
+    processPackage,
+    {
+      processRef,
+      phaseId: "phase-0-wayfinding",
+      records,
+      dependencyComparisons: [],
+    },
+    "selector",
+    selector,
+    {},
+  );
+  return (evaluation.result as Array<{ identity: { revision_id: string } }>)
+    .map((item) => item.identity.revision_id);
+}
+
 function selected(records: LifecycleRecord[]): string[] {
   const evaluation = evaluateProcessDefinition(
     processPackage,
@@ -155,6 +175,31 @@ describe("initial product-intent authority selectors", () => {
     expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
     if (!loaded.ok) throw new Error("Process Package failed to load");
     processPackage = loaded.package;
+  });
+
+  it("keeps optional Question work hidden until initial product intent passes Review", () => {
+    const fixture = routeFixture();
+    const optional = record("QST", "QST-4J6NW2H8DV", {
+      title: "Optional empirical clarification",
+      kind: "empirical",
+      question: "Is an optional implementation detail known?",
+      state: "open",
+      blocking_impact: "The optional detail can be resolved after product intent.",
+      evidence_available: true,
+    }, { scenario: "establish-initial-wayfinding-map@2" });
+    const gatedSelectors = [
+      "current-open-question-sources-ready-for-resolution@1",
+      "general-open-questions-ready-for-resolution@1",
+    ];
+
+    for (const selector of gatedSelectors) {
+      expect(selectedBy([fixture.source, optional], selector)).toEqual([
+        fixture.source.datum.revision_id,
+      ]);
+      expect(selectedBy([...Object.values(fixture), optional], selector)).toEqual([
+        optional.datum.revision_id,
+      ]);
+    }
   });
 
   it("selects authority by exact product-scoped Question structure rather than title", () => {

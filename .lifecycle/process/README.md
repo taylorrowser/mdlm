@@ -59,9 +59,11 @@ baselines; attended Gate Sign-off; and mechanically accepted intent. Failed
 Reviews and gate rejection remain immutable evidence and route to causal
 Correction, fresh Review, and return to the same gate.
 
-Questions preserve empirical and preferential participation. Exact source
-boundaries freeze a QST Revision before same-lineage resolution. Checkpoint
-attention groups compatible Questions without satisfying or deferring them.
+Questions preserve empirical and preferential participation. The mandatory
+initial product-intent Question receives immediate attended resolution before
+other Question work becomes eligible. Exact source boundaries freeze a QST
+Revision before same-lineage resolution. Checkpoint attention groups compatible
+Questions without satisfying or deferring them.
 Deferral and cancellation require exact scoped Decision evidence and Review.
 
 ### Phase 1 — assurance and pilot evidence

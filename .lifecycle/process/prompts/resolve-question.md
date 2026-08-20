@@ -22,8 +22,10 @@ For a consequential answer, any deferral, or any cancellation, create one DEC
 with a `resolves` link to the exact input QST revision. A routine autonomous
 empirical answer may publish only the next QST Revision and its cited evidence;
 do not manufacture a DEC merely to repeat the answer. Always create the next
-QST revision with state `answered`, `deferred`, or `cancelled`. Do not
-rewrite the old question. Record alternatives and effective scope when material.
+QST revision with state `answered`, `deferred`, or `cancelled`. Preserve the
+input QST's exact `kind`, `intent_scope`, and question text. An initial
+`intent_scope: product` Question must be answered, not deferred or cancelled.
+Do not rewrite the old question. Record alternatives and effective scope when material.
 A deferral is not an answer, and uncertainty must remain visible.
 
 Validate both outputs and record exact provenance. The DEC is reviewed when the

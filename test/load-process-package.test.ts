@@ -27,7 +27,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.72.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(366);
+    expect(Object.keys(result.package.selectors)).toHaveLength(369);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
@@ -38,6 +38,9 @@ describe("loadProcessPackage", () => {
         "structural-initial-product-intent-targets-for-decision": expect.any(Object),
         "initial-product-intent-boundaries-for-decision": expect.any(Object),
         "product-intent-authorities-for-foundation-subject": expect.any(Object),
+        "current-initial-product-intent-questions": expect.any(Object),
+        "current-open-question-sources-ready-for-resolution": expect.any(Object),
+        "general-open-questions-ready-for-resolution": expect.any(Object),
         "blocking-product-simplification-reviews-for": expect.any(Object),
         "candidate-correction-decisions-for": expect.any(Object),
         "candidate-correction-candidates-for-decision": expect.any(Object),

@@ -28,7 +28,14 @@ authority_evidence: {output: decision, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
   && updated_question.identity.id == question.identity.id
+  && updated_question.payload.kind == question.payload.kind
+  && updated_question.payload.intent_scope == question.payload.intent_scope
+  && updated_question.payload.question == question.payload.question
   && updated_question.payload.state in ["answered", "deferred", "cancelled"]
+  && (
+    question.payload.intent_scope != "product"
+    || updated_question.payload.state == "answered"
+  )
   && (
     question.payload.kind != "empirical"
     || (

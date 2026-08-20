@@ -126,7 +126,30 @@ describe("initial product-intent authority", () => {
       expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
         .toBe(beforeUnindexed);
 
-      const publishedMap = submitAssignment(repository, map, mapOutputs);
+      const checkpointedProductIntent = structuredClone(mapOutputs);
+      checkpointedProductIntent[1]!.lifecycleDatum.payload.attention_checkpoint =
+        "phase-0-gate";
+      checkpointedProductIntent[1]!.lifecycleDatum.payload.consolidation_group =
+        "phase-0-stakeholder-questions";
+      const checkpointed = submitAssignment(
+        repository,
+        map,
+        checkpointedProductIntent,
+      );
+      expect(checkpointed.status).toBe(1);
+      expect(JSON.parse(checkpointed.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      );
+      expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
+        .toBe(beforeUnindexed);
+
+      const freshMap = prepareNextAssignment(
+        repository,
+        "establish-initial-wayfinding-map@2",
+      );
+      const publishedMap = submitAssignment(repository, freshMap, mapOutputs);
       expect(publishedMap.status, `${publishedMap.stderr}${publishedMap.stdout}`).toBe(0);
       const mapExecution = JSON.parse(publishedMap.stdout).execution;
       const openQuestion = mapExecution.outputs.find(
@@ -170,7 +193,7 @@ describe("initial product-intent authority", () => {
       }));
       expect(inputRevision(resolution, "question")).toBe(openQuestion.revisionId);
       const answeredQuestion = `${openQuestion.id}-r00002`;
-      const resolved = submitAssignment(repository, resolution, [{
+      const resolutionOutputs: ProposedOutput[] = [{
         localId: "decision",
         name: "decision",
         invocation: 0,
@@ -208,7 +231,27 @@ describe("initial product-intent authority", () => {
           links: [],
           body: "The initial product-intent Question has an attended answer.\n",
         },
-      }]);
+      }];
+      const incompleteAnswer = structuredClone(resolutionOutputs);
+      delete incompleteAnswer[1]!.lifecycleDatum.payload.intent_scope;
+      const beforeIncompleteAnswer = await directoryDigest(
+        path.join(repository, ".lifecycle", "data"),
+      );
+      const rejectedIncompleteAnswer = submitAssignment(
+        repository,
+        resolution,
+        incompleteAnswer,
+      );
+      expect(rejectedIncompleteAnswer.status).toBe(1);
+      expect(JSON.parse(rejectedIncompleteAnswer.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      );
+      expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
+        .toBe(beforeIncompleteAnswer);
+
+      const resolved = submitAssignment(repository, resolution, resolutionOutputs);
       expect(resolved.status, `${resolved.stderr}${resolved.stdout}`).toBe(0);
       const decision = JSON.parse(resolved.stdout).execution.outputs.find(
         (output: { name: string }) => output.name === "decision",

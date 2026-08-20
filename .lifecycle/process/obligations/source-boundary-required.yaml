@@ -3,7 +3,7 @@ id: source-boundary-required
 version: 1
 description: Every current open QST must freeze its exact editable source Revision before a same-lineage resolving Revision can publish.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
-for_each: 'select("current-open-question-sources@1", {})'
+for_each: 'select("current-open-question-sources-ready-for-resolution@1", {})'
 subject_as: source
 satisfied_when: 'exists("source-boundaries-for@1", {source: source})'
 status_rules:

@@ -30,6 +30,12 @@ completion: >-
   && map.payload.frontier != []
   && product_intent.payload.question != ""
   && product_intent.payload.blocking_impact != ""
+  && !present(product_intent.payload.attention_checkpoint)
+  && !present(product_intent.payload.consolidation_group)
+  && (
+    !present(product_intent.payload.resolution_disposition)
+    || product_intent.payload.resolution_disposition == "answer"
+  )
 resolves: [initial-wayfinding-map-required]
 prohibited_inputs: [unstated stakeholder preferences, generated indexes as lifecycle truth]
 batching: single

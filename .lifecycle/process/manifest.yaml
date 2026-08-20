@@ -52,6 +52,7 @@ catalog:
     - structural-initial-product-intent-sources-for-decision
     - structural-initial-product-intent-targets-for-decision
     - initial-product-intent-boundaries-for-decision
+    - current-initial-product-intent-questions
     - applicable-initial-product-intent-decisions
     - product-intent-authorities-for-foundation-subject
     - current-product-specifications
@@ -176,6 +177,7 @@ catalog:
     - newer-revisions-for
     - open-questions
     - general-open-questions
+    - general-open-questions-ready-for-resolution
     - question-disposition-decisions-for
     - applicable-question-dispositions-for
     - question-answer-decisions-for
@@ -191,6 +193,7 @@ catalog:
     - applicable-question-answers-for
     - prototype-bound-open-questions
     - current-open-question-sources
+    - current-open-question-sources-ready-for-resolution
     - source-boundaries-for
     - source-boundary-evidence
     - superseding-baselines-for

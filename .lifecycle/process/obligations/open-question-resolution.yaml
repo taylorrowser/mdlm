@@ -3,7 +3,7 @@ id: open-question-resolution
 version: 3
 description: Every latest general question needs an answer, or exact reviewed DEC evidence when explicitly deferred or cancelled.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
-for_each: 'select("general-open-questions@1", {})'
+for_each: 'select("general-open-questions-ready-for-resolution@1", {})'
 subject_as: question
 satisfied_when: >-
   (question.payload.kind == "empirical" && question.payload.state == "answered")
