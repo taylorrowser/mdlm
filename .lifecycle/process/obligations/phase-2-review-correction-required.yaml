@@ -14,7 +14,8 @@ status_rules:
         {subject: subject, view: "autonomous-corrections"}) >= 2
       || !every("phase-2-correction-reviews-for-subject@1",
         {subject: subject, view: "authority"}, review =>
-          review.payload.correction_authority != "stakeholder")
+          review.payload.outcome != "fail"
+          || review.payload.correction_authority == "package-evidence")
     reason: The autonomous correction budget is exhausted or exact judgment changes stakeholder-owned scope; immediate attended escalation is required.
   - status: ready
     priority: 100

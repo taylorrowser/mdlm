@@ -1,6 +1,6 @@
 ---
 id: bootstrap-review
-version: 2
+version: 3
 ---
 
 # Bootstrap review policy
@@ -49,5 +49,14 @@ target is routed to that target without failing an otherwise usable subject.
 Use `needs-triage` when a usable subject has a collateral or owner-dependent
 concern. Use `advisory` for non-blocking improvement. Style preference, optional
 clarity, or a speculative future risk cannot fail a Review. Any unresolved
-primary blocking finding requires `fail`. A cancelled Review gives no reusable
-evidence. Completed REVs are immutable.
+primary blocking finding requires `fail`.
+
+Every failed Review classifies its complete blocking finding set. Use
+`correction_authority: stakeholder` if any blocker requires a new choice or
+change to stakeholder-owned behavior, scope, priority, deferral, removal,
+retention, or tradeoffs. Use `correction_authority: package-evidence` only when
+the exact supplied package evidence determines the complete correction without
+such a choice. Omission is invalid; it never defaults to autonomous correction.
+Passing and cancelled Reviews do not carry a correction-authority
+classification. A cancelled Review gives no reusable evidence. Completed REVs
+are immutable.

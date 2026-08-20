@@ -7,7 +7,7 @@ import { evaluateLifecycle, loadProcessPackage, resolveType, type ProcessPackage
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.70.0#sha256:hardening-contracts";
+const processRef = "mdlm-bootstrap@0.71.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
 
 function record(
@@ -77,7 +77,7 @@ function passingReview(subject: ReturnType<typeof record>, id: string) {
     {
       title: `Passing ${subject.datum.revision_id}`,
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     },
@@ -281,7 +281,7 @@ describe("Phase-hardening domain route contracts", () => {
       {
         title: "Failed VAI Review",
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [{
           id: "F-001",
           target: implementation.datum.revision_id,
@@ -292,6 +292,7 @@ describe("Phase-hardening domain route contracts", () => {
           evidence: "The reviewed procedure specifies child-only reaping after timeout.",
           material_consequence: "Descendant processes can survive and contaminate later cases.",
         }],
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       [{ type: "reviews", target: implementation.datum.revision_id }],
@@ -386,7 +387,7 @@ describe("Phase-hardening domain route contracts", () => {
         {
           title: `Failed ${subject.datum.revision_id}`,
           review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           findings: [{
             id: "F-001",
             target: subject.datum.revision_id,
@@ -397,6 +398,7 @@ describe("Phase-hardening domain route contracts", () => {
             evidence: "The reviewed assessment recommendation is unsupported by its recorded measurements.",
             material_consequence: "Stakeholders cannot safely authorize expansion from this assessment.",
           }],
+          correction_authority: "package-evidence",
           outcome: "fail",
         },
         [{ type: "reviews", target: subject.datum.revision_id }],

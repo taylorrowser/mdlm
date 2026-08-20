@@ -158,7 +158,7 @@ function passingReview(
     {
       title: `Passing Review of ${subject.datum.revision_id}`,
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     },
@@ -175,7 +175,7 @@ function failedReview(
   id: string,
   subject: LifecycleRecord,
   context: LifecycleRecord,
-  correctionAuthority?: "stakeholder",
+  correctionAuthority?: "stakeholder" | "package-evidence",
 ): LifecycleRecord {
   return record(
     processRef,
@@ -184,7 +184,7 @@ function failedReview(
     {
       title: `Failed Review of ${subject.datum.revision_id}`,
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [
         {
           id: "F-001",
@@ -199,7 +199,7 @@ function failedReview(
           summary: "Correct the exact reviewed subject.",
         },
       ],
-      ...(correctionAuthority ? { correction_authority: correctionAuthority } : {}),
+      correction_authority: correctionAuthority ?? "package-evidence",
       outcome: "fail",
     },
     [
@@ -373,7 +373,7 @@ function expansionAuthority(
     {
       title: "Passing retained PAS Review",
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     },
@@ -397,7 +397,7 @@ function expansionAuthority(
     {
       title: "Passing retained expansion Decision Review",
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     },
@@ -477,6 +477,7 @@ describe("accepted stakeholder change hardening routes", () => {
     snapshot.phaseId = "phase-0-wayfinding";
     const failed = findRecord(snapshot, "REV-1010000000-r00001");
     failed.datum.payload.outcome = "fail";
+    failed.datum.payload.correction_authority = "package-evidence";
     failed.datum.payload.findings = [
       {
         id: "F-001",
@@ -551,6 +552,7 @@ describe("accepted stakeholder change hardening routes", () => {
     const change = findRecord(snapshot, changeId);
     const review = findRecord(snapshot, "REV-C4PG9BPTGZ-r00001");
     review.datum.payload.outcome = "fail";
+    review.datum.payload.correction_authority = "package-evidence";
     review.datum.payload.findings = [
       {
         id: "F-001",
@@ -725,6 +727,7 @@ describe("shared SYS change hardening routes", () => {
       target: priorChange.datum.revision_id,
     });
     currentReview.datum.payload.outcome = "fail";
+    currentReview.datum.payload.correction_authority = "package-evidence";
     currentReview.datum.payload.findings = [
       {
         id: "F-001",

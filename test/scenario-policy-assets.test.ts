@@ -33,7 +33,7 @@ describe("package-authored review Policy evidence", () => {
 
   it("ignores non-skill versioned assets in legacy prompt bodies", () => {
     expect(
-      promptSkillReferences("Use `policies/rubrics/bootstrap-review.md@2`."),
+      promptSkillReferences("Use `policies/rubrics/bootstrap-review.md@3`."),
     ).toEqual({ ok: true, references: [] });
   });
 

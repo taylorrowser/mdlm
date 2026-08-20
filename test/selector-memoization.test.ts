@@ -6,7 +6,7 @@ import {
   type LifecycleRecord,
 } from "../src/index.js";
 
-const processRef = "mdlm-bootstrap@0.70.0#sha256:selector-memoization";
+const processRef = "mdlm-bootstrap@0.71.0#sha256:selector-memoization";
 
 function draftProduct(): LifecycleRecord {
   return {

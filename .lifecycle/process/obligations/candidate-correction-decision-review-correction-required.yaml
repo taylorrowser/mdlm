@@ -1,0 +1,30 @@
+kind: obligation-definition
+id: candidate-correction-decision-review-correction-required
+version: 1
+description: A failed Review of current Phase 0 candidate-correction authority requires same-lineage stakeholder correction.
+phases: [phase-0-wayfinding]
+for_each: 'select("failed-candidate-correction-decisions@1", {})'
+subject_as: decision
+satisfied_when: >-
+  exists("valid-candidate-correction-decision-replacements-for@1",
+    {decision: decision})
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: The failed candidate-correction authority and its exact candidate are ready for renewed stakeholder judgment.
+default_status: ready
+resolve_with:
+  scenario: revise-candidate-correction-decision-after-review@1
+  inputs:
+    decision: decision
+    candidate: >-
+      one("candidate-correction-candidates-for-decision@1",
+        {decision: decision})
+    lineage: >-
+      select("review-correction-history-for@1",
+        {subject: decision, view: "lineage"})
+    prior_failed_reviews: >-
+      select("cited-failing-reviews-by-correction@1", {replacement: decision})
+    failed_reviews: 'select("failing-reviews-for@1", {subject: decision})'
+waiver_policy_ref: waiver-applicability@1

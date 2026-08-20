@@ -24,15 +24,20 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.70.0");
+    expect(result.package.manifest.version).toBe("0.71.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(348);
+    expect(Object.keys(result.package.selectors)).toHaveLength(359);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
         "blocking-product-simplification-reviews-for": expect.any(Object),
         "candidate-correction-decisions-for": expect.any(Object),
+        "candidate-correction-candidates-for-decision": expect.any(Object),
+        "candidate-correction-authority-decisions-for-review": expect.any(Object),
+        "candidate-correction-decision-review-support-for": expect.any(Object),
+        "failed-candidate-correction-decisions": expect.any(Object),
+        "valid-candidate-correction-decision-replacements-for": expect.any(Object),
         "candidate-definition-members": expect.any(Object),
         "candidate-members-linking-question": expect.any(Object),
         "current-question-dependencies-for-candidate": expect.any(Object),
@@ -87,12 +92,18 @@ describe("loadProcessPackage", () => {
         "reviewed-gate-rejections-for-candidate": expect.any(Object),
         "matching-cited-gate-rejection-by-correction": expect.any(Object),
         "gate-rejection-corrections-for-subject": expect.any(Object),
+        "intent-gate-candidates-for-decision": expect.any(Object),
+        "gate-decision-review-support-for": expect.any(Object),
+        "structural-review-contexts-cited-by": expect.any(Object),
+        "structural-passing-candidate-reviews-for-review": expect.any(Object),
+        "gate-candidate-reviews-for-decision": expect.any(Object),
+        "gate-candidate-authority-support-for-decision": expect.any(Object),
         "phase-1-assurance-correction-decisions-for": expect.any(Object),
       }),
     );
     expect(Object.keys(result.package.policies)).toHaveLength(14);
-    expect(Object.keys(result.package.obligations)).toHaveLength(61);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(63);
+    expect(Object.keys(result.package.obligations)).toHaveLength(62);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(64);
     expect(result.package.scenarios["define-system-architecture"]?.outputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -175,13 +186,21 @@ describe("loadProcessPackage", () => {
           scenario: "register-pilot-target@1",
         }),
       }));
-    expect(result.package.scenarios["review-datum-in-context"]
-      ?.review_policy_arguments).toEqual({
-        subject: expect.objectContaining({
-          kind: "mdlm-expression",
-          source: "subject",
+    expect(result.package.scenarios["review-datum-in-context"])
+      .toEqual(expect.objectContaining({
+        prompt_ref: "prompts/review-datum-in-context.md@6",
+        review_policy_arguments: {
+          subject: expect.objectContaining({
+            kind: "mdlm-expression",
+            source: "subject",
+          }),
+        },
+        completion: expect.objectContaining({
+          source: expect.stringContaining(
+            'review.payload.correction_authority in ["stakeholder", "package-evidence"]',
+          ),
         }),
-      });
+      }));
     expect(result.package.scenarios["register-pilot-target"]?.participation)
       .toBeUndefined();
     for (const scenario of [

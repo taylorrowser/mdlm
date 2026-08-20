@@ -973,7 +973,10 @@ intent from immutable Revisions, Reviews, and causal links. Two autonomous
 replacement-and-Review cycles are permitted. A second
 replacement failure projects immediate attended escalation with exact history;
 `correction_authority: stakeholder` does so immediately without consuming that
-budget. Assignment malformed-response attempts are ignored operational state and
+budget. Every failed Review must instead use `correction_authority:
+package-evidence` when exact supplied package evidence determines the correction
+without changing stakeholder-owned intent. Omission is invalid and never selects
+autonomous correction. Assignment malformed-response attempts are ignored operational state and
 never enter these Selectors. The versioned requirement template supplies both
 `corrects-review` and the distinct `changed-under` contract to STK and SYS without
 type-family or multiple-inheritance mechanics. Immutable failed Revision and Review
@@ -1132,8 +1135,10 @@ and its cited frozen valid exact Review Context come from the current package an
 that context scopes the exact subject, contains every-and-only the currently selected
 members, and has no newer same-lineage Revision. Every blocking Finding requires an exact criterion, concrete
 evidence or counterexample, and material consequence; usable concerns remain
-triage or advisory. The clean
-0.70.0 package does not read or migrate historical 0.69.0 or earlier Lifecycle Data.
+triage or advisory. The clean 0.71.0 package requires every failed Review to
+classify its complete blocking finding set as `stakeholder` or
+`package-evidence`. It does not read or migrate historical 0.70.0 or earlier
+Lifecycle Data.
 Its reviewed group candidate contains exact DWP, SYS, ASP, and ICSP Revisions. The
 reviewed SYS level candidate composes that exact group while
 retaining shared VSP, ASP, and ICSP members, then reaches exact reviewed gate

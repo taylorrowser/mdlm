@@ -248,7 +248,7 @@ describe("phase evaluation", () => {
                 arguments: { subject: memberIdentity },
                 result: {
                   required: true,
-                  rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@3",
                 },
               },
             ],
@@ -256,6 +256,22 @@ describe("phase evaluation", () => {
         },
       ],
     });
+  });
+
+  it("records each equivalent Selector call once in Phase gate evidence", () => {
+    const fixture = reviewedGateFixture("git:selector-evidence");
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef: "git:selector-evidence",
+      phaseId: "phase-0-wayfinding",
+      records: fixture.beforeSignoffReview,
+      dependencyComparisons: [],
+    });
+    const selectors = evaluation.phase?.gate.evaluations[0]?.evidence.selectors;
+    expect(selectors?.length).toBeGreaterThan(0);
+    const callKeys = selectors?.map((selector) =>
+      JSON.stringify([selector.selector, selector.arguments])
+    );
+    expect(callKeys).toEqual([...new Set(callKeys)]);
   });
 
   it("blocks duplicate sign-off, completes after review, and reevaluates a changed exact candidate without rewriting prior evidence", () => {
@@ -521,7 +537,7 @@ describe("phase evaluation", () => {
       {
         title: "Progression Decision Review",
         review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         summary: "The distinct progression Decision passes Review.",
         findings: [],
         outcome: "pass",

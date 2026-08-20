@@ -1,0 +1,17 @@
+kind: selector-definition
+id: failed-candidate-correction-decisions
+version: 1
+description: Current Phase 0 candidate-correction authority Decisions with an exact failing Review and no valid same-lineage replacement.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DEC]}
+  as: decision
+  where: >-
+    exists("candidate-correction-candidates-for-decision@1",
+      {decision: decision})
+    && exists("failing-reviews-for@1", {subject: decision})
+    && none("valid-candidate-correction-decision-replacements-for@1",
+      {decision: decision})
+  distinct: true
+  order_by: [identity.id, identity.revision]

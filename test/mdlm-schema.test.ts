@@ -37,8 +37,8 @@ describe("mdlm schema", () => {
       command: "schema",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.70.0",
-        reference: "mdlm-bootstrap@0.70.0",
+        version: "0.71.0",
+        reference: "mdlm-bootstrap@0.71.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -131,6 +131,28 @@ describe("mdlm schema", () => {
     });
   });
 
+  it("requires an explicit correction-authority classification for every failed Review", () => {
+    selectBootstrapProcessPackage(repositoryRoot);
+
+    const result = mdlm(repositoryRoot, "schema", "REV", "--json");
+
+    expect(result.status, result.stderr).toBe(0);
+    const schema = JSON.parse(result.stdout).schema;
+    expect(schema.definition).toBe("REV@7");
+    expect(schema.flattenedPayloadSchema.properties.correction_authority)
+      .toEqual(expect.objectContaining({
+        enum: ["stakeholder", "package-evidence"],
+      }));
+    expect(schema.flattenedPayloadSchema.allOf[0].allOf).toContainEqual({
+      if: {
+        properties: { outcome: { const: "fail" } },
+        required: ["outcome"],
+      },
+      then: { required: ["correction_authority"] },
+      else: { not: { required: ["correction_authority"] } },
+    });
+  });
+
   it("reports the Kernel Capability binding for any package-defined type ID", async () => {
     const processRoot = await renamedBaselineProcessPackage("mdlm-schema-neutral-");
     externalRoots.push(path.dirname(processRoot));
@@ -185,7 +207,7 @@ describe("mdlm schema", () => {
       ok: false,
       command: "schema",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.70.0",
+        reference: "mdlm-bootstrap@0.71.0",
       }),
       selected: true,
       diagnostics: [{
@@ -216,7 +238,7 @@ describe("mdlm schema", () => {
     selectBootstrapProcessPackage(repositoryRoot);
     const selectedType = path.join(
       repositoryRoot,
-      ".lifecycle/packages/mdlm-bootstrap@0.70.0/types/STK.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.71.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 

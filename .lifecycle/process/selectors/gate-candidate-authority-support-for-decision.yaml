@@ -1,0 +1,28 @@
+kind: selector-definition
+id: gate-candidate-authority-support-for-decision
+version: 1
+description: Current correction authority and Question disposition required to judge one Phase 0 gate Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST, DEC]}
+  as: support
+  where: >-
+    decision.payload.kind == "gate-signoff"
+    && decision.provenance.scenario in [
+      "record-gate-signoff@3",
+      "revise-gate-signoff-after-review@2"
+    ]
+    && exists("intent-gate-candidates-for-decision@1", {decision: decision})
+    && !every("intent-gate-candidates-for-decision@1",
+      {decision: decision}, candidate =>
+        every("candidate-correction-authority-decisions-for-review@1",
+          {candidate: candidate}, authority => authority != support)
+        && every("candidate-question-resolution-support-for@1",
+          {candidate: candidate}, disposition => disposition != support)
+        && every("phase-0-candidate-correction-support-for@1",
+          {candidate: candidate}, correction =>
+            correction.identity.type != "DEC" || correction != support))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

@@ -31,7 +31,7 @@ rules:
       && every("product-simplification-reviews-for@1",
         {candidate: candidate, outcome: "fail"}, review =>
           review.payload.simplification.target != candidate.identity.revision_id
-          || review.payload.correction_authority != "stakeholder")
+          || review.payload.correction_authority == "package-evidence")
     result:
       authority_mode: autonomous
       authority: package-evidence

@@ -1,0 +1,23 @@
+kind: selector-definition
+id: gate-candidate-reviews-for-decision
+version: 1
+description: Current passing candidate Reviews required to judge one Phase 0 gate Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: support
+  where: >-
+    decision.payload.kind == "gate-signoff"
+    && decision.provenance.scenario in [
+      "record-gate-signoff@3",
+      "revise-gate-signoff-after-review@2"
+    ]
+    && exists("intent-gate-candidates-for-decision@1", {decision: decision})
+    && !every("intent-gate-candidates-for-decision@1",
+      {decision: decision}, candidate =>
+        every("structural-passing-candidate-reviews-for-review@1",
+          {candidate: candidate}, review => review != support))
+  distinct: true
+  order_by: [identity.revision_id]

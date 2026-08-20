@@ -176,7 +176,7 @@ describe("exact DWP parent Revision matching", () => {
         review_kind: planningDwp
         ? "simplification-product-definition"
         : "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [
           {
             id: "F-001",
@@ -211,6 +211,7 @@ describe("exact DWP parent Revision matching", () => {
               },
             }
           : {}),
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       1,
@@ -275,7 +276,7 @@ describe("exact DWP parent Revision matching", () => {
       "REV-0COREXHA01",
       {
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [{
           id: "F-001",
           target: first.datum.revision_id,
@@ -286,6 +287,7 @@ describe("exact DWP parent Revision matching", () => {
           evidence: "The first SYS Revision fails the reviewed system-behavior contract.",
           material_consequence: "The first Revision cannot authorize downstream system work.",
         }],
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       1,
@@ -299,7 +301,7 @@ describe("exact DWP parent Revision matching", () => {
       "REV-0COREXHA02",
       {
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [{
           id: "F-002",
           target: second.datum.revision_id,
@@ -310,6 +312,7 @@ describe("exact DWP parent Revision matching", () => {
           evidence: "The second Revision retains the reviewed system-behavior defect.",
           material_consequence: "A second autonomous correction is required before use.",
         }],
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       1,
@@ -323,7 +326,7 @@ describe("exact DWP parent Revision matching", () => {
       "REV-0COREXHA03",
       {
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [{
           id: "F-003",
           target: third.datum.revision_id,
@@ -334,6 +337,7 @@ describe("exact DWP parent Revision matching", () => {
           evidence: "Three consecutive exact Revisions retain a blocking Review outcome.",
           material_consequence: "Autonomous correction is exhausted and attended authority is required.",
         }],
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       1,
@@ -373,7 +377,7 @@ describe("exact DWP parent Revision matching", () => {
       "REV-0CORCOLL01",
       {
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [
           {
             id: "F-001",

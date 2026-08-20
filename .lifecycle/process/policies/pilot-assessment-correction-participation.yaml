@@ -29,7 +29,7 @@ rules:
       count("review-correction-history-for@1",
         {subject: assessment, view: "autonomous-corrections"}) < 2
       && every("failing-reviews-for@1", {subject: assessment}, review =>
-        review.payload.correction_authority != "stakeholder")
+        review.payload.correction_authority == "package-evidence")
     result:
       authority_mode: autonomous
       authority: package-evidence

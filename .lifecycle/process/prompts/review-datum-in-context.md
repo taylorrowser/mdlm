@@ -1,6 +1,6 @@
 ---
 id: review-datum-in-context
-version: 5
+version: 6
 scenario: review-datum-in-context
 ---
 
@@ -12,6 +12,7 @@ Read, in order:
 2. `skills/contextual-artifact-review.md@2`
 3. `skills/traceability.md@1`
 4. `skills/scope-challenge.md@2`
+5. `skills/review-correction-authority.md@1`
 
 Review exactly one primary subject revision against the rubric resolved by
 `review-applicability@1` using only its exact frozen context. Author preflight is
@@ -64,6 +65,13 @@ the subject. In Phase 2, add one exact `flags` link for every SYS, ASP, ICSP, or
 DWP subject selected by a collateral Finding so normal reevaluation derives one
 subject-bounded Correction with the complete immutable Review. Do not silently
 edit the subject during review and do not inherit a prior reviewer’s outcome.
+
+For every failed Review, classify the complete blocking finding set with
+`correction_authority`. Use `stakeholder` when any truthful correction requires a
+new choice or change to stakeholder-owned intent. Use `package-evidence` only
+when the exact supplied package evidence determines the correction without that
+choice. Never omit or default the classification. Do not include
+`correction_authority` on a passing or cancelled Review.
 
 Complete the REV as pass, fail, or cancelled and preserve exact prompt, skill,
 policy, process, subject, and context provenance.

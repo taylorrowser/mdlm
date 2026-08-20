@@ -41,7 +41,7 @@ describe("mdlm process expression evaluation", () => {
       ok: true,
       command: "process.expression.evaluate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.70.0",
+        reference: "mdlm-bootstrap@0.71.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -266,7 +266,7 @@ describe("mdlm process expression evaluation", () => {
         },
         result: {
           required: true,
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         },
         evidenceKind: "policy",
       },
@@ -321,7 +321,7 @@ describe("mdlm process expression evaluation", () => {
         ok: true,
         command: testCase.command,
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.70.0",
+          reference: "mdlm-bootstrap@0.71.0",
           language: "mdlm-expression@1",
         }),
         selected: true,
