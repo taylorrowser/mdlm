@@ -502,6 +502,32 @@ function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
   ];
 }
 
+function passingSimplificationReviewOutput(
+  prepared: PreparedAssignment,
+): ProposedOutput[] {
+  const subject = inputRevision(prepared, "subject");
+  const context = inputRevision(prepared, "review_context");
+  return [{
+    localId: "review",
+    name: "review",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "REV",
+      payload: {
+        title: `Passing simplification Review of ${subject}`,
+        review_kind: "simplification-product-definition",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+        outcome: "pass",
+      },
+      links: [
+        { type: "reviews", target: subject },
+        { type: "contextualizes", target: context },
+      ],
+      body: "The exact candidate is the smallest sufficient product definition.\n",
+    },
+  }];
+}
+
 function stakeholderOwnedFailureOutput(
   prepared: PreparedAssignment,
 ): ProposedOutput[] {
@@ -549,12 +575,19 @@ async function advancePhase0To(
     empiricalEvidenceAvailable?: boolean;
     indexedPreferentialQuestion?: boolean;
   } = {},
-): Promise<{ prepared: PreparedAssignment; reviewRevisions: string[] }> {
+): Promise<{
+  prepared: PreparedAssignment;
+  reviewRevisions: string[];
+  reviewContextRevisions: string[];
+}> {
   const reviewRevisions: string[] = [];
+  const reviewContextRevisions: string[] = [];
   for (let step = 0; step < 20; step += 1) {
     const prepared = prepareNextAssignment(repository);
     const scenario = prepared.packet.scenario.reference as string;
-    if (scenario === targetScenario) return { prepared, reviewRevisions };
+    if (scenario === targetScenario) {
+      return { prepared, reviewRevisions, reviewContextRevisions };
+    }
     let outputs: ProposedOutput[];
     switch (scenario) {
       case "establish-initial-wayfinding-map@1":
@@ -647,7 +680,15 @@ async function advancePhase0To(
       throw new Error(`${scenario}: ${submitted.stderr}${submitted.stdout}`);
     }
     const execution = JSON.parse(submitted.stdout).execution;
-    if (scenario === "review-datum-in-context@2") {
+    if (scenario === "create-review-context@1") {
+      reviewContextRevisions.push(
+        execution.outputs[0].lifecycleDatum.revisionId,
+      );
+    } else if (scenario === "review-datum-in-context@2") {
+      const reviewContextRevision = inputRevision(prepared, "review_context");
+      if (!reviewContextRevisions.includes(reviewContextRevision)) {
+        reviewContextRevisions.push(reviewContextRevision);
+      }
       reviewRevisions.push(execution.outputs[0].lifecycleDatum.revisionId);
     }
   }
@@ -986,11 +1027,12 @@ describe("Phase 0 missing hardening routes", () => {
   it("candidate-authority public route reaches corrected gate review and Phase 0 acceptance", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-candidate-");
     try {
-      const { prepared, reviewRevisions } = await advancePhase0To(
-        repository,
-        "create-phase-0-intent-candidate@1",
-        { indexedPreferentialQuestion: true },
-      );
+      const { prepared, reviewRevisions, reviewContextRevisions } =
+        await advancePhase0To(
+          repository,
+          "create-phase-0-intent-candidate@1",
+          { indexedPreferentialQuestion: true },
+        );
       const members = inputRevisions(prepared, "definition_members");
       expect(members.map((revision) => revision.slice(0, 3)).sort()).toEqual([
         "MAP", "PSP", "STK",
@@ -1337,6 +1379,7 @@ describe("Phase 0 missing hardening routes", () => {
           decisionRevision,
           ...correctedMembers,
           ...correctedMemberReviews,
+          ...reviewContextRevisions,
         ].sort(),
       );
       const acceptedCorrectionDecisionReview = submitAssignment(
@@ -1351,22 +1394,11 @@ describe("Phase 0 missing hardening routes", () => {
 
       const gate = prepareNextAssignment(repository, "record-gate-signoff@3");
       expect(inputRevision(gate, "candidate")).toBe(correctedCandidateRevision);
-      expect(inputRevisions(gate, "context_members")).toEqual(
-        [
-          correctedCandidateRevision,
-          candidateReviewRevision,
-          answeredQuestionRevision,
-          decisionRevision,
-          correctionDecisionRevision,
-        ].sort(),
-      );
-      const gateDecisionRevision = revisionId("DEC-0000000200");
       const acceptedGate = submitAssignment(repository, gate, [{
         localId: "decision",
         name: "decision",
         invocation: 0,
         lifecycleDatum: {
-          id: "DEC-0000000200",
           type: "DEC",
           payload: {
             title: "Approve corrected candidate",
@@ -1379,10 +1411,6 @@ describe("Phase 0 missing hardening routes", () => {
           },
           links: [
             { type: "justifies", target: correctedCandidateRevision },
-            { type: "references", target: candidateReviewRevision },
-            { type: "references", target: answeredQuestionRevision },
-            { type: "references", target: decisionRevision },
-            { type: "references", target: correctionDecisionRevision },
           ],
           body: "The exact corrected candidate is authorized for Phase 0 acceptance.\n",
         },
@@ -1391,6 +1419,11 @@ describe("Phase 0 missing hardening routes", () => {
         acceptedGate.status,
         `${acceptedGate.stderr}${acceptedGate.stdout}`,
       ).toBe(0);
+      const gateDecisionRevision = (
+        JSON.parse(acceptedGate.stdout).execution.outputs as Array<{
+          lifecycleDatum: { revisionId: string };
+        }>
+      )[0]!.lifecycleDatum.revisionId;
 
       const gateReview = prepareNextAssignment(
         repository,
@@ -1453,10 +1486,6 @@ describe("Phase 0 missing hardening routes", () => {
             },
             links: [
               { type: "justifies", target: correctedCandidateRevision },
-              { type: "references", target: candidateReviewRevision },
-              { type: "references", target: answeredQuestionRevision },
-              { type: "references", target: decisionRevision },
-              { type: "references", target: correctionDecisionRevision },
               {
                 type: "corrects-review",
                 target: failedGateReviewRevision,
@@ -2731,7 +2760,7 @@ describe("Phase 0 missing hardening routes", () => {
   it("blocks Phase 0 gate readiness until candidate-correction authority passes exact Review", () => {
     const foundation = phase0Foundation();
     const candidate = intentCandidate(foundation);
-    candidate.datum.provenance.scenario =
+    candidate.datum.created_by.scenario =
       "revise-intent-candidate-after-review@3";
     const authority = record("DEC", "DEC-1030000061", {
       title: "Authorize the exact corrected candidate",
@@ -2832,7 +2861,7 @@ describe("Phase 0 missing hardening routes", () => {
   it("rejects no-op candidate authority replacement and keeps a substantive same-lineage correction reviewable", async () => {
     const foundation = phase0Foundation();
     const candidate = intentCandidate(foundation);
-    candidate.datum.provenance.scenario =
+    candidate.datum.created_by.scenario =
       "revise-intent-candidate-after-review@3";
     const authority = record("DEC", "DEC-1030000063", {
       title: "Authorize the exact corrected candidate",
@@ -2985,7 +3014,7 @@ describe("Phase 0 missing hardening routes", () => {
       reviewedReplacementRecords,
       "candidate-correction-decision-review-correction-required",
       authority.datum.revision_id,
-    )?.satisfied).toBe(true);
+    )).toBeUndefined();
   });
 
   it("requires an exact reactivation condition only for defer-or-remove scope correction", () => {

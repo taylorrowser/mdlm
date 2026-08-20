@@ -408,6 +408,7 @@ class LifecycleEvaluator {
   private readonly dependencyChanges: DependencyChangeRecord[];
   private readonly comparisonDiagnostics: ProcessDiagnostic[];
   private selectorEvidence: SelectorEvaluationEvidence[] | undefined;
+  private selectorEvidenceMemo: Set<string> | undefined;
   private policyEvidence: PolicyEvaluationEvidence[] | undefined;
   private definitionEvidence: ProcessDefinitionEvidence[] | undefined;
   private readonly expressionDefinitions = new Map<object, string>();
@@ -1356,8 +1357,10 @@ class LifecycleEvaluator {
       throw new Error("Expected a compiled mdlm-expression@1 value");
     }
     const previousEvidence = this.selectorEvidence;
+    const previousEvidenceMemo = this.selectorEvidenceMemo;
     const selectors: SelectorEvaluationEvidence[] = [];
     this.selectorEvidence = selectors;
+    this.selectorEvidenceMemo = new Set();
     try {
       const result = evaluate();
       selectors.sort((left, right) => {
@@ -1368,6 +1371,7 @@ class LifecycleEvaluator {
       return { source: expression.source, result, selectors };
     } finally {
       this.selectorEvidence = previousEvidence;
+      this.selectorEvidenceMemo = previousEvidenceMemo;
     }
   }
 
@@ -2033,9 +2037,15 @@ class LifecycleEvaluator {
       .map(([name, item]) => `${name}=${this.valueKey(item)}`)
       .join(",")}`;
     if (this.selectorStack.has(recursionKey)) throw new Error(`Selector recursion at ${recursionKey}`);
-    const collectingEvidence = this.selectorEvidence !== undefined ||
-      this.definitionEvidence !== undefined;
-    const memoized = collectingEvidence ? undefined : this.selectorMemo.get(recursionKey);
+    const collectingSelectorEvidence = this.selectorEvidence !== undefined;
+    const collectingDefinitionEvidence = this.definitionEvidence !== undefined;
+    const memoized = collectingSelectorEvidence
+      ? this.selectorEvidenceMemo?.has(recursionKey)
+        ? this.selectorMemo.get(recursionKey)
+        : undefined
+      : collectingDefinitionEvidence
+      ? undefined
+      : this.selectorMemo.get(recursionKey);
     if (memoized) return [...memoized];
     this.selectorStack.add(recursionKey);
     try {
@@ -2061,7 +2071,10 @@ class LifecycleEvaluator {
           result: exactResult,
         });
       }
-      if (!collectingEvidence) this.selectorMemo.set(recursionKey, [...result]);
+      if (!collectingDefinitionEvidence) {
+        this.selectorMemo.set(recursionKey, [...result]);
+        this.selectorEvidenceMemo?.add(recursionKey);
+      }
       return result;
     } finally {
       this.selectorStack.delete(recursionKey);

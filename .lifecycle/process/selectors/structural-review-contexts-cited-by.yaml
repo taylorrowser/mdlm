@@ -1,0 +1,16 @@
+kind: selector-definition
+id: structural-review-contexts-cited-by
+version: 1
+description: Frozen Review Contexts cited by one Review for Review Context assembly without operational validity recursion.
+parameters:
+  - {name: review, kind: revision, types: [REV]}
+result_kind: baseline
+query:
+  from: {relation: outgoing-links, of: review, link: contextualizes, emit: target, types: [BSL]}
+  as: context
+  where: >-
+    context.payload.kind == "review-context"
+    && context.payload.role == "review-context"
+    && context.storage.frozen == true
+  distinct: true
+  order_by: [identity.revision_id]

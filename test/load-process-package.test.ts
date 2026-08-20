@@ -27,7 +27,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.71.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(357);
+    expect(Object.keys(result.package.selectors)).toHaveLength(358);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
@@ -93,6 +93,7 @@ describe("loadProcessPackage", () => {
         "matching-cited-gate-rejection-by-correction": expect.any(Object),
         "gate-rejection-corrections-for-subject": expect.any(Object),
         "gate-decision-review-support-for": expect.any(Object),
+        "structural-review-contexts-cited-by": expect.any(Object),
         "structural-passing-candidate-reviews-for-review": expect.any(Object),
         "gate-candidate-reviews-for-decision": expect.any(Object),
         "gate-candidate-authority-support-for-decision": expect.any(Object),

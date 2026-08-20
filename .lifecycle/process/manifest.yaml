@@ -158,6 +158,7 @@ catalog:
     - gate-rejection-corrections-for-subject
     - gate-candidates-for-decision
     - gate-decision-review-support-for
+    - structural-review-contexts-cited-by
     - structural-passing-candidate-reviews-for-review
     - gate-candidate-reviews-for-decision
     - gate-candidate-authority-support-for-decision

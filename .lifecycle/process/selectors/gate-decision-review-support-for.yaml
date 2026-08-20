@@ -17,8 +17,8 @@ query:
     && (
       !every("gate-candidates-for-decision@1",
         {decision: decision}, candidate => candidate != support)
-      || !every("review-correction-history-for@1",
-        {subject: decision, view: "lineage"}, prior => prior != support)
+      || (support.identity.id == decision.identity.id
+        && support.identity.revision <= decision.identity.revision)
       || !every("cited-failing-reviews-by-correction@1",
         {replacement: decision}, review => review != support)
     )
