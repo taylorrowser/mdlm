@@ -120,10 +120,33 @@ interface AssignmentLease {
   terminalDiagnostics?: ProcessDiagnostic[];
 }
 
+export type AssignmentState = {
+  contract: "mdlm-assignment-state@1";
+  assignment: { id: string };
+} & (
+  | { selected: false }
+  | {
+      selected: true;
+      package: PackageExecutionIdentity;
+      repository: RepositoryFingerprint;
+      scenarioReference: string;
+      disposition: AssignmentLease["disposition"];
+      retryAvailability: AssignmentLease["retryAvailability"];
+      malformedResponses: MalformedAssignmentResponse[];
+      response?: AssignmentLease["response"];
+      terminalDiagnostics?: ProcessDiagnostic[];
+    }
+);
+
 interface OperatorOutcomeBase {
   package: PackageSummary;
   contract: "mdlm-next@1";
   phase: string;
+  materializedExecutions: {
+    id: string;
+    scenario: string;
+    status: "completed";
+  }[];
 }
 
 export interface AttentionContext {
@@ -207,11 +230,17 @@ export interface OperatorStatus {
   currentOutcome:
     | {
         outcome: "assignment";
-        assignment: { allocation: "active"; id: string } | { allocation: "not-allocated" };
+        assignment: { allocation: "active"; id: string } | {
+          allocation: "not-allocated";
+          id?: string;
+        };
       }
     | {
         outcome: "attention-required";
-        assignment: { allocation: "active"; id: string } | { allocation: "not-allocated" };
+        assignment: { allocation: "active"; id: string } | {
+          allocation: "not-allocated";
+          id?: string;
+        };
         authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
         attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
         explanation: string;
@@ -612,6 +641,46 @@ async function readLease(
         "The active Assignment lease does not satisfy mdlm-assignment-lease@1",
         target,
       );
+}
+
+/** Inspect one durable Assignment lease without allocating or mutating work. */
+export async function inspectAssignmentState(
+  repositoryRoot: string,
+  assignmentId: string,
+): Promise<AssignmentResult<AssignmentState>> {
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.id !== assignmentId) {
+    return {
+      ok: true,
+      value: {
+        contract: "mdlm-assignment-state@1",
+        assignment: { id: assignmentId },
+        selected: false,
+      },
+      diagnostics: [],
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      contract: "mdlm-assignment-state@1",
+      assignment: { id: lease.id },
+      selected: true,
+      package: lease.package,
+      repository: lease.repository,
+      scenarioReference: lease.scenario,
+      disposition: lease.disposition,
+      retryAvailability: lease.retryAvailability,
+      malformedResponses: lease.malformedResponses,
+      ...(lease.response ? { response: lease.response } : {}),
+      ...(lease.terminalDiagnostics
+        ? { terminalDiagnostics: lease.terminalDiagnostics }
+        : {}),
+    },
+    diagnostics: [],
+  };
 }
 
 function exactEntityId(value: ScenarioDryRunInvocation["inputs"][number]["values"][number]): string {
@@ -1389,12 +1458,14 @@ function materializedRecords(execution: ScenarioExecution): LifecycleRecord[] {
 function leasedOutcome(
   exact: ExactAssignment,
   assignmentId: string,
+  materializedExecutions: OperatorOutcomeBase["materializedExecutions"],
 ): AssignmentOutcome {
   const base = {
     package: exact.summary,
     contract: "mdlm-next@1" as const,
     phase: exact.lease.phase,
     assignment: { id: assignmentId },
+    materializedExecutions,
   };
   return exact.classification.kind === "attention-required"
     ? {
@@ -1437,6 +1508,7 @@ async function leaseNextAssignmentLocked(
   }
 
   const materializedObligations = new Set<string>();
+  const materializedExecutions: OperatorOutcomeBase["materializedExecutions"] = [];
   while (state.value.assignment) {
     const exact = state.value.assignment;
     const materialization = exactBaselineMaterialization(exact.scenario);
@@ -1488,6 +1560,11 @@ async function leaseNextAssignmentLocked(
     await fs.rm(leasePath(repositoryRoot), { force: true });
     activeLease = undefined;
     if (!materialized.ok) return materialized;
+    materializedExecutions.push({
+      id: materialized.value.id,
+      scenario: materialized.value.definition.scenario,
+      status: "completed",
+    });
     const fingerprint = await repositoryFingerprint(repositoryRoot);
     if (!fingerprint.ok) return fingerprint;
     const snapshot: LifecycleSnapshot = {
@@ -1522,6 +1599,7 @@ async function leaseNextAssignmentLocked(
       package: state.value.summary,
       contract: "mdlm-next@1" as const,
       phase: phaseReference(state.value.evaluation),
+      materializedExecutions,
     };
     const value: AssignmentOutcome = classification.kind === "process-dead-end"
       ? {
@@ -1543,7 +1621,7 @@ async function leaseNextAssignmentLocked(
   if (activeLease && sameAssignment(activeLease, exact)) {
     return {
       ok: true,
-      value: leasedOutcome(exact, activeLease.id),
+      value: leasedOutcome(exact, activeLease.id, materializedExecutions),
       diagnostics: [],
     };
   }
@@ -1561,7 +1639,7 @@ async function leaseNextAssignmentLocked(
   await writeLease(repositoryRoot, lease);
   return {
     ok: true,
-    value: leasedOutcome(exact, lease.id),
+    value: leasedOutcome(exact, lease.id, materializedExecutions),
     diagnostics: [],
   };
 }
@@ -1667,7 +1745,10 @@ function statusOutcome(
   const exact = state.assignment;
   const assignment = exact && activeLease && sameAssignment(activeLease, exact)
     ? { allocation: "active" as const, id: activeLease.id }
-    : { allocation: "not-allocated" as const };
+    : {
+        allocation: "not-allocated" as const,
+        ...(activeLease?.disposition === "active" ? { id: activeLease.id } : {}),
+      };
   if (classification.kind !== "attention-required") {
     return { outcome: "assignment", assignment };
   }
@@ -1782,6 +1863,9 @@ export async function inspectOperatorStatus(
       currentOutcome: statusOutcome(state.value, persisted.value),
       drillDownCommands: [
         "mdlm next",
+        ...(persisted.value
+          ? [`mdlm assignment show ${persisted.value.id} --json`]
+          : []),
         "mdlm loose-ends --json",
         `mdlm phase status ${phase.id} --json`,
         "mdlm doctor --json",

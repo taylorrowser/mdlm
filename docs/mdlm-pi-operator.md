@@ -15,7 +15,8 @@ For each transaction, the harness:
 
 1. requires `git status --porcelain` to be empty;
 2. runs `mdlm status --json` for orientation and `mdlm next --json` for one exact
-   Operator Outcome;
+   Operator Outcome, and accounts for every deterministic kernel execution listed
+   in `materializedExecutions`;
 3. prepares an Assignment with
    `mdlm scenario prepare <assignment-id> --json`;
 4. follows only the prepared packet's prompt, skills, exact inputs, resolved
@@ -76,6 +77,21 @@ invent missing inputs.
 ## Git boundary
 
 The clean starting tree separates the pending transaction from unrelated work.
+`mdlm next` may deterministically fulfill package-selected kernel materialization
+before returning the next Operator Outcome. Its `mdlm-next@1`
+`materializedExecutions` list identifies every such completed execution. A durable
+operator journals advancement before invoking `next`, checks and commits each exact
+transaction directory after doctor, and can recover interrupted advancement from
+those canonical directories plus `mdlm scenario execution show`.
+
+That commit changes the repository state and makes any Assignment returned by the
+same `next` stale. MDLM does not rebase the Assignment. After the controller commits
+all journaled materialization transactions, it reevaluates the repository and, when
+work remains, allocates a fresh Assignment against the new commit. Recovery is
+limited to the same selected Process Package and repository state. A package or
+repository fingerprint mismatch stops the run; MDLM does not migrate package
+versions or recover an Assignment across versions.
+
 After successful submission and doctor:
 
 ```bash
@@ -108,6 +124,14 @@ A `correction-required` disposition with `correctionsRemaining: 1` keeps the sam
 Assignment active for exactly one corrected submission. Correct the complete
 response and submit it once; a malformed correction exhausts the lease and reports
 `correctionsRemaining: 0`.
+
+Before a submission side effect, a crash-resumable harness records the exact
+response bytes and their SHA-256 digest. After interruption it uses
+`mdlm assignment show <assignment-id> --json` to distinguish an unattempted active
+lease from a recorded malformed response, exhaustion, staleness, or typed
+inability. It uses `mdlm scenario execution show <execution-id> --json` to match a
+published transaction to the exact Assignment and response digest. Neither
+inspection command allocates, rebases, or mutates work.
 
 Also stop on dirty initial state, stale or exhausted Assignment, typed inability,
 failed doctor, unexpected diff, genuine ambiguity, or command failure. Never
