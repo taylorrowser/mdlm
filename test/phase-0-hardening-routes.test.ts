@@ -1256,36 +1256,34 @@ describe("Phase 0 missing hardening routes", () => {
         `${correctedCandidate.stderr}${correctedCandidate.stdout}`,
       ).toBe(0);
 
-      let refreshedCandidateReview = prepareNextAssignment(
-        repository,
-        "review-datum-in-context@2",
-      );
-      if (inputRevision(refreshedCandidateReview, "subject") !==
-        correctedCandidateRevision) {
-        const acceptedCorrectionDecision = submitAssignment(
-          repository,
-          refreshedCandidateReview,
-          passingReviewOutput(refreshedCandidateReview),
-        );
-        expect(
-          acceptedCorrectionDecision.status,
-          `${acceptedCorrectionDecision.stderr}${acceptedCorrectionDecision.stdout}`,
-        ).toBe(0);
-        refreshedCandidateReview = prepareNextAssignment(
-          repository,
-          "review-datum-in-context@2",
-        );
-      }
-      expect(inputRevision(refreshedCandidateReview, "subject")).toBe(
-        correctedCandidateRevision,
-      );
-      expect(inputRevisions(
-        refreshedCandidateReview,
-        "context_members",
-      )).toEqual(expect.arrayContaining([
-        answeredQuestionRevision,
-        decisionRevision,
-      ]));
+      const correctionOutputs = JSON.parse(
+        correctedCandidate.stdout,
+      ).execution.outputs as Array<{
+        name: string;
+        data: {
+          payload: Record<string, unknown>;
+          links: Array<{ type: string; target: string }>;
+        };
+        lifecycleDatum: { revisionId: string };
+      }>;
+      expect(correctionOutputs.find((item) => item.name === "replacement"))
+        .toEqual(expect.objectContaining({
+          lifecycleDatum: expect.objectContaining({
+            revisionId: correctedCandidateRevision,
+          }),
+        }));
+      expect(correctionOutputs.find((item) => item.name === "decision"))
+        .toEqual(expect.objectContaining({
+          data: expect.objectContaining({
+            payload: expect.objectContaining({
+              effective_scope: correctedCandidateRevision,
+            }),
+            links: expect.arrayContaining([{
+              type: "justifies",
+              target: correctedCandidateRevision,
+            }]),
+          }),
+        }));
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
