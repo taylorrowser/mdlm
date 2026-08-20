@@ -27,13 +27,17 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.72.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(362);
+    expect(Object.keys(result.package.selectors)).toHaveLength(366);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
         "applicable-initial-product-intent-decisions": expect.any(Object),
         "initial-product-intent-sources-for-decision": expect.any(Object),
         "initial-product-intent-targets-for-decision": expect.any(Object),
+        "structural-initial-product-intent-sources-for-decision": expect.any(Object),
+        "structural-initial-product-intent-targets-for-decision": expect.any(Object),
+        "initial-product-intent-boundaries-for-decision": expect.any(Object),
+        "product-intent-authorities-for-foundation-subject": expect.any(Object),
         "blocking-product-simplification-reviews-for": expect.any(Object),
         "candidate-correction-decisions-for": expect.any(Object),
         "candidate-correction-candidates-for-decision": expect.any(Object),
@@ -107,6 +111,23 @@ describe("loadProcessPackage", () => {
     expect(Object.keys(result.package.policies)).toHaveLength(14);
     expect(Object.keys(result.package.obligations)).toHaveLength(62);
     expect(Object.keys(result.package.scenarios)).toHaveLength(64);
+    expect(
+      result.package.scenarios["establish-initial-wayfinding-map"]?.outputs,
+    ).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "map",
+        required_links: expect.arrayContaining([
+          expect.objectContaining({
+            link: "indexes",
+            target: { output: "product_intent" },
+          }),
+          expect.objectContaining({
+            link: "indexes",
+            target: { output: "questions" },
+          }),
+        ]),
+      }),
+    ]));
     expect(result.package.scenarios["define-system-architecture"]?.outputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

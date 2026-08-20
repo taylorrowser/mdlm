@@ -1,0 +1,13 @@
+kind: selector-definition
+id: product-intent-authorities-for-foundation-subject
+version: 1
+description: Exact initial product-intent Decision linked by a PSP and preserved through correction.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: subject, link: derived-from, emit: target, types: [DEC]}
+  as: authority
+  where: 'subject.identity.type == "PSP"'
+  distinct: true
+  order_by: [identity.revision_id]

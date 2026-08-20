@@ -38,15 +38,16 @@ function assignmentResponse(
     proposal: {
       outputs: [
         {
-          localId: "qstActiveFrontier",
-          name: "questions",
+          localId: "productIntent",
+          name: "product_intent",
           invocation: 0,
           lifecycleDatum: {
             type: "QST",
             payload: {
-              title: "Identify stakeholder-owned active decision frontier",
+              title: "Identify stakeholder-owned active product intent",
               kind: "preferential",
-              question: "Which product decision area is the active decision frontier?",
+              intent_scope: "product",
+              question: "Which exact product should this repository pursue?",
               state: "open",
               blocking_impact: "Product preferences must not be inferred from absent lifecycle data.",
             },
@@ -63,9 +64,9 @@ function assignmentResponse(
             payload: {
               title: "Initial wayfinding map",
               purpose: "Index the current decision frontier without inventing product claims.",
-              frontier: ["Stakeholder identification of the active product decision frontier"],
+              frontier: ["$proposal.productIntent.revision_id"],
             },
-            links: [{ type: "indexes", target: "$proposal.qstActiveFrontier.id" }],
+            links: [{ type: "indexes", target: "$proposal.productIntent.id" }],
             body: "# Initial wayfinding map\n\n- Stakeholder identification of the active product decision frontier — see linked QST.",
           },
         },
@@ -136,7 +137,7 @@ describe("MdlmClient", () => {
     const packet = await client.prepare(allocated.assignment.id);
     expect(packet.contract).toBe("mdlm-assignment-packet@2");
     expect(packet.assignment.id).toBe(allocated.assignment.id);
-    expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@1");
+    expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@2");
     expect(packet.responseSchema).toMatchObject({
       $id: "https://mdlm.dev/contracts/mdlm-assignment-response@1",
     });
@@ -159,7 +160,7 @@ describe("MdlmClient", () => {
           return assignmentResponse(packet);
         }
         freshPacket = packet;
-        expect(packet.scenario.reference).not.toBe("establish-initial-wayfinding-map@1");
+        expect(packet.scenario.reference).not.toBe("establish-initial-wayfinding-map@2");
         expect(packet.repository).toEqual(await git.repositoryFingerprint());
         throw new Error("fresh post-materialization Assignment reached worker");
       },
@@ -183,7 +184,7 @@ describe("MdlmClient", () => {
       cwd: repository,
     })).stdout.trim().split("\n");
     expect(commits[0]).toContain("create-review-context@1");
-    expect(commits[1]).toContain("establish-initial-wayfinding-map@1");
+    expect(commits[1]).toContain("establish-initial-wayfinding-map@2");
     expect((await executeFile("git", ["status", "--porcelain"], { cwd: repository })).stdout)
       .toBe("");
     expect(await journal.load()).toBeNull();

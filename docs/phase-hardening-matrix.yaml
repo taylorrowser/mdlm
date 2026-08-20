@@ -5,7 +5,7 @@ semantics: Every route is a complete proof record. Grouping is presentation-only
 rows:
   - id: assignment-response-transport
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
       - phase-2-pilot-assessment@3
@@ -70,7 +70,7 @@ rows:
           automaticReplacement: false
   - id: phase-0-foundation-publication
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
     routes:
       - route: greenfield MAP
         executable:
@@ -141,14 +141,14 @@ rows:
       - route: candidate creation
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: publishes a complete candidate and selects its attended indexed Question before correction at the public command seam
+          test: creates only a complete reviewed Phase 0 intent candidate and then yields fresh candidate Review work
         evidence:
           facts: The complete current passing MAP, PSP, and STK definition set and one frozen intent candidate.
           links: Candidate definition membership names every exact current foundation Revision.
         selectors:
           - complete-phase-0-intent-candidates@1
         obligations:
-          - intent-candidate-required@2
+          - intent-candidate-required@3
         participation:
           mode: autonomous
           policies: []
@@ -186,7 +186,7 @@ rows:
         reuse: The accepted candidate membership and reviewed authority evidence remain immutable and reusable.
   - id: contextual-review
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
       - phase-2-pilot-assessment@3
@@ -263,7 +263,7 @@ rows:
         reuse: The failed subject, context, REV, and Findings remain immutable; unaffected evidence remains reusable.
   - id: phase-0-foundation-correction
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
     routes:
       - route: initial failure
         executable:
@@ -404,7 +404,7 @@ rows:
           are fresh.
   - id: phase-0-simplification-correction
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
     routes:
       - route: pass
         executable:
@@ -583,7 +583,7 @@ rows:
           rebuilt."
   - id: attended-question-source-boundary
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -618,7 +618,7 @@ rows:
           Revision; a later open Revision requires a new boundary."
   - id: autonomous-question-source-boundary
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -653,7 +653,7 @@ rows:
           Revision; a later open Revision requires a new boundary."
   - id: question-immediate-attention
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -686,7 +686,7 @@ rows:
         reuse: "immediate blocking: The frozen QST source remains immutable; no raw stakeholder conversation is retained."
   - id: question-checkpoint-attention
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-2-system-definition@9
     routes:
       - route: consolidated checkpoint
@@ -719,14 +719,14 @@ rows:
           next Assignment."
   - id: empirical-question-answer
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
       - route: empirical answer
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: publishes an empirical QST answer with no DEC through resolve-question@2
+          test: publishes an empirical QST answer without an empirical DEC through resolve-question@2
         evidence:
           facts: "empirical answer: One source-bounded open empirical QST with available exact evidence and one same-lineage
             answered Revision."
@@ -753,7 +753,7 @@ rows:
           answered Revision."
   - id: prototype-question-answer
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -786,7 +786,7 @@ rows:
           needs a fresh source boundary."
   - id: question-inability
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -822,7 +822,7 @@ rows:
           evidence."
   - id: question-deferral
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -856,7 +856,7 @@ rows:
         reuse: "defer: QST and Decision history remain immutable; unrelated evidence is reused until reactivation."
   - id: question-cancellation
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -889,7 +889,7 @@ rows:
         reuse: "cancel: QST and Decision history remain immutable; unrelated exact evidence remains reusable."
   - id: preferential-question-answer
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-1-product-assurance@5
       - phase-2-system-definition@9
     routes:
@@ -924,7 +924,7 @@ rows:
         reuse: "preferential answer: QST and Decision history remain immutable; unrelated exact evidence remains reusable."
   - id: consequential-decision-correction
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-7-change-control@4
     routes:
       - route: failed Question Decision Review
@@ -1015,7 +1015,7 @@ rows:
           replacement history are immutable."
   - id: phase-0-gate-rejection-return
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
     routes:
       - route: approval
         executable:
@@ -1051,7 +1051,7 @@ rows:
       - route: reviewed rejection
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: keeps a reviewed exact Phase 0 gate rejection nonterminal and dispatches causal correction
+          test: candidate-authority public route reaches corrected gate review and Phase 0 acceptance
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
             superseding candidate."
@@ -2505,7 +2505,7 @@ rows:
           candidate lineage is retained."
   - id: accepted-stakeholder-change
     phases:
-      - phase-0-wayfinding@4
+      - phase-0-wayfinding@5
       - phase-7-change-control@4
     routes:
       - route: draft correction

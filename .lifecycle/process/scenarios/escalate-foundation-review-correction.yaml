@@ -28,6 +28,10 @@ inputs:
     types: [DEC]
     cardinality: zero-or-more
     identity: revision
+  - name: product_intent_authority
+    types: [DEC]
+    cardinality: zero-or-more
+    identity: revision
 outputs:
   - name: replacement
     types: [MAP, PSP, STK]
@@ -53,6 +57,12 @@ completion: >-
   && replacement.identity.id == subject.identity.id
   && replacement.identity.type == subject.identity.type
   && decision.payload.kind == "scope"
+  && (subject.identity.type != "PSP"
+    || every("product-intent-authorities-for-foundation-subject@1",
+      {subject: subject}, authority =>
+        !every("product-intent-authorities-for-foundation-subject@1",
+          {subject: replacement}, replacement_authority =>
+            replacement_authority != authority)))
   && decision.payload.effective_scope == replacement.identity.revision_id
   && decision.payload.scope_correction.disposition in ["bound", "defer-or-remove", "retain"]
 resolves: [foundation-review-escalation-required]

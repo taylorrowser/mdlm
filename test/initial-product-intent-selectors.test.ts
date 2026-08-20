@@ -41,6 +41,15 @@ function routeFixture() {
     intent_scope: "product",
     state: "open",
   }, { scenario: "establish-initial-wayfinding-map@2" });
+  const boundary = record("BSL", "BSL-7K3M9Q2D8E", {
+    title: "Exact initial product-intent source boundary",
+    kind: "source-boundary",
+    role: "source-boundary",
+    scope: source.datum.revision_id,
+    group: "SAME-LINEAGE",
+    definition_members: [source.datum.revision_id],
+    evidence: [],
+  }, { scenario: "freeze-source-boundary@1" });
   const answered = record("QST", source.datum.id, {
     ...source.datum.payload,
     title: "A title with no product-intent naming convention",
@@ -64,13 +73,21 @@ function routeFixture() {
     ],
     scenario: "resolve-question@2",
   });
-  const context = reviewContext(decision, answered, "BSL-7K3M9Q2D8F");
+  const context = reviewContext(
+    decision,
+    source,
+    boundary,
+    answered,
+    "BSL-7K3M9Q2D8F",
+  );
   const review = passingReview(decision, context, "REV-7K3M9Q2D8F");
-  return { source, answered, decision, context, review };
+  return { source, boundary, answered, decision, context, review };
 }
 
 function reviewContext(
   decision: LifecycleRecord,
+  source: LifecycleRecord,
+  boundary: LifecycleRecord,
   answered: LifecycleRecord,
   id: string,
   revision = 1,
@@ -83,6 +100,8 @@ function reviewContext(
     group: "DEFAULT",
     definition_members: [
       decision.datum.revision_id,
+      source.datum.revision_id,
+      boundary.datum.revision_id,
       answered.datum.revision_id,
     ].sort(),
     evidence: [],
@@ -177,11 +196,15 @@ describe("initial product-intent authority selectors", () => {
     });
     const replacementContext = reviewContext(
       replacement,
+      fixture.source,
+      fixture.boundary,
       fixture.answered,
       "BSL-7K3M9Q2D8G",
     );
     replacementContext.datum.payload.definition_members = [
       replacement.datum.revision_id,
+      fixture.source.datum.revision_id,
+      fixture.boundary.datum.revision_id,
       fixture.decision.datum.revision_id,
       fixture.answered.datum.revision_id,
       fixture.review.datum.revision_id,
@@ -204,6 +227,8 @@ describe("initial product-intent authority selectors", () => {
     const fixture = routeFixture();
     const newerContext = reviewContext(
       fixture.decision,
+      fixture.source,
+      fixture.boundary,
       fixture.answered,
       fixture.context.datum.id,
       2,

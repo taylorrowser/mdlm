@@ -49,7 +49,11 @@ catalog:
     - current-wayfinding-maps
     - initial-product-intent-sources-for-decision
     - initial-product-intent-targets-for-decision
+    - structural-initial-product-intent-sources-for-decision
+    - structural-initial-product-intent-targets-for-decision
+    - initial-product-intent-boundaries-for-decision
     - applicable-initial-product-intent-decisions
+    - product-intent-authorities-for-foundation-subject
     - current-product-specifications
     - stakeholder-requirements-for
     - stakeholder-requirements-for-review-context

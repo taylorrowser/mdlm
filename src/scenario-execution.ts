@@ -12,7 +12,7 @@ import {
   type ProcessPackage,
   type VersionedDefinition,
 } from "./index.js";
-import { evaluateProcessExpression } from "./evaluator.js";
+import { evaluateProcessExpressionResult } from "./evaluator.js";
 import { finalizeExactBaselineScenarioOutput } from "./exact-baseline-repository.js";
 import { parseObligationInstanceIdentity } from "./obligation-instance.js";
 import { measure, recordWork } from "./performance-diagnostics.js";
@@ -881,7 +881,7 @@ async function submitScenario(
   for (let index = 0; index < dryRun.invocations.length; index += 1) {
     let passed = false;
     try {
-      passed = evaluateProcessExpression(
+      passed = evaluateProcessExpressionResult(
         processPackage,
         resultingSnapshot,
         `${scenarioReference}#completion`,
@@ -891,7 +891,7 @@ async function submitScenario(
           index,
           outputData,
         ),
-      ).result === true;
+      ) === true;
     } catch (error) {
       return {
         ok: false,

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   directoryDigest,
   inputRevision,
+  inputRevisions,
   prepareNextAssignment,
   submitAssignment,
   type PreparedAssignment,
@@ -50,7 +51,7 @@ describe("initial product-intent authority", () => {
         "establish-initial-wayfinding-map@2",
       );
       const initialIntentOutput = "product_intent";
-      const publishedMap = submitAssignment(repository, map, [{
+      const mapOutputs: ProposedOutput[] = [{
         localId: "map",
         name: "map",
         invocation: 0,
@@ -59,10 +60,18 @@ describe("initial product-intent authority", () => {
           payload: {
             title: "Calculator product-intent frontier",
             purpose: "Obtain the user's exact intended product before specification.",
-            frontier: ["$proposal.product_intent.revision_id"],
+            frontier: [
+              "$proposal.product_intent.revision_id",
+              "$proposal.optional-one.revision_id",
+              "$proposal.optional-two.revision_id",
+            ],
           },
-          links: [{ type: "indexes", target: "$proposal.product_intent.id" }],
-          body: "The map indexes the exact initial product-intent Question.\n",
+          links: [
+            { type: "indexes", target: "$proposal.product_intent.id" },
+            { type: "indexes", target: "$proposal.optional-one.id" },
+            { type: "indexes", target: "$proposal.optional-two.id" },
+          ],
+          body: "The map indexes the initial product intent and every optional Question.\n",
         },
       }, {
         localId: "product_intent",
@@ -81,7 +90,43 @@ describe("initial product-intent authority", () => {
           links: [],
           body: "The initial product intent requires an attended stakeholder answer.\n",
         },
-      }]);
+      }, ...["one", "two"].map((suffix): ProposedOutput => ({
+        localId: `optional-${suffix}`,
+        name: "questions",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "QST",
+          payload: {
+            title: `Already answered optional Question ${suffix}`,
+            kind: "empirical",
+            evidence_available: true,
+            question: `Was optional observation ${suffix} supplied?`,
+            state: "answered",
+            blocking_impact: "None; the observation is already answered.",
+          },
+          links: [],
+          body: "The optional initial Question is structurally indexed by the MAP.\n",
+        },
+      }))];
+      const incompleteMapOutputs = structuredClone(mapOutputs);
+      incompleteMapOutputs[0]!.lifecycleDatum.links = incompleteMapOutputs[0]!
+        .lifecycleDatum.links.filter((link) =>
+          link.target !== "$proposal.optional-two.id"
+        );
+      const beforeUnindexed = await directoryDigest(
+        path.join(repository, ".lifecycle", "data"),
+      );
+      const unindexed = submitAssignment(repository, map, incompleteMapOutputs);
+      expect(unindexed.status).toBe(1);
+      expect(JSON.parse(unindexed.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-output-required-link-missing" }),
+        ]),
+      );
+      expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
+        .toBe(beforeUnindexed);
+
+      const publishedMap = submitAssignment(repository, map, mapOutputs);
       expect(publishedMap.status, `${publishedMap.stderr}${publishedMap.stdout}`).toBe(0);
       const mapExecution = JSON.parse(publishedMap.stdout).execution;
       const openQuestion = mapExecution.outputs.find(
@@ -111,6 +156,8 @@ describe("initial product-intent authority", () => {
         },
       }]);
       expect(bounded.status, `${bounded.stderr}${bounded.stdout}`).toBe(0);
+      const sourceBoundary = JSON.parse(bounded.stdout).execution.outputs[0]
+        .lifecycleDatum.revisionId as string;
 
       const resolution = prepareNextAssignment(repository, "resolve-question@2");
       expect(resolution.outcome).toEqual(expect.objectContaining({
@@ -179,6 +226,13 @@ describe("initial product-intent authority", () => {
         expect(scenario).toBe("review-datum-in-context@2");
         if (inputRevision(prepared, "subject") === decision.revisionId) {
           reviewedDecision = true;
+          expect(inputRevisions(prepared, "context_members")).toEqual(
+            expect.arrayContaining([
+              openQuestion.revisionId,
+              answeredQuestion,
+              sourceBoundary,
+            ]),
+          );
         }
         const reviewed = submitAssignment(repository, prepared, reviewOutput(prepared));
         expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);

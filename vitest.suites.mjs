@@ -22,6 +22,7 @@ export const testFiles = [
   "test/evaluate-system-decomposition.test.ts",
   "test/kernel-capability.test.ts",
   "test/initial-product-intent-route.test.ts",
+  "test/initial-product-intent-selectors.test.ts",
   "test/load-process-package.test.ts",
   "test/load-scenario-participation.test.ts",
   "test/mdlm-assignment.test.ts",

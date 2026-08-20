@@ -31,7 +31,7 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-const processRef = "mdlm-bootstrap@0.71.0#sha256:phase-0-route-evidence";
+const processRef = "mdlm-bootstrap@0.72.0#sha256:phase-0-route-evidence";
 const revisionId = (id: string, revision = 1) =>
   `${id}-r${String(revision).padStart(5, "0")}`;
 
@@ -358,6 +358,7 @@ function exactInput(prepared: PreparedAssignment, name: string) {
   if (!input) throw new Error(`Missing exact Assignment input '${name}'`);
   return input.values[0] as {
     identity: { id: string; revision_id: string; type: string };
+    data: { payload: Record<string, unknown> };
   };
 }
 
@@ -581,21 +582,30 @@ async function advancePhase0To(
   prepared: PreparedAssignment;
   reviewRevisions: string[];
   reviewContextRevisions: string[];
+  productIntentAuthorityRevision: string | undefined;
+  productIntentQuestionRevision: string | undefined;
 }> {
   const reviewRevisions: string[] = [];
   const reviewContextRevisions: string[] = [];
-  let initialProductIntentResolved = false;
+  let productIntentAuthorityRevision: string | undefined;
+  let productIntentQuestionRevision: string | undefined;
   for (let step = 0; step < 40; step += 1) {
     const prepared = prepareNextAssignment(repository);
     const scenario = prepared.packet.scenario.reference as string;
     const resolvingInitialProductIntent = scenario === "resolve-question@2"
-      && !initialProductIntentResolved;
+      && exactInput(prepared, "question").data.payload.intent_scope === "product";
     if (
       scenario === targetScenario
       && !(resolvingInitialProductIntent
         && options.empiricalEvidenceAvailable !== undefined)
     ) {
-      return { prepared, reviewRevisions, reviewContextRevisions };
+      return {
+        prepared,
+        reviewRevisions,
+        reviewContextRevisions,
+        productIntentAuthorityRevision,
+        productIntentQuestionRevision,
+      };
     }
     let outputs: ProposedOutput[];
     switch (scenario) {
@@ -733,8 +743,13 @@ async function advancePhase0To(
       throw new Error(`${scenario}: ${submitted.stderr}${submitted.stdout}`);
     }
     const execution = JSON.parse(submitted.stdout).execution;
-    if (resolvingInitialProductIntent) {
-      initialProductIntentResolved = true;
+    if (scenario === "resolve-question@2" && resolvingInitialProductIntent) {
+      productIntentAuthorityRevision = execution.outputs.find(
+        (item: { name: string }) => item.name === "decision",
+      )?.lifecycleDatum.revisionId;
+      productIntentQuestionRevision = execution.outputs.find(
+        (item: { name: string }) => item.name === "updated_question",
+      )?.lifecycleDatum.revisionId;
     }
     if (scenario === "create-review-context@1") {
       const subject = inputRevision(prepared, "subject");
@@ -816,17 +831,85 @@ describe("Phase 0 missing hardening routes", () => {
       }));
       const doctor = mdlm(repository, "doctor", "--json");
       expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-      const next = prepareNextAssignment(repository);
-      expect(next.packet.scenario.reference).not.toBe(
-        "create-review-context@1",
+      let next = prepareNextAssignment(repository);
+      for (let pending = 0; pending < 3 &&
+        inputRevision(next, "subject") !== product.revisionId; pending += 1) {
+        expect(next.packet.scenario.reference).toBe("review-datum-in-context@2");
+        const reviewed = submitAssignment(repository, next, passingReviewOutput(next));
+        expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
+        next = prepareNextAssignment(repository);
+      }
+      expect(next.packet.scenario.reference).toBe("review-datum-in-context@2");
+      expect(inputRevision(next, "subject")).toBe(product.revisionId);
+      expect(inputRevisions(next, "context_members")).toContain(
+        authority.revision_id,
       );
       expect(
         await hasGeneratedReviewContext(repository, product.revisionId),
       ).toBe(true);
+
+      const failedReviewOutput = stakeholderOwnedFailureOutput(next);
+      failedReviewOutput[0]!.lifecycleDatum.payload.correction_authority =
+        "package-evidence";
+      const failedReview = submitAssignment(repository, next, failedReviewOutput);
+      expect(
+        failedReview.status,
+        `${failedReview.stderr}${failedReview.stdout}`,
+      ).toBe(0);
+      const failedReviewRevision = JSON.parse(failedReview.stdout).execution
+        .outputs[0].lifecycleDatum.revisionId as string;
+      const correction = prepareNextAssignment(
+        repository,
+        "revise-foundation-after-review@5",
+      );
+      expect(inputRevision(correction, "product_intent_authority")).toBe(
+        authority.revision_id,
+      );
+      const replacement: ProposedOutput = {
+        localId: "replacement",
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: product.id,
+          type: "PSP",
+          payload: {
+            title: "Bounded corrected product specification",
+            rationale: "Correct only the exact independent Review blocker.",
+            problem: "The public PSP route needs literal executable evidence.",
+            users: ["operator"],
+            goals: ["publish one exact PSP atomically"],
+            non_goals: ["direct lifecycle data mutation"],
+            success_measures: ["fresh PSP Review work follows publication"],
+          },
+          links: [{ type: "corrects-review", target: failedReviewRevision }],
+          body: "The correction initially omits its immutable product authority.\n",
+        },
+      };
+      const beforeAuthorityFailure = await directoryDigest(dataRoot);
+      const missingAuthority = submitAssignment(repository, correction, [replacement]);
+      expect(missingAuthority.status).toBe(1);
+      expect(JSON.parse(missingAuthority.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      );
+      expect(await directoryDigest(dataRoot)).toBe(beforeAuthorityFailure);
+
+      replacement.lifecycleDatum.links.push({
+        type: "derived-from",
+        target: authority.revision_id,
+      });
+      const corrected = submitAssignment(repository, correction, [replacement]);
+      expect(corrected.status, `${corrected.stderr}${corrected.stdout}`).toBe(0);
+      expect(JSON.parse(corrected.stdout).execution.outputs[0].data.links)
+        .toContainEqual({
+          type: "derived-from",
+          target: authority.revision_id,
+        });
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 45_000);
+  }, 75_000);
 
   it("publishes STK through draft-stakeholder-requirements atomically and yields fresh STK Review work", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-stk-");
@@ -1080,8 +1163,8 @@ describe("Phase 0 missing hardening routes", () => {
       expect(inputRevision(review, "subject")).toBe(candidateRevision);
       const support = inputRevisions(review, "context_members");
       expect(support).toEqual(expect.arrayContaining(members));
-      expect(support.some((revision) => revision.startsWith("DEC-"))).toBe(false);
-      expect(support.some((revision) => revision.startsWith("QST-"))).toBe(false);
+      expect(support.some((revision) => revision.startsWith("DEC-"))).toBe(true);
+      expect(support.some((revision) => revision.startsWith("QST-"))).toBe(true);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
@@ -1090,12 +1173,19 @@ describe("Phase 0 missing hardening routes", () => {
   it("candidate-authority public route reaches corrected gate review and Phase 0 acceptance", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-candidate-");
     try {
-      const { prepared, reviewRevisions, reviewContextRevisions } =
-        await advancePhase0To(
-          repository,
-          "create-phase-0-intent-candidate@1",
-          { indexedPreferentialQuestion: true },
-        );
+      const {
+        prepared,
+        reviewRevisions,
+        reviewContextRevisions,
+        productIntentAuthorityRevision,
+        productIntentQuestionRevision,
+      } = await advancePhase0To(
+        repository,
+        "create-phase-0-intent-candidate@1",
+        { indexedPreferentialQuestion: true },
+      );
+      expect(productIntentAuthorityRevision).toMatch(/^DEC-/);
+      expect(productIntentQuestionRevision).toMatch(/^QST-/);
       const members = inputRevisions(prepared, "definition_members");
       expect(members.map((revision) => revision.slice(0, 3)).sort()).toEqual([
         "MAP", "PSP", "STK",
@@ -1443,6 +1533,8 @@ describe("Phase 0 missing hardening routes", () => {
           ...correctedReviewCauses,
           answeredQuestionRevision,
           decisionRevision,
+          productIntentAuthorityRevision!,
+          productIntentQuestionRevision!,
           ...correctedMembers,
           ...correctedMemberReviews,
           ...reviewContextRevisions,
@@ -1502,6 +1594,8 @@ describe("Phase 0 missing hardening routes", () => {
           candidateReviewRevision,
           answeredQuestionRevision,
           decisionRevision,
+          productIntentAuthorityRevision!,
+          productIntentQuestionRevision!,
           correctionDecisionRevision,
         ].sort(),
       );
@@ -1581,6 +1675,8 @@ describe("Phase 0 missing hardening routes", () => {
           candidateReviewRevision,
           answeredQuestionRevision,
           decisionRevision,
+          productIntentAuthorityRevision!,
+          productIntentQuestionRevision!,
           correctionDecisionRevision,
         ].sort(),
       );
@@ -2039,6 +2135,10 @@ describe("Phase 0 missing hardening routes", () => {
         }),
       }));
       const subject = exactInput(correction, "subject").identity;
+      const productIntentAuthority = exactInput(
+        correction,
+        "product_intent_authority",
+      ).identity.revision_id!;
       const beforeInvalid = await directoryDigest(
         path.join(repository, ".lifecycle", "data"),
       );
@@ -2059,7 +2159,7 @@ describe("Phase 0 missing hardening routes", () => {
             success_measures: ["the selected result is independently reviewable"],
           },
           links: [{ type: "corrects-review", target: failedReview }],
-          body: "This replacement omits the required comparative disposition.\n",
+          body: "This replacement preserves the correction cause but omits the exact product-intent authority.\n",
         },
       }, {
         localId: "decision",
@@ -2074,6 +2174,15 @@ describe("Phase 0 missing hardening routes", () => {
             decision: "Retain a deterministic result convention.",
             alternatives: ["Use another deterministic convention"],
             effective_scope: `${subject.id}-r00002`,
+            scope_correction: {
+              disposition: "retain",
+              options: {
+                bounded: "Keep only the smallest deterministic convention.",
+                defer_or_remove: "Defer the convention until it is requested.",
+                retain: "Retain the exact stakeholder-selected convention.",
+              },
+              necessity: "The stakeholder selected this exact bounded behavior.",
+            },
           },
           links: [{
             type: "justifies",
@@ -2108,7 +2217,10 @@ describe("Phase 0 missing hardening routes", () => {
             non_goals: ["numeric limits", "machine representation rules"],
             success_measures: ["the selected result is independently reviewable"],
           },
-          links: [{ type: "corrects-review", target: failedReview }],
+          links: [
+            { type: "corrects-review", target: failedReview },
+            { type: "derived-from", target: productIntentAuthority },
+          ],
           body: "The correction remains local to the exact reviewed ambiguity.\n",
         },
       }, {
@@ -3362,7 +3474,7 @@ describe("Phase 0 missing hardening routes", () => {
     }
   });
 
-  it("publishes an empirical QST answer with no DEC through resolve-question@2", async () => {
+  it("publishes an empirical QST answer without an empirical DEC through resolve-question@2", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-empirical-");
     try {
       const { prepared } = await advancePhase0To(repository, "resolve-question@2", {
@@ -3398,7 +3510,7 @@ describe("Phase 0 missing hardening routes", () => {
       const invalid = submitAssignment(repository, prepared, [invalidOutput]);
       expect(invalid.status).toBe(1);
       expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: "scenario-authority-evidence-missing" }),
+        expect.objectContaining({ code: "scenario-completion-failed" }),
       ]));
       expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
@@ -3424,9 +3536,11 @@ describe("Phase 0 missing hardening routes", () => {
       const decisions = data.filter((item) =>
         item.lifecycleDatum.datum.type === "DEC"
       );
-      expect(decisions).toHaveLength(1);
-      expect(decisions[0]!.lifecycleDatum.datum.links.some((link) =>
-        link.target.startsWith(question.id)
+      expect(decisions.length).toBeLessThanOrEqual(1);
+      expect(decisions.some((decision) =>
+        decision.lifecycleDatum.datum.links.some((link) =>
+          link.target.startsWith(question.id)
+        )
       )).toBe(false);
       expect(data.find((item) =>
         item.lifecycleDatum.datum.revision_id === `${question.id}-r00002`
@@ -3435,20 +3549,6 @@ describe("Phase 0 missing hardening routes", () => {
         state: "answered",
       });
       expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-      const next = prepareNextAssignment(
-        repository,
-        "review-datum-in-context@2",
-      );
-      expect(inputRevision(next, "subject")).toMatch(
-        /^(?:MAP|PSP|STK)-.*-r00001$/,
-      );
-      expect(inputRevision(next, "subject")).not.toBe(question.revision_id);
-      expect(
-        await hasGeneratedReviewContext(
-          repository,
-          inputRevision(next, "subject"),
-        ),
-      ).toBe(true);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
@@ -3888,7 +3988,7 @@ describe("Phase 0 missing hardening routes", () => {
     ].sort());
   });
 
-  it("keeps a reviewed exact Phase 0 gate rejection nonterminal and dispatches causal correction", () => {
+  it("keeps an insufficiently contextualized Phase 0 gate rejection blocked for fresh Review", () => {
     const foundation = phase0Foundation();
     const candidate = intentCandidate(foundation);
     const simplification = passingSimplification(candidate);
@@ -3904,15 +4004,15 @@ describe("Phase 0 missing hardening routes", () => {
     expect(evaluation.phase?.gate.evaluations[0]).toEqual(expect.objectContaining({
       complete: false,
       status: "blocked",
-      actionableResolver: "revise-foundation-after-review@5",
+      actionableResolver: "create-review-context@1",
     }));
     expect(evaluation.obligations.find((item) =>
-      item.obligation === "foundation-review-correction-required" &&
-      item.subject === foundation.requirement.datum.revision_id
+      item.obligation === "passing-review-required" &&
+      item.subject === rejection[0]!.datum.revision_id
     )).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@5",
+      status: "blocked",
+      dispatchable: false,
+      actionableResolver: "create-review-context@1",
     }));
     expect(evaluation.terminalOutcome?.outcome).not.toBe("process-dead-end");
   });

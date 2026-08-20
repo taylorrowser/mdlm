@@ -24,6 +24,10 @@ inputs:
     types: [DEC]
     cardinality: zero-or-more
     identity: revision
+  - name: product_intent_authority
+    types: [DEC]
+    cardinality: zero-or-more
+    identity: revision
 outputs:
   - name: replacement
     types: [MAP, PSP, STK]
@@ -39,6 +43,12 @@ completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == subject.identity.id
   && replacement.identity.type == subject.identity.type
+  && (subject.identity.type != "PSP"
+    || every("product-intent-authorities-for-foundation-subject@1",
+      {subject: subject}, authority =>
+        !every("product-intent-authorities-for-foundation-subject@1",
+          {subject: replacement}, replacement_authority =>
+            replacement_authority != authority)))
 resolves: [foundation-review-correction-required]
 prohibited_inputs: [mutation of the failed Revision, deletion of failed Review history, unrelated scope expansion]
 batching: single

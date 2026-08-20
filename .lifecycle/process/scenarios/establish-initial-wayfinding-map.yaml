@@ -10,6 +10,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: indexes, target: {output: product_intent}}
+      - {link: indexes, target: {output: questions}}
   - name: product_intent
     types: [QST]
     cardinality: one
