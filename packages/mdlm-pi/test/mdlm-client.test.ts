@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -151,7 +151,7 @@ describe("MdlmClient", () => {
       malformedResponses: [],
     });
 
-    const preparedResponse = client.prepareSubmission(assignmentResponse(packet, false));
+    const preparedResponse = client.prepareSubmission({});
     const submission = await client.submit(preparedResponse);
 
     expect(submission).toMatchObject({
@@ -172,6 +172,46 @@ describe("MdlmClient", () => {
       retryAvailability: { malformedResponseCorrection: 0 },
       malformedResponses: [{ digest: preparedResponse.digest }],
     });
+  });
+
+  it("retains exact submit stdout and stderr under the private Git state directory", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-transcript-"));
+    temporaryRoots.push(root);
+    const repository = path.join(root, "repository");
+    await mkdir(repository);
+    const attempts = path.join(root, "git", "mdlm-pi", "attempts");
+    const script = path.join(root, "fake-mdlm.mjs");
+    const output = JSON.stringify({
+      ok: false,
+      command: "scenario.submit",
+      contract: "mdlm-assignment-disposition@1",
+      disposition: "abandoned",
+    });
+    await writeFile(script, `
+let input = "";
+for await (const chunk of process.stdin) input += chunk;
+process.stderr.write("ARGS:" + JSON.stringify(process.argv.slice(2)) + "\\nINPUT:" + input);
+process.stdout.write(${JSON.stringify(output)});
+process.exitCode = 1;
+`);
+    const client = new MdlmClient({
+      repository,
+      command: { program: process.execPath, arguments: [script] },
+      attemptDirectory: attempts,
+    });
+    const response = client.prepareSubmission({ exact: "response" });
+    let attempt: { pid: number; stdoutPath: string; stderrPath: string } | undefined;
+
+    const submission = await client.submit(response, {
+      started: async (started) => { attempt = started; },
+    });
+
+    expect(submission).toMatchObject({ disposition: "abandoned" });
+    expect(attempt?.pid).toBeGreaterThan(0);
+    expect(await readFile(attempt!.stdoutPath, "utf8")).toBe(output);
+    expect(await readFile(attempt!.stderrPath, "utf8")).toBe(
+      `ARGS:["scenario","submit","-","--json"]\nINPUT:${response.source}`,
+    );
   });
 
   it("recovers exact publication identity through the public execution inspection", async () => {

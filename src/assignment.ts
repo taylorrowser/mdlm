@@ -431,10 +431,6 @@ function sha256(value: string): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-function isCanonicalTransactionPath(relativePath: string): boolean {
-  return /^\.lifecycle\/data\/\.transactions\/[^/]+(?:\/|$)/.test(relativePath);
-}
-
 async function repositoryFingerprint(
   repositoryRoot: string,
 ): Promise<AssignmentResult<RepositoryFingerprint>> {
@@ -482,10 +478,7 @@ async function confirmRepositoryFingerprint(
 ): Promise<AssignmentResult<RepositoryFingerprint>> {
   const current = await repositoryFingerprint(repositoryRoot);
   if (!current.ok) return current;
-  if (
-    current.value.trackedState !== expected.trackedState &&
-    !(await isTransactionOnlyCommitAdvance(repositoryRoot, expected, current.value))
-  ) {
+  if (!isDeepStrictEqual(current.value, expected)) {
     return failure(
       "assignment-repository-changed-during-inspection",
       "The tracked repository changed while MDLM prepared its verified command snapshot",
@@ -493,27 +486,6 @@ async function confirmRepositoryFingerprint(
     );
   }
   return current;
-}
-
-async function isTransactionOnlyCommitAdvance(
-  repositoryRoot: string,
-  expected: RepositoryFingerprint,
-  current: RepositoryFingerprint,
-): Promise<boolean> {
-  if (expected.head === current.head) return false;
-  try {
-    await git(repositoryRoot, ["merge-base", "--is-ancestor", expected.head, current.head]);
-    const [committed, staged, unstaged] = await Promise.all([
-      git(repositoryRoot, ["diff", "--name-only", "-z", expected.head, current.head, "--"]),
-      git(repositoryRoot, ["diff", "--name-only", "-z", "--cached", "HEAD", "--"]),
-      git(repositoryRoot, ["diff", "--name-only", "-z", "--"]),
-    ]);
-    const committedPaths = committed.split("\0").filter(Boolean);
-    return staged.length === 0 && unstaged.length === 0 &&
-      committedPaths.every(isCanonicalTransactionPath);
-  } catch {
-    return false;
-  }
 }
 
 function leasePath(repositoryRoot: string): string {
@@ -1101,23 +1073,6 @@ function sameAssignment(lease: AssignmentLease, exact: ExactAssignment): boolean
   );
 }
 
-async function reconcileTransactionCommit(
-  repositoryRoot: string,
-  lease: AssignmentLease,
-  exact: ExactAssignment,
-): Promise<AssignmentLease | undefined> {
-  if (sameAssignment(lease, exact)) return lease;
-  const rebased: AssignmentLease = {
-    ...lease,
-    repository: exact.lease.repository,
-  };
-  if (!sameAssignment(rebased, exact)) return undefined;
-  const confirmed = await confirmRepositoryFingerprint(repositoryRoot, lease.repository);
-  if (!confirmed.ok) return undefined;
-  await writeLease(repositoryRoot, rebased);
-  return rebased;
-}
-
 function sameAssignmentSource(
   lease: AssignmentLease,
   exact: ExactAssignment,
@@ -1653,19 +1608,12 @@ async function leaseNextAssignmentLocked(
       "The classified Operator Outcome did not prepare its exact Assignment",
     );
   }
-  if (activeLease) {
-    const reconciled = await reconcileTransactionCommit(
-      repositoryRoot,
-      activeLease,
-      exact,
-    );
-    if (reconciled) {
-      return {
-        ok: true,
-        value: leasedOutcome(exact, reconciled.id, materializedExecutions),
-        diagnostics: [],
-      };
-    }
+  if (activeLease && sameAssignment(activeLease, exact)) {
+    return {
+      ok: true,
+      value: leasedOutcome(exact, activeLease.id, materializedExecutions),
+      diagnostics: [],
+    };
   }
   if (
     activeLease?.disposition === "active" &&
@@ -2441,14 +2389,11 @@ export async function submitAssignmentResponse(
   if (!parsed.ok) {
     if (lease?.disposition !== "active") return parsed;
     const exact = await exactAssignment(repositoryRoot);
-    const reconciled = exact.ok
-      ? await reconcileTransactionCommit(repositoryRoot, lease, exact.value)
-      : undefined;
-    return !reconciled
+    return !exact.ok || !sameAssignment(lease, exact.value)
       ? recordStaleDisposition(repositoryRoot, lease)
       : recordMalformedResponse(
           repositoryRoot,
-          reconciled,
+          lease,
           responseSource,
           parsed.diagnostics,
         );
@@ -2464,14 +2409,9 @@ export async function submitAssignmentResponse(
     );
   }
   const exact = await exactAssignment(repositoryRoot);
-  if (!exact.ok) return recordStaleDisposition(repositoryRoot, lease);
-  const reconciled = await reconcileTransactionCommit(
-    repositoryRoot,
-    lease,
-    exact.value,
-  );
-  if (!reconciled) return recordStaleDisposition(repositoryRoot, lease);
-  lease = reconciled;
+  if (!exact.ok || !sameAssignment(lease, exact.value)) {
+    return recordStaleDisposition(repositoryRoot, lease);
+  }
   if (parsed.value.kind === "unable") {
     return recordUnableResponse(
       repositoryRoot,
@@ -2604,12 +2544,7 @@ async function prepareAssignmentLocked(
       assignmentId,
     );
   }
-  const reconciled = await reconcileTransactionCommit(
-    repositoryRoot,
-    lease,
-    exact.value,
-  );
-  if (!reconciled) {
+  if (!sameAssignment(lease, exact.value)) {
     if (sameAssignmentSource(lease, exact.value)) {
       return invalidLease(repositoryRoot);
     }
@@ -2633,7 +2568,7 @@ async function prepareAssignmentLocked(
   }
   return {
     ok: true,
-    value: packet(exact.value, reconciled),
+    value: packet(exact.value, lease),
     diagnostics: [],
   };
 }

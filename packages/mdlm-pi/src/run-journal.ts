@@ -21,6 +21,13 @@ export interface PublicationEvidence {
   outputPaths: string[];
 }
 
+export interface SubmissionProcess {
+  id: string;
+  pid: number;
+  stdoutPath: string;
+  stderrPath: string;
+}
+
 interface JournalBase {
   contract: typeof journalContract;
   assignment: { id: string; scenario: string };
@@ -30,6 +37,7 @@ interface JournalBase {
     previousTransactionId: string | null;
     baseCommit: string;
     previousMalformedResponseDigests: string[];
+    process?: SubmissionProcess;
   };
 }
 
@@ -141,6 +149,29 @@ export class RunJournal {
         previousMalformedResponseDigests: intent.previousMalformedResponseDigests,
       },
     });
+  }
+
+  async recordSubmissionProcess(process: SubmissionProcess): Promise<void> {
+    const current = await this.load();
+    if (current?.phase !== "submitting" || current.submission.process !== undefined) {
+      throw new RunJournalError("A child process requires one unstarted submission intent");
+    }
+    if (!validSubmissionProcess(process)) {
+      throw new RunJournalError("Cannot journal malformed submission process evidence");
+    }
+    await this.#write({
+      ...current,
+      submission: { ...current.submission, process },
+    });
+  }
+
+  async clearSubmissionProcess(): Promise<void> {
+    const current = await this.load();
+    if (current?.phase !== "submitting" || current.submission.process === undefined) {
+      throw new RunJournalError("A completed child process requires one started submission intent");
+    }
+    const { process: _process, ...submission } = current.submission;
+    await this.#write({ ...current, submission });
   }
 
   async replaceSubmission(
@@ -271,6 +302,9 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
   if (digest(submission.source) !== submission.digest) {
     throw new RunJournalError(`Run journal response digest does not match its exact source: ${journalPath}`);
   }
+  if (submission.process !== undefined && !validSubmissionProcess(submission.process)) {
+    throw new RunJournalError(`Malformed submission process evidence: ${journalPath}`);
+  }
   const base: JournalBase = {
     contract: journalContract,
     assignment: { id: assignment.id, scenario: assignment.scenario },
@@ -280,6 +314,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
       previousTransactionId: submission.previousTransactionId,
       baseCommit: submission.baseCommit,
       previousMalformedResponseDigests: submission.previousMalformedResponseDigests,
+      ...(submission.process ? { process: submission.process } : {}),
     },
   };
   if (value.phase === "submitting") return { ...base, phase: "submitting" };
@@ -317,6 +352,13 @@ function parsePublication(
   ) {
     throw new RunJournalError(`Malformed publication evidence in run journal: ${journalPath}`);
   }
+}
+
+function validSubmissionProcess(value: unknown): value is SubmissionProcess {
+  return isObject(value) && typeof value.id === "string" && value.id.length > 0 &&
+    typeof value.pid === "number" && Number.isSafeInteger(value.pid) && value.pid > 0 &&
+    typeof value.stdoutPath === "string" && value.stdoutPath.length > 0 &&
+    typeof value.stderrPath === "string" && value.stderrPath.length > 0;
 }
 
 function digest(source: string): `sha256:${string}` {

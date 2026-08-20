@@ -29,33 +29,39 @@ async function main(arguments_: string[]): Promise<number> {
   const lock = await RunLock.acquire(stateDirectory);
   try {
     const io = new TerminalOperatorIO();
-    const controller = new RunController({
-      mdlm: new MdlmClient({
-        repository,
-        command: { program: parsed.mdlm },
-        timeoutMs: environmentInteger("MDLM_PI_COMMAND_TIMEOUT_MS", 30_000),
-      }),
-      assignments: new PiAssignmentRunner({
-        repository,
-        assignmentTimeoutMs: environmentInteger(
-          "MDLM_PI_ASSIGNMENT_TIMEOUT_MS",
-          15 * 60_000,
-        ),
-        providerRetries: environmentInteger("MDLM_PI_PROVIDER_RETRIES", 2),
-        ...(parsed.provider ? { provider: parsed.provider } : {}),
-        ...(parsed.model ? { model: parsed.model } : {}),
-        ...(parsed.thinking ? { thinkingLevel: parsed.thinking } : {}),
-        onText: (text) => process.stdout.write(text),
-      }),
-      io,
-      git,
-      journal: new RunJournal(stateDirectory),
+    const assignments = new PiAssignmentRunner({
+      repository,
+      assignmentTimeoutMs: environmentInteger(
+        "MDLM_PI_ASSIGNMENT_TIMEOUT_MS",
+        15 * 60_000,
+      ),
+      providerRetries: environmentInteger("MDLM_PI_PROVIDER_RETRIES", 2),
+      ...(parsed.provider ? { provider: parsed.provider } : {}),
+      ...(parsed.model ? { model: parsed.model } : {}),
+      ...(parsed.thinking ? { thinkingLevel: parsed.thinking } : {}),
+      onText: (text) => process.stdout.write(text),
     });
-    const stopped = await controller.run();
-    if (stopped.successful) return 0;
-    if (stopped.status === "process-dead-end") return exitStatus.processDeadEnd;
-    if (stopped.status === "invalid") return exitStatus.invalid;
-    return exitStatus.assignmentStopped;
+    try {
+      const controller = new RunController({
+        mdlm: new MdlmClient({
+          repository,
+          command: { program: parsed.mdlm },
+          timeoutMs: environmentInteger("MDLM_PI_COMMAND_TIMEOUT_MS", 30_000),
+          attemptDirectory: path.join(stateDirectory, "attempts"),
+        }),
+        assignments,
+        io,
+        git,
+        journal: new RunJournal(stateDirectory),
+      });
+      const stopped = await controller.run();
+      if (stopped.successful) return 0;
+      if (stopped.status === "process-dead-end") return exitStatus.processDeadEnd;
+      if (stopped.status === "invalid") return exitStatus.invalid;
+      return exitStatus.assignmentStopped;
+    } finally {
+      await assignments.dispose();
+    }
   } finally {
     await lock.release();
   }

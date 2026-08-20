@@ -427,6 +427,65 @@ describe("RunController", () => {
     expect(await journal.load()).toBeNull();
   });
 
+  it("does not retry a journaled submission while its child PID is alive", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-live-submit-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const response: JsonObject = { assignment: assignmentId, complete: true };
+    const source = `${JSON.stringify(response)}\n`;
+    const digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
+    await journal.beginSubmission({
+      assignmentId,
+      scenario,
+      previousTransactionId: null,
+      baseCommit: "base-commit",
+      previousMalformedResponseDigests: [],
+      response: { response, source, digest },
+    });
+    await journal.recordSubmissionProcess({
+      id: "live-attempt",
+      pid: process.pid,
+      stdoutPath: path.join(root, "state", "attempts", "live.stdout"),
+      stderrPath: path.join(root, "state", "attempts", "live.stderr"),
+    });
+    const mdlm = {
+      status: vi.fn(),
+      next: vi.fn(),
+      assignment: vi.fn(),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const io = { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(),
+        head: vi.fn(),
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(),
+        commit: vi.fn(),
+      },
+      io,
+      journal,
+    });
+
+    await expect(controller.run()).resolves.toMatchObject({
+      status: "submission-child-active",
+      successful: false,
+      details: { pid: process.pid, stdoutPath: expect.any(String), stderrPath: expect.any(String) },
+    });
+    expect(mdlm.status).not.toHaveBeenCalled();
+    expect(mdlm.submit).not.toHaveBeenCalled();
+    expect(await journal.load()).toMatchObject({
+      phase: "submitting",
+      submission: { process: { pid: process.pid } },
+    });
+  });
+
   it("reconciles publication after an interrupted submit before doctor and commit", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-recovery-"));
     roots.push(root);

@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, open, readFile } from "node:fs/promises";
+import path from "node:path";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
@@ -15,6 +17,7 @@ export interface MdlmClientOptions {
   command?: MdlmCommand;
   timeoutMs?: number;
   maxOutputBytes?: number;
+  attemptDirectory?: string;
 }
 
 export interface MaterializedExecution {
@@ -83,6 +86,17 @@ export interface PreparedAssignmentSubmission {
   digest: `sha256:${string}`;
 }
 
+export interface SubmissionProcess {
+  id: string;
+  pid: number;
+  stdoutPath: string;
+  stderrPath: string;
+}
+
+export interface SubmissionAttemptObserver {
+  started(process: SubmissionProcess): Promise<void>;
+}
+
 export type AssignmentSubmission = JsonObject & {
   ok: boolean;
   command: "scenario.submit";
@@ -130,6 +144,7 @@ export class MdlmClient {
   readonly #command: Required<MdlmCommand>;
   readonly #timeoutMs: number;
   readonly #maxOutputBytes: number;
+  readonly #attemptDirectory: string | undefined;
 
   constructor(options: MdlmClientOptions) {
     this.#repository = options.repository;
@@ -139,6 +154,7 @@ export class MdlmClient {
     };
     this.#timeoutMs = options.timeoutMs ?? 30_000;
     this.#maxOutputBytes = options.maxOutputBytes ?? 10 * 1024 * 1024;
+    this.#attemptDirectory = options.attemptDirectory;
   }
 
   async status(): Promise<MdlmStatus> {
@@ -180,7 +196,10 @@ export class MdlmClient {
     return { response, source, digest };
   }
 
-  async submit(response: PreparedAssignmentSubmission): Promise<AssignmentSubmission> {
+  async submit(
+    response: PreparedAssignmentSubmission,
+    observer?: SubmissionAttemptObserver,
+  ): Promise<AssignmentSubmission> {
     const digest = `sha256:${createHash("sha256").update(response.source).digest("hex")}`;
     if (digest !== response.digest) {
       throw new MdlmClientError("Prepared Assignment response digest does not match its exact source");
@@ -188,6 +207,7 @@ export class MdlmClient {
     const result = await this.#invoke(
       ["scenario", "submit", "-", "--json"],
       response.source,
+      observer,
     );
     return parseSubmission(result.output);
   }
@@ -221,14 +241,25 @@ export class MdlmClient {
     return output as ScenarioExecution;
   }
 
-  async #invoke(arguments_: readonly string[], standardInput?: string): Promise<InvocationResult> {
+  async #invoke(
+    arguments_: readonly string[],
+    standardInput?: string,
+    observer?: SubmissionAttemptObserver,
+  ): Promise<InvocationResult> {
+    const durable = observer === undefined
+      ? undefined
+      : await this.#prepareAttemptFiles();
     const child = spawn(
       this.#command.program,
       [...this.#command.arguments, ...arguments_],
       {
         cwd: this.#repository,
         detached: process.platform !== "win32",
-        stdio: [standardInput === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+        stdio: [
+          standardInput === undefined ? "ignore" : "pipe",
+          durable?.stdout.fd ?? "pipe",
+          durable?.stderr.fd ?? "pipe",
+        ],
       },
     );
 
@@ -287,6 +318,27 @@ export class MdlmClient {
       child.once("close", (code) => resolve(code ?? 1));
     });
 
+    if (durable !== undefined) {
+      await Promise.all([durable.stdout.close(), durable.stderr.close()]);
+      if (child.pid === undefined) {
+        await completed;
+        throw new MdlmClientError("MDLM child process did not expose a PID");
+      }
+      try {
+        await observer!.started({
+          id: durable.id,
+          pid: child.pid,
+          stdoutPath: durable.stdoutPath,
+          stderrPath: durable.stderrPath,
+        });
+      } catch (error) {
+        terminate();
+        child.stdin?.destroy();
+        await completed.catch(() => {});
+        throw error;
+      }
+    }
+
     if (standardInput !== undefined) child.stdin?.end(standardInput);
 
     let exitCode: number;
@@ -302,6 +354,21 @@ export class MdlmClient {
       if (forceKillTimer !== undefined) clearTimeout(forceKillTimer);
     }
 
+    if (durable !== undefined) {
+      const [durableStdout, durableStderr] = await Promise.all([
+        readFile(durable.stdoutPath),
+        readFile(durable.stderrPath),
+      ]);
+      stdout.push(durableStdout);
+      stderr.push(durableStderr);
+      outputBytes = durableStdout.byteLength + durableStderr.byteLength;
+      if (outputBytes > this.#maxOutputBytes && failure === undefined) {
+        failure = new MdlmClientError(
+          `MDLM command exceeded ${this.#maxOutputBytes} output bytes`,
+          { arguments: [...arguments_] },
+        );
+      }
+    }
     if (failure !== undefined) throw failure;
 
     const outputText = Buffer.concat(stdout).toString("utf8");
@@ -323,6 +390,30 @@ export class MdlmClient {
       });
     }
     return { exitCode, output };
+  }
+
+  async #prepareAttemptFiles(): Promise<{
+    id: string;
+    stdoutPath: string;
+    stderrPath: string;
+    stdout: Awaited<ReturnType<typeof open>>;
+    stderr: Awaited<ReturnType<typeof open>>;
+  }> {
+    if (this.#attemptDirectory === undefined) {
+      throw new MdlmClientError("Durable submission attempts require an attempt directory");
+    }
+    await mkdir(this.#attemptDirectory, { recursive: true, mode: 0o700 });
+    const id = randomUUID();
+    const stdoutPath = path.join(this.#attemptDirectory, `${id}.stdout`);
+    const stderrPath = path.join(this.#attemptDirectory, `${id}.stderr`);
+    const stdout = await open(stdoutPath, "wx", 0o600);
+    try {
+      const stderr = await open(stderrPath, "wx", 0o600);
+      return { id, stdoutPath, stderrPath, stdout, stderr };
+    } catch (error) {
+      await stdout.close();
+      throw error;
+    }
   }
 }
 

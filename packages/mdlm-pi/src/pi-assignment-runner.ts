@@ -7,10 +7,10 @@ import {
   SettingsManager,
   type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
-
-export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 import { Type } from "typebox";
 import type { AssignmentPacket, JsonObject, JsonValue } from "./mdlm-client.js";
+
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 const systemPrompt = `You complete exactly one MDLM Assignment.
 Use only the supplied Assignment Packet and attended context; do not infer repository or Process Package facts outside them.
@@ -28,6 +28,19 @@ export interface PiAssignmentRunOptions {
   attendedContext?: JsonValue;
 }
 
+export interface PiAssignmentSession {
+  readonly isIdle: boolean;
+  prompt(text: string, options?: { expandPromptTemplates?: boolean }): Promise<void>;
+  abort(): Promise<void>;
+  dispose(): void;
+  subscribe(listener: (event: unknown) => void): () => void;
+}
+
+export type PiAssignmentSessionFactory = (
+  packet: AssignmentPacket,
+  capture: (response: JsonObject) => void,
+) => Promise<PiAssignmentSession>;
+
 export interface PiAssignmentRunnerOptions {
   repository: string;
   assignmentTimeoutMs?: number;
@@ -36,6 +49,7 @@ export interface PiAssignmentRunnerOptions {
   model?: string;
   thinkingLevel?: ThinkingLevel;
   onText?: (text: string) => void;
+  sessionFactory?: PiAssignmentSessionFactory;
 }
 
 export class PiAssignmentRunnerError extends Error {
@@ -43,6 +57,12 @@ export class PiAssignmentRunnerError extends Error {
     super(message);
     this.name = "PiAssignmentRunnerError";
   }
+}
+
+interface ActiveSession {
+  session: PiAssignmentSession;
+  unsubscribe: () => void;
+  response?: JsonObject;
 }
 
 /** One isolated probabilistic worker behind one structured Assignment seam. */
@@ -54,6 +74,8 @@ export class PiAssignmentRunner {
   readonly #model: string | undefined;
   readonly #thinkingLevel: ThinkingLevel | undefined;
   readonly #onText: ((text: string) => void) | undefined;
+  readonly #sessionFactory: PiAssignmentSessionFactory | undefined;
+  readonly #sessions = new Map<string, ActiveSession>();
 
   constructor(options: PiAssignmentRunnerOptions) {
     this.#repository = options.repository;
@@ -63,10 +85,84 @@ export class PiAssignmentRunner {
     this.#model = options.model;
     this.#thinkingLevel = options.thinkingLevel;
     this.#onText = options.onText;
+    this.#sessionFactory = options.sessionFactory;
   }
 
   async run(packet: AssignmentPacket, options: PiAssignmentRunOptions = {}): Promise<JsonObject> {
-    let response: JsonObject | undefined;
+    const assignmentId = packet.assignment.id;
+    let active = this.#sessions.get(assignmentId);
+    if (active !== undefined && options.correction === undefined) {
+      throw new PiAssignmentRunnerError(`Assignment '${assignmentId}' already owns a Pi session`);
+    }
+    if (active === undefined) active = await this.#createActiveSession(packet);
+    active.response = undefined;
+
+    const timeout = AbortSignal.timeout(this.#assignmentTimeoutMs);
+    const timedOut = new Promise<never>((_resolve, reject) => {
+      timeout.addEventListener("abort", () => {
+        reject(new PiAssignmentRunnerError(
+          `Pi Assignment exceeded ${this.#assignmentTimeoutMs}ms`,
+        ));
+      }, { once: true });
+    });
+
+    try {
+      await Promise.race([
+        active.session.prompt(buildPrompt(packet, options), { expandPromptTemplates: false }),
+        timedOut,
+      ]);
+    } catch (error) {
+      await this.close(assignmentId);
+      throw error;
+    }
+
+    if (active.response === undefined) {
+      await this.close(assignmentId);
+      throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
+    }
+    return active.response;
+  }
+
+  async close(assignmentId: string): Promise<void> {
+    const active = this.#sessions.get(assignmentId);
+    if (active === undefined) return;
+    this.#sessions.delete(assignmentId);
+    active.unsubscribe();
+    if (!active.session.isIdle) await boundedAbort(active.session.abort());
+    active.session.dispose();
+  }
+
+  async dispose(): Promise<void> {
+    await Promise.all([...this.#sessions.keys()].map((assignmentId) =>
+      this.close(assignmentId)
+    ));
+  }
+
+  async #createActiveSession(packet: AssignmentPacket): Promise<ActiveSession> {
+    let active: ActiveSession | undefined;
+    let earlyResponse: JsonObject | undefined;
+    const capture = (response: JsonObject) => {
+      if (active === undefined) earlyResponse = response;
+      else active.response = response;
+    };
+    const session = this.#sessionFactory === undefined
+      ? await this.#createDefaultSession(packet, capture)
+      : await this.#sessionFactory(packet, capture);
+    const unsubscribe = this.#onText === undefined
+      ? () => {}
+      : session.subscribe((event) => {
+          if (!isTextDeltaEvent(event)) return;
+          this.#onText?.(event.assistantMessageEvent.delta);
+        });
+    active = { session, unsubscribe, ...(earlyResponse ? { response: earlyResponse } : {}) };
+    this.#sessions.set(packet.assignment.id, active);
+    return active;
+  }
+
+  async #createDefaultSession(
+    packet: AssignmentPacket,
+    capture: (response: JsonObject) => void,
+  ): Promise<PiAssignmentSession> {
     const completionTool = defineTool({
       name: "complete_assignment",
       label: "Complete Assignment",
@@ -76,7 +172,7 @@ export class PiAssignmentRunner {
         if (!isJsonObject(parameters)) {
           throw new PiAssignmentRunnerError("complete_assignment returned a non-object response");
         }
-        response = parameters;
+        capture(parameters);
         return {
           content: [{ type: "text" as const, text: "Assignment Response captured." }],
           details: {},
@@ -108,42 +204,13 @@ export class PiAssignmentRunner {
       sessionManager: SessionManager.inMemory(this.#repository),
       settingsManager,
     });
-    const unsubscribe = this.#onText === undefined
-      ? () => {}
-      : session.subscribe((event) => {
-          if (
-            event.type === "message_update" &&
-            event.assistantMessageEvent.type === "text_delta"
-          ) this.#onText?.(event.assistantMessageEvent.delta);
-        });
-
-    const timeout = AbortSignal.timeout(this.#assignmentTimeoutMs);
-    const timedOut = new Promise<never>((_resolve, reject) => {
-      timeout.addEventListener("abort", () => {
-        reject(new PiAssignmentRunnerError(
-          `Pi Assignment exceeded ${this.#assignmentTimeoutMs}ms`,
-        ));
-      }, { once: true });
-    });
-
-    try {
-      await Promise.race([
-        session.prompt(buildPrompt(packet, options), { expandPromptTemplates: false }),
-        timedOut,
-      ]);
-    } catch (error) {
-      if (!session.isIdle) await boundedAbort(session.abort());
-      throw error;
-    } finally {
-      unsubscribe();
-      if (!session.isIdle) await boundedAbort(session.abort());
-      session.dispose();
-    }
-
-    if (response === undefined) {
-      throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
-    }
-    return response;
+    return {
+      get isIdle() { return session.isIdle; },
+      prompt: (text, options) => session.prompt(text, options),
+      abort: () => session.abort(),
+      dispose: () => session.dispose(),
+      subscribe: (listener) => session.subscribe((event) => listener(event)),
+    };
   }
 }
 
@@ -194,4 +261,13 @@ async function boundedAbort(abort: Promise<void>): Promise<void> {
 
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isTextDeltaEvent(value: unknown): value is {
+  type: "message_update";
+  assistantMessageEvent: { type: "text_delta"; delta: string };
+} {
+  if (!isJsonObject(value) || value.type !== "message_update") return false;
+  const event = value.assistantMessageEvent;
+  return isJsonObject(event) && event.type === "text_delta" && typeof event.delta === "string";
 }

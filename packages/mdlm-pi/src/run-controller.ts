@@ -19,7 +19,9 @@ type MdlmPort = Pick<MdlmClient,
   "status" | "next" | "assignment" | "prepare" | "prepareSubmission" |
   "submit" | "execution" | "doctor"
 >;
-type AssignmentPort = Pick<PiAssignmentRunner, "run">;
+type AssignmentPort = Pick<PiAssignmentRunner, "run"> & {
+  close?: (assignmentId: string) => Promise<void>;
+};
 type GitPort = Pick<GitPublisher,
   "assertClean" | "head" | "commit" | "publicationCommitState" |
   "pendingTransactionIds"
@@ -27,7 +29,8 @@ type GitPort = Pick<GitPublisher,
 type JournalPort = Pick<RunJournal,
   "load" | "beginAdvancement" | "recordAdvancementExecutions" |
   "completeAdvancementExecution" | "beginSubmission" | "replaceSubmission" |
-  "recordPublication" | "recordDoctorPassed" | "clear"
+  "recordSubmissionProcess" | "clearSubmissionProcess" | "recordPublication" |
+  "recordDoctorPassed" | "clear"
 >;
 
 export interface RunControllerOptions {
@@ -157,10 +160,22 @@ export class RunController {
     let options = initialOptions;
     let replacementDigest = initialReplacementDigest;
     while (true) {
-      const response = await this.#assignments.run(packet, options);
+      let response: JsonObject;
+      try {
+        response = await this.#assignments.run(packet, options);
+      } catch (error) {
+        await this.#assignments.close?.(packet.assignment.id);
+        throw error;
+      }
       const submitted = await this.#submit(packet, response, replacementDigest);
-      if (submitted.kind === "published") return null;
-      if (submitted.kind === "stopped") return submitted.stop;
+      if (submitted.kind === "published") {
+        await this.#assignments.close?.(packet.assignment.id);
+        return null;
+      }
+      if (submitted.kind === "stopped") {
+        await this.#assignments.close?.(packet.assignment.id);
+        return submitted.stop;
+      }
       options = {
         correction: {
           previousResponse: submitted.previousResponse,
@@ -196,7 +211,9 @@ export class RunController {
       await this.#journal.replaceSubmission(replacementDigest, intent);
     }
 
-    const submission = await this.#mdlm.submit(prepared);
+    const submission = await this.#mdlm.submit(prepared, {
+      started: (process) => this.#journal.recordSubmissionProcess(process),
+    });
     return this.#consumeSubmission(packet, response, prepared, submission);
   }
 
@@ -267,6 +284,29 @@ export class RunController {
     this.#io.progress(`Recovering ${record.phase} transaction for Assignment ${record.assignment.id}`);
 
     if (record.phase === "submitting") {
+      const child = record.submission.process;
+      if (child !== undefined) {
+        if (processAlive(child.pid)) {
+          return {
+            kind: "stopped",
+            stop: {
+              status: "submission-child-active",
+              details: {
+                pid: child.pid,
+                stdoutPath: child.stdoutPath,
+                stderrPath: child.stderrPath,
+              },
+              successful: false,
+            },
+          };
+        }
+        await this.#journal.clearSubmissionProcess();
+        const refreshed = await this.#journal.load();
+        if (refreshed?.phase !== "submitting") {
+          throw new Error("Run journal lost submission evidence after child exit");
+        }
+        record = refreshed;
+      }
       const recovered = await this.#recoverSubmission(record);
       if (recovered !== null) return recovered;
       record = await this.#journal.load();
@@ -361,7 +401,9 @@ export class RunController {
       source: record.submission.source,
       digest: record.submission.digest,
     };
-    const submission = await this.#mdlm.submit(prepared);
+    const submission = await this.#mdlm.submit(prepared, {
+      started: (process) => this.#journal.recordSubmissionProcess(process),
+    });
     if (submission.contract === "mdlm-scenario-execution@4") {
       const publication = publicationFromCommand(submission, {
         assignmentId: record.assignment.id,
@@ -437,6 +479,15 @@ export class RunController {
   #report(stop: RunStop): RunStop {
     this.#io.stopped(stop.status, stop.details);
     return stop;
+  }
+}
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return !(error instanceof Error && "code" in error && error.code === "ESRCH");
   }
 }
 

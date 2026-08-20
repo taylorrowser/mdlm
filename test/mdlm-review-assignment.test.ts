@@ -207,25 +207,21 @@ describe("delegated Review Assignment packets", () => {
         contract: "mdlm-performance@1",
         repository: expect.objectContaining({ loads: 1 }),
       }));
-      const reviewAssignment = JSON.parse(nextReview.stdout).assignment.id as string;
-      const preparedReview = mdlm(
-        repository,
-        "scenario", "prepare", reviewAssignment, "--json",
-      );
-      expectSuccess(preparedReview, "mdlm scenario prepare Review");
-      const reviewPacket = JSON.parse(preparedReview.stdout) as Packet;
-      expect(reviewPacket.contract).toBe("mdlm-assignment-packet@2");
-      expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
-      expect(exactInput(reviewPacket, "subject")).toBe(mapRevision);
-      expect(exactInput(reviewPacket, "review_context")).toMatch(
-        /^BSL-[0-9A-HJKMNP-TV-Z]{10,12}-r00001$/,
-      );
+      const nextReviewOutput = JSON.parse(nextReview.stdout) as {
+        assignment: { id: string };
+        materializedExecutions: { id: string; scenario: string; status: string }[];
+      };
+      const preCommitReviewAssignment = nextReviewOutput.assignment.id;
+      expect(nextReviewOutput.materializedExecutions).toEqual([
+        expect.objectContaining({ scenario: "create-review-context@1", status: "completed" }),
+      ]);
       const transactionRoot = path.join(repository, ".lifecycle/data/.transactions");
       const executionFiles = (await fs.readdir(transactionRoot)).map((id) =>
         path.join(transactionRoot, id, "execution.json")
       );
       const executions = await Promise.all(executionFiles.map(async (file) =>
         JSON.parse(await fs.readFile(file, "utf8")) as {
+          id?: string;
           definition?: { scenario?: string };
           response?: { assignment?: string };
         }
@@ -237,6 +233,34 @@ describe("delegated Review Assignment packets", () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
       );
       expect(materializationExecution?.response?.assignment).not.toMatch(/^kernel-/);
+      expect(materializationExecution?.response?.assignment).not.toBe(
+        preCommitReviewAssignment,
+      );
+      expect(nextReviewOutput.materializedExecutions[0]?.id).toBe(
+        materializationExecution?.id,
+      );
+
+      commitLifecycleData(repository, "Publish automatic Review Context");
+      const freshReview = mdlm(repository, "next", "--json");
+      expectSuccess(freshReview, "mdlm next after Review Context commit");
+      const freshReviewOutput = JSON.parse(freshReview.stdout) as {
+        assignment: { id: string };
+        materializedExecutions: unknown[];
+      };
+      expect(freshReviewOutput.materializedExecutions).toEqual([]);
+      expect(freshReviewOutput.assignment.id).not.toBe(preCommitReviewAssignment);
+      const preparedReview = mdlm(
+        repository,
+        "scenario", "prepare", freshReviewOutput.assignment.id, "--json",
+      );
+      expectSuccess(preparedReview, "mdlm scenario prepare fresh Review");
+      const reviewPacket = JSON.parse(preparedReview.stdout) as Packet;
+      expect(reviewPacket.contract).toBe("mdlm-assignment-packet@2");
+      expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
+      expect(exactInput(reviewPacket, "subject")).toBe(mapRevision);
+      expect(exactInput(reviewPacket, "review_context")).toMatch(
+        /^BSL-[0-9A-HJKMNP-TV-Z]{10,12}-r00001$/,
+      );
 
       const reviewPolicy = reviewPacket.policies.find((policy) =>
       policy.role === "review"

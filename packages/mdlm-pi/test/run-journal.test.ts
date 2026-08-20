@@ -39,6 +39,13 @@ describe("RunJournal", () => {
       response,
     });
 
+    await journal.recordSubmissionProcess({
+      id: "attempt-1",
+      pid: 12345,
+      stdoutPath: path.join(storagePath, "attempts", "attempt-1.stdout"),
+      stderrPath: path.join(storagePath, "attempts", "attempt-1.stderr"),
+    });
+
     expect(await new RunJournal(storagePath).load()).toEqual({
       contract: "mdlm-pi-run-journal@1",
       phase: "submitting",
@@ -49,6 +56,12 @@ describe("RunJournal", () => {
         previousTransactionId: "transaction-0",
         baseCommit: "0123456789abcdef",
         previousMalformedResponseDigests: ["sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+        process: {
+          id: "attempt-1",
+          pid: 12345,
+          stdoutPath: path.join(storagePath, "attempts", "attempt-1.stdout"),
+          stderrPath: path.join(storagePath, "attempts", "attempt-1.stderr"),
+        },
       },
     });
 
