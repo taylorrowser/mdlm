@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import { GitPublisher } from "../src/git-publisher.js";
 import { MdlmClient } from "../src/mdlm-client.js";
 import { RunJournal } from "../src/run-journal.js";
 
@@ -56,6 +57,94 @@ describe("mdlm-pi run process boundary", () => {
     expect(result.status).toBe(3);
     expect(JSON.parse(result.stdout)).toMatchObject({ status: "invalid" });
     expect(result.stderr).toBe("");
+  });
+
+  it("preserves Invalid exit 3 and reevaluation state after materialization", async () => {
+    const invalid = {
+      outcome: "invalid",
+      diagnostics: [{ code: "INVALID", message: "post-materialization invalid" }],
+    };
+    const fixture = await processFixture({ currentOutcome: invalid });
+    const git = new GitPublisher({ repository: fixture.repository });
+    const repository = await git.repositoryFingerprint();
+    const journal = new RunJournal(path.join(await git.gitDirectory(), "mdlm-pi"));
+    const packageIdentity = {
+      reference: "package-neutral@1",
+      digest: `sha256:${"a".repeat(64)}`,
+      language: "mdlm-expression@1",
+    };
+    const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
+    await journal.beginAdvancement({
+      package: packageIdentity,
+      repository,
+      previousTransactionId: null,
+    });
+    await journal.recordAdvancementExecutions([{
+      executionId,
+      scenario: "automatic-materialization@1",
+      responseDigest: `sha256:${"b".repeat(64)}`,
+      outputPaths: [`.lifecycle/data/.transactions/${executionId}/datum.md`],
+      blobs: [{
+        path: `.lifecycle/data/.transactions/${executionId}/datum.md`,
+        oid: "c".repeat(40),
+      }],
+    }]);
+    await journal.completeAdvancementExecution(executionId, repository.head, repository);
+    const expectedJournal = await journal.load();
+
+    const result = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      fixture.repository,
+      "--mdlm",
+      fixture.mdlm,
+    ], fixture.invocationDirectory);
+
+    expect(result.status).toBe(3);
+    expect(JSON.parse(result.stdout)).toMatchObject({ status: "invalid" });
+    expect(result.stderr).toBe("");
+    expect(await journal.load()).toEqual(expectedJournal);
+  });
+
+  it("retains exact MDLM diagnostics when Assignment preparation fails", async () => {
+    const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
+    const prepareFailure = {
+      contract: "mdlm-scenario-prepare-failure@1",
+      command: "scenario.prepare",
+      ok: false,
+      assignment: { id: assignmentId },
+      diagnostics: [{
+        code: "ASSIGNMENT_REPOSITORY_CHANGED",
+        message: "Assignment repository HEAD no longer matches the tracked state digest",
+        details: {
+          expectedHead: "base-commit",
+          actualHead: "materialization-commit",
+        },
+      }],
+    };
+    const fixture = await processFixture({
+      currentOutcome: {
+        outcome: "assignment",
+        assignment: { allocation: "active", id: assignmentId },
+      },
+      prepareFailure,
+    });
+
+    const result = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      fixture.repository,
+      "--mdlm",
+      fixture.mdlm,
+    ], fixture.invocationDirectory);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      status: "operational-failure",
+      error: "MDLM could not prepare the Assignment",
+      details: prepareFailure,
+    });
   });
 
   it("stops foreground progress and its MDLM child when the terminal sends SIGHUP", async () => {
@@ -112,6 +201,11 @@ const executionId = ${JSON.stringify(executionId)};
 const scenario = ${JSON.stringify(scenario)};
 const responseDigest = ${JSON.stringify(responseDigest)};
 const outputPath = ${JSON.stringify(outputPath)};
+const packageIdentity = {
+  reference: "package-neutral@1",
+  digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  language: "mdlm-expression@1"
+};
 let hasMaterialization = false;
 try { await access(materialized); hasMaterialization = true; } catch {}
 const execution = {
@@ -130,6 +224,7 @@ if (args[0] === "next") {
 } else if (args[0] === "status") {
   process.stdout.write(JSON.stringify({
     contract: "mdlm-status@1", command: "status", ok: true,
+    package: packageIdentity,
     currentOutcome: hasMaterialization
       ? { outcome: "lifecycle-complete" }
       : { outcome: "assignment", assignment: { allocation: "not-allocated" } },
@@ -210,7 +305,11 @@ if (args[0] === "next") {
     const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
     const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
     const scenario = "package-neutral-example@1";
-    const packageIdentity = { reference: "package-neutral@1", digest: "sha256:package" };
+    const packageIdentity = {
+      reference: "package-neutral@1",
+      digest: `sha256:${"a".repeat(64)}`,
+      language: "mdlm-expression@1",
+    };
     const repositoryFingerprint = { head: "fixture", lifecycle: "sha256:lifecycle" };
     await mkdir(repository);
     await mkdir(invocationDirectory);
@@ -386,6 +485,7 @@ if (args[0] === "scenario" && args[1] === "submit") {
 async function processFixture(options: {
   blockStatus?: boolean;
   currentOutcome?: Record<string, unknown>;
+  prepareFailure?: Record<string, unknown>;
 } = {}): Promise<{
   repository: string;
   invocationDirectory: string;
@@ -415,22 +515,29 @@ import { appendFile, access, writeFile } from "node:fs/promises";
 const log = ${JSON.stringify(log)};
 const ready = ${JSON.stringify(ready)};
 const release = ${JSON.stringify(release)};
-await appendFile(log, JSON.stringify({ cwd: process.cwd(), arguments: process.argv.slice(2) }) + "\\n");
+const args = process.argv.slice(2);
+await appendFile(log, JSON.stringify({ cwd: process.cwd(), arguments: args }) + "\\n");
 if (${JSON.stringify(options.blockStatus === true)}) {
   await writeFile(ready, "ready\\n");
   while (true) {
     try { await access(release); break; } catch { await new Promise((resolve) => setTimeout(resolve, 10)); }
   }
 }
-process.stdout.write(JSON.stringify({
-  contract: "mdlm-status@1",
-  command: "status",
-  ok: true,
-  currentOutcome: ${JSON.stringify(
-    options.currentOutcome ?? { outcome: "lifecycle-complete", explanation: "fixture complete" },
-  )},
-  recentTransaction: { available: false },
-}));
+const prepareFailure = ${JSON.stringify(options.prepareFailure ?? null)};
+if (args[0] === "scenario" && args[1] === "prepare" && prepareFailure !== null) {
+  process.stdout.write(JSON.stringify(prepareFailure));
+  process.exitCode = 1;
+} else {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-status@1",
+    command: "status",
+    ok: true,
+    currentOutcome: ${JSON.stringify(
+      options.currentOutcome ?? { outcome: "lifecycle-complete", explanation: "fixture complete" },
+    )},
+    recentTransaction: { available: false },
+  }));
+}
 `);
   await chmod(mdlm, 0o755);
   return { repository, invocationDirectory, mdlm, log, ready, release };
