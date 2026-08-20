@@ -1,3 +1,14 @@
+export const mdlmPiTestFiles = [
+  "packages/mdlm-pi/test/cli-process.test.ts",
+  "packages/mdlm-pi/test/git-publisher.test.ts",
+  "packages/mdlm-pi/test/live-integration.test.ts",
+  "packages/mdlm-pi/test/mdlm-client.test.ts",
+  "packages/mdlm-pi/test/pi-assignment-runner.test.ts",
+  "packages/mdlm-pi/test/run-controller.test.ts",
+  "packages/mdlm-pi/test/run-journal.test.ts",
+  "packages/mdlm-pi/test/run-lock.test.ts",
+];
+
 export const testFiles = [
   "test/change-and-pilot-hardening-routes.test.ts",
   "test/dependency-changes.test.ts",

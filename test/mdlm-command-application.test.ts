@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -104,6 +105,63 @@ describe("clean mdlm command application", () => {
       expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
     }
     await expect(fs.stat(marker)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("projects durable Assignment dispositions for external crash reconciliation", () => {
+    const next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const assignment = JSON.parse(next.stdout).assignment.id as string;
+
+    const active = mdlm(repository, "assignment", "show", assignment, "--json");
+    expect(active.status, `${active.stderr}${active.stdout}`).toBe(0);
+    expect(JSON.parse(active.stdout)).toMatchObject({
+      ok: true,
+      command: "assignment.show",
+      contract: "mdlm-assignment-state@1",
+      assignment: { id: assignment },
+      selected: true,
+      disposition: "active",
+      retryAvailability: { malformedResponseCorrection: 1 },
+      malformedResponses: [],
+    });
+
+    const malformedSource = "{}\n";
+    const malformed = mdlmWithInput(
+      repository,
+      malformedSource,
+      "scenario",
+      "submit",
+      "-",
+      "--json",
+    );
+    expect(malformed.status, `${malformed.stderr}${malformed.stdout}`).toBe(1);
+    expect(JSON.parse(malformed.stdout)).toMatchObject({
+      disposition: "correction-required",
+    });
+
+    const correction = mdlm(repository, "assignment", "show", assignment, "--json");
+    expect(correction.status, `${correction.stderr}${correction.stdout}`).toBe(0);
+    expect(JSON.parse(correction.stdout)).toMatchObject({
+      selected: true,
+      disposition: "active",
+      retryAvailability: { malformedResponseCorrection: 0 },
+      malformedResponses: [{
+        digest: `sha256:${createHash("sha256").update(malformedSource).digest("hex")}`,
+      }],
+    });
+
+    const absent = mdlm(
+      repository,
+      "assignment",
+      "show",
+      "00000000-0000-4000-8000-000000000000",
+      "--json",
+    );
+    expect(absent.status, `${absent.stderr}${absent.stdout}`).toBe(0);
+    expect(JSON.parse(absent.stdout)).toMatchObject({
+      contract: "mdlm-assignment-state@1",
+      selected: false,
+    });
   });
 
   it(

@@ -207,6 +207,32 @@ describe("MDLM Assignment leasing and preparation", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
+  it("allocates fresh exact work after an operator commit instead of reusing the pre-commit lease", () => {
+    const allocated = mdlm(repository, "next", "--json");
+    expect(allocated.status, `${allocated.stderr}${allocated.stdout}`).toBe(0);
+    const staleAssignment = JSON.parse(allocated.stdout).assignment.id as string;
+    const committed = git(repository, "commit", "--allow-empty", "-m", "Operator boundary");
+    expect(committed.status, committed.stderr).toBe(0);
+    const status = mdlm(repository, "status", "--json");
+    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
+    expect(JSON.parse(status.stdout).currentOutcome).toEqual({
+      outcome: "assignment",
+      assignment: { allocation: "not-allocated", id: staleAssignment },
+    });
+
+    const refreshed = mdlm(repository, "next", "--json");
+    expect(refreshed.status, `${refreshed.stderr}${refreshed.stdout}`).toBe(0);
+    const freshAssignment = JSON.parse(refreshed.stdout).assignment.id as string;
+    expect(freshAssignment).not.toBe(staleAssignment);
+
+    const prepared = mdlm(repository, "scenario", "prepare", freshAssignment, "--json");
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    expect(JSON.parse(prepared.stdout).assignment.id).toBe(freshAssignment);
+    const stale = mdlm(repository, "assignment", "show", staleAssignment, "--json");
+    expect(stale.status, `${stale.stderr}${stale.stdout}`).toBe(0);
+    expect(JSON.parse(stale.stdout)).toMatchObject({ selected: false });
+  });
+
   it("leases one exact bundled-package Assignment and prepares its complete packet", async () => {
     const first = mdlm(repository, "next");
     expect(first.status, `${first.stderr}${first.stdout}`).toBe(0);
