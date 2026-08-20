@@ -189,56 +189,226 @@ describe("RunController", () => {
     expect(mdlm.next).not.toHaveBeenCalled();
   });
 
-  it("commits automatic materialization before reevaluating instead of using its stale lease", async () => {
+  it("prepares only a post-materialization Assignment bound to the committed repository", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-advance-"));
     roots.push(root);
     const journal = new RunJournal(path.join(root, "state"));
-    const digest = `sha256:${"a".repeat(64)}` as const;
+    const materializationDigest = `sha256:${"a".repeat(64)}` as const;
+    const freshAssignmentId = "e9ab75f1-d9eb-411d-8c76-5813594af02a";
+    const freshExecutionId = "66d46c68-94e9-4de4-ae9c-0a13f31e915a";
+    const staleAssignmentId = "pre-commit-stale-assignment";
+    const postCommitRepository = {
+      head: "materialization-commit",
+      lifecycle: `sha256:${"b".repeat(64)}`,
+    };
     const statuses: MdlmStatus[] = [
       assignmentStatus(false),
       {
         contract: "mdlm-status@1",
         command: "status",
         ok: true,
-        currentOutcome: { outcome: "lifecycle-complete", explanation: "done" },
+        currentOutcome: {
+          outcome: "assignment",
+          assignment: { allocation: "not-allocated", id: staleAssignmentId },
+        },
         recentTransaction: { available: true, id: executionId },
       },
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: {
+          outcome: "assignment",
+          assignment: { allocation: "active", id: freshAssignmentId },
+        },
+        recentTransaction: { available: true, id: executionId },
+      },
+      {
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: { outcome: "lifecycle-complete", explanation: "done" },
+        recentTransaction: { available: true, id: freshExecutionId },
+      },
     ];
-    const mdlm = {
-      status: vi.fn(async () => statuses.shift()!),
-      next: vi.fn(async () => ({
+    const nextOutcomes = [
+      {
         contract: "mdlm-next@1" as const,
         command: "next" as const,
         ok: true,
         outcome: "assignment" as const,
-        assignment: { id: "pre-commit-stale-assignment" },
+        assignment: { id: staleAssignmentId },
         materializedExecutions: [{ id: executionId, scenario, status: "completed" as const }],
+      },
+      {
+        contract: "mdlm-next@1" as const,
+        command: "next" as const,
+        ok: true,
+        outcome: "assignment" as const,
+        assignment: { id: freshAssignmentId },
+        materializedExecutions: [],
+      },
+    ];
+    const response: JsonObject = { assignment: freshAssignmentId, complete: true };
+    let currentHead = "base-commit";
+    const mdlm = {
+      status: vi.fn(async () => statuses.shift()!),
+      next: vi.fn(async () => nextOutcomes.shift()!),
+      assignment: vi.fn(async () => ({
+        ...activeAssignmentState(),
+        assignment: { id: freshAssignmentId },
+        repository: postCommitRepository,
       })),
-      assignment: vi.fn(),
-      prepare: vi.fn(),
-      prepareSubmission: vi.fn(),
-      submit: vi.fn(),
+      prepare: vi.fn(async (id: string) => {
+        if (id === staleAssignmentId) {
+          throw new Error("stale pre-materialization Assignment was prepared");
+        }
+        return {
+          ...packet(freshAssignmentId),
+          repository: postCommitRepository,
+        };
+      }),
+      prepareSubmission: vi.fn((value: JsonObject): PreparedAssignmentSubmission => {
+        const source = `${JSON.stringify(value)}\n`;
+        return {
+          response: value,
+          source,
+          digest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+        };
+      }),
+      submit: vi.fn(async (prepared: PreparedAssignmentSubmission) => ({
+        contract: "mdlm-scenario-execution@4" as const,
+        command: "scenario.submit" as const,
+        ok: true,
+        execution: {
+          ...executionRecord(prepared.digest),
+          id: freshExecutionId,
+          response: { assignment: freshAssignmentId, digest: prepared.digest },
+        },
+      })),
       execution: vi.fn(async () => ({
         ok: true as const,
         command: "scenario.execution.show" as const,
-        execution: executionRecord(digest),
+        execution: executionRecord(materializationDigest),
       })),
       doctor: vi.fn(async () => ({ command: "doctor" as const, ok: true })),
     };
     const git = {
       assertClean: vi.fn(async () => undefined),
-      head: vi.fn(async () => "base-commit"),
+      head: vi.fn(async () => currentHead),
       capturePublication,
       publicationCommitState: vi.fn(),
-      pendingTransactionIds: vi.fn(async () => [executionId]),
-      commit: vi.fn(async () => "materialization-commit"),
+      pendingTransactionIds: vi.fn(async () =>
+        currentHead === "base-commit" ? [executionId] : []
+      ),
+      commit: vi.fn(async (publication: { executionId: string }) => {
+        currentHead = publication.executionId === executionId
+          ? "materialization-commit"
+          : "assignment-commit";
+        return currentHead;
+      }),
+    };
+    const assignments = {
+      run: vi.fn(async (preparedPacket: AssignmentPacket) => {
+        expect(preparedPacket.assignment.id).toBe(freshAssignmentId);
+        expect(preparedPacket.repository).toEqual(postCommitRepository);
+        expect(currentHead).toBe(postCommitRepository.head);
+        return response;
+      }),
     };
     const io = { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() };
+    const controller = new RunController({ mdlm, assignments, git, io, journal });
+
+    await expect(controller.run()).resolves.toMatchObject({
+      status: "lifecycle-complete",
+      successful: true,
+    });
+    expect(mdlm.next).toHaveBeenCalledTimes(2);
+    expect(mdlm.prepare).toHaveBeenCalledTimes(1);
+    expect(mdlm.prepare).toHaveBeenCalledWith(freshAssignmentId);
+    expect(assignments.run).toHaveBeenCalledTimes(1);
+    expect(git.commit).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        executionId,
+        responseDigest: materializationDigest,
+      }),
+      "base-commit",
+      [],
+    );
+    expect(git.commit).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ executionId: freshExecutionId }),
+      "materialization-commit",
+    );
+    expect(mdlm.doctor).toHaveBeenCalledTimes(2);
+    expect(await journal.load()).toBeNull();
+  });
+
+  it("resumes post-materialization reevaluation without recommitting or preparing a stale projection", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-reevaluate-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const digest = `sha256:${"a".repeat(64)}` as const;
+    await journal.beginAdvancement({
+      baseCommit: "base-commit",
+      previousTransactionId: null,
+    });
+    await journal.recordAdvancementExecutions([await capturePublication({
+      executionId,
+      scenario,
+      responseDigest: digest,
+      outputPaths: [`.lifecycle/data/.transactions/${executionId}/map.md`],
+    })]);
+    await journal.completeAdvancementExecution(executionId, "materialization-commit");
+    expect(await journal.load()).toEqual({
+      contract: "mdlm-pi-run-journal@1",
+      phase: "reevaluating",
+    });
+
+    const mdlm = {
+      status: vi.fn(async (): Promise<MdlmStatus> => ({
+        contract: "mdlm-status@1",
+        command: "status",
+        ok: true,
+        currentOutcome: {
+          outcome: "assignment",
+          assignment: {
+            allocation: "not-allocated",
+            id: "pre-commit-stale-assignment",
+          },
+        },
+        recentTransaction: { available: true, id: executionId },
+      })),
+      next: vi.fn(async () => ({
+        contract: "mdlm-next@1" as const,
+        command: "next" as const,
+        ok: true,
+        outcome: "lifecycle-complete" as const,
+        materializedExecutions: [],
+      })),
+      assignment: vi.fn(),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const git = {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(async () => "materialization-commit"),
+      capturePublication,
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(async () => []),
+      commit: vi.fn(async () => {
+        throw new Error("automatic materialization was committed twice");
+      }),
+    };
     const controller = new RunController({
       mdlm,
       assignments: { run: vi.fn() },
       git,
-      io,
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
       journal,
     });
 
@@ -246,15 +416,10 @@ describe("RunController", () => {
       status: "lifecycle-complete",
       successful: true,
     });
-    expect(git.commit).toHaveBeenCalledWith(
-      expect.objectContaining({ executionId, responseDigest: digest }),
-      "base-commit",
-      [],
-    );
-    expect(mdlm.doctor).toHaveBeenCalledTimes(1);
-    expect(mdlm.status).toHaveBeenCalledTimes(2);
-    expect(mdlm.assignment).not.toHaveBeenCalled();
+    expect(mdlm.status).toHaveBeenCalledTimes(1);
+    expect(mdlm.next).toHaveBeenCalledTimes(1);
     expect(mdlm.prepare).not.toHaveBeenCalled();
+    expect(git.commit).not.toHaveBeenCalled();
     expect(await journal.load()).toBeNull();
   });
 

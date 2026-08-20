@@ -58,6 +58,47 @@ describe("mdlm-pi run process boundary", () => {
     expect(result.stderr).toBe("");
   });
 
+  it("retains exact MDLM diagnostics when Assignment preparation fails", async () => {
+    const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
+    const prepareFailure = {
+      contract: "mdlm-scenario-prepare-failure@1",
+      command: "scenario.prepare",
+      ok: false,
+      assignment: { id: assignmentId },
+      diagnostics: [{
+        code: "ASSIGNMENT_REPOSITORY_CHANGED",
+        message: "Assignment repository HEAD no longer matches the tracked state digest",
+        details: {
+          expectedHead: "base-commit",
+          actualHead: "materialization-commit",
+        },
+      }],
+    };
+    const fixture = await processFixture({
+      currentOutcome: {
+        outcome: "assignment",
+        assignment: { allocation: "active", id: assignmentId },
+      },
+      prepareFailure,
+    });
+
+    const result = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      fixture.repository,
+      "--mdlm",
+      fixture.mdlm,
+    ], fixture.invocationDirectory);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr)).toEqual({
+      status: "operational-failure",
+      error: "MDLM could not prepare the Assignment",
+      details: prepareFailure,
+    });
+  });
+
   it("stops foreground progress and its MDLM child when the terminal sends SIGHUP", async () => {
     const fixture = await processFixture({ blockStatus: true });
     const operator = spawn(process.execPath, [
@@ -386,6 +427,7 @@ if (args[0] === "scenario" && args[1] === "submit") {
 async function processFixture(options: {
   blockStatus?: boolean;
   currentOutcome?: Record<string, unknown>;
+  prepareFailure?: Record<string, unknown>;
 } = {}): Promise<{
   repository: string;
   invocationDirectory: string;
@@ -415,22 +457,29 @@ import { appendFile, access, writeFile } from "node:fs/promises";
 const log = ${JSON.stringify(log)};
 const ready = ${JSON.stringify(ready)};
 const release = ${JSON.stringify(release)};
-await appendFile(log, JSON.stringify({ cwd: process.cwd(), arguments: process.argv.slice(2) }) + "\\n");
+const args = process.argv.slice(2);
+await appendFile(log, JSON.stringify({ cwd: process.cwd(), arguments: args }) + "\\n");
 if (${JSON.stringify(options.blockStatus === true)}) {
   await writeFile(ready, "ready\\n");
   while (true) {
     try { await access(release); break; } catch { await new Promise((resolve) => setTimeout(resolve, 10)); }
   }
 }
-process.stdout.write(JSON.stringify({
-  contract: "mdlm-status@1",
-  command: "status",
-  ok: true,
-  currentOutcome: ${JSON.stringify(
-    options.currentOutcome ?? { outcome: "lifecycle-complete", explanation: "fixture complete" },
-  )},
-  recentTransaction: { available: false },
-}));
+const prepareFailure = ${JSON.stringify(options.prepareFailure ?? null)};
+if (args[0] === "scenario" && args[1] === "prepare" && prepareFailure !== null) {
+  process.stdout.write(JSON.stringify(prepareFailure));
+  process.exitCode = 1;
+} else {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-status@1",
+    command: "status",
+    ok: true,
+    currentOutcome: ${JSON.stringify(
+      options.currentOutcome ?? { outcome: "lifecycle-complete", explanation: "fixture complete" },
+    )},
+    recentTransaction: { available: false },
+  }));
+}
 `);
   await chmod(mdlm, 0o755);
   return { repository, invocationDirectory, mdlm, log, ready, release };

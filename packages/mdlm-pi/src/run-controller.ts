@@ -98,6 +98,7 @@ export class RunController {
         successful: false,
       });
     }
+    let reevaluationRequired = recovered?.kind === "reevaluate";
 
     await this.#git.assertClean();
     while (true) {
@@ -105,13 +106,17 @@ export class RunController {
       const status = await this.#mdlm.status();
       const outcome = status.currentOutcome;
       if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
+        if (reevaluationRequired) await this.#journal.clear();
         await this.#journal.clearAttendedConclusions();
         return this.#report(stopForOutcome(outcome));
       }
 
       const allocation = asObject(outcome.assignment, "status.currentOutcome.assignment");
       let allocated: JsonObject;
-      if (allocation.allocation === "active" || allocation.id !== undefined) {
+      if (
+        !reevaluationRequired &&
+        (allocation.allocation === "active" || allocation.id !== undefined)
+      ) {
         asString(allocation.id, "status.currentOutcome.assignment.id");
         allocated = {
           ...outcome,
@@ -122,8 +127,10 @@ export class RunController {
         if (advancement.materializedExecutions.length > 0) {
           // Committing automatic materialization changes the repository fingerprint and
           // retires the Assignment lease returned by the pre-commit `next`.
+          reevaluationRequired = true;
           continue;
         }
+        reevaluationRequired = false;
         allocated = advancement;
         if (allocated.outcome !== "assignment" && allocated.outcome !== "attention-required") {
           await this.#journal.clearAttendedConclusions();
@@ -337,10 +344,12 @@ export class RunController {
         replacementDigest: `sha256:${string}`;
       }
     | { kind: "stopped"; stop: RunStop }
+    | { kind: "reevaluate" }
     | null
   > {
     let record = await this.#journal.load();
     if (record === null) return null;
+    if (record.phase === "reevaluating") return { kind: "reevaluate" };
     if (record.phase === "captured") {
       this.#io.progress(`Recovering captured response for Assignment ${record.assignment.id}`);
       const state = await this.#mdlm.assignment(record.assignment.id);
@@ -400,8 +409,9 @@ export class RunController {
         );
         await this.#journal.recordAdvancementExecutions(publications);
       }
-      await this.#finishAdvancement();
-      return null;
+      return await this.#finishAdvancement()
+        ? { kind: "reevaluate" }
+        : null;
     }
     this.#io.progress(`Recovering ${record.phase} transaction for Assignment ${record.assignment.id}`);
 
@@ -562,7 +572,7 @@ export class RunController {
     }
   }
 
-  async #finishAdvancement(): Promise<void> {
+  async #finishAdvancement(): Promise<boolean> {
     let record = await this.#journal.load();
     if (record?.phase !== "advancing") {
       throw new Error("Advancement finalization requires a durable advancement intent");
@@ -580,19 +590,22 @@ export class RunController {
       this.#io.progress(`Committed ${commit}: ${publication.scenario}`);
       await this.#journal.completeAdvancementExecution(publication.executionId, commit);
       const next = await this.#journal.load();
+      if (next?.phase === "reevaluating") return true;
       if (next?.phase !== "advancing") {
         throw new Error("Run journal lost advancement evidence during commit finalization");
       }
       record = next;
     }
     await this.#journal.clear();
+    return false;
   }
 
   async #finishPublication(): Promise<void> {
     let record = await this.#journal.load();
     if (
       record === null || record.phase === "captured" ||
-      record.phase === "submitting" || record.phase === "advancing"
+      record.phase === "submitting" || record.phase === "advancing" ||
+      record.phase === "reevaluating"
     ) {
       throw new Error("Publication finalization requires journaled execution evidence");
     }

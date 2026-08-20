@@ -78,6 +78,10 @@ export type RunJournalRecord =
     }
   | {
       contract: typeof journalContract;
+      phase: "reevaluating";
+    }
+  | {
+      contract: typeof journalContract;
       phase: "captured";
       assignment: RecoveryAssignment;
       submission: {
@@ -173,7 +177,8 @@ export class RunJournal {
     baseCommit: string;
     previousTransactionId: string | null;
   }): Promise<void> {
-    if (await this.load() !== null) {
+    const current = await this.load();
+    if (current !== null && current.phase !== "reevaluating") {
       throw new RunJournalError("Cannot advance while recovery work remains in the run journal");
     }
     await this.#write({
@@ -199,14 +204,17 @@ export class RunJournal {
     if (current?.phase !== "advancing" || current.advancement.pending[0]?.executionId !== executionId) {
       throw new RunJournalError("Advancement commits must complete in journaled execution order");
     }
-    await this.#write({
-      ...current,
-      advancement: {
-        ...current.advancement,
-        baseCommit: commit,
-        pending: current.advancement.pending.slice(1),
-      },
-    });
+    const pending = current.advancement.pending.slice(1);
+    await this.#write(pending.length === 0
+      ? { contract: journalContract, phase: "reevaluating" }
+      : {
+          ...current,
+          advancement: {
+            ...current.advancement,
+            baseCommit: commit,
+            pending,
+          },
+        });
   }
 
   async captureSubmission(input: {
@@ -352,7 +360,10 @@ export class RunJournal {
 
   async clear(): Promise<void> {
     const current = await this.load();
-    if (current !== null && current.phase !== "advancing") {
+    if (
+      current !== null && current.phase !== "advancing" &&
+      current.phase !== "reevaluating"
+    ) {
       const processes = current.phase === "captured"
         ? current.submission.completedProcesses
         : [
@@ -459,6 +470,9 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
         pending: advancement.pending,
       },
     };
+  }
+  if (value.phase === "reevaluating") {
+    return { contract: journalContract, phase: "reevaluating" };
   }
   if (value.phase === "captured") {
     const assignment = value.assignment;
