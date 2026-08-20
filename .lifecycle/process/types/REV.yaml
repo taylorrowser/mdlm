@@ -1,6 +1,6 @@
 kind: type-definition
 id: REV
-version: 6
+version: 7
 name: Review
 description: Immutable judgment about one exact primary subject in one exact frozen context.
 extends: titled-datum@1
@@ -123,11 +123,17 @@ payload_schema:
                 - {required: [collateral_findings]}
                 - {required: [scope_reduction]}
     correction_authority:
-      description: Marks a failed Review whose correction would change stakeholder-owned intent; omission leaves package-bounded autonomous correction applicable.
-      const: stakeholder
+      description: Classifies whether a failed Review needs stakeholder judgment or can be corrected from exact package evidence.
+      enum: [stakeholder, package-evidence]
     outcome: {enum: [open, pass, fail, cancelled]}
     cancellation_reason: {type: string, minLength: 1}
   allOf:
+    - if:
+        properties:
+          outcome: {const: fail}
+        required: [outcome]
+      then: {required: [correction_authority]}
+      else: {not: {required: [correction_authority]}}
     - if:
         properties:
           findings:

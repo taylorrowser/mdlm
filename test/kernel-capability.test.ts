@@ -265,7 +265,7 @@ describe("exact-baseline@1 Kernel Capability", () => {
     const evidence = record("REV-8ZT5KQ3P9M", "REV", {
       title: "Evidence",
       outcome: "pass",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
     });
     const composed = record("SNP-9ZT5KQ3P8M", "SNP", {

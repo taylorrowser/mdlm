@@ -138,7 +138,7 @@ describe("resolveType", () => {
     const review = {
       title: "Product simplification",
       review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       outcome: "pass",
     };
 
@@ -169,6 +169,7 @@ describe("resolveType", () => {
       validate({
         ...review,
         outcome: "fail",
+        correction_authority: "package-evidence",
         simplification: {
           target: "STK-7K3M9Q2D8F-r00001",
           findings: [
@@ -202,7 +203,7 @@ describe("resolveType", () => {
     const review = {
       title: "Contextual review",
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       outcome: "fail",
       findings: [
         {
@@ -222,7 +223,11 @@ describe("resolveType", () => {
       evidence: "The same input permits success and rejection.",
       material_consequence: "A verifier cannot determine conformance.",
     };
-    expect(validate({ ...review, findings: [evidenceCompleteBlocker] })).toBe(true);
+    expect(validate({
+      ...review,
+      correction_authority: "package-evidence",
+      findings: [evidenceCompleteBlocker],
+    })).toBe(true);
     expect(
       validate({
         ...review,

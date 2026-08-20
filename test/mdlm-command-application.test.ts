@@ -92,7 +92,7 @@ describe("clean mdlm command application", () => {
       ["scenario", "execute", "establish-initial-wayfinding-map@1", "--adapter", adapter],
       ["question", "resolve", "--adapter", adapter],
       ["process", "install", path.join(projectRoot, ".lifecycle/process")],
-      ["process", "use", "mdlm-bootstrap@0.70.0"],
+      ["process", "use", "mdlm-bootstrap@0.71.0"],
       ["process", "init", path.join(parent, "package")],
       ["process", "definition", "new", "type", "NEW"],
       ["process", "fixture", "new", "new-fixture"],

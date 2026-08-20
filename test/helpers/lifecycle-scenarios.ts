@@ -180,7 +180,7 @@ export function exactContextWaiverFor(
   const review = frozenLifecycleRecord(processRef, "REV", "REV-2BC4DF6GHJ", {
     title: "Waiver review",
     review_kind: "contextual",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+    rubric_ref: "policies/rubrics/bootstrap-review.md@3",
     findings: [],
     outcome: "pass",
   }, {

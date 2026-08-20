@@ -153,7 +153,7 @@ function reviewPacket(repository: string, packet: Packet): string {
           review_kind: planningSubjects.has(subject)
             ? "simplification-product-definition"
             : "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           ...(planningSubjects.has(subject) ? {} : { findings: [] }),
           outcome: "pass",
         },
@@ -210,7 +210,7 @@ function simplifyDefinitionSet(repository: string, packet: Packet): string {
             title: `Simplify architecture definition set for ${plan}`,
             review_kind: "simplification-architecture-interfaces",
             decomposition_plan_revision: plan,
-            rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+            rubric_ref: "policies/rubrics/bootstrap-review.md@3",
             outcome: "pass",
           },
           links: [

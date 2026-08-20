@@ -30,7 +30,7 @@ rules:
         {subject: subject, view: "autonomous-corrections"}) < 2
       && every("phase-2-correction-reviews-for-subject@1",
         {subject: subject, view: "authority"}, review =>
-          review.payload.correction_authority != "stakeholder")
+          review.payload.correction_authority == "package-evidence")
     result:
       authority_mode: autonomous
       authority: package-evidence

@@ -123,7 +123,7 @@ describe("dependency change records", () => {
     unaffectedEvidence.datum.payload = {
       title: "Unaffected evidence",
       outcome: "pass",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
     };
 

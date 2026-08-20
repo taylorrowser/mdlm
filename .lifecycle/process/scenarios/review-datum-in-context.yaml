@@ -14,7 +14,7 @@ outputs:
     required_links:
       - {link: reviews, target: {input: subject}}
       - {link: contextualizes, target: {input: review_context}}
-prompt_ref: prompts/review-datum-in-context.md@5
+prompt_ref: prompts/review-datum-in-context.md@6
 review_policy_ref: review-applicability@1
 review_policy_arguments:
   subject: subject
@@ -34,6 +34,10 @@ completion: >-
   && review_context.payload.kind == "review-context"
   && review_context.storage.frozen == true
   && review.payload.outcome in ["pass", "fail", "cancelled"]
+  && (
+    review.payload.outcome != "fail"
+    || review.payload.correction_authority in ["stakeholder", "package-evidence"]
+  )
   && review.payload.rubric_ref
     == policy("review-applicability@1", {subject: subject}).rubric_ref
   && (

@@ -12,7 +12,7 @@ import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 
-const processRef = "mdlm-bootstrap@0.70.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.71.0#sha256:test";
 
 function lifecycleDatum(
   type: string,
@@ -75,7 +75,7 @@ function contextualPassingReview(subject: LifecycleRecord, id: string) {
     {
       title: `Passing Review of ${subject.datum.revision_id}`,
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     },
@@ -1463,7 +1463,7 @@ describe("bootstrap Scenario participation Policies", () => {
         {
           title: `Failed Review of ${subject.datum.revision_id}`,
           review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           findings: [
             {
               id: "F-001",
@@ -1479,6 +1479,7 @@ describe("bootstrap Scenario participation Policies", () => {
               summary: "The exact outcome remains ambiguous.",
             },
           ],
+          correction_authority: "package-evidence",
           outcome: "fail",
         },
         {
@@ -1509,7 +1510,7 @@ describe("bootstrap Scenario participation Policies", () => {
       {
         title: `Passing Review of ${current.datum.revision_id}`,
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -1620,7 +1621,7 @@ describe("bootstrap Scenario participation Policies", () => {
         {
           title: `Failed Review of ${subject.datum.revision_id}`,
           review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           findings: [
             {
               id: "F-001",
@@ -1636,9 +1637,7 @@ describe("bootstrap Scenario participation Policies", () => {
               summary: "The exact observable outcome remains ambiguous.",
             },
           ],
-          ...(correctionAuthority
-        ? { correction_authority: correctionAuthority }
-        : {}),
+          correction_authority: correctionAuthority ?? "package-evidence",
           outcome: "fail",
         },
         {
@@ -1831,7 +1830,7 @@ describe("bootstrap Scenario participation Policies", () => {
       {
         title: "Mis-scoped product simplification Review",
         review_kind: "simplification-product-definition",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         simplification: {
           target: product.datum.revision_id,
           findings: [
@@ -1848,6 +1847,7 @@ describe("bootstrap Scenario participation Policies", () => {
             },
           ],
         },
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       {
@@ -1908,6 +1908,7 @@ describe("bootstrap Scenario participation Policies", () => {
       ...foundation.map((subject) => subject.datum.revision_id),
     ];
     fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.correction_authority = "package-evidence";
     delete fixture.candidateReview.datum.payload.findings;
     fixture.candidateReview.datum.payload.simplification = {
       target: fixture.candidate.datum.revision_id,
@@ -1935,7 +1936,7 @@ describe("bootstrap Scenario participation Policies", () => {
         {
           title: `Passing Review of ${subject.datum.revision_id}`,
           review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           findings: [],
           outcome: "pass",
         },
@@ -1993,10 +1994,12 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toBe(false);
 
     fixture.candidateReview.datum.payload.outcome = "pass";
+    delete fixture.candidateReview.datum.payload.correction_authority;
     delete fixture.candidateReview.datum.payload.simplification;
     expect(evaluate().phase?.gate.evaluations[0]?.complete).toBe(false);
 
     fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.correction_authority = "package-evidence";
     fixture.candidateReview.datum.payload.simplification = {
       target: requirement.datum.revision_id,
       findings: [
@@ -2141,7 +2144,7 @@ describe("bootstrap Scenario participation Policies", () => {
       {
         title: "Failed simplification after attended correction",
         review_kind: "simplification-product-definition",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         simplification: {
           target: attendedReplacement.datum.revision_id,
           findings: [
@@ -2158,6 +2161,7 @@ describe("bootstrap Scenario participation Policies", () => {
             },
           ],
         },
+        correction_authority: "stakeholder",
         outcome: "fail",
       },
       {
@@ -2180,10 +2184,10 @@ describe("bootstrap Scenario participation Policies", () => {
     expect(correction(attendedReplacement)).toEqual(expect.objectContaining({
       participation: [expect.objectContaining({
         authorityRequirement: expect.objectContaining({
-          mode: "autonomous",
-          authority: "package-evidence",
+          mode: "attended",
+          authority: "stakeholder",
         }),
-        attentionSchedule: expect.objectContaining({ timing: "none" }),
+        attentionSchedule: expect.objectContaining({ timing: "immediate" }),
       })],
     }));
   });
@@ -2220,7 +2224,7 @@ describe("bootstrap Scenario participation Policies", () => {
         {
           title: `Failed simplification of ${subject.datum.revision_id}`,
           review_kind: "simplification-product-definition",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           simplification: {
             target: subject.datum.revision_id,
             findings: [
@@ -2237,6 +2241,7 @@ describe("bootstrap Scenario participation Policies", () => {
               },
             ],
           },
+          correction_authority: "package-evidence",
           outcome: "fail",
         },
         {
@@ -2374,6 +2379,7 @@ describe("bootstrap Scenario participation Policies", () => {
       openQuestion.datum.revision_id,
     ].sort();
     fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.correction_authority = "stakeholder";
     fixture.candidateReview.datum.payload.simplification = {
       target: fixture.candidate.datum.revision_id,
       findings: [{
@@ -2754,7 +2760,7 @@ describe("bootstrap Scenario participation Policies", () => {
       {
         title: "Failed scope Decision Review",
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [
           {
             id: "F-001",
@@ -2769,6 +2775,7 @@ describe("bootstrap Scenario participation Policies", () => {
             summary: "The rationale does not preserve the stakeholder constraint.",
           },
         ],
+        correction_authority: "stakeholder",
         outcome: "fail",
       },
       {
@@ -2846,6 +2853,7 @@ describe("bootstrap Scenario participation Policies", () => {
   it("routes a failed gate Decision Review through exact attended correction", async () => {
     const fixture = reviewedGateFixture(processRef);
     fixture.signoffReview.datum.payload.outcome = "fail";
+    fixture.signoffReview.datum.payload.correction_authority = "stakeholder";
     fixture.signoffReview.datum.payload.findings = [
       {
         id: "F-001",
@@ -3109,7 +3117,7 @@ describe("bootstrap Scenario participation Policies", () => {
         {
           title: `Passing Review of ${subject.datum.revision_id}`,
           review_kind: "independent",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           findings: [],
           outcome: "pass",
         },

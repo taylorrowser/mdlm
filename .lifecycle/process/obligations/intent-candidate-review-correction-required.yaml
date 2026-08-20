@@ -49,7 +49,7 @@ status_rules:
       !every("product-simplification-reviews-for@1",
         {candidate: candidate, outcome: "fail"}, review =>
           review.payload.simplification.target != candidate.identity.revision_id
-          || review.payload.correction_authority != "stakeholder")
+          || review.payload.correction_authority == "package-evidence")
     reason: Current blocking simplification evidence requires immediate stakeholder-owned candidate correction without consuming an autonomous cycle.
   - status: ready
     priority: 200

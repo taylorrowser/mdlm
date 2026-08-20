@@ -11,10 +11,10 @@ status_rules:
     priority: 100
     when: >-
       !every("failing-reviews-for@1", {subject: subject}, review =>
-        review.payload.correction_authority != "stakeholder")
+        review.payload.correction_authority == "package-evidence")
       || !every("product-simplification-reviews-blocking-subject@1",
         {subject: subject}, review =>
-          review.payload.correction_authority != "stakeholder")
+          review.payload.correction_authority == "package-evidence")
     reason: Stakeholder attention is required immediately because correction would change stakeholder-owned intent; autonomous correction budget is not consumed.
   - status: ready
     priority: 50

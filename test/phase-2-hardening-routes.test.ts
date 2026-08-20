@@ -103,6 +103,7 @@ function failedSimplification(
     ? definitionMembers.slice(0, -1)
     : definitionMembers;
   review.datum.payload.outcome = "fail";
+  review.datum.payload.correction_authority = "package-evidence";
   review.datum.payload.definition_simplification = {
     primary_target:
       correctionSet === "subject" ? "SYS-0EXPRTREQ0-r00001" : plan,
@@ -560,7 +561,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
       await selectProcessPackageFixture(repository, processRoot);
       const loaded = await loadProcessPackage(processRoot);
       if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-      const fixtureProcessRef = `mdlm-bootstrap@0.70.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.71.0#${await processPackageDigest(processRoot)}`;
 
       const wanted = new Set([plan, "SYS-0EXPRTREQ0-r00001"]);
       let changed = true;
@@ -716,7 +717,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
               payload: {
                 title: "Review ICSP-0REPRT1CSP-r00001",
                 review_kind: "contextual",
-                rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+                rubric_ref: "policies/rubrics/bootstrap-review.md@3",
                 findings: [],
                 outcome: "pass",
               },
@@ -771,10 +772,11 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
                 payload: {
                   title: `Review ${plan}`,
                   review_kind: "simplification-product-definition",
-                  rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@3",
                   outcome,
                   ...(outcome === "fail"
                     ? {
+                        correction_authority: "package-evidence",
                         simplification: {
                           target: plan,
                           findings: [
@@ -1287,6 +1289,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
     };
     contextPayload.definition_members.push(removedSystem);
     review.datum.payload.outcome = "fail";
+    review.datum.payload.correction_authority = "package-evidence";
     review.datum.payload.definition_simplification = {
       primary_target: plan,
       correction_set: "definition-consistency",
@@ -1498,6 +1501,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
     );
     if (!review) throw new Error("missing retained candidate Review");
     review.datum.payload.outcome = "fail";
+    review.datum.payload.correction_authority = "package-evidence";
     review.datum.payload.findings = [
       {
         id: "F-001",

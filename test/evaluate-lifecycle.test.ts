@@ -131,7 +131,7 @@ describe("evaluateLifecycle", () => {
         unresolvedBindings: ["review_context"],
         resolver: {
           scenario: "review-datum-in-context@2",
-          promptRef: "prompts/review-datum-in-context.md@5",
+          promptRef: "prompts/review-datum-in-context.md@6",
           expectedOutputs: [
             {
               name: "review",

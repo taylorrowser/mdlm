@@ -248,7 +248,7 @@ describe("phase evaluation", () => {
                 arguments: { subject: memberIdentity },
                 result: {
                   required: true,
-                  rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@3",
                 },
               },
             ],
@@ -521,7 +521,7 @@ describe("phase evaluation", () => {
       {
         title: "Progression Decision Review",
         review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         summary: "The distinct progression Decision passes Review.",
         findings: [],
         outcome: "pass",

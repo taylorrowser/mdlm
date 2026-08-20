@@ -31,7 +31,7 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
-const processRef = "mdlm-bootstrap@0.70.0#sha256:phase-0-route-evidence";
+const processRef = "mdlm-bootstrap@0.71.0#sha256:phase-0-route-evidence";
 const revisionId = (id: string, revision = 1) =>
   `${id}-r${String(revision).padStart(5, "0")}`;
 
@@ -111,7 +111,7 @@ function reviewFor(
   outcome: "pass" | "fail",
   options: {
     contextId?: string;
-    correctionAuthority?: "stakeholder";
+    correctionAuthority?: "stakeholder" | "package-evidence";
     reviewKind?: "contextual" | "simplification-product-definition";
   } = {},
 ): [LifecycleRecord, LifecycleRecord] {
@@ -126,7 +126,7 @@ function reviewFor(
     {
       title: `${outcome === "pass" ? "Passing" : "Failed"} Review of ${subject.datum.revision_id}`,
       review_kind: reviewKind,
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       ...(reviewKind === "simplification-product-definition"
         ? outcome === "fail"
           ? {
@@ -168,9 +168,12 @@ function reviewFor(
                   ]
                 : [],
           }),
-      ...(options.correctionAuthority
-      ? { correction_authority: options.correctionAuthority }
-      : {}),
+      ...(outcome === "fail"
+        ? {
+            correction_authority:
+              options.correctionAuthority ?? "package-evidence",
+          }
+        : {}),
       outcome,
     },
     {
@@ -282,7 +285,7 @@ function passingSimplification(
     {
       title: "Passing candidate-centered simplification Review",
       review_kind: "simplification-product-definition",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       outcome: "pass",
     },
     {
@@ -480,7 +483,7 @@ function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
         payload: {
           title: `Passing independent Review of ${subject}`,
           review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           findings: [],
           outcome: "pass",
         },
@@ -508,7 +511,7 @@ function stakeholderOwnedFailureOutput(
       payload: {
         title: `Failed independent Review of ${subject}`,
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [{
           id: "F-001",
           target: subject,
@@ -1058,7 +1061,7 @@ describe("Phase 0 missing hardening routes", () => {
           payload: {
             title: "Failed candidate Review with an unresolved indexed Question",
             review_kind: "simplification-product-definition",
-            rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+            rubric_ref: "policies/rubrics/bootstrap-review.md@3",
             simplification: {
               target: candidateRevision,
               findings: [{
@@ -1070,6 +1073,7 @@ describe("Phase 0 missing hardening routes", () => {
                 summary: "Resolve the exact Question before candidate correction.",
               }],
             },
+            correction_authority: "stakeholder",
             outcome: "fail",
           },
           links: [
@@ -1199,12 +1203,14 @@ describe("Phase 0 missing hardening routes", () => {
         ...inputRevisions(correction, "prior_failed_reviews"),
         ...inputRevisions(correction, "failed_reviews"),
       ];
+      const candidateId = exactInput(correction, "candidate").identity.id;
+      const correctedCandidateRevision = `${candidateId}-r00002`;
       const correctedCandidate = submitAssignment(repository, correction, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
         lifecycleDatum: {
-          id: exactInput(correction, "candidate").identity.id,
+          id: candidateId,
           type: "BSL",
           payload: {
             title: "Candidate corrected with exact Question authority",
@@ -1224,19 +1230,52 @@ describe("Phase 0 missing hardening routes", () => {
           ],
           body: "The replacement uses only the exact reviewed Question disposition.\n",
         },
+      }, {
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Authorized candidate correction",
+            rationale: "The stakeholder authorized applying the exact answered Question.",
+            kind: "scope",
+            decision: "Rebuild the candidate with the authorized Question disposition.",
+            alternatives: ["Leave the candidate blocked"],
+            effective_scope: correctedCandidateRevision,
+          },
+          links: [{
+            type: "justifies",
+            target: "$proposal.replacement.revision_id",
+          }],
+          body: "The candidate correction uses the reviewed Question authority.\n",
+        },
       }]);
       expect(
         correctedCandidate.status,
         `${correctedCandidate.stderr}${correctedCandidate.stdout}`,
       ).toBe(0);
-      const correctedCandidateRevision = JSON.parse(
-        correctedCandidate.stdout,
-      ).execution.outputs[0].lifecycleDatum.revisionId as string;
 
-      const refreshedCandidateReview = prepareNextAssignment(
+      let refreshedCandidateReview = prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
+      if (inputRevision(refreshedCandidateReview, "subject") !==
+        correctedCandidateRevision) {
+        const acceptedCorrectionDecision = submitAssignment(
+          repository,
+          refreshedCandidateReview,
+          passingReviewOutput(refreshedCandidateReview),
+        );
+        expect(
+          acceptedCorrectionDecision.status,
+          `${acceptedCorrectionDecision.stderr}${acceptedCorrectionDecision.stdout}`,
+        ).toBe(0);
+        refreshedCandidateReview = prepareNextAssignment(
+          repository,
+          "review-datum-in-context@2",
+        );
+      }
       expect(inputRevision(refreshedCandidateReview, "subject")).toBe(
         correctedCandidateRevision,
       );
@@ -1274,7 +1313,7 @@ describe("Phase 0 missing hardening routes", () => {
       {
         title: "Failed candidate evidence Review",
         review_kind: "simplification-product-definition",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         simplification: {
           target: candidate.datum.revision_id,
           findings: [
@@ -1291,6 +1330,7 @@ describe("Phase 0 missing hardening routes", () => {
             },
           ],
         },
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       {
@@ -1531,7 +1571,7 @@ describe("Phase 0 missing hardening routes", () => {
 
   });
 
-  it("routes a stakeholder-owned foundation failure immediately to attended escalation without spending an autonomous cycle", () => {
+  it("routes a stakeholder-owned foundation failure immediately to attended escalation with required Decision evidence", async () => {
     const subject = phase0Foundation().requirement;
     const [context, failed] = reviewFor(subject, "REV-1030000016", "fail", {
       correctionAuthority: "stakeholder",
@@ -1543,13 +1583,15 @@ describe("Phase 0 missing hardening routes", () => {
       "foundation-review-correction-required",
       subject.datum.revision_id,
     )).toBeUndefined();
-    expect(obligation(
+    const escalation = obligation(
       processPackage,
       records,
       "foundation-review-escalation-required",
       subject.datum.revision_id,
-    )).toEqual(expect.objectContaining({
+    );
+    expect(escalation).toEqual(expect.objectContaining({
       status: "ready",
+      dispatchable: true,
       actionableResolver: "escalate-foundation-review-correction@3",
       explanation: expect.stringMatching(/stakeholder attention.*immediately/i),
       participation: [expect.objectContaining({
@@ -1560,6 +1602,23 @@ describe("Phase 0 missing hardening routes", () => {
         attentionSchedule: expect.objectContaining({ timing: "immediate" }),
       })],
     }));
+    expect(escalation).toBeDefined();
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot(records),
+      "escalate-foundation-review-correction@3",
+      escalation!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.expectedOutputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "decision",
+        types: ["DEC"],
+        cardinality: "one",
+      }),
+    ]));
   });
 
   it.each([
@@ -2189,7 +2248,7 @@ describe("Phase 0 missing hardening routes", () => {
     const correctedReview = record("REV", "REV-1030000031", {
       title: "Passing corrected PSP Review",
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     }, {
@@ -2562,7 +2621,7 @@ describe("Phase 0 missing hardening routes", () => {
     const correctedReview = record("REV", `REV-20300000${suffix}`, {
       title: `Passing comparative Review of ${corrected.datum.revision_id}`,
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     }, {
@@ -2640,7 +2699,7 @@ describe("Phase 0 missing hardening routes", () => {
     const correctedReview = record("REV", "REV-2030000027", {
       title: `Passing bounded Review of ${corrected.datum.revision_id}`,
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     }, {

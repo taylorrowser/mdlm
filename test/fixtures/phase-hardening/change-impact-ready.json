@@ -1,5 +1,5 @@
 {
-  "processRef": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+  "processRef": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
   "phaseId": "phase-7-change-control",
   "records": [
     {
@@ -27,7 +27,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -85,7 +85,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -128,7 +128,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -175,7 +175,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -205,7 +205,7 @@
         "payload": {
           "title": "Passing simplification Review of accepted intent candidate",
           "review_kind": "simplification-product-definition",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "outcome": "pass"
         },
         "links": [
@@ -221,7 +221,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -263,7 +263,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -309,7 +309,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -357,7 +357,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -402,7 +402,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -447,7 +447,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -492,7 +492,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -556,7 +556,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -620,7 +620,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -693,7 +693,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -738,7 +738,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -780,7 +780,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -823,7 +823,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -866,7 +866,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -910,7 +910,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -954,7 +954,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -997,7 +997,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1040,7 +1040,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1070,7 +1070,7 @@
         "payload": {
           "title": "Passing Review of unaccepted stakeholder requirement",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1087,7 +1087,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1117,7 +1117,7 @@
         "payload": {
           "title": "Passing Review of accepted stakeholder requirement",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1134,7 +1134,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1164,7 +1164,7 @@
         "payload": {
           "title": "Passing Review of PSP-1010000000-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1181,7 +1181,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1211,7 +1211,7 @@
         "payload": {
           "title": "Passing Review of STK-1010000002-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1228,7 +1228,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1258,7 +1258,7 @@
         "payload": {
           "title": "Passing Review of VSP-1010000000-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1275,7 +1275,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1305,7 +1305,7 @@
         "payload": {
           "title": "Passing Review of VER-1010000001-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1322,7 +1322,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1352,7 +1352,7 @@
         "payload": {
           "title": "Passing Review of VER-1010000002-r00001",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1369,7 +1369,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1411,7 +1411,7 @@
         "created_by": {
           "scenario": "create-review-context@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"
@@ -1441,7 +1441,7 @@
         "payload": {
           "title": "Passing Review of accepted intent gate Decision",
           "review_kind": "contextual",
-          "rubric_ref": "policies/rubrics/bootstrap-review.md@2",
+          "rubric_ref": "policies/rubrics/bootstrap-review.md@3",
           "findings": [],
           "outcome": "pass"
         },
@@ -1458,7 +1458,7 @@
         "created_by": {
           "scenario": "seed-accepted-stakeholder-change@1",
           "prompt_ref": "prompts/seed-accepted-stakeholder-change.md@1",
-          "process_ref": "mdlm-bootstrap@0.70.0#synthetic-evaluator",
+          "process_ref": "mdlm-bootstrap@0.71.0#synthetic-evaluator",
           "loaded_skill_refs": [],
           "policy_refs": [
             "review-applicability@1"

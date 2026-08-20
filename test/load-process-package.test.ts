@@ -24,7 +24,7 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.70.0");
+    expect(result.package.manifest.version).toBe("0.71.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(348);
@@ -175,13 +175,21 @@ describe("loadProcessPackage", () => {
           scenario: "register-pilot-target@1",
         }),
       }));
-    expect(result.package.scenarios["review-datum-in-context"]
-      ?.review_policy_arguments).toEqual({
-        subject: expect.objectContaining({
-          kind: "mdlm-expression",
-          source: "subject",
+    expect(result.package.scenarios["review-datum-in-context"])
+      .toEqual(expect.objectContaining({
+        prompt_ref: "prompts/review-datum-in-context.md@6",
+        review_policy_arguments: {
+          subject: expect.objectContaining({
+            kind: "mdlm-expression",
+            source: "subject",
+          }),
+        },
+        completion: expect.objectContaining({
+          source: expect.stringContaining(
+            'review.payload.correction_authority in ["stakeholder", "package-evidence"]',
+          ),
         }),
-      });
+      }));
     expect(result.package.scenarios["register-pilot-target"]?.participation)
       .toBeUndefined();
     for (const scenario of [

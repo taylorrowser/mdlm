@@ -90,7 +90,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -170,7 +170,7 @@ describe("evaluateLifecycle review flow", () => {
       {
         title: "Review with incomplete support",
         review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -220,7 +220,7 @@ describe("evaluateLifecycle review flow", () => {
     const review = record("REV", "REV-6M4R8T2V9K", {
       title: "Passing exact Review",
       review_kind: "contextual",
-      rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
       findings: [],
       outcome: "pass",
     }, {
@@ -290,7 +290,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "Original PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [
           {
             severity: "blocking",
@@ -303,6 +303,7 @@ describe("evaluateLifecycle review flow", () => {
             disposition: "open",
           },
         ],
+        correction_authority: "stakeholder",
         outcome: "fail",
       },
       {
@@ -367,7 +368,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-2BC4DF6GHJ",
       {
         title: "Replacement PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -687,7 +688,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -771,7 +772,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "Passing PSP Review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -811,7 +812,7 @@ describe("evaluateLifecycle review flow", () => {
       {
         title: "Earlier passing candidate Review",
         review_kind: "simplification-product-definition",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         outcome: "pass",
       },
       {
@@ -829,7 +830,7 @@ describe("evaluateLifecycle review flow", () => {
       {
         title: "Failed candidate Review",
         review_kind: "simplification-product-definition",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         simplification: {
           target: candidate.datum.revision_id,
           findings: [
@@ -846,6 +847,7 @@ describe("evaluateLifecycle review flow", () => {
             },
           ],
         },
+        correction_authority: "package-evidence",
         outcome: "fail",
       },
       {
@@ -967,7 +969,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-8ZT5KQ3P9M",
       {
         title: "PSP review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -1013,7 +1015,7 @@ describe("evaluateLifecycle review flow", () => {
       "REV-2BC4DF6GHJ",
       {
         title: "Candidate review",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [],
         outcome: "pass",
       },
@@ -1198,7 +1200,7 @@ describe("evaluateLifecycle review flow", () => {
         {
           title: "Failed Review",
           review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@2",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
           findings: outcome === "fail"
             ? [
                 {
@@ -1216,6 +1218,9 @@ describe("evaluateLifecycle review flow", () => {
                 },
               ]
             : [],
+          ...(outcome === "fail"
+            ? { correction_authority: "package-evidence" }
+            : {}),
           outcome,
         },
         {
