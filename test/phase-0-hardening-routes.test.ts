@@ -375,44 +375,30 @@ async function initializedRepository(prefix: string): Promise<{
   return { parent, repository };
 }
 
-function indexedPreferentialMapOutput(): ProposedOutput[] {
-  return [{
-    localId: "map",
-    name: "map",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "MAP",
-      payload: {
-        title: "Exact public Phase 0 frontier",
-        purpose: "Resolve the exact stakeholder choice before correcting its candidate.",
-        frontier: ["$proposal.question.revision_id"],
-      },
-      links: [{ type: "indexes", target: "$proposal.question.id" }],
-      body: "The candidate depends on one exact indexed stakeholder Question.\n",
-    },
-  }, {
-    localId: "question",
-    name: "questions",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "QST",
-      payload: {
-        title: "Exact stakeholder product boundary",
-        kind: "preferential",
-        question: "Which exact product boundary should remain?",
+function mapOutput(options: {
+  empiricalEvidenceAvailable?: boolean;
+  indexedPreferentialQuestion?: boolean;
+} = {}): ProposedOutput[] {
+  const additionalQuestion = options.empiricalEvidenceAvailable !== undefined
+    ? {
+        title: "Exact empirical repository answer",
+        kind: "empirical",
+        evidence_available: options.empiricalEvidenceAvailable,
+        question: "Does the observed public transaction preserve exact QST lineage?",
         state: "open",
-        blocking_impact: "The candidate cannot be reassembled before disposition.",
-        attention_checkpoint: "phase-0-gate",
-        consolidation_group: "phase-0-stakeholder-questions",
-      },
-      links: [],
-      body: "Stakeholder authority is required for this exact product choice.\n",
-    },
-  }];
-}
-
-function mapOutput(empiricalEvidenceAvailable?: boolean): ProposedOutput[] {
-  const withEmpiricalQuestion = empiricalEvidenceAvailable !== undefined;
+        blocking_impact: "The empirical route remains unproven without publication",
+      }
+    : options.indexedPreferentialQuestion
+      ? {
+          title: "Exact stakeholder product boundary",
+          kind: "preferential",
+          question: "Which exact product boundary should remain?",
+          state: "open",
+          blocking_impact: "The candidate cannot be reassembled before disposition.",
+          attention_checkpoint: "phase-0-gate",
+          consolidation_group: "phase-0-stakeholder-questions",
+        }
+      : undefined;
   return [{
     localId: "map",
     name: "map",
@@ -422,30 +408,46 @@ function mapOutput(empiricalEvidenceAvailable?: boolean): ProposedOutput[] {
       payload: {
         title: "Exact public Phase 0 frontier",
         purpose: "Reach each retained hardening route through compiled mdlm Assignments.",
-        frontier: withEmpiricalQuestion
-          ? ["$proposal.question.revision_id"]
-          : ["Compile the smallest sufficient product intent"],
+        frontier: [
+          "$proposal.product-intent.revision_id",
+          ...(additionalQuestion ? ["$proposal.additional-question.revision_id"] : []),
+        ],
       },
-      links: [],
+      links: [
+        { type: "indexes", target: "$proposal.product-intent.id" },
+        ...(additionalQuestion
+          ? [{ type: "indexes", target: "$proposal.additional-question.id" }]
+          : []),
+      ],
       body: "One exact public decision frontier.\n",
     },
-  }, ...(withEmpiricalQuestion
+  }, {
+    localId: "product-intent",
+    name: "product_intent",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "QST",
+      payload: {
+        title: "Exact initial product intent",
+        kind: "preferential",
+        intent_scope: "product",
+        question: "Which exact product should this work pursue?",
+        state: "open",
+        blocking_impact: "PSP compilation waits for the attended answer.",
+      },
+      links: [],
+      body: "Stakeholder authority must establish the initial product intent.\n",
+    },
+  }, ...(additionalQuestion
     ? [{
-        localId: "question",
+        localId: "additional-question",
         name: "questions",
         invocation: 0,
         lifecycleDatum: {
           type: "QST",
-          payload: {
-            title: "Exact empirical repository answer",
-            kind: "empirical",
-            evidence_available: empiricalEvidenceAvailable,
-            question: "Does the observed public transaction preserve exact QST lineage?",
-            state: "open",
-            blocking_impact: "The empirical route remains unproven without publication",
-          },
+          payload: additionalQuestion,
           links: [],
-          body: "Available exact public evidence can answer this Question.\n",
+          body: "The route fixture includes one additional exact Question.\n",
         },
       } satisfies ProposedOutput]
     : [])];
@@ -582,18 +584,23 @@ async function advancePhase0To(
 }> {
   const reviewRevisions: string[] = [];
   const reviewContextRevisions: string[] = [];
-  for (let step = 0; step < 20; step += 1) {
+  let initialProductIntentResolved = false;
+  for (let step = 0; step < 40; step += 1) {
     const prepared = prepareNextAssignment(repository);
     const scenario = prepared.packet.scenario.reference as string;
-    if (scenario === targetScenario) {
+    const resolvingInitialProductIntent = scenario === "resolve-question@2"
+      && !initialProductIntentResolved;
+    if (
+      scenario === targetScenario
+      && !(resolvingInitialProductIntent
+        && options.empiricalEvidenceAvailable !== undefined)
+    ) {
       return { prepared, reviewRevisions, reviewContextRevisions };
     }
     let outputs: ProposedOutput[];
     switch (scenario) {
-      case "establish-initial-wayfinding-map@1":
-        outputs = options.indexedPreferentialQuestion
-          ? indexedPreferentialMapOutput()
-          : mapOutput(options.empiricalEvidenceAvailable);
+      case "establish-initial-wayfinding-map@2":
+        outputs = mapOutput(options);
         break;
       case "create-review-context@1":
         outputs = reviewContextOutput(prepared);
@@ -601,7 +608,52 @@ async function advancePhase0To(
       case "review-datum-in-context@2":
         outputs = passingReviewOutput(prepared);
         break;
-      case "compile-psp@2":
+      case "resolve-question@2": {
+        const question = exactInput(prepared, "question");
+        const answeredRevision = revisionId(question.identity.id, 2);
+        outputs = [{
+          localId: "decision",
+          name: "decision",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: {
+              title: "Exact attended initial product intent",
+              rationale: "The stakeholder supplied the product boundary.",
+              kind: "scope",
+              decision: "Build the bounded deterministic lifecycle product.",
+              alternatives: ["Infer intent from repository context"],
+              effective_scope: answeredRevision,
+            },
+            links: [
+              { type: "resolves", target: question.identity.revision_id },
+              { type: "resolves", target: "$proposal.answered.revision_id" },
+            ],
+            body: "The attended answer establishes exact product intent.\n",
+          },
+        }, {
+          localId: "answered",
+          name: "updated_question",
+          invocation: 0,
+          lifecycleDatum: {
+            id: question.identity.id,
+            type: "QST",
+            payload: {
+              title: "Exact initial product intent",
+              kind: "preferential",
+              intent_scope: "product",
+              question: "Which exact product should this work pursue?",
+              state: "answered",
+              blocking_impact: "PSP compilation waits for the attended answer.",
+            },
+            links: [],
+            body: "The initial product-intent Question has an exact answer.\n",
+          },
+        }];
+        break;
+      }
+      case "compile-psp@3": {
+        const authority = exactInput(prepared, "product_intent_authority").identity;
         outputs = [{
           localId: "product",
           name: "product_specification",
@@ -617,11 +669,12 @@ async function advancePhase0To(
               non_goals: ["direct repository mutation"],
               success_measures: ["fresh independent Review follows publication"],
             },
-            links: [],
+            links: [{ type: "derived-from", target: authority.revision_id }],
             body: "One exact public product specification.\n",
           },
         }];
         break;
+      }
       case "draft-stakeholder-requirements@2": {
         const product = exactInput(prepared, "product_specification").identity;
         outputs = [
@@ -680,16 +733,25 @@ async function advancePhase0To(
       throw new Error(`${scenario}: ${submitted.stderr}${submitted.stdout}`);
     }
     const execution = JSON.parse(submitted.stdout).execution;
+    if (resolvingInitialProductIntent) {
+      initialProductIntentResolved = true;
+    }
     if (scenario === "create-review-context@1") {
-      reviewContextRevisions.push(
-        execution.outputs[0].lifecycleDatum.revisionId,
-      );
-    } else if (scenario === "review-datum-in-context@2") {
-      const reviewContextRevision = inputRevision(prepared, "review_context");
-      if (!reviewContextRevisions.includes(reviewContextRevision)) {
-        reviewContextRevisions.push(reviewContextRevision);
+      const subject = inputRevision(prepared, "subject");
+      if (/^(?:MAP|PSP|STK)-/.test(subject)) {
+        reviewContextRevisions.push(
+          execution.outputs[0].lifecycleDatum.revisionId,
+        );
       }
-      reviewRevisions.push(execution.outputs[0].lifecycleDatum.revisionId);
+    } else if (scenario === "review-datum-in-context@2") {
+      const subject = inputRevision(prepared, "subject");
+      if (/^(?:MAP|PSP|STK)-/.test(subject)) {
+        const reviewContextRevision = inputRevision(prepared, "review_context");
+        if (!reviewContextRevisions.includes(reviewContextRevision)) {
+          reviewContextRevisions.push(reviewContextRevision);
+        }
+        reviewRevisions.push(execution.outputs[0].lifecycleDatum.revisionId);
+      }
     }
   }
   throw new Error(`Did not reach ${targetScenario}`);
@@ -703,10 +765,11 @@ describe("Phase 0 missing hardening routes", () => {
     processPackage = loaded.package;
   });
 
-  it("publishes PSP atomically through compile-psp@2 at the public repository seam and yields fresh PSP Review work", async () => {
+  it("publishes PSP atomically through compile-psp@3 at the public repository seam and yields fresh PSP Review work", async () => {
     const { parent, repository } = await initializedRepository("mdlm-phase0-psp-");
     try {
-      const { prepared } = await advancePhase0To(repository, "compile-psp@2");
+      const { prepared } = await advancePhase0To(repository, "compile-psp@3");
+      const authority = exactInput(prepared, "product_intent_authority").identity;
       const dataRoot = path.join(repository, ".lifecycle/data");
       const beforeInvalid = await directoryDigest(dataRoot);
       const invalid = submitAssignment(repository, prepared, []);
@@ -734,8 +797,8 @@ describe("Phase 0 missing hardening routes", () => {
             non_goals: ["direct lifecycle data mutation"],
             success_measures: ["fresh PSP Review work follows publication"],
           },
-          links: [],
-          body: "One exact product specification published through compile-psp@2.\n",
+          links: [{ type: "derived-from", target: authority.revision_id }],
+          body: "One exact product specification published through compile-psp@3.\n",
         },
       }]);
       expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
@@ -743,7 +806,7 @@ describe("Phase 0 missing hardening routes", () => {
       const product = execution.outputs[0].lifecycleDatum;
       expect(execution).toEqual(expect.objectContaining({
         contract: "mdlm-scenario-execution@4",
-        definition: expect.objectContaining({ scenario: "compile-psp@2" }),
+        definition: expect.objectContaining({ scenario: "compile-psp@3" }),
         completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
       }));
       expect(product).toEqual(expect.objectContaining({
@@ -1137,10 +1200,10 @@ describe("Phase 0 missing hardening routes", () => {
       const mapRevision = members.find((revision) =>
         revision.startsWith("MAP-")
       )!;
-      const questionRevision = output.data.payload.snapshot.resolved_links[
-        mapRevision
-      ][0] as string;
-      expect(questionRevision).toMatch(/^QST-.+-r\d{5}$/);
+      const questionRevision = (
+        output.data.payload.snapshot.resolved_links[mapRevision] as string[]
+      ).find((revision) => revision.endsWith("-r00001"))!;
+      expect(questionRevision).toMatch(/^QST-.+-r00001$/);
 
       const next = prepareNextAssignment(repository, "resolve-question@2");
       expect(next.outcome).toEqual(expect.objectContaining({
@@ -1238,12 +1301,15 @@ describe("Phase 0 missing hardening routes", () => {
         repository,
         "revise-intent-candidate-after-review@3",
       );
-      expect(inputRevisions(correction, "question_dispositions")).toEqual([
-        answeredQuestionRevision,
-      ]);
-      expect(inputRevisions(correction, "question_decisions")).toEqual([
-        decisionRevision,
-      ]);
+      const questionDispositions = inputRevisions(
+        correction,
+        "question_dispositions",
+      );
+      expect(questionDispositions).toHaveLength(2);
+      expect(questionDispositions).toContain(answeredQuestionRevision);
+      const questionDecisions = inputRevisions(correction, "question_decisions");
+      expect(questionDecisions).toHaveLength(2);
+      expect(questionDecisions).toContain(decisionRevision);
       const correctedMembers = inputRevisions(correction, "definition_members");
       const correctedMemberReviews = inputRevisions(correction, "member_reviews");
       const correctedReviewCauses = [
@@ -1903,8 +1969,9 @@ describe("Phase 0 missing hardening routes", () => {
     try {
       const { prepared: compile } = await advancePhase0To(
         repository,
-        "compile-psp@2",
+        "compile-psp@3",
       );
+      const authority = exactInput(compile, "product_intent_authority").identity;
       const published = submitAssignment(repository, compile, [{
         localId: "product",
         name: "product_specification",
@@ -1920,7 +1987,7 @@ describe("Phase 0 missing hardening routes", () => {
             non_goals: ["production-scale semantic machinery"],
             success_measures: ["the bounded result is independently reviewable"],
           },
-          links: [],
+          links: [{ type: "derived-from", target: authority.revision_id }],
           body: "The exact result convention remains preferentially ambiguous.\n",
         },
       }]);
@@ -3302,6 +3369,9 @@ describe("Phase 0 missing hardening routes", () => {
         empiricalEvidenceAvailable: true,
       });
       const question = exactInput(prepared, "question").identity;
+      expect(prepared.outcome).toEqual(expect.objectContaining({
+        outcome: "assignment",
+      }));
       const answered: ProposedOutput = {
         localId: "updatedQuestion",
         name: "updated_question",
@@ -3328,7 +3398,7 @@ describe("Phase 0 missing hardening routes", () => {
       const invalid = submitAssignment(repository, prepared, [invalidOutput]);
       expect(invalid.status).toBe(1);
       expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: "scenario-completion-failed" }),
+        expect.objectContaining({ code: "scenario-authority-evidence-missing" }),
       ]));
       expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
@@ -3351,7 +3421,13 @@ describe("Phase 0 missing hardening routes", () => {
       const data = JSON.parse(listed.stdout).data as Array<{
         lifecycleDatum: { datum: LifecycleRecord["datum"] };
       }>;
-      expect(data.filter((item) => item.lifecycleDatum.datum.type === "DEC")).toEqual([]);
+      const decisions = data.filter((item) =>
+        item.lifecycleDatum.datum.type === "DEC"
+      );
+      expect(decisions).toHaveLength(1);
+      expect(decisions[0]!.lifecycleDatum.datum.links.some((link) =>
+        link.target.startsWith(question.id)
+      )).toBe(false);
       expect(data.find((item) =>
         item.lifecycleDatum.datum.revision_id === `${question.id}-r00002`
       )?.lifecycleDatum.datum.payload).toMatchObject({

@@ -44,7 +44,7 @@ describe("clean pilot public-process contract", () => {
     const prepared = mdlm(repository, ["scenario", "prepare", outcome.assignment.id]);
     expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
     const packet = JSON.parse(prepared.stdout);
-    expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@1");
+    expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@2");
 
     const response = {
       contract: "mdlm-assignment-response@1",
@@ -60,10 +60,30 @@ describe("clean pilot public-process contract", () => {
             payload: {
               title: "Complete-profile clean pilot",
               purpose: "Prove the public operator loop against exact committed state.",
-              frontier: ["Define the smallest sufficient product intent"],
+              frontier: ["$proposal.product-intent.revision_id"],
+            },
+            links: [{
+              type: "indexes",
+              target: "$proposal.product-intent.id",
+            }],
+            body: "The pilot begins from one bounded Product Wayfinding frontier.\n",
+          },
+        }, {
+          localId: "product-intent",
+          name: "product_intent",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "QST",
+            payload: {
+              title: "Initial intended product",
+              kind: "preferential",
+              intent_scope: "product",
+              question: "Which exact product should this pilot build?",
+              state: "open",
+              blocking_impact: "PSP compilation waits for the attended answer.",
             },
             links: [],
-            body: "The pilot begins from one bounded Product Wayfinding frontier.\n",
+            body: "The pilot records its mandatory initial product-intent Question.\n",
           },
         }],
         completionEvidence: { summary: "Established the exact pilot frontier." },

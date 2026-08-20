@@ -13,6 +13,7 @@ payload_schema:
   required: [kind, question, state, blocking_impact]
   properties:
     kind: {enum: [preferential, empirical]}
+    intent_scope: {enum: [product]}
     question: {type: string, minLength: 1}
     state: {enum: [open, answered, deferred, cancelled]}
     blocking_impact: {type: string, minLength: 1}

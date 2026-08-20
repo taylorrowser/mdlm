@@ -24,13 +24,16 @@ describe("loadProcessPackage", () => {
     );
     if (!result.ok) return;
 
-    expect(result.package.manifest.version).toBe("0.71.0");
+    expect(result.package.manifest.version).toBe("0.72.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(359);
+    expect(Object.keys(result.package.selectors)).toHaveLength(362);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
+        "applicable-initial-product-intent-decisions": expect.any(Object),
+        "initial-product-intent-sources-for-decision": expect.any(Object),
+        "initial-product-intent-targets-for-decision": expect.any(Object),
         "blocking-product-simplification-reviews-for": expect.any(Object),
         "candidate-correction-decisions-for": expect.any(Object),
         "candidate-correction-candidates-for-decision": expect.any(Object),

@@ -1,0 +1,24 @@
+kind: selector-definition
+id: initial-product-intent-targets-for-decision
+version: 1
+description: Current exact answered product-intent Question Revision governed by one trusted attended scope Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from:
+    selector: question-targets-for-decision@1
+    arguments: {decision: decision}
+  as: question
+  where: >-
+    question.payload.kind == "preferential"
+    && question.payload.intent_scope == "product"
+    && question.payload.state == "answered"
+    && question.provenance.scenario == "resolve-question@2"
+    && question.provenance.process_ref == process.current_ref
+    && question.integrity.scenario_execution_valid == true
+    && state(question, "disposition") == "active"
+    && state(question, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: question})
+  distinct: true
+  order_by: [identity.revision_id]

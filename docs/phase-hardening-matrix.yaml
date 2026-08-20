@@ -77,45 +77,44 @@ rows:
           file: test/mdlm-clean-onboarding-transaction.test.ts
           test: publishes the first transaction and binds later work to the committed state
         evidence:
-          facts: One fresh repository with no MAP and one newly published current MAP Revision.
-          links: The initial MAP has no required incoming lifecycle link; its exact Revision becomes the foundation member.
+          facts: One fresh repository with no MAP, one newly published current MAP Revision, and its initial product-intent QST.
+          links: The initial MAP indexes the exact product-intent QST; its exact Revision becomes the foundation member.
         selectors:
           - phase-0-foundation-members@1
         obligations:
-          - initial-wayfinding-map-required@1
+          - initial-wayfinding-map-required@2
         participation:
           mode: autonomous
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - establish-initial-wayfinding-map@1
+          - establish-initial-wayfinding-map@2
         next:
           - assignment
         budget: No lifecycle Correction cycle is consumed.
-        disposition: Successful atomic publication yields the PSP Assignment; malformed publication writes nothing and preserves
-          the MAP Assignment.
+        disposition: Successful atomic publication yields source-boundary work before attended product-intent resolution; malformed publication writes nothing and preserves the MAP Assignment.
         reuse: The exact MAP Revision is retained for later Review Context and candidate membership.
       - route: PSP
         executable:
-          file: test/phase-0-hardening-routes.test.ts
-          test: publishes PSP atomically through compile-psp@2 at the public repository seam and yields fresh PSP Review work
+          file: test/initial-product-intent-route.test.ts
+          test: resolves attended product intent before compiling a PSP from exact authority
         evidence:
-          facts: One current MAP and one newly published PSP Revision.
-          links: The PSP is compiled from the exact current wayfinding foundation selected by the package.
+          facts: One current MAP, one source-bounded answered product-intent QST, its exact passing-reviewed scope Decision, and one newly published PSP Revision.
+          links: The PSP is compiled from and linked to the exact reviewed product-intent Decision selected by the package.
         selectors:
           - phase-0-foundation-members@1
         obligations:
-          - product-specification-required@1
+          - product-specification-required@2
         participation:
           mode: autonomous
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - compile-psp@2
+          - compile-psp@3
         next:
           - assignment
         budget: No lifecycle Correction cycle is consumed.
-        disposition: Successful atomic publication yields the PSP Review Context Assignment; malformed publication writes nothing.
+        disposition: Successful atomic publication yields PSP Review work; missing exact product-intent input or its required link writes nothing.
         reuse: The current MAP remains reusable; the exact PSP requires its own fresh Review Context and Review.
       - route: STK
         executable:

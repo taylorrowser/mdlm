@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.71.0
+version: 0.72.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -47,6 +47,9 @@ catalog:
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
+    - initial-product-intent-sources-for-decision
+    - initial-product-intent-targets-for-decision
+    - applicable-initial-product-intent-decisions
     - current-product-specifications
     - stakeholder-requirements-for
     - stakeholder-requirements-for-review-context
@@ -538,9 +541,9 @@ catalog:
 assets:
   prompts:
     - prompts/chart-wayfinding-map.md@1
-    - prompts/establish-initial-wayfinding-map.md@1
+    - prompts/establish-initial-wayfinding-map.md@2
     - prompts/build-exploratory-prototype.md@1
-    - prompts/compile-psp.md@2
+    - prompts/compile-psp.md@3
     - prompts/draft-stakeholder-requirements.md@3
     - prompts/derive-system-requirements.md@1
     - prompts/create-review-context.md@2
@@ -637,9 +640,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@3
 profiles:
-  default: bootstrap@35
+  default: bootstrap@36
   available:
-    - profiles/bootstrap.yaml@35
+    - profiles/bootstrap.yaml@36
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

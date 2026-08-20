@@ -45,6 +45,13 @@ payload_schema:
       uniqueItems: true
       items: {type: string, minLength: 1}
 outgoing_links:
+  - id: derived-from
+    description: Exact reviewed initial product-intent authority compiled into this product specification.
+    targets:
+      - {kind: datum, types: [DEC], identity: revision}
+    cardinality: {minimum: 0, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: supports-product-specification
   - id: corrects-review
     description: Exact failed Reviews whose blocking findings this replacement product specification Revision addresses.
     targets:

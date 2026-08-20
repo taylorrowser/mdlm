@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-0-wayfinding
-version: 4
+version: 5
 order: 0
 name: Wayfinding bootstrap
 purpose: Establish reviewed, scope-challenged product intent and stakeholder commitments for explicit user approval.
@@ -23,9 +23,9 @@ attention_checkpoints:
       && none("open-blocking-questions@1", {})
 scenarios:
   - chart-wayfinding-map@1
-  - establish-initial-wayfinding-map@1
+  - establish-initial-wayfinding-map@2
   - build-exploratory-prototype@1
-  - compile-psp@2
+  - compile-psp@3
   - draft-stakeholder-requirements@2
   - create-review-context@1
   - review-datum-in-context@2
@@ -43,10 +43,10 @@ scenarios:
   - revise-gate-signoff-after-review@2
   - accept-phase-0-intent@1
 obligations:
-  - initial-wayfinding-map-required@1
-  - product-specification-required@1
+  - initial-wayfinding-map-required@2
+  - product-specification-required@2
   - stakeholder-requirements-required@1
-  - intent-candidate-required@2
+  - intent-candidate-required@3
   - foundation-review-correction-required@5
   - foundation-review-escalation-required@2
   - intent-candidate-review-correction-required@3

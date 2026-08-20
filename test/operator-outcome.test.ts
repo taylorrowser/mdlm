@@ -34,7 +34,7 @@ async function recordInstalledPackageChange(
 async function publishCheckpointQuestions(repository: string): Promise<void> {
   const packageRoot = path.join(
     repository,
-    ".lifecycle/packages/mdlm-bootstrap@0.71.0",
+    ".lifecycle/packages/mdlm-bootstrap@0.72.0",
   );
   const phasePath = path.join(packageRoot, "phases/phase-0-wayfinding.yaml");
   const phase = parse(await fs.readFile(phasePath, "utf8"));
@@ -61,13 +61,14 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
     ["Choose the public name", "Which name should be public?", "The answer changes the public label."],
   ].map(([title, question, blockingImpact], index) => ({
     localId: `question-${index + 1}`,
-    name: "questions",
+    name: index === 0 ? "product_intent" : "questions",
     invocation: 0,
     lifecycleDatum: {
       type: "QST",
       payload: {
         title,
         kind: "preferential",
+        ...(index === 0 ? { intent_scope: "product" } : {}),
         question,
         state: "open",
         blocking_impact: blockingImpact,
@@ -94,9 +95,9 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
             payload: {
               title: "Checkpoint conversation tracer",
               purpose: "Exercise consolidated stakeholder attention.",
-              frontier: ["Resolve the checkpoint questions"],
+              frontier: ["$proposal.question-1.revision_id"],
             },
-            links: [],
+            links: [{ type: "indexes", target: "$proposal.question-1.id" }],
             body: "Public operator-seam checkpoint tracer.\n",
           },
         }, ...questions],
@@ -425,12 +426,12 @@ describe("public mdlm outcome and status seam", () => {
         command: "status",
         contract: "mdlm-status@1",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.71.0",
+          reference: "mdlm-bootstrap@0.72.0",
         }),
-        profile: expect.objectContaining({ reference: "bootstrap@35" }),
+        profile: expect.objectContaining({ reference: "bootstrap@36" }),
         integrity: { status: "valid", diagnostics: [] },
         activePhase: expect.objectContaining({
-        reference: "phase-0-wayfinding@4",
+        reference: "phase-0-wayfinding@5",
         purpose: expect.any(String),
       }),
         omittedCoverage: expect.objectContaining({
@@ -452,7 +453,7 @@ describe("public mdlm outcome and status seam", () => {
     );
     const readable = mdlm(repository, "status");
     expect(readable.status, `${readable.stderr}${readable.stdout}`).toBe(0);
-    expect(readable.stdout).toContain("Active Phase: phase-0-wayfinding@4");
+    expect(readable.stdout).toContain("Active Phase: phase-0-wayfinding@5");
     expect(readable.stdout).toContain("Current Operator Outcome: assignment");
     await expect(fs.stat(path.join(
       repository,
@@ -575,7 +576,7 @@ describe("public mdlm outcome and status seam", () => {
   it("resolves the package-declared default from multiple valid profiles", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.71.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.72.0",
     );
     const bootstrapProfilePath = path.join(packageRoot, "profiles/bootstrap.yaml");
     const alternateProfilePath = path.join(packageRoot, "profiles/alternate.yaml");
@@ -585,8 +586,8 @@ describe("public mdlm outcome and status seam", () => {
     const manifestPath = path.join(packageRoot, "manifest.yaml");
     const manifest = parse(await fs.readFile(manifestPath, "utf8"));
     manifest.profiles = {
-      default: "alternate@35",
-      available: ["profiles/bootstrap.yaml@35", "profiles/alternate.yaml@35"],
+      default: "alternate@36",
+      available: ["profiles/bootstrap.yaml@36", "profiles/alternate.yaml@36"],
     };
     await fs.writeFile(manifestPath, stringify(manifest));
     await recordInstalledPackageChange(repository, packageRoot);
@@ -596,7 +597,7 @@ describe("public mdlm outcome and status seam", () => {
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(
       expect.objectContaining({
-        reference: "alternate@35",
+        reference: "alternate@36",
       }),
     );
   });
@@ -604,7 +605,7 @@ describe("public mdlm outcome and status seam", () => {
   it("submits package-declared progression in a noninitial Phase from one inspection", async () => {
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.71.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.72.0",
     );
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
@@ -617,9 +618,9 @@ purpose: Reach a noninitial Phase before package-declared progression work.
 coverage: bootstrap-subset
 omitted_capabilities: [all other lifecycle work]
 entry: 'true'
-scenarios: [establish-initial-wayfinding-map@1, record-consequential-decision@1]
-obligations: [initial-wayfinding-map-required@1]
-outputs: [MAP, DEC]
+scenarios: [establish-initial-wayfinding-map@2, record-consequential-decision@1]
+obligations: [initial-wayfinding-map-required@2]
+outputs: [MAP, QST, DEC]
 progression:
   next_phase: phase-1-product-assurance
   readiness: 'exists("current-wayfinding-maps@1", {})'
@@ -728,10 +729,30 @@ gate:
               payload: {
                 title: "Phase progression fixture",
                 purpose: "Supply one exact progression authorization subject.",
-                frontier: ["Authorize the package-declared next Phase"],
+                frontier: ["$proposal.product-intent.revision_id"],
+              },
+              links: [{
+                type: "indexes",
+                target: "$proposal.product-intent.id",
+              }],
+              body: "A progression authorization subject.\n",
+            },
+          }, {
+            localId: "product-intent",
+            name: "product_intent",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "QST",
+              payload: {
+                title: "Progression fixture product intent",
+                kind: "preferential",
+                intent_scope: "product",
+                question: "Which exact product should this fixture pursue?",
+                state: "open",
+                blocking_impact: "PSP compilation waits for the attended answer.",
               },
               links: [],
-              body: "A progression authorization subject.\n",
+              body: "The fixture records the required initial product intent.\n",
             },
           }],
           completionEvidence: { summary: "Progression subject proposed." },
@@ -842,13 +863,13 @@ gate:
     ).toBe(0);
     expect(JSON.parse(progressionSubmission.stderr)).toMatchObject({
       contract: "mdlm-performance@1",
-      repository: { loads: 1, markdownFiles: 1 },
+      repository: { loads: 1, markdownFiles: 2 },
       stages: { "lifecycle.evaluation": { count: 2 } },
       work: {
         "lifecycle.evaluation.snapshots": 3,
-        "repository.parse.records": 1,
-        "repository.provenance.records": 1,
-        "repository.validation.records": 1,
+        "repository.parse.records": 2,
+        "repository.provenance.records": 2,
+        "repository.validation.records": 2,
       },
     });
     expect(JSON.parse(progressionSubmission.stdout)).toMatchObject({
@@ -1022,7 +1043,7 @@ gate:
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.71.0/manifest.yaml",
+        ".lifecycle/packages/mdlm-bootstrap@0.72.0/manifest.yaml",
       ),
       "\n# integrity failure\n",
     );
