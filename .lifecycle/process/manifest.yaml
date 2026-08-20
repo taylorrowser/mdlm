@@ -157,6 +157,7 @@ catalog:
     - matching-cited-gate-rejection-by-correction
     - gate-rejection-corrections-for-subject
     - gate-candidates-for-decision
+    - intent-gate-candidates-for-decision
     - gate-decision-review-support-for
     - structural-review-contexts-cited-by
     - structural-passing-candidate-reviews-for-review

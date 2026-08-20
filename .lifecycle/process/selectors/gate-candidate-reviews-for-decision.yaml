@@ -14,7 +14,8 @@ query:
       "record-gate-signoff@3",
       "revise-gate-signoff-after-review@2"
     ]
-    && !every("gate-candidates-for-decision@1",
+    && exists("intent-gate-candidates-for-decision@1", {decision: decision})
+    && !every("intent-gate-candidates-for-decision@1",
       {decision: decision}, candidate =>
         every("structural-passing-candidate-reviews-for-review@1",
           {candidate: candidate}, review => review != support))

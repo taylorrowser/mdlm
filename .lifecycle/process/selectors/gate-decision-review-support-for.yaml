@@ -14,8 +14,9 @@ query:
       "record-gate-signoff@3",
       "revise-gate-signoff-after-review@2"
     ]
+    && exists("intent-gate-candidates-for-decision@1", {decision: decision})
     && (
-      !every("gate-candidates-for-decision@1",
+      !every("intent-gate-candidates-for-decision@1",
         {decision: decision}, candidate => candidate != support)
       || (support.identity.id == decision.identity.id
         && support.identity.revision <= decision.identity.revision)

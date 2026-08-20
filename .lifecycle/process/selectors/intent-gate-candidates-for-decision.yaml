@@ -1,0 +1,16 @@
+kind: selector-definition
+id: intent-gate-candidates-for-decision
+version: 1
+description: Exact Phase 0 intent candidate justified by one gate sign-off Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: baseline
+query:
+  from: {collection: revisions, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "intent-level-candidate"
+    && candidate.identity.revision_id == decision.payload.effective_scope
+    && exists("gate-candidates-for-decision@1", {decision: decision})
+  distinct: true
+  order_by: [identity.revision_id]
