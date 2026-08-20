@@ -19,6 +19,8 @@ function packet(
     ok: true,
     command: "scenario.prepare",
     assignment: { id },
+    package: { reference: "package@1" },
+    repository: { head: "base" },
     scenario: { reference: scenario },
     responseSchema: { type: "object" },
   };

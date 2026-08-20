@@ -63,6 +63,8 @@ export type AssignmentState = ({
   command: "assignment.show";
   assignment: { id: string };
   selected: true;
+  package: JsonObject;
+  repository: JsonObject;
   scenarioReference: string;
   disposition: "active" | "abandoned" | "exhausted" | "stale";
   retryAvailability: JsonObject;
@@ -76,6 +78,8 @@ export type AssignmentPacket = {
   ok: true;
   command: "scenario.prepare";
   assignment: JsonObject & { id: string };
+  package: JsonObject;
+  repository: JsonObject;
   scenario: JsonObject & { reference: string };
   responseSchema: JsonObject;
 } & JsonObject;
@@ -495,6 +499,8 @@ function parseAssignmentState(output: JsonObject): AssignmentState {
   expectString(expectObject(output, "assignment"), "id");
   const selected = expectBoolean(output, "selected");
   if (selected) {
+    expectObject(output, "package");
+    expectObject(output, "repository");
     expectString(output, "scenarioReference");
     const disposition = expectString(output, "disposition");
     if (!["active", "abandoned", "exhausted", "stale"].includes(disposition)) {
@@ -513,6 +519,8 @@ function parsePacket(output: JsonObject): AssignmentPacket {
   expectLiteral(output, "contract", "mdlm-assignment-packet@2");
   expectLiteral(output, "ok", true);
   expectString(expectObject(output, "assignment"), "id");
+  expectObject(output, "package");
+  expectObject(output, "repository");
   expectString(expectObject(output, "scenario"), "reference");
   expectObject(output, "responseSchema");
   return output as AssignmentPacket;

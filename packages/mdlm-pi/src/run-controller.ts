@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import type {
   AssignmentPacket,
   AssignmentState,
@@ -12,7 +13,11 @@ import { GitPublisher } from "./git-publisher.js";
 import type { OperatorIO } from "./operator-io.js";
 import type { PiAssignmentRunOptions } from "./pi-assignment-runner.js";
 import { PiAssignmentRunner } from "./pi-assignment-runner.js";
-import type { PublicationEvidence, RunJournalRecord } from "./run-journal.js";
+import type {
+  RecoveryAssignment,
+  RunJournalRecord,
+  UncapturedPublicationEvidence,
+} from "./run-journal.js";
 import { RunJournal } from "./run-journal.js";
 
 type MdlmPort = Pick<MdlmClient,
@@ -23,8 +28,8 @@ type AssignmentPort = Pick<PiAssignmentRunner, "run"> & {
   close?: (assignmentId: string) => Promise<void>;
 };
 type GitPort = Pick<GitPublisher,
-  "assertClean" | "head" | "commit" | "publicationCommitState" |
-  "pendingTransactionIds"
+  "assertClean" | "head" | "capturePublication" | "commit" |
+  "publicationCommitState" | "pendingTransactionIds"
 >;
 type JournalPort = Pick<RunJournal,
   "load" | "beginAdvancement" | "recordAdvancementExecutions" |
@@ -83,29 +88,15 @@ export class RunController {
     const recovered = await this.#recover();
     if (recovered?.kind === "stopped") return this.#report(recovered.stop);
     if (recovered?.kind === "correction") {
-      const packet = await this.#mdlm.prepare(recovered.assignmentId);
-      const status = await this.#mdlm.status();
-      const outcome = status.currentOutcome;
-      let attendedContext: JsonObject | undefined;
-      if (outcome.outcome === "attention-required") {
-        const assignment = asObject(outcome.assignment, "status.currentOutcome.assignment");
-        if (assignment.id !== recovered.assignmentId) {
-          throw new Error("Correction recovery observed a different attended Assignment");
-        }
-        attendedContext = await this.#attendedContext(outcome);
-      }
-      const corrected = await this.#completeAssignment(
-        packet,
-        {
-          correction: {
-            previousResponse: recovered.previousResponse,
-            diagnostics: recovered.diagnostics,
-          },
-          ...(attendedContext === undefined ? {} : { attendedContext }),
+      return this.#report({
+        status: "assignment-correction-session-lost",
+        details: {
+          assignment: { id: recovered.assignmentId },
+          responseDigest: recovered.replacementDigest,
+          diagnostics: recovered.diagnostics,
         },
-        recovered.replacementDigest,
-      );
-      if (corrected) return this.#report(corrected);
+        successful: false,
+      });
     }
 
     await this.#git.assertClean();
@@ -170,7 +161,8 @@ export class RunController {
 
     const persisted = await this.#journal.loadAttendedConclusions();
     if (
-      persisted !== null && persisted.checkpoint === group.checkpoint &&
+      persisted !== null && isDeepStrictEqual(persisted.package, group.package) &&
+      persisted.checkpoint === group.checkpoint &&
       persisted.consolidationGroup === group.consolidationGroup &&
       persisted.authority === group.authority &&
       group.items.every((item) => persisted.items.includes(item))
@@ -208,9 +200,9 @@ export class RunController {
       );
     }
     const publications = await Promise.all(
-      declared.map(async ({ id }) =>
-        publicationFromMaterialization((await this.#mdlm.execution(id)).execution)
-      ),
+      declared.map(async ({ id }) => this.#git.capturePublication(
+        publicationFromMaterialization((await this.#mdlm.execution(id)).execution),
+      )),
     );
     await this.#journal.recordAdvancementExecutions(publications);
     await this.#finishAdvancement();
@@ -237,6 +229,8 @@ export class RunController {
       await this.#journal.captureSubmission({
         assignmentId: packet.assignment.id,
         scenario: packet.scenario.reference,
+        package: packet.package,
+        repository: packet.repository,
         response: prepared,
         ...(replacementDigest === undefined ? {} : { replacementDigest }),
       });
@@ -273,10 +267,13 @@ export class RunController {
     if (!assignmentState.selected || assignmentState.disposition !== "active") {
       throw new Error(`Assignment '${packet.assignment.id}' is not an active durable lease`);
     }
+    assertRecoveryBoundary(recoveryAssignment(packet), assignmentState);
     const status = await this.#mdlm.status();
     await this.#journal.promoteCapturedSubmission({
       assignmentId: packet.assignment.id,
       scenario: packet.scenario.reference,
+      package: packet.package,
+      repository: packet.repository,
       previousTransactionId: recentTransactionId(status.recentTransaction),
       baseCommit: await this.#git.head(),
       previousMalformedResponseDigests: malformedDigests(assignmentState),
@@ -297,11 +294,11 @@ export class RunController {
     submission: JsonObject,
   ): Promise<SubmissionResult> {
     if (submission.contract === "mdlm-scenario-execution@4") {
-      const publication = publicationFromCommand(submission, {
+      const publication = await this.#git.capturePublication(publicationFromCommand(submission, {
         assignmentId: packet.assignment.id,
         scenario: packet.scenario.reference,
         responseDigest: prepared.digest,
-      });
+      }));
       await this.#journal.recordPublication(publication);
       await this.#finishPublication();
       return { kind: "published" };
@@ -342,7 +339,13 @@ export class RunController {
     if (record === null) return null;
     if (record.phase === "captured") {
       this.#io.progress(`Recovering captured response for Assignment ${record.assignment.id}`);
+      const state = await this.#mdlm.assignment(record.assignment.id);
+      if (!state.selected || state.disposition !== "active") {
+        throw new Error(`Captured Assignment '${record.assignment.id}' is not an active durable lease`);
+      }
+      assertRecoveryBoundary(record.assignment, state);
       const packet = await this.#mdlm.prepare(record.assignment.id);
+      assertRecoveryBoundary(record.assignment, packet);
       if (packet.scenario.reference !== record.assignment.scenario) {
         throw new Error(`Captured Assignment '${record.assignment.id}' changed Scenario identity`);
       }
@@ -382,9 +385,9 @@ export class RunController {
           throw new Error("mdlm next worktree and recent transaction evidence contradict each other");
         }
         const publications = await Promise.all(
-          pendingIds.map(async (id) =>
-            publicationFromMaterialization((await this.#mdlm.execution(id)).execution)
-          ),
+          pendingIds.map(async (id) => this.#git.capturePublication(
+            publicationFromMaterialization((await this.#mdlm.execution(id)).execution),
+          )),
         );
         await this.#journal.recordAdvancementExecutions(publications);
       }
@@ -441,11 +444,14 @@ export class RunController {
     const recentId = recentTransactionId(status.recentTransaction);
     if (recentId !== null && recentId !== record.submission.previousTransactionId) {
       const inspected = await this.#mdlm.execution(recentId);
-      const publication = publicationFromExecution(inspected.execution, {
-        assignmentId: record.assignment.id,
-        scenario: record.assignment.scenario,
-        responseDigest: record.submission.digest,
-      });
+      const publication = await this.#git.capturePublication(publicationFromExecution(
+        inspected.execution,
+        {
+          assignmentId: record.assignment.id,
+          scenario: record.assignment.scenario,
+          responseDigest: record.submission.digest,
+        },
+      ));
       await this.#journal.recordPublication(publication);
       return null;
     }
@@ -457,6 +463,7 @@ export class RunController {
         `Cannot reconcile Assignment '${record.assignment.id}': no publication or durable lease is observable`,
       );
     }
+    assertRecoveryBoundary(record.assignment, state);
     if (state.disposition === "abandoned") {
       const persistedResponse = state.response;
       if (persistedResponse?.digest !== record.submission.digest) {
@@ -514,11 +521,11 @@ export class RunController {
     });
     await this.#completeObservedSubmissionProcess();
     if (submission.contract === "mdlm-scenario-execution@4") {
-      const publication = publicationFromCommand(submission, {
+      const publication = await this.#git.capturePublication(publicationFromCommand(submission, {
         assignmentId: record.assignment.id,
         scenario: record.assignment.scenario,
         responseDigest: record.submission.digest,
-      });
+      }));
       await this.#journal.recordPublication(publication);
       return null;
     }
@@ -605,6 +612,7 @@ export class RunController {
 }
 
 function attendedGroup(outcome: JsonObject): {
+  package: JsonObject;
   checkpoint: string;
   consolidationGroup: string | null;
   authority: string;
@@ -642,6 +650,7 @@ function attendedGroup(outcome: JsonObject): {
     throw new Error("Attention Required must name an attended Authority Requirement");
   }
   return {
+    package: asObject(outcome.package, "attention-required.package"),
     checkpoint,
     consolidationGroup,
     authority: asString(
@@ -705,6 +714,27 @@ function recentTransactionId(value: JsonValue): string | null {
     : null;
 }
 
+function recoveryAssignment(packet: AssignmentPacket): RecoveryAssignment {
+  return {
+    id: packet.assignment.id,
+    scenario: packet.scenario.reference,
+    package: packet.package,
+    repository: packet.repository,
+  };
+}
+
+function assertRecoveryBoundary(
+  expected: RecoveryAssignment,
+  actual: { package: JsonObject; repository: JsonObject },
+): void {
+  if (!isDeepStrictEqual(actual.package, expected.package)) {
+    throw new Error(`Assignment '${expected.id}' selected Process Package changed during recovery`);
+  }
+  if (!isDeepStrictEqual(actual.repository, expected.repository)) {
+    throw new Error(`Assignment '${expected.id}' repository fingerprint changed during recovery`);
+  }
+}
+
 function malformedDigests(state: Extract<AssignmentState, { selected: true }>): string[] {
   return state.malformedResponses.map((item, index) =>
     asString(item.digest, `malformedResponses[${index}].digest`)
@@ -714,14 +744,14 @@ function malformedDigests(state: Extract<AssignmentState, { selected: true }>): 
 function publicationFromCommand(
   command: JsonObject,
   expected: { assignmentId: string; scenario: string; responseDigest: string },
-): PublicationEvidence {
+): UncapturedPublicationEvidence {
   return publicationFromExecution(asObject(command.execution, "submission.execution"), expected);
 }
 
 function publicationFromExecution(
   execution: JsonObject,
   expected: { assignmentId: string; scenario: string; responseDigest: string },
-): PublicationEvidence {
+): UncapturedPublicationEvidence {
   const executionId = asString(execution.id, "execution.id");
   if (execution.status !== "completed") throw new Error(`Scenario execution '${executionId}' is not completed`);
   const response = asObject(execution.response, "execution.response");
@@ -742,11 +772,14 @@ function publicationFromExecution(
     executionId,
     scenario: expected.scenario,
     responseDigest: expected.responseDigest as `sha256:${string}`,
-    outputPaths,
+    outputPaths: [
+      `.lifecycle/data/.transactions/${executionId}/execution.json`,
+      ...outputPaths,
+    ],
   };
 }
 
-function publicationFromMaterialization(execution: JsonObject): PublicationEvidence {
+function publicationFromMaterialization(execution: JsonObject): UncapturedPublicationEvidence {
   const executionId = asString(execution.id, "execution.id");
   if (execution.status !== "completed") {
     throw new Error(`Scenario execution '${executionId}' is not completed`);
@@ -772,7 +805,10 @@ function publicationFromMaterialization(execution: JsonObject): PublicationEvide
     executionId,
     scenario,
     responseDigest: responseDigest as `sha256:${string}`,
-    outputPaths,
+    outputPaths: [
+      `.lifecycle/data/.transactions/${executionId}/execution.json`,
+      ...outputPaths,
+    ],
   };
 }
 

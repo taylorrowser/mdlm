@@ -29,8 +29,8 @@ transactions, reevaluates the repository, and allocates fresh work against the n
 commit when needed. Recovery is limited to the same selected Process Package and
 repository state. A package or repository fingerprint mismatch stops the run;
 `mdlm-pi` does not migrate package versions or recover an Assignment across
-versions. The final Assignment response bytes are durable. For an active checkpoint
-group, only the final normalized conclusions are retained and reused across serial
+versions. The final Assignment response bytes are durable. For an active Consolidation
+Group, only the final normalized conclusions are retained and reused across serial
 reevaluation; raw attended conversation is not.
 
 ## Model and credentials

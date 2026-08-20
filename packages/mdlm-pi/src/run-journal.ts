@@ -1,14 +1,24 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import type { JsonValue, PreparedAssignmentSubmission } from "./mdlm-client.js";
+import { isDeepStrictEqual } from "node:util";
+import type { JsonObject, JsonValue, PreparedAssignmentSubmission } from "./mdlm-client.js";
 
 const journalContract = "mdlm-pi-run-journal@1" as const;
 const attendedConclusionsContract = "mdlm-pi-attended-conclusions@1" as const;
 
+export interface RecoveryAssignment {
+  id: string;
+  scenario: string;
+  package: JsonObject;
+  repository: JsonObject;
+}
+
 export interface SubmissionIntent {
   assignmentId: string;
   scenario: string;
+  package: JsonObject;
+  repository: JsonObject;
   previousTransactionId: string | null;
   baseCommit: string;
   previousMalformedResponseDigests: string[];
@@ -20,7 +30,10 @@ export interface PublicationEvidence {
   scenario: string;
   responseDigest: `sha256:${string}`;
   outputPaths: string[];
+  blobs: { path: string; oid: string }[];
 }
+
+export type UncapturedPublicationEvidence = Omit<PublicationEvidence, "blobs">;
 
 export interface SubmissionProcess {
   id: string;
@@ -31,6 +44,7 @@ export interface SubmissionProcess {
 
 export interface AttendedConclusions {
   contract: typeof attendedConclusionsContract;
+  package: JsonObject;
   checkpoint: string;
   consolidationGroup: string | null;
   authority: string;
@@ -40,7 +54,7 @@ export interface AttendedConclusions {
 
 interface JournalBase {
   contract: typeof journalContract;
-  assignment: { id: string; scenario: string };
+  assignment: RecoveryAssignment;
   submission: {
     source: string;
     digest: `sha256:${string}`;
@@ -65,7 +79,7 @@ export type RunJournalRecord =
   | {
       contract: typeof journalContract;
       phase: "captured";
-      assignment: { id: string; scenario: string };
+      assignment: RecoveryAssignment;
       submission: {
         source: string;
         digest: `sha256:${string}`;
@@ -198,6 +212,8 @@ export class RunJournal {
   async captureSubmission(input: {
     assignmentId: string;
     scenario: string;
+    package: JsonObject;
+    repository: JsonObject;
     response: PreparedAssignmentSubmission;
     replacementDigest?: `sha256:${string}`;
   }): Promise<void> {
@@ -222,7 +238,12 @@ export class RunJournal {
     await this.#write({
       contract: journalContract,
       phase: "captured",
-      assignment: { id: input.assignmentId, scenario: input.scenario },
+      assignment: {
+        id: input.assignmentId,
+        scenario: input.scenario,
+        package: input.package,
+        repository: input.repository,
+      },
       submission: {
         source: input.response.source,
         digest: input.response.digest,
@@ -237,6 +258,8 @@ export class RunJournal {
     if (
       current?.phase !== "captured" || current.assignment.id !== intent.assignmentId ||
       current.assignment.scenario !== intent.scenario ||
+      !isDeepStrictEqual(current.assignment.package, intent.package) ||
+      !isDeepStrictEqual(current.assignment.repository, intent.repository) ||
       current.submission.source !== intent.response.source ||
       current.submission.digest !== intent.response.digest ||
       (current.submission.replacementDigest !== null &&
@@ -248,7 +271,12 @@ export class RunJournal {
     await this.#write({
       contract: journalContract,
       phase: "submitting",
-      assignment: { id: intent.assignmentId, scenario: intent.scenario },
+      assignment: {
+        id: intent.assignmentId,
+        scenario: intent.scenario,
+        package: intent.package,
+        repository: intent.repository,
+      },
       submission: {
         source: intent.response.source,
         digest: intent.response.digest,
@@ -264,6 +292,8 @@ export class RunJournal {
     await this.captureSubmission({
       assignmentId: intent.assignmentId,
       scenario: intent.scenario,
+      package: intent.package,
+      repository: intent.repository,
       response: intent.response,
     });
     await this.promoteCapturedSubmission(intent);
@@ -380,6 +410,7 @@ function parseAttendedConclusions(
 ): AttendedConclusions {
   if (
     !isObject(value) || value.contract !== attendedConclusionsContract ||
+    !isObject(value.package) || !isJsonValue(value.package) ||
     typeof value.checkpoint !== "string" || value.checkpoint.length === 0 ||
     (value.consolidationGroup !== null &&
       typeof value.consolidationGroup !== "string") ||
@@ -392,6 +423,7 @@ function parseAttendedConclusions(
   }
   return {
     contract: attendedConclusionsContract,
+    package: value.package,
     checkpoint: value.checkpoint,
     consolidationGroup: value.consolidationGroup,
     authority: value.authority,
@@ -432,8 +464,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
     const assignment = value.assignment;
     const submission = value.submission;
     if (
-      !isObject(assignment) || typeof assignment.id !== "string" ||
-      typeof assignment.scenario !== "string" || !isObject(submission) ||
+      !parseRecoveryAssignment(assignment) || !isObject(submission) ||
       typeof submission.source !== "string" || typeof submission.digest !== "string" ||
       !/^sha256:[0-9a-f]{64}$/.test(submission.digest) ||
       (submission.replacementDigest !== null &&
@@ -447,7 +478,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
     return {
       contract: journalContract,
       phase: "captured",
-      assignment: { id: assignment.id, scenario: assignment.scenario },
+      assignment,
       submission: {
         source: submission.source,
         digest: submission.digest as `sha256:${string}`,
@@ -462,8 +493,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
   const assignment = value.assignment;
   const submission = value.submission;
   if (
-    !isObject(assignment) || typeof assignment.id !== "string" ||
-    typeof assignment.scenario !== "string" || !isObject(submission) ||
+    !parseRecoveryAssignment(assignment) || !isObject(submission) ||
     typeof submission.source !== "string" || typeof submission.digest !== "string" ||
     !/^sha256:[0-9a-f]{64}$/.test(submission.digest) ||
     (submission.previousTransactionId !== null && typeof submission.previousTransactionId !== "string") ||
@@ -483,7 +513,7 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
   }
   const base: JournalBase = {
     contract: journalContract,
-    assignment: { id: assignment.id, scenario: assignment.scenario },
+    assignment,
     submission: {
       source: submission.source,
       digest: submission.digest as `sha256:${string}`,
@@ -509,7 +539,11 @@ function parseStandalonePublication(
     typeof value.responseDigest !== "string" ||
     !/^sha256:[0-9a-f]{64}$/.test(value.responseDigest) ||
     !Array.isArray(value.outputPaths) ||
-    !value.outputPaths.every((item) => typeof item === "string")
+    !value.outputPaths.every((item) => typeof item === "string") ||
+    !Array.isArray(value.blobs) || !value.blobs.every((blob) =>
+      isObject(blob) && typeof blob.path === "string" &&
+      typeof blob.oid === "string" && /^[0-9a-f]{40,64}$/.test(blob.oid)
+    )
   ) {
     throw new RunJournalError(`Malformed publication evidence in run journal: ${journalPath}`);
   }
@@ -529,6 +563,13 @@ function parsePublication(
   ) {
     throw new RunJournalError(`Malformed publication evidence in run journal: ${journalPath}`);
   }
+}
+
+function parseRecoveryAssignment(value: unknown): value is RecoveryAssignment {
+  return isObject(value) && typeof value.id === "string" && value.id.length > 0 &&
+    typeof value.scenario === "string" && value.scenario.length > 0 &&
+    isObject(value.package) && isJsonValue(value.package) &&
+    isObject(value.repository) && isJsonValue(value.repository);
 }
 
 function validSubmissionProcess(value: unknown): value is SubmissionProcess {

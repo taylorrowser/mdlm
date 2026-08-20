@@ -6,6 +6,7 @@ import { MdlmClient } from "../src/mdlm-client.js";
 import { RunJournal } from "../src/run-journal.js";
 
 const temporaryRoots: string[] = [];
+const recoveryBoundary = { package: {}, repository: {} };
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((root) =>
@@ -33,6 +34,7 @@ describe("RunJournal", () => {
     await journal.beginSubmission({
       assignmentId: "assignment-1",
       scenario: "example-scenario@1",
+      ...recoveryBoundary,
       previousTransactionId: "transaction-0",
       baseCommit: "0123456789abcdef",
       previousMalformedResponseDigests: ["sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
@@ -49,7 +51,12 @@ describe("RunJournal", () => {
     expect(await new RunJournal(storagePath).load()).toEqual({
       contract: "mdlm-pi-run-journal@1",
       phase: "submitting",
-      assignment: { id: "assignment-1", scenario: "example-scenario@1" },
+      assignment: {
+        id: "assignment-1",
+        scenario: "example-scenario@1",
+        package: {},
+        repository: {},
+      },
       submission: {
         source: response.source,
         digest: response.digest,
@@ -71,6 +78,10 @@ describe("RunJournal", () => {
       scenario: "example-scenario@1",
       responseDigest: response.digest,
       outputPaths: [".lifecycle/data/.transactions/execution-1/MAP/MAP-1/r00001.md"],
+      blobs: [{
+        path: ".lifecycle/data/.transactions/execution-1/MAP/MAP-1/r00001.md",
+        oid: "a".repeat(40),
+      }],
     });
     await new RunJournal(storagePath).recordDoctorPassed();
 
@@ -98,13 +109,19 @@ describe("RunJournal", () => {
     await journal.captureSubmission({
       assignmentId: "assignment-1",
       scenario: "example-scenario@1",
+      ...recoveryBoundary,
       response,
     });
 
     expect(await new RunJournal(storagePath).load()).toEqual({
       contract: "mdlm-pi-run-journal@1",
       phase: "captured",
-      assignment: { id: "assignment-1", scenario: "example-scenario@1" },
+      assignment: {
+        id: "assignment-1",
+        scenario: "example-scenario@1",
+        package: {},
+        repository: {},
+      },
       submission: {
         source: response.source,
         digest: response.digest,
@@ -121,6 +138,7 @@ describe("RunJournal", () => {
     await journal.beginSubmission({
       assignmentId: "assignment-1",
       scenario: "example-scenario@1",
+      ...recoveryBoundary,
       previousTransactionId: null,
       baseCommit: "base",
       previousMalformedResponseDigests: [],
@@ -154,6 +172,7 @@ describe("RunJournal", () => {
     await journal.beginSubmission({
       assignmentId: "assignment-1",
       scenario: "example-scenario@1",
+      ...recoveryBoundary,
       previousTransactionId: null,
       baseCommit: "base",
       previousMalformedResponseDigests: [],
@@ -164,6 +183,7 @@ describe("RunJournal", () => {
     await journal.captureSubmission({
       assignmentId: "assignment-1",
       scenario: "example-scenario@1",
+      ...recoveryBoundary,
       replacementDigest: malformed.digest,
       response: corrected,
     });
@@ -178,6 +198,7 @@ describe("RunJournal", () => {
     await journal.promoteCapturedSubmission({
       assignmentId: "assignment-1",
       scenario: "example-scenario@1",
+      ...recoveryBoundary,
       previousTransactionId: null,
       baseCommit: "base",
       previousMalformedResponseDigests: [malformed.digest],

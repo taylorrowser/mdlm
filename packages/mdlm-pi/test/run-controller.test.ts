@@ -13,10 +13,13 @@ import type {
 } from "../src/mdlm-client.js";
 import { RunController } from "../src/run-controller.js";
 import { RunJournal } from "../src/run-journal.js";
+import type { UncapturedPublicationEvidence } from "../src/run-journal.js";
 
 const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
 const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
 const scenario = "example@1";
+const packageIdentity = { reference: "example-package@1", digest: "sha256:package" };
+const repositoryFingerprint = { head: "base-commit", lifecycle: "sha256:lifecycle" };
 
 describe("RunController", () => {
   const roots: string[] = [];
@@ -66,6 +69,8 @@ describe("RunController", () => {
         command: "assignment.show" as const,
         assignment: { id: assignmentId },
         selected: true as const,
+        package: packageIdentity,
+        repository: repositoryFingerprint,
         scenarioReference: scenario,
         disposition: "active" as const,
         retryAvailability: { malformedResponseCorrection: 1 },
@@ -104,6 +109,7 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(async () => "base-commit"),
+      capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => []),
       commit: vi.fn(async (publication: { executionId: string }) => {
@@ -174,6 +180,7 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(async () => "base-commit"),
+      capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => [executionId]),
       commit: vi.fn(async () => "materialization-commit"),
@@ -216,6 +223,7 @@ describe("RunController", () => {
     };
     const firstOutcome = {
       outcome: "attention-required",
+      package: packageIdentity,
       assignment: { allocation: "active", id: assignmentId },
       authorityRequirement,
       attentionContext: { invocations: [{ question: "Choose both exact boundaries" }] },
@@ -342,6 +350,7 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(async () => "base-commit"),
+      capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => []),
       commit: vi.fn(async () => "attended-commit"),
@@ -369,6 +378,8 @@ describe("RunController", () => {
     await journal.captureSubmission({
       assignmentId,
       scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       response: { response, source, digest },
     });
     const statuses: MdlmStatus[] = [
@@ -400,6 +411,7 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(async () => "base-commit"),
+      capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => []),
       commit: vi.fn(async () => "publication-commit"),
@@ -416,6 +428,53 @@ describe("RunController", () => {
     expect(await journal.load()).toBeNull();
   });
 
+  it.each([
+    ["selected Process Package", { package: { reference: "other-package@1" } }],
+    ["repository fingerprint", { repository: { head: "other-commit" } }],
+  ])("stops captured recovery when the %s changed", async (_boundary, changed) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-boundary-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const response: JsonObject = { assignment: assignmentId, exact: "captured" };
+    const source = `${JSON.stringify(response)}\n`;
+    const digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
+    await journal.captureSubmission({
+      assignmentId,
+      scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
+      response: { response, source, digest },
+    });
+    const state = { ...activeAssignmentState(), ...changed };
+    const mdlm = {
+      status: vi.fn(),
+      next: vi.fn(),
+      assignment: vi.fn(async () => state),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+
+    await expect(new RunController({
+      mdlm,
+      assignments: { run: vi.fn() },
+      git: {
+        assertClean: vi.fn(),
+        head: vi.fn(),
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    }).run()).rejects.toThrow("changed during recovery");
+    expect(mdlm.prepare).not.toHaveBeenCalled();
+    expect(mdlm.submit).not.toHaveBeenCalled();
+  });
+
   it("retains a terminal Assignment journal so restart cannot allocate replacement work", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-abandoned-"));
     roots.push(root);
@@ -426,6 +485,8 @@ describe("RunController", () => {
     await journal.beginSubmission({
       assignmentId,
       scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       previousTransactionId: null,
       baseCommit: "base-commit",
       previousMalformedResponseDigests: [],
@@ -437,6 +498,8 @@ describe("RunController", () => {
       ok: true,
       assignment: { id: assignmentId },
       selected: true,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       scenarioReference: scenario,
       disposition: "abandoned",
       retryAvailability: {},
@@ -459,6 +522,7 @@ describe("RunController", () => {
       git: {
         assertClean: vi.fn(),
         head: vi.fn(),
+        capturePublication,
         publicationCommitState: vi.fn(),
         pendingTransactionIds: vi.fn(),
         commit: vi.fn(),
@@ -504,6 +568,7 @@ describe("RunController", () => {
       git: {
         assertClean: vi.fn(),
         head: vi.fn(async () => "base-commit"),
+        capturePublication,
         publicationCommitState: vi.fn(),
         pendingTransactionIds: vi.fn(async () => []),
         commit: vi.fn(),
@@ -519,7 +584,7 @@ describe("RunController", () => {
     expect(await journal.load()).toMatchObject({ phase: "advancing" });
   });
 
-  it("recovers a recorded malformed response by correcting the same durable Assignment", async () => {
+  it("stops when restart loses the session that produced a malformed response", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-correction-"));
     roots.push(root);
     const journal = new RunJournal(path.join(root, "state"));
@@ -529,23 +594,21 @@ describe("RunController", () => {
     await journal.beginSubmission({
       assignmentId,
       scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       previousTransactionId: null,
       baseCommit: "base-commit",
       previousMalformedResponseDigests: [],
       response: { response: malformedResponse, source: malformedSource, digest: malformedDigest },
     });
-    const correctedResponse: JsonObject = {
-      contract: "mdlm-assignment-response@1",
-      assignment: assignmentId,
-      kind: "proposal",
-      proposal: { corrected: true },
-    };
     const state = {
       contract: "mdlm-assignment-state@1" as const,
       ok: true,
       command: "assignment.show" as const,
       assignment: { id: assignmentId },
       selected: true as const,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       scenarioReference: scenario,
       disposition: "active" as const,
       retryAvailability: { malformedResponseCorrection: 0 },
@@ -585,15 +648,11 @@ describe("RunController", () => {
       execution: vi.fn(),
       doctor: vi.fn(async () => ({ command: "doctor" as const, ok: true })),
     };
-    const assignments = {
-      run: vi.fn(async (_packet: AssignmentPacket, options?: { correction?: { previousResponse: JsonObject } }) => {
-        expect(options?.correction?.previousResponse).toEqual(malformedResponse);
-        return correctedResponse;
-      }),
-    };
+    const assignments = { run: vi.fn() };
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(async () => "base-commit"),
+      capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => []),
       commit: vi.fn(async () => "publication-commit"),
@@ -602,12 +661,13 @@ describe("RunController", () => {
 
     const controller = new RunController({ mdlm, assignments, git, io, journal });
     await expect(controller.run()).resolves.toMatchObject({
-      status: "lifecycle-complete",
-      successful: true,
+      status: "assignment-correction-session-lost",
+      successful: false,
+      details: { assignment: { id: assignmentId }, responseDigest: malformedDigest },
     });
-    expect(assignments.run).toHaveBeenCalledTimes(1);
-    expect(mdlm.submit).toHaveBeenCalledTimes(1);
-    expect(await journal.load()).toBeNull();
+    expect(assignments.run).not.toHaveBeenCalled();
+    expect(mdlm.submit).not.toHaveBeenCalled();
+    expect(await journal.load()).toMatchObject({ phase: "submitting" });
   });
 
   it("resumes commit after doctor passed and clears the durable journal", async () => {
@@ -620,6 +680,8 @@ describe("RunController", () => {
     await journal.beginSubmission({
       assignmentId,
       scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       previousTransactionId: null,
       baseCommit: "base-commit",
       previousMalformedResponseDigests: [],
@@ -629,7 +691,14 @@ describe("RunController", () => {
       executionId,
       scenario,
       responseDigest: digest,
-      outputPaths: [`.lifecycle/data/.transactions/${executionId}/map.md`],
+      outputPaths: [
+        `.lifecycle/data/.transactions/${executionId}/execution.json`,
+        `.lifecycle/data/.transactions/${executionId}/map.md`,
+      ],
+      blobs: [
+        { path: `.lifecycle/data/.transactions/${executionId}/execution.json`, oid: "a".repeat(40) },
+        { path: `.lifecycle/data/.transactions/${executionId}/map.md`, oid: "b".repeat(40) },
+      ],
     });
     await journal.recordDoctorPassed();
     const mdlm = {
@@ -651,6 +720,7 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(),
+      capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => []),
       commit: vi.fn(async () => "recovered-commit"),
@@ -689,6 +759,8 @@ describe("RunController", () => {
     await journal.beginSubmission({
       assignmentId,
       scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       previousTransactionId: null,
       baseCommit: "base-commit",
       previousMalformedResponseDigests: [],
@@ -717,6 +789,7 @@ describe("RunController", () => {
       git: {
         assertClean: vi.fn(),
         head: vi.fn(),
+        capturePublication,
         publicationCommitState: vi.fn(),
         pendingTransactionIds: vi.fn(),
         commit: vi.fn(),
@@ -753,6 +826,8 @@ describe("RunController", () => {
     await journal.beginSubmission({
       assignmentId,
       scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       previousTransactionId: null,
       baseCommit: "base-commit",
       previousMalformedResponseDigests: [],
@@ -793,6 +868,7 @@ describe("RunController", () => {
     const git = {
       assertClean: vi.fn(async () => undefined),
       head: vi.fn(),
+      capturePublication,
       publicationCommitState: vi.fn(),
       pendingTransactionIds: vi.fn(async () => []),
       commit: vi.fn(async () => "publication-commit"),
@@ -821,6 +897,16 @@ describe("RunController", () => {
   });
 });
 
+async function capturePublication(publication: UncapturedPublicationEvidence) {
+  return {
+    ...publication,
+    blobs: publication.outputPaths.map((outputPath) => ({
+      path: outputPath,
+      oid: "a".repeat(40),
+    })),
+  };
+}
+
 function activeAssignmentState(): Extract<AssignmentState, { selected: true }> {
   return {
     contract: "mdlm-assignment-state@1",
@@ -828,6 +914,8 @@ function activeAssignmentState(): Extract<AssignmentState, { selected: true }> {
     command: "assignment.show",
     assignment: { id: assignmentId },
     selected: true,
+    package: packageIdentity,
+    repository: repositoryFingerprint,
     scenarioReference: scenario,
     disposition: "active",
     retryAvailability: { malformedResponseCorrection: 1 },
@@ -875,6 +963,8 @@ function packet(id = assignmentId): AssignmentPacket {
     ok: true,
     command: "scenario.prepare",
     assignment: { id },
+    package: packageIdentity,
+    repository: repositoryFingerprint,
     scenario: { reference: scenario },
     prompt: { exact: "complete it", skills: [] },
     responseSchema: {},

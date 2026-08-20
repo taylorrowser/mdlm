@@ -127,6 +127,8 @@ export type AssignmentState = {
   | { selected: false }
   | {
       selected: true;
+      package: PackageExecutionIdentity;
+      repository: RepositoryFingerprint;
       scenarioReference: string;
       disposition: AssignmentLease["disposition"];
       retryAvailability: AssignmentLease["retryAvailability"];
@@ -660,6 +662,8 @@ export async function inspectAssignmentState(
       contract: "mdlm-assignment-state@1",
       assignment: { id: lease.id },
       selected: true,
+      package: lease.package,
+      repository: lease.repository,
       scenarioReference: lease.scenario,
       disposition: lease.disposition,
       retryAvailability: lease.retryAvailability,

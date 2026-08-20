@@ -123,6 +123,7 @@ if (args[0] === "next") {
   await appendFile(nextInvocations, "next\\n");
   await mkdir(path.join(process.cwd(), path.dirname(outputPath)), { recursive: true });
   await writeFile(path.join(process.cwd(), outputPath), "materialized\\n");
+  await writeFile(path.join(process.cwd(), path.dirname(outputPath), "execution.json"), JSON.stringify(execution) + "\\n");
   await writeFile(materialized, "materialized\\n");
   await writeFile(ready, String(process.pid));
   setInterval(() => {}, 1000);
@@ -183,7 +184,10 @@ if (args[0] === "next") {
     })).stdout.trim()).toBe("2");
     expect((await executeFile("git", [
       "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
-    ], { cwd: repository })).stdout.trim()).toBe(outputPath);
+    ], { cwd: repository })).stdout.trim().split("\n").sort()).toEqual([
+      outputPath,
+      `.lifecycle/data/.transactions/${executionId}/execution.json`,
+    ].sort());
     expect((await executeFile("git", ["show", `HEAD:${outputPath}`], {
       cwd: repository,
     })).stdout).toBe("materialized\n");
@@ -206,6 +210,8 @@ if (args[0] === "next") {
     const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
     const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
     const scenario = "package-neutral-example@1";
+    const packageIdentity = { reference: "package-neutral@1", digest: "sha256:package" };
+    const repositoryFingerprint = { head: "fixture", lifecycle: "sha256:lifecycle" };
     await mkdir(repository);
     await mkdir(invocationDirectory);
     await executeFile("git", ["init", "--quiet"], { cwd: repository });
@@ -224,6 +230,8 @@ if (args[0] === "next") {
     await new RunJournal(stateDirectory).captureSubmission({
       assignmentId,
       scenario,
+      package: packageIdentity,
+      repository: repositoryFingerprint,
       response,
     });
     const outputPath = `.lifecycle/data/.transactions/${executionId}/datum.md`;
@@ -251,19 +259,23 @@ if (args[0] === "scenario" && args[1] === "submit") {
   await appendFile(submissions, "submit\\n");
   await mkdir(path.join(process.cwd(), path.dirname(outputPath)), { recursive: true });
   await writeFile(path.join(process.cwd(), outputPath), "published\\n");
+  await writeFile(path.join(process.cwd(), path.dirname(outputPath), "execution.json"), JSON.stringify(execution) + "\\n");
   await writeFile(published, "published\\n");
   await writeFile(ready, String(process.pid));
   setInterval(() => {}, 1000);
 } else if (args[0] === "scenario" && args[1] === "prepare") {
   process.stdout.write(JSON.stringify({
     contract: "mdlm-assignment-packet@2", command: "scenario.prepare", ok: true,
-    assignment: { id: assignmentId }, scenario: { reference: scenario }, responseSchema: { type: "object" }
+    assignment: { id: assignmentId }, package: ${JSON.stringify(packageIdentity)},
+    repository: ${JSON.stringify(repositoryFingerprint)},
+    scenario: { reference: scenario }, responseSchema: { type: "object" }
   }));
 } else if (args[0] === "assignment") {
   process.stdout.write(JSON.stringify({
     contract: "mdlm-assignment-state@1", command: "assignment.show", ok: true,
-    assignment: { id: assignmentId }, selected: true, scenarioReference: scenario,
-    disposition: "active", retryAvailability: {}, malformedResponses: []
+    assignment: { id: assignmentId }, selected: true,
+    package: ${JSON.stringify(packageIdentity)}, repository: ${JSON.stringify(repositoryFingerprint)},
+    scenarioReference: scenario, disposition: "active", retryAvailability: {}, malformedResponses: []
   }));
 } else if (args[0] === "scenario" && args[1] === "execution") {
   process.stdout.write(JSON.stringify({

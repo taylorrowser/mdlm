@@ -1,6 +1,9 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { PublicationEvidence } from "./run-journal.js";
+import type {
+  PublicationEvidence,
+  UncapturedPublicationEvidence,
+} from "./run-journal.js";
 
 const executeFile = promisify(execFile);
 
@@ -56,6 +59,17 @@ export class GitPublisher {
     }
   }
 
+  async capturePublication(
+    publication: UncapturedPublicationEvidence,
+  ): Promise<PublicationEvidence> {
+    const outputPaths = publicationPaths(publication);
+    const blobs = await Promise.all(outputPaths.map(async (outputPath) => ({
+      path: outputPath,
+      oid: await this.#worktreeBlob(outputPath),
+    })));
+    return { ...publication, outputPaths, blobs };
+  }
+
   async pendingTransactionIds(): Promise<string[]> {
     const ids = new Set<string>();
     for (const changedPath of await this.#changes()) {
@@ -100,6 +114,12 @@ export class GitPublisher {
           explanation: `Transaction '${publication.executionId}' paths differ from its execution outputs`,
         };
       }
+      if (!(await this.#worktreeMatches(publication))) {
+        return {
+          state: "ambiguous",
+          explanation: `Transaction '${publication.executionId}' bytes differ from its journaled publication`,
+        };
+      }
       return { state: "needs-commit" };
     }
 
@@ -135,6 +155,9 @@ export class GitPublisher {
     const subject = (await this.#git(["show", "-s", "--format=%s", "HEAD"])).trim();
     if (subject !== commitMessage(publication)) {
       return { state: "ambiguous", explanation: "The new HEAD has an unexpected commit message" };
+    }
+    if (!(await this.#commitMatches(publication))) {
+      return { state: "ambiguous", explanation: "The new HEAD contains unexpected transaction bytes" };
     }
     return { state: "committed", commit: currentHead };
   }
@@ -180,6 +203,32 @@ export class GitPublisher {
       );
     }
     return committed.commit;
+  }
+
+  async #worktreeMatches(publication: PublicationEvidence): Promise<boolean> {
+    validateBlobs(publication);
+    const actual = await Promise.all(publication.blobs.map(async ({ path: outputPath }) => ({
+      path: outputPath,
+      oid: await this.#worktreeBlob(outputPath),
+    })));
+    return sameBlobs(actual, publication.blobs);
+  }
+
+  async #commitMatches(publication: PublicationEvidence): Promise<boolean> {
+    validateBlobs(publication);
+    const actual = await Promise.all(publication.blobs.map(async ({ path: outputPath }) => ({
+      path: outputPath,
+      oid: (await this.#git(["rev-parse", `HEAD:${outputPath}`])).trim(),
+    })));
+    return sameBlobs(actual, publication.blobs);
+  }
+
+  async #worktreeBlob(outputPath: string): Promise<string> {
+    const oid = (await this.#git(["hash-object", "--no-filters", "--", outputPath])).trim();
+    if (!/^[0-9a-f]{40,64}$/.test(oid)) {
+      throw new GitPublisherError(`Git did not return a blob identity for '${outputPath}'`);
+    }
+    return oid;
   }
 
   async #configuredIdentity(): Promise<void> {
@@ -234,7 +283,7 @@ function transactionPath(executionId: string): string {
   return `.lifecycle/data/.transactions/${executionId}`;
 }
 
-function publicationPaths(publication: PublicationEvidence): string[] {
+function publicationPaths(publication: UncapturedPublicationEvidence): string[] {
   const transactionDirectory = transactionPath(publication.executionId);
   const paths = [...new Set(publication.outputPaths)].sort();
   if (
@@ -260,6 +309,26 @@ function splitNull(value: string): string[] {
 
 function samePaths(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+function validateBlobs(publication: PublicationEvidence): void {
+  const expectedPaths = publicationPaths(publication);
+  const blobPaths = publication.blobs.map((blob) => blob.path);
+  if (
+    !samePaths(blobPaths, expectedPaths) ||
+    publication.blobs.some((blob) => !/^[0-9a-f]{40,64}$/.test(blob.oid))
+  ) {
+    throw new GitPublisherError("Journaled publication blobs do not match its exact transaction paths");
+  }
+}
+
+function sameBlobs(
+  left: { path: string; oid: string }[],
+  right: { path: string; oid: string }[],
+): boolean {
+  return left.length === right.length && left.every((blob, index) =>
+    blob.path === right[index]?.path && blob.oid === right[index]?.oid
+  );
 }
 
 function repositoryGitEnvironment(): NodeJS.ProcessEnv {
