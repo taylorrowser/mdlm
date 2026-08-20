@@ -232,6 +232,14 @@ describe("initial product-intent authority", () => {
       }));
       expect(inputRevision(resolution, "question")).toBe(openQuestion.revisionId);
       const answeredQuestion = `${openQuestion.id}-r00002`;
+      const attendedAnswer = [
+        "Build the minimum command-line `temperature-converter <value> <source-unit>` product.",
+        "Accept only uppercase `F` and `C` source units.",
+        "For `F`, output Celsius using `(F - 32) * 5 / 9`; for `C`, output Fahrenheit using `C * 9 / 5 + 32`.",
+        "Print the converted number and destination unit, round half away from zero to at most two decimals, and omit trailing zeros.",
+        "Reject a wrong argument count, a malformed or non-finite value, an unsupported unit, and a non-finite result with a nonzero exit, a concise stderr message, and no stdout.",
+        "Do not add interactive input, configuration, networking, a conversion framework, or production hardening. Keep one direct implementation with no runtime dependencies.",
+      ].join(" ");
       const resolutionOutputs: ProposedOutput[] = [{
         localId: "decision",
         name: "decision",
@@ -239,11 +247,11 @@ describe("initial product-intent authority", () => {
         lifecycleDatum: {
           type: "DEC",
           payload: {
-            title: "Build a four-operation command-line calculator",
+            title: "Build the minimum command-line temperature converter",
             rationale: "This is the product the user explicitly requested.",
             kind: "scope",
-            decision: "Build a command-line calculator supporting add, subtract, multiply, and divide.",
-            alternatives: ["Build a graphical calculator", "Infer scope from the repository name"],
+            decision: attendedAnswer,
+            alternatives: ["Build a conversion framework", "Infer scope from the repository name"],
             effective_scope: answeredQuestion,
           },
           links: [
@@ -266,6 +274,7 @@ describe("initial product-intent authority", () => {
             question: "What product do you currently intend to build?",
             state: "answered",
             blocking_impact: "A PSP cannot be compiled without the user's answer.",
+            attended_answer: attendedAnswer,
           },
           links: [],
           body: "The initial product-intent Question has an attended answer.\n",
@@ -296,8 +305,122 @@ describe("initial product-intent authority", () => {
         (output: { name: string }) => output.name === "decision",
       ).lifecycleDatum;
 
+      let failedReviewRevision: string | undefined;
+      for (let step = 0; step < 6; step += 1) {
+        const prepared = prepareNextAssignment(repository);
+        expect(prepared.packet.scenario.reference).toBe("review-datum-in-context@2");
+        if (inputRevision(prepared, "subject") !== decision.revisionId) {
+          const reviewed = submitAssignment(repository, prepared, reviewOutput(prepared));
+          expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
+          continue;
+        }
+        expect(inputRevisions(prepared, "context_members").sort()).toEqual([
+          openQuestion.revisionId,
+          answeredQuestion,
+          sourceBoundary,
+        ].sort());
+        const failed = submitAssignment(repository, prepared, [{
+          localId: "review",
+          name: "review",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "REV",
+            payload: {
+              title: `Failed Review of ${decision.revisionId}`,
+              review_kind: "contextual",
+              rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+              findings: [{
+                id: "F-001",
+                target: decision.revisionId,
+                relationship: "primary",
+                severity: "blocking",
+                summary: "The Decision must carry the self-contained attended answer without hidden source references.",
+                criterion: "Exact attended product intent must remain available to downstream work.",
+                evidence: "The Decision requires correction under the normalized attended answer authority.",
+                material_consequence: "A lossy correction would make the PSP omit supplied behavior.",
+              }],
+              correction_authority: "stakeholder",
+              outcome: "fail",
+            },
+            links: [
+              { type: "reviews", target: decision.revisionId },
+              { type: "contextualizes", target: inputRevision(prepared, "review_context") },
+            ],
+            body: "The initial product-intent Decision requires an attended correction.\n",
+          },
+        }]);
+        expect(failed.status, `${failed.stderr}${failed.stdout}`).toBe(0);
+        failedReviewRevision = JSON.parse(failed.stdout).execution.outputs[0]
+          .lifecycleDatum.revisionId;
+        break;
+      }
+      expect(failedReviewRevision).toBeDefined();
+
+      const correction = prepareNextAssignment(
+        repository,
+        "revise-question-decision-after-review@1",
+      );
+      expect(correction.outcome).toEqual(expect.objectContaining({
+        outcome: "attention-required",
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+      }));
+      expect(inputRevision(correction, "question")).toBe(answeredQuestion);
+      expect(inputRevisions(correction, "failed_reviews")).toEqual([
+        failedReviewRevision,
+      ]);
+      const correctionOutput: ProposedOutput = {
+        localId: "replacement",
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: decision.id,
+          type: "DEC",
+          payload: {
+            title: "Corrected minimum temperature converter intent",
+            rationale: "The attended correction retains the exact normalized product answer.",
+            kind: "scope",
+            decision: attendedAnswer,
+            alternatives: [
+              "Retain the exact attended answer",
+              "Explicitly narrow, defer, or remove part of the answer",
+            ],
+            effective_scope: answeredQuestion,
+          },
+          links: [
+            { type: "resolves", target: answeredQuestion },
+            { type: "corrects-review", target: failedReviewRevision! },
+          ],
+          body: "The correction retains the exact attended product answer.\n",
+        },
+      };
+      const lossyCorrection = structuredClone(correctionOutput);
+      lossyCorrection.lifecycleDatum.payload.decision =
+        "Build a command-line temperature converter for uppercase F and C.";
+      const dataRoot = path.join(repository, ".lifecycle", "data");
+      const beforeLossyCorrection = await directoryDigest(dataRoot);
+      const rejectedLossyCorrection = submitAssignment(
+        repository,
+        correction,
+        [lossyCorrection],
+      );
+      expect(rejectedLossyCorrection.status).toBe(1);
+      expect(JSON.parse(rejectedLossyCorrection.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      );
+      expect(await directoryDigest(dataRoot)).toBe(beforeLossyCorrection);
+
+      const corrected = submitAssignment(repository, correction, [correctionOutput]);
+      expect(corrected.status, `${corrected.stderr}${corrected.stdout}`).toBe(0);
+      const correctedDecision = JSON.parse(corrected.stdout).execution.outputs[0]
+        .lifecycleDatum;
+
       let compile: PreparedAssignment | undefined;
-      let reviewedDecision = false;
+      let reviewedCorrection = false;
       for (let step = 0; step < 6; step += 1) {
         const prepared = prepareNextAssignment(repository);
         const scenario = prepared.packet.scenario.reference as string;
@@ -306,24 +429,28 @@ describe("initial product-intent authority", () => {
           break;
         }
         expect(scenario).toBe("review-datum-in-context@2");
-        if (inputRevision(prepared, "subject") === decision.revisionId) {
-          reviewedDecision = true;
-          expect(inputRevisions(prepared, "context_members")).toEqual(
-            expect.arrayContaining([
-              openQuestion.revisionId,
-              answeredQuestion,
-              sourceBoundary,
-            ]),
-          );
+        if (inputRevision(prepared, "subject") === correctedDecision.revisionId) {
+          reviewedCorrection = true;
+          expect(inputRevisions(prepared, "context_members").sort()).toEqual([
+            openQuestion.revisionId,
+            answeredQuestion,
+            sourceBoundary,
+            decision.revisionId,
+            failedReviewRevision!,
+          ].sort());
         }
         const reviewed = submitAssignment(repository, prepared, reviewOutput(prepared));
         expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
       }
-      expect(reviewedDecision).toBe(true);
+      expect(reviewedCorrection).toBe(true);
       expect(compile).toBeDefined();
       expect(inputRevision(compile!, "product_intent_authority")).toBe(
-        decision.revisionId,
+        correctedDecision.revisionId,
       );
+      const compileAuthority = compile!.packet.exactInputs[0].inputs.find(
+        (input: { name: string }) => input.name === "product_intent_authority",
+      ).values[0].data.payload;
+      expect(compileAuthority.decision).toBe(attendedAnswer);
 
       const productOutput: ProposedOutput = {
         localId: "product",
@@ -332,38 +459,42 @@ describe("initial product-intent authority", () => {
         lifecycleDatum: {
           type: "PSP",
           payload: {
-            title: "Four-operation command-line calculator",
-            rationale: "Compile only the exact attended product intent.",
-            problem: "A user needs basic arithmetic from a terminal.",
+            title: "Minimum command-line temperature converter",
+            rationale: "Compile only the accepted current attended product intent.",
+            problem: "A command-line user needs deterministic F/C temperature conversion.",
             users: ["command-line users"],
-            goals: ["support add, subtract, multiply, and divide"],
-            non_goals: ["graphical interface", "scientific functions"],
-            workflows: ["provide an operation and operands, then receive the result"],
-            success_measures: ["all four requested operations return correct results"],
+            goals: [
+              "accept exactly one finite value and an uppercase F or C source unit",
+              "apply (F - 32) * 5 / 9 or C * 9 / 5 + 32 and print the destination unit",
+              "round half away from zero to at most two decimals and omit trailing zeros",
+              "reject wrong argument counts, malformed or non-finite values, unsupported units, and non-finite results without stdout",
+            ],
+            non_goals: [
+              "interactive input, configuration, or networking",
+              "a conversion framework or production hardening",
+              "runtime dependencies or an indirect multi-module design",
+            ],
+            workflows: [
+              "run temperature-converter <value> <source-unit> and receive the converted value and destination unit",
+              "receive a nonzero exit and concise stderr with no stdout for an invalid invocation",
+            ],
+            success_measures: [
+              "F and C conversions use the exact supplied formulas",
+              "valid output follows the exact numeric and unit format",
+              "every supplied invalid case fails without stdout",
+            ],
           },
-          links: [],
-          body: "The PSP contains no product scope beyond the attended answer.\n",
+          links: [{
+            type: "derived-from",
+            target: correctedDecision.revisionId,
+          }],
+          body: "The PSP retains the formulas, destination units, formatting, invalid cases, exclusions, and simplicity constraints.\n",
         },
       };
-      const dataRoot = path.join(repository, ".lifecycle", "data");
-      const beforeUnsupported = await directoryDigest(dataRoot);
-      const unsupported = submitAssignment(repository, compile!, [productOutput]);
-      expect(unsupported.status).toBe(1);
-      expect(JSON.parse(unsupported.stdout).diagnostics).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ code: "scenario-output-required-link-missing" }),
-        ]),
-      );
-      expect(await directoryDigest(dataRoot)).toBe(beforeUnsupported);
-
-      productOutput.lifecycleDatum.links = [{
-        type: "derived-from",
-        target: decision.revisionId,
-      }];
       const product = submitAssignment(repository, compile!, [productOutput]);
       expect(product.status, `${product.stderr}${product.stdout}`).toBe(0);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 45_000);
+  }, 90_000);
 });

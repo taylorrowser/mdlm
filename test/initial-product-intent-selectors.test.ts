@@ -8,7 +8,7 @@ import {
 import { evaluateProcessDefinition } from "../src/evaluator.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
-const processRef = "mdlm-bootstrap@0.72.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.73.0#sha256:test";
 let processPackage: ProcessPackage;
 
 function record(
@@ -54,7 +54,7 @@ function routeFixture() {
     ...source.datum.payload,
     title: "A title with no product-intent naming convention",
     state: "answered",
-    answer: "Produce one reviewable deterministic result.",
+    attended_answer: "Produce one reviewable deterministic result.",
   }, {
     revision: 2,
     scenario: "resolve-question@2",
@@ -135,6 +135,7 @@ function passingReview(
 function selectedBy(
   records: LifecycleRecord[],
   selector: string,
+  arguments_: Record<string, unknown> = {},
 ): string[] {
   const evaluation = evaluateProcessDefinition(
     processPackage,
@@ -146,7 +147,7 @@ function selectedBy(
     },
     "selector",
     selector,
-    {},
+    arguments_,
   );
   return (evaluation.result as Array<{ identity: { revision_id: string } }>)
     .map((item) => item.identity.revision_id);
@@ -216,7 +217,7 @@ describe("initial product-intent authority selectors", () => {
     const fixture = routeFixture();
     const newerAnswer = record("QST", fixture.answered.datum.id, {
       ...fixture.answered.datum.payload,
-      answer: "A later corrected answer.",
+      attended_answer: "A later corrected answer.",
     }, {
       revision: 3,
       scenario: "resolve-question@2",
@@ -260,12 +261,24 @@ describe("initial product-intent authority selectors", () => {
       "REV-7K3M9Q2D8G",
     );
 
-    expect(selected([
+    const records = [
       ...Object.values(fixture),
       replacement,
       replacementContext,
       replacementReview,
-    ])).toEqual([replacement.datum.revision_id]);
+    ];
+    expect(selected(records)).toEqual([replacement.datum.revision_id]);
+    expect(selectedBy(
+      records,
+      "review-context-members-for@1",
+      { subject: replacement.datum.revision_id },
+    ).sort()).toEqual([
+      fixture.source.datum.revision_id,
+      fixture.boundary.datum.revision_id,
+      fixture.answered.datum.revision_id,
+      fixture.decision.datum.revision_id,
+      fixture.review.datum.revision_id,
+    ].sort());
   });
 
   it("rejects a passing Review that cites a stale exact Review Context", () => {

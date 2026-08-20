@@ -46,6 +46,9 @@ query:
             {decision: subject}, source => source != member)
           || !every("initial-product-intent-boundaries-for-decision@1",
             {decision: subject}, boundary => boundary != member)
+          || (subject.provenance.scenario == "revise-question-decision-after-review@1"
+            && !every("all-cited-reviews-by-correction@1",
+              {replacement: subject}, review => review != member))
         ))
       || (subject.identity.type in ["MAP", "PSP", "STK"]
         && (

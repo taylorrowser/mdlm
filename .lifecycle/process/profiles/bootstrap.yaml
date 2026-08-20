@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 36
+version: 37
 status: experimental
 description: Complete bootstrap profile with proportional grouped system definition, reviewed intent, qualification/pilot, exact accepted-STK and shared-SYS change control, and a reviewed expansion Decision.
 enabled:

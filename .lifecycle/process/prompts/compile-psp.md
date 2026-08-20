@@ -14,8 +14,11 @@ Read, in order:
 4. `skills/scope-challenge.md@2`
 
 Use only the exact `product_intent_authority` Decision supplied by the
-Assignment as stakeholder authority for product scope. Compile one concise PSP
-covering the stated problem, users, goals, exclusions, workflows, success
+Assignment as the accepted current product authority. Its `decision` contains
+the complete normalized attended answer or the complete current answer after an
+explicit attended narrow, defer, or remove correction. Compile one concise PSP
+covering every supplied behavior and boundary across the stated problem, users,
+goals, exclusions, workflows, success
 measures, scope, and constraints. Link the PSP to that exact Decision with
 `derived-from`.
 

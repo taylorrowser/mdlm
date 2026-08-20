@@ -21,6 +21,13 @@ payload_schema:
       uniqueItems: true
       items: {type: string, minLength: 1}
     effective_scope: {type: string, minLength: 1}
+    attended_answer_change:
+      type: object
+      additionalProperties: false
+      required: [disposition, rationale]
+      properties:
+        disposition: {enum: [narrow, defer, remove]}
+        rationale: {type: string, minLength: 1}
     scope_correction:
       type: object
       additionalProperties: false
