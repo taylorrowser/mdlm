@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import type {
   PublicationEvidence,
@@ -16,6 +17,11 @@ export type PublicationCommitState =
   | { state: "needs-commit" }
   | { state: "committed"; commit: string }
   | { state: "ambiguous"; explanation: string };
+
+export interface RepositoryFingerprint {
+  head: string;
+  trackedState: `sha256:${string}`;
+}
 
 export class GitPublisherError extends Error {
   constructor(message: string) {
@@ -57,6 +63,21 @@ export class GitPublisher {
         `Repository has pre-existing changes; refusing to mix them with an MDLM transaction:\n${changes.join("\n")}`,
       );
     }
+  }
+
+  async repositoryFingerprint(): Promise<RepositoryFingerprint> {
+    const [headSource, stagedDiff, worktreeDiff] = await Promise.all([
+      this.#git(["rev-parse", "HEAD"]),
+      this.#git(["diff", "--binary", "--no-ext-diff", "--cached", "HEAD", "--"]),
+      this.#git(["diff", "--binary", "--no-ext-diff", "--"]),
+    ]);
+    const head = headSource.trim();
+    return {
+      head,
+      trackedState: `sha256:${createHash("sha256").update(
+        `${head}\0staged\0${stagedDiff}\0worktree\0${worktreeDiff}`,
+      ).digest("hex")}`,
+    };
   }
 
   async capturePublication(

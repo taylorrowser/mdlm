@@ -3,9 +3,15 @@ import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { JsonObject, JsonValue, PreparedAssignmentSubmission } from "./mdlm-client.js";
+import type { RepositoryFingerprint } from "./git-publisher.js";
 
 const journalContract = "mdlm-pi-run-journal@1" as const;
 const attendedConclusionsContract = "mdlm-pi-attended-conclusions@1" as const;
+
+export interface RecoveryBoundary {
+  package: JsonObject;
+  repository: RepositoryFingerprint;
+}
 
 export interface RecoveryAssignment {
   id: string;
@@ -70,7 +76,7 @@ export type RunJournalRecord =
   | {
       contract: typeof journalContract;
       phase: "advancing";
-      advancement: {
+      advancement: RecoveryBoundary & {
         baseCommit: string;
         previousTransactionId: string | null;
         pending: PublicationEvidence[];
@@ -79,6 +85,7 @@ export type RunJournalRecord =
   | {
       contract: typeof journalContract;
       phase: "reevaluating";
+      boundary: RecoveryBoundary;
     }
   | {
       contract: typeof journalContract;
@@ -173,18 +180,27 @@ export class RunJournal {
     await syncDirectory(this.#directory);
   }
 
-  async beginAdvancement(intent: {
-    baseCommit: string;
+  async beginAdvancement(intent: RecoveryBoundary & {
     previousTransactionId: string | null;
   }): Promise<void> {
     const current = await this.load();
     if (current !== null && current.phase !== "reevaluating") {
       throw new RunJournalError("Cannot advance while recovery work remains in the run journal");
     }
+    if (current?.phase === "reevaluating" && !isDeepStrictEqual(current.boundary, {
+      package: intent.package,
+      repository: intent.repository,
+    })) {
+      throw new RunJournalError("Fresh advancement does not match the reevaluation recovery boundary");
+    }
     await this.#write({
       contract: journalContract,
       phase: "advancing",
-      advancement: { ...intent, pending: [] },
+      advancement: {
+        ...intent,
+        baseCommit: intent.repository.head,
+        pending: [],
+      },
     });
   }
 
@@ -199,19 +215,31 @@ export class RunJournal {
     });
   }
 
-  async completeAdvancementExecution(executionId: string, commit: string): Promise<void> {
+  async completeAdvancementExecution(
+    executionId: string,
+    commit: string,
+    repository: RepositoryFingerprint,
+  ): Promise<void> {
     const current = await this.load();
     if (current?.phase !== "advancing" || current.advancement.pending[0]?.executionId !== executionId) {
       throw new RunJournalError("Advancement commits must complete in journaled execution order");
     }
+    if (repository.head !== commit) {
+      throw new RunJournalError("Advancement commit does not match its repository fingerprint");
+    }
     const pending = current.advancement.pending.slice(1);
     await this.#write(pending.length === 0
-      ? { contract: journalContract, phase: "reevaluating" }
+      ? {
+          contract: journalContract,
+          phase: "reevaluating",
+          boundary: { package: current.advancement.package, repository },
+        }
       : {
           ...current,
           advancement: {
             ...current.advancement,
             baseCommit: commit,
+            repository,
             pending,
           },
         });
@@ -452,6 +480,8 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
     if (
       !isObject(advancement) || typeof advancement.baseCommit !== "string" ||
       advancement.baseCommit.length === 0 ||
+      !parseRecoveryBoundary(advancement) ||
+      advancement.repository.head !== advancement.baseCommit ||
       (advancement.previousTransactionId !== null &&
         typeof advancement.previousTransactionId !== "string") ||
       !Array.isArray(advancement.pending)
@@ -467,12 +497,21 @@ function parseJournal(value: unknown, journalPath: string): RunJournalRecord {
       advancement: {
         baseCommit: advancement.baseCommit,
         previousTransactionId: advancement.previousTransactionId,
+        package: advancement.package,
+        repository: advancement.repository,
         pending: advancement.pending,
       },
     };
   }
   if (value.phase === "reevaluating") {
-    return { contract: journalContract, phase: "reevaluating" };
+    if (!parseRecoveryBoundary(value.boundary)) {
+      throw new RunJournalError(`Malformed reevaluation journal: ${journalPath}`);
+    }
+    return {
+      contract: journalContract,
+      phase: "reevaluating",
+      boundary: value.boundary,
+    };
   }
   if (value.phase === "captured") {
     const assignment = value.assignment;
@@ -577,6 +616,17 @@ function parsePublication(
   ) {
     throw new RunJournalError(`Malformed publication evidence in run journal: ${journalPath}`);
   }
+}
+
+function parseRecoveryBoundary(value: unknown): value is RecoveryBoundary {
+  return isObject(value) && isObject(value.package) && isJsonValue(value.package) &&
+    typeof value.package.reference === "string" && value.package.reference.length > 0 &&
+    typeof value.package.digest === "string" &&
+    /^sha256:[0-9a-f]{64}$/.test(value.package.digest) &&
+    isObject(value.repository) &&
+    typeof value.repository.head === "string" && value.repository.head.length > 0 &&
+    typeof value.repository.trackedState === "string" &&
+    /^sha256:[0-9a-f]{64}$/.test(value.repository.trackedState);
 }
 
 function parseRecoveryAssignment(value: unknown): value is RecoveryAssignment {

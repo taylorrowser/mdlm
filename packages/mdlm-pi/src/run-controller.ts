@@ -28,8 +28,8 @@ type AssignmentPort = Pick<PiAssignmentRunner, "run"> & {
   close?: (assignmentId: string) => Promise<void>;
 };
 type GitPort = Pick<GitPublisher,
-  "assertClean" | "head" | "capturePublication" | "commit" |
-  "publicationCommitState" | "pendingTransactionIds"
+  "assertClean" | "head" | "repositoryFingerprint" | "capturePublication" |
+  "commit" | "publicationCommitState" | "pendingTransactionIds"
 >;
 type JournalPort = Pick<RunJournal,
   "load" | "beginAdvancement" | "recordAdvancementExecutions" |
@@ -99,11 +99,14 @@ export class RunController {
       });
     }
     let reevaluationRequired = recovered?.kind === "reevaluate";
+    let recoveredStatus = recovered?.kind === "reevaluate" ? recovered.status : undefined;
 
     await this.#git.assertClean();
     while (true) {
       this.#ensureRunning();
-      const status = await this.#mdlm.status();
+      const status = recoveredStatus ?? await this.#mdlm.status();
+      recoveredStatus = undefined;
+      if (reevaluationRequired) await this.#assertCurrentReevaluationBoundary(status);
       const outcome = status.currentOutcome;
       if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
         if (reevaluationRequired) await this.#journal.clear();
@@ -161,6 +164,17 @@ export class RunController {
     }
   }
 
+  async #assertCurrentReevaluationBoundary(status: MdlmStatus): Promise<void> {
+    const record = await this.#journal.load();
+    if (record?.phase !== "reevaluating") {
+      throw new Error("Reevaluation requires its exact recovery boundary");
+    }
+    assertReevaluationBoundary(record.boundary, {
+      package: statusPackage(status, "reevaluation recovery"),
+      repository: await this.#git.repositoryFingerprint(),
+    });
+  }
+
   async #attendedContext(outcome: JsonObject): Promise<JsonObject> {
     const group = attendedGroup(outcome);
     if (group === null) {
@@ -197,7 +211,8 @@ export class RunController {
 
   async #advance(status: MdlmStatus): Promise<MdlmNext> {
     await this.#journal.beginAdvancement({
-      baseCommit: await this.#git.head(),
+      package: statusPackage(status, "advancement"),
+      repository: await this.#git.repositoryFingerprint(),
       previousTransactionId: recentTransactionId(status.recentTransaction),
     });
     const outcome = await this.#mdlm.next();
@@ -344,12 +359,19 @@ export class RunController {
         replacementDigest: `sha256:${string}`;
       }
     | { kind: "stopped"; stop: RunStop }
-    | { kind: "reevaluate" }
+    | { kind: "reevaluate"; status: MdlmStatus }
     | null
   > {
     let record = await this.#journal.load();
     if (record === null) return null;
-    if (record.phase === "reevaluating") return { kind: "reevaluate" };
+    if (record.phase === "reevaluating") {
+      const status = await this.#mdlm.status();
+      assertReevaluationBoundary(record.boundary, {
+        package: statusPackage(status, "reevaluation recovery"),
+        repository: await this.#git.repositoryFingerprint(),
+      });
+      return { kind: "reevaluate", status };
+    }
     if (record.phase === "captured") {
       this.#io.progress(`Recovering captured response for Assignment ${record.assignment.id}`);
       const state = await this.#mdlm.assignment(record.assignment.id);
@@ -380,6 +402,13 @@ export class RunController {
     }
     if (record.phase === "advancing") {
       this.#io.progress("Recovering interrupted mdlm next materialization");
+      const status = await this.#mdlm.status();
+      if (!isDeepStrictEqual(
+        statusPackage(status, "advancement recovery"),
+        record.advancement.package,
+      )) {
+        throw new Error("Selected Process Package changed during interrupted mdlm next recovery");
+      }
       if (record.advancement.pending.length === 0) {
         if (await this.#git.head() !== record.advancement.baseCommit) {
           throw new Error("HEAD changed during interrupted mdlm next recovery");
@@ -390,9 +419,14 @@ export class RunController {
             "Interrupted mdlm next materialization order cannot be proven",
           );
         }
-        const status = await this.#mdlm.status();
         const recentId = recentTransactionId(status.recentTransaction);
         if (pendingIds.length === 0) {
+          if (!isDeepStrictEqual(
+            await this.#git.repositoryFingerprint(),
+            record.advancement.repository,
+          )) {
+            throw new Error("Repository fingerprint changed during interrupted mdlm next recovery");
+          }
           if (recentId !== record.advancement.previousTransactionId) {
             throw new Error("mdlm next changed recent transaction without visible transaction files");
           }
@@ -409,9 +443,17 @@ export class RunController {
         );
         await this.#journal.recordAdvancementExecutions(publications);
       }
-      return await this.#finishAdvancement()
-        ? { kind: "reevaluate" }
-        : null;
+      if (!(await this.#finishAdvancement())) return null;
+      const reevaluation = await this.#journal.load();
+      if (reevaluation?.phase !== "reevaluating") {
+        throw new Error("Materialization recovery lost its reevaluation boundary");
+      }
+      const reevaluatedStatus = await this.#mdlm.status();
+      assertReevaluationBoundary(reevaluation.boundary, {
+        package: statusPackage(reevaluatedStatus, "reevaluation recovery"),
+        repository: await this.#git.repositoryFingerprint(),
+      });
+      return { kind: "reevaluate", status: reevaluatedStatus };
     }
     this.#io.progress(`Recovering ${record.phase} transaction for Assignment ${record.assignment.id}`);
 
@@ -588,7 +630,11 @@ export class RunController {
         allowedPending,
       );
       this.#io.progress(`Committed ${commit}: ${publication.scenario}`);
-      await this.#journal.completeAdvancementExecution(publication.executionId, commit);
+      await this.#journal.completeAdvancementExecution(
+        publication.executionId,
+        commit,
+        await this.#git.repositoryFingerprint(),
+      );
       const next = await this.#journal.load();
       if (next?.phase === "reevaluating") return true;
       if (next?.phase !== "advancing") {
@@ -630,6 +676,28 @@ export class RunController {
   #report(stop: RunStop): RunStop {
     this.#io.stopped(stop.status, stop.details);
     return stop;
+  }
+}
+
+function statusPackage(status: MdlmStatus, boundary: string): JsonObject {
+  return asObject(status.package, `${boundary}.package`);
+}
+
+function assertReevaluationBoundary(
+  expected: {
+    package: JsonObject;
+    repository: { head: string; trackedState: string };
+  },
+  actual: {
+    package: JsonObject;
+    repository: { head: string; trackedState: string };
+  },
+): void {
+  if (!isDeepStrictEqual(actual.package, expected.package)) {
+    throw new Error("selected Process Package changed during reevaluation recovery");
+  }
+  if (!isDeepStrictEqual(actual.repository, expected.repository)) {
+    throw new Error("repository fingerprint changed during reevaluation recovery");
   }
 }
 

@@ -4,12 +4,15 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import { GitPublisher } from "../src/git-publisher.js";
 import {
   type AssignmentPacket,
   type JsonObject,
   MdlmClient,
   MdlmClientError,
 } from "../src/mdlm-client.js";
+import { RunController } from "../src/run-controller.js";
+import { RunJournal } from "../src/run-journal.js";
 
 const executeFile = promisify(execFile);
 const projectRoot = path.resolve(import.meta.dirname, "../../..");
@@ -94,7 +97,7 @@ afterEach(async () => {
   ));
 });
 
-function clientFor(repository: string): MdlmClient {
+function clientFor(repository: string, attemptDirectory?: string): MdlmClient {
   return new MdlmClient({
     repository,
     command: {
@@ -102,6 +105,7 @@ function clientFor(repository: string): MdlmClient {
       arguments: [mdlmExecutable],
     },
     timeoutMs: 30_000,
+    ...(attemptDirectory === undefined ? {} : { attemptDirectory }),
   });
 }
 
@@ -136,6 +140,53 @@ describe("MdlmClient", () => {
     expect(packet.responseSchema).toMatchObject({
       $id: "https://mdlm.dev/contracts/mdlm-assignment-response@1",
     });
+  });
+
+  it("prepares real post-materialization work against the committed tracked state", async () => {
+    const repository = await initializedRepository();
+    await executeFile("git", ["config", "user.name", "MDLM Pi Test"], { cwd: repository });
+    await executeFile("git", ["config", "user.email", "mdlm-pi@localhost"], { cwd: repository });
+    const stateDirectory = path.join(repository, ".git", "mdlm-pi-real-process");
+    const mdlm = clientFor(repository, path.join(stateDirectory, "attempts"));
+    const git = new GitPublisher({ repository });
+    const journal = new RunJournal(stateDirectory);
+    let initialPacket: AssignmentPacket | undefined;
+    let freshPacket: AssignmentPacket | undefined;
+    const assignments = {
+      run: async (packet: AssignmentPacket): Promise<JsonObject> => {
+        if (initialPacket === undefined) {
+          initialPacket = packet;
+          return assignmentResponse(packet);
+        }
+        freshPacket = packet;
+        expect(packet.scenario.reference).not.toBe("establish-initial-wayfinding-map@1");
+        expect(packet.repository).toEqual(await git.repositoryFingerprint());
+        throw new Error("fresh post-materialization Assignment reached worker");
+      },
+    };
+    const controller = new RunController({
+      mdlm,
+      git,
+      journal,
+      assignments,
+      io: { progress: () => undefined, attention: async () => ({ conclusion: {} }), stopped: () => undefined },
+    });
+
+    await expect(controller.run()).rejects.toThrow(
+      "fresh post-materialization Assignment reached worker",
+    );
+
+    expect(initialPacket).toBeDefined();
+    expect(freshPacket).toBeDefined();
+    expect(freshPacket!.repository.head).not.toBe(initialPacket!.repository.head);
+    const commits = (await executeFile("git", ["log", "-2", "--format=%s"], {
+      cwd: repository,
+    })).stdout.trim().split("\n");
+    expect(commits[0]).toContain("create-review-context@1");
+    expect(commits[1]).toContain("establish-initial-wayfinding-map@1");
+    expect((await executeFile("git", ["status", "--porcelain"], { cwd: repository })).stdout)
+      .toBe("");
+    expect(await journal.load()).toBeNull();
   });
 
   it("returns a correction disposition from a nonzero MDLM exit without losing the lease", async () => {

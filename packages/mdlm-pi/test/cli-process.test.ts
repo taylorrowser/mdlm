@@ -153,6 +153,10 @@ const executionId = ${JSON.stringify(executionId)};
 const scenario = ${JSON.stringify(scenario)};
 const responseDigest = ${JSON.stringify(responseDigest)};
 const outputPath = ${JSON.stringify(outputPath)};
+const packageIdentity = {
+  reference: "package-neutral@1",
+  digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+};
 let hasMaterialization = false;
 try { await access(materialized); hasMaterialization = true; } catch {}
 const execution = {
@@ -171,6 +175,7 @@ if (args[0] === "next") {
 } else if (args[0] === "status") {
   process.stdout.write(JSON.stringify({
     contract: "mdlm-status@1", command: "status", ok: true,
+    package: packageIdentity,
     currentOutcome: hasMaterialization
       ? { outcome: "lifecycle-complete" }
       : { outcome: "assignment", assignment: { allocation: "not-allocated" } },
@@ -251,7 +256,10 @@ if (args[0] === "next") {
     const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
     const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
     const scenario = "package-neutral-example@1";
-    const packageIdentity = { reference: "package-neutral@1", digest: "sha256:package" };
+    const packageIdentity = {
+      reference: "package-neutral@1",
+      digest: `sha256:${"a".repeat(64)}`,
+    };
     const repositoryFingerprint = { head: "fixture", lifecycle: "sha256:lifecycle" };
     await mkdir(repository);
     await mkdir(invocationDirectory);

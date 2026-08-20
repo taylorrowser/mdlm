@@ -101,6 +101,23 @@ describe("RunJournal", () => {
     expect(await new RunJournal(storagePath).load()).toBeNull();
   });
 
+  it("rejects a reevaluation marker without an exact recovery boundary", async () => {
+    const storagePath = await journalPath();
+    await mkdir(storagePath, { recursive: true });
+    await writeFile(path.join(storagePath, "run.json"), `${JSON.stringify({
+      contract: "mdlm-pi-run-journal@1",
+      phase: "reevaluating",
+      boundary: {
+        package: { reference: "package@1", digest: `sha256:${"a".repeat(64)}` },
+        repository: { head: "materialization-commit", trackedState: "sha256:not-exact" },
+      },
+    })}\n`);
+
+    await expect(new RunJournal(storagePath).load()).rejects.toThrow(
+      "Malformed reevaluation journal",
+    );
+  });
+
   it("makes a captured response durable before submission facts are inspected", async () => {
     const storagePath = await journalPath();
     const journal = new RunJournal(storagePath);
