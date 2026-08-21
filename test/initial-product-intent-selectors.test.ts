@@ -9,7 +9,7 @@ import {
 import { evaluateProcessDefinition } from "../src/evaluator.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
-const processRef = "mdlm-bootstrap@0.73.0#sha256:test";
+const processRef = "mdlm-bootstrap@0.74.0#sha256:test";
 let processPackage: ProcessPackage;
 
 function record(
