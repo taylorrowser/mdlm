@@ -1360,7 +1360,9 @@
           "scope": "DEC-4XHR9MW60V-r00001",
           "group": "DEFAULT",
           "definition_members": [
-            "DEC-4XHR9MW60V-r00001"
+            "BSL-JMRAPW12J7-r00001",
+            "DEC-4XHR9MW60V-r00001",
+            "REV-7Q7PPSWA2R-r00001"
           ],
           "evidence": []
         },

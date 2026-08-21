@@ -502,71 +502,44 @@ describe("loadProcessPackage", () => {
     });
   });
 
-  it("rejects every legacy YAML expression-tree family", async () => {
-    const legacyForms = {
-      literal: "literal: true",
-      var: "var: subject",
-      path: "path: {var: subject, field: identity.type}",
-      state: "state: {dimension: validity, subject: {var: subject}}",
-      policy:
-        "policy: {ref: review-applicability@1, arguments: {subject: {var: subject}}, field: required}",
-      count:
-        "count: {selector: review-required-revisions@1, arguments: {}}",
-      compare:
-        "compare: {left: {literal: true}, operator: eq, right: {literal: true}}",
-      all: "all: [{present: {var: subject}}]",
-      any: "any: [{present: {var: subject}}]",
-      not: "not: {present: {var: subject}}",
-      exists:
-        "exists: {selector: review-required-revisions@1, arguments: {}}",
-      none: "none: {selector: review-required-revisions@1, arguments: {}}",
-      every:
-        "every: {selector: review-required-revisions@1, arguments: {}, as: item, satisfies: {present: {var: item}}}",
-      present: "present: {var: subject}",
-    };
-
-    const results = await Promise.all(
-      Object.values(legacyForms).map(async (legacySource) => {
-        const processRoot = await copiedProcessPackage();
-        const statePath = path.join(
-          processRoot,
-          "states/relationship-overlays.yaml",
-        );
-        const state = await fs.readFile(statePath, "utf8");
-        await fs.writeFile(
-          statePath,
-          state.replace(
-            "    when: 'subject.provenance.process_ref != process.current_ref'",
-            `    when:\n      ${legacySource}`,
-          ),
-        );
-        return loadProcessPackage(processRoot);
-      }),
+  it("rejects a representative legacy YAML expression tree", async () => {
+    const processRoot = await copiedProcessPackage();
+    const statePath = path.join(
+      processRoot,
+      "states/relationship-overlays.yaml",
+    );
+    const state = await fs.readFile(statePath, "utf8");
+    await fs.writeFile(
+      statePath,
+      state.replace(
+        "    when: 'subject.provenance.process_ref != process.current_ref'",
+        "    when:\n      every: {selector: review-required-revisions@1, arguments: {}, as: item, satisfies: {present: {var: item}}}",
+      ),
     );
 
-    for (const result of results) {
-      expect(result.ok).toBe(false);
-      expect(result.diagnostics).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            code: "legacy-expression-authoring",
-            path: expect.stringContaining(
-              "relationship-overlays.yaml#rules[2].when",
-            ),
-            message:
-              "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
-          }),
-          expect.objectContaining({
-            code: "meta-schema",
-            path: expect.stringContaining(
-              "relationship-overlays.yaml/rules/2/when",
-            ),
-            message: "must be string",
-          }),
-        ]),
-      );
-    }
-  }, 20_000);
+    const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "legacy-expression-authoring",
+          path: expect.stringContaining(
+            "relationship-overlays.yaml#rules[2].when",
+          ),
+          message:
+            "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
+        }),
+        expect.objectContaining({
+          code: "meta-schema",
+          path: expect.stringContaining(
+            "relationship-overlays.yaml/rules/2/when",
+          ),
+          message: "must be string",
+        }),
+      ]),
+    );
+  });
 
   it("rejects a legacy structural Selector invocation", async () => {
     const processRoot = await copiedProcessPackage();

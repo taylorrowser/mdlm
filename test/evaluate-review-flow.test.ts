@@ -1092,13 +1092,14 @@ describe("evaluateLifecycle review flow", () => {
       expect.objectContaining({
         status: "blocked",
         eventualResolver: "record-gate-signoff@3",
-        actionableResolver: "review-datum-in-context@2",
+        actionableResolver: "create-review-context@1",
         dispatchable: false,
         blockedBy: [
           `passing-review-required@2:${signoff.datum.revision_id}:git:current`,
         ],
         blockerChains: [[
           `passing-review-required@2:${signoff.datum.revision_id}:git:current`,
+          `review-context-required@2:${signoff.datum.revision_id}:git:current`,
         ]],
         unresolvedBindings: [],
         explanation: expect.stringContaining("sign-off decision awaits review"),
@@ -1111,11 +1112,17 @@ describe("evaluateLifecycle review flow", () => {
           item.obligation === "passing-review-required",
       ),
     ).toEqual(expect.objectContaining({
-      status: "awaiting-review",
+      status: "blocked",
       eventualResolver: "review-datum-in-context@2",
-      actionableResolver: "review-datum-in-context@2",
-      dispatchable: true,
-      unresolvedBindings: [],
+      actionableResolver: "create-review-context@1",
+      dispatchable: false,
+      blockedBy: [
+        `review-context-required@2:${signoff.datum.revision_id}:git:current`,
+      ],
+      blockerChains: [[
+        `review-context-required@2:${signoff.datum.revision_id}:git:current`,
+      ]],
+      unresolvedBindings: ["review_context"],
     }));
 
     const reordered = evaluateLifecycle(processPackage, {
