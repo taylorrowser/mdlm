@@ -444,6 +444,121 @@ if (args[0] === "scenario" && args[1] === "submit") {
     expect(await new RunJournal(stateDirectory).load()).toBeNull();
   });
 
+  it("clears a fresh repository journal after a real inability child completed", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-real-inability-"));
+    temporaryRoots.push(root);
+    const repository = path.join(root, "repository");
+    const invocationDirectory = path.join(root, "invocation");
+    const fakeMdlm = path.join(root, "fake-inability-mdlm.mjs");
+    const submissions = path.join(root, "submissions");
+    const assignmentId = "66651d50-75c9-42bd-baae-8dda04d367e1";
+    const scenario = "package-neutral-inability@1";
+    const packageIdentity = {
+      reference: "package-neutral@1",
+      digest: `sha256:${"a".repeat(64)}`,
+      language: "mdlm-expression@1",
+    };
+    await mkdir(repository);
+    await mkdir(invocationDirectory);
+    await executeFile("git", ["init", "--quiet"], { cwd: repository });
+    await executeFile("git", ["config", "user.name", "MDLM Pi Test"], { cwd: repository });
+    await executeFile("git", ["config", "user.email", "mdlm-pi@localhost"], { cwd: repository });
+    await writeFile(path.join(repository, "README.md"), "fixture\n");
+    await executeFile("git", ["add", "README.md"], { cwd: repository });
+    await executeFile("git", ["commit", "--quiet", "-m", "fixture"], { cwd: repository });
+    const git = new GitPublisher({ repository });
+    const repositoryFingerprint = await git.repositoryFingerprint();
+    const stateDirectory = path.join(await git.gitDirectory(), "mdlm-pi");
+    const journal = new RunJournal(stateDirectory);
+    const client = new MdlmClient({
+      repository,
+      command: { program: fakeMdlm },
+      attemptDirectory: path.join(stateDirectory, "attempts"),
+    });
+    const response = client.prepareSubmission({
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "unable",
+      unable: {
+        reason: "insufficient-declared-inputs",
+        diagnostics: [{ code: "MISSING", message: "Required evidence is unavailable" }],
+      },
+    });
+    const disposition = {
+      ok: true,
+      command: "scenario.submit",
+      contract: "mdlm-assignment-disposition@1",
+      assignment: { id: assignmentId },
+      disposition: "abandoned",
+      orchestration: { action: "stop", automaticReplacement: false },
+      unable: response.response.unable,
+      diagnostics: [],
+    };
+    await writeFile(fakeMdlm, `#!/usr/bin/env node
+import { appendFile } from "node:fs/promises";
+const args = process.argv.slice(2);
+const packageIdentity = ${JSON.stringify(packageIdentity)};
+const disposition = ${JSON.stringify(disposition)};
+if (args[0] === "scenario" && args[1] === "submit") {
+  for await (const _chunk of process.stdin) {}
+  await appendFile(${JSON.stringify(submissions)}, "submit\\n");
+  process.stdout.write(JSON.stringify(disposition));
+} else if (args[0] === "status") {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-status@1", command: "status", ok: true,
+    package: packageIdentity,
+    currentOutcome: { outcome: "assignment", assignment: { allocation: "not-allocated" } },
+    recentTransaction: { available: false }
+  }));
+} else if (args[0] === "assignment") {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-assignment-state@1", command: "assignment.show", ok: true,
+    assignment: { id: ${JSON.stringify(assignmentId)} }, selected: false
+  }));
+} else {
+  process.stderr.write("unexpected args: " + JSON.stringify(args));
+  process.exitCode = 2;
+}
+`);
+    await chmod(fakeMdlm, 0o755);
+    await journal.beginSubmission({
+      assignmentId,
+      scenario,
+      package: packageIdentity,
+      repository: { ...repositoryFingerprint },
+      previousTransactionId: null,
+      baseCommit: repositoryFingerprint.head,
+      previousMalformedResponseDigests: [],
+      response,
+    });
+    await expect(client.submit(response, {
+      started: async (process) => { await journal.recordSubmissionProcess(process); },
+    })).resolves.toEqual(disposition);
+    expect(await journal.load()).toMatchObject({
+      phase: "submitting",
+      submission: { process: { stdoutPath: expect.any(String) } },
+    });
+
+    const recovered = await executeFileResult(process.execPath, [
+      cli,
+      "run",
+      repository,
+      "--mdlm",
+      fakeMdlm,
+    ], invocationDirectory);
+
+    expect(recovered.status).toBe(4);
+    expect(JSON.parse(recovered.stdout.slice(recovered.stdout.indexOf("{")))).toMatchObject({
+      status: "assignment-abandoned",
+      ...disposition,
+    });
+    expect(recovered.stderr).toBe("");
+    expect((await readFile(submissions, "utf8")).trim().split("\n")).toEqual(["submit"]);
+    expect(await journal.load()).toBeNull();
+    expect((await executeFile("git", ["status", "--porcelain"], { cwd: repository })).stdout)
+      .toBe("");
+  });
+
   it("allows only one writer for a repository across separate operator processes", async () => {
     const fixture = await processFixture({ blockStatus: true });
     const alias = path.join(path.dirname(fixture.repository), "repository-alias");

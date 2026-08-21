@@ -1,3 +1,4 @@
+import { readFile, stat } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import type {
   AssignmentPacket,
@@ -377,6 +378,11 @@ export class RunController {
         replacementDigest: prepared.digest,
       };
     }
+    if (disposition === "abandoned") {
+      const stop = abandonedStop(packet.assignment.id, response, submission);
+      await this.#journal.clear();
+      return { kind: "stopped", stop };
+    }
     return {
       kind: "stopped",
       stop: {
@@ -552,6 +558,9 @@ export class RunController {
     | null
   > {
     const status = await this.#mdlm.status();
+    if (status.currentOutcome.outcome === "invalid") {
+      return { kind: "stopped", stop: stopForOutcome(status.currentOutcome) };
+    }
     const recentId = recentTransactionId(status.recentTransaction);
     if (recentId !== null && recentId !== record.submission.previousTransactionId) {
       const inspected = await this.#mdlm.execution(recentId);
@@ -565,6 +574,18 @@ export class RunController {
       ));
       await this.#journal.recordPublication(publication);
       return null;
+    }
+
+    if (record.submission.completedProcesses.length > 0) {
+      assertRecoveryBoundary(record.assignment, {
+        package: statusPackage(status, "submission recovery"),
+        repository: await this.#git.repositoryFingerprint(),
+      });
+      const stop = await abandonedStopFromCompletedProcess(record);
+      if (stop !== null) {
+        await this.#journal.clear();
+        return { kind: "stopped", stop };
+      }
     }
 
     const state = await this.#mdlm.assignment(record.assignment.id);
@@ -650,6 +671,11 @@ export class RunController {
         diagnostics: malformed.diagnostics ?? [],
         replacementDigest: record.submission.digest,
       };
+    }
+    if (disposition === "abandoned") {
+      const stop = abandonedStop(record.assignment.id, previousResponse, submission);
+      await this.#journal.clear();
+      return { kind: "stopped", stop };
     }
     return {
       kind: "stopped",
@@ -878,7 +904,10 @@ function recoveryAssignment(packet: AssignmentPacket): RecoveryAssignment {
 
 function assertRecoveryBoundary(
   expected: RecoveryAssignment,
-  actual: { package: JsonObject; repository: JsonObject },
+  actual: {
+    package: JsonObject;
+    repository: JsonObject | { head: string; trackedState: string };
+  },
 ): void {
   if (!isDeepStrictEqual(actual.package, expected.package)) {
     throw new Error(`Assignment '${expected.id}' selected Process Package changed during recovery`);
@@ -967,6 +996,116 @@ function publicationFromMaterialization(execution: JsonObject): UncapturedPublic
 
 function sameStrings(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+async function abandonedStopFromCompletedProcess(
+  record: Extract<RunJournalRecord, { phase: "submitting" }>,
+): Promise<RunStop | null> {
+  const completed = record.submission.completedProcesses;
+  if (completed.length === 0 || completed.length > 2) {
+    throw new Error(
+      `Cannot reconcile Assignment '${record.assignment.id}': completed submission results are ambiguous`,
+    );
+  }
+  if (completed.length === 2) {
+    if (record.submission.previousMalformedResponseDigests.length === 0) {
+      throw new Error(
+        `Cannot reconcile Assignment '${record.assignment.id}': completed submission results are ambiguous`,
+      );
+    }
+    const correction = await completedSubmission(record.assignment.id, completed[0]!);
+    if (!isCompletedCorrection(correction, record.assignment.id)) {
+      throw new Error(
+        `Cannot reconcile Assignment '${record.assignment.id}': completed submission results are ambiguous`,
+      );
+    }
+  }
+  const submission = await completedSubmission(record.assignment.id, completed.at(-1)!);
+  if (isCompletedCorrection(submission, record.assignment.id)) return null;
+  const response = parseResponseSource(record.submission.source);
+  return abandonedStop(record.assignment.id, response, submission);
+}
+
+function isCompletedCorrection(submission: JsonObject, assignmentId: string): boolean {
+  const assignment = submission.assignment;
+  const orchestration = submission.orchestration;
+  const malformed = submission.malformedResponse;
+  return (
+    submission.contract === "mdlm-assignment-disposition@1" &&
+    submission.command === "scenario.submit" &&
+    submission.ok === false &&
+    typeof assignment === "object" && assignment !== null && !Array.isArray(assignment) &&
+    assignment.id === assignmentId &&
+    submission.disposition === "correction-required" &&
+    typeof orchestration === "object" && orchestration !== null &&
+    !Array.isArray(orchestration) &&
+    orchestration.action === "correct-response" &&
+    orchestration.automaticReplacement === false &&
+    typeof malformed === "object" && malformed !== null && !Array.isArray(malformed) &&
+    malformed.attempt === 1 &&
+    malformed.correctionsRemaining === 1 &&
+    Array.isArray(malformed.diagnostics)
+  );
+}
+
+async function completedSubmission(
+  assignmentId: string,
+  process: { stdoutPath: string },
+): Promise<JsonObject> {
+  const information = await stat(process.stdoutPath);
+  if (!information.isFile() || information.size > 10 * 1024 * 1024) {
+    throw new Error(
+      `Cannot reconcile Assignment '${assignmentId}': completed submission stdout is invalid`,
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(process.stdoutPath, "utf8"));
+  } catch {
+    throw new Error(
+      `Cannot reconcile Assignment '${assignmentId}': completed submission stdout is not one JSON document`,
+    );
+  }
+  return asObject(parsed as JsonValue, "completed submission stdout");
+}
+
+function abandonedStop(
+  assignmentId: string,
+  response: JsonObject,
+  submission: JsonObject,
+): RunStop {
+  if (
+    response.contract !== "mdlm-assignment-response@1" ||
+    response.assignment !== assignmentId ||
+    response.kind !== "unable" ||
+    typeof response.unable !== "object" || response.unable === null ||
+    Array.isArray(response.unable)
+  ) {
+    throw new Error(
+      `Cannot reconcile Assignment '${assignmentId}': journaled response is not its exact typed inability`,
+    );
+  }
+  const childAssignment = asObject(submission.assignment, "submission.assignment");
+  const orchestration = asObject(submission.orchestration, "submission.orchestration");
+  if (
+    submission.contract !== "mdlm-assignment-disposition@1" ||
+    submission.command !== "scenario.submit" ||
+    submission.ok !== true ||
+    childAssignment.id !== assignmentId ||
+    submission.disposition !== "abandoned" ||
+    orchestration.action !== "stop" ||
+    orchestration.automaticReplacement !== false ||
+    !isDeepStrictEqual(submission.unable, response.unable)
+  ) {
+    throw new Error(
+      `Cannot reconcile Assignment '${assignmentId}': submission result is not its terminal abandoned disposition`,
+    );
+  }
+  return {
+    status: "assignment-abandoned",
+    details: submission,
+    successful: false,
+  };
 }
 
 function parseResponseSource(source: string): JsonObject {

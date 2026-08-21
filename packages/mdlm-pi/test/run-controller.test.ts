@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type {
   AssignmentPacket,
   AssignmentState,
+  AssignmentSubmission,
   JsonObject,
   JsonValue,
   MdlmStatus,
@@ -21,6 +22,7 @@ import { RunJournal } from "../src/run-journal.js";
 import type { UncapturedPublicationEvidence } from "../src/run-journal.js";
 
 const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
+const abandonedAssignmentId = "66651d50-75c9-42bd-baae-8dda04d367e1";
 const executionId = "aef8da80-ce4b-420b-afa5-331a06860683";
 const scenario = "example@1";
 const packageIdentity = {
@@ -1444,6 +1446,399 @@ describe("RunController", () => {
     expect(mdlm.submit).not.toHaveBeenCalled();
   });
 
+  it("clears the journal after a normal successful inability submission", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inability-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const response: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "unable",
+      unable: {
+        reason: "insufficient-declared-inputs",
+        diagnostics: [{ code: "MISSING", message: "Required evidence is unavailable" }],
+      },
+    };
+    const disposition: AssignmentSubmission = {
+      ok: true,
+      command: "scenario.submit",
+      contract: "mdlm-assignment-disposition@1",
+      assignment: { id: assignmentId },
+      disposition: "abandoned",
+      orchestration: { action: "stop", automaticReplacement: false },
+      unable: response.unable!,
+      diagnostics: [],
+    };
+    const mdlm = {
+      status: vi.fn(async () => assignmentStatus(true)),
+      next: vi.fn(),
+      assignment: vi.fn(async () => activeAssignmentState()),
+      prepare: vi.fn(async () => packet()),
+      prepareSubmission: vi.fn((value: JsonObject): PreparedAssignmentSubmission => {
+        const source = `${JSON.stringify(value)}\n`;
+        return {
+          response: value,
+          source,
+          digest: `sha256:${createHash("sha256").update(source).digest("hex")}`,
+        };
+      }),
+      submit: vi.fn(async () => disposition),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const controller = new RunController({
+      mdlm,
+      assignments: { run: vi.fn(async () => response) },
+      git: {
+        assertClean: vi.fn(async () => undefined),
+        head: vi.fn(async () => "base-commit"),
+        repositoryFingerprint: baseAdvancementRepository,
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(async () => []),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    });
+
+    await expect(controller.run()).resolves.toMatchObject({
+      status: "assignment-abandoned",
+      successful: false,
+      details: disposition,
+    });
+    expect(mdlm.submit).toHaveBeenCalledTimes(1);
+    expect(await journal.load()).toBeNull();
+  });
+
+  it("reconciles the exact completed inability child after a crash before journal clear", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inability-child-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const response: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: abandonedAssignmentId,
+      kind: "unable",
+      unable: {
+        reason: "insufficient-declared-inputs",
+        diagnostics: [{ code: "MISSING", message: "Required evidence is unavailable" }],
+      },
+    };
+    const source = `${JSON.stringify(response)}\n`;
+    const digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
+    const repository = advancementRepository("base-commit", "a");
+    await journal.beginSubmission({
+      assignmentId: abandonedAssignmentId,
+      scenario,
+      package: packageIdentity,
+      repository,
+      previousTransactionId: null,
+      baseCommit: repository.head,
+      previousMalformedResponseDigests: [],
+      response: { response, source, digest },
+    });
+    const attempts = path.join(root, "state", "attempts");
+    await fs.mkdir(attempts, { recursive: true });
+    const stdoutPath = path.join(attempts, "completed.stdout");
+    const stderrPath = path.join(attempts, "completed.stderr");
+    const disposition = {
+      ok: true,
+      command: "scenario.submit",
+      contract: "mdlm-assignment-disposition@1",
+      assignment: { id: abandonedAssignmentId },
+      disposition: "abandoned",
+      orchestration: { action: "stop", automaticReplacement: false },
+      unable: response.unable,
+      diagnostics: [],
+    };
+    await fs.writeFile(stdoutPath, `${JSON.stringify(disposition)}\n`);
+    await fs.writeFile(stderrPath, "");
+    await journal.recordSubmissionProcess({
+      id: "completed-attempt",
+      pid: 999_999,
+      stdoutPath,
+      stderrPath,
+    });
+    await journal.clearSubmissionProcess();
+    expect(await journal.load()).toMatchObject({
+      phase: "submitting",
+      assignment: { id: abandonedAssignmentId },
+      submission: {
+        completedProcesses: [{ id: "completed-attempt", stdoutPath, stderrPath }],
+      },
+    });
+
+    const mdlm = {
+      status: vi.fn(async (): Promise<MdlmStatus> => ({
+        ...assignmentStatus(false),
+        package: packageIdentity,
+      })),
+      next: vi.fn(),
+      assignment: vi.fn(async () => { throw new Error("Assignment has no durable lease"); }),
+      prepare: vi.fn(),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const assignments = { run: vi.fn() };
+    const controller = new RunController({
+      mdlm,
+      assignments,
+      git: {
+        assertClean: vi.fn(async () => undefined),
+        head: vi.fn(async () => repository.head),
+        repositoryFingerprint: vi.fn(async () => repository),
+        capturePublication,
+        publicationCommitState: vi.fn(),
+        pendingTransactionIds: vi.fn(async () => []),
+        commit: vi.fn(),
+      },
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+      journal,
+    });
+
+    await expect(controller.run()).resolves.toMatchObject({
+      status: "assignment-abandoned",
+      successful: false,
+      details: disposition,
+    });
+    expect(assignments.run).not.toHaveBeenCalled();
+    expect(mdlm.submit).not.toHaveBeenCalled();
+    expect(mdlm.next).not.toHaveBeenCalled();
+    expect(await journal.load()).toBeNull();
+  });
+
+  it("uses durable malformed-response state before completed child stdout", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inability-correction-"));
+    roots.push(root);
+    const fixture = await inabilityRecoveryFixture(root, {
+      outputs: [JSON.stringify(correctionDisposition(abandonedAssignmentId))],
+      selectedCurrentMalformed: true,
+    });
+
+    await expect(fixture.controller.run()).resolves.toMatchObject({
+      status: "assignment-correction-session-lost",
+      successful: false,
+    });
+    expect(fixture.mdlm.assignment).toHaveBeenCalledWith(abandonedAssignmentId);
+    expect(fixture.mdlm.submit).not.toHaveBeenCalled();
+    expect(await fixture.journal.load()).toMatchObject({ phase: "submitting" });
+  });
+
+  it("reconciles corrected inability after its earlier malformed child", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-corrected-inability-"));
+    roots.push(root);
+    const disposition = abandonedDisposition(abandonedAssignmentId);
+    const fixture = await inabilityRecoveryFixture(root, {
+      outputs: [JSON.stringify(disposition)],
+      priorCorrection: true,
+    });
+
+    await expect(fixture.controller.run()).resolves.toMatchObject({
+      status: "assignment-abandoned",
+      successful: false,
+      details: disposition,
+    });
+    expect(fixture.mdlm.submit).not.toHaveBeenCalled();
+    expect(fixture.mdlm.next).not.toHaveBeenCalled();
+    expect(await fixture.journal.load()).toBeNull();
+  });
+
+  it("clears the journal when a recovered replay returns exact inability", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-replayed-inability-"));
+    roots.push(root);
+    const disposition = abandonedDisposition(abandonedAssignmentId);
+    const fixture = await inabilityRecoveryFixture(root, {
+      outputs: [],
+      selectedActive: true,
+      replayedSubmission: disposition,
+    });
+
+    await expect(fixture.controller.run()).resolves.toMatchObject({
+      status: "assignment-abandoned",
+      successful: false,
+      details: disposition,
+    });
+    expect(fixture.mdlm.submit).toHaveBeenCalledTimes(1);
+    expect(await fixture.journal.load()).toBeNull();
+  });
+
+  it("rejects a non-exact correction predecessor before clearing corrected inability", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inexact-correction-"));
+    roots.push(root);
+    const fixture = await inabilityRecoveryFixture(root, {
+      outputs: [JSON.stringify(abandonedDisposition(abandonedAssignmentId))],
+      priorCorrection: true,
+      priorCorrectionOutput: {
+        ...correctionDisposition(abandonedAssignmentId),
+        orchestration: { action: "continue", automaticReplacement: false },
+      },
+    });
+    const expectedJournal = await fixture.journal.load();
+
+    await expect(fixture.controller.run()).rejects.toThrow(
+      "completed submission results are ambiguous",
+    );
+    expect(fixture.mdlm.assignment).not.toHaveBeenCalled();
+    expect(await fixture.journal.load()).toEqual(expectedJournal);
+  });
+
+  it.each([
+    {
+      defect: "truncated stdout",
+      outputs: ["{\"ok\":"],
+      expectedError: "completed submission stdout is not one JSON document",
+    },
+    {
+      defect: "malformed stdout",
+      outputs: ["not-json\n"],
+      expectedError: "completed submission stdout is not one JSON document",
+    },
+    {
+      defect: "the wrong Assignment",
+      outputs: [JSON.stringify(abandonedDisposition("wrong-assignment"))],
+      expectedError: "submission result is not its terminal abandoned disposition",
+    },
+    {
+      defect: "an unsuccessful child result",
+      outputs: [JSON.stringify({
+        ...abandonedDisposition(abandonedAssignmentId),
+        ok: false,
+      })],
+      expectedError: "submission result is not its terminal abandoned disposition",
+    },
+    {
+      defect: "an invalid orchestration outcome",
+      outputs: [JSON.stringify({
+        ...abandonedDisposition(abandonedAssignmentId),
+        orchestration: { action: "continue", automaticReplacement: true },
+      })],
+      expectedError: "submission result is not its terminal abandoned disposition",
+    },
+    {
+      defect: "automatic replacement",
+      outputs: [JSON.stringify({
+        ...abandonedDisposition(abandonedAssignmentId),
+        orchestration: { action: "stop", automaticReplacement: true },
+      })],
+      expectedError: "submission result is not its terminal abandoned disposition",
+    },
+    {
+      defect: "different inability details",
+      outputs: [JSON.stringify({
+        ...abandonedDisposition(abandonedAssignmentId),
+        unable: {
+          reason: "insufficient-declared-inputs",
+          diagnostics: [{ code: "OTHER", message: "Different inability" }],
+        },
+      })],
+      expectedError: "submission result is not its terminal abandoned disposition",
+    },
+    {
+      defect: "multiple completed results",
+      outputs: [
+        JSON.stringify(abandonedDisposition(abandonedAssignmentId)),
+        JSON.stringify(abandonedDisposition(abandonedAssignmentId)),
+      ],
+      expectedError: "completed submission results are ambiguous",
+    },
+  ])("stops safely when completed inability evidence has $defect", async ({
+    outputs,
+    expectedError,
+  }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inability-invalid-"));
+    roots.push(root);
+    const fixture = await inabilityRecoveryFixture(root, { outputs });
+    await fs.writeFile(
+      path.join(root, "state", "attempts", "untracked.stdout"),
+      JSON.stringify(abandonedDisposition(abandonedAssignmentId)),
+    );
+    const expectedJournal = await fixture.journal.load();
+
+    await expect(fixture.controller.run()).rejects.toThrow(expectedError);
+    expect(fixture.mdlm.assignment).not.toHaveBeenCalled();
+    expect(fixture.mdlm.submit).not.toHaveBeenCalled();
+    expect(fixture.mdlm.next).not.toHaveBeenCalled();
+    expect(await fixture.journal.load()).toEqual(expectedJournal);
+  });
+
+  it("preserves Invalid instead of accepting completed inability evidence", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inability-invalid-status-"));
+    roots.push(root);
+    const invalid = {
+      outcome: "invalid",
+      diagnostics: [{ code: "INVALID", message: "repository is invalid" }],
+    };
+    const fixture = await inabilityRecoveryFixture(root, {
+      outputs: [JSON.stringify(abandonedDisposition(abandonedAssignmentId))],
+      currentOutcome: invalid,
+    });
+    const expectedJournal = await fixture.journal.load();
+
+    await expect(fixture.controller.run()).resolves.toEqual({
+      status: "invalid",
+      details: invalid,
+      successful: false,
+    });
+    expect(fixture.mdlm.assignment).not.toHaveBeenCalled();
+    expect(fixture.mdlm.submit).not.toHaveBeenCalled();
+    expect(fixture.mdlm.next).not.toHaveBeenCalled();
+    expect(await fixture.journal.load()).toEqual(expectedJournal);
+  });
+
+  it("does not infer abandonment when completed child evidence is absent", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inability-absent-"));
+    roots.push(root);
+    const fixture = await inabilityRecoveryFixture(root, { outputs: [] });
+    const expectedJournal = await fixture.journal.load();
+
+    await expect(fixture.controller.run()).rejects.toThrow(
+      `Cannot reconcile Assignment '${abandonedAssignmentId}': no publication or durable lease is observable`,
+    );
+    expect(fixture.mdlm.assignment).toHaveBeenCalledWith(abandonedAssignmentId);
+    expect(fixture.mdlm.submit).not.toHaveBeenCalled();
+    expect(fixture.mdlm.next).not.toHaveBeenCalled();
+    expect(await fixture.journal.load()).toEqual(expectedJournal);
+  });
+
+  it.each([
+    {
+      changed: "selected Process Package",
+      packageIdentity: {
+        ...packageIdentity,
+        digest: `sha256:${"e".repeat(64)}`,
+      },
+      repository: advancementRepository("base-commit", "a"),
+      expectedError: "selected Process Package changed during recovery",
+    },
+    {
+      changed: "repository fingerprint",
+      packageIdentity,
+      repository: advancementRepository("external-clean-commit", "c"),
+      expectedError: "repository fingerprint changed during recovery",
+    },
+  ])("stops before accepting completed inability evidence when the $changed changed", async ({
+    packageIdentity: currentPackage,
+    repository,
+    expectedError,
+  }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-inability-boundary-"));
+    roots.push(root);
+    const fixture = await inabilityRecoveryFixture(root, {
+      outputs: [JSON.stringify(abandonedDisposition(abandonedAssignmentId))],
+      currentPackage,
+      currentRepository: repository,
+    });
+    const expectedJournal = await fixture.journal.load();
+
+    await expect(fixture.controller.run()).rejects.toThrow(expectedError);
+    expect(fixture.mdlm.assignment).not.toHaveBeenCalled();
+    expect(fixture.mdlm.submit).not.toHaveBeenCalled();
+    expect(fixture.mdlm.next).not.toHaveBeenCalled();
+    expect(await fixture.journal.load()).toEqual(expectedJournal);
+  });
+
   it("retains a terminal Assignment journal so restart cannot allocate replacement work", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-abandoned-"));
     roots.push(root);
@@ -2058,6 +2453,190 @@ describe("RunController", () => {
     expect(await journal.load()).toBeNull();
   });
 });
+
+async function inabilityRecoveryFixture(
+  root: string,
+  options: {
+    outputs: string[];
+    currentPackage?: JsonObject;
+    currentRepository?: ReturnType<typeof advancementRepository>;
+    currentOutcome?: MdlmStatus["currentOutcome"];
+    priorCorrection?: boolean;
+    priorCorrectionOutput?: JsonObject;
+    selectedActive?: boolean;
+    selectedCurrentMalformed?: boolean;
+    replayedSubmission?: JsonObject;
+  },
+) {
+  const journal = new RunJournal(path.join(root, "state"));
+  const repository = advancementRepository("base-commit", "a");
+  const initialResponse: JsonObject = {
+    contract: "mdlm-assignment-response@1",
+    assignment: abandonedAssignmentId,
+    kind: "unable",
+    unable: {
+      reason: "insufficient-declared-inputs",
+      diagnostics: [{ code: "MISSING", message: "Required evidence is unavailable" }],
+    },
+  };
+  const initialSource = `${JSON.stringify(initialResponse)}\n`;
+  const initialDigest = `sha256:${createHash("sha256").update(initialSource).digest("hex")}` as const;
+  await journal.beginSubmission({
+    assignmentId: abandonedAssignmentId,
+    scenario,
+    package: packageIdentity,
+    repository,
+    previousTransactionId: null,
+    baseCommit: repository.head,
+    previousMalformedResponseDigests: [],
+    response: { response: initialResponse, source: initialSource, digest: initialDigest },
+  });
+  const attempts = path.join(root, "state", "attempts");
+  await fs.mkdir(attempts, { recursive: true });
+  let response = initialResponse;
+  let source = initialSource;
+  let digest = initialDigest;
+  if (options.priorCorrection) {
+    const stdoutPath = path.join(attempts, "completed-prior.stdout");
+    const stderrPath = path.join(attempts, "completed-prior.stderr");
+    await fs.writeFile(
+      stdoutPath,
+      JSON.stringify(
+        options.priorCorrectionOutput ?? correctionDisposition(abandonedAssignmentId),
+      ),
+    );
+    await fs.writeFile(stderrPath, "");
+    await journal.recordSubmissionProcess({
+      id: "completed-prior",
+      pid: 999_899,
+      stdoutPath,
+      stderrPath,
+    });
+    await journal.clearSubmissionProcess();
+    response = { ...initialResponse, completionEvidence: [] };
+    source = `${JSON.stringify(response)}\n`;
+    digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
+    await journal.captureSubmission({
+      assignmentId: abandonedAssignmentId,
+      scenario,
+      package: packageIdentity,
+      repository,
+      replacementDigest: initialDigest,
+      response: { response, source, digest },
+    });
+    await journal.promoteCapturedSubmission({
+      assignmentId: abandonedAssignmentId,
+      scenario,
+      package: packageIdentity,
+      repository,
+      previousTransactionId: null,
+      baseCommit: repository.head,
+      previousMalformedResponseDigests: [initialDigest],
+      response: { response, source, digest },
+    });
+  }
+  for (const [index, output] of options.outputs.entries()) {
+    const stdoutPath = path.join(attempts, `completed-${index}.stdout`);
+    const stderrPath = path.join(attempts, `completed-${index}.stderr`);
+    await fs.writeFile(stdoutPath, output);
+    await fs.writeFile(stderrPath, "");
+    await journal.recordSubmissionProcess({
+      id: `completed-${index}`,
+      pid: 999_900 + index,
+      stdoutPath,
+      stderrPath,
+    });
+    await journal.clearSubmissionProcess();
+  }
+  const unselected: AssignmentState = {
+    contract: "mdlm-assignment-state@1",
+    command: "assignment.show",
+    ok: true,
+    assignment: { id: abandonedAssignmentId },
+    selected: false,
+  };
+  const currentState: AssignmentState = options.selectedCurrentMalformed || options.selectedActive
+    ? {
+        contract: "mdlm-assignment-state@1",
+        command: "assignment.show",
+        ok: true,
+        assignment: { id: abandonedAssignmentId },
+        selected: true,
+        package: packageIdentity,
+        repository,
+        scenarioReference: scenario,
+        disposition: "active",
+        retryAvailability: { malformedResponseCorrection: options.selectedCurrentMalformed ? 0 : 1 },
+        malformedResponses: options.selectedCurrentMalformed
+          ? [{ digest, diagnostics: [{ code: "FIX", message: "Correct output" }] }]
+          : [],
+      }
+    : unselected;
+  const mdlm = {
+    status: vi.fn(async (): Promise<MdlmStatus> => ({
+      ...assignmentStatus(false),
+      package: options.currentPackage ?? packageIdentity,
+      ...(options.currentOutcome === undefined
+        ? {}
+        : { currentOutcome: options.currentOutcome }),
+    })),
+    next: vi.fn(),
+    assignment: vi.fn(async () => currentState),
+    prepare: vi.fn(),
+    prepareSubmission: vi.fn(),
+    submit: vi.fn(async () => options.replayedSubmission as AssignmentSubmission),
+    execution: vi.fn(),
+    doctor: vi.fn(),
+  };
+  const controller = new RunController({
+    mdlm,
+    assignments: { run: vi.fn() },
+    git: {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(async () => repository.head),
+      repositoryFingerprint: vi.fn(async () => options.currentRepository ?? repository),
+      capturePublication,
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(async () => []),
+      commit: vi.fn(),
+    },
+    io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+    journal,
+  });
+  return { controller, journal, mdlm };
+}
+
+function correctionDisposition(id: string): JsonObject {
+  return {
+    ok: false,
+    command: "scenario.submit",
+    contract: "mdlm-assignment-disposition@1",
+    assignment: { id },
+    disposition: "correction-required",
+    orchestration: { action: "correct-response", automaticReplacement: false },
+    malformedResponse: {
+      attempt: 1,
+      correctionsRemaining: 1,
+      diagnostics: [{ code: "FIX", message: "Correct output" }],
+    },
+  };
+}
+
+function abandonedDisposition(id: string): JsonObject {
+  return {
+    ok: true,
+    command: "scenario.submit",
+    contract: "mdlm-assignment-disposition@1",
+    assignment: { id },
+    disposition: "abandoned",
+    orchestration: { action: "stop", automaticReplacement: false },
+    unable: {
+      reason: "insufficient-declared-inputs",
+      diagnostics: [{ code: "MISSING", message: "Required evidence is unavailable" }],
+    },
+    diagnostics: [],
+  };
+}
 
 async function materializationReevaluationJournal(journal: RunJournal): Promise<void> {
   const digest = `sha256:${"a".repeat(64)}` as const;
