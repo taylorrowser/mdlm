@@ -83,6 +83,7 @@ rules:
   - priority: 400
     when: >-
       question.payload.kind == "preferential"
+      && !present(question.payload.attention_checkpoint)
       && exists("blocked-targets-for-question@1", {question: question})
     result: *immediate-stakeholder
   - priority: 300

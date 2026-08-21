@@ -26,8 +26,13 @@ and trust context justify one architecture context; the key must not name a
 component or implementation.
 
 Do not prescribe architecture, data structures, technologies, or internal
-components. Capture unresolved preference or evidence as QST instead of hiding
-it in vague language. Do not emit a consequential DEC from this Scenario; use
+components. Capture unresolved product preference or evidence as a
+product-scoped QST instead of hiding it in vague language. Link `blocks` to the
+input PSP and only the proposed STKs whose exact claims depend on the answer;
+never name an unaffected STK. When the gap can wait until the complete Phase 0
+candidate is visible, set `attention_checkpoint: phase-0-gate` and
+`consolidation_group: phase-0-stakeholder-questions`; otherwise leave both
+absent for immediate resolution. Do not emit a consequential DEC from this Scenario; use
 `record-consequential-decision@1` after explicit stakeholder authority. Run a final
 coverage and deletion pass: identify PSP goals with no STK, duplicate STKs, and
 requirements whose removal would not affect a goal.

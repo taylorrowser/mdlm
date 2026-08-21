@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-foundation-after-review
 version: 5
-description: Replace one exact Phase 0 foundation Revision while autonomous correction budget remains, citing every current Review or gate-rejection cause and preserving immutable history.
+description: Replace one exact Phase 0 foundation Revision while its correction budget remains, citing every current Review, gate-rejection, or reviewed product-answer cause and preserving immutable history.
 phases: [phase-0-wayfinding]
 inputs:
   - name: subject
@@ -24,6 +24,14 @@ inputs:
     types: [DEC]
     cardinality: zero-or-more
     identity: revision
+  - name: product_questions
+    types: [QST]
+    cardinality: zero-or-more
+    identity: revision
+  - name: product_answer_decisions
+    types: [DEC]
+    cardinality: zero-or-more
+    identity: revision
   - name: product_intent_authority
     types: [DEC]
     cardinality: zero-or-more
@@ -37,12 +45,18 @@ outputs:
       - {link: corrects-review, target: {input: failed_reviews}}
       - {link: corrects-review, target: {input: simplification_reviews}}
       - {link: corrects-gate-rejection, target: {input: gate_rejections}}
+      - {link: incorporates-answer, target: {input: product_answer_decisions}}
 prompt_ref: prompts/revise-foundation-after-review.md@5
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == subject.identity.id
   && replacement.identity.type == subject.identity.type
+  && every("incorporated-product-answer-decisions-for-foundation-subject@1",
+    {subject: subject}, authority =>
+      !every("incorporated-product-answer-decisions-for-foundation-subject@1",
+        {subject: replacement}, replacement_authority =>
+          replacement_authority != authority))
   && (subject.identity.type != "PSP"
     || every("product-intent-authorities-for-foundation-subject@1",
       {subject: subject}, authority =>

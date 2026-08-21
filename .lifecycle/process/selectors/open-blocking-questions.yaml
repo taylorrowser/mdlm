@@ -1,7 +1,7 @@
 kind: selector-definition
 id: open-blocking-questions
 version: 1
-description: Latest open questions that explicitly block at least one lifecycle concept.
+description: Latest open questions that explicitly block lifecycle work immediately rather than at a declared attended checkpoint.
 parameters: []
 result_kind: revision
 query:
@@ -9,6 +9,8 @@ query:
     selector: open-questions@1
     arguments: {}
   as: question
-  where: 'exists("blocked-targets-for-question@1", {question: question})'
+  where: >-
+    exists("blocked-targets-for-question@1", {question: question})
+    && !present(question.payload.attention_checkpoint)
   distinct: true
   order_by: [identity.id]

@@ -19,6 +19,13 @@ payload_schema:
       pattern: '^[a-z][a-z0-9-]{0,62}$'
       description: Solution-independent responsibility and trust-context routing key shared by commitments that should enter one architecture context.
 outgoing_links:
+  - id: incorporates-answer
+    description: Exact reviewed product-answer Decisions incorporated by this stakeholder requirement Revision.
+    targets:
+      - {kind: datum, types: [DEC], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: incorporated-by-stakeholder-requirement
   - id: derived-from
     description: Product specification intent from which this stakeholder commitment is derived.
     targets:

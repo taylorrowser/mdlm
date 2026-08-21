@@ -10,6 +10,9 @@ query:
     selector: question-answer-decisions-for@1
     arguments: {question: question}
   as: decision
-  where: 'exists("passing-reviews-for@1", {subject: decision})'
+  where: >-
+    exists("passing-reviews-for@1", {subject: decision})
+    || exists("applicable-product-answer-reviews-for-decision@1",
+      {decision: decision})
   distinct: true
   order_by: [identity.revision_id]

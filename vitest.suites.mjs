@@ -40,6 +40,7 @@ export const testFiles = [
   "test/mdlm-schema.test.ts",
   "test/operator-outcome.test.ts",
   "test/phase-0-hardening-routes.test.ts",
+  "test/phase-0-intent-candidate-currentness-route.test.ts",
   "test/phase-1-hardening-routes.test.ts",
   "test/phase-1-route-contracts.test.ts",
   "test/phase-2-hardening-routes.test.ts",

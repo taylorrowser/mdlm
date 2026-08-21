@@ -10,7 +10,12 @@ query:
     arguments: {}
   as: candidate
   where: >-
-    candidate.payload.kind == "intent-level-candidate"
+    (
+      candidate.payload.kind == "intent-level-candidate"
+      && none("open-phase-0-gate-product-questions@1", {})
+      && none("answer-stale-foundation-members-for-candidate@1",
+        {candidate: candidate})
+    )
     || (candidate.payload.kind == "level-candidate"
       && count("complete-level-candidate-evidence-for@1", {candidate: candidate}) == 1)
   distinct: true

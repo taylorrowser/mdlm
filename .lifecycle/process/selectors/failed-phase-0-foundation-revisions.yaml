@@ -1,7 +1,7 @@
 kind: selector-definition
 id: failed-phase-0-foundation-revisions
 version: 2
-description: Current exact Phase 0 foundation Revisions blocked by failed Review or reviewed gate rejection evidence.
+description: Current exact Phase 0 foundation Revisions blocked by failed Review, reviewed gate rejection, or later reviewed product-answer evidence.
 parameters: []
 result_kind: revision
 query:
@@ -16,6 +16,8 @@ query:
       || exists("product-simplification-reviews-blocking-subject@1",
         {subject: subject})
       || exists("reviewed-gate-rejections-for-subject@1", {subject: subject})
+      || exists("unincorporated-product-questions-for-foundation-subject@1",
+        {subject: subject})
     )
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]
