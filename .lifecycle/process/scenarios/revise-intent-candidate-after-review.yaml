@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-intent-candidate-after-review
 version: 3
-description: Rebuild one failed or reviewed-rejected Phase 0 intent candidate from exact reviewed members while preserving immutable evidence.
+description: Rebuild one failed, reviewed-rejected, or product-answer-stale Phase 0 intent candidate from exact reviewed current members while preserving immutable evidence.
 phases: [phase-0-wayfinding]
 inputs:
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}
@@ -72,5 +72,5 @@ completion: >-
           && state(authority, "validity") == "valid"))
   )
 resolves: [intent-candidate-review-correction-required]
-prohibited_inputs: [mutation of the prior candidate, unreviewed definition Revisions, omitted or unrelated member Review evidence, omission of unaffected evidence, inferred Question disposition, inferred terminal disposition]
+prohibited_inputs: [mutation of the prior candidate, parallel candidate lineage, unreviewed definition Revisions, omitted or unrelated member Review evidence, omission of unaffected evidence, inferred Question disposition, inferred terminal disposition]
 batching: single

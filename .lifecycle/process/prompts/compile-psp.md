@@ -24,8 +24,12 @@ measures, scope, and constraints. Link the PSP to that exact Decision with
 
 Do not read product intent from source code, the repository name, ambient
 `AGENTS.md`, or other unstated context. Do not broaden, reinterpret, or fill gaps
-in the stakeholder's answer. Publish a QST for a material gap instead of
-fabricating preference.
+in the stakeholder's answer. Publish a product-scoped QST for a material gap
+instead of fabricating preference. Link its `blocks` relation to the proposed
+PSP. When the gap can wait until the complete Phase 0 candidate is visible, set
+`attention_checkpoint: phase-0-gate` and
+`consolidation_group: phase-0-stakeholder-questions`; otherwise leave both
+absent for immediate resolution.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
 `skills/author-preflight.md@2` contract.

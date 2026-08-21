@@ -1,0 +1,23 @@
+kind: selector-definition
+id: product-answer-review-support-for-foundation-subject
+version: 1
+description: Exact reviewed product-answer authority support incorporated by one Phase 0 foundation Revision.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST, DEC, REV, BSL]}
+  as: support
+  where: >-
+    !every("incorporated-product-answer-decisions-for-foundation-subject@1",
+      {subject: subject}, decision =>
+        decision != support
+        && every("question-targets-for-decision@1", {decision: decision},
+          question => question != support)
+        && every("structural-passing-product-answer-reviews-for-decision@1",
+          {decision: decision}, review =>
+            review != support
+            && every("structural-review-contexts-cited-by@1",
+              {review: review}, context => context != support)))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

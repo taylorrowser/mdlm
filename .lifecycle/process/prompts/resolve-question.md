@@ -26,7 +26,8 @@ transcript. Copy that normalized answer exactly into the initial DEC `decision`.
 A routine autonomous empirical answer may publish only the next QST Revision and its cited evidence;
 do not manufacture a DEC merely to repeat the answer. Always create the next
 QST revision with state `answered`, `deferred`, or `cancelled`. Preserve the
-input QST's exact `kind`, `intent_scope`, and question text. An initial
+input QST's exact `kind`, `intent_scope`, question text, and complete `blocks`
+link set so the reviewed answer retains its exact affected foundation scope. An initial
 `intent_scope: product` Question must be answered, not deferred or cancelled,
 and its normalized attended answer must be self-contained.
 Do not rewrite the old question. Record alternatives and effective scope when material.

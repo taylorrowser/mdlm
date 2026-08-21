@@ -17,6 +17,19 @@ query:
     && none("newer-revisions-for@1", {subject: subject})
     && none("implemented-changes-impacting-revision@2", {subject: subject})
     && !(
+      subject.identity.type == "DEC"
+      && exists("applicable-product-answer-reviews-for-decision@1",
+        {decision: subject})
+    )
+    && !(
+      phase.id == "phase-0-wayfinding"
+      && subject.identity.type in ["MAP", "PSP", "STK"]
+      && !every("incorporated-product-answer-decisions-for-foundation-subject@1",
+        {subject: subject}, decision =>
+          none("pending-foundation-subjects-for-product-answer@1",
+            {decision: decision}))
+    )
+    && !(
       phase.id == "phase-0-wayfinding"
       && subject.identity.type in ["MAP", "PSP", "STK"]
       && exists("failing-reviews-for@1", {subject: subject})

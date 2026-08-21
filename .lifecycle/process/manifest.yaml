@@ -189,6 +189,7 @@ catalog:
     - failed-intent-candidates-depending-on-question
     - applicable-question-decisions-for-candidate
     - question-targets-for-decision
+    - question-blocked-targets-for-decision
     - failed-question-decisions
     - valid-question-decision-replacements-for
     - applicable-question-answers-for
@@ -200,6 +201,8 @@ catalog:
     - superseding-baselines-for
     - candidate-baselines
     - gate-authorization-candidates
+    - answer-stale-foundation-members-for-candidate
+    - candidate-product-answer-review-support
     - frozen-baselines
     - valid-review-contexts-for
     - strategies-for-environment
@@ -216,7 +219,15 @@ catalog:
     - review-required-members-for
     - candidate-members-missing-review
     - blocked-targets-for-question
+    - incorporated-product-answer-decisions-for-foundation-subject
+    - product-answer-review-support-for-foundation-subject
+    - structural-passing-product-answer-reviews-for-decision
+    - applicable-product-answer-reviews-for-decision
+    - unincorporated-product-questions-for-foundation-subject
+    - applicable-product-answer-decisions-for-foundation-subject
+    - pending-foundation-subjects-for-product-answer
     - open-blocking-questions
+    - open-phase-0-gate-product-questions
     - baselines-containing-with-role
     - newer-accepted-revisions-for
     - newer-editable-revisions-for

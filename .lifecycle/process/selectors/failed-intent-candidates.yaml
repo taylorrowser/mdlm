@@ -1,7 +1,7 @@
 kind: selector-definition
 id: failed-intent-candidates
 version: 1
-description: Failed or reviewed-rejected Phase 0 intent candidates without a complete causal superseding candidate.
+description: Failed, reviewed-rejected, or product-answer-stale Phase 0 intent candidates without a complete causal superseding candidate.
 parameters: []
 result_kind: baseline
 query:
@@ -14,6 +14,8 @@ query:
     && (
       exists("failing-reviews-for@1", {subject: candidate})
       || exists("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})
+      || exists("answer-stale-foundation-members-for-candidate@1",
+        {candidate: candidate})
     )
     && none("complete-superseding-intent-candidates-for@1", {candidate: candidate})
   distinct: true

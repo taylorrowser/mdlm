@@ -4,15 +4,17 @@ version: 4
 scenario: revise-intent-candidate-after-review
 ---
 
-# Replace a failed or rejected intent candidate
+# Replace a failed, rejected, or stale intent candidate
 
 Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`, and
 `skills/scope-challenge.md@2`. Use only the exact candidate lineage, complete
 failed Review/finding history, reviewed current foundation members, their exact
-supplied `member_reviews`, reviewed gate rejections, and the exact supplied
-`question_dispositions` with their applicable reviewed `question_decisions`.
+supplied `member_reviews`, reviewed gate rejections, later reviewed product-answer corrections already
+incorporated by those members, and the exact supplied `question_dispositions`
+with their applicable reviewed `question_decisions`.
 Never infer a Question answer or disposition from a finding, member, or candidate.
-Publish one frozen replacement Revision in the same BSL lineage. Its evidence must
+Publish one frozen replacement Revision in the same BSL lineage; never create a
+parallel candidate to shadow the stale Revision. Its evidence must
 contain every supplied current member Review, retain prior non-Review evidence,
 and omit obsolete or unrelated Review evidence. Link `supersedes` to the prior
 candidate, link `corrects-review` to every supplied failed Review, and link

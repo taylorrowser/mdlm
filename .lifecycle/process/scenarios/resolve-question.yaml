@@ -31,6 +31,12 @@ completion: >-
   && updated_question.payload.kind == question.payload.kind
   && updated_question.payload.intent_scope == question.payload.intent_scope
   && updated_question.payload.question == question.payload.question
+  && every("blocked-targets-for-question@1", {question: question}, target =>
+    !every("blocked-targets-for-question@1", {question: updated_question},
+      updated_target => updated_target != target))
+  && every("blocked-targets-for-question@1", {question: updated_question}, target =>
+    !every("blocked-targets-for-question@1", {question: question},
+      original_target => original_target != target))
   && updated_question.payload.state in ["answered", "deferred", "cancelled"]
   && (
     question.payload.intent_scope != "product"

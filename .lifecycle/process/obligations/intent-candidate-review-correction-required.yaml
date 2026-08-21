@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: intent-candidate-review-correction-required
 version: 3
-description: A current intent candidate with a failed Review or reviewed gate rejection must be rebuilt as a causal superseding exact Revision.
+description: A current intent candidate with a failed Review, reviewed gate rejection, or later product-answer foundation change must be rebuilt as a causal superseding exact Revision.
 phases: [phase-0-wayfinding]
 for_each: 'select("failed-intent-candidates@1", {})'
 subject_as: candidate
@@ -27,6 +27,9 @@ status_rules:
           {candidate: candidate}, member =>
             exists("gate-rejection-corrections-for-subject@1", {subject: member}))
       )
+      || !every("answer-stale-foundation-members-for-candidate@1",
+        {candidate: candidate}, member =>
+          exists("newer-revisions-for@1", {subject: member}))
       || (
         exists("product-simplification-reviews-for@1",
           {candidate: candidate, outcome: "fail"})
@@ -41,6 +44,10 @@ status_rules:
         subjects: 'select("gate-rejection-blocked-members-for-candidate@1", {candidate: candidate})'
       - obligation: foundation-review-correction-required@5
         subjects: 'select("product-simplification-blockers-for-candidate@1", {candidate: candidate})'
+      - obligation: foundation-review-correction-required@5
+        subjects: >-
+          select("answer-stale-foundation-members-for-candidate@1",
+            {candidate: candidate})
       - obligation: passing-review-required@2
         subjects: 'select("phase-0-foundation-members-missing-review@1", {})'
   - status: ready

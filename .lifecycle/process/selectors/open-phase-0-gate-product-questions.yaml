@@ -1,0 +1,18 @@
+kind: selector-definition
+id: open-phase-0-gate-product-questions
+version: 1
+description: Current open product Questions explicitly deferred to the Phase 0 stakeholder checkpoint.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: open-questions@1
+    arguments: {}
+  as: question
+  where: >-
+    question.payload.intent_scope == "product"
+    && question.payload.attention_checkpoint == "phase-0-gate"
+    && question.payload.consolidation_group == "phase-0-stakeholder-questions"
+    && exists("blocked-targets-for-question@1", {question: question})
+  distinct: true
+  order_by: [identity.id, identity.revision]

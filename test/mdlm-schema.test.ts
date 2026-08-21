@@ -114,6 +114,13 @@ describe("mdlm schema", () => {
           freeze_resolution: "already-exact",
           inverse_label: "changed-requirement",
         }, {
+          id: "incorporates-answer",
+          description: expect.stringContaining("reviewed product-answer Decisions"),
+          targets: [{ kind: "datum", types: ["DEC"], identity: "revision" }],
+          cardinality: { minimum: 0, maximum: "many" },
+          freeze_resolution: "already-exact",
+          inverse_label: "incorporated-by-stakeholder-requirement",
+        }, {
           id: "derived-from",
           description: expect.stringContaining("Product specification intent"),
           targets: [{ kind: "datum", types: ["PSP"], identity: "stable" }],

@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: foundation-review-correction-required
 version: 5
-description: A current Phase 0 foundation Revision blocked by Review or gate rejection evidence receives a causal same-lineage replacement while its Review-correction budget remains.
+description: A current Phase 0 foundation Revision blocked by Review, gate rejection, or later reviewed product-answer evidence receives a causal same-lineage replacement while its correction budget remains.
 phases: [phase-0-wayfinding]
 for_each: 'select("foundation-review-failures-at-stage@1", {stage: "autonomous"})'
 subject_as: subject
@@ -22,6 +22,12 @@ resolve_with:
       select("product-simplification-reviews-blocking-subject@1",
         {subject: subject})
     gate_rejections: 'select("reviewed-gate-rejections-for-subject@1", {subject: subject})'
+    product_questions: >-
+      select("unincorporated-product-questions-for-foundation-subject@1",
+        {subject: subject})
+    product_answer_decisions: >-
+      select("applicable-product-answer-decisions-for-foundation-subject@1",
+        {subject: subject})
     product_intent_authority: >-
       select("product-intent-authorities-for-foundation-subject@1",
         {subject: subject})

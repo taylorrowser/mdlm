@@ -27,7 +27,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.73.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(370);
+    expect(Object.keys(result.package.selectors)).toHaveLength(381);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
@@ -38,6 +38,22 @@ describe("loadProcessPackage", () => {
         "structural-initial-product-intent-targets-for-decision": expect.any(Object),
         "initial-product-intent-boundaries-for-decision": expect.any(Object),
         "product-intent-authorities-for-foundation-subject": expect.any(Object),
+        "incorporated-product-answer-decisions-for-foundation-subject":
+          expect.any(Object),
+        "product-answer-review-support-for-foundation-subject":
+          expect.any(Object),
+        "candidate-product-answer-review-support": expect.any(Object),
+        "structural-passing-product-answer-reviews-for-decision":
+          expect.any(Object),
+        "applicable-product-answer-reviews-for-decision": expect.any(Object),
+        "unincorporated-product-questions-for-foundation-subject":
+          expect.any(Object),
+        "applicable-product-answer-decisions-for-foundation-subject":
+          expect.any(Object),
+        "pending-foundation-subjects-for-product-answer": expect.any(Object),
+        "answer-stale-foundation-members-for-candidate": expect.any(Object),
+        "open-phase-0-gate-product-questions": expect.any(Object),
+        "question-blocked-targets-for-decision": expect.any(Object),
         "current-initial-product-intent-questions": expect.any(Object),
         "product-intent-questions-from-initial-map": expect.any(Object),
         "current-open-question-sources-ready-for-resolution": expect.any(Object),
