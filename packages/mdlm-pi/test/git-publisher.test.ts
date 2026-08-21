@@ -53,6 +53,26 @@ describe("GitPublisher", () => {
     ]);
   });
 
+  it("commits a recovered transaction containing a Markdown hard break without changing bytes", async () => {
+    const datumBody = "**Kind:** Preferential  \n**Intent scope:** Product  \n";
+    const publication = await createPublication(
+      executionId,
+      publicationCandidate.scenario,
+      datumBody,
+    );
+
+    await expect(publisher.publicationCommitState(publication, baseCommit))
+      .resolves.toEqual({ state: "needs-commit" });
+    const commit = await publisher.commit(publication, baseCommit);
+
+    await expect(publisher.publicationCommitState(publication, baseCommit))
+      .resolves.toEqual({ state: "committed", commit });
+    await expect(fs.readFile(
+      path.join(repository, ".lifecycle/data/.transactions", executionId, "datum.md"),
+      "utf8",
+    )).resolves.toBe(datumBody);
+  });
+
   it("serially commits multiple declared materializations without mixing them", async () => {
     const secondId = "b7fcab68-7094-45db-bfb2-bfa3de4c6c24";
     const publication = await createPublication();
@@ -147,10 +167,11 @@ describe("GitPublisher", () => {
   async function createPublication(
     id = executionId,
     scenario = publicationCandidate.scenario,
+    datumBody = `${id}\n`,
   ) {
     const transaction = path.join(repository, ".lifecycle/data/.transactions", id);
     await fs.mkdir(transaction, { recursive: true });
-    await fs.writeFile(path.join(transaction, "datum.md"), `${id}\n`);
+    await fs.writeFile(path.join(transaction, "datum.md"), datumBody);
     await fs.writeFile(path.join(transaction, "execution.json"), `{"id":"${id}"}\n`);
     return publisher.capturePublication({
       ...publicationCandidate,

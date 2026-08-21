@@ -198,7 +198,7 @@ export class GitPublisher {
 
     const expectedPaths = publicationPaths(publication);
     await this.#configuredIdentity();
-    await this.#git(["diff", "--check", "--", ...expectedPaths]);
+    // Lifecycle Data bodies are opaque Markdown and may contain meaningful trailing spaces.
     await this.#git(["add", "--", ...expectedPaths]);
     const staged = splitNull(await this.#git([
       "diff",
@@ -209,7 +209,6 @@ export class GitPublisher {
     if (!samePaths(staged, expectedPaths)) {
       throw new GitPublisherError("Git staging did not contain exactly the Scenario execution outputs");
     }
-    await this.#git(["diff", "--cached", "--check", "--", ...expectedPaths]);
     await this.#git(["commit", "-m", commitMessage(publication), "--", ...expectedPaths]);
     const committed = await this.publicationCommitState(
       publication,
