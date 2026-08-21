@@ -1083,6 +1083,12 @@ export async function runCoherentPhaseTwoRoute(): Promise<void> {
       .filter((output) => output.name === "requirements")
       .map((output) => output.lifecycleDatum.revisionId);
     expect(systemRevisions).toHaveLength(2);
+    const expectedSystemReviewMembers = new Map(
+      systemRevisions.map((revision, index) => [
+        revision,
+        [architectureInput, plan, interfaceInput, parentInputs[index]!],
+      ]),
+    );
     for (const revision of systemRevisions) {
       const shown = mdlm(repository, "show", revision, "--json");
       expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
@@ -1099,6 +1105,15 @@ export async function runCoherentPhaseTwoRoute(): Promise<void> {
     for (let step = 0; step < 12 && !completedPlan; step += 1) {
       const packet = prepareAny(repository);
       if (packet.scenario.reference === "review-datum-in-context@2") {
+        for (let invocation = 0; invocation < packet.exactInputs.length; invocation += 1) {
+          const subject = exactInputsAt(packet, invocation, "subject")[0]!;
+          const expectedMembers = expectedSystemReviewMembers.get(subject);
+          if (expectedMembers) {
+            expect(exactInputsAt(packet, invocation, "context_members")).toEqual(
+              expectedMembers,
+            );
+          }
+        }
         reviewPacket(repository, packet);
       } else if (
         packet.scenario.reference === "simplify-architecture-and-interfaces@2"

@@ -29,5 +29,5 @@ resolve_with:
   inputs:
     subject: output
     review_context: 'one("valid-review-contexts-for@1", {subject: output})'
-    context_members: 'select("phase-0-candidate-review-context-members@1", {subject: output})'
+    context_members: 'select("review-context-members-for@1", {subject: output})'
 waiver_policy_ref: waiver-applicability@1
