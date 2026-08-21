@@ -142,14 +142,56 @@ describe("PiAssignmentRunner", () => {
     });
   });
 
-  it.each([
-    ["kind", ["release-manager"]],
-    ["source", ["stakeholder:other-authority-holder"]],
-  ])("rejects a worker authority with a different %s", async (_difference, authoritySupplies) => {
+  it("does not let noisy worker authority block attended response capture", async () => {
+    const response: JsonObject = {
+      kind: "proposal",
+      proposal: {
+        authoritySupplies: ["stakeholder attended-authority-holder invocation 0"],
+      },
+    };
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(response); });
+        return session;
+      }),
+    });
+
+    await expect(runner.run(packet(), {
+      attendedContext: {
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+        },
+        authoritySupply: {
+          authority: "stakeholder",
+          source: "attended-authority-holder",
+        },
+      },
+    })).resolves.toEqual({
+      ...response,
+      proposal: { authoritySupplies: ["stakeholder"] },
+    });
+  });
+
+  it("replaces arbitrary worker authority text with captured attended authority", async () => {
     const response: JsonObject = {
       assignment: assignmentId,
       kind: "proposal",
-      proposal: { authoritySupplies },
+      proposal: {
+        authoritySupplies: [
+          "release-manager",
+          "stakeholder:other-authority-holder",
+        ],
+      },
     };
     const session: PiAssignmentSession = {
       get isIdle() { return true; },
@@ -180,9 +222,44 @@ describe("PiAssignmentRunner", () => {
         },
         conclusion: { statement: "Use the accepted scope." },
       },
+    })).resolves.toEqual({
+      ...response,
+      proposal: { authoritySupplies: ["stakeholder"] },
+    });
+  });
+
+  it("rejects conflicting captured attended authority before worker execution", async () => {
+    const sessionFactory = vi.fn(async () => {
+      const session: PiAssignmentSession = {
+        get isIdle() { return true; },
+        prompt: vi.fn(async () => undefined),
+        abort: vi.fn(async () => undefined),
+        dispose: vi.fn(),
+        subscribe: vi.fn(() => () => {}),
+      };
+      return session;
+    });
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory,
+    });
+
+    await expect(runner.run(packet(), {
+      attendedContext: {
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+        },
+        authoritySupply: {
+          authority: "release-manager",
+          source: "attended-authority-holder",
+        },
+      },
     })).rejects.toThrow(
-      `worker authority ${JSON.stringify(authoritySupplies)} conflicts with attended authority 'stakeholder'`,
+      "captured attended authority 'release-manager' conflicts with requirement 'stakeholder'",
     );
+    expect(sessionFactory).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -239,7 +316,17 @@ describe("PiAssignmentRunner", () => {
     });
 
     await runner.run(packet(authorId, "author-work@1"), {
-      attendedContext: { conclusion: "private attended conclusion" },
+      attendedContext: {
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+        },
+        authoritySupply: {
+          authority: "stakeholder",
+          source: "attended-authority-holder",
+        },
+        conclusion: "private attended conclusion",
+      },
     });
     await runner.close(authorId);
     await runner.run(packet());
