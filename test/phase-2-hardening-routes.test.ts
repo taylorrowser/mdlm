@@ -12,6 +12,7 @@ import {
 } from "../src/index.js";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import {
   publishScenarioMutation,
   readRepositoryData,
@@ -270,6 +271,52 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
       "STK-HJGTM8026G-r00001",
       "SYS-0EXPRTREQ0-r00001",
       "VSP-KBQHB74Z6S-r00001",
+    ]);
+  });
+
+  it("prepares every exact frozen context member in a Phase 2 SYS Review Assignment", async () => {
+    const snapshot = withoutRecordAndDependents(
+      completionReady,
+      "REV-61T420FHN5-r00001",
+    );
+    const reviewWork = obligation(
+      processPackage,
+      snapshot,
+      "decomposition-output-reviews-required",
+      plan,
+    );
+    expect(reviewWork).toEqual(
+      expect.objectContaining({
+        status: "awaiting-review",
+        dispatchable: true,
+        actionableResolver: "review-datum-in-context@2",
+      }),
+    );
+
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "review-datum-in-context@2",
+      reviewWork!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+
+    const invocation = prepared.value.invocations[0]!;
+    const revisionIds = (name: string) =>
+      invocation.inputs
+        .find((input) => input.name === name)!
+        .values.map((value) => value.identity.revision_id);
+    expect(revisionIds("subject")).toEqual(["SYS-0EXPRTREQ0-r00001"]);
+    expect(revisionIds("review_context")).toEqual([
+      "BSL-R6SFPZ4R31-r00001",
+    ]);
+    expect(revisionIds("context_members")).toEqual([
+      "ASP-0REPRTARCH-r00001",
+      plan,
+      "ICSP-0REPRT1CSP-r00001",
+      "STK-HJGTM8026G-r00001",
     ]);
   });
 
