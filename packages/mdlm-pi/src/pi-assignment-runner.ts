@@ -84,6 +84,11 @@ interface ActiveSession {
   completionError?: PiAssignmentRunnerError;
 }
 
+interface AuthorityIdentity {
+  kind: string;
+  source?: string;
+}
+
 /** One isolated probabilistic worker behind one structured Assignment seam. */
 export class PiAssignmentRunner {
   readonly #repository: string;
@@ -326,15 +331,24 @@ function carryAttendedAuthority(
       `Assignment '${assignmentId}' proposal has malformed authority supplies`,
     );
   }
+  const attendedAuthority = {
+    kind: requirement.authority,
+    source: supply.source,
+  };
   if (
     supplied.length > 0 &&
-    (supplied.length !== 1 || supplied[0] !== requirement.authority)
+    (
+      supplied.length !== 1 ||
+      !sameAuthority(
+        normalizeWorkerAuthority(supplied[0] as string, attendedAuthority),
+        attendedAuthority,
+      )
+    )
   ) {
     throw new PiAssignmentRunnerError(
       `Assignment '${assignmentId}' worker authority ${JSON.stringify(supplied)} conflicts with attended authority '${requirement.authority}'`,
     );
   }
-  if (supplied.length === 1) return response;
   return {
     ...response,
     proposal: {
@@ -342,6 +356,24 @@ function carryAttendedAuthority(
       authoritySupplies: [requirement.authority],
     },
   };
+}
+
+function normalizeWorkerAuthority(
+  authority: string,
+  attendedAuthority: AuthorityIdentity,
+): AuthorityIdentity {
+  if (authority === attendedAuthority.kind) return attendedAuthority;
+  const separator = authority.lastIndexOf(":");
+  return separator === -1
+    ? { kind: authority }
+    : {
+        kind: authority.slice(0, separator),
+        source: authority.slice(separator + 1),
+      };
+}
+
+function sameAuthority(left: AuthorityIdentity, right: AuthorityIdentity): boolean {
+  return left.kind === right.kind && left.source === right.source;
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
