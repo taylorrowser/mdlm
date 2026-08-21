@@ -208,6 +208,175 @@ describe("PiAssignmentRunner", () => {
     await runner.dispose();
   });
 
+  it("preserves valid packet output routing when correcting unrelated authority", async () => {
+    const initialResponse: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "productSpec",
+          name: "product_specification",
+          invocation: 0,
+          lifecycleDatum: { type: "PSP", payload: { title: "Initial PSP" }, links: [] },
+        }, {
+          localId: "behaviorQuestion",
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: { type: "QST", payload: { title: "Behavior" }, links: [] },
+        }, {
+          localId: "successQuestion",
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: { type: "QST", payload: { title: "Success" }, links: [] },
+        }],
+        authoritySupplies: ["unexpected-authority"],
+      },
+    };
+    const workerCorrection: JsonObject = {
+      ...initialResponse,
+      proposal: {
+        ...(initialResponse.proposal as JsonObject),
+        outputs: [
+          ...((initialResponse.proposal as JsonObject).outputs as JsonObject[]).slice(0, 2),
+          {
+            ...((initialResponse.proposal as JsonObject).outputs as JsonObject[])[2]!,
+            invocation: 1,
+            lifecycleDatum: {
+              type: "QST",
+              payload: { title: "Corrected success content" },
+              links: [],
+            },
+          },
+        ],
+        authoritySupplies: [],
+      },
+    };
+    const responses = [initialResponse, workerCorrection];
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
+        return session;
+      }),
+    });
+    const compilePacket = packet(assignmentId, "compile-product-specification@1");
+    compilePacket.exactInputs = [{ inputs: [] }];
+    compilePacket.outputs = [{
+      name: "product_specification",
+      types: ["PSP"],
+      cardinality: "one",
+    }, {
+      name: "questions",
+      types: ["QST"],
+      cardinality: "zero-or-more",
+    }];
+
+    await expect(runner.run(compilePacket)).resolves.toEqual(initialResponse);
+    await expect(runner.run(compilePacket, {
+      correction: {
+        previousResponse: initialResponse,
+        diagnostics: [{
+          code: "scenario-authority-unexpected",
+          path: "compile-product-specification@1#authority",
+          message: "Scenario received authority not required by its exact participation",
+        }],
+      },
+    })).resolves.toEqual({
+      ...workerCorrection,
+      proposal: {
+        ...(workerCorrection.proposal as JsonObject),
+        outputs: [
+          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[]).slice(0, 2),
+          {
+            ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[2]!,
+            invocation: 0,
+          },
+        ],
+      },
+    });
+
+    await runner.dispose();
+  });
+
+  it("retains corrected output routing for a non-authority diagnostic", async () => {
+    const initialResponse: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "result",
+          name: "product_specification",
+          invocation: 0,
+          lifecycleDatum: { type: "QST", payload: { title: "Wrong type" }, links: [] },
+        }],
+        authoritySupplies: [],
+      },
+    };
+    const workerCorrection: JsonObject = {
+      ...initialResponse,
+      proposal: {
+        ...(initialResponse.proposal as JsonObject),
+        outputs: [{
+          localId: "result",
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: { type: "QST", payload: { title: "Corrected routing" }, links: [] },
+        }],
+      },
+    };
+    const responses = [initialResponse, workerCorrection];
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
+        return session;
+      }),
+    });
+    const compilePacket = packet(assignmentId, "compile-product-specification@1");
+    compilePacket.exactInputs = [{ inputs: [] }];
+    compilePacket.outputs = [{
+      name: "product_specification",
+      types: ["PSP"],
+      cardinality: "one",
+    }, {
+      name: "questions",
+      types: ["QST"],
+      cardinality: "zero-or-more",
+    }];
+
+    await expect(runner.run(compilePacket)).resolves.toEqual(initialResponse);
+    await expect(runner.run(compilePacket, {
+      correction: {
+        previousResponse: initialResponse,
+        diagnostics: [{
+          code: "scenario-output-type-invalid",
+          path: "proposal.outputs[0].lifecycleDatum.type",
+          message: "Output type is invalid for its declared output name",
+        }],
+      },
+    })).resolves.toEqual(workerCorrection);
+
+    await runner.dispose();
+  });
+
   it("normalizes equivalent worker and attended authority before capture", async () => {
     const response: JsonObject = {
       kind: "proposal",

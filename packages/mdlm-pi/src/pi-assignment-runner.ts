@@ -154,7 +154,11 @@ export class PiAssignmentRunner {
       }
       const response = correctMissingUnattendedAuthority(packet, options.correction) ??
         active.response;
-      return carryAttendedAuthority(response, attendedAuthority, assignmentId);
+      return carryAttendedAuthority(
+        preserveValidCorrectionOutputRouting(packet, options.correction, response),
+        attendedAuthority,
+        assignmentId,
+      );
     } catch (error) {
       await this.close(assignmentId);
       throw error;
@@ -373,6 +377,71 @@ function correctMissingUnattendedAuthority(
       authoritySupplies: requiredAuthorities,
     },
   };
+}
+
+function preserveValidCorrectionOutputRouting(
+  packet: AssignmentPacket,
+  correction: AssignmentCorrection | undefined,
+  response: JsonObject,
+): JsonObject {
+  if (
+    correction === undefined || correction.previousResponse.kind !== "proposal" ||
+    response.kind !== "proposal" || !Array.isArray(correction.diagnostics) ||
+    correction.diagnostics.length === 0 ||
+    !correction.diagnostics.every((diagnostic) =>
+      isJsonObject(diagnostic) && diagnostic.code === "scenario-authority-unexpected"
+    )
+  ) return response;
+
+  const previousProposal = correction.previousResponse.proposal;
+  const proposal = response.proposal;
+  const exactInputs = packet.exactInputs;
+  const outputContracts = packet.outputs;
+  if (
+    !isJsonObject(previousProposal) || !Array.isArray(previousProposal.outputs) ||
+    !isJsonObject(proposal) || !Array.isArray(proposal.outputs) ||
+    !Array.isArray(exactInputs) || !Array.isArray(outputContracts)
+  ) return response;
+
+  const declaredNames = new Set<string>();
+  for (const contract of outputContracts) {
+    if (isJsonObject(contract) && typeof contract.name === "string") {
+      declaredNames.add(contract.name);
+    }
+  }
+  const routingByLocalId = new Map<string, { name: string; invocation: number }>();
+  const duplicateLocalIds = new Set<string>();
+  for (const output of previousProposal.outputs) {
+    if (
+      !isJsonObject(output) || typeof output.localId !== "string" ||
+      typeof output.name !== "string" || !declaredNames.has(output.name) ||
+      !Number.isInteger(output.invocation) || (output.invocation as number) < 0 ||
+      (output.invocation as number) >= exactInputs.length
+    ) continue;
+    if (routingByLocalId.has(output.localId)) {
+      routingByLocalId.delete(output.localId);
+      duplicateLocalIds.add(output.localId);
+    } else if (!duplicateLocalIds.has(output.localId)) {
+      routingByLocalId.set(output.localId, {
+        name: output.name,
+        invocation: output.invocation as number,
+      });
+    }
+  }
+
+  let changed = false;
+  const outputs = proposal.outputs.map((output) => {
+    if (!isJsonObject(output) || typeof output.localId !== "string") return output;
+    const routing = routingByLocalId.get(output.localId);
+    if (
+      routing === undefined ||
+      (output.name === routing.name && output.invocation === routing.invocation)
+    ) return output;
+    changed = true;
+    return { ...output, ...routing };
+  });
+  if (!changed) return response;
+  return { ...response, proposal: { ...proposal, outputs } };
 }
 
 function carryAttendedAuthority(
