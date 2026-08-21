@@ -50,8 +50,10 @@ the worker sees only the prepared Assignment Packet, optional attended answer,
 and the packet-schema `complete_assignment` tool. For an attended Assignment,
 `mdlm-pi` carries the packet's exact attended authority into the proposal when the
 worker omits it, including after one malformed-response correction. A conflicting
-worker authority stops the run before submission. Autonomous and independently
-reviewed Assignments are unchanged.
+worker authority stops the run before submission. Autonomous proposal generation
+remains unchanged. During malformed-response correction for delegated participation
+with no attention, `mdlm-pi` restores the original proposal and supplies only the exact
+roles required by the Assignment.
 
 For development or a nonstandard installation, select the public MDLM executable:
 
