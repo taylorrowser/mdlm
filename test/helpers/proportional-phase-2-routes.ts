@@ -6,6 +6,16 @@ import { parse, stringify } from "yaml";
 import { expect } from "vitest";
 import { mdlm, mdlmWithInput, selectProcessPackageFixture } from "./mdlm.js";
 
+interface PacketValue {
+  identity: { id: string; type: string; revision_id?: string };
+  data: {
+    type: string;
+    payload: Record<string, unknown>;
+    links: { type: string; target: string }[];
+    body: string;
+  };
+}
+
 interface Packet {
   assignment: { id: string };
   scenario: { reference: string };
@@ -13,9 +23,19 @@ interface Packet {
   exactInputs: {
     inputs: {
       name: string;
-      values: { identity: { id: string; revision_id?: string } }[];
+      values: PacketValue[];
     }[];
   }[];
+}
+
+function exactInputValuesAt(
+  packet: Packet,
+  invocation: number,
+  name: string,
+): PacketValue[] {
+  return packet.exactInputs[invocation]!.inputs.find(
+    (input) => input.name === name,
+  )!.values;
 }
 
 function exactInputsAt(
@@ -23,9 +43,9 @@ function exactInputsAt(
   invocation: number,
   name: string,
 ): string[] {
-  return packet.exactInputs[invocation]!.inputs.find(
-    (input) => input.name === name,
-  )!.values.map((value) => value.identity.revision_id ?? value.identity.id);
+  return exactInputValuesAt(packet, invocation, name).map(
+    (value) => value.identity.revision_id ?? value.identity.id,
+  );
 }
 
 function exactInputs(packet: Packet, name: string): string[] {
@@ -124,20 +144,57 @@ function submittedRevision(
     .lifecycleDatum.revisionId;
 }
 
+function packetBoundReviewBody(packet: Packet, invocation: number): string {
+  const subject = exactInputValuesAt(packet, invocation, "subject")[0]!;
+  if (subject.identity.type !== "SYS") {
+    return "The exact subject is usable in its complete generated context.\n";
+  }
+
+  const subjectRevision = subject.identity.revision_id!;
+  const statement = subject.data.payload.statement;
+  expect(statement).toEqual(expect.any(String));
+  const declaredTargets = new Set(subject.data.links.map((link) => link.target));
+  const memberEvidence = exactInputValuesAt(
+    packet,
+    invocation,
+    "context_members",
+  ).map((member) => {
+    const revision = member.identity.revision_id!;
+    expect(declaredTargets.has(revision)).toBe(true);
+    expect(member.data.payload.title).toEqual(expect.any(String));
+    expect(member.data.payload.rationale).toEqual(expect.any(String));
+    expect(member.data.body).toEqual(expect.any(String));
+    return `${revision} (${member.identity.type}): ${String(
+      member.data.payload.title,
+    )}; ${String(member.data.payload.rationale)}; links ${member.data.links
+      .map((link) => `${link.type}=${link.target}`)
+      .join(", ")}; body ${member.data.body.trim()}`;
+  });
+
+  return [
+    `Packet-bounded Review of ${subjectRevision}: ${String(statement)}`,
+    "Every supplied exact context Revision was read from the Assignment packet:",
+    ...memberEvidence,
+    "The subject traces directly to every supplied member and is usable in that exact context.",
+    "",
+  ].join("\n");
+}
+
 function reviewPacket(repository: string, packet: Packet): string {
-  const subjects = packet.exactInputs.map(
-    (_, invocation) => exactInputsAt(packet, invocation, "subject")[0]!,
+  const subjectValues = packet.exactInputs.map(
+    (_, invocation) => exactInputValuesAt(packet, invocation, "subject")[0]!,
+  );
+  const subjects = subjectValues.map(
+    (subject) => subject.identity.revision_id ?? subject.identity.id,
   );
   const planningSubjects = new Set(
-    subjects.filter((subject) => {
-      if (!subject.startsWith("DWP-")) return false;
-      const shown = mdlm(repository, "show", subject, "--json");
-      expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
-      return (
-        JSON.parse(shown.stdout).lifecycleDatum.datum.payload.stage ===
-        "planning"
-      );
-    }),
+    subjectValues
+      .filter(
+        (subject) =>
+          subject.identity.type === "DWP" &&
+          subject.data.payload.stage === "planning",
+      )
+      .map((subject) => subject.identity.revision_id!),
   );
   submit(
     repository,
@@ -164,7 +221,7 @@ function reviewPacket(repository: string, packet: Packet): string {
             target: exactInputsAt(packet, invocation, "review_context")[0]!,
           },
         ],
-        body: "The exact subject is usable in its complete generated context.\n",
+        body: packetBoundReviewBody(packet, invocation),
       },
     })),
     ["independent-reviewer"],
