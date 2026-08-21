@@ -104,6 +104,110 @@ describe("PiAssignmentRunner", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("corrects missing unattended authority from current participation without changing proposal content", async () => {
+    const initialResponse: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "implementation",
+          name: "implementation",
+          invocation: 0,
+          lifecycleDatum: { type: "VAI", payload: { title: "Original VAI" }, links: [] },
+        }, {
+          localId: "authorization",
+          name: "authorization",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "DEC",
+            payload: { kind: "decision", decision: "Original exact authorization." },
+            links: [{ type: "justifies", target: "$proposal.implementation.revision_id" }],
+          },
+        }],
+        completionEvidence: { summary: "Original VAI content." },
+        loadedSkillRefs: ["skills/verification-independence.md@1"],
+        authoritySupplies: [],
+        standingDelegations: [],
+      },
+    };
+    const workerCorrection: JsonObject = {
+      ...initialResponse,
+      proposal: {
+        ...(initialResponse.proposal as JsonObject),
+        outputs: [
+          ((initialResponse.proposal as JsonObject).outputs as JsonObject[])[0]!,
+          {
+            ...((initialResponse.proposal as JsonObject).outputs as JsonObject[])[1]!,
+            lifecycleDatum: {
+              type: "DEC",
+              payload: { kind: "decision", decision: "Invented replacement authorization." },
+              links: [{ type: "justifies", target: "$proposal.implementation.revision_id" }],
+            },
+          },
+        ],
+        authoritySupplies: [
+          "independent-verification-implementer",
+          "$proposal.authorization.revision_id",
+        ],
+      },
+    };
+    const responses = [initialResponse, workerCorrection];
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
+        return session;
+      }),
+    });
+    const implementationPacket = packet(
+      assignmentId,
+      "implement-verification-activity@1",
+    );
+    implementationPacket.authority = {
+      evidence: { output: "authorization", type: "DEC" },
+      requirements: [{
+        invocation: 0,
+        policy: "verification-implementation-participation@1",
+        authorityRequirement: {
+          mode: "delegated",
+          authority: "independent-verification-implementer",
+          delegationAllowed: false,
+        },
+        attentionSchedule: { timing: "none" },
+      }],
+      standingDelegation: null,
+    };
+
+    await expect(runner.run(implementationPacket)).resolves.toEqual(initialResponse);
+    await expect(runner.run(implementationPacket, {
+      correction: {
+        previousResponse: initialResponse,
+        diagnostics: [{
+          code: "scenario-authority-required",
+          path: "implement-verification-activity@1#authority",
+          message: "Scenario requires independent-verification-implementer",
+        }],
+      },
+    })).resolves.toEqual({
+      ...initialResponse,
+      proposal: {
+        ...(initialResponse.proposal as JsonObject),
+        authoritySupplies: ["independent-verification-implementer"],
+      },
+    });
+
+    await runner.dispose();
+  });
+
   it("normalizes equivalent worker and attended authority before capture", async () => {
     const response: JsonObject = {
       kind: "proposal",

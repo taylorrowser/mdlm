@@ -152,7 +152,9 @@ export class PiAssignmentRunner {
       if (active.response === undefined) {
         throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
       }
-      return carryAttendedAuthority(active.response, attendedAuthority, assignmentId);
+      const response = correctMissingUnattendedAuthority(packet, options.correction) ??
+        active.response;
+      return carryAttendedAuthority(response, attendedAuthority, assignmentId);
     } catch (error) {
       await this.close(assignmentId);
       throw error;
@@ -326,6 +328,51 @@ function capturedAttendedAuthority(
     );
   }
   return requirement.authority;
+}
+
+function correctMissingUnattendedAuthority(
+  packet: AssignmentPacket,
+  correction: AssignmentCorrection | undefined,
+): JsonObject | undefined {
+  if (
+    correction === undefined || !Array.isArray(correction.diagnostics) ||
+    correction.diagnostics.length === 0 ||
+    !correction.diagnostics.every((diagnostic) =>
+      isJsonObject(diagnostic) && diagnostic.code === "scenario-authority-required"
+    ) || correction.previousResponse.kind !== "proposal"
+  ) return undefined;
+
+  const packetAuthority = packet.authority;
+  const previousProposal = correction.previousResponse.proposal;
+  if (
+    !isJsonObject(packetAuthority) || !Array.isArray(packetAuthority.requirements) ||
+    packetAuthority.requirements.length === 0 || !isJsonObject(previousProposal) ||
+    !Array.isArray(previousProposal.authoritySupplies)
+  ) return undefined;
+
+  const requiredAuthorities: string[] = [];
+  for (const requirement of packetAuthority.requirements) {
+    if (!isJsonObject(requirement)) return undefined;
+    const authorityRequirement = requirement.authorityRequirement;
+    const attentionSchedule = requirement.attentionSchedule;
+    if (
+      !isJsonObject(authorityRequirement) || authorityRequirement.mode !== "delegated" ||
+      typeof authorityRequirement.authority !== "string" ||
+      authorityRequirement.authority.length === 0 || !isJsonObject(attentionSchedule) ||
+      attentionSchedule.timing !== "none"
+    ) return undefined;
+    if (!requiredAuthorities.includes(authorityRequirement.authority)) {
+      requiredAuthorities.push(authorityRequirement.authority);
+    }
+  }
+
+  return {
+    ...correction.previousResponse,
+    proposal: {
+      ...previousProposal,
+      authoritySupplies: requiredAuthorities,
+    },
+  };
 }
 
 function carryAttendedAuthority(
