@@ -311,7 +311,7 @@ describe("initial product-intent authority", () => {
       const workerResponse = assignmentResponse(resolution, resolutionOutputs) as JsonObject;
       const workerProposal = workerResponse.proposal as JsonObject;
       workerProposal.authoritySupplies = [
-        "stakeholder:attended-authority-holder",
+        "stakeholder attended-authority-holder invocation 0",
       ];
       const session: PiAssignmentSession = {
         get isIdle() { return true; },

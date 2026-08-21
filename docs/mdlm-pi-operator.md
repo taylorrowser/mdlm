@@ -61,11 +61,11 @@ judgment.
 - Attention Required uses the exact projected Authority Requirement and
   `attentionContext.invocations`. The harness conducts the conversation, preserves
   each package-owned input, and normalizes explicit conclusions into the prepared
-  response shape. It also carries the exact attended authority into
-  `proposal.authoritySupplies` when the worker omits it. A nonmatching worker
-  authority stops the run before response capture or submission. Autonomous and
-  independently reviewed Assignments receive no attended authority. The harness
-  does not infer approval from prose.
+  response shape. Before worker execution, it requires the captured Authority Supply
+  to name the projected authority and the `attended-authority-holder` source. It then
+  replaces worker-generated `proposal.authoritySupplies` text with exactly that
+  public authority. Autonomous and independently reviewed Assignments receive no
+  attended authority. The harness does not infer approval from prose.
 - Exact reviewed Standing Delegation may be used only when the prepared packet
   projects it as applicable. It is not a substitute for nondelegable attended
   authority.

@@ -84,11 +84,6 @@ interface ActiveSession {
   completionError?: PiAssignmentRunnerError;
 }
 
-interface AuthorityIdentity {
-  kind: string;
-  source?: string;
-}
-
 /** One isolated probabilistic worker behind one structured Assignment seam. */
 export class PiAssignmentRunner {
   readonly #repository: string;
@@ -114,6 +109,13 @@ export class PiAssignmentRunner {
 
   async run(packet: AssignmentPacket, options: PiAssignmentRunOptions = {}): Promise<JsonObject> {
     const assignmentId = packet.assignment.id;
+    let attendedAuthority: string | undefined;
+    try {
+      attendedAuthority = capturedAttendedAuthority(options.attendedContext, assignmentId);
+    } catch (error) {
+      await this.close(assignmentId);
+      throw error;
+    }
     let active = this.#sessions.get(assignmentId);
     if (active !== undefined && options.correction === undefined) {
       throw new PiAssignmentRunnerError(`Assignment '${assignmentId}' already owns a Pi session`);
@@ -150,7 +152,7 @@ export class PiAssignmentRunner {
       if (active.response === undefined) {
         throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
       }
-      return carryAttendedAuthority(active.response, options.attendedContext, assignmentId);
+      return carryAttendedAuthority(active.response, attendedAuthority, assignmentId);
     } catch (error) {
       await this.close(assignmentId);
       throw error;
@@ -296,12 +298,11 @@ async function boundedAbort(abort: Promise<void>): Promise<void> {
   ]);
 }
 
-function carryAttendedAuthority(
-  response: JsonObject,
+function capturedAttendedAuthority(
   attendedContext: JsonValue | undefined,
   assignmentId: string,
-): JsonObject {
-  if (attendedContext === undefined || response.kind !== "proposal") return response;
+): string | undefined {
+  if (attendedContext === undefined) return undefined;
   if (!isJsonObject(attendedContext)) {
     throw new PiAssignmentRunnerError(
       `Assignment '${assignmentId}' has malformed attended authority context`,
@@ -312,68 +313,40 @@ function carryAttendedAuthority(
   if (
     !isJsonObject(requirement) || requirement.mode !== "attended" ||
     typeof requirement.authority !== "string" || requirement.authority.length === 0 ||
-    !isJsonObject(supply) || supply.authority !== requirement.authority ||
-    supply.source !== "attended-authority-holder"
+    !isJsonObject(supply) || typeof supply.authority !== "string" ||
+    supply.authority.length === 0 || supply.source !== "attended-authority-holder"
   ) {
     throw new PiAssignmentRunnerError(
       `Assignment '${assignmentId}' has malformed attended authority context`,
     );
   }
+  if (supply.authority !== requirement.authority) {
+    throw new PiAssignmentRunnerError(
+      `Assignment '${assignmentId}' captured attended authority '${supply.authority}' conflicts with requirement '${requirement.authority}'`,
+    );
+  }
+  return requirement.authority;
+}
+
+function carryAttendedAuthority(
+  response: JsonObject,
+  attendedAuthority: string | undefined,
+  assignmentId: string,
+): JsonObject {
+  if (attendedAuthority === undefined || response.kind !== "proposal") return response;
   const proposal = response.proposal;
   if (!isJsonObject(proposal) || !Array.isArray(proposal.authoritySupplies)) {
     throw new PiAssignmentRunnerError(
-      `Assignment '${assignmentId}' proposal cannot carry attended authority '${requirement.authority}'`,
-    );
-  }
-  const supplied = proposal.authoritySupplies;
-  if (!supplied.every((authority) => typeof authority === "string")) {
-    throw new PiAssignmentRunnerError(
-      `Assignment '${assignmentId}' proposal has malformed authority supplies`,
-    );
-  }
-  const attendedAuthority = {
-    kind: requirement.authority,
-    source: supply.source,
-  };
-  if (
-    supplied.length > 0 &&
-    (
-      supplied.length !== 1 ||
-      !sameAuthority(
-        normalizeWorkerAuthority(supplied[0] as string, attendedAuthority),
-        attendedAuthority,
-      )
-    )
-  ) {
-    throw new PiAssignmentRunnerError(
-      `Assignment '${assignmentId}' worker authority ${JSON.stringify(supplied)} conflicts with attended authority '${requirement.authority}'`,
+      `Assignment '${assignmentId}' proposal cannot carry attended authority '${attendedAuthority}'`,
     );
   }
   return {
     ...response,
     proposal: {
       ...proposal,
-      authoritySupplies: [requirement.authority],
+      authoritySupplies: [attendedAuthority],
     },
   };
-}
-
-function normalizeWorkerAuthority(
-  authority: string,
-  attendedAuthority: AuthorityIdentity,
-): AuthorityIdentity {
-  if (authority === attendedAuthority.kind) return attendedAuthority;
-  const separator = authority.lastIndexOf(":");
-  return separator === -1
-    ? { kind: authority }
-    : {
-        kind: authority.slice(0, separator),
-        source: authority.slice(separator + 1),
-      };
-}
-
-function sameAuthority(left: AuthorityIdentity, right: AuthorityIdentity): boolean {
-  return left.kind === right.kind && left.source === right.source;
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
