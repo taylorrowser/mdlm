@@ -1977,3 +1977,10 @@ next`, dry-run, and execution preserve the exact Obligation Instance. Once the
 - **Reason:** The 0.72 temperature route answered product Questions after freezing its candidate, but the package still offered the old PSP/STKs for gate approval. Candidate and gate Review Contexts also lacked the exact answer and correction support needed to judge current intent.
 - **Compatibility:** No migration from 0.72.0 or earlier repositories. Published demonstrations and Assignments remain immutable; new work starts in a fresh 0.73.0 repository.
 - **Evidence/observations:** A public regression creates a candidate before checkpoint resolution, blocks gate work through answer Review, corrects only affected foundation lineages, rebuilds the same candidate identity with exact supersession, verifies exact candidate and gate Review Context authority, and reaches accepted Phase 0 intent. A preserved 41-record replay also bounds flattened gate-support evaluation on the default heap without changing the exact support set.
+
+## 2026-08-21 — Publish the authority and SYS Review corrections as 0.74
+
+- **Decision:** Publish `mdlm-bootstrap@0.74.0` with profile `bootstrap@38` as a fresh-only successor. Autonomous VAI correction supplies only exact Assignment authority, and Phase 2 SYS Review packets include readable exact Review Context members.
+- **Reason:** Fresh 0.73 demonstrations stopped when VAI correction invented undeclared authority and when SYS Review packets omitted the frozen context contents needed for independent judgment.
+- **Compatibility:** No migration or recovery from 0.73.0. Published 0.73 repositories, Assignments, journals, and demonstration evidence remain immutable. New work starts in fresh 0.74.0 repositories.
+- **Evidence/observations:** Focused regressions and fresh public routes cover exact autonomous correction, VAI publication, journal clearing, next-work allocation, exact SYS Review Context membership, and packet-bounded Review.

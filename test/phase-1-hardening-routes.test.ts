@@ -1164,7 +1164,7 @@ describe("Phase 1 hardening route evidence", () => {
         currentStrategy,
         acceptedIntent,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.72.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -1954,7 +1954,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@35",
+          profile: "bootstrap@38",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
@@ -1988,7 +1988,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@35",
+          profile: "bootstrap@38",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
@@ -2753,7 +2753,7 @@ describe("Phase 1 hardening route evidence", () => {
         replacement,
         replacementContext,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.72.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
       for (const item of sourceRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -2823,7 +2823,7 @@ describe("Phase 1 hardening route evidence", () => {
         if (!pilotReviewPackage.ok) {
           throw new Error(JSON.stringify(pilotReviewPackage.diagnostics));
         }
-        const pilotReviewProcessRef = `mdlm-bootstrap@0.72.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
+        const pilotReviewProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
         const pilotReviewRecords = structuredClone(baseRecords);
         for (const item of pilotReviewRecords) {
           item.datum.created_by.process_ref = pilotReviewProcessRef;
@@ -3452,7 +3452,7 @@ describe("Phase 1 hardening route evidence", () => {
       const stored = await readRepositoryData(repository, loadedFixture.package);
       if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
       const repositoryRecords = stored.value.map((item) => item.lifecycleDatum);
-      const fixtureProcessRef = `mdlm-bootstrap@0.72.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
       const evaluation = evaluateLifecycle(loadedFixture.package, {
         processRef: fixtureProcessRef,
         phaseId: "phase-1-product-assurance",
