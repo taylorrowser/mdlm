@@ -6,6 +6,7 @@ import {
   type ProcessDiagnostic,
   type ProcessPackage,
 } from "./index.js";
+import { processPackageDigest } from "./process-package-digest.js";
 import {
   packageSummary,
   repositoryDescriptorMatches,
@@ -13,6 +14,33 @@ import {
   type PackageSummary,
   type ProcessSelection,
 } from "./repository-contract.js";
+
+const loadedPackages = new Map<string, ProcessPackage>();
+const loadedPackageLimit = 16;
+
+function loadedPackageKey(
+  packageRoot: string,
+  digest: string,
+  options: LoadProcessPackageOptions,
+): string {
+  return `${path.resolve(packageRoot)}\0${options.compatibility ?? "current"}\0${digest}`;
+}
+
+function cachedPackage(key: string): ProcessPackage | undefined {
+  const cached = loadedPackages.get(key);
+  if (!cached) return undefined;
+  loadedPackages.delete(key);
+  loadedPackages.set(key, cached);
+  return structuredClone(cached);
+}
+
+function cachePackage(key: string, processPackage: ProcessPackage): void {
+  loadedPackages.set(key, structuredClone(processPackage));
+  if (loadedPackages.size > loadedPackageLimit) {
+    const oldest = loadedPackages.keys().next().value;
+    if (oldest !== undefined) loadedPackages.delete(oldest);
+  }
+}
 
 export type SelectedPackageResolution =
   | {
@@ -104,11 +132,39 @@ export async function selectedPackage(
     };
   }
   const packageRoot = path.resolve(repositoryRoot, selection.package.path);
-  const loaded = await loadProcessPackage(packageRoot, options);
-  if (!loaded.ok) {
-    return { ok: false, selected: true, diagnostics: loaded.diagnostics };
+  let digestBeforeLoad: string | undefined;
+  try {
+    digestBeforeLoad = await processPackageDigest(packageRoot);
+  } catch {
+    // Preserve loadProcessPackage's typed filesystem diagnostics on failure.
   }
-  const summary = await packageSummary(loaded.package, packageRoot);
+  const cacheKey = digestBeforeLoad === undefined
+    ? undefined
+    : loadedPackageKey(packageRoot, digestBeforeLoad, options);
+  let processPackage = cacheKey === undefined ? undefined : cachedPackage(cacheKey);
+  if (!processPackage) {
+    const loaded = await loadProcessPackage(packageRoot, options);
+    if (!loaded.ok) {
+      return { ok: false, selected: true, diagnostics: loaded.diagnostics };
+    }
+    processPackage = loaded.package;
+    if (cacheKey !== undefined) {
+      const digestAfterLoad = await processPackageDigest(packageRoot);
+      if (digestAfterLoad !== digestBeforeLoad) {
+        return {
+          ok: false,
+          selected: true,
+          diagnostics: [{
+            code: "process-package-changed-during-load",
+            path: packageRoot,
+            message: "The selected Process Package changed while it was being loaded",
+          }],
+        };
+      }
+      cachePackage(cacheKey, processPackage);
+    }
+  }
+  const summary = await packageSummary(processPackage, packageRoot);
   if (
     summary.reference !== selection.package.reference ||
     summary.digest !== selection.package.digest ||
@@ -125,7 +181,7 @@ export async function selectedPackage(
       }],
     };
   }
-  return { ok: true, processPackage: loaded.package, summary };
+  return { ok: true, processPackage, summary };
 }
 
 export async function selectedRepositoryPackage(

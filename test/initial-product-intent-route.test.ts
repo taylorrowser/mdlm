@@ -55,7 +55,7 @@ describe("initial product-intent authority", () => {
       const initialized = mdlm(parent, "init", repository, "--json");
       expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
 
-      const map = prepareNextAssignment(repository);
+      const map = await prepareNextAssignment(repository);
       expect(map.packet.scenario.reference).toBe(
         "establish-initial-wayfinding-map@2",
       );
@@ -125,7 +125,7 @@ describe("initial product-intent authority", () => {
       const beforeUnindexed = await directoryDigest(
         path.join(repository, ".lifecycle", "data"),
       );
-      const unindexed = submitAssignment(repository, map, incompleteMapOutputs);
+      const unindexed = await submitAssignment(repository, map, incompleteMapOutputs);
       expect(unindexed.status).toBe(1);
       expect(JSON.parse(unindexed.stdout).diagnostics).toEqual(
         expect.arrayContaining([
@@ -140,7 +140,7 @@ describe("initial product-intent authority", () => {
         "phase-0-gate";
       checkpointedProductIntent[1]!.lifecycleDatum.payload.consolidation_group =
         "phase-0-stakeholder-questions";
-      const checkpointed = submitAssignment(
+      const checkpointed = await submitAssignment(
         repository,
         map,
         checkpointedProductIntent,
@@ -154,7 +154,7 @@ describe("initial product-intent authority", () => {
       expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
         .toBe(beforeUnindexed);
 
-      const freshMap = prepareNextAssignment(
+      const freshMap = await prepareNextAssignment(
         repository,
         "establish-initial-wayfinding-map@2",
       );
@@ -162,7 +162,7 @@ describe("initial product-intent authority", () => {
       duplicateProductIntent[2]!.lifecycleDatum.payload.kind = "preferential";
       duplicateProductIntent[2]!.lifecycleDatum.payload.intent_scope = "product";
       delete duplicateProductIntent[2]!.lifecycleDatum.payload.evidence_available;
-      const duplicated = submitAssignment(
+      const duplicated = await submitAssignment(
         repository,
         freshMap,
         duplicateProductIntent,
@@ -179,7 +179,7 @@ describe("initial product-intent authority", () => {
       const deferredProductIntent = structuredClone(mapOutputs);
       deferredProductIntent[1]!.lifecycleDatum.payload.resolution_disposition =
         "defer";
-      const deferred = submitAssignment(
+      const deferred = await submitAssignment(
         repository,
         freshMap,
         deferredProductIntent,
@@ -193,21 +193,21 @@ describe("initial product-intent authority", () => {
       expect(await directoryDigest(path.join(repository, ".lifecycle", "data")))
         .toBe(beforeUnindexed);
 
-      const validMap = prepareNextAssignment(
+      const validMap = await prepareNextAssignment(
         repository,
         "establish-initial-wayfinding-map@2",
       );
-      const publishedMap = submitAssignment(repository, validMap, mapOutputs);
+      const publishedMap = await submitAssignment(repository, validMap, mapOutputs);
       expect(publishedMap.status, `${publishedMap.stderr}${publishedMap.stdout}`).toBe(0);
       const mapExecution = JSON.parse(publishedMap.stdout).execution;
       const openQuestion = mapExecution.outputs.find(
         (output: { name: string }) => output.name === initialIntentOutput,
       ).lifecycleDatum;
 
-      const boundary = prepareNextAssignment(repository);
+      const boundary = await prepareNextAssignment(repository);
       expect(boundary.packet.scenario.reference).toBe("freeze-source-boundary@1");
       expect(inputRevision(boundary, "source")).toBe(openQuestion.revisionId);
-      const bounded = submitAssignment(repository, boundary, [{
+      const bounded = await submitAssignment(repository, boundary, [{
         localId: "boundary",
         name: "boundary",
         invocation: 0,
@@ -230,7 +230,7 @@ describe("initial product-intent authority", () => {
       const sourceBoundary = JSON.parse(bounded.stdout).execution.outputs[0]
         .lifecycleDatum.revisionId as string;
 
-      const resolution = prepareNextAssignment(repository, "resolve-question@2");
+      const resolution = await prepareNextAssignment(repository, "resolve-question@2");
       expect(resolution.outcome).toEqual(expect.objectContaining({
         outcome: "attention-required",
         authorityRequirement: expect.objectContaining({
@@ -294,7 +294,7 @@ describe("initial product-intent authority", () => {
       const beforeIncompleteAnswer = await directoryDigest(
         path.join(repository, ".lifecycle", "data"),
       );
-      const rejectedIncompleteAnswer = submitAssignment(
+      const rejectedIncompleteAnswer = await submitAssignment(
         repository,
         resolution,
         incompleteAnswer,
@@ -362,10 +362,10 @@ describe("initial product-intent authority", () => {
 
       let failedReviewRevision: string | undefined;
       for (let step = 0; step < 6; step += 1) {
-        const prepared = prepareNextAssignment(repository);
+        const prepared = await prepareNextAssignment(repository);
         expect(prepared.packet.scenario.reference).toBe("review-datum-in-context@2");
         if (inputRevision(prepared, "subject") !== decision.revisionId) {
-          const reviewed = submitAssignment(repository, prepared, reviewOutput(prepared));
+          const reviewed = await submitAssignment(repository, prepared, reviewOutput(prepared));
           expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
           continue;
         }
@@ -374,7 +374,7 @@ describe("initial product-intent authority", () => {
           answeredQuestion,
           sourceBoundary,
         ].sort());
-        const failed = submitAssignment(repository, prepared, [{
+        const failed = await submitAssignment(repository, prepared, [{
           localId: "review",
           name: "review",
           invocation: 0,
@@ -411,7 +411,7 @@ describe("initial product-intent authority", () => {
       }
       expect(failedReviewRevision).toBeDefined();
 
-      const correction = prepareNextAssignment(
+      const correction = await prepareNextAssignment(
         repository,
         "revise-question-decision-after-review@1",
       );
@@ -463,7 +463,7 @@ describe("initial product-intent authority", () => {
         revised_answer: attendedAnswer,
         rationale: "Claim that the shorter text is an attended narrowing.",
       };
-      const rejectedMarkerOnlyCorrection = submitAssignment(
+      const rejectedMarkerOnlyCorrection = await submitAssignment(
         repository,
         correction,
         [markerOnlyLossyCorrection],
@@ -476,7 +476,7 @@ describe("initial product-intent authority", () => {
       );
       expect(await directoryDigest(dataRoot)).toBe(beforeLossyCorrection);
 
-      const corrected = submitAssignment(repository, correction, [correctionOutput]);
+      const corrected = await submitAssignment(repository, correction, [correctionOutput]);
       expect(corrected.status, `${corrected.stderr}${corrected.stdout}`).toBe(0);
       const correctedDecision = JSON.parse(corrected.stdout).execution.outputs[0]
         .lifecycleDatum;
@@ -484,7 +484,7 @@ describe("initial product-intent authority", () => {
       let compile: PreparedAssignment | undefined;
       let reviewedCorrection = false;
       for (let step = 0; step < 6; step += 1) {
-        const prepared = prepareNextAssignment(repository);
+        const prepared = await prepareNextAssignment(repository);
         const scenario = prepared.packet.scenario.reference as string;
         if (scenario === "compile-psp@3") {
           compile = prepared;
@@ -501,7 +501,7 @@ describe("initial product-intent authority", () => {
             failedReviewRevision!,
           ].sort());
         }
-        const reviewed = submitAssignment(repository, prepared, reviewOutput(prepared));
+        const reviewed = await submitAssignment(repository, prepared, reviewOutput(prepared));
         expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
       }
       expect(reviewedCorrection).toBe(true);
@@ -553,7 +553,7 @@ describe("initial product-intent authority", () => {
           body: "The PSP retains the formulas, destination units, formatting, invalid cases, exclusions, and simplicity constraints.\n",
         },
       };
-      const product = submitAssignment(repository, compile!, [productOutput]);
+      const product = await submitAssignment(repository, compile!, [productOutput]);
       expect(product.status, `${product.stderr}${product.stdout}`).toBe(0);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });

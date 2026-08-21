@@ -747,11 +747,11 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
         );
       }
 
-      const baseInterfaceReview = prepareNextAssignment(
+      const baseInterfaceReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
-      const baseInterfaceReviewSubmission = submitAssignment(
+      const baseInterfaceReviewSubmission = await submitAssignment(
         repository,
         baseInterfaceReview,
         [
@@ -795,7 +795,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
         );
         await fs.cp(repository, outcomeRepository, { recursive: true });
         try {
-          const prepared = prepareNextAssignment(
+          const prepared = await prepareNextAssignment(
             outcomeRepository,
             "review-datum-in-context@2",
           );
@@ -809,7 +809,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
             "VSP-KBQHB74Z6S-r00001",
           ]);
           const contextRevision = inputRevision(prepared, "review_context");
-          const submitted = submitAssignment(outcomeRepository, prepared, [
+          const submitted = await submitAssignment(outcomeRepository, prepared, [
             {
               localId: "review",
               name: "review",

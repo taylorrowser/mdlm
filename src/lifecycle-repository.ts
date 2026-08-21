@@ -749,11 +749,18 @@ interface ScenarioExecutionProvenance {
   valid: boolean;
 }
 
+interface CapturedTransactionSource {
+  relativePath: string;
+  source: string;
+  digest: string;
+}
+
 async function scenarioExecutionProvenance(
   root: string,
   item: ParsedDatum,
   packageCache: Map<string, Promise<ProcessPackage | undefined>>,
   digestCache: Map<string, Promise<string>>,
+  transactionSources: ReadonlyMap<string, CapturedTransactionSource>,
 ): Promise<ScenarioExecutionProvenance> {
   const datum = item.lifecycleDatum.datum;
   const processPackage = await exactDatumProcessPackage(
@@ -768,10 +775,7 @@ async function scenarioExecutionProvenance(
   let execution: Record<string, unknown> | undefined;
   if (transaction) {
     try {
-      const parsed = JSON.parse(await fs.readFile(
-        path.join(root, ".lifecycle/data/.transactions", transaction, "execution.json"),
-        "utf8",
-      )) as unknown;
+      const parsed = JSON.parse(transactionSources.get(transaction)?.source ?? "") as unknown;
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         execution = parsed as Record<string, unknown>;
       }
@@ -875,6 +879,84 @@ function authorityEvidenceExecutionDiagnostic(
       };
 }
 
+type RepositoryDataCacheEntry = {
+  parsed: ParsedDatum[];
+  transactionDigests: Map<string, string>;
+};
+
+const repositoryDataCache = new Map<string, RepositoryDataCacheEntry>();
+const repositoryDataCacheLimit = 16;
+
+function sourceDigest(source: Uint8Array): string {
+  return `sha256:${createHash("sha256").update(source).digest("hex")}`;
+}
+
+function processPackageStateDigest(processPackage: ProcessPackage): string {
+  return sourceDigest(Buffer.from(JSON.stringify(processPackage)));
+}
+
+function repositoryDataCacheKey(
+  root: string,
+  packageDigest: string,
+  packageStateDigest: string,
+  sources: readonly { relativePath: string; source: Uint8Array }[],
+): string {
+  const hash = createHash("sha256");
+  for (const { relativePath, source } of sources) {
+    hash.update(relativePath);
+    hash.update("\0");
+    hash.update(String(source.byteLength));
+    hash.update("\0");
+    hash.update(source);
+  }
+  return `${path.resolve(root)}\0${packageDigest}\0${packageStateDigest}\0${hash.digest("hex")}`;
+}
+
+async function captureTransactionSources(
+  root: string,
+  parsed: readonly ParsedDatum[],
+): Promise<Map<string, CapturedTransactionSource> | undefined> {
+  const transactionFor = (item: ParsedDatum) =>
+    /^\.lifecycle\/data\/\.transactions\/([^/]+)\//
+      .exec(item.relativePath)?.[1];
+  if (parsed.some((item) => transactionFor(item) === undefined)) return undefined;
+  const transactions = [...new Set(parsed.map(transactionFor).filter(
+    (transaction): transaction is string => transaction !== undefined,
+  ))].sort();
+  try {
+    return new Map(await Promise.all(transactions.map(async (transaction) => {
+      const relativePath = path.join(
+        ".lifecycle/data/.transactions",
+        transaction,
+        "execution.json",
+      );
+      const source = await fs.readFile(path.join(root, relativePath), "utf8");
+      return [transaction, {
+        relativePath,
+        source,
+        digest: sourceDigest(Buffer.from(source)),
+      }] as const;
+    })));
+  } catch {
+    return undefined;
+  }
+}
+
+async function transactionsMatch(
+  root: string,
+  expected: ReadonlyMap<string, string>,
+): Promise<boolean> {
+  try {
+    const actual = await Promise.all([...expected].map(
+      async ([relativePath, digest]) =>
+        sourceDigest(await fs.readFile(path.join(root, relativePath))) === digest,
+    ));
+    return actual.every(Boolean);
+  } catch {
+    return false;
+  }
+}
+
 export async function readRepositoryData(
   root: string,
   processPackage: ProcessPackage,
@@ -884,17 +966,38 @@ export async function readRepositoryData(
     () => markdownPaths(root),
   );
   recordRepositoryLoad(relativePaths.length);
+  const sources = await Promise.all(relativePaths.map(async (relativePath) => ({
+    relativePath,
+    source: await fs.readFile(path.join(root, relativePath)),
+  })));
+  const selectedDigest = await processPackageDigest(processPackage.root);
+  const packageStateDigest = processPackageStateDigest(processPackage);
+  const cacheKey = repositoryDataCacheKey(
+    root,
+    selectedDigest,
+    packageStateDigest,
+    sources,
+  );
+  const cached = repositoryDataCache.get(cacheKey);
+  if (
+    cached &&
+    await transactionsMatch(root, cached.transactionDigests) &&
+    processPackageStateDigest(processPackage) === packageStateDigest
+  ) {
+    repositoryDataCache.delete(cacheKey);
+    repositoryDataCache.set(cacheKey, cached);
+    return { ok: true, value: structuredClone(cached.parsed), diagnostics: [] };
+  }
   recordWork("repository.parse.records", relativePaths.length);
   const parsedResults = await measureAsync(
     "repository.parse",
-    () => Promise.all(relativePaths.map(async (relativePath) => {
-      const source = await fs.readFile(path.join(root, relativePath));
-      return parseDatum(
+    () => Promise.all(sources.map(async ({ relativePath, source }) =>
+      parseDatum(
         source.toString("utf8"),
         relativePath,
-        `sha256:${createHash("sha256").update(source).digest("hex")}`,
-      );
-    })),
+        sourceDigest(source),
+      )
+    )),
   );
   const parsed: ParsedDatum[] = [];
   const diagnostics: ProcessDiagnostic[] = [];
@@ -902,6 +1005,7 @@ export async function readRepositoryData(
     if (!result.ok) diagnostics.push(...result.diagnostics);
     else parsed.push(result.value);
   }
+  const capturedTransactions = await captureTransactionSources(root, parsed);
   const authoringPackages = new Map<
     string,
     Promise<ProcessPackage | undefined>
@@ -909,7 +1013,6 @@ export async function readRepositoryData(
   const selectedReference =
     `${processPackage.manifest.id}@${processPackage.manifest.version}`;
   const digestCache = new Map<string, Promise<string>>();
-  const selectedDigest = await processPackageDigest(processPackage.root);
   digestCache.set(processPackage.root, Promise.resolve(selectedDigest));
   authoringPackages.set(
     `${selectedReference}#${selectedDigest}`,
@@ -923,6 +1026,7 @@ export async function readRepositoryData(
       item,
       authoringPackages,
       digestCache,
+      capturedTransactions ?? new Map(),
     ))),
   );
   for (let index = 0; index < parsed.length; index += 1) {
@@ -953,9 +1057,34 @@ export async function readRepositoryData(
       ));
     }
   });
-  return diagnostics.length > 0
-    ? { ok: false, diagnostics }
-    : { ok: true, value: parsed, diagnostics: [] };
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+  const selectedProcessReference = `${selectedReference}#${selectedDigest}`;
+  if (
+    capturedTransactions &&
+    processPackageStateDigest(processPackage) === packageStateDigest &&
+    parsed.every((item) =>
+      item.lifecycleDatum.datum.created_by.process_ref === selectedProcessReference
+    )
+  ) {
+    const digests = new Map([...capturedTransactions.values()].map((source) =>
+      [source.relativePath, source.digest] as const
+    ));
+    const rootPrefix = `${path.resolve(root)}\0`;
+    for (const existingKey of repositoryDataCache.keys()) {
+      if (existingKey.startsWith(rootPrefix) && existingKey !== cacheKey) {
+        repositoryDataCache.delete(existingKey);
+      }
+    }
+    repositoryDataCache.set(cacheKey, {
+      parsed: structuredClone(parsed),
+      transactionDigests: digests,
+    });
+    if (repositoryDataCache.size > repositoryDataCacheLimit) {
+      const oldest = repositoryDataCache.keys().next().value;
+      if (oldest !== undefined) repositoryDataCache.delete(oldest);
+    }
+  }
+  return { ok: true, value: parsed, diagnostics: [] };
 }
 
 export async function repositoryLifecycleSnapshot(

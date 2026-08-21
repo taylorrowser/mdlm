@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadProcessPackage } from "../src/index.js";
+import { processPackageDigest } from "../src/process-package-digest.js";
 
 async function copiedProcessPackage(): Promise<string> {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
@@ -14,6 +15,62 @@ async function copiedProcessPackage(): Promise<string> {
 }
 
 describe("loadProcessPackage", () => {
+  it("recalculates a package digest after nested package bytes change", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-package-digest-"));
+    try {
+      const nested = path.join(root, "definitions");
+      await fs.mkdir(nested);
+      const definition = path.join(nested, "example.yaml");
+      await fs.writeFile(definition, "value: one\n");
+      const initial = await processPackageDigest(root);
+
+      await fs.writeFile(definition, "value: two\n");
+
+      expect(await processPackageDigest(root)).not.toBe(initial);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("isolates parsed documents and refreshes validators after schema bytes change", async () => {
+    const processRoot = await copiedProcessPackage();
+    try {
+      const first = await loadProcessPackage(processRoot);
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+      first.package.manifest.version = "poisoned-by-caller";
+
+      const second = await loadProcessPackage(processRoot);
+      expect(second.ok).toBe(true);
+      if (!second.ok) return;
+      expect(second.package.manifest.version).toBe("0.74.0");
+
+      const manifestSchemaPath = path.join(
+        processRoot,
+        "meta",
+        "manifest.schema.json",
+      );
+      const manifestSchema = JSON.parse(
+        await fs.readFile(manifestSchemaPath, "utf8"),
+      ) as Record<string, unknown>;
+      await fs.writeFile(
+        manifestSchemaPath,
+        `${JSON.stringify({ ...manifestSchema, not: {} }, null, 2)}\n`,
+      );
+
+      const changedSchema = await loadProcessPackage(processRoot);
+      expect(changedSchema.ok).toBe(false);
+      expect(changedSchema.diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          code: "meta-schema",
+          path: expect.stringMatching(/manifest\.yaml$/),
+        }),
+      ]));
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  });
+
   it("loads and validates the bootstrap process package", async () => {
     const result = await loadProcessPackage(
       path.join(process.cwd(), ".lifecycle/process"),
@@ -502,44 +559,71 @@ describe("loadProcessPackage", () => {
     });
   });
 
-  it("rejects a representative legacy YAML expression tree", async () => {
-    const processRoot = await copiedProcessPackage();
-    const statePath = path.join(
-      processRoot,
-      "states/relationship-overlays.yaml",
-    );
-    const state = await fs.readFile(statePath, "utf8");
-    await fs.writeFile(
-      statePath,
-      state.replace(
-        "    when: 'subject.provenance.process_ref != process.current_ref'",
-        "    when:\n      every: {selector: review-required-revisions@1, arguments: {}, as: item, satisfies: {present: {var: item}}}",
-      ),
+  it("rejects every legacy YAML expression-tree family", async () => {
+    const legacyForms = {
+      literal: "literal: true",
+      var: "var: subject",
+      path: "path: {var: subject, field: identity.type}",
+      state: "state: {dimension: validity, subject: {var: subject}}",
+      policy:
+        "policy: {ref: review-applicability@1, arguments: {subject: {var: subject}}, field: required}",
+      count:
+        "count: {selector: review-required-revisions@1, arguments: {}}",
+      compare:
+        "compare: {left: {literal: true}, operator: eq, right: {literal: true}}",
+      all: "all: [{present: {var: subject}}]",
+      any: "any: [{present: {var: subject}}]",
+      not: "not: {present: {var: subject}}",
+      exists:
+        "exists: {selector: review-required-revisions@1, arguments: {}}",
+      none: "none: {selector: review-required-revisions@1, arguments: {}}",
+      every:
+        "every: {selector: review-required-revisions@1, arguments: {}, as: item, satisfies: {present: {var: item}}}",
+      present: "present: {var: subject}",
+    };
+
+    const results = await Promise.all(
+      Object.values(legacyForms).map(async (legacySource) => {
+        const processRoot = await copiedProcessPackage();
+        const statePath = path.join(
+          processRoot,
+          "states/relationship-overlays.yaml",
+        );
+        const state = await fs.readFile(statePath, "utf8");
+        await fs.writeFile(
+          statePath,
+          state.replace(
+            "    when: 'subject.provenance.process_ref != process.current_ref'",
+            `    when:\n      ${legacySource}`,
+          ),
+        );
+        return loadProcessPackage(processRoot);
+      }),
     );
 
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "legacy-expression-authoring",
-          path: expect.stringContaining(
-            "relationship-overlays.yaml#rules[2].when",
-          ),
-          message:
-            "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
-        }),
-        expect.objectContaining({
-          code: "meta-schema",
-          path: expect.stringContaining(
-            "relationship-overlays.yaml/rules/2/when",
-          ),
-          message: "must be string",
-        }),
-      ]),
-    );
-  });
+    for (const result of results) {
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: "legacy-expression-authoring",
+            path: expect.stringContaining(
+              "relationship-overlays.yaml#rules[2].when",
+            ),
+            message:
+              "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
+          }),
+          expect.objectContaining({
+            code: "meta-schema",
+            path: expect.stringContaining(
+              "relationship-overlays.yaml/rules/2/when",
+            ),
+            message: "must be string",
+          }),
+        ]),
+      );
+    }
+  }, 20_000);
 
   it("rejects a legacy structural Selector invocation", async () => {
     const processRoot = await copiedProcessPackage();

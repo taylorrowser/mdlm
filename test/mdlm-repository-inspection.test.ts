@@ -5,7 +5,22 @@ import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadProcessPackage, type DatumEnvelope } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
-import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
+import { readRepositoryData } from "../src/lifecycle-repository.js";
+import { executeCommandApplication } from "../src/command-application.js";
+
+async function mdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+async function mdlmWithInput(
+  repository: string,
+  input: string,
+  ...arguments_: string[]
+) {
+  const execution = await executeCommandApplication(arguments_, repository, input);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
 
 type PublishedOutput = {
   name: string;
@@ -18,7 +33,10 @@ type PublishedOutput = {
   data: DatumEnvelope;
 };
 
-function expectSuccess(result: ReturnType<typeof mdlm>, command: string): void {
+function expectSuccess(
+  result: { status: number; stdout: string; stderr: string },
+  command: string,
+): void {
   expect(result.status, `${command}\n${result.stderr}${result.stdout}`).toBe(0);
 }
 
@@ -39,13 +57,13 @@ async function publishLinkedWayfinding(repository: string): Promise<{
   map: PublishedOutput;
   question: PublishedOutput;
 }> {
-  const next = mdlm(repository, "next");
+  const next = await mdlm(repository, "next");
   expectSuccess(next, "mdlm next");
   const assignment = JSON.parse(next.stdout).assignment.id as string;
-  const prepared = mdlm(repository, "scenario", "prepare", assignment);
+  const prepared = await mdlm(repository, "scenario", "prepare", assignment);
   expectSuccess(prepared, "mdlm scenario prepare");
   const packet = JSON.parse(prepared.stdout);
-  const submitted = mdlmWithInput(
+  const submitted = await mdlmWithInput(
     repository,
     `${JSON.stringify({
       contract: "mdlm-assignment-response@1",
@@ -60,7 +78,7 @@ async function publishLinkedWayfinding(repository: string): Promise<{
             type: "MAP",
             payload: {
               title: "Linked reader graph",
-              purpose: "Exercise retained repository inspection through compiled mdlm.",
+              purpose: "Exercise retained repository inspection through public MDLM commands.",
               frontier: ["$proposal.question.revision_id"],
             },
             links: [{ type: "indexes", target: "$proposal.question.id" }],
@@ -68,13 +86,14 @@ async function publishLinkedWayfinding(repository: string): Promise<{
           },
         }, {
           localId: "question",
-          name: "questions",
+          name: "product_intent",
           invocation: 0,
           lifecycleDatum: {
             type: "QST",
             payload: {
               title: "Reader graph question",
               kind: "preferential",
+              intent_scope: "product",
               question: "Can every retained graph reader recover this edge?",
               state: "open",
               blocking_impact: "Reader coverage would otherwise be declarative only.",
@@ -98,7 +117,7 @@ async function publishLinkedWayfinding(repository: string): Promise<{
   const outputs = JSON.parse(submitted.stdout).execution.outputs as PublishedOutput[];
   return {
     map: outputs.find((output) => output.name === "map")!,
-    question: outputs.find((output) => output.name === "questions")!,
+    question: outputs.find((output) => output.name === "product_intent")!,
   };
 }
 
@@ -175,14 +194,14 @@ async function arrangeReaderRepository(repository: string) {
   return { ...published, baseline, secondMap };
 }
 
-describe("compiled mdlm repository inspection", () => {
+describe("MDLM repository inspection", () => {
   let parent: string;
   let repository: string;
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-reader-inspection-"));
     repository = path.join(parent, "repository");
-    const initialized = mdlm(parent, "init", repository, "--json");
+    const initialized = await mdlm(parent, "init", repository, "--json");
     expectSuccess(initialized, "mdlm init");
   });
 
@@ -190,12 +209,75 @@ describe("compiled mdlm repository inspection", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
+  it("invalidates a cached repository view when execution provenance changes", async () => {
+    const published = await publishLinkedWayfinding(repository);
+    const descriptor = JSON.parse(await fs.readFile(
+      path.join(repository, ".lifecycle/repository.json"),
+      "utf8",
+    )) as { package: { reference: string } };
+    const loaded = await loadProcessPackage(path.join(
+      repository,
+      ".lifecycle/packages",
+      descriptor.package.reference,
+    ));
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+
+    const initial = await readRepositoryData(repository, loaded.package);
+    expect(initial.ok).toBe(true);
+    if (!initial.ok) return;
+    const map = initial.value.find((item) =>
+      item.lifecycleDatum.datum.revision_id === published.map.lifecycleDatum.revisionId
+    )!;
+    expect(map.lifecycleDatum.integrity.scenario_execution_valid).toBe(true);
+    (map.lifecycleDatum.datum.payload as Record<string, unknown>).title =
+      "Caller mutation must not poison the repository cache";
+    const isolated = await readRepositoryData(repository, loaded.package);
+    expect(isolated.ok).toBe(true);
+    if (!isolated.ok) return;
+    expect(isolated.value.find((item) =>
+      item.lifecycleDatum.datum.revision_id === published.map.lifecycleDatum.revisionId
+    )?.lifecycleDatum.datum.payload.title).toBe("Linked reader graph");
+
+    const mutatedPackage = structuredClone(loaded.package);
+    const mapPayloadSchema = mutatedPackage.types.MAP?.payload_schema as {
+      required: string[];
+    };
+    mapPayloadSchema.required.push("cache_poison_marker");
+    const packageMutation = await readRepositoryData(repository, mutatedPackage);
+    expect(packageMutation.ok).toBe(false);
+    if (packageMutation.ok) return;
+    expect(packageMutation.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "datum-payload" }),
+    ]));
+
+    const transaction = /^\.lifecycle\/data\/\.transactions\/([^/]+)\//
+      .exec(map.relativePath)?.[1];
+    expect(transaction).toBeDefined();
+    const executionPath = path.join(
+      repository,
+      ".lifecycle/data/.transactions",
+      transaction!,
+      "execution.json",
+    );
+    const execution = JSON.parse(await fs.readFile(executionPath, "utf8"));
+    execution.status = "failed";
+    await fs.writeFile(executionPath, `${JSON.stringify(execution, null, 2)}\n`);
+
+    const changed = await readRepositoryData(repository, loaded.package);
+    expect(changed.ok).toBe(true);
+    if (!changed.ok) return;
+    expect(changed.value.find((item) =>
+      item.lifecycleDatum.datum.revision_id === published.map.lifecycleDatum.revisionId
+    )?.lifecycleDatum.integrity.scenario_execution_valid).toBe(false);
+  });
+
   it("shows and lists exact data while preserving linked multi-Revision history", async () => {
     const { map, question, baseline, secondMap } = await arrangeReaderRepository(
       repository,
     );
 
-    const stableShow = mdlm(repository, "show", map.lifecycleDatum.id, "--json");
+    const stableShow = await mdlm(repository, "show", map.lifecycleDatum.id, "--json");
     expectSuccess(stableShow, "mdlm show <stable-id>");
     expect(JSON.parse(stableShow.stdout)).toMatchObject({
       command: "show",
@@ -213,7 +295,7 @@ describe("compiled mdlm repository inspection", () => {
       projections: { backlinks: [] },
     });
 
-    const exactShow = mdlm(
+    const exactShow = await mdlm(
       repository,
       "show",
       map.lifecycleDatum.revisionId,
@@ -229,7 +311,7 @@ describe("compiled mdlm repository inspection", () => {
       storage: { editable: false, frozen: true },
     });
 
-    const listed = mdlm(repository, "list", "--json");
+    const listed = await mdlm(repository, "list", "--json");
     expectSuccess(listed, "mdlm list");
     const data = JSON.parse(listed.stdout).data as Array<{
       lifecycleDatum: { datum: DatumEnvelope };
@@ -245,7 +327,7 @@ describe("compiled mdlm repository inspection", () => {
     expect(data.map((item) => item.lifecycleDatum.datum.revision_id))
       .not.toContain(map.lifecycleDatum.revisionId);
 
-    const history = mdlm(repository, "history", map.lifecycleDatum.id, "--json");
+    const history = await mdlm(repository, "history", map.lifecycleDatum.id, "--json");
     expectSuccess(history, "mdlm history");
     expect(JSON.parse(history.stdout).history).toEqual({
       id: map.lifecycleDatum.id,
@@ -269,7 +351,7 @@ describe("compiled mdlm repository inspection", () => {
   it("computes backlinks and relation-filtered traces from source-owned links", async () => {
     const { map, question, secondMap } = await arrangeReaderRepository(repository);
 
-    const backlinks = mdlm(
+    const backlinks = await mdlm(
       repository,
       "backlinks",
       question.lifecycleDatum.id,
@@ -299,7 +381,7 @@ describe("compiled mdlm repository inspection", () => {
       }],
     });
 
-    const indexedTrace = mdlm(
+    const indexedTrace = await mdlm(
       repository,
       "trace",
       question.lifecycleDatum.id,
@@ -329,7 +411,7 @@ describe("compiled mdlm repository inspection", () => {
       ],
     });
 
-    const sourceTrace = mdlm(
+    const sourceTrace = await mdlm(
       repository,
       "trace",
       map.lifecycleDatum.id,
@@ -364,7 +446,7 @@ describe("compiled mdlm repository inspection", () => {
 
   it("rebuilds disposable index and report projections from Markdown truth", async () => {
     const { map, secondMap } = await arrangeReaderRepository(repository);
-    const firstDoctor = mdlm(repository, "doctor", "--json");
+    const firstDoctor = await mdlm(repository, "doctor", "--json");
     expectSuccess(firstDoctor, "mdlm doctor");
     expect(JSON.parse(firstDoctor.stdout)).toMatchObject({
       baselineRepositoryVerification: { verifiedBaselines: 1, processDrift: 0 },
@@ -380,19 +462,19 @@ describe("compiled mdlm repository inspection", () => {
       },
     });
 
-    const shownBeforeDeletion = mdlm(repository, "show", map.lifecycleDatum.id, "--json");
+    const shownBeforeDeletion = await mdlm(repository, "show", map.lifecycleDatum.id, "--json");
     expectSuccess(shownBeforeDeletion, "mdlm show before generated deletion");
     await fs.rm(path.join(repository, ".lifecycle/generated"), {
       recursive: true,
       force: true,
     });
-    const shownAfterDeletion = mdlm(repository, "show", map.lifecycleDatum.id, "--json");
+    const shownAfterDeletion = await mdlm(repository, "show", map.lifecycleDatum.id, "--json");
     expectSuccess(shownAfterDeletion, "mdlm show after generated deletion");
     expect(JSON.parse(shownAfterDeletion.stdout)).toEqual(
       JSON.parse(shownBeforeDeletion.stdout),
     );
 
-    const rebuilt = mdlm(repository, "doctor", "--json");
+    const rebuilt = await mdlm(repository, "doctor", "--json");
     expectSuccess(rebuilt, "mdlm doctor rebuild");
     expect(JSON.parse(rebuilt.stdout)).toMatchObject({
       index: { rebuilt: true, data: 4 },
@@ -413,7 +495,7 @@ describe("compiled mdlm repository inspection", () => {
     ));
     expect(report.data).toHaveLength(3);
 
-    const unchanged = mdlm(repository, "doctor", "--json");
+    const unchanged = await mdlm(repository, "doctor", "--json");
     expectSuccess(unchanged, "mdlm doctor unchanged");
     expect(JSON.parse(unchanged.stdout)).toMatchObject({
       index: { rebuilt: false },

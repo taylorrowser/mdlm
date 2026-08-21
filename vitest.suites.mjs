@@ -26,6 +26,7 @@ export const testFiles = [
   "test/load-process-package.test.ts",
   "test/load-scenario-participation.test.ts",
   "test/mdlm-assignment.test.ts",
+  "test/mdlm-assignment-state.test.ts",
   "test/mdlm-baseline-inspection.test.ts",
   "test/mdlm-clean-onboarding-transaction.test.ts",
   "test/mdlm-clean-pilot-contract.test.ts",
@@ -51,6 +52,7 @@ export const testFiles = [
   "test/proportional-phase-2-public.test.ts",
   "test/resolve-type.test.ts",
   "test/scenario-policy-assets.test.ts",
+  "test/selected-package-cache.test.ts",
   "test/selector-memoization.test.ts",
   "test/textual-expression.test.ts",
 ];

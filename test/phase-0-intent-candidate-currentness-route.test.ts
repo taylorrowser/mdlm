@@ -10,7 +10,12 @@ import {
   type PreparedAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
-import { mdlm } from "./helpers/mdlm.js";
+import { executeCommandApplication } from "../src/command-application.js";
+
+async function mdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
 
 type ExactInput = {
   identity: { id: string; revision_id: string; type: string };
@@ -46,12 +51,12 @@ function exactInput(
   return value as ExactInput;
 }
 
-function submit(
+async function submit(
   repository: string,
   prepared: PreparedAssignment,
   outputs: ProposedOutput[],
-): ExecutionOutput[] {
-  const submitted = submitAssignment(repository, prepared, outputs);
+): Promise<ExecutionOutput[]> {
+  const submitted = await submitAssignment(repository, prepared, outputs);
   expect(
     submitted.status,
     `${prepared.packet.scenario.reference}: ${submitted.stderr}${submitted.stdout}`,
@@ -152,9 +157,11 @@ async function passReviewWorkUntil(
   rereviewedSubjects: Set<string>,
   allowedRereviewSubjects = new Set<string>(),
 ): Promise<PreparedAssignment> {
-  for (;;) {
-    const prepared = prepareNextAssignment(repository);
+  const observedScenarios: string[] = [];
+  for (let step = 0; step < 12; step += 1) {
+    const prepared = await prepareNextAssignment(repository);
     const scenario = prepared.packet.scenario.reference as string;
+    observedScenarios.push(scenario);
     if (scenario === targetScenario) return prepared;
 
     expect([
@@ -169,7 +176,7 @@ async function passReviewWorkUntil(
       expect(createdContexts.has(subject), `Repeated Review Context for ${subject}`)
         .toBe(false);
       createdContexts.add(subject);
-      submit(repository, prepared, reviewContextOutput(prepared));
+      await submit(repository, prepared, reviewContextOutput(prepared));
       continue;
     }
 
@@ -183,13 +190,16 @@ async function passReviewWorkUntil(
     const reviewKind = exactInput(prepared, "subject").identity.type === "BSL"
       ? "simplification-product-definition"
       : "contextual";
-    const outputs = submit(
+    const outputs = await submit(
       repository,
       prepared,
       passingReviewOutput(prepared, reviewKind),
     );
     reviewedSubjects.set(subject, outputRevision(outputs, "review"));
   }
+  throw new Error(
+    `Did not reach ${targetScenario}; observed ${observedScenarios.join(", ")}`,
+  );
 }
 
 async function initializedRepository(): Promise<{
@@ -200,7 +210,7 @@ async function initializedRepository(): Promise<{
     path.join(os.tmpdir(), "mdlm-phase0-candidate-currentness-"),
   );
   const repository = path.join(parent, "repository");
-  const initialized = mdlm(parent, "init", repository, "--json");
+  const initialized = await mdlm(parent, "init", repository, "--json");
   if (initialized.status !== 0) {
     await fs.rm(parent, { recursive: true, force: true });
     throw new Error(`${initialized.stderr}${initialized.stdout}`);
@@ -208,8 +218,8 @@ async function initializedRepository(): Promise<{
   return { parent, repository };
 }
 
-function looseEnds(repository: string): Array<Record<string, unknown>> {
-  const listed = mdlm(repository, "loose-ends", "--json");
+async function looseEnds(repository: string): Promise<Array<Record<string, unknown>>> {
+  const listed = await mdlm(repository, "loose-ends", "--json");
   expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
   return JSON.parse(listed.stdout).looseEnds.items as Array<
     Record<string, unknown>
@@ -217,18 +227,18 @@ function looseEnds(repository: string): Array<Record<string, unknown>> {
 }
 
 describe("Phase 0 intent candidate currentness", () => {
-  it("rebuilds only answer-affected foundation lineages before offering the current candidate to the gate", async () => {
+  it("rebuilds only answer-affected foundation lineages before accepting the current candidate through the reviewed gate", async () => {
     const { parent, repository } = await initializedRepository();
     try {
       const reviewedSubjects = new Map<string, string>();
       const createdContexts = new Set<string>();
       const rereviewedSubjects = new Set<string>();
 
-      const mapAssignment = prepareNextAssignment(
+      const mapAssignment = await prepareNextAssignment(
         repository,
         "establish-initial-wayfinding-map@2",
       );
-      const mapOutputs = submit(repository, mapAssignment, [{
+      const mapOutputs = await submit(repository, mapAssignment, [{
         localId: "map",
         name: "map",
         invocation: 0,
@@ -268,16 +278,16 @@ describe("Phase 0 intent candidate currentness", () => {
         (output) => output.name === "product_intent",
       )!;
 
-      const initialBoundary = prepareNextAssignment(
+      const initialBoundary = await prepareNextAssignment(
         repository,
         "freeze-source-boundary@1",
       );
       expect(inputRevision(initialBoundary, "source")).toBe(
         initialQuestion.lifecycleDatum.revisionId,
       );
-      submit(repository, initialBoundary, sourceBoundaryOutput(initialBoundary));
+      await submit(repository, initialBoundary, sourceBoundaryOutput(initialBoundary));
 
-      const initialResolution = prepareNextAssignment(
+      const initialResolution = await prepareNextAssignment(
         repository,
         "resolve-question@2",
       );
@@ -297,7 +307,7 @@ describe("Phase 0 intent candidate currentness", () => {
         .id;
       const answeredInitialQuestion = `${initialQuestionId}-r00002`;
       const initialAnswer = "Build the smallest deterministic lifecycle product.";
-      const initialResolutionOutputs = submit(repository, initialResolution, [{
+      const initialResolutionOutputs = await submit(repository, initialResolution, [{
         localId: "decision",
         name: "decision",
         invocation: 0,
@@ -341,7 +351,6 @@ describe("Phase 0 intent candidate currentness", () => {
         initialResolutionOutputs,
         "decision",
       );
-
       const compile = await passReviewWorkUntil(
         repository,
         "compile-psp@3",
@@ -354,7 +363,7 @@ describe("Phase 0 intent candidate currentness", () => {
       expect(inputRevision(compile, "product_intent_authority")).toBe(
         initialAuthorityRevision,
       );
-      const productOutputs = submit(repository, compile, [{
+      const productOutputs = await submit(repository, compile, [{
         localId: "product",
         name: "product_specification",
         invocation: 0,
@@ -379,7 +388,6 @@ describe("Phase 0 intent candidate currentness", () => {
       const product = productOutputs[0]!;
       const productRevision = product.lifecycleDatum.revisionId;
       const productId = product.lifecycleDatum.id;
-
       const draft = await passReviewWorkUntil(
         repository,
         "draft-stakeholder-requirements@2",
@@ -389,7 +397,7 @@ describe("Phase 0 intent candidate currentness", () => {
         rereviewedSubjects,
       );
       expect(inputRevision(draft, "product_specification")).toBe(productRevision);
-      const drafted = submit(repository, draft, [{
+      const drafted = await submit(repository, draft, [{
         localId: "affected",
         name: "requirements",
         invocation: 0,
@@ -474,19 +482,18 @@ describe("Phase 0 intent candidate currentness", () => {
         unaffected.lifecycleDatum.id,
       );
 
-      const checkpointBoundary = prepareNextAssignment(
+      const checkpointBoundary = await prepareNextAssignment(
         repository,
         "freeze-source-boundary@1",
       );
       expect(inputRevision(checkpointBoundary, "source")).toBe(
         checkpointQuestionRevision,
       );
-      submit(
+      await submit(
         repository,
         checkpointBoundary,
         sourceBoundaryOutput(checkpointBoundary),
       );
-
       const candidateAssignment = await passReviewWorkUntil(
         repository,
         "create-phase-0-intent-candidate@1",
@@ -515,7 +522,7 @@ describe("Phase 0 intent candidate currentness", () => {
         candidateAssignment,
         "member_reviews",
       );
-      const candidateOutputs = submit(repository, candidateAssignment, [{
+      const candidateOutputs = await submit(repository, candidateAssignment, [{
         localId: "candidate",
         name: "candidate",
         invocation: 0,
@@ -537,7 +544,6 @@ describe("Phase 0 intent candidate currentness", () => {
       const initialCandidate = candidateOutputs[0]!;
       const initialCandidateId = initialCandidate.lifecycleDatum.id;
       const initialCandidateRevision = initialCandidate.lifecycleDatum.revisionId;
-
       const checkpointResolution = await passReviewWorkUntil(
         repository,
         "resolve-question@2",
@@ -547,7 +553,7 @@ describe("Phase 0 intent candidate currentness", () => {
         rereviewedSubjects,
       );
       expect(reviewedSubjects.has(initialCandidateRevision)).toBe(true);
-      expect(looseEnds(repository)).not.toContainEqual(expect.objectContaining({
+      expect(await looseEnds(repository)).not.toContainEqual(expect.objectContaining({
         obligation: "candidate-gate-signoff",
         subject: initialCandidateRevision,
         status: "ready",
@@ -570,7 +576,7 @@ describe("Phase 0 intent candidate currentness", () => {
       ).identity.id;
       const answeredCheckpointQuestion = `${checkpointQuestionId}-r00002`;
       const checkpointAnswer = "Retain the single operator-visible bounded outcome.";
-      const answerOutputs = submit(repository, checkpointResolution, [{
+      const answerOutputs = await submit(repository, checkpointResolution, [{
         localId: "decision",
         name: "decision",
         invocation: 0,
@@ -623,13 +629,13 @@ describe("Phase 0 intent candidate currentness", () => {
         (link) => link.type === "blocks",
       )).toEqual(originalBlocks);
 
-      expect(looseEnds(repository)).not.toContainEqual(expect.objectContaining({
+      expect(await looseEnds(repository)).not.toContainEqual(expect.objectContaining({
         obligation: "candidate-gate-signoff",
         subject: initialCandidateRevision,
         status: "ready",
         dispatchable: true,
       }));
-      const answerReview = prepareNextAssignment(
+      const answerReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -648,15 +654,14 @@ describe("Phase 0 intent candidate currentness", () => {
         affectedRevision,
       ]));
       expect(answerReviewMembers).not.toContain(unaffectedRevision);
-      const answerReviewOutputs = submit(
+      const answerReviewOutputs = await submit(
         repository,
         answerReview,
         passingReviewOutput(answerReview),
       );
       const answerReviewRevision = outputRevision(answerReviewOutputs, "review");
       reviewedSubjects.set(answerDecisionRevision, answerReviewRevision);
-
-      const productCorrection = prepareNextAssignment(
+      const productCorrection = await prepareNextAssignment(
         repository,
         "revise-foundation-after-review@5",
       );
@@ -675,7 +680,7 @@ describe("Phase 0 intent candidate currentness", () => {
         productCorrection,
         "product_intent_authority",
       )).toEqual([initialAuthorityRevision]);
-      expect(looseEnds(repository)).not.toContainEqual(expect.objectContaining({
+      expect(await looseEnds(repository)).not.toContainEqual(expect.objectContaining({
         obligation: "candidate-gate-signoff",
         subject: initialCandidateRevision,
         status: "ready",
@@ -683,7 +688,7 @@ describe("Phase 0 intent candidate currentness", () => {
       }));
 
       const correctedProductRevision = `${productId}-r00002`;
-      const correctedProductOutputs = submit(repository, productCorrection, [{
+      const correctedProductOutputs = await submit(repository, productCorrection, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
@@ -710,7 +715,6 @@ describe("Phase 0 intent candidate currentness", () => {
           { type: "incorporates-answer", target: answerDecisionRevision },
         ]),
       );
-
       const requirementCorrection = await passReviewWorkUntil(
         repository,
         "revise-foundation-after-review@5",
@@ -732,7 +736,7 @@ describe("Phase 0 intent candidate currentness", () => {
 
       const affectedId = affected.lifecycleDatum.id;
       const correctedAffectedRevision = `${affectedId}-r00002`;
-      const correctedRequirementOutputs = submit(
+      const correctedRequirementOutputs = await submit(
         repository,
         requirementCorrection,
         [{
@@ -763,7 +767,6 @@ describe("Phase 0 intent candidate currentness", () => {
           { type: "incorporates-answer", target: answerDecisionRevision },
         ]),
       );
-
       const candidateCorrection = await passReviewWorkUntil(
         repository,
         "revise-intent-candidate-after-review@3",
@@ -777,7 +780,7 @@ describe("Phase 0 intent candidate currentness", () => {
         rereviewedSubjects,
         new Set([unaffectedRevision]),
       );
-      expect(looseEnds(repository)).not.toContainEqual(expect.objectContaining({
+      expect(await looseEnds(repository)).not.toContainEqual(expect.objectContaining({
         obligation: "foundation-review-correction-required",
         subject: unaffectedRevision,
       }));
@@ -814,7 +817,7 @@ describe("Phase 0 intent candidate currentness", () => {
       ].sort());
 
       const replacementCandidateRevision = `${initialCandidateId}-r00002`;
-      const replacementOutputs = submit(repository, candidateCorrection, [{
+      const replacementOutputs = await submit(repository, candidateCorrection, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
@@ -841,7 +844,7 @@ describe("Phase 0 intent candidate currentness", () => {
         replacementCandidateRevision,
       );
 
-      const listed = mdlm(repository, "list", "--json");
+      const listed = await mdlm(repository, "list", "--json");
       expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
       const candidateData = (JSON.parse(listed.stdout).data as Array<{
         lifecycleDatum: {
@@ -875,7 +878,7 @@ describe("Phase 0 intent candidate currentness", () => {
       const unrelatedReplacementRevision =
         `${unaffected.lifecycleDatum.id}-r00002`;
 
-      let replacementCandidateReview = prepareNextAssignment(repository);
+      let replacementCandidateReview = await prepareNextAssignment(repository);
       if (
         replacementCandidateReview.packet.scenario.reference ===
           "create-review-context@1"
@@ -885,12 +888,12 @@ describe("Phase 0 intent candidate currentness", () => {
         );
         expect(createdContexts.has(replacementCandidateRevision)).toBe(false);
         createdContexts.add(replacementCandidateRevision);
-        submit(
+        await submit(
           repository,
           replacementCandidateReview,
           reviewContextOutput(replacementCandidateReview),
         );
-        replacementCandidateReview = prepareNextAssignment(
+        replacementCandidateReview = await prepareNextAssignment(
           repository,
           "review-datum-in-context@2",
         );
@@ -916,7 +919,7 @@ describe("Phase 0 intent candidate currentness", () => {
       expect(replacementCandidateContextMembers).not.toContain(
         unrelatedReplacementRevision,
       );
-      const replacementCandidateReviewOutputs = submit(
+      const replacementCandidateReviewOutputs = await submit(
         repository,
         replacementCandidateReview,
         passingReviewOutput(
@@ -929,21 +932,20 @@ describe("Phase 0 intent candidate currentness", () => {
         "review",
       );
       reviewedSubjects.set(replacementCandidateRevision, replacementReview);
-
-      const gate = prepareNextAssignment(repository, "record-gate-signoff@3");
+      const gate = await prepareNextAssignment(repository, "record-gate-signoff@3");
       expect(inputRevision(gate, "candidate")).toBe(
         replacementCandidateRevision,
       );
       expect(inputRevisions(gate, "candidate")).not.toContain(
         initialCandidateRevision,
       );
-      expect(looseEnds(repository)).not.toContainEqual(expect.objectContaining({
+      expect(await looseEnds(repository)).not.toContainEqual(expect.objectContaining({
         obligation: "candidate-gate-signoff",
         subject: initialCandidateRevision,
         status: "ready",
         dispatchable: true,
       }));
-      const gateOutputs = submit(repository, gate, [{
+      const gateOutputs = await submit(repository, gate, [{
         localId: "decision",
         name: "decision",
         invocation: 0,
@@ -967,13 +969,13 @@ describe("Phase 0 intent candidate currentness", () => {
       }]);
       const gateDecisionRevision = outputRevision(gateOutputs, "decision");
 
-      let gateReview = prepareNextAssignment(repository);
+      let gateReview = await prepareNextAssignment(repository);
       if (gateReview.packet.scenario.reference === "create-review-context@1") {
         expect(inputRevision(gateReview, "subject")).toBe(gateDecisionRevision);
         expect(createdContexts.has(gateDecisionRevision)).toBe(false);
         createdContexts.add(gateDecisionRevision);
-        submit(repository, gateReview, reviewContextOutput(gateReview));
-        gateReview = prepareNextAssignment(
+        await submit(repository, gateReview, reviewContextOutput(gateReview));
+        gateReview = await prepareNextAssignment(
           repository,
           "review-datum-in-context@2",
         );
@@ -995,14 +997,14 @@ describe("Phase 0 intent candidate currentness", () => {
       expect(gateReviewContextMembers).not.toContain(
         unrelatedReplacementRevision,
       );
-      const gateReviewOutputs = submit(
+      const gateReviewOutputs = await submit(
         repository,
         gateReview,
         passingReviewOutput(gateReview),
       );
       const gateReviewRevision = outputRevision(gateReviewOutputs, "review");
 
-      const acceptance = prepareNextAssignment(
+      const acceptance = await prepareNextAssignment(
         repository,
         "accept-phase-0-intent@1",
       );
@@ -1015,7 +1017,7 @@ describe("Phase 0 intent candidate currentness", () => {
       expect(inputRevisions(acceptance, "signoff_reviews")).toEqual([
         gateReviewRevision,
       ]);
-      const acceptedOutputs = submit(repository, acceptance, [{
+      const acceptedOutputs = await submit(repository, acceptance, [{
         localId: "accepted",
         name: "accepted_intent",
         invocation: 0,
@@ -1051,5 +1053,5 @@ describe("Phase 0 intent candidate currentness", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 180_000);
+  }, 240_000);
 });

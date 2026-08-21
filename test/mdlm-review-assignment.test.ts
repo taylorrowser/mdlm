@@ -4,12 +4,25 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { executeCommandApplication } from "../src/command-application.js";
 import {
-  mdlm,
-  mdlmWithEnvironment,
-  mdlmWithInput,
-  mdlmWithInputAndEnvironment,
+  mdlmWithEnvironment as processMdlmWithEnvironment,
+  mdlmWithInputAndEnvironment as processMdlmWithInputAndEnvironment,
 } from "./helpers/mdlm.js";
+
+async function mdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+async function mdlmWithInput(
+  repository: string,
+  input: string,
+  ...arguments_: string[]
+) {
+  const execution = await executeCommandApplication(arguments_, repository, input);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
 
 const timeout = 60_000;
 
@@ -61,7 +74,7 @@ function git(repository: string, ...arguments_: string[]) {
 }
 
 function expectSuccess(
-  result: ReturnType<typeof mdlm>,
+  result: { status: number | null; stdout: string; stderr: string },
   command: string,
 ): void {
   expect(result.status, `${command}\n${result.stderr}${result.stdout}`).toBe(0);
@@ -81,13 +94,13 @@ function commitLifecycleData(repository: string, message: string): void {
   );
 }
 
-function prepareNext(repository: string): Packet {
-  const next = mdlm(repository, "next", "--json");
+async function prepareNext(repository: string): Promise<Packet> {
+  const next = await mdlm(repository, "next", "--json");
   expectSuccess(next, "mdlm next");
   const nextOutcome = JSON.parse(next.stdout) as Packet["nextOutcome"] & {
     assignment: { id: string };
   };
-  const prepared = mdlm(
+  const prepared = await mdlm(
     repository,
     "scenario", "prepare", nextOutcome.assignment.id, "--json",
   );
@@ -98,7 +111,7 @@ function prepareNext(repository: string): Packet {
   };
 }
 
-function submitProposal(
+async function submitProposal(
   repository: string,
   packet: Packet,
   outputs: unknown[],
@@ -117,7 +130,7 @@ function submitProposal(
     },
   };
   const source = `${JSON.stringify(response)}\n`;
-  const submitted = mdlmWithInput(
+  const submitted = await mdlmWithInput(
     repository,
     source,
     "scenario", "submit", "-", "--json",
@@ -142,11 +155,11 @@ function exactInput(packet: Packet, name: string): string {
   return exact;
 }
 
-function publishInitialProductDefinition(
+async function publishInitialProductDefinition(
   repository: string,
   mapOutput: Record<string, any>,
   productOutput: Record<string, any>,
-): { mapRevision: string } {
+): Promise<{ mapRevision: string }> {
   mapOutput.lifecycleDatum.payload.frontier = [
     "$proposal.product-intent.revision_id",
   ];
@@ -154,9 +167,9 @@ function publishInitialProductDefinition(
     type: "indexes",
     target: "$proposal.product-intent.id",
   }];
-  const mapPacket = prepareNext(repository);
+  const mapPacket = await prepareNext(repository);
   expect(mapPacket.scenario.reference).toBe("establish-initial-wayfinding-map@2");
-  const mapSubmission = submitProposal(repository, mapPacket, [mapOutput, {
+  const mapSubmission = await submitProposal(repository, mapPacket, [mapOutput, {
     localId: "product-intent",
     name: "product_intent",
     invocation: 0,
@@ -182,9 +195,9 @@ function publishInitialProductDefinition(
   ).lifecycleDatum as { id: string; revisionId: string };
   commitLifecycleData(repository, "Publish delegated Review route map");
 
-  const boundaryPacket = prepareNext(repository);
+  const boundaryPacket = await prepareNext(repository);
   expect(boundaryPacket.scenario.reference).toBe("freeze-source-boundary@1");
-  submitProposal(repository, boundaryPacket, [{
+  await submitProposal(repository, boundaryPacket, [{
     localId: "boundary",
     name: "boundary",
     invocation: 0,
@@ -205,10 +218,10 @@ function publishInitialProductDefinition(
   }]);
   commitLifecycleData(repository, "Freeze product-intent source boundary");
 
-  const resolutionPacket = prepareNext(repository);
+  const resolutionPacket = await prepareNext(repository);
   expect(resolutionPacket.scenario.reference).toBe("resolve-question@2");
   const answeredRevision = `${question.id}-r00002`;
-  const resolution = submitProposal(repository, resolutionPacket, [{
+  const resolution = await submitProposal(repository, resolutionPacket, [{
     localId: "decision",
     name: "decision",
     invocation: 0,
@@ -242,6 +255,8 @@ function publishInitialProductDefinition(
         question: "Which exact product should this review route define?",
         state: "answered",
         blocking_impact: "PSP compilation waits for the attended answer.",
+        attended_answer:
+          "Build only the bounded product used by this delegated Review regression.",
       },
       links: [],
       body: "The initial product-intent Question has an attended answer.\n",
@@ -254,13 +269,13 @@ function publishInitialProductDefinition(
 
   let productPacket: Packet | undefined;
   for (let step = 0; step < 6; step += 1) {
-    const packet = prepareNext(repository);
+    const packet = await prepareNext(repository);
     if (packet.scenario.reference === "compile-psp@3") {
       productPacket = packet;
       break;
     }
     expect(packet.scenario.reference).toBe("review-datum-in-context@2");
-    submitProposal(repository, packet, [{
+    await submitProposal(repository, packet, [{
       localId: "review",
       name: "review",
       invocation: 0,
@@ -290,7 +305,7 @@ function publishInitialProductDefinition(
     type: "derived-from",
     target: decisionRevision,
   }];
-  submitProposal(repository, productPacket!, [productOutput]);
+  await submitProposal(repository, productPacket!, [productOutput]);
   commitLifecycleData(repository, "Publish delegated Review route product");
   return { mapRevision };
 }
@@ -302,7 +317,7 @@ describe("delegated Review Assignment packets", () => {
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-review-packet-"));
     repository = path.join(parent, "repository");
-    expectSuccess(mdlm(parent, "init", repository, "--json"), "mdlm init");
+    expectSuccess(await mdlm(parent, "init", repository, "--json"), "mdlm init");
   });
 
   afterEach(async () => {
@@ -312,7 +327,7 @@ describe("delegated Review Assignment packets", () => {
   it(
     "supplies the exact resolved rubric and accepts an unchanged packet-only judgment",
     async () => {
-      const { mapRevision } = publishInitialProductDefinition(repository, {
+      const { mapRevision } = await publishInitialProductDefinition(repository, {
         localId: "map",
         name: "map",
         invocation: 0,
@@ -346,15 +361,14 @@ describe("delegated Review Assignment packets", () => {
         },
       });
 
-      const nextReview = mdlmWithEnvironment(
+      const nextReview = processMdlmWithEnvironment(
         repository,
         { MDLM_PERFORMANCE: "json" },
         "next",
         "--json",
       );
       expectSuccess(nextReview, "mdlm next with automatic exact baseline");
-      const performance = JSON.parse(nextReview.stderr);
-      expect(performance).toEqual(expect.objectContaining({
+      expect(JSON.parse(nextReview.stderr)).toEqual(expect.objectContaining({
         contract: "mdlm-performance@1",
         repository: expect.objectContaining({ loads: 1 }),
       }));
@@ -393,7 +407,7 @@ describe("delegated Review Assignment packets", () => {
       );
 
       commitLifecycleData(repository, "Publish automatic Review Context");
-      const freshReview = mdlm(repository, "next", "--json");
+      const freshReview = await mdlm(repository, "next", "--json");
       expectSuccess(freshReview, "mdlm next after Review Context commit");
       const freshReviewOutput = JSON.parse(freshReview.stdout) as {
         assignment: { id: string };
@@ -401,7 +415,7 @@ describe("delegated Review Assignment packets", () => {
       };
       expect(freshReviewOutput.materializedExecutions).toEqual([]);
       expect(freshReviewOutput.assignment.id).not.toBe(preCommitReviewAssignment);
-      const preparedReview = mdlm(
+      const preparedReview = await mdlm(
         repository,
         "scenario", "prepare", freshReviewOutput.assignment.id, "--json",
       );
@@ -497,7 +511,7 @@ describe("delegated Review Assignment packets", () => {
         standingDelegations: [],
       },
     };
-      const rejected = mdlmWithInput(
+      const rejected = await mdlmWithInput(
       repository,
       `${JSON.stringify(substitutedRubricResponse)}\n`,
       "scenario", "submit", "-", "--json",
@@ -528,7 +542,7 @@ describe("delegated Review Assignment packets", () => {
         },
       };
       const expectedLifecycleDataCount = await lifecycleDatumCount(repository);
-      const submittedReview = mdlmWithInputAndEnvironment(
+      const submittedReview = processMdlmWithInputAndEnvironment(
         repository,
         `${JSON.stringify(reviewResponse)}\n`,
         { MDLM_PERFORMANCE: "json" },
@@ -563,7 +577,7 @@ describe("delegated Review Assignment packets", () => {
   it(
     "rejects an unclassified failed Review atomically and routes explicit package-evidence correction autonomously",
     async () => {
-      publishInitialProductDefinition(repository, {
+      await publishInitialProductDefinition(repository, {
         localId: "map",
         name: "map",
         invocation: 0,
@@ -597,7 +611,7 @@ describe("delegated Review Assignment packets", () => {
         },
       });
 
-      const reviewPacket = prepareNext(repository);
+      const reviewPacket = await prepareNext(repository);
       expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
       const subject = exactInput(reviewPacket, "subject");
       const reviewContext = exactInput(reviewPacket, "review_context");
@@ -646,7 +660,7 @@ describe("delegated Review Assignment packets", () => {
       });
       const before = await lifecycleDatumCount(repository);
 
-      const omitted = mdlmWithInput(
+      const omitted = await mdlmWithInput(
         repository,
         `${JSON.stringify(response(failedReview))}\n`,
         "scenario", "submit", "-", "--json",
@@ -664,7 +678,7 @@ describe("delegated Review Assignment packets", () => {
       const classified = structuredClone(failedReview);
       (classified.lifecycleDatum.payload as Record<string, unknown>)
         .correction_authority = "package-evidence";
-      const submitted = mdlmWithInput(
+      const submitted = await mdlmWithInput(
         repository,
         `${JSON.stringify(response(classified))}\n`,
         "scenario", "submit", "-", "--json",
@@ -672,7 +686,7 @@ describe("delegated Review Assignment packets", () => {
       expectSuccess(submitted, "submit classified failed Review");
       commitLifecycleData(repository, "Publish package-evidence Review failure");
 
-      const correction = prepareNext(repository);
+      const correction = await prepareNext(repository);
       expect(correction.nextOutcome.outcome).toBe("assignment");
       expect(correction.scenario.reference).toBe("revise-foundation-after-review@5");
       const failedReviewRevision = exactInput(correction, "failed_reviews");
@@ -681,7 +695,7 @@ describe("delegated Review Assignment packets", () => {
         (input) => input.name === "subject",
       )?.values[0]?.identity;
       expect(correctionSubject?.type).toBe("MAP");
-      const corrected = submitProposal(repository, correction, [{
+      const corrected = await submitProposal(repository, correction, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,

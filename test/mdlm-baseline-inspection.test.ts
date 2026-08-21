@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { executeCommandApplication } from "../src/command-application.js";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
 import {
@@ -15,6 +16,11 @@ import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlm, mdlmWithEnvironment } from "./helpers/mdlm.js";
 
+async function executeMdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
 type WrittenDatum = { datum: DatumEnvelope; path: string };
 type BaselineFixture = {
   before: WrittenDatum;
@@ -25,7 +31,10 @@ type BaselineFixture = {
   newEvidence: WrittenDatum;
 };
 
-function expectSuccess(result: ReturnType<typeof mdlm>, command: string): void {
+function expectSuccess(
+  result: { status: number | null; stdout: string; stderr: string },
+  command: string,
+): void {
   expect(result.status, `${command}\n${result.stderr}${result.stdout}`).toBe(0);
 }
 
@@ -976,7 +985,7 @@ describe("compiled mdlm baseline inspection", () => {
     });
   });
 
-  it("loads one snapshot while doctor verifies many exact baselines", () => {
+  it("loads one snapshot while doctor verifies many exact baselines", async () => {
     const baselineHeavyRepository = cloneBaselineHeavyRepository(
       parent,
       "baseline-heavy-doctor",
@@ -1038,7 +1047,7 @@ describe("compiled mdlm baseline inspection", () => {
 
   it("verifies every repository baseline before rebuilding disposable projections", async () => {
     const fixture = await arrangeChangedBaselines(repository);
-    const initial = mdlm(repository, "doctor", "--json");
+    const initial = await executeMdlm(repository, "doctor", "--json");
     expectSuccess(initial, "mdlm doctor");
     expect(JSON.parse(initial.stdout)).toMatchObject({
       baselineRepositoryVerification: { verifiedBaselines: 2, processDrift: 0 },
@@ -1058,7 +1067,7 @@ describe("compiled mdlm baseline inspection", () => {
       recursive: true,
       force: true,
     });
-    const rebuilt = mdlm(repository, "doctor", "--json");
+    const rebuilt = await executeMdlm(repository, "doctor", "--json");
     expectSuccess(rebuilt, "mdlm doctor rebuild");
     expect(JSON.parse(rebuilt.stdout)).toMatchObject({
       baselineRepositoryVerification: { verifiedBaselines: 2, processDrift: 0 },
@@ -1082,7 +1091,7 @@ describe("compiled mdlm baseline inspection", () => {
     const memberBytes = await fs.readFile(memberPath, "utf8");
     await fs.writeFile(memberPath, `${memberBytes}repository corruption\n`);
 
-    const unhealthy = mdlm(repository, "doctor", "--json");
+    const unhealthy = await executeMdlm(repository, "doctor", "--json");
     expect(unhealthy.status).toBe(1);
     expect(JSON.parse(unhealthy.stdout).diagnostics).toEqual(
       expect.arrayContaining([expect.objectContaining({

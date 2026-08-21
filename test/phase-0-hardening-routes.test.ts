@@ -28,7 +28,21 @@ import {
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
-import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
+import { executeCommandApplication } from "../src/command-application.js";
+
+async function mdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+async function mdlmWithInput(
+  repository: string,
+  input: string,
+  ...arguments_: string[]
+) {
+  const execution = await executeCommandApplication(arguments_, repository, input);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 const processRef = "mdlm-bootstrap@0.74.0#sha256:phase-0-route-evidence";
@@ -368,7 +382,7 @@ async function initializedRepository(prefix: string): Promise<{
 }> {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
   const repository = path.join(parent, "repository");
-  const initialized = mdlm(parent, "init", repository, "--json");
+  const initialized = await mdlm(parent, "init", repository, "--json");
   if (initialized.status !== 0) {
     await fs.rm(parent, { recursive: true, force: true });
     throw new Error(`${initialized.stderr}${initialized.stdout}`);
@@ -590,7 +604,7 @@ async function advancePhase0To(
   let productIntentAuthorityRevision: string | undefined;
   let productIntentQuestionRevision: string | undefined;
   for (let step = 0; step < 40; step += 1) {
-    const prepared = prepareNextAssignment(repository);
+    const prepared = await prepareNextAssignment(repository);
     const scenario = prepared.packet.scenario.reference as string;
     const resolvingInitialProductIntent = scenario === "resolve-question@2"
       && exactInput(prepared, "question").data.payload.intent_scope === "product";
@@ -655,6 +669,7 @@ async function advancePhase0To(
               question: "Which exact product should this work pursue?",
               state: "answered",
               blocking_impact: "PSP compilation waits for the attended answer.",
+              attended_answer: "Build the bounded deterministic lifecycle product.",
             },
             links: [],
             body: "The initial product-intent Question has an exact answer.\n",
@@ -738,7 +753,7 @@ async function advancePhase0To(
           `Unexpected ${scenario} while advancing to ${targetScenario}`,
         );
     }
-    const submitted = submitAssignment(repository, prepared, outputs);
+    const submitted = await submitAssignment(repository, prepared, outputs);
     if (submitted.status !== 0) {
       throw new Error(`${scenario}: ${submitted.stderr}${submitted.stdout}`);
     }
@@ -787,7 +802,7 @@ describe("Phase 0 missing hardening routes", () => {
       const authority = exactInput(prepared, "product_intent_authority").identity;
       const dataRoot = path.join(repository, ".lifecycle/data");
       const beforeInvalid = await directoryDigest(dataRoot);
-      const invalid = submitAssignment(repository, prepared, []);
+      const invalid = await submitAssignment(repository, prepared, []);
       expect(invalid.status).toBe(1);
       expect(JSON.parse(invalid.stdout)).toEqual(expect.objectContaining({
         disposition: "correction-required",
@@ -797,7 +812,7 @@ describe("Phase 0 missing hardening routes", () => {
       }));
       expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
-      const valid = submitAssignment(repository, prepared, [{
+      const valid = await submitAssignment(repository, prepared, [{
         localId: "product",
         name: "product_specification",
         invocation: 0,
@@ -829,15 +844,15 @@ describe("Phase 0 missing hardening routes", () => {
         revision: 1,
         revisionId: expect.stringMatching(/^PSP-.*-r00001$/),
       }));
-      const doctor = mdlm(repository, "doctor", "--json");
+      const doctor = await mdlm(repository, "doctor", "--json");
       expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-      let next = prepareNextAssignment(repository);
+      let next = await prepareNextAssignment(repository);
       for (let pending = 0; pending < 3 &&
         inputRevision(next, "subject") !== product.revisionId; pending += 1) {
         expect(next.packet.scenario.reference).toBe("review-datum-in-context@2");
-        const reviewed = submitAssignment(repository, next, passingReviewOutput(next));
+        const reviewed = await submitAssignment(repository, next, passingReviewOutput(next));
         expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
-        next = prepareNextAssignment(repository);
+        next = await prepareNextAssignment(repository);
       }
       expect(next.packet.scenario.reference).toBe("review-datum-in-context@2");
       expect(inputRevision(next, "subject")).toBe(product.revisionId);
@@ -851,14 +866,14 @@ describe("Phase 0 missing hardening routes", () => {
       const failedReviewOutput = stakeholderOwnedFailureOutput(next);
       failedReviewOutput[0]!.lifecycleDatum.payload.correction_authority =
         "package-evidence";
-      const failedReview = submitAssignment(repository, next, failedReviewOutput);
+      const failedReview = await submitAssignment(repository, next, failedReviewOutput);
       expect(
         failedReview.status,
         `${failedReview.stderr}${failedReview.stdout}`,
       ).toBe(0);
       const failedReviewRevision = JSON.parse(failedReview.stdout).execution
         .outputs[0].lifecycleDatum.revisionId as string;
-      const correction = prepareNextAssignment(
+      const correction = await prepareNextAssignment(
         repository,
         "revise-foundation-after-review@5",
       );
@@ -886,7 +901,7 @@ describe("Phase 0 missing hardening routes", () => {
         },
       };
       const beforeAuthorityFailure = await directoryDigest(dataRoot);
-      const missingAuthority = submitAssignment(repository, correction, [replacement]);
+      const missingAuthority = await submitAssignment(repository, correction, [replacement]);
       expect(missingAuthority.status).toBe(1);
       expect(JSON.parse(missingAuthority.stdout).diagnostics).toEqual(
         expect.arrayContaining([
@@ -899,7 +914,7 @@ describe("Phase 0 missing hardening routes", () => {
         type: "derived-from",
         target: authority.revision_id,
       });
-      const corrected = submitAssignment(repository, correction, [replacement]);
+      const corrected = await submitAssignment(repository, correction, [replacement]);
       expect(corrected.status, `${corrected.stderr}${corrected.stdout}`).toBe(0);
       expect(JSON.parse(corrected.stdout).execution.outputs[0].data.links)
         .toContainEqual({
@@ -940,7 +955,7 @@ describe("Phase 0 missing hardening routes", () => {
           body: "Missing the exact required product link.\n",
         },
       };
-      const invalid = submitAssignment(repository, prepared, [malformed]);
+      const invalid = await submitAssignment(repository, prepared, [malformed]);
       expect(invalid.status).toBe(1);
       expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
         expect.objectContaining({ code: "scenario-output-required-link-missing" }),
@@ -949,7 +964,7 @@ describe("Phase 0 missing hardening routes", () => {
 
       malformed.lifecycleDatum.links = [{ type: "derived-from", target: product.id }];
       malformed.lifecycleDatum.payload.title = "Exact public stakeholder requirement";
-      const valid = submitAssignment(repository, prepared, [malformed]);
+      const valid = await submitAssignment(repository, prepared, [malformed]);
       expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
       const execution = JSON.parse(valid.stdout).execution;
       const requirement = execution.outputs[0].lifecycleDatum;
@@ -958,15 +973,15 @@ describe("Phase 0 missing hardening routes", () => {
         type: "derived-from",
         target: product.id,
       });
-      expect(mdlm(repository, "doctor", "--json").status).toBe(0);
-      const next = prepareNextAssignment(repository);
+      expect((await mdlm(repository, "doctor", "--json")).status).toBe(0);
+      const next = await prepareNextAssignment(repository);
       expect(next.packet.scenario.reference).not.toBe(
         "create-review-context@1",
       );
       expect(
         await hasGeneratedReviewContext(repository, requirement.revisionId),
       ).toBe(true);
-      const listed = mdlm(repository, "list", "--json");
+      const listed = await mdlm(repository, "list", "--json");
       expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
       const generated = (
         JSON.parse(listed.stdout).data as Array<{
@@ -1133,7 +1148,7 @@ describe("Phase 0 missing hardening routes", () => {
       );
       const members = inputRevisions(prepared, "definition_members");
       const reviews = inputRevisions(prepared, "member_reviews");
-      const submitted = submitAssignment(repository, prepared, [{
+      const submitted = await submitAssignment(repository, prepared, [{
         localId: "candidate",
         name: "candidate",
         invocation: 0,
@@ -1156,7 +1171,7 @@ describe("Phase 0 missing hardening routes", () => {
       const candidateRevision = JSON.parse(
         submitted.stdout,
       ).execution.outputs[0].lifecycleDatum.revisionId as string;
-      const review = prepareNextAssignment(
+      const review = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -1216,7 +1231,7 @@ describe("Phase 0 missing hardening routes", () => {
       });
       const dataRoot = path.join(repository, ".lifecycle/data");
       const beforeInvalid = await directoryDigest(dataRoot);
-      const missingEvidence = submitAssignment(
+      const missingEvidence = await submitAssignment(
         repository,
         prepared,
         [candidate(members, [])],
@@ -1227,7 +1242,7 @@ describe("Phase 0 missing hardening routes", () => {
       ]));
       expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
-      const valid = submitAssignment(repository, prepared, [candidate(members)]);
+      const valid = await submitAssignment(repository, prepared, [candidate(members)]);
       expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
       const execution = JSON.parse(valid.stdout).execution;
       const output = execution.outputs[0];
@@ -1241,9 +1256,9 @@ describe("Phase 0 missing hardening routes", () => {
           process_provenance: expect.any(Object),
         }),
       });
-      expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+      expect((await mdlm(repository, "doctor", "--json")).status).toBe(0);
       const candidateRevision = output.lifecycleDatum.revisionId as string;
-      const review = prepareNextAssignment(
+      const review = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -1252,7 +1267,7 @@ describe("Phase 0 missing hardening routes", () => {
         await hasGeneratedReviewContext(repository, candidateRevision),
       ).toBe(true);
       const contextRevision = inputRevision(review, "review_context");
-      const failedReview = submitAssignment(repository, review, [{
+      const failedReview = await submitAssignment(repository, review, [{
         localId: "review",
         name: "review",
         invocation: 0,
@@ -1295,7 +1310,7 @@ describe("Phase 0 missing hardening routes", () => {
       ).find((revision) => revision.endsWith("-r00001"))!;
       expect(questionRevision).toMatch(/^QST-.+-r00001$/);
 
-      const next = prepareNextAssignment(repository, "resolve-question@2");
+      const next = await prepareNextAssignment(repository, "resolve-question@2");
       expect(next.outcome).toEqual(expect.objectContaining({
         outcome: "attention-required",
         authorityRequirement: {
@@ -1306,7 +1321,7 @@ describe("Phase 0 missing hardening routes", () => {
       }));
       expect(inputRevision(next, "question")).toBe(questionRevision);
 
-      const looseEnds = mdlm(repository, "loose-ends", "--json");
+      const looseEnds = await mdlm(repository, "loose-ends", "--json");
       expect(looseEnds.status, `${looseEnds.stderr}${looseEnds.stdout}`).toBe(0);
       expect(JSON.parse(looseEnds.stdout).looseEnds.items).toContainEqual(
         expect.objectContaining({
@@ -1320,7 +1335,7 @@ describe("Phase 0 missing hardening routes", () => {
 
       const questionId = exactInput(next, "question").identity.id;
       const answeredQuestionRevision = `${questionId}-r00002`;
-      const resolved = submitAssignment(repository, next, [{
+      const resolved = await submitAssignment(repository, next, [{
         localId: "decision",
         name: "decision",
         invocation: 0,
@@ -1369,7 +1384,7 @@ describe("Phase 0 missing hardening routes", () => {
         (item) => item.name === "decision",
       )!.lifecycleDatum.revisionId;
 
-      const decisionReview = prepareNextAssignment(
+      const decisionReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -1377,7 +1392,7 @@ describe("Phase 0 missing hardening routes", () => {
       expect(inputRevisions(decisionReview, "context_members")).toContain(
         answeredQuestionRevision,
       );
-      const acceptedDecision = submitAssignment(
+      const acceptedDecision = await submitAssignment(
         repository,
         decisionReview,
         passingReviewOutput(decisionReview),
@@ -1387,7 +1402,7 @@ describe("Phase 0 missing hardening routes", () => {
         `${acceptedDecision.stderr}${acceptedDecision.stdout}`,
       ).toBe(0);
 
-      const correction = prepareNextAssignment(
+      const correction = await prepareNextAssignment(
         repository,
         "revise-intent-candidate-after-review@3",
       );
@@ -1408,7 +1423,7 @@ describe("Phase 0 missing hardening routes", () => {
       ];
       const candidateId = exactInput(correction, "candidate").identity.id;
       const correctedCandidateRevision = `${candidateId}-r00002`;
-      const correctedCandidate = submitAssignment(repository, correction, [{
+      const correctedCandidate = await submitAssignment(repository, correction, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
@@ -1491,7 +1506,7 @@ describe("Phase 0 missing hardening routes", () => {
         (item) => item.name === "decision",
       )!.lifecycleDatum.revisionId;
 
-      const candidateReview = prepareNextAssignment(
+      const candidateReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -1505,7 +1520,7 @@ describe("Phase 0 missing hardening routes", () => {
           correctionDecisionRevision,
         ]),
       );
-      const acceptedCandidateReview = submitAssignment(
+      const acceptedCandidateReview = await submitAssignment(
         repository,
         candidateReview,
         passingSimplificationReviewOutput(candidateReview),
@@ -1520,7 +1535,7 @@ describe("Phase 0 missing hardening routes", () => {
         }>
       )[0]!.lifecycleDatum.revisionId;
 
-      const correctionDecisionReview = prepareNextAssignment(
+      const correctionDecisionReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -1540,7 +1555,7 @@ describe("Phase 0 missing hardening routes", () => {
           ...reviewContextRevisions,
         ].sort(),
       );
-      const acceptedCorrectionDecisionReview = submitAssignment(
+      const acceptedCorrectionDecisionReview = await submitAssignment(
         repository,
         correctionDecisionReview,
         passingReviewOutput(correctionDecisionReview),
@@ -1550,9 +1565,9 @@ describe("Phase 0 missing hardening routes", () => {
         `${acceptedCorrectionDecisionReview.stderr}${acceptedCorrectionDecisionReview.stdout}`,
       ).toBe(0);
 
-      const gate = prepareNextAssignment(repository, "record-gate-signoff@3");
+      const gate = await prepareNextAssignment(repository, "record-gate-signoff@3");
       expect(inputRevision(gate, "candidate")).toBe(correctedCandidateRevision);
-      const acceptedGate = submitAssignment(repository, gate, [{
+      const acceptedGate = await submitAssignment(repository, gate, [{
         localId: "decision",
         name: "decision",
         invocation: 0,
@@ -1583,7 +1598,7 @@ describe("Phase 0 missing hardening routes", () => {
         }>
       )[0]!.lifecycleDatum.revisionId;
 
-      const gateReview = prepareNextAssignment(
+      const gateReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -1599,7 +1614,7 @@ describe("Phase 0 missing hardening routes", () => {
           correctionDecisionRevision,
         ].sort(),
       );
-      const failedGateReview = submitAssignment(
+      const failedGateReview = await submitAssignment(
         repository,
         gateReview,
         stakeholderOwnedFailureOutput(gateReview),
@@ -1614,7 +1629,7 @@ describe("Phase 0 missing hardening routes", () => {
         }>
       )[0]!.lifecycleDatum.revisionId;
 
-      const gateCorrection = prepareNextAssignment(
+      const gateCorrection = await prepareNextAssignment(
         repository,
         "revise-gate-signoff-after-review@2",
       );
@@ -1625,7 +1640,7 @@ describe("Phase 0 missing hardening routes", () => {
         failedGateReviewRevision,
       ]);
       const correctedGateRevision = `${exactInput(gateCorrection, "decision").identity.id}-r00002`;
-      const acceptedGateCorrection = submitAssignment(
+      const acceptedGateCorrection = await submitAssignment(
         repository,
         gateCorrection,
         [{
@@ -1660,7 +1675,7 @@ describe("Phase 0 missing hardening routes", () => {
         `${acceptedGateCorrection.stderr}${acceptedGateCorrection.stdout}`,
       ).toBe(0);
 
-      const correctedGateReview = prepareNextAssignment(
+      const correctedGateReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -1680,7 +1695,7 @@ describe("Phase 0 missing hardening routes", () => {
           correctionDecisionRevision,
         ].sort(),
       );
-      const acceptedCorrectedGateReview = submitAssignment(
+      const acceptedCorrectedGateReview = await submitAssignment(
         repository,
         correctedGateReview,
         passingReviewOutput(correctedGateReview),
@@ -1695,7 +1710,7 @@ describe("Phase 0 missing hardening routes", () => {
         }>
       )[0]!.lifecycleDatum.revisionId;
 
-      const acceptance = prepareNextAssignment(
+      const acceptance = await prepareNextAssignment(
         repository,
         "accept-phase-0-intent@1",
       );
@@ -1708,6 +1723,43 @@ describe("Phase 0 missing hardening routes", () => {
       expect(inputRevision(acceptance, "candidate")).toBe(
         correctedCandidateRevision,
       );
+      const acceptedIntent = await submitAssignment(
+        repository,
+        acceptance,
+        [{
+          localId: "accepted",
+          name: "accepted_intent",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "BSL",
+            payload: {
+              title: "Accepted corrected Phase 0 product intent",
+              kind: "intent-approved",
+              role: "accepted",
+              scope: exactInput(acceptance, "candidate").data.payload.scope,
+              group: exactInput(acceptance, "candidate").data.payload.group,
+              definition_members: inputRevisions(
+                acceptance,
+                "definition_members",
+              ),
+              evidence: [
+                ...inputRevisions(acceptance, "candidate_reviews"),
+                correctedGateRevision,
+                correctedGateReviewRevision,
+              ],
+            },
+            links: [{
+              type: "promotes",
+              target: correctedCandidateRevision,
+            }],
+            body: "The accepted intent freezes the corrected candidate and exact reviewed gate authority.\n",
+          },
+        }],
+      );
+      expect(
+        acceptedIntent.status,
+        `${acceptedIntent.stderr}${acceptedIntent.stdout}`,
+      ).toBe(0);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
@@ -2068,7 +2120,7 @@ describe("Phase 0 missing hardening routes", () => {
         "compile-psp@3",
       );
       const authority = exactInput(compile, "product_intent_authority").identity;
-      const published = submitAssignment(repository, compile, [{
+      const published = await submitAssignment(repository, compile, [{
         localId: "product",
         name: "product_specification",
         invocation: 0,
@@ -2091,12 +2143,12 @@ describe("Phase 0 missing hardening routes", () => {
       const product = JSON.parse(published.stdout).execution.outputs[0]
         .lifecycleDatum.revisionId as string;
 
-      let review = prepareNextAssignment(
+      let review = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
       if (inputRevision(review, "subject") !== product) {
-        const reviewedMap = submitAssignment(
+        const reviewedMap = await submitAssignment(
           repository,
           review,
           passingReviewOutput(review),
@@ -2105,13 +2157,13 @@ describe("Phase 0 missing hardening routes", () => {
           reviewedMap.status,
           `${reviewedMap.stderr}${reviewedMap.stdout}`,
         ).toBe(0);
-        review = prepareNextAssignment(
+        review = await prepareNextAssignment(
           repository,
           "review-datum-in-context@2",
         );
       }
       expect(inputRevision(review, "subject")).toBe(product);
-      const failedSubmission = submitAssignment(
+      const failedSubmission = await submitAssignment(
         repository,
         review,
         stakeholderOwnedFailureOutput(review),
@@ -2123,7 +2175,7 @@ describe("Phase 0 missing hardening routes", () => {
       const failedReview = JSON.parse(failedSubmission.stdout).execution.outputs[0]
         .lifecycleDatum.revisionId as string;
 
-      const correction = prepareNextAssignment(
+      const correction = await prepareNextAssignment(
         repository,
         "escalate-foundation-review-correction@3",
       );
@@ -2142,7 +2194,7 @@ describe("Phase 0 missing hardening routes", () => {
       const beforeInvalid = await directoryDigest(
         path.join(repository, ".lifecycle", "data"),
       );
-      const invalid = submitAssignment(repository, correction, [{
+      const invalid = await submitAssignment(repository, correction, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
@@ -2201,7 +2253,7 @@ describe("Phase 0 missing hardening routes", () => {
         path.join(repository, ".lifecycle", "data"),
       )).toBe(beforeInvalid);
 
-      const bounded = submitAssignment(repository, correction, [{
+      const bounded = await submitAssignment(repository, correction, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
@@ -2275,13 +2327,13 @@ describe("Phase 0 missing hardening routes", () => {
       )!.lifecycleDatum.revisionId;
       let currentCorrectionDecision = correctionDecision;
       expect(corrected).toBe(`${subject.id}-r00002`);
-      let freshReview = prepareNextAssignment(
+      let freshReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
       if (inputRevision(freshReview, "subject") !== corrected) {
         if (disposition === "defer-or-remove") {
-          const failedDecision = submitAssignment(
+          const failedDecision = await submitAssignment(
             repository,
             freshReview,
             stakeholderOwnedFailureOutput(freshReview),
@@ -2293,7 +2345,7 @@ describe("Phase 0 missing hardening routes", () => {
           const failedDecisionReview = JSON.parse(
             failedDecision.stdout,
           ).execution.outputs[0].lifecycleDatum.revisionId as string;
-          const authorityCorrection = prepareNextAssignment(
+          const authorityCorrection = await prepareNextAssignment(
             repository,
             "revise-foundation-correction-decision-after-review@1",
           );
@@ -2345,7 +2397,7 @@ describe("Phase 0 missing hardening routes", () => {
           }];
           const dataRoot = path.join(repository, ".lifecycle", "data");
           const beforeChangedCondition = await directoryDigest(dataRoot);
-          const changedCondition = submitAssignment(
+          const changedCondition = await submitAssignment(
             repository,
             authorityCorrection,
             renewedOutput("A different condition chosen during Review correction."),
@@ -2353,7 +2405,7 @@ describe("Phase 0 missing hardening routes", () => {
           expect(changedCondition.status).not.toBe(0);
           expect(await directoryDigest(dataRoot)).toBe(beforeChangedCondition);
 
-          const renewed = submitAssignment(
+          const renewed = await submitAssignment(
             repository,
             authorityCorrection,
             renewedOutput(reactivationCondition!),
@@ -2362,7 +2414,7 @@ describe("Phase 0 missing hardening routes", () => {
           currentCorrectionDecision = JSON.parse(
             renewed.stdout,
           ).execution.outputs[0].lifecycleDatum.revisionId as string;
-          freshReview = prepareNextAssignment(
+          freshReview = await prepareNextAssignment(
             repository,
             "review-datum-in-context@2",
           );
@@ -2377,7 +2429,7 @@ describe("Phase 0 missing hardening routes", () => {
             ]),
           );
         }
-        const reviewedDecision = submitAssignment(
+        const reviewedDecision = await submitAssignment(
           repository,
           freshReview,
           passingReviewOutput(freshReview),
@@ -2386,7 +2438,7 @@ describe("Phase 0 missing hardening routes", () => {
           reviewedDecision.status,
           `${reviewedDecision.stderr}${reviewedDecision.stdout}`,
         ).toBe(0);
-        freshReview = prepareNextAssignment(
+        freshReview = await prepareNextAssignment(
           repository,
           "review-datum-in-context@2",
         );
@@ -2411,7 +2463,7 @@ describe("Phase 0 missing hardening routes", () => {
         ]),
       );
 
-      const acceptedCorrection = submitAssignment(
+      const acceptedCorrection = await submitAssignment(
         repository,
         freshReview,
         passingReviewOutput(freshReview),
@@ -2432,7 +2484,7 @@ describe("Phase 0 missing hardening routes", () => {
         candidateAssignment,
         "member_reviews",
       );
-      const candidateSubmission = submitAssignment(
+      const candidateSubmission = await submitAssignment(
         repository,
         candidateAssignment,
         [{
@@ -2459,7 +2511,7 @@ describe("Phase 0 missing hardening routes", () => {
         candidateSubmission.status,
         `${candidateSubmission.stderr}${candidateSubmission.stdout}`,
       ).toBe(0);
-      const candidateReview = prepareNextAssignment(
+      const candidateReview = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
@@ -3507,14 +3559,14 @@ describe("Phase 0 missing hardening routes", () => {
       const beforeInvalid = await directoryDigest(dataRoot);
       const invalidOutput = structuredClone(answered);
       invalidOutput.lifecycleDatum.payload.state = "open";
-      const invalid = submitAssignment(repository, prepared, [invalidOutput]);
+      const invalid = await submitAssignment(repository, prepared, [invalidOutput]);
       expect(invalid.status).toBe(1);
       expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
         expect.objectContaining({ code: "scenario-completion-failed" }),
       ]));
       expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
-      const valid = submitAssignment(repository, prepared, [answered]);
+      const valid = await submitAssignment(repository, prepared, [answered]);
       expect(valid.status, `${valid.stderr}${valid.stdout}`).toBe(0);
       const execution = JSON.parse(valid.stdout).execution;
       expect(execution.definition.scenario).toBe("resolve-question@2");
@@ -3528,7 +3580,7 @@ describe("Phase 0 missing hardening routes", () => {
           type: "QST",
         }),
       }));
-      const listed = mdlm(repository, "list", "--json");
+      const listed = await mdlm(repository, "list", "--json");
       expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
       const data = JSON.parse(listed.stdout).data as Array<{
         lifecycleDatum: { datum: LifecycleRecord["datum"] };
@@ -3548,7 +3600,7 @@ describe("Phase 0 missing hardening routes", () => {
         kind: "empirical",
         state: "answered",
       });
-      expect(mdlm(repository, "doctor", "--json").status).toBe(0);
+      expect((await mdlm(repository, "doctor", "--json")).status).toBe(0);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
@@ -3731,7 +3783,7 @@ describe("Phase 0 missing hardening routes", () => {
           }],
         },
       };
-      const submitted = mdlmWithInput(
+      const submitted = await mdlmWithInput(
         repository,
         `${JSON.stringify(unable)}\n`,
         "scenario",
@@ -3747,7 +3799,7 @@ describe("Phase 0 missing hardening routes", () => {
       }));
       expect(await directoryDigest(dataRoot)).toBe(before);
 
-      const fresh = prepareNextAssignment(repository, "resolve-question@2");
+      const fresh = await prepareNextAssignment(repository, "resolve-question@2");
       expect(fresh.outcome).toEqual(expect.objectContaining({
         outcome: "attention-required",
         authorityRequirement: expect.objectContaining({

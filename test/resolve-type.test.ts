@@ -73,6 +73,12 @@ describe("resolveType", () => {
         ],
       }),
       expect.objectContaining({
+        id: "incorporates-answer",
+        targets: [
+          expect.objectContaining({ types: ["DEC"], identity: "revision" }),
+        ],
+      }),
+      expect.objectContaining({
         id: "derived-from",
         targets: [
           expect.objectContaining({ types: ["PSP"], identity: "stable" }),
