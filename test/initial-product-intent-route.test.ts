@@ -310,7 +310,9 @@ describe("initial product-intent authority", () => {
 
       const workerResponse = assignmentResponse(resolution, resolutionOutputs) as JsonObject;
       const workerProposal = workerResponse.proposal as JsonObject;
-      workerProposal.authoritySupplies = [];
+      workerProposal.authoritySupplies = [
+        "stakeholder:attended-authority-holder",
+      ];
       const session: PiAssignmentSession = {
         get isIdle() { return true; },
         prompt: vi.fn(async () => undefined),
@@ -341,6 +343,9 @@ describe("initial product-intent authority", () => {
           },
         },
       );
+      expect((carriedResponse.proposal as JsonObject).authoritySupplies).toEqual([
+        "stakeholder",
+      ]);
       const resolved = mdlmWithInput(
         repository,
         `${JSON.stringify(carriedResponse)}\n`,

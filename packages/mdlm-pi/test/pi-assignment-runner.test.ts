@@ -104,11 +104,52 @@ describe("PiAssignmentRunner", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects worker authority that conflicts with attended authority", async () => {
+  it("normalizes equivalent worker and attended authority before capture", async () => {
+    const response: JsonObject = {
+      kind: "proposal",
+      proposal: { authoritySupplies: ["stakeholder:attended-authority-holder"] },
+    };
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(response); });
+        return session;
+      }),
+    });
+
+    await expect(runner.run(packet(), {
+      attendedContext: {
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+        },
+        authoritySupply: {
+          authority: "stakeholder",
+          source: "attended-authority-holder",
+        },
+      },
+    })).resolves.toEqual({
+      ...response,
+      proposal: { authoritySupplies: ["stakeholder"] },
+    });
+  });
+
+  it.each([
+    ["kind", ["release-manager"]],
+    ["source", ["stakeholder:other-authority-holder"]],
+  ])("rejects a worker authority with a different %s", async (_difference, authoritySupplies) => {
     const response: JsonObject = {
       assignment: assignmentId,
       kind: "proposal",
-      proposal: { authoritySupplies: ["release-manager"] },
+      proposal: { authoritySupplies },
     };
     const session: PiAssignmentSession = {
       get isIdle() { return true; },
@@ -140,7 +181,7 @@ describe("PiAssignmentRunner", () => {
         conclusion: { statement: "Use the accepted scope." },
       },
     })).rejects.toThrow(
-      `worker authority ["release-manager"] conflicts with attended authority 'stakeholder'`,
+      `worker authority ${JSON.stringify(authoritySupplies)} conflicts with attended authority 'stakeholder'`,
     );
   });
 
