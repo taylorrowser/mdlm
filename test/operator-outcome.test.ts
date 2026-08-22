@@ -9,11 +9,7 @@ import {
 } from "../src/operator-outcome.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
-import {
-  mdlm,
-  mdlmWithInput,
-  mdlmWithInputAndEnvironment,
-} from "./helpers/mdlm.js";
+import { mdlmWithInputAndEnvironment } from "./helpers/mdlm.js";
 import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
 
 async function applicationMdlm(repository: string, ...arguments_: string[]) {
@@ -85,13 +81,13 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
   );
   await recordInstalledPackageChange(repository, packageRoot);
 
-  const first = JSON.parse(mdlm(repository, "next").stdout);
-  const packet = JSON.parse(mdlm(
+  const first = JSON.parse((await applicationMdlm(repository, "next")).stdout);
+  const packet = JSON.parse((await applicationMdlm(
     repository,
     "scenario",
     "prepare",
     first.assignment.id,
-  ).stdout);
+  )).stdout);
   const questions = [
     ["Bounded product intent", "What product is intended?", "The answer establishes product scope."],
     ["Choose the retained boundary", "Which boundary should remain?", "The answer changes product scope."],
@@ -122,7 +118,7 @@ async function publishCheckpointQuestions(repository: string): Promise<void> {
       body: "Checkpoint-scheduled stakeholder question.\n",
     },
   }));
-  const submitted = mdlmWithInput(
+  const submitted = await applicationMdlmWithInput(
     repository,
     `${JSON.stringify({
       contract: "mdlm-assignment-response@1",
@@ -459,7 +455,12 @@ describe("public mdlm outcome and status seam", () => {
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-operator-outcome-"));
     repository = path.join(parent, "repository");
-    const initialized = mdlm(parent, "init", repository, "--json");
+    const initialized = await applicationMdlm(
+      parent,
+      "init",
+      repository,
+      "--json",
+    );
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
   });
 
@@ -468,7 +469,7 @@ describe("public mdlm outcome and status seam", () => {
   });
 
   it("reports status without allocating an Assignment", async () => {
-    const status = mdlm(repository, "status", "--json");
+    const status = await applicationMdlm(repository, "status", "--json");
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout)).toEqual(
@@ -502,7 +503,7 @@ describe("public mdlm outcome and status seam", () => {
         diagnostics: [],
       }),
     );
-    const readable = mdlm(repository, "status");
+    const readable = await applicationMdlm(repository, "status");
     expect(readable.status, `${readable.stderr}${readable.stdout}`).toBe(0);
     expect(readable.stdout).toContain("Active Phase: phase-0-wayfinding@5");
     expect(readable.stdout).toContain("Current Operator Outcome: assignment");
@@ -511,14 +512,19 @@ describe("public mdlm outcome and status seam", () => {
       ".lifecycle/work/active-assignment.json",
     ))).rejects.toMatchObject({ code: "ENOENT" });
 
-    const allocated = JSON.parse(mdlm(repository, "next").stdout);
-    const withLease = JSON.parse(mdlm(repository, "status", "--json").stdout);
+    const allocated = JSON.parse(
+      (await applicationMdlm(repository, "next")).stdout,
+    );
+    const withLease = JSON.parse(
+      (await applicationMdlm(repository, "status", "--json")).stdout,
+    );
     expect(withLease.currentOutcome).toEqual({
       outcome: "assignment",
       assignment: { allocation: "active", id: allocated.assignment.id },
     });
-    expect(JSON.parse(mdlm(repository, "next").stdout).assignment)
-      .toEqual(allocated.assignment);
+    expect(
+      JSON.parse((await applicationMdlm(repository, "next")).stdout).assignment,
+    ).toEqual(allocated.assignment);
   });
 
   it("returns immediate attended work with an exact Assignment and Authority Requirement", () => {
@@ -552,7 +558,7 @@ describe("public mdlm outcome and status seam", () => {
   it("projects one complete checkpoint conversation and the first exact Assignment", async () => {
     await publishCheckpointQuestions(repository);
 
-    const next = mdlm(repository, "next");
+    const next = await applicationMdlm(repository, "next");
 
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
@@ -609,7 +615,7 @@ describe("public mdlm outcome and status seam", () => {
     );
     expect(new Set(revisions).size).toBe(2);
 
-    const prepared = mdlm(
+    const prepared = await applicationMdlm(
       repository,
       "scenario",
       "prepare",
@@ -643,7 +649,7 @@ describe("public mdlm outcome and status seam", () => {
     await fs.writeFile(manifestPath, stringify(manifest));
     await recordInstalledPackageChange(repository, packageRoot);
 
-    const status = mdlm(repository, "status", "--json");
+    const status = await applicationMdlm(repository, "status", "--json");
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
     expect(JSON.parse(status.stdout).profile).toEqual(
@@ -943,9 +949,9 @@ gate:
       },
     });
 
-    const next = mdlm(repository, "next");
-    const status = mdlm(repository, "status", "--json");
-    const readableStatus = mdlm(repository, "status");
+    const next = await applicationMdlm(repository, "next");
+    const status = await applicationMdlm(repository, "status", "--json");
+    const readableStatus = await applicationMdlm(repository, "status");
 
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
@@ -998,8 +1004,8 @@ gate:
       },
     });
 
-    const next = mdlm(repository, "next");
-    const status = mdlm(repository, "status", "--json");
+    const next = await applicationMdlm(repository, "next");
+    const status = await applicationMdlm(repository, "status", "--json");
 
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
@@ -1041,7 +1047,7 @@ gate:
       },
     });
 
-    const next = mdlm(repository, "next");
+    const next = await applicationMdlm(repository, "next");
 
     expect(next.status).toBe(1);
     expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
@@ -1057,7 +1063,7 @@ gate:
   it("returns Process Dead End successfully with blocker diagnostics", async () => {
     repository = await terminalProcessRepository(parent);
 
-    const next = mdlm(repository, "next");
+    const next = await applicationMdlm(repository, "next");
 
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
@@ -1077,7 +1083,7 @@ gate:
       "{not-json\n",
     );
 
-    const next = mdlm(repository, "next");
+    const next = await applicationMdlm(repository, "next");
 
     expect(next.status).toBe(1);
     expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
@@ -1101,7 +1107,7 @@ gate:
       "\n# integrity failure\n",
     );
 
-    const next = mdlm(repository, "next");
+    const next = await applicationMdlm(repository, "next");
 
     expect(next.status).toBe(1);
     expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
@@ -1114,7 +1120,7 @@ gate:
         code: "process-package-selection-mismatch",
       })],
     }));
-    const status = mdlm(repository, "status", "--json");
+    const status = await applicationMdlm(repository, "status", "--json");
     expect(status.status).toBe(1);
     expect(JSON.parse(status.stdout)).toEqual(expect.objectContaining({
       contract: "mdlm-status@1",
