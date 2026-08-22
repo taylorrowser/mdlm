@@ -344,7 +344,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;/);
   assert.match(assignmentSource, /const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 20_000;/);
-  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 50_000;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 60_000;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = 60_000;/);
   assert.match(phaseTwoSource, /const CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS = 480_000;/);
   assert.match(phaseTwoSource, /runZeroInterfacePhaseTwoRoute,\n  CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS,/);
