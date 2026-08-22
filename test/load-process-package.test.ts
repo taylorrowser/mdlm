@@ -6,8 +6,13 @@ import { validateDefinitionGraph } from "../src/definition-graph.js";
 import { loadProcessPackage, type ProcessPackage } from "../src/index.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
 import { validateScenarioContracts } from "../src/scenario-contract.js";
+import {
+  canonicalProcessPackage,
+  verifyCanonicalProcessPackageFixture,
+} from "./helpers/canonical-process-package-fixture.js";
 
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+const CANONICAL_PROCESS_ROOT = ".lifecycle/process";
 
 async function copiedProcessPackage(): Promise<string> {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
@@ -17,6 +22,80 @@ async function copiedProcessPackage(): Promise<string> {
   });
   return processRoot;
 }
+
+describe("canonical immutable ProcessPackage fixture", () => {
+  let livePackage: ProcessPackage;
+
+  beforeAll(async () => {
+    const loaded = await loadProcessPackage(CANONICAL_PROCESS_ROOT);
+    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
+      .toBe(true);
+    if (!loaded.ok) throw new Error("Canonical process package did not load");
+    livePackage = loaded.package;
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
+
+  it("is exact, recursively frozen, and isolated from mutable clones", async () => {
+    const fixturePackage = await canonicalProcessPackage();
+    await expect(verifyCanonicalProcessPackageFixture(livePackage)).resolves.toEqual({
+      processPackage: "mdlm-bootstrap@0.74.0",
+      verified: true,
+    });
+    expect(fixturePackage).toStrictEqual(livePackage);
+
+    const assertFrozen = (value: unknown): void => {
+      if (typeof value !== "object" || value === null) return;
+      expect(Object.isFrozen(value)).toBe(true);
+      for (const nested of Object.values(value)) assertFrozen(nested);
+    };
+    assertFrozen(fixturePackage);
+
+    const mutable = structuredClone(fixturePackage);
+    mutable.manifest.version = "mutated-test-clone";
+    expect(fixturePackage.manifest.version).toBe("0.74.0");
+  });
+
+  it("rejects artifact hash and source-provenance drift", async () => {
+    const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-canonical-fixture-"));
+    try {
+      const fixtureRoot = path.join(temporaryRoot, "fixture");
+      await fs.cp(
+        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
+        fixtureRoot,
+        { recursive: true },
+      );
+      const manifestPath = path.join(fixtureRoot, "manifest.json");
+      const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+        artifact: { archive: string };
+        processPackage: { digest: string };
+      };
+      const archivePath = path.join(fixtureRoot, manifest.artifact.archive);
+      await fs.appendFile(archivePath, "drift");
+      await expect(canonicalProcessPackage({ fixtureRoot })).rejects.toThrow(
+        "Compressed digest mismatch",
+      );
+
+      await fs.rm(fixtureRoot, { recursive: true, force: true });
+      await fs.cp(
+        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
+        fixtureRoot,
+        { recursive: true },
+      );
+      const driftedManifest = JSON.parse(
+        await fs.readFile(path.join(fixtureRoot, "manifest.json"), "utf8"),
+      ) as { processPackage: { digest: string } };
+      driftedManifest.processPackage.digest = `sha256:${"0".repeat(64)}`;
+      await fs.writeFile(
+        path.join(fixtureRoot, "manifest.json"),
+        `${JSON.stringify(driftedManifest, null, 2)}\n`,
+      );
+      await expect(
+        verifyCanonicalProcessPackageFixture(livePackage, { fixtureRoot }),
+      ).rejects.toThrow("Source Process Package digest mismatch");
+    } finally {
+      await fs.rm(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("loadProcessPackage", () => {
   let validPackage: ProcessPackage;

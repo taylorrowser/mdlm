@@ -1,0 +1,22 @@
+{
+  "contract": "mdlm-canonical-process-package-fixture@1",
+  "schemaVersion": 1,
+  "artifact": {
+    "archive": "process-package.json.gz",
+    "compression": "gzip -n -9",
+    "compressedSha256": "35ffc9752e191def631e8cc6fa6c5052669191d03b0e0fafc61270d8e00c1073",
+    "contentSha256": "b3dc2712f07b203d9549ca10b6d036e4bf05db18cba0e69c84356a3f373fd625",
+    "gzipHeaderMtime": 0
+  },
+  "processPackage": {
+    "root": ".lifecycle/process",
+    "reference": "mdlm-bootstrap@0.74.0",
+    "digest": "sha256:deb27430c4d239eb67a1c19025d77dd6623813f83b0588681eebfc07bdfa8a0d",
+    "definitionCount": 559
+  },
+  "provenance": {
+    "sourceCommit": "af632593793368513247aed19b3f34996919340a",
+    "sourceTree": "4e40b4f6b6e9b6c081052524d1c240d69a9219fd",
+    "captureCommand": "loadProcessPackage('.lifecycle/process') + JSON.stringify + gzip -n -9"
+  }
+}

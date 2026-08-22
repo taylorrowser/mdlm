@@ -9,7 +9,7 @@ import { simulateWeightedSchedule } from "./weighted-token-scheduler.mjs";
 
 const ROOT_ELIGIBILITY_MS = 540_000;
 const OUTER_DEADLINE_MS = 600_000;
-const REQUIRED_NON_ROOT_AND_GATE_RESERVE_MS = 90_000;
+const REQUIRED_NON_ROOT_AND_GATE_RESERVE_MS = 60_000;
 const ORCHESTRATION_ALLOWANCE_MS = 2_000;
 const CONSERVATIVE_RESERVE_MS = 20_000;
 
