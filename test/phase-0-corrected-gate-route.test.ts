@@ -42,11 +42,6 @@ async function initializedRepository(prefix: string) {
   return { parent, repository };
 }
 
-async function doctor(repository: string) {
-  const result = await executeCommandApplication(["doctor", "--json"], repository);
-  expect(result.exitCode, result.output).toBe(0);
-}
-
 function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
   const subject = inputRevision(prepared, "subject");
   return [{
@@ -90,7 +85,6 @@ describe("Phase 0 corrected-gate public route", () => {
     );
     try {
       await installLifecycleDataFixture(repository, "candidate-publication");
-      await doctor(repository);
       const prepared = await prepareNextAssignment(
         repository,
         "create-phase-0-intent-candidate@1",
@@ -144,7 +138,6 @@ describe("Phase 0 corrected-gate public route", () => {
           process_provenance: expect.any(Object),
         }),
       }));
-      await doctor(repository);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }

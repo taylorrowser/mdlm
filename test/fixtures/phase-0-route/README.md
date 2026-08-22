@@ -9,14 +9,7 @@ These gzip archives contain JSON arrays of UTF-8 Lifecycle Data files. They are 
 - `resolved-initial-intent` stops after attended product-intent resolution publishes the answered Question and exact authority Decision, immediately before their Reviews and correction.
 - `review-foundation` stops after public PSP publication and immediately before automatic MAP Review Context materialization.
 
-The archives use deterministic gzip headers. Their uncompressed SHA-256 digests are:
-
-- `candidate-publication`: `863802070d55e997105463f69805e13bd5b8d505de19fc816cd7dbe196b6544c`
-- `candidate-currentness`: `d1e721228716094272d76e43f243d06ffd2b5d4b908dfa0e193a2f098e6bf921`
-- `corrected-gate`: `7135250bb077fb61513df5e6c63635b62264eff965269c05e8e8c38b0274a35d`
-- `initial-intent-foundation`: `b9b560310529d393d0509445286c58a794697d4ea5f0edd777dbb84f8f745eca`
-- `resolved-initial-intent`: `e4c1de143c72abcab9f217354f8547e2dadffa2c8c17c844b14e3a649f48fc57`
-- `review-foundation`: `9839fb1bbe50630f79495586d2d14ff9197fa210bbc875b22986389b6a04cedb`
+`manifest.json` records each archive's compressed and uncompressed SHA-256, deterministic gzip mtime, entry count, exact Process Package digest, checkpoint, and source route. The installer verifies those values together with confined, sorted, unique paths; transaction ownership; completed `mdlm-scenario-execution@4` provenance; response and output ownership; selected and installed package digests; and every Markdown record's exact process reference before writing any fixture data.
 
 `test/helpers/lifecycle-data-fixture.ts` installs an archive into a newly initialized repository. The resumed public command must load and validate the records, exact package provenance, authority-evidence executions, links, baseline snapshots, and current obligations before it can prepare or publish the next Assignment.
 
