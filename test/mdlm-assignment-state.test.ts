@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
+import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js";
 
 async function invokeMdlm(
   repository: string,
@@ -317,6 +318,21 @@ describe("MDLM Assignment leasing and preparation", () => {
     ]);
   });
 
+  it("reuses the exact leased snapshot for immediate in-process preparation", async () => {
+    const next = await mdlm(repository, "next");
+    const assignment = JSON.parse(next.stdout).assignment.id as string;
+
+    const prepared = await collectPerformanceDiagnostics(() =>
+      executeCommandApplication(
+        ["scenario", "prepare", assignment],
+        repository,
+      )
+    );
+
+    expect(prepared.value.exitCode, prepared.value.output).toBe(0);
+    expect(prepared.diagnostics.repository.loads).toBe(0);
+  });
+
   it("rejects preparation after tracked repository state changes without rebasing", async () => {
     const next = await mdlm(repository, "next");
     const assignment = JSON.parse(next.stdout).assignment.id as string;
@@ -337,6 +353,24 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(JSON.parse(restored.stdout).diagnostics).toEqual([
       expect.objectContaining({ code: "assignment-unavailable" }),
     ]);
+  });
+
+  it("does not reuse preparation after untracked Lifecycle Data changes", async () => {
+    const next = await mdlm(repository, "next");
+    const assignment = JSON.parse(next.stdout).assignment.id as string;
+    await fs.writeFile(
+      path.join(repository, ".lifecycle/data/untracked.md"),
+      "not Lifecycle Data\n",
+    );
+
+    const prepared = await mdlm(repository, "scenario", "prepare", assignment);
+
+    expect(prepared.status).toBe(1);
+    expect(JSON.parse(prepared.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      command: "scenario.prepare",
+      diagnostics: expect.arrayContaining([expect.any(Object)]),
+    }));
   });
 
   it("does not retain the old next projection options", async () => {
