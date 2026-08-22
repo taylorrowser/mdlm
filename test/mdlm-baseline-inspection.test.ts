@@ -7,7 +7,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { executeCommandApplication } from "../src/command-application.js";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import {
-  diffExactBaselines,
   finalizeExactBaselineScenarioOutput,
   verifyExactBaseline,
 } from "../src/exact-baseline-repository.js";
@@ -262,21 +261,6 @@ async function verifyBaseline(repository: string, identity: string) {
   return verifyExactBaseline(repository, processPackage, processRef, identity);
 }
 
-async function diffBaselines(
-  repository: string,
-  beforeIdentity: string,
-  afterIdentity: string,
-) {
-  const { processPackage, processRef } = await selectedPackage(repository);
-  return diffExactBaselines(
-    repository,
-    processPackage,
-    processRef,
-    beforeIdentity,
-    afterIdentity,
-  );
-}
-
 async function inspectRepositoryHealth(repository: string) {
   const { processPackage, processRef } = await selectedPackage(repository);
   const inspection = await loadRepositoryInspection(
@@ -373,12 +357,14 @@ describe("mdlm baseline inspection", () => {
     "verifies exact members and evidence and reports substantive baseline differences",
     "detects changed bytes, missing exact members, and corrupt frozen resolutions",
     "loads one verified repository snapshot while checking all baselines and projections",
+    "loads one snapshot for current-package baseline operator inspection",
     "verifies every repository baseline before rebuilding disposable projections",
   ]);
   let templateParent: string;
   let templateRepository: string;
   let changedTemplateRepository: string;
   let changedBaselineFixture: BaselineFixture;
+  let baselineHeavyTemplateRepository: string;
   let parent: string;
   let repository: string;
 
@@ -402,6 +388,10 @@ describe("mdlm baseline inspection", () => {
     await copyRepositoryFoundation(templateRepository, changedTemplateRepository);
     changedBaselineFixture = deepFreeze(
       await arrangeChangedBaselines(changedTemplateRepository),
+    );
+    baselineHeavyTemplateRepository = cloneBaselineHeavyRepository(
+      templateParent,
+      "baseline-heavy-repository",
     );
   });
 
@@ -824,9 +814,19 @@ describe("mdlm baseline inspection", () => {
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {
     const fixture = structuredClone(changedBaselineFixture);
+    const { processPackage, processRef } = await selectedPackage(repository);
+    const loaded = await loadRepositoryInspection(
+      repository,
+      processPackage,
+      processRef,
+    );
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
 
     for (const baseline of [fixture.before, fixture.after]) {
-      const verified = await verifyBaseline(repository, baseline.datum.revision_id);
+      const verified = await loaded.value.verifyExactBaseline(
+        baseline.datum.revision_id,
+      );
       expect(verified.ok).toBe(true);
       if (!verified.ok) throw new Error(JSON.stringify(verified.diagnostics));
       expect(verified.value).toEqual({
@@ -848,8 +848,7 @@ describe("mdlm baseline inspection", () => {
       });
     }
 
-    const compared = await diffBaselines(
-      repository,
+    const compared = await loaded.value.diffExactBaselines(
       fixture.before.datum.revision_id,
       fixture.after.datum.revision_id,
     );
@@ -1071,10 +1070,7 @@ describe("mdlm baseline inspection", () => {
   });
 
   it("loads one snapshot while doctor verifies many exact baselines", async () => {
-    const baselineHeavyRepository = cloneBaselineHeavyRepository(
-      parent,
-      "baseline-heavy-doctor",
-    );
+    const baselineHeavyRepository = baselineHeavyTemplateRepository;
     const doctor = mdlmWithEnvironment(
       baselineHeavyRepository,
       { MDLM_PERFORMANCE: "json" },
@@ -1091,21 +1087,19 @@ describe("mdlm baseline inspection", () => {
     expect(diagnostics.work["baseline.revisions-checked"]).toBeGreaterThan(30);
   }, 30_000);
 
-  it("loads one snapshot for baseline-heavy operator inspection", () => {
-    const baselineHeavyRepository = cloneBaselineHeavyRepository(
-      parent,
-      "baseline-heavy-status",
-    );
+  it("loads one snapshot for current-package baseline operator inspection", () => {
     const status = mdlmWithEnvironment(
-      baselineHeavyRepository,
+      repository,
       { MDLM_PERFORMANCE: "json" },
       "status",
-      "--json",
     );
-    expectSuccess(status, "baseline-heavy mdlm status");
+    expectSuccess(status, "current-package baseline mdlm status");
+    expect(status.stdout).toContain("Process Package: mdlm-bootstrap@0.74.0");
+    expect(status.stdout).toContain("Current Operator Outcome:");
     expect(JSON.parse(status.stderr)).toMatchObject({
       contract: "mdlm-performance@1",
-      repository: { loads: 1 },
+      repository: { loads: 1, markdownFiles: 6 },
+      work: { "baseline.revisions-checked": 2 },
       stages: {
         "baseline.verification": { count: 1 },
         "lifecycle.evaluation": { count: 1 },
@@ -1114,10 +1108,7 @@ describe("mdlm baseline inspection", () => {
   }, 30_000);
 
   it("rejects Assignment preparation across concurrent tracked changes", async () => {
-    const baselineHeavyRepository = cloneBaselineHeavyRepository(
-      parent,
-      "baseline-heavy-concurrent",
-    );
+    const baselineHeavyRepository = baselineHeavyTemplateRepository;
     const result = await nextDuringTrackedChanges(baselineHeavyRepository);
     expect(
       result.exit,

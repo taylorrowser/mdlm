@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
 import type { DatumEnvelope, ProcessPackage } from "./index.js";
 import type {
+  BaselineDiff,
   BaselineFreeze,
   BaselineRepositoryVerification,
+  BaselineVerification,
   BaselineVerificationCache,
 } from "./exact-baseline-repository.js";
 import {
+  diffExactBaselinesData,
   finalizeExactBaselineScenarioOutputData,
+  verifyExactBaselineData,
   verifyRepositoryBaselinesData,
 } from "./exact-baseline-repository.js";
 import {
@@ -65,6 +69,13 @@ export interface RepositoryTransaction {
 export interface RepositoryInspection {
   lifecycleSnapshot(phaseId: string): LifecycleSnapshot;
   beginTransaction(): RepositoryTransaction;
+  verifyExactBaseline(
+    baselineIdentity: string,
+  ): Promise<RepositoryResult<BaselineVerification>>;
+  diffExactBaselines(
+    beforeIdentity: string,
+    afterIdentity: string,
+  ): RepositoryResult<BaselineDiff>;
   verifyBaselines(): Promise<RepositoryResult<BaselineRepositoryVerification>>;
   rebuildGeneratedProjections(): Promise<
     RepositoryResult<GeneratedRepositoryProjections>
@@ -162,6 +173,25 @@ export async function loadRepositoryInspection(
             return result;
           },
         };
+      },
+      verifyExactBaseline(baselineIdentity) {
+        return verifyExactBaselineData(
+          root,
+          processPackage,
+          processReference,
+          baselineIdentity,
+          parsed,
+          baselineVerificationCache,
+        );
+      },
+      diffExactBaselines(beforeIdentity, afterIdentity) {
+        return diffExactBaselinesData(
+          processPackage,
+          processReference,
+          beforeIdentity,
+          afterIdentity,
+          parsed,
+        );
       },
       verifyBaselines() {
         baselineVerification ??= measureAsync("baseline.verification", () =>

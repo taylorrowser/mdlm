@@ -883,18 +883,34 @@ export async function diffExactBaselines(
   beforeIdentity: string,
   afterIdentity: string,
 ): Promise<RepositoryResult<BaselineDiff>> {
-  const capability = exactBaselineType(processPackage);
-  if (!capability.ok) return capability;
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
-  const before = exactBaselineSubject(
+  return diffExactBaselinesData(
+    processPackage,
+    processRef,
+    beforeIdentity,
+    afterIdentity,
     loaded.value,
+  );
+}
+
+export function diffExactBaselinesData(
+  processPackage: ProcessPackage,
+  processRef: string,
+  beforeIdentity: string,
+  afterIdentity: string,
+  parsed: ParsedDatum[],
+): RepositoryResult<BaselineDiff> {
+  const capability = exactBaselineType(processPackage);
+  if (!capability.ok) return capability;
+  const before = exactBaselineSubject(
+    parsed,
     beforeIdentity,
     capability.value,
   );
   if (!before.ok) return before;
   const after = exactBaselineSubject(
-    loaded.value,
+    parsed,
     afterIdentity,
     capability.value,
   );
@@ -928,11 +944,11 @@ export async function diffExactBaselines(
     ),
   }];
   const beforeReferences = referencesByStableDatum(
-    loaded.value,
+    parsed,
     comparedBaselineReferences(beforeDatum),
   );
   const afterReferences = referencesByStableDatum(
-    loaded.value,
+    parsed,
     comparedBaselineReferences(afterDatum),
   );
   for (const stableId of [...beforeReferences.keys()].filter((identity) =>
@@ -982,7 +998,7 @@ export async function diffExactBaselines(
   const evaluation = evaluateLifecycle(processPackage, {
     processRef,
     phaseId,
-    records: loaded.value.map((item) => item.lifecycleDatum),
+    records: parsed.map((item) => item.lifecycleDatum),
     dependencyComparisons: comparisons,
   });
   if (evaluation.diagnostics.length > 0) {
