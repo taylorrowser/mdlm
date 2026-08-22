@@ -166,7 +166,8 @@ function cardinalityRange(cardinality: string): { minimum: number; maximum: numb
   }
 }
 
-function outputContractDiagnostics(
+/** Validate one Scenario proposal against its declared per-invocation output contract. */
+export function scenarioOutputContractDiagnostics(
   scenario: VersionedDefinition,
   invocations: ScenarioDryRunInvocation[],
   outputs: ScenarioOutputProposal[],
@@ -712,7 +713,7 @@ async function submitScenario(
     }
   }
   const scenario = selectedScenario;
-  const contractDiagnostics = outputContractDiagnostics(
+  const contractDiagnostics = scenarioOutputContractDiagnostics(
     scenario,
     dryRun.invocations,
     proposal.outputs,

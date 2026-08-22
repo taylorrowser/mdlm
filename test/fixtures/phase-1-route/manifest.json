@@ -1,6 +1,66 @@
 {
   "contract": "mdlm-current-lifecycle-data-fixtures@1",
   "fixtures": {
+    "phase-1-pilot-retry-ready": {
+      "archive": "phase-1-pilot-retry-ready.data.json.gz",
+      "compressedSha256": "59e0aa7f7901ae8cbea6e537f6967f746b23a3f232e7f16895ce74da2e571c3c",
+      "contentSha256": "163bf79d51f5756ec03b2e73a93d21d49dc871a608462bead0f6797b47008e1d",
+      "entryCount": 18,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:e5e1533167c2d71be979d29e3f5898c16c47aa1d98e7d9c57de77d3b4d57da1b"
+      },
+      "checkpoint": "Immediately after durable publication of the completed all-not-launched pilot RUN and inconclusive RES, before preparing the exact retry Assignment.",
+      "provenance": {
+        "sourceCommit": "245e873dc826c2c287d429c3df681df8fbee287f",
+        "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
+        "route": "test/phase-1-hardening-routes.test.ts: retries after a durable all-not-launched run and progresses only after exercised evidence through the public command application",
+        "captureLog": "/tmp/issue-203-phase1-pilot-retry-exact-recapture.log",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 35184 ms whole process group; source records captured with the exact selected package digest",
+        "compression": "gzip -n -9"
+      }
+    },
+    "phase-1-run-ready": {
+      "archive": "phase-1-run-ready.data.json.gz",
+      "compressedSha256": "9dea67b4f00e564f190e3bdaa4eb2c0e22ea261647e08bf9183a091ffc339a81",
+      "contentSha256": "be276f56ec176a48cb0ce75c725a5b0c01bb69cfbcc2e926585190f047b9bfff",
+      "entryCount": 8,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:fe4b03737ad107e325e14ce24d53389ae1fa0636222297d83ccdfe4901bf6784"
+      },
+      "checkpoint": "Exact source transaction state immediately before preparation of the qualification RUN/RES Assignment; derived by removing only the later completed RUN transaction from the same captured immutable transaction tree.",
+      "provenance": {
+        "sourceCommit": "245e873dc826c2c287d429c3df681df8fbee287f",
+        "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
+        "route": "test/phase-1-hardening-routes.test.ts: executes and repository-validates exact RUN and RES outputs through the package Scenario",
+        "captureLog": "/tmp/issue-203-phase1-runres-exact-recapture.log",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 50257 ms whole process group; source records captured with the exact selected package digest",
+        "compression": "gzip -n -9"
+      }
+    },
+    "phase-1-run-res-published": {
+      "archive": "phase-1-run-res-published.data.json.gz",
+      "compressedSha256": "f9ffb30c7836a507cc66c59e4c72c8dc3b314906d5db5d2f19e47de31350f600",
+      "contentSha256": "8e762d9ee1af4cc301b0e3fe86ef5b5b62a40cdaad788108cf54434046dd2618",
+      "entryCount": 11,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:fe4b03737ad107e325e14ce24d53389ae1fa0636222297d83ccdfe4901bf6784"
+      },
+      "checkpoint": "Immediately after exact RUN/RES Scenario publication, retaining the completed Assignment-backed execution and all source records.",
+      "provenance": {
+        "sourceCommit": "245e873dc826c2c287d429c3df681df8fbee287f",
+        "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
+        "route": "test/phase-1-hardening-routes.test.ts: executes and repository-validates exact RUN and RES outputs through the package Scenario",
+        "captureLog": "/tmp/issue-203-phase1-runres-exact-recapture.log",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 50257 ms whole process group; source records captured with the exact selected package digest",
+        "compression": "gzip -n -9"
+      }
+    },
     "phase-1-vai-correction-ready": {
       "archive": "phase-1-vai-correction-ready.data.json.gz",
       "compressedSha256": "1147b114464ac865baf2220aeeab3c71333823a94ffd5eb13ce51e3a7efc4659",
@@ -18,6 +78,46 @@
         "route": "test/phase-1-hardening-routes.test.ts: allocates Review of corrected VAI r2 instead of a run for failed superseded r1",
         "captureLog": "/tmp/issue-203-phase-1-vai-fixture-capture.log",
         "captureResult": "exit 0; 1 passed; 25 skipped; 99615 ms whole process group",
+        "compression": "gzip -n -9"
+      }
+    },
+    "phase-1-vai-review-ready": {
+      "archive": "phase-1-vai-review-ready.data.json.gz",
+      "compressedSha256": "afc2482713dacf0a0110c505a70ad9d5a481ba319acbba6f289fd6dfdb191c72",
+      "contentSha256": "1513afeabfac9f9910fb4b6cb858f36c4fee8b63a3b96337bba80dd2eae4f1f2",
+      "entryCount": 27,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:9599fa8cd7d2557c24e62da6ce4b44324dd26e01a810272820051067fc54eca4"
+      },
+      "checkpoint": "Immediately after failed VAI r1 Review, autonomous VAI r2 correction and authorization, and exact replacement Review Context publication; before the minimal public next/prepare continuation.",
+      "provenance": {
+        "sourceCommit": "245e873dc826c2c287d429c3df681df8fbee287f",
+        "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
+        "route": "test/phase-1-hardening-routes.test.ts: allocates Review of corrected VAI r2 instead of a run for failed superseded r1",
+        "captureLog": "/tmp/issue-203-phase1-vai-late-capture.log",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 75415 ms whole process group",
+        "compression": "gzip -n -9"
+      }
+    },
+    "phase-1-ver-review-ready": {
+      "archive": "phase-1-ver-review-ready.data.json.gz",
+      "compressedSha256": "c091c282400a725dac8e70f9a733de0482bea7058a04441b250df49f6a0976b9",
+      "contentSha256": "655bb54372ed9c4f9b0f839fb8fc5a24f79af3921f4dd67bb05f26d27368ef5c",
+      "entryCount": 18,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:24923992159e4cc1327e4c2e9f4591bb9d07636e3e95ec7fae6c3f46bc1c279b"
+      },
+      "checkpoint": "Immediately after the exact ENV Review transaction and before preparing the pilot VER Review projection Assignment.",
+      "provenance": {
+        "sourceCommit": "245e873dc826c2c287d429c3df681df8fbee287f",
+        "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
+        "route": "test/phase-1-hardening-routes.test.ts: projects reviewed ENV evidence into the exact pilot VER Review assignment",
+        "captureLog": "/tmp/issue-203-phase1-vai-late-capture.log",
+        "captureResult": "exit 0; containing route passed; 25 skipped; 75415 ms whole process group",
         "compression": "gzip -n -9"
       }
     }

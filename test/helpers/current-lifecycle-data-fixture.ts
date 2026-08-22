@@ -4,7 +4,16 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { processPackageDigest } from "../../src/process-package-digest.js";
 
-export type CurrentLifecycleDataFixture = "phase-1-vai-correction-ready";
+const fixtureNames = [
+  "phase-1-pilot-retry-ready",
+  "phase-1-run-ready",
+  "phase-1-run-res-published",
+  "phase-1-vai-correction-ready",
+  "phase-1-vai-review-ready",
+  "phase-1-ver-review-ready",
+] as const;
+
+export type CurrentLifecycleDataFixture = typeof fixtureNames[number];
 
 type FixtureEntry = { path: string; source: string };
 type FixtureDefinition = {
@@ -60,6 +69,64 @@ function fixtureEntries(value: unknown): FixtureEntry[] {
   return entries;
 }
 
+function validateFixtureTransactions(entries: FixtureEntry[]): void {
+  const transactionEntries = new Map<string, FixtureEntry[]>();
+  for (const entry of entries) {
+    if (entry.path === ".gitkeep" && entry.source === "") continue;
+    const match = /^\.transactions\/([^/]+)\/(.+)$/.exec(entry.path);
+    if (!match) {
+      throw new Error(`Current Lifecycle Data fixture path is not transaction-owned: ${entry.path}`);
+    }
+    const [, transaction] = match;
+    const owned = transactionEntries.get(transaction!) ?? [];
+    owned.push(entry);
+    transactionEntries.set(transaction!, owned);
+  }
+  for (const [transaction, owned] of transactionEntries) {
+    const executionEntry = owned.find((entry) => entry.path ===
+      `.transactions/${transaction}/execution.json`
+    );
+    if (!executionEntry) {
+      throw new Error(`Lifecycle Data transaction '${transaction}' lacks execution.json`);
+    }
+    let execution: Record<string, unknown>;
+    try {
+      execution = JSON.parse(executionEntry.source) as Record<string, unknown>;
+    } catch {
+      throw new Error(`Lifecycle Data transaction '${transaction}' has invalid execution JSON`);
+    }
+    if (execution.contract !== "mdlm-scenario-execution@4") continue;
+    const response = execution.response as Record<string, unknown> | undefined;
+    const completion = execution.completion as Record<string, unknown> | undefined;
+    if (
+      execution.id !== transaction ||
+      execution.status !== "completed" ||
+      response?.contract !== "mdlm-assignment-response@1" ||
+      typeof response.assignment !== "string" ||
+      typeof response.digest !== "string" ||
+      completion?.contractValid !== true ||
+      completion.expressionPassed !== true ||
+      !Array.isArray(execution.outputs) ||
+      execution.outputs.length === 0
+    ) {
+      throw new Error(`Scenario Execution transaction '${transaction}' has invalid provenance`);
+    }
+    const revisions = new Set(execution.outputs.map((output) => {
+      const value = output as Record<string, unknown>;
+      const lifecycleDatum = value.lifecycleDatum as Record<string, unknown> | undefined;
+      return lifecycleDatum?.revisionId;
+    }));
+    for (const entry of owned.filter((candidate) => candidate.path.endsWith(".md"))) {
+      const revision = /(?:^|\n)revision_id: ([^\n]+)(?:\n|$)/.exec(entry.source)?.[1];
+      if (!revision || !revisions.has(revision)) {
+        throw new Error(
+          `Scenario Execution transaction '${transaction}' does not own '${entry.path}'`,
+        );
+      }
+    }
+  }
+}
+
 function fixtureDefinition(value: unknown): FixtureDefinition {
   const definition = value as Partial<FixtureDefinition> | null;
   const provenance = definition?.provenance;
@@ -97,13 +164,17 @@ async function manifest(): Promise<FixtureManifest> {
   ) {
     throw new Error("Invalid current Lifecycle Data fixture manifest");
   }
+  const definitions = value.fixtures as Record<string, unknown>;
+  const names = Object.keys(definitions).sort();
+  if (JSON.stringify(names) !== JSON.stringify(fixtureNames)) {
+    throw new Error("Current Lifecycle Data fixture manifest names do not match the helper");
+  }
   return {
     contract: value.contract,
-    fixtures: {
-      "phase-1-vai-correction-ready": fixtureDefinition(
-        value.fixtures["phase-1-vai-correction-ready"],
-      ),
-    },
+    fixtures: Object.fromEntries(fixtureNames.map((name) => [
+      name,
+      fixtureDefinition(definitions[name]),
+    ])) as Record<CurrentLifecycleDataFixture, FixtureDefinition>,
   };
 }
 
@@ -134,6 +205,7 @@ export async function installCurrentLifecycleDataFixture(
   if (entries.length !== definition.entryCount) {
     throw new Error(`Entry-count mismatch for current fixture '${fixture}'`);
   }
+  validateFixtureTransactions(entries);
 
   const selection = JSON.parse(await fs.readFile(
     path.join(repository, ".lifecycle/process-selection.json"),

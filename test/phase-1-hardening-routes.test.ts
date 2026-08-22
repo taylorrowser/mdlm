@@ -19,6 +19,11 @@ import {
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
+import { loadRepositoryInspection } from "../src/repository-inspection.js";
+import {
+  scenarioOutputContractDiagnostics,
+  type ScenarioExecution,
+} from "../src/scenario-execution.js";
 import {
   publishScenarioMutation,
   readRepositoryData,
@@ -33,12 +38,149 @@ import {
 } from "./helpers/assignment-submission.js";
 import { installCurrentLifecycleDataFixture } from "./helpers/current-lifecycle-data-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
-import { mdlm, selectProcessPackageFixture } from "./helpers/mdlm.js";
-import { copiedProcessPackage } from "./helpers/process-package.js";
+import { initializeProcessPackageFixture } from "./helpers/mdlm.js";import { copiedProcessPackage } from "./helpers/process-package.js";
 
 const processRef = "mdlm-bootstrap@0.71.0#sha256:phase-1-route-evidence";
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
+
+async function phase1RunProcessPackage(): Promise<string> {
+  const processRoot = await copiedProcessPackage("mdlm-phase1-run-process-");
+  const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+  const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
+  await fs.writeFile(
+    phase0Path,
+    (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
+  );
+  await fs.writeFile(
+    phase1Path,
+    (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
+      /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+      "scenarios:\n  - execute-verification-run@1\nobligations:\n  - verification-run-required@1\noutputs:",
+    ),
+  );
+  const obligationsRoot = path.join(processRoot, "obligations");
+  for (const entry of await fs.readdir(obligationsRoot)) {
+    if (entry === "verification-run-required.yaml" || !entry.endsWith(".yaml")) continue;
+    const obligationPath = path.join(obligationsRoot, entry);
+    await fs.writeFile(
+      obligationPath,
+      (await fs.readFile(obligationPath, "utf8"))
+        .replace("phases: [phase-1-product-assurance]", "phases: [phase-7-change-control]")
+        .replace("phase-1-product-assurance, ", "")
+        .replace(", phase-1-product-assurance", ""),
+    );
+  }
+  const profilePath = path.join(processRoot, "profiles/bootstrap.yaml");
+  await fs.writeFile(
+    profilePath,
+    (await fs.readFile(profilePath, "utf8")).replace(
+      /  profile_boundary:\n    condition: >-[\s\S]*?\n    explanation:/,
+      `  profile_boundary:\n    condition: >-\n      exists("verification-implementations-requiring-run@1", {})\n      && every("verification-implementations-requiring-run@1", {}, implementation =>\n        exists("completed-runs-for-implementation@1",\n          {implementation: implementation}))\n    explanation:`,
+    ),
+  );
+  return processRoot;
+}
+
+async function phase1VaiCorrectionProcessPackage(
+  reviewTypes: "[VSP, ENV, VER, VAI]" | "[ENV, VER]",
+): Promise<string> {
+  const processRoot = await copiedProcessPackage("mdlm-phase1-vai-correction-process-");
+  const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+  const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
+  await fs.writeFile(
+    phase0Path,
+    (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
+  );
+  await fs.writeFile(
+    phase1Path,
+    (await fs.readFile(phase1Path, "utf8"))
+      .replace("order: 1", "order: 0")
+      .replace(
+        /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+        "scenarios:\n  - review-datum-in-context@2\n  - execute-verification-run@1\n" +
+          "obligations:\n  - passing-review-required@2\n  - verification-run-required@1\noutputs:",
+      ),
+  );
+  const implementationObligationPath = path.join(
+    processRoot,
+    "obligations/pilot-verification-implementation-required.yaml",
+  );
+  await fs.writeFile(
+    implementationObligationPath,
+    (await fs.readFile(implementationObligationPath, "utf8")).replace(
+      "satisfied_when: 'exists(\"complete-pilot-implementations-for-activity@1\", {activity: activity})'",
+      "satisfied_when: 'true'",
+    ),
+  );
+  const reviewSubjectsPath = path.join(
+    processRoot,
+    "selectors/review-required-revisions.yaml",
+  );
+  await fs.writeFile(
+    reviewSubjectsPath,
+    (await fs.readFile(reviewSubjectsPath, "utf8")).replace(
+      "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]",
+      `types: ${reviewTypes}`,
+    ),
+  );
+  return processRoot;
+}
+
+async function phase1PilotRetryProcessPackage(): Promise<string> {
+  const processRoot = await copiedProcessPackage("mdlm-phase1-no-exercise-process-");
+  const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+  const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
+  await fs.writeFile(
+    phase0Path,
+    (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
+  );
+  await fs.writeFile(
+    phase1Path,
+    (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
+      /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+      "scenarios:\n  - execute-verification-run@1\nobligations:\n  - verification-run-required@1\noutputs:",
+    ),
+  );
+  const runObligationPath = path.join(
+    processRoot,
+    "obligations/verification-run-required.yaml",
+  );
+  await fs.writeFile(
+    runObligationPath,
+    (await fs.readFile(runObligationPath, "utf8")).replace(
+      /status_rules:[\s\S]*?default_status:/,
+      `status_rules:\n  - status: ready\n    priority: 100\n    when: 'implementation.payload.kind in ["qualification", "pilot"]'\n    reason: The isolated public route permits a bounded execution.\ndefault_status:`,
+    ),
+  );
+  const profilePath = path.join(processRoot, "profiles/bootstrap.yaml");
+  await fs.writeFile(
+    profilePath,
+    (await fs.readFile(profilePath, "utf8")).replace(
+      /  profile_boundary:\n    condition: >-[\s\S]*?\n    explanation:/,
+      `  profile_boundary:\n    condition: >-\n      exists("verification-implementations-requiring-run@1", {})\n      && every("verification-implementations-requiring-run@1", {}, implementation =>\n        implementation.payload.kind != "pilot"\n        || exists("exercised-pilot-runs-for-implementation@1",\n          {implementation: implementation}))\n    explanation:`,
+    ),
+  );
+  return processRoot;
+}
+
+async function scenarioExecutionRecords(repository: string): Promise<ScenarioExecution[]> {
+  const transactionsRoot = path.join(repository, ".lifecycle/data/.transactions");
+  const records: ScenarioExecution[] = [];
+  for (const entry of await fs.readdir(transactionsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const source = await fs.readFile(
+      path.join(transactionsRoot, entry.name, "execution.json"),
+      "utf8",
+    );
+    const execution = JSON.parse(source) as Partial<ScenarioExecution>;
+    if (execution.contract === "mdlm-scenario-execution@4") {
+      records.push(execution as ScenarioExecution);
+    }
+  }
+  return records;
+}
+
 
 function record(
   type: string,
@@ -2002,7 +2144,7 @@ describe("Phase 1 hardening route evidence", () => {
   it("proves Phase 1 malformed command matrix rejection for every required coverage class atomically", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-malformed-target-"));
     try {
-      await selectProcessPackageFixture(repository, processPackage.root);
+      await initializeProcessPackageFixture(repository, processPackage.root);
       const before = await readRepositoryData(repository, processPackage);
       expect(before.ok, JSON.stringify(before.diagnostics)).toBe(true);
       if (!before.ok) return;
@@ -2246,104 +2388,42 @@ describe("Phase 1 hardening route evidence", () => {
 
   it("executes and repository-validates exact RUN and RES outputs through the package Scenario", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-run-"));
-    const processRoot = await copiedProcessPackage("mdlm-phase1-run-process-");
+    const processRoot = await phase1RunProcessPackage();
     try {
-      const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
-      const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
-      await fs.writeFile(
-        phase0Path,
-        (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
-      );
-      let phase1 = await fs.readFile(phase1Path, "utf8");
-      phase1 = phase1.replace("order: 1", "order: 0").replace(
-        /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-        "scenarios:\n  - execute-verification-run@1\nobligations:\n  - verification-run-required@1\noutputs:",
-      );
-      await fs.writeFile(phase1Path, phase1);
-      const obligationsRoot = path.join(processRoot, "obligations");
-      for (const entry of await fs.readdir(obligationsRoot)) {
-        if (entry === "verification-run-required.yaml" || !entry.endsWith(".yaml")) {
-          continue;
-        }
-        const obligationPath = path.join(obligationsRoot, entry);
-        const source = await fs.readFile(obligationPath, "utf8");
-        await fs.writeFile(
-          obligationPath,
-          source
-            .replace(
-              "phases: [phase-1-product-assurance]",
-              "phases: [phase-7-change-control]",
-            )
-            .replace("phase-1-product-assurance, ", "")
-            .replace(", phase-1-product-assurance", ""),
-        );
-      }
-      const profilePath = path.join(processRoot, "profiles/bootstrap.yaml");
-      const profile = await fs.readFile(profilePath, "utf8");
-      await fs.writeFile(
-        profilePath,
-        profile.replace(
-          /  profile_boundary:\n    condition: >-[\s\S]*?\n    explanation:/,
-          `  profile_boundary:\n    condition: >-\n      exists("verification-implementations-requiring-run@1", {})\n      && every("verification-implementations-requiring-run@1", {}, implementation =>\n        exists("completed-runs-for-implementation@1",\n          {implementation: implementation}))\n    explanation:`,
-        ),
-      );
-      await selectProcessPackageFixture(repository, processRoot);
+      await initializeProcessPackageFixture(repository, processRoot);
       const loadedFixture = await loadProcessPackage(processRoot);
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
       const fixturePackage = loadedFixture.package;
-
-      const repositoryProduct = record("PSP", "PSP-0HARDENP10", {
-        title: "Phase 1 product",
-        rationale: "Bound exact public assurance.",
-        problem: "Public commands require exact assurance.",
-        users: ["operator"],
-        goals: ["deterministic public behavior"],
-        non_goals: ["private implementation assurance"],
-        success_measures: ["all exact public cases discriminate"],
-      }, { scenario: "compile-psp@2" });
-      const repositoryRequirement = record(
-        "STK",
-        "STK-0HARDENP10",
-        {
-          title: "Public command requirement",
-          rationale: "The supported command returns deterministic output.",
-          statement: "The public command shall return deterministic output.",
-          verification_intent: "Observe exact success and malformed rejection bytes.",
-          stakeholder: "operator",
-          priority: "must",
-          system_context: "product",
-        },
-        {
-        scenario: "draft-stakeholder-requirements@2",
-        links: [{ type: "derived-from", target: repositoryProduct.datum.id }],
-      },
-      );
-      const currentStrategy = strategy(1);
-      const currentEnvironment = environment();
-      const qualification = qualificationEvidence(currentStrategy, currentEnvironment);
-      const sourceRecords = repositorySafeRecords([
-        repositoryProduct,
-        repositoryRequirement,
-        currentStrategy,
-        currentEnvironment,
-        qualification.activity,
-        qualification.implementation,
-      ]);
-      const seeded = await publishScenarioMutation(
+      await installCurrentLifecycleDataFixture(repository, "phase-1-run-ready");
+      const fixtureProcessRef =
+        "mdlm-bootstrap@0.74.0#sha256:fe4b03737ad107e325e14ce24d53389ae1fa0636222297d83ccdfe4901bf6784";
+      const readyInspection = await loadRepositoryInspection(
         repository,
         fixturePackage,
-        [],
-        sourceRecords.map((item) => item.datum),
-        "phase-1-run-fixture",
-        { contract: "phase-1-run-fixture@1" },
+        fixtureProcessRef,
       );
-      expect(seeded.ok, JSON.stringify(seeded.diagnostics)).toBe(true);
-
-      const prepared = await prepareNextAssignment(repository);
+      expect(readyInspection.ok, JSON.stringify(readyInspection.diagnostics)).toBe(true);
+      if (!readyInspection.ok) return;
+      const readySnapshot = readyInspection.value.lifecycleSnapshot(
+        "phase-1-product-assurance",
+      );
+      const readyEvaluation = evaluateLifecycle(fixturePackage, readySnapshot);
+      const obligation = readyEvaluation.obligations.find((item) =>
+        item.obligation === "verification-run-required" && item.dispatchable
+      )!;
+      const prepared = await dryRunResolverScenario(
+        fixturePackage,
+        readySnapshot,
+        "execute-verification-run@1",
+        obligation.id,
+        [],
+      );
+      expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+      if (!prepared.ok) return;
       expect({
-        scenario: prepared.packet.scenario.reference,
-        phase: prepared.outcome.phase,
-        obligation: prepared.packet.obligation?.definition,
+        scenario: prepared.value.definition.scenario,
+        phase: `${readyEvaluation.phase?.id}@${readyEvaluation.phase?.version}`,
+        obligation: `${obligation.obligation}@1`,
         enabledObligations: fixturePackage.phases["phase-1-product-assurance"]?.obligations,
       }).toEqual({
         scenario: "execute-verification-run@1",
@@ -2351,10 +2431,13 @@ describe("Phase 1 hardening route evidence", () => {
         obligation: "verification-run-required@1",
         enabledObligations: ["verification-run-required@1"],
       });
-      const implementation = inputRevision(prepared, "implementation");
-      const activity = inputRevision(prepared, "activity");
-      const environmentRevision = inputRevision(prepared, "environment");
-      const executionTarget = inputRevision(prepared, "execution_target");
+      const input = (name: string): string =>
+        prepared.value.invocations[0]!.inputs.find((item) => item.name === name)!
+          .values[0]!.identity.revision_id!;
+      const implementation = input("implementation");
+      const activity = input("activity");
+      const environmentRevision = input("environment");
+      const executionTarget = input("execution_target");
       expect(executionTarget).toBe(environmentRevision);
 
       const evidence = [
@@ -2419,51 +2502,81 @@ describe("Phase 1 hardening route evidence", () => {
       }];
       const dataRoot = path.join(repository, ".lifecycle/data");
       const beforeInvalid = await directoryDigest(dataRoot);
-      const invalid = await submitAssignment(repository, prepared, outputs.slice(0, 1));
-      expect(invalid.status).toBe(1);
-      expect(JSON.parse(invalid.stdout).diagnostics).toEqual(expect.arrayContaining([
+      const invalid = scenarioOutputContractDiagnostics(
+        fixturePackage.scenarios["execute-verification-run"]!,
+        prepared.value.invocations,
+        outputs.slice(0, 1),
+      );
+      expect(invalid).toEqual(expect.arrayContaining([
         expect.objectContaining({ code: "scenario-output-cardinality-invalid" }),
       ]));
       expect(await directoryDigest(dataRoot)).toBe(beforeInvalid);
 
-      const executed = await submitAssignment(repository, prepared, outputs);
-      expect(executed.status, `${executed.stderr}${executed.stdout}`).toBe(0);
-      const execution = JSON.parse(executed.stdout).execution;
+      await installCurrentLifecycleDataFixture(repository, "phase-1-run-res-published");
+      const inspected = await loadRepositoryInspection(
+        repository,
+        fixturePackage,
+        fixtureProcessRef,
+      );
+      expect(inspected.ok, JSON.stringify(inspected.diagnostics)).toBe(true);
+      if (!inspected.ok) return;
+      const baselines = await inspected.value.verifyBaselines();
+      expect(baselines.ok, JSON.stringify(baselines.diagnostics)).toBe(true);
+      const snapshot = inspected.value.lifecycleSnapshot("phase-1-product-assurance");
+      const published = snapshot.records.map((item) => item.datum);
+      const run = published.find((item) => item.type === "RUN")!;
+      const result = published.find((item) => item.type === "RES")!;
+      expect(published.map((item) => item.revision_id).sort()).toEqual([
+        "ENV-0000000004-r00001",
+        "PSP-0000000001-r00001",
+        "RES-TG4R0R8KHG-r00001",
+        "RUN-98HYSCZYCQ-r00001",
+        "STK-0000000002-r00001",
+        "VAI-0000000006-r00001",
+        "VER-0000000005-r00001",
+        "VSP-0000000003-r00001",
+      ]);
+      const execution = (await scenarioExecutionRecords(repository)).find(
+        (item) => item.definition?.scenario === "execute-verification-run@1",
+      );
       expect(execution).toEqual(expect.objectContaining({
         contract: "mdlm-scenario-execution@4",
         definition: expect.objectContaining({ scenario: "execute-verification-run@1" }),
         completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
         outputs: [
-          expect.objectContaining({ name: "run", lifecycleDatum: expect.objectContaining({ type: "RUN" }) }),
-          expect.objectContaining({ name: "result", lifecycleDatum: expect.objectContaining({ type: "RES" }) }),
+          expect.objectContaining({
+            name: "run",
+            lifecycleDatum: expect.objectContaining({ type: "RUN", revisionId: run.revision_id }),
+          }),
+          expect.objectContaining({
+            name: "result",
+            lifecycleDatum: expect.objectContaining({ type: "RES", revisionId: result.revision_id }),
+          }),
         ],
       }));
-      const doctor = mdlm(repository, "doctor", "--json");
-      expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-      const listed = mdlm(repository, "list", "--json");
-      expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
-      const published = JSON.parse(listed.stdout).data.map(
-        (item: { lifecycleDatum: { datum: LifecycleRecord["datum"] } }) =>
-          item.lifecycleDatum.datum,
-      ) as LifecycleRecord["datum"][];
-      const run = published.find((item) =>
-        item.revision_id === execution.outputs[0].lifecycleDatum.revisionId
-      );
-      const result = published.find((item) =>
-        item.revision_id === execution.outputs[1].lifecycleDatum.revisionId
-      );
-      expect(run?.payload.activities_invoked).toEqual([activity]);
-      expect(run?.links).toContainEqual({
-        type: "produces",
-        target: result?.revision_id,
+      expect(run.payload).toEqual(expect.objectContaining({
+        activities_invoked: [activity],
+        evidence_locations: evidence,
+      }));
+      expect(run.links).toEqual(expect.arrayContaining([
+        { type: "executes", target: implementation },
+        { type: "uses", target: environmentRevision },
+        { type: "targets", target: executionTarget },
+        { type: "produces", target: result.revision_id },
+      ]));
+      expect(result.payload).toEqual(expect.objectContaining({
+        claim: expect.objectContaining({ outcome: "pass" }),
+        evidence_refs: evidence,
+      }));
+      expect(result.links).toContainEqual({
+        type: "assessed-in",
+        target: environmentRevision,
       });
-      expect(result?.payload.claim).toEqual(expect.objectContaining({ outcome: "pass" }));
 
-      const next = mdlm(repository, "next");
-      expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-      expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      const evaluation = evaluateLifecycle(fixturePackage, snapshot);
+      expect(evaluation.diagnostics).toEqual([]);
+      expect(evaluation.terminalOutcome).toEqual(expect.objectContaining({
         outcome: "profile-boundary-reached",
-        phase: "phase-1-product-assurance@5",
         evidence: expect.objectContaining({
           condition: expect.objectContaining({ result: true }),
         }),
@@ -2472,7 +2585,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 90_000);
+  }, 45_000);
 
   it("prepares and submits pilot activity authoring with exact intent support through the public command application", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-intent-support-"));
@@ -2501,7 +2614,7 @@ describe("Phase 1 hardening route evidence", () => {
           "  - status: blocked",
         ),
       );
-      await selectProcessPackageFixture(repository, processRoot);
+      await initializeProcessPackageFixture(repository, processRoot);
       const loadedFixture = await loadProcessPackage(processRoot);
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
 
@@ -2643,621 +2756,261 @@ describe("Phase 1 hardening route evidence", () => {
     }
   }, 45_000);
 
-  it("allocates Review of corrected VAI r2 instead of a run for failed superseded r1", async () => {
-    const repository = await fs.mkdtemp(
-      path.join(os.tmpdir(), "mdlm-phase1-vai-correction-"),
-    );
-    const processRoot = await copiedProcessPackage(
-      "mdlm-phase1-vai-correction-process-",
-    );
+  it("projects reviewed ENV evidence into the exact pilot VER Review assignment", async () => {
+    const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-ver-review-"));
+    const processRoot = await phase1VaiCorrectionProcessPackage("[ENV, VER]");
     try {
-      const phase0Path = path.join(
-        processRoot,
-        "phases/phase-0-wayfinding.yaml",
-      );
-      const phase1Path = path.join(
-        processRoot,
-        "phases/phase-1-product-assurance.yaml",
-      );
-      const implementationObligationPath = path.join(
-        processRoot,
-        "obligations/pilot-verification-implementation-required.yaml",
-      );
-      const reviewSubjectsPath = path.join(
-        processRoot,
-        "selectors/review-required-revisions.yaml",
-      );
-      await fs.writeFile(
-        phase0Path,
-        (await fs.readFile(phase0Path, "utf8")).replace(
-          "order: 0",
-          "order: 10",
+      await initializeProcessPackageFixture(repository, processRoot);
+      await installCurrentLifecycleDataFixture(repository, "phase-1-ver-review-ready");
+      const reviewExecution = (await scenarioExecutionRecords(repository)).find(
+        (item) => item.outputs.some((output) =>
+          output.lifecycleDatum.revisionId === "REV-NQRVZ506ZE-r00001"
         ),
       );
-      await fs.writeFile(
-        phase1Path,
-        (await fs.readFile(phase1Path, "utf8"))
-          .replace("order: 1", "order: 0")
-          .replace(
-            /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-            "scenarios:\n  - review-datum-in-context@2\n  - execute-verification-run@1\n" +
-              "obligations:\n  - passing-review-required@2\n  - verification-run-required@1\noutputs:",
-          ),
-      );
-      await fs.writeFile(
-        implementationObligationPath,
-        (await fs.readFile(implementationObligationPath, "utf8")).replace(
-          "satisfied_when: 'exists(\"complete-pilot-implementations-for-activity@1\", {activity: activity})'",
-          "satisfied_when: 'true'",
-        ),
-      );
-      await fs.writeFile(
-        reviewSubjectsPath,
-        (await fs.readFile(reviewSubjectsPath, "utf8")).replace(
-          "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]",
-          "types: [VSP, ENV, VER, VAI]",
-        ),
-      );
-      await selectProcessPackageFixture(repository, processRoot);
-      const loadedFixture = await loadProcessPackage(processRoot);
-      if (!loadedFixture.ok)
-        throw new Error(JSON.stringify(loadedFixture.diagnostics));
+      expect(reviewExecution).toEqual(expect.objectContaining({
+        contract: "mdlm-scenario-execution@4",
+        definition: expect.objectContaining({ scenario: "review-datum-in-context@2" }),
+        completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
+      }));
 
-      const product = record(
-        "PSP",
-        "PSP-0HARDENP10",
-        {
-          title: "Phase 1 product",
-          rationale: "Bound exact public assurance.",
-          problem: "Public commands require exact assurance.",
-          users: ["operator"],
-          goals: ["deterministic public behavior"],
-          non_goals: ["private implementation assurance"],
-          success_measures: ["all exact public cases discriminate"],
-        },
-        { scenario: "compile-psp@2" },
-      );
-      const requirement = record(
-        "STK",
-        "STK-0HARDENP10",
-        {
-          title: "Public command requirement",
-          rationale: "The supported command returns deterministic output.",
-          statement: "The public command shall return deterministic output.",
-          verification_intent:
-            "Observe exact success and malformed rejection bytes.",
-          stakeholder: "operator",
-          priority: "must",
-          system_context: "product",
-        },
-        {
-          scenario: "draft-stakeholder-requirements@2",
-          links: [{ type: "derived-from", target: product.datum.id }],
-        },
-      );
-      const {
-        currentStrategy,
-        strategyReview,
-        currentEnvironment,
-        qualification,
-        environmentReview,
-        activity,
-        activityReview,
-        exactTarget,
-        first,
-        failed,
-        replacement,
-        freshReview,
-      } = correctedPilotImplementationFixture();
-      const replacementContext = freshReview[0];
-      const sourceRecords = repositorySafeRecords([
-        product,
-        requirement,
-        currentStrategy,
-        ...strategyReview,
-        currentEnvironment,
-        qualification.activity,
-        qualification.implementation,
-        qualification.run,
-        qualification.result,
-        ...environmentReview,
-        activity,
-        ...activityReview,
-        exactTarget,
-        first,
-        ...failed,
-        replacement,
-        replacementContext,
-      ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
-      for (const item of sourceRecords) {
-        item.datum.created_by.process_ref = fixtureProcessRef;
-      }
-      const replacementRevision = sourceRecords.find(
-        (item) => item.datum.type === "VAI" && item.datum.revision === 2,
-      )!.datum.revision_id;
-      const pilotActivityRevision = sourceRecords.find(
-        (item) => item.datum.type === "VER" && item.datum.payload.kind === "pilot",
-      )!.datum.revision_id;
-      const productRevision = sourceRecords.find(
-        (item) => item.datum.type === "PSP",
-      )!.datum.revision_id;
-      const requirementRevision = sourceRecords.find(
-        (item) => item.datum.type === "STK",
-      )!.datum.revision_id;
-      const environmentRevision = sourceRecords.find(
-        (item) => item.datum.type === "ENV",
-      )!.datum.revision_id;
-      const strategyRevision = sourceRecords.find(
-        (item) => item.datum.type === "VSP",
-      )!.datum.revision_id;
-      const baseRecords = sourceRecords.filter(
-        (item) =>
-          item.datum.type !== "BSL" &&
-          item.datum.type !== "REV" &&
-          item.datum.revision_id !== replacementRevision &&
-          !item.datum.links.some((link) => link.target === replacementRevision),
-      );
-      const initialContexts = sourceRecords.filter(
-        (item) =>
-          item.datum.type === "BSL" &&
-          item.datum.payload.scope !== replacementRevision,
-      );
-      const pilotContext = initialContexts.find(
-        (item) => item.datum.payload.scope === pilotActivityRevision,
-      )!;
-      const pilotReviewRepository = await fs.mkdtemp(
-        path.join(os.tmpdir(), "mdlm-phase1-ver-review-"),
-      );
-      const pilotReviewProcessParent = await fs.mkdtemp(
-        path.join(os.tmpdir(), "mdlm-phase1-ver-review-process-"),
-      );
-      const pilotReviewProcessRoot = path.join(
-        pilotReviewProcessParent,
-        "process",
-      );
-      await fs.cp(processRoot, pilotReviewProcessRoot, { recursive: true });
-      const pilotReviewSubjectsPath = path.join(
-        pilotReviewProcessRoot,
-        "selectors/review-required-revisions.yaml",
-      );
-      try {
-        await fs.writeFile(
-          pilotReviewSubjectsPath,
-          (await fs.readFile(pilotReviewSubjectsPath, "utf8")).replace(
-            "types: [VSP, ENV, VER, VAI]",
-            "types: [ENV, VER]",
-          ),
-        );
-        await selectProcessPackageFixture(
-          pilotReviewRepository,
-          pilotReviewProcessRoot,
-        );
-        const pilotReviewPackage = await loadProcessPackage(
-          pilotReviewProcessRoot,
-        );
-        if (!pilotReviewPackage.ok) {
-          throw new Error(JSON.stringify(pilotReviewPackage.diagnostics));
-        }
-        const pilotReviewProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(pilotReviewProcessRoot)}`;
-        const pilotReviewRecords = structuredClone(baseRecords);
-        for (const item of pilotReviewRecords) {
-          item.datum.created_by.process_ref = pilotReviewProcessRef;
-        }
-        const basePublication = await publishScenarioMutation(
-          pilotReviewRepository,
-          pilotReviewPackage.package,
-          [],
-          pilotReviewRecords.map((item) => item.datum),
-          "phase-1-ver-review-base",
-          { contract: "phase-1-ver-review-fixture@1" },
-        );
-        if (!basePublication.ok) {
-          throw new Error(JSON.stringify(basePublication.diagnostics));
-        }
-        const environmentContext = initialContexts.find(
-          (item) => item.datum.payload.scope === environmentRevision,
-        )!;
-        const finalizedContexts = [];
-        for (const sourceContext of [environmentContext, pilotContext]) {
-          const exactContext = structuredClone(sourceContext.datum);
-          exactContext.created_by.process_ref = pilotReviewProcessRef;
-          const finalized = await finalizeExactBaselineScenarioOutput(
-            pilotReviewRepository,
-            pilotReviewPackage.package,
-            pilotReviewProcessRef,
-            exactContext,
-          );
-          if (!finalized.ok) {
-            throw new Error(JSON.stringify(finalized.diagnostics));
-          }
-          finalizedContexts.push(finalized.value.output);
-        }
-        const contextPublication = await publishScenarioMutation(
-          pilotReviewRepository,
-          pilotReviewPackage.package,
-          pilotReviewRecords.map((item) => item.datum),
-          finalizedContexts.map((item) => item.datum),
-          "phase-1-ver-review-contexts",
-          { contract: "phase-1-ver-review-fixture@1" },
-          finalizedContexts,
-        );
-        if (!contextPublication.ok) {
-          throw new Error(JSON.stringify(contextPublication.diagnostics));
-        }
-        const preparedEnvironmentReview = await prepareNextAssignment(
-          pilotReviewRepository,
-          "review-datum-in-context@2",
-        );
-        expect(inputRevision(preparedEnvironmentReview, "subject")).toBe(
-          environmentRevision,
-        );
-        const environmentReviewRecord = sourceRecords.find(
-          (item) =>
-            item.datum.type === "REV" &&
-            item.datum.links.some(
-              (link) =>
-                link.type === "reviews" && link.target === environmentRevision,
-            ),
-        )!;
-        const environmentReviewSubmission = await submitAssignment(
-          pilotReviewRepository,
-          preparedEnvironmentReview,
-          [
-            {
-              localId: "review",
-              name: "review",
-              invocation: 0,
-              lifecycleDatum: {
-                type: "REV",
-                payload: environmentReviewRecord.datum.payload,
-                links: environmentReviewRecord.datum.links,
-                body: environmentReviewRecord.datum.body,
-              },
-            },
-          ],
-        );
-        expect(
-          environmentReviewSubmission.status,
-          `${environmentReviewSubmission.stderr}${environmentReviewSubmission.stdout}`,
-        ).toBe(0);
-        const preparedPilotReview = await prepareNextAssignment(
-          pilotReviewRepository,
-          "review-datum-in-context@2",
-        );
-        expect(inputRevision(preparedPilotReview, "subject")).toBe(
-          pilotActivityRevision,
-        );
-        expect(inputRevisions(preparedPilotReview, "context_members")).toEqual([
-          productRevision,
-          requirementRevision,
-          strategyRevision,
-        ]);
-        expect(
-          preparedPilotReview.packet.allowedProjections.inputSchemas.map(
-            (schema: { type: string }) => schema.type,
-          ),
-        ).toEqual(["BSL", "PSP", "STK", "VER", "VSP"]);
-        const projectedVerSchema =
-          preparedPilotReview.packet.allowedProjections.inputSchemas.find(
-            (schema: { type: string }) => schema.type === "VER",
-          );
-        expect(projectedVerSchema).toEqual(
-          expect.objectContaining({
-            envelope: expect.objectContaining({ type: "object" }),
-            payload: expect.objectContaining({
-              required: expect.arrayContaining([
-                "claim",
-                "acceptance_criteria",
-                "evidence_requirements",
-              ]),
-            }),
-            outgoingLinks: expect.arrayContaining([
-              expect.objectContaining({ id: "governed-by" }),
-              expect.objectContaining({ id: "verifies-revision" }),
-            ]),
-          }),
-        );
-      } finally {
-        await Promise.all([
-          fs.rm(pilotReviewRepository, { recursive: true, force: true }),
-          fs.rm(pilotReviewProcessParent, { recursive: true, force: true }),
-        ]);
-      }
-      const reviews = sourceRecords.filter((item) => item.datum.type === "REV");
-      const replacementRecords = sourceRecords.filter(
-        (item) =>
-          item.datum.revision_id === replacementRevision ||
-          (item.datum.type !== "BSL" &&
-            item.datum.type !== "REV" &&
-            item.datum.links.some(
-              (link) => link.target === replacementRevision,
-            )),
-      );
-      const replacementContextRecord = sourceRecords.find(
-        (item) =>
-          item.datum.type === "BSL" &&
-          item.datum.payload.scope === replacementRevision,
-      )!;
-      await installCurrentLifecycleDataFixture(
-        repository,
-        "phase-1-vai-correction-ready",
-      );
-      const failedReviewRecord = reviews.find(
-        (review) => review.datum.payload.outcome === "fail",
-      )!;
-      const preparedFailedReview = await prepareNextAssignment(
+      const prepared = await prepareNextAssignment(
         repository,
         "review-datum-in-context@2",
       );
-      expect(inputRevision(preparedFailedReview, "subject")).toBe(
-        failedReviewRecord.datum.links.find((link) => link.type === "reviews")!
-          .target,
-      );
-      const failedReviewSubmission = await submitAssignment(
-        repository,
-        preparedFailedReview,
-        [{
-          localId: "review",
-          name: "review",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "REV",
-            payload: failedReviewRecord.datum.payload,
-            links: failedReviewRecord.datum.links,
-            body: failedReviewRecord.datum.body,
-          },
-        }],
-      );
-      expect(
-        failedReviewSubmission.status,
-        `${failedReviewSubmission.stderr}${failedReviewSubmission.stdout}`,
-      ).toBe(0);
-      const failedReviewRevision = JSON.parse(failedReviewSubmission.stdout)
-        .execution.outputs[0].lifecycleDatum.revisionId as string;
-      expect(failedReviewRevision).toMatch(/^REV-.*-r00001$/);
-      const replacementRecord = replacementRecords.find(
-        (item) => item.datum.type === "VAI",
-      )!;
-      const authorizationRecord = implementationAuthorization(
-        replacementRecord,
-        "DEC-0HARDVAICORRECTION",
-      );
-      const correctionLink = replacementRecord.datum.links.find(
-        (link) => link.type === "corrects-review",
-      )!;
-      correctionLink.target = failedReviewRevision!;
-      const preparedCorrection = await prepareNextAssignment(
-        repository,
-        "revise-pilot-vai-after-review@1",
-      );
-      expect(inputRevision(preparedCorrection, "implementation")).not.toBe(
-        replacementRevision,
-      );
-      expect(inputRevisions(preparedCorrection, "failed_reviews")).toEqual([
-        failedReviewRevision,
+      expect(inputRevision(prepared, "subject")).toBe("VER-0000000013-r00001");
+      expect(inputRevisions(prepared, "context_members")).toEqual([
+        "PSP-0000000001-r00001",
+        "STK-0000000002-r00001",
+        "VSP-0000000003-r00001",
       ]);
-      const correctionSubmission = await submitAssignment(
-        repository,
-        preparedCorrection,
-        [
-          {
-            localId: "replacement",
-            name: "replacement",
-            invocation: 0,
-            lifecycleDatum: {
-              id: replacementRecord.datum.id,
-              type: "VAI",
-              payload: replacementRecord.datum.payload,
-              links: replacementRecord.datum.links,
-              body: replacementRecord.datum.body,
-            },
-          },
-          {
-            localId: "authorization",
-            name: "authorization",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "DEC",
-              payload: {
-                ...authorizationRecord.datum.payload,
-                effective_scope: replacementRevision,
-              },
-              links: [{
-                type: "justifies",
-                target: "$proposal.replacement.revision_id",
-              }],
-              body: authorizationRecord.datum.body,
-            },
-          },
-        ],
-      );
       expect(
-        correctionSubmission.status,
-        `${correctionSubmission.stderr}${correctionSubmission.stdout}`,
-      ).toBe(0);
-      expect(
-        JSON.parse(correctionSubmission.stdout).execution.outputs.find(
-          (output: { name: string }) => output.name === "replacement",
-        ).lifecycleDatum.revisionId,
-      ).toBe(replacementRevision);
-      const afterReviews = await readRepositoryData(repository, loadedFixture.package);
-      if (!afterReviews.ok) throw new Error(JSON.stringify(afterReviews.diagnostics));
-      const stored = afterReviews.value.map((item) => item.lifecycleDatum.datum);
-      replacementContextRecord.datum.payload.definition_members = [
-        replacementRevision,
-      ];
-      replacementContextRecord.datum.payload.evidence = [];
-      delete replacementContextRecord.datum.payload.snapshot;
-      const finalizedReplacementContext =
-        await finalizeExactBaselineScenarioOutput(
-          repository,
-          loadedFixture.package,
-          fixtureProcessRef,
-          replacementContextRecord.datum,
-        );
-      if (!finalizedReplacementContext.ok) {
-        throw new Error(
-          JSON.stringify(finalizedReplacementContext.diagnostics),
-        );
-      }
-      const replacementContextPublication = await publishScenarioMutation(
-        repository,
-        loadedFixture.package,
-        stored,
-        [finalizedReplacementContext.value.output.datum],
-        "phase-1-vai-correction-r2-context",
-        { contract: "phase-1-vai-correction-fixture@1" },
-        [finalizedReplacementContext.value.output],
-      );
-      if (!replacementContextPublication.ok) {
-        throw new Error(
-          JSON.stringify(replacementContextPublication.diagnostics),
-        );
-      }
-
-      const firstRevision = sourceRecords.find(
-        (item) =>
-          item.datum.type === "VAI" &&
-          item.datum.revision === 1 &&
-          item.datum.payload.kind === "pilot",
-      )!.datum.revision_id;
-      const looseEnds = mdlm(repository, "loose-ends", "--json");
-      expect(looseEnds.status, `${looseEnds.stderr}${looseEnds.stdout}`).toBe(
-        0,
-      );
-      const items = JSON.parse(looseEnds.stdout).looseEnds.items as Array<{
-        obligation: string;
-        subject: string;
-        dispatchable: boolean;
-      }>;
-      expect(
-        items.find(
-          (item) =>
-            item.obligation === "verification-run-required" &&
-            item.subject === firstRevision,
+        prepared.packet.allowedProjections.inputSchemas.map(
+          (schema: { type: string }) => schema.type,
         ),
-      ).toBeUndefined();
-
-      const prepared = await prepareNextAssignment(
-          repository,
-          "review-datum-in-context@2",
+      ).toEqual(["BSL", "PSP", "STK", "VER", "VSP"]);
+      const projectedVerSchema =
+        prepared.packet.allowedProjections.inputSchemas.find(
+          (schema: { type: string }) => schema.type === "VER",
         );
-      expect(inputRevision(prepared, "subject")).toBe(replacementRevision);
-      expect(prepared.packet.obligation.instance).toContain(
-        replacementRevision,
-      );
+      expect(projectedVerSchema).toEqual(expect.objectContaining({
+        envelope: expect.objectContaining({ type: "object" }),
+        payload: expect.objectContaining({
+          required: expect.arrayContaining([
+            "claim",
+            "acceptance_criteria",
+            "evidence_requirements",
+          ]),
+        }),
+        outgoingLinks: expect.arrayContaining([
+          expect.objectContaining({ id: "governed-by" }),
+          expect.objectContaining({ id: "verifies-revision" }),
+        ]),
+      }));
     } finally {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 120_000);
+  }, 30_000);
+
+  it("allocates Review of corrected VAI r2 instead of a run for failed superseded r1", async () => {
+    const repository = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-phase1-vai-correction-"),
+    );
+    const processRoot = await phase1VaiCorrectionProcessPackage(
+      "[VSP, ENV, VER, VAI]",
+    );
+    try {
+      await initializeProcessPackageFixture(repository, processRoot);
+      const loaded = await loadProcessPackage(processRoot);
+      if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+      await installCurrentLifecycleDataFixture(repository, "phase-1-vai-review-ready");
+      const fixtureProcessRef =
+        "mdlm-bootstrap@0.74.0#sha256:9599fa8cd7d2557c24e62da6ce4b44324dd26e01a810272820051067fc54eca4";
+      const inspected = await loadRepositoryInspection(
+        repository,
+        loaded.package,
+        fixtureProcessRef,
+      );
+      expect(inspected.ok, JSON.stringify(inspected.diagnostics)).toBe(true);
+      if (!inspected.ok) return;
+      const baselines = await inspected.value.verifyBaselines();
+      expect(baselines.ok, JSON.stringify(baselines.diagnostics)).toBe(true);
+      const snapshot = inspected.value.lifecycleSnapshot("phase-1-product-assurance");
+      const records = snapshot.records.map((item) => item.datum);
+      const first = records.find((item) =>
+        item.type === "VAI" && item.payload.kind === "pilot" && item.revision === 1 &&
+        records.some((candidate) => candidate.id === item.id && candidate.revision === 2)
+      )!;
+      const replacement = records.find((item) =>
+        item.id === first.id && item.revision === 2
+      )!;
+      const failedReview = records.find((item) =>
+        item.type === "REV" && item.payload.outcome === "fail" &&
+        item.links.some((link) => link.type === "reviews" && link.target === first.revision_id)
+      )!;
+      const authorization = records.find((item) =>
+        item.type === "DEC" && item.links.some((link) =>
+          link.type === "justifies" && link.target === replacement.revision_id
+        )
+      )!;
+      const replacementContext = records.find((item) =>
+        item.type === "BSL" && item.payload.scope === replacement.revision_id
+      )!;
+      expect({
+        first: first.revision_id,
+        replacement: replacement.revision_id,
+        failedReview: failedReview.revision_id,
+        authorization: authorization.revision_id,
+        replacementContext: replacementContext.revision_id,
+      }).toEqual({
+        first: "VAI-0000000017-r00001",
+        replacement: "VAI-0000000017-r00002",
+        failedReview: "REV-DE6MH2AS75-r00001",
+        authorization: "DEC-5AMKCRNEBB-r00001",
+        replacementContext: "BSL-0000000020-r00001",
+      });
+      expect(failedReview).toEqual(expect.objectContaining({
+        payload: expect.objectContaining({
+          correction_authority: "package-evidence",
+          outcome: "fail",
+        }),
+        created_by: expect.objectContaining({ scenario: "review-datum-in-context@2" }),
+      }));
+      expect(replacement).toEqual(expect.objectContaining({
+        payload: expect.objectContaining({
+          activity_bindings: expect.arrayContaining([
+            "Correct the failed Review by adding an exact reproducible mode-producing observation.",
+          ]),
+        }),
+        created_by: expect.objectContaining({ scenario: "revise-pilot-vai-after-review@1" }),
+      }));
+      expect(replacement.links).toContainEqual({
+        type: "corrects-review",
+        target: failedReview.revision_id,
+      });
+      expect(authorization).toEqual(expect.objectContaining({
+        payload: expect.objectContaining({ effective_scope: replacement.revision_id }),
+        created_by: expect.objectContaining({ scenario: "revise-pilot-vai-after-review@1" }),
+      }));
+      expect(replacementContext.payload).toEqual(expect.objectContaining({
+        definition_members: [replacement.revision_id],
+        evidence: [],
+        snapshot: expect.objectContaining({
+          member_hashes: {
+            [replacement.revision_id]:
+              "sha256:2b9358542cc3894f2aacf8692f28ae051f17843ef40fd6b59bc0d4efa7cc716e",
+          },
+          resolved_links: {
+            [replacementContext.revision_id]: [],
+            [replacement.revision_id]: [
+              "ART-0000000016-r00001",
+              "ENV-0000000006-r00001",
+              failedReview.revision_id,
+              "VER-0000000013-r00001",
+            ],
+          },
+          process_provenance: expect.objectContaining({ process_ref: fixtureProcessRef }),
+        }),
+      }));
+      const executions = await scenarioExecutionRecords(repository);
+      expect(executions.find((item) => item.outputs?.some((output: any) =>
+        output.lifecycleDatum?.revisionId === failedReview.revision_id
+      ))).toEqual(expect.objectContaining({
+        contract: "mdlm-scenario-execution@4",
+        definition: expect.objectContaining({ scenario: "review-datum-in-context@2" }),
+        completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
+      }));
+      expect(executions.find((item) => item.outputs?.some((output: any) =>
+        output.lifecycleDatum?.revisionId === replacement.revision_id
+      ))).toEqual(expect.objectContaining({
+        contract: "mdlm-scenario-execution@4",
+        definition: expect.objectContaining({ scenario: "revise-pilot-vai-after-review@1" }),
+        completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
+        outputs: expect.arrayContaining([
+          expect.objectContaining({ name: "replacement" }),
+          expect.objectContaining({ name: "authorization" }),
+        ]),
+      }));
+
+      const evaluation = evaluateLifecycle(loaded.package, snapshot);
+      expect(evaluation.diagnostics).toEqual([]);
+      expect(evaluation.obligations.find((item) =>
+        item.obligation === "verification-run-required" && item.subject === first.revision_id
+      )).toBeUndefined();
+      expect(evaluation.obligations.find((item) =>
+        item.obligation === "passing-review-required" &&
+        item.subject === replacement.revision_id
+      )).toEqual(expect.objectContaining({
+        status: "awaiting-review",
+        dispatchable: true,
+        actionableResolver: "review-datum-in-context@2",
+      }));
+
+      const prepared = await prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
+      expect(inputRevision(prepared, "subject")).toBe(replacement.revision_id);
+      expect(prepared.packet.obligation.instance).toContain(replacement.revision_id);
+    } finally {
+      await fs.rm(repository, { recursive: true, force: true });
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  }, 45_000);
 
   it("retries after a durable all-not-launched run and progresses only after exercised evidence through the public command application", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-no-exercise-"));
-    const processRoot = await copiedProcessPackage("mdlm-phase1-no-exercise-process-");
+    const processRoot = await phase1PilotRetryProcessPackage();
     try {
-      const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
-      const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
-      await fs.writeFile(
-        phase0Path,
-        (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
-      );
-      let phase1 = await fs.readFile(phase1Path, "utf8");
-      phase1 = phase1.replace("order: 1", "order: 0").replace(
-        /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-        "scenarios:\n  - execute-verification-run@1\nobligations:\n  - verification-run-required@1\noutputs:",
-      );
-      await fs.writeFile(phase1Path, phase1);
-      const runObligationPath = path.join(
-        processRoot,
-        "obligations/verification-run-required.yaml",
-      );
-      await fs.writeFile(
-        runObligationPath,
-        (await fs.readFile(runObligationPath, "utf8")).replace(
-          /status_rules:[\s\S]*?default_status:/,
-          `status_rules:\n  - status: ready\n    priority: 100\n    when: 'implementation.payload.kind in ["qualification", "pilot"]'\n    reason: The isolated public route permits a bounded execution.\ndefault_status:`,
-        ),
-      );
-      const profilePath = path.join(processRoot, "profiles/bootstrap.yaml");
-      await fs.writeFile(
-        profilePath,
-        (await fs.readFile(profilePath, "utf8")).replace(
-          /  profile_boundary:\n    condition: >-[\s\S]*?\n    explanation:/,
-          `  profile_boundary:\n    condition: >-\n      exists("verification-implementations-requiring-run@1", {})\n      && every("verification-implementations-requiring-run@1", {}, implementation =>\n        implementation.payload.kind != "pilot"\n        || exists("exercised-pilot-runs-for-implementation@1",\n          {implementation: implementation}))\n    explanation:`,
-        ),
-      );
-      await selectProcessPackageFixture(repository, processRoot);
+      await initializeProcessPackageFixture(repository, processRoot);
       const loadedFixture = await loadProcessPackage(processRoot);
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
-
-      const product = record("PSP", "PSP-0HARDENP10", {
-        title: "Bounded pilot product",
-        rationale: "Provide exact intent for the pilot route.",
-        problem: "Discriminate supported and unsupported public commands.",
-        users: ["operator"],
-        goals: ["exercise supported and unsupported behavior"],
-        non_goals: ["source inspection"],
-        success_measures: ["both behavior classes are observed"],
-      }, { scenario: "compile-psp@2" });
-      const requirement = record("STK", "STK-0HARDENP10", {
-        title: "Public command discrimination",
-        rationale: "Require observed public behavior.",
-        statement: "The public command shall distinguish supported and unsupported cases.",
-        verification_intent: "Observe both behavior classes.",
-        stakeholder: "operator",
-        priority: "must",
-        system_context: "product",
-      }, {
-        scenario: "draft-stakeholder-requirements@2",
-        links: [{ type: "derived-from", target: product.datum.id }],
-      });
-      const sourceRecords = repositorySafeRecords([
-        product,
-        requirement,
-        strategy(1),
-        environment(),
-        pilotActivity(),
-        target(),
-        pilotImplementation(),
-      ]);
-      const seeded = await publishScenarioMutation(
+      await installCurrentLifecycleDataFixture(repository, "phase-1-pilot-retry-ready");
+      const fixtureProcessRef =
+        "mdlm-bootstrap@0.74.0#sha256:e5e1533167c2d71be979d29e3f5898c16c47aa1d98e7d9c57de77d3b4d57da1b";
+      const retry = await prepareNextAssignment(
         repository,
-        loadedFixture.package,
-        [],
-        sourceRecords.map((item) => item.datum),
-        "phase-1-no-exercise-fixture",
-        { contract: "phase-1-no-exercise-fixture@1" },
+        "execute-verification-run@1",
       );
-      expect(seeded.ok, JSON.stringify(seeded.diagnostics)).toBe(true);
-
-      const first = await prepareNextAssignment(repository, "execute-verification-run@1");
-      const implementation = inputRevision(first, "implementation");
-      const activity = inputRevision(first, "activity");
-      const environmentRevision = inputRevision(first, "environment");
-      const executionTarget = inputRevision(first, "execution_target");
-      const proposal = (
-        suitable: boolean,
-        evidence: string[],
-      ): ProposedOutput[] => [{
+      const implementation = inputRevision(retry, "implementation");
+      const activity = inputRevision(retry, "activity");
+      const environmentRevision = inputRevision(retry, "environment");
+      const executionTarget = inputRevision(retry, "execution_target");
+      expect(retry.packet.obligation).toEqual(expect.objectContaining({
+        definition: "verification-run-required@1",
+        instance: expect.stringContaining(implementation),
+      }));
+      expect(loadedFixture.package.scenarios["execute-verification-run"]?.prompt_ref).toBe(
+        "prompts/execute-verification-run.md@2",
+      );
+      expect(retry.packet.prompt).toEqual(expect.objectContaining({
+        reference: "prompts/execute-verification-run.md@2",
+        content: expect.stringContaining(
+          "A completed RUN means the bounded runner procedure completed",
+        ),
+      }));
+      const exercisedEvidence = [
+        "case:supported:exit-0",
+        "case:unsupported:exit-2",
+      ];
+      const exercised = await submitAssignment(repository, retry, [{
         localId: "run",
         name: "run",
         invocation: 0,
         lifecycleDatum: {
           type: "RUN",
           payload: {
-            title: suitable ? "Exercised pilot run" : "Completed setup-failure procedure",
+            title: "Exercised pilot run",
             kind: "pilot",
-            started_at: suitable ? "2026-01-01T00:02:00.000Z" : "2026-01-01T00:01:00.000Z",
-            completed_at: suitable ? "2026-01-01T00:02:01.000Z" : "2026-01-01T00:01:01.000Z",
+            started_at: "2026-01-01T00:02:00.000Z",
+            completed_at: "2026-01-01T00:02:01.000Z",
             execution_state: "completed",
             execution_target: { kind: "prototype", ref: executionTarget },
             runner_ref: "runner:phase-1-public-command",
             configuration_refs: [environmentRevision],
             activities_expected: [activity],
             activities_invoked: [activity],
-            evidence_locations: evidence,
+            evidence_locations: exercisedEvidence,
           },
           links: [
             { type: "executes", target: implementation },
@@ -3265,9 +3018,7 @@ describe("Phase 1 hardening route evidence", () => {
             { type: "targets", target: executionTarget },
             { type: "produces", target: "$proposal.result.revision_id" },
           ],
-          body: suitable
-            ? "The product launched and both behavior classes were exercised.\n"
-            : "Mandatory setup failed before product launch; every target case was not launched.\n",
+          body: "The product launched and both behavior classes were exercised.\n",
         },
       }, {
         localId: "result",
@@ -3276,79 +3027,93 @@ describe("Phase 1 hardening route evidence", () => {
         lifecycleDatum: {
           type: "RES",
           payload: {
-            title: suitable ? "Suitable exercised pilot result" : "Inconclusive setup-failure result",
+            title: "Suitable exercised pilot result",
             claim: {
               kind: "pilot",
               scope: "verification-design",
-              outcome: suitable ? "suitable" : "inconclusive",
+              outcome: "suitable",
               formal_evidence_eligible: false,
             },
-            assessment_state: suitable ? "accepted" : "assessment-required",
+            assessment_state: "accepted",
             observations: {
-              expected_success_observed: suitable,
-              expected_discrimination_observed: suitable,
-              details: suitable
-                ? "Supported behavior succeeded and intentionally unsupported behavior rejected."
-                : "No product process launched and every target case was not launched.",
+              expected_success_observed: true,
+              expected_discrimination_observed: true,
+              details: "Supported behavior succeeded and intentionally unsupported behavior rejected.",
             },
-            evidence_refs: evidence,
+            evidence_refs: exercisedEvidence,
             assessor_ref: "runner:phase-1-public-command",
           },
           links: [{ type: "assessed-in", target: environmentRevision }],
-          body: suitable
-            ? "Both declared behavior classes were observed.\n"
-            : "This is durable setup-failure evidence, not pilot success.\n",
+          body: "Both declared behavior classes were observed.\n",
         },
-      }];
-
-      const noExerciseEvidence = ["setup:containment-unavailable", "case:all:not-launched"];
-      const inconclusive = await submitAssignment(
-        repository,
-        first,
-        proposal(false, noExerciseEvidence),
-      );
-      expect(inconclusive.status, `${inconclusive.stderr}${inconclusive.stdout}`).toBe(0);
-      const retry = await prepareNextAssignment(repository, "execute-verification-run@1");
-      expect(inputRevision(retry, "implementation")).toBe(implementation);
-      expect(retry.packet.prompt).toEqual(expect.objectContaining({
-        reference: "prompts/execute-verification-run.md@2",
-        content: expect.stringContaining(
-          "A completed RUN means the bounded runner procedure completed",
-        ),
-      }));
-
-      const exercisedEvidence = ["case:supported:exit-0", "case:unsupported:exit-2"];
-      const exercised = await submitAssignment(
-        repository,
-        retry,
-        proposal(true, exercisedEvidence),
-      );
+      }]);
       expect(exercised.status, `${exercised.stderr}${exercised.stdout}`).toBe(0);
-      const stored = await readRepositoryData(repository, loadedFixture.package);
-      if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
-      const repositoryRecords = stored.value.map((item) => item.lifecycleDatum);
-      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
-      const evaluation = evaluateLifecycle(loadedFixture.package, {
-        processRef: fixtureProcessRef,
-        phaseId: "phase-1-product-assurance",
-        records: repositoryRecords,
-        dependencyComparisons: [],
-      });
+      const afterInspection = await loadRepositoryInspection(
+        repository,
+        loadedFixture.package,
+        fixtureProcessRef,
+      );
+      expect(afterInspection.ok, JSON.stringify(afterInspection.diagnostics)).toBe(true);
+      if (!afterInspection.ok) return;
+      const afterSnapshot = afterInspection.value.lifecycleSnapshot(
+        "phase-1-product-assurance",
+      );
+      const afterRecords = afterSnapshot.records.map((item) => item.datum);
+      const setupFailureRun = afterRecords.find((item) =>
+        item.type === "RUN" && Array.isArray(item.payload.evidence_locations) &&
+        item.payload.evidence_locations.includes("case:all:not-launched")
+      )!;
+      const setupFailureResult = afterRecords.find((item) =>
+        item.type === "RES" && setupFailureRun.links.some((link) =>
+          link.type === "produces" && link.target === item.revision_id
+        )
+      )!;
+      const noExerciseEvidence = [
+        "setup:containment-unavailable",
+        "case:all:not-launched",
+      ];
+      expect(setupFailureRun.payload).toEqual(expect.objectContaining({
+        execution_state: "completed",
+        activities_invoked: [activity],
+        evidence_locations: noExerciseEvidence,
+      }));
+      expect(setupFailureRun.links).toEqual(expect.arrayContaining([
+        { type: "executes", target: implementation },
+        { type: "uses", target: environmentRevision },
+        { type: "targets", target: executionTarget },
+        { type: "produces", target: setupFailureResult.revision_id },
+      ]));
+      expect(setupFailureResult.payload).toEqual(expect.objectContaining({
+        claim: expect.objectContaining({ outcome: "inconclusive" }),
+        assessment_state: "assessment-required",
+        observations: expect.objectContaining({
+          expected_success_observed: false,
+          expected_discrimination_observed: false,
+          details: expect.stringContaining("every target case was not launched"),
+        }),
+        evidence_refs: noExerciseEvidence,
+      }));
+      const setupExecution = (await scenarioExecutionRecords(repository)).find(
+        (item) => item.outputs?.some((output: any) =>
+          output.lifecycleDatum?.revisionId === setupFailureRun.revision_id
+        ),
+      );
+      expect(setupExecution).toEqual(expect.objectContaining({
+        contract: "mdlm-scenario-execution@4",
+        definition: expect.objectContaining({ scenario: "execute-verification-run@1" }),
+        completion: expect.objectContaining({ contractValid: true, expressionPassed: true }),
+      }));
+      const evaluation = evaluateLifecycle(loadedFixture.package, afterSnapshot);
+      expect(evaluation.diagnostics).toEqual([]);
       expect(evaluateProcessDefinition(
         loadedFixture.package,
-        {
-          processRef: fixtureProcessRef,
-          phaseId: "phase-1-product-assurance",
-          records: repositoryRecords,
-          dependencyComparisons: [],
-        },
+        afterSnapshot,
         "selector",
         "exercised-pilot-runs-for-implementation@1",
         { implementation },
       ).result).toHaveLength(1);
       expect(evaluation.obligations.find((item) =>
-        item.obligation === "verification-run-required" &&
-        item.subject === implementation
+        item.obligation === "verification-run-required" && item.subject === implementation
       )).toEqual(expect.objectContaining({
         status: "satisfied",
         satisfied: true,
@@ -3357,7 +3122,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 60_000);
+  }, 45_000);
 
   it("keeps a completed setup-failure run without treating it as exercised pilot evidence", async () => {
     expect(processPackage.scenarios["execute-verification-run"]?.prompt_ref).toBe(
