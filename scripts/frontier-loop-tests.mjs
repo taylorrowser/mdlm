@@ -309,8 +309,9 @@ test("completed failed validation resumes without launching another editing agen
   assert.equal(resumesAtValidation({ kind: "implementation" }), false);
 });
 
-test("root Vitest files have one resource class and a finite heavy worker cap", async () => {
+test("root Vitest files have one weighted runtime class", async () => {
   const { rootVitestSuites, testFiles } = await import("../vitest.suites.mjs");
+  const { ROOT_TEST_TOKEN_CAPACITY, rootTestManifest } = await import("./root-test-schedule.mjs");
   const discovered = readdirSync(new URL("../test", import.meta.url), {
     withFileTypes: true,
   })
@@ -321,35 +322,36 @@ test("root Vitest files have one resource class and a finite heavy worker cap", 
 
   assert.deepEqual(rootVitestSuites.map((suite) => suite.id), [
     "process-repository-heavy",
-    "standard-resource",
+    "repository-public-medium",
     "cheap-in-process",
   ]);
   assert.equal(discovered.length, 47);
-  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 27, 16]);
-  assert.equal(rootVitestSuites.every((suite) => suite.files.length > 0), true);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 26, 17]);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [3, 2, 1]);
+  assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
+  assert.equal(rootTestManifest.every((entry) => Number.isInteger(entry.weight)
+    && entry.weight > 0
+    && entry.weight <= ROOT_TEST_TOKEN_CAPACITY), true);
   assert.equal(classified.length, new Set(classified).size);
   assert.deepEqual([...classified].sort(), discovered);
   assert.deepEqual([...testFiles].sort(), discovered);
-
-  const heavy = rootVitestSuites.find(
-    (suite) => suite.id === "process-repository-heavy",
-  );
-  const cheap = rootVitestSuites.find((suite) => suite.id === "cheap-in-process");
-  assert.equal(Number.isFinite(heavy.maxWorkers), true);
-  assert.equal(heavy.maxWorkers, 2);
-  assert.ok(cheap.maxWorkers > heavy.maxWorkers);
 });
 
-test("the authoritative runner executes every declared resource class", () => {
+test("the authoritative runner uses the bounded weighted process scheduler", () => {
   const source = readFileSync(
     new URL("./authoritative-tests.mjs", import.meta.url),
     "utf8",
   );
 
-  assert.match(source, /import \{ rootVitestSuites \} from "\.\.\/vitest\.suites\.mjs";/);
-  assert.match(source, /for \(const suite of rootVitestSuites\)/);
-  assert.match(source, /`--maxWorkers=\$\{suite\.maxWorkers\}`/);
-  assert.match(source, /\.\.\.suite\.files/);
+  assert.match(source, /createRootTestTasks/);
+  assert.match(source, /runWeightedSchedule/);
+  assert.match(source, /launchProcessGroupTask/);
+  assert.match(source, /ROOT_TEST_TOKEN_CAPACITY/);
+  assert.match(source, /--maxWorkers=1/);
+  assert.match(source, /\.\.\.task\.files/);
+  assert.match(source, /terminationGrace: 1_000/);
+  assert.match(source, /AbortController/);
+  assert.match(source, /SIGTERM/);
 });
 
 test("retained heavy cohort setup hooks use named finite limits", () => {

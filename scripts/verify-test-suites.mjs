@@ -6,6 +6,10 @@ import {
   rootVitestSuites,
   testFiles,
 } from "../vitest.suites.mjs";
+import {
+  ROOT_TEST_TOKEN_CAPACITY,
+  rootTestManifest,
+} from "./root-test-schedule.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -55,8 +59,11 @@ for (const suite of rootVitestSuites) {
   if (suite.files.length === 0) {
     errors.push(`Root Vitest resource class is empty: ${suite.id}`);
   }
-  if (!Number.isInteger(suite.maxWorkers) || suite.maxWorkers <= 0) {
-    errors.push(`Root Vitest resource class has no finite worker cap: ${suite.id}`);
+  if (!Number.isInteger(suite.weight) || suite.weight <= 0 || suite.weight > ROOT_TEST_TOKEN_CAPACITY) {
+    errors.push(`Root Vitest resource class has an invalid token weight: ${suite.id}`);
+  }
+  if (suite.files.some((file) => rootTestManifest.find((entry) => entry.file === file)?.weight !== suite.weight)) {
+    errors.push(`Root Vitest resource class has inconsistent file weights: ${suite.id}`);
   }
 }
 for (const id of duplicates(suiteIds)) {
@@ -92,7 +99,7 @@ if (errors.length > 0) {
 }
 
 const classSummary = rootVitestSuites
-  .map((suite) => `${suite.id}=${suite.files.length}@${suite.maxWorkers}`)
+  .map((suite) => `${suite.id}=${suite.files.length}@weight${suite.weight}`)
   .join(", ");
 console.log(
   `Verified ${rootDiscovered.length + mdlmPiDiscovered.length} Vitest files; root classes: ${classSummary}.`,
