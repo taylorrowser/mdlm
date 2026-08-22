@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { LifecycleRecord, LifecycleSnapshot } from "../src/index.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import {
@@ -58,7 +58,7 @@ function waivedRecords(): LifecycleRecord[] {
 describe("mdlm lifecycle status and next work", () => {
   let repositoryRoot: string;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-lifecycle-"));
     const initialized = await applicationMdlm(
       repositoryRoot,
@@ -69,7 +69,7 @@ describe("mdlm lifecycle status and next work", () => {
     expect(initialized.status, initialized.stdout).toBe(0);
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
   });
 

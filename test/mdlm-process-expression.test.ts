@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
 
 async function applicationMdlm(repository: string, ...arguments_: string[]) {
@@ -15,7 +15,7 @@ const subjectRevision = "PSP-7K3M9Q2D8F-r00001";
 describe("mdlm process expression evaluation", () => {
   let repositoryRoot: string;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-expression-"));
     const initialized = await applicationMdlm(
       repositoryRoot,
@@ -26,7 +26,7 @@ describe("mdlm process expression evaluation", () => {
     expect(initialized.status, initialized.stdout).toBe(0);
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
   });
 

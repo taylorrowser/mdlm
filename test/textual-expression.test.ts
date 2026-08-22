@@ -35,6 +35,29 @@ async function processPackageWithTextualProcessDrift(
   return processRoot;
 }
 
+async function processPackageWithTextualProcessDrifts(
+  expressions: string[],
+): Promise<string> {
+  const [first, ...remaining] = expressions;
+  if (!first) throw new Error("At least one expression is required");
+  const processRoot = await processPackageWithTextualProcessDrift(first);
+  const statePath = path.join(processRoot, "states/relationship-overlays.yaml");
+  const state = await fs.readFile(statePath, "utf8");
+  const marker =
+    "    explanation: Current process provenance differs; this is informational and never causes staleness by itself.";
+  const additionalRules = remaining.map((expression, index) => [
+    "  - value: process-drift",
+    `    priority: ${99 - index}`,
+    `    when: '${expression}'`,
+    `    explanation: Invalid expression fixture ${index + 2}.`,
+  ].join("\n")).join("\n");
+  await fs.writeFile(
+    statePath,
+    state.replace(marker, `${marker}\n${additionalRules}`),
+  );
+  return processRoot;
+}
+
 async function processPackageWithStateCycle(): Promise<string> {
   const processRoot = await processPackageWithTextualProcessDrift(
     'state(subject, "validity") == "valid"',
@@ -450,16 +473,12 @@ describe("textual MDLM expressions", () => {
       field: 'policy("review-applicability@1", {subject: subject}).missing == true',
       type: 'policy("review-applicability@1", {subject: subject}).required == "yes"',
     };
-    const results = await Promise.all(
-      Object.values(sources).map(async (source) =>
-        loadProcessPackage(
-          await processPackageWithTextualProcessDrift(source),
-        ),
-      ),
+    const result = await loadProcessPackage(
+      await processPackageWithTextualProcessDrifts(Object.values(sources)),
     );
 
-    for (const result of results) expect(result.ok).toBe(false);
-    expect(results[0]?.diagnostics).toEqual(
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "expression-unknown-policy",
@@ -468,7 +487,7 @@ describe("textual MDLM expressions", () => {
         }),
       ]),
     );
-    expect(results[1]?.diagnostics).toEqual(
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "expression-policy-arguments",
@@ -478,7 +497,7 @@ describe("textual MDLM expressions", () => {
         }),
       ]),
     );
-    expect(results[2]?.diagnostics).toEqual(
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "expression-policy-arguments",
@@ -488,7 +507,7 @@ describe("textual MDLM expressions", () => {
         }),
       ]),
     );
-    expect(results[3]?.diagnostics).toEqual(
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "expression-policy-arguments",
@@ -498,7 +517,7 @@ describe("textual MDLM expressions", () => {
         }),
       ]),
     );
-    expect(results[4]?.diagnostics).toEqual(
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "expression-policy-arguments",
@@ -508,7 +527,7 @@ describe("textual MDLM expressions", () => {
         }),
       ]),
     );
-    expect(results[5]?.diagnostics).toEqual(
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "expression-policy-result",
@@ -518,7 +537,7 @@ describe("textual MDLM expressions", () => {
         }),
       ]),
     );
-    expect(results[6]?.diagnostics).toEqual(
+    expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "expression-type",

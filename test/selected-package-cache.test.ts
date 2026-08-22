@@ -23,10 +23,18 @@ async function initializedRepository(): Promise<string> {
   return repository;
 }
 
+async function copyRepository(source: string): Promise<string> {
+  const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-selected-cache-"));
+  temporaryRoots.push(parent);
+  const repository = path.join(parent, "repository");
+  await fs.cp(source, repository, { recursive: true });
+  return repository;
+}
+
 describe("selected Process Package cache", () => {
   it("isolates callers and package roots", async () => {
     const firstRoot = await initializedRepository();
-    const secondRoot = await initializedRepository();
+    const secondRoot = await copyRepository(firstRoot);
     const first = await selectedPackage(firstRoot);
     expect(first.ok).toBe(true);
     if (!first.ok) return;
