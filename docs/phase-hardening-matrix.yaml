@@ -1051,7 +1051,7 @@ rows:
       - route: reviewed rejection
         executable:
           file: test/phase-0-corrected-gate-route.test.ts
-          test: candidate-authority public route reaches corrected gate review and Phase 0 acceptance
+          test: resumes at failed gate authority, reviews its correction, and accepts Phase 0 intent
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
             superseding candidate."
