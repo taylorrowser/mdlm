@@ -1,12 +1,16 @@
 import { spawn, spawnSync } from "node:child_process";
-import { promises as fs, watch } from "node:fs";
+import { constants as fsConstants, promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
-import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import {
+  diffExactBaselines,
+  finalizeExactBaselineScenarioOutput,
+  verifyExactBaseline,
+} from "../src/exact-baseline-repository.js";
 import {
   publishScenarioMutationData,
   readRepositoryData,
@@ -22,6 +26,10 @@ async function executeMdlm(repository: string, ...arguments_: string[]) {
 }
 
 type WrittenDatum = { datum: DatumEnvelope; path: string };
+type SelectedPackageFixture = {
+  processPackage: ProcessPackage;
+  processRef: string;
+};
 type BaselineFixture = {
   before: WrittenDatum;
   after: WrittenDatum;
@@ -30,6 +38,16 @@ type BaselineFixture = {
   oldEvidence: WrittenDatum;
   newEvidence: WrittenDatum;
 };
+
+async function copyRepositoryFoundation(
+  source: string,
+  destination: string,
+): Promise<void> {
+  await fs.cp(source, destination, {
+    recursive: true,
+    mode: fsConstants.COPYFILE_FICLONE,
+  });
+}
 
 function expectSuccess(
   result: { status: number | null; stdout: string; stderr: string },
@@ -211,10 +229,18 @@ async function freezeBaseline(
   return writeDatum(repository, finalized.value.output.datum);
 }
 
-async function selectedPackage(repository: string): Promise<{
-  processPackage: ProcessPackage;
-  processRef: string;
-}> {
+let immutableSelectedPackage: SelectedPackageFixture | undefined;
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value)) deepFreeze(nested);
+  }
+  return value;
+}
+
+async function selectedPackage(repository: string): Promise<SelectedPackageFixture> {
+  if (immutableSelectedPackage) return immutableSelectedPackage;
   const descriptor = JSON.parse(await fs.readFile(
     path.join(repository, ".lifecycle/repository.json"),
     "utf8",
@@ -228,6 +254,49 @@ async function selectedPackage(repository: string): Promise<{
   return {
     processPackage: loaded.package,
     processRef: `${descriptor.package.reference}#${descriptor.package.digest}`,
+  };
+}
+
+async function verifyBaseline(repository: string, identity: string) {
+  const { processPackage, processRef } = await selectedPackage(repository);
+  return verifyExactBaseline(repository, processPackage, processRef, identity);
+}
+
+async function diffBaselines(
+  repository: string,
+  beforeIdentity: string,
+  afterIdentity: string,
+) {
+  const { processPackage, processRef } = await selectedPackage(repository);
+  return diffExactBaselines(
+    repository,
+    processPackage,
+    processRef,
+    beforeIdentity,
+    afterIdentity,
+  );
+}
+
+async function inspectRepositoryHealth(repository: string) {
+  const { processPackage, processRef } = await selectedPackage(repository);
+  const inspection = await loadRepositoryInspection(
+    repository,
+    processPackage,
+    processRef,
+  );
+  if (!inspection.ok) return inspection;
+  const verified = await inspection.value.verifyBaselines();
+  if (!verified.ok) return verified;
+  const projections = await inspection.value.rebuildGeneratedProjections();
+  if (!projections.ok) return projections;
+  return {
+    ok: true as const,
+    value: {
+      baselineRepositoryVerification: verified.value,
+      index: projections.value.index,
+      report: projections.value.report,
+    },
+    diagnostics: [],
   };
 }
 
@@ -300,8 +369,16 @@ async function arrangeChangedBaselines(repository: string): Promise<BaselineFixt
 }
 
 describe("mdlm baseline inspection", () => {
+  const changedBaselineTests = new Set([
+    "verifies exact members and evidence and reports substantive baseline differences",
+    "detects changed bytes, missing exact members, and corrupt frozen resolutions",
+    "loads one verified repository snapshot while checking all baselines and projections",
+    "verifies every repository baseline before rebuilding disposable projections",
+  ]);
   let templateParent: string;
   let templateRepository: string;
+  let changedTemplateRepository: string;
+  let changedBaselineFixture: BaselineFixture;
   let parent: string;
   let repository: string;
 
@@ -318,12 +395,25 @@ describe("mdlm baseline inspection", () => {
       "--json",
     );
     expectSuccess(initialized, "mdlm init template");
+    immutableSelectedPackage = deepFreeze(
+      await selectedPackage(templateRepository),
+    );
+    changedTemplateRepository = path.join(templateParent, "changed-repository");
+    await copyRepositoryFoundation(templateRepository, changedTemplateRepository);
+    changedBaselineFixture = deepFreeze(
+      await arrangeChangedBaselines(changedTemplateRepository),
+    );
   });
 
-  beforeEach(async () => {
+  beforeEach(async ({ task }) => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-baseline-inspection-"));
     repository = path.join(parent, "repository");
-    await fs.cp(templateRepository, repository, { recursive: true });
+    await copyRepositoryFoundation(
+      changedBaselineTests.has(task.name)
+        ? changedTemplateRepository
+        : templateRepository,
+      repository,
+    );
   });
 
   afterEach(async () => {
@@ -331,6 +421,7 @@ describe("mdlm baseline inspection", () => {
   });
 
   afterAll(async () => {
+    immutableSelectedPackage = undefined;
     await fs.rm(templateParent, { recursive: true, force: true });
   });
 
@@ -732,18 +823,13 @@ describe("mdlm baseline inspection", () => {
   });
 
   it("verifies exact members and evidence and reports substantive baseline differences", async () => {
-    const fixture = await arrangeChangedBaselines(repository);
+    const fixture = structuredClone(changedBaselineFixture);
 
     for (const baseline of [fixture.before, fixture.after]) {
-      const verified = await executeMdlm(
-        repository,
-        "baseline",
-        "verify",
-        baseline.datum.revision_id,
-        "--json",
-      );
-      expectSuccess(verified, `mdlm baseline verify ${baseline.datum.revision_id}`);
-      expect(JSON.parse(verified.stdout).baselineVerification).toEqual({
+      const verified = await verifyBaseline(repository, baseline.datum.revision_id);
+      expect(verified.ok).toBe(true);
+      if (!verified.ok) throw new Error(JSON.stringify(verified.diagnostics));
+      expect(verified.value).toEqual({
         baselineRevision: baseline.datum.revision_id,
         valid: true,
         definitionMembers: [
@@ -762,16 +848,14 @@ describe("mdlm baseline inspection", () => {
       });
     }
 
-    const compared = await executeMdlm(
+    const compared = await diffBaselines(
       repository,
-      "baseline",
-      "diff",
       fixture.before.datum.revision_id,
       fixture.after.datum.revision_id,
-      "--json",
     );
-    expectSuccess(compared, "mdlm baseline diff");
-    const diff = JSON.parse(compared.stdout).baselineDiff;
+    expect(compared.ok).toBe(true);
+    if (!compared.ok) throw new Error(JSON.stringify(compared.diagnostics));
+    const diff = compared.value;
     expect(diff).toMatchObject({
       beforeBaseline: fixture.before.datum.revision_id,
       afterBaseline: fixture.after.datum.revision_id,
@@ -868,31 +952,23 @@ describe("mdlm baseline inspection", () => {
       body: "Freeze exact malformed UTF-8 member bytes.\n",
     });
 
-    const verified = await executeMdlm(
-      repository,
-      "baseline",
-      "verify",
-      baseline.datum.revision_id,
-      "--json",
-    );
-    expectSuccess(verified, "mdlm baseline verify raw bytes");
+    const verified = await verifyBaseline(repository, baseline.datum.revision_id);
+    expect(verified.ok).toBe(true);
+    if (!verified.ok) throw new Error(JSON.stringify(verified.diagnostics));
   });
 
   it("detects changed bytes, missing exact members, and corrupt frozen resolutions", async () => {
-    const fixture = await arrangeChangedBaselines(repository);
+    const fixture = structuredClone(changedBaselineFixture);
     const memberPath = path.join(repository, fixture.firstMap.path);
     const memberBytes = await fs.readFile(memberPath, "utf8");
 
     await fs.writeFile(memberPath, `${memberBytes}changed frozen byte\n`);
-    const hashFailure = await executeMdlm(
+    const hashFailure = await verifyBaseline(
       repository,
-      "baseline",
-      "verify",
       fixture.before.datum.revision_id,
-      "--json",
     );
-    expect(hashFailure.status).toBe(1);
-    expect(JSON.parse(hashFailure.stdout).diagnostics).toEqual(
+    expect(hashFailure.ok).toBe(false);
+    expect(hashFailure.diagnostics).toEqual(
       expect.arrayContaining([expect.objectContaining({
         code: "baseline-hash-mismatch",
         path: fixture.firstMap.datum.revision_id,
@@ -906,15 +982,12 @@ describe("mdlm baseline inspection", () => {
     };
     resolutionSnapshot.resolved_links[fixture.firstMap.datum.revision_id] = [];
     await writeDatum(repository, corruptResolution);
-    const resolutionFailure = await executeMdlm(
+    const resolutionFailure = await verifyBaseline(
       repository,
-      "baseline",
-      "verify",
       fixture.before.datum.revision_id,
-      "--json",
     );
-    expect(resolutionFailure.status).toBe(1);
-    expect(JSON.parse(resolutionFailure.stdout).diagnostics).toEqual(
+    expect(resolutionFailure.ok).toBe(false);
+    expect(resolutionFailure.diagnostics).toEqual(
       expect.arrayContaining([expect.objectContaining({
         code: "baseline-resolution-mismatch",
         path: fixture.before.datum.revision_id,
@@ -929,15 +1002,12 @@ describe("mdlm baseline inspection", () => {
       `${fixture.oldEvidence.datum.id}-r00002`,
     ];
     await writeDatum(repository, missingResolution);
-    const missingTarget = await executeMdlm(
+    const missingTarget = await verifyBaseline(
       repository,
-      "baseline",
-      "verify",
       fixture.before.datum.revision_id,
-      "--json",
     );
-    expect(missingTarget.status).toBe(1);
-    expect(JSON.parse(missingTarget.stdout).diagnostics).toEqual(
+    expect(missingTarget.ok).toBe(false);
+    expect(missingTarget.diagnostics).toEqual(
       expect.arrayContaining([expect.objectContaining({
         code: "baseline-reference-missing",
         path: `${fixture.oldEvidence.datum.id}-r00002`,
@@ -946,15 +1016,12 @@ describe("mdlm baseline inspection", () => {
 
     await writeDatum(repository, fixture.before.datum);
     await fs.rm(memberPath);
-    const missingMember = await executeMdlm(
+    const missingMember = await verifyBaseline(
       repository,
-      "baseline",
-      "verify",
       fixture.before.datum.revision_id,
-      "--json",
     );
-    expect(missingMember.status).toBe(1);
-    expect(JSON.parse(missingMember.stdout).diagnostics).toEqual(
+    expect(missingMember.ok).toBe(false);
+    expect(missingMember.diagnostics).toEqual(
       expect.arrayContaining([expect.objectContaining({
         code: "baseline-reference-missing",
         path: fixture.firstMap.datum.revision_id,
@@ -963,8 +1030,6 @@ describe("mdlm baseline inspection", () => {
   });
 
   it("loads one verified repository snapshot while checking all baselines and projections", async () => {
-    await arrangeChangedBaselines(repository);
-
     const result = mdlmWithEnvironment(
       repository,
       { MDLM_PERFORMANCE: "json" },
@@ -1066,10 +1131,11 @@ describe("mdlm baseline inspection", () => {
   }, 30_000);
 
   it("verifies every repository baseline before rebuilding disposable projections", async () => {
-    const fixture = await arrangeChangedBaselines(repository);
-    const initial = await executeMdlm(repository, "doctor", "--json");
-    expectSuccess(initial, "mdlm doctor");
-    expect(JSON.parse(initial.stdout)).toMatchObject({
+    const fixture = structuredClone(changedBaselineFixture);
+    const initial = await inspectRepositoryHealth(repository);
+    expect(initial.ok).toBe(true);
+    if (!initial.ok) throw new Error(JSON.stringify(initial.diagnostics));
+    expect(initial.value).toMatchObject({
       baselineRepositoryVerification: { verifiedBaselines: 2, processDrift: 0 },
       index: {
         rebuilt: true,
@@ -1087,9 +1153,10 @@ describe("mdlm baseline inspection", () => {
       recursive: true,
       force: true,
     });
-    const rebuilt = await executeMdlm(repository, "doctor", "--json");
-    expectSuccess(rebuilt, "mdlm doctor rebuild");
-    expect(JSON.parse(rebuilt.stdout)).toMatchObject({
+    const rebuilt = await inspectRepositoryHealth(repository);
+    expect(rebuilt.ok).toBe(true);
+    if (!rebuilt.ok) throw new Error(JSON.stringify(rebuilt.diagnostics));
+    expect(rebuilt.value).toMatchObject({
       baselineRepositoryVerification: { verifiedBaselines: 2, processDrift: 0 },
       index: { rebuilt: true, data: 6 },
       report: { rebuilt: true, data: 5 },
@@ -1111,9 +1178,9 @@ describe("mdlm baseline inspection", () => {
     const memberBytes = await fs.readFile(memberPath, "utf8");
     await fs.writeFile(memberPath, `${memberBytes}repository corruption\n`);
 
-    const unhealthy = await executeMdlm(repository, "doctor", "--json");
-    expect(unhealthy.status).toBe(1);
-    expect(JSON.parse(unhealthy.stdout).diagnostics).toEqual(
+    const unhealthy = await inspectRepositoryHealth(repository);
+    expect(unhealthy.ok).toBe(false);
+    expect(unhealthy.diagnostics).toEqual(
       expect.arrayContaining([expect.objectContaining({
         code: "baseline-hash-mismatch",
         path: fixture.firstMap.datum.revision_id,

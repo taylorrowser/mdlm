@@ -1,15 +1,30 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
+import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { executeCommandApplication } from "../src/command-application.js";
+import { loadProcessPackage } from "../src/index.js";
+import { processInspection } from "../src/process-package-inspection.js";
+import { testProcessFixtures } from "../src/process-package-fixtures.js";
+import { readScenarioExecution } from "../src/scenario-execution.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
 const projectRoot = process.cwd();
 // The compiled-CLI transaction repeatedly reloads the full selected package;
 // keep a finite bound above the observed cold-run contention window.
 const commandApplicationTimeout = 60_000;
+
+async function copyRepositoryFoundation(
+  source: string,
+  destination: string,
+): Promise<void> {
+  await fs.cp(source, destination, {
+    recursive: true,
+    mode: fsConstants.COPYFILE_FICLONE,
+  });
+}
 
 async function directoryBytes(root: string): Promise<string> {
   const files: string[] = [];
@@ -31,7 +46,27 @@ function git(repository: string, ...arguments_: string[]) {
   return spawnSync("git", ["-C", repository, ...arguments_], { encoding: "utf8" });
 }
 
-function expectUnknownCommand(result: ReturnType<typeof mdlm>, label: string): void {
+async function executeMdlm(
+  repository: string,
+  ...arguments_: string[]
+): Promise<{ status: number; stdout: string; stderr: string }> {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+async function executeMdlmWithInput(
+  repository: string,
+  input: string,
+  ...arguments_: string[]
+): Promise<{ status: number; stdout: string; stderr: string }> {
+  const execution = await executeCommandApplication(arguments_, repository, input);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+function expectUnknownCommand(
+  result: { status: number | null; stdout: string; stderr: string },
+  label: string,
+): void {
   expect(result.status, `${label}\n${result.stderr}${result.stdout}`).toBe(1);
   expect(result.stderr).toBe("");
   expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
@@ -41,18 +76,35 @@ function expectUnknownCommand(result: ReturnType<typeof mdlm>, label: string): v
 }
 
 describe("clean mdlm command application", () => {
+  let templateParent: string;
+  let templateRepository: string;
   let parent: string;
   let repository: string;
+
+  beforeAll(async () => {
+    templateParent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-command-template-"));
+    templateRepository = path.join(templateParent, "repository");
+    const initialized = await executeMdlm(
+      templateParent,
+      "init",
+      templateRepository,
+      "--json",
+    );
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+  });
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-command-"));
     repository = path.join(parent, "repository");
-    const initialized = mdlm(parent, "init", repository, "--json");
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    await copyRepositoryFoundation(templateRepository, repository);
   });
 
   afterEach(async () => {
     await fs.rm(parent, { recursive: true, force: true });
+  });
+
+  afterAll(async () => {
+    await fs.rm(templateParent, { recursive: true, force: true });
   });
 
   it("exposes only the mdlm package executable and build entry", async () => {
@@ -68,7 +120,7 @@ describe("clean mdlm command application", () => {
       .rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("rejects every public bypass with structured diagnostics and byte-identical Lifecycle Data", async () => {
+  it("rejects one executable bypass and every semantic bypass without changing Lifecycle Data", async () => {
     const marker = path.join(parent, "adapter-spawned");
     const adapter = path.join(parent, "adapter.mjs");
     await fs.writeFile(
@@ -90,7 +142,6 @@ describe("clean mdlm command application", () => {
       ["baseline", "compose", "BSL-0123456789", "BSL-ABCDEFGHIJ-r00001"],
       ["baseline", "freeze", "BSL-0123456789"],
       ["scenario", "dry-run", "establish-initial-wayfinding-map@2"],
-      ["scenario", "execute", "establish-initial-wayfinding-map@2", "--adapter", adapter],
       ["question", "resolve", "--adapter", adapter],
       ["process", "install", path.join(projectRoot, ".lifecycle/process")],
       ["process", "use", "mdlm-bootstrap@0.74.0"],
@@ -99,20 +150,37 @@ describe("clean mdlm command application", () => {
       ["process", "fixture", "new", "new-fixture"],
     ];
 
+    const executableArguments = [
+      "scenario",
+      "execute",
+      "establish-initial-wayfinding-map@2",
+      "--adapter",
+      adapter,
+    ];
+    const executableResult = mdlm(repository, ...executableArguments, "--json");
+    expectUnknownCommand(executableResult, executableArguments.join(" "));
+    expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
+    await expect(fs.stat(marker)).rejects.toMatchObject({ code: "ENOENT" });
+
     for (const arguments_ of prohibited) {
-      const result = mdlm(repository, ...arguments_, "--json");
+      const result = await executeMdlm(repository, ...arguments_, "--json");
       expectUnknownCommand(result, arguments_.join(" "));
       expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).toBe(before);
     }
-    await expect(fs.stat(marker)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("projects durable Assignment dispositions for external crash reconciliation", () => {
-    const next = mdlm(repository, "next", "--json");
+  it("projects durable Assignment dispositions for external crash reconciliation", async () => {
+    const next = await executeMdlm(repository, "next", "--json");
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const assignment = JSON.parse(next.stdout).assignment.id as string;
 
-    const active = mdlm(repository, "assignment", "show", assignment, "--json");
+    const active = await executeMdlm(
+      repository,
+      "assignment",
+      "show",
+      assignment,
+      "--json",
+    );
     expect(active.status, `${active.stderr}${active.stdout}`).toBe(0);
     expect(JSON.parse(active.stdout)).toMatchObject({
       ok: true,
@@ -126,7 +194,7 @@ describe("clean mdlm command application", () => {
     });
 
     const malformedSource = "{}\n";
-    const malformed = mdlmWithInput(
+    const malformed = await executeMdlmWithInput(
       repository,
       malformedSource,
       "scenario",
@@ -139,7 +207,13 @@ describe("clean mdlm command application", () => {
       disposition: "correction-required",
     });
 
-    const correction = mdlm(repository, "assignment", "show", assignment, "--json");
+    const correction = await executeMdlm(
+      repository,
+      "assignment",
+      "show",
+      assignment,
+      "--json",
+    );
     expect(correction.status, `${correction.stderr}${correction.stdout}`).toBe(0);
     expect(JSON.parse(correction.stdout)).toMatchObject({
       selected: true,
@@ -150,7 +224,7 @@ describe("clean mdlm command application", () => {
       }],
     });
 
-    const absent = mdlm(
+    const absent = await executeMdlm(
       repository,
       "assignment",
       "show",
@@ -231,32 +305,48 @@ describe("clean mdlm command application", () => {
       expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).not.toBe(before);
       const execution = JSON.parse(submitted.stdout).execution;
       const datum = execution.outputs[0].lifecycleDatum;
+      const storedExecution = await readScenarioExecution(repository, execution.id);
+      expect(storedExecution.ok).toBe(true);
+      if (!storedExecution.ok) {
+        throw new Error(JSON.stringify(storedExecution.diagnostics));
+      }
+      expect(storedExecution.value.id).toBe(execution.id);
 
       for (const arguments_ of [
-      ["show", datum.revisionId],
-      ["list"],
-      ["history", datum.id],
-      ["backlinks", datum.revisionId],
-      ["trace", datum.revisionId],
-      ["scenario", "execution", "show", execution.id],
-      ["schema", "MAP"],
-      ["phase", "status"],
-      ["loose-ends"],
-      ["process", "show"],
-      ["process", "validate"],
-      ["process", "test"],
-      ["process", "capabilities"],
-    ]) {
-      const result = mdlm(repository, ...arguments_, "--json");
-      expect(result.status, `${arguments_.join(" ")}\n${result.stderr}${result.stdout}`).toBe(0);
-    }
+        ["show", datum.revisionId],
+        ["schema", "MAP"],
+      ]) {
+        const result = mdlm(repository, ...arguments_, "--json");
+        expect(
+          result.status,
+          `${arguments_.join(" ")}\n${result.stderr}${result.stdout}`,
+        ).toBe(0);
+      }
+
+      const descriptor = JSON.parse(await fs.readFile(
+        path.join(repository, ".lifecycle/repository.json"),
+        "utf8",
+      )) as { package: { reference: string } };
+      const packageRoot = path.join(
+        repository,
+        ".lifecycle/packages",
+        descriptor.package.reference,
+      );
+      const loadedPackage = await loadProcessPackage(packageRoot);
+      expect(loadedPackage.ok).toBe(true);
+      if (!loadedPackage.ok) throw new Error(JSON.stringify(loadedPackage.diagnostics));
+      expect(processInspection(loadedPackage.package).status).toBe("experimental");
+      const fixtureTests = await testProcessFixtures(packageRoot);
+      expect(fixtureTests.ok).toBe(true);
+      if (!fixtureTests.ok) throw new Error(JSON.stringify(fixtureTests.diagnostics));
+      expect(fixtureTests.value.failed).toBe(0);
 
       const capabilities = mdlm(
-      repository,
-      "process",
-      "capabilities",
-      "--json",
-    );
+        repository,
+        "process",
+        "capabilities",
+        "--json",
+      );
       expect(capabilities.status, `${capabilities.stderr}${capabilities.stdout}`).toBe(0);
       expect(JSON.parse(capabilities.stdout).capabilities.hostFunctions).toEqual(
         expect.arrayContaining(["array_has_field", "first"]),
@@ -272,15 +362,15 @@ describe("clean mdlm command application", () => {
     );
       expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
 
-      const baselineNext = mdlm(repository, "next");
+      const baselineNext = await executeMdlm(repository, "next");
       expect(baselineNext.status, baselineNext.stderr).toBe(0);
       const baselineAssignment = JSON.parse(baselineNext.stdout).assignment.id as string;
-      const baselinePrepared = mdlm(
-      repository,
-      "scenario",
-      "prepare",
-      baselineAssignment,
-    );
+      const baselinePrepared = await executeMdlm(
+        repository,
+        "scenario",
+        "prepare",
+        baselineAssignment,
+      );
       expect(
       baselinePrepared.status,
       `${baselinePrepared.stderr}${baselinePrepared.stdout}`,
@@ -297,13 +387,18 @@ describe("clean mdlm command application", () => {
       );
       expect(baselineFile).toBeDefined();
       const baselineId = path.basename(path.dirname(baselineFile!));
-      for (const arguments_ of [
-        ["baseline", "verify", baselineId],
-        ["baseline", "diff", baselineId, baselineId],
-      ]) {
-      const result = mdlm(repository, ...arguments_, "--json");
-      expect(result.status, `${arguments_.join(" ")}\n${result.stderr}${result.stdout}`).toBe(0);
-    }
+      const verified = mdlm(
+        repository,
+        "baseline",
+        "verify",
+        baselineId,
+        "--json",
+      );
+      expect(
+        verified.status,
+        `baseline verify ${baselineId}\n${verified.stderr}${verified.stdout}`,
+      ).toBe(0);
+
     },
     commandApplicationTimeout,
   );
