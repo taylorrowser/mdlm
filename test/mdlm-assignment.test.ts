@@ -362,7 +362,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       ),
       correctionDiagnostics: malformedResult.malformedResponse.diagnostics,
     };
-  });
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-assignment-public-"));

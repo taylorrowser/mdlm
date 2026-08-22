@@ -340,6 +340,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 50_000;/);
   assert.match(assignmentSource, /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const allocated = await mdlm\(activeTemplateRepository, "next"\);[\s\S]*?responseSchema:[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /await copyRepository\(activeTemplateRepository, correctionTemplateRepository\);[\s\S]*?correctionDiagnostics: malformedResult\.malformedResponse\.diagnostics,[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /const historicalSource = cloneHistoricalRepository\(templateParent\);[\s\S]*?historicalProcessPackage = deepFreeze\(loaded\.package\);\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /waitForPath\(\n        barrierSignal,[\s\S]*?CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n      \);/);
   assert.match(assignmentSource, /waitForDirectoryEntry\([\s\S]*?Public submission did not stage publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
