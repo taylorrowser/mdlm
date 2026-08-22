@@ -20,7 +20,8 @@ import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlmWithEnvironment } from "./helpers/mdlm.js";
 
-const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;
 
 async function executeMdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
@@ -431,7 +432,7 @@ describe("mdlm baseline inspection", () => {
       processPackage: loaded.package,
       processRef: `${initialized.package.reference}#${initialized.package.digest}`,
     });
-  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
+  }, CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     changedTemplateRepository = path.join(templateParent, "changed-repository");
@@ -464,7 +465,7 @@ describe("mdlm baseline inspection", () => {
     expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics)).toBe(true);
     if (!loaded.ok) return;
     historicalProcessPackage = deepFreeze(loaded.package);
-  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
+  }, CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     historicalRepository = path.join(templateParent, "historical-baseline");

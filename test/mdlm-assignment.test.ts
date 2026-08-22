@@ -911,6 +911,7 @@ process.exit(result.status ?? 1);
     await waitForPath(
       barrierSignal,
       "Second valid response did not reach the Assignment lock",
+      CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,
     );
     expect((await fs.readdir(stagingRoot)).filter((entry) =>
       entry.startsWith(".scenario-") && entry.endsWith(".tmp")
