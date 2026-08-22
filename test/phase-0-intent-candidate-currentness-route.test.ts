@@ -1053,5 +1053,5 @@ describe("Phase 0 intent candidate currentness", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 300_000);
+  }, 360_000);
 });

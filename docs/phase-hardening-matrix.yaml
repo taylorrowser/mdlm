@@ -1050,7 +1050,7 @@ rows:
           rereviewed."
       - route: reviewed rejection
         executable:
-          file: test/phase-0-hardening-routes.test.ts
+          file: test/phase-0-corrected-gate-route.test.ts
           test: candidate-authority public route reaches corrected gate review and Phase 0 acceptance
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
