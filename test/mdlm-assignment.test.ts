@@ -312,7 +312,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       responseSchema:
         assignmentResponseSchema() as PreparedPromptPacket["responseSchema"],
     };
-  });
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     await copyRepository(activeTemplateRepository, correctionTemplateRepository);

@@ -464,7 +464,7 @@ describe("mdlm baseline inspection", () => {
     expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics)).toBe(true);
     if (!loaded.ok) return;
     historicalProcessPackage = deepFreeze(loaded.package);
-  });
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     historicalRepository = path.join(templateParent, "historical-baseline");
