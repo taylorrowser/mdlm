@@ -308,9 +308,12 @@ test("completed failed validation resumes without launching another editing agen
   assert.equal(resumesAtValidation({ kind: "implementation" }), false);
 });
 
-test("authoritative product tests have a seven-minute process budget", () => {
+test("authoritative product tests default to an exact ten-minute process budget", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
-  assert.match(source, /7 \* 60_000/);
+  assert.match(
+    source,
+    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 10 \* 60_000/,
+  );
   assert.match(source, /runInProcessGroup/);
   assert.match(source, /scripts\/authoritative-tests\.mjs/);
   assert.match(source, /terminationGrace: 2_000/);

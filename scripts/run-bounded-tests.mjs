@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { runInProcessGroup } from "./frontier-process-group.mjs";
 
-const budgetMs = Number(process.env.MDLM_TEST_BUDGET_MS ?? 7 * 60_000);
+const budgetMs = Number(process.env.MDLM_TEST_BUDGET_MS ?? 10 * 60_000);
 const temporaryParent = mkdtempSync(path.join(os.tmpdir(), "mdlm-authoritative-"));
 const temporaryRoot = path.join(temporaryParent, "tests.noindex");
 mkdirSync(temporaryRoot);

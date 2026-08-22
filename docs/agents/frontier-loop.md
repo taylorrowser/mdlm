@@ -141,12 +141,13 @@ node scripts/frontier-loop.mjs status --parent 123
 
 ## Test tiers
 
-`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs fast package/evaluator coverage plus representative compiled-CLI contracts, and runs controller tests. Its target wall time is under seven minutes.
+`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs fast package/evaluator coverage plus representative compiled-CLI contracts, and runs controller tests. Its default process budget is exactly 10 minutes. Preflight evidence must conservatively bound root p95 at 430 seconds or less and end-to-end p95 at 510 seconds or less, including the 80-second non-root allowance. The 510-second limit leaves at least 90 seconds between the modeled end-to-end p95 and the 600-second process deadline for unmodeled variance and cleanup. Do not launch the gate without that reserve.
 
 `npm test` is the single bounded authoritative gate. It combines package/evaluator contracts with representative compiled-public transactions instead of retaining exhaustive duplicate lifecycle reconstructions. `npm run test:all` is an alias for the same complete bounded gate. New test files must be classified in `vitest.suites.mjs`; verification fails if a file is missing, duplicated, or stale.
 
 Environment overrides:
 
+- `MDLM_TEST_BUDGET_MS` — authoritative gate process budget; defaults to exactly `10 * 60_000` milliseconds;
 - `MDLM_FRONTIER_PARENT` — default priority-map parent issue;
 - `MDLM_FRONTIER_SESSION` — tmux session name;
 - `MDLM_FRONTIER_DIR` — operational state/log/worktree root;
