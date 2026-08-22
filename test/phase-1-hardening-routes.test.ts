@@ -36,6 +36,7 @@ import {
   submitAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { installCurrentLifecycleDataFixture } from "./helpers/current-lifecycle-data-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { initializeProcessPackageFixture } from "./helpers/mdlm.js";import { copiedProcessPackage } from "./helpers/process-package.js";
@@ -841,14 +842,6 @@ function validatePayload(
   return validator(payload) === true;
 }
 
-function deepFreeze<T>(value: T): T {
-  if (value && typeof value === "object" && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const nested of Object.values(value)) deepFreeze(nested);
-  }
-  return value;
-}
-
 function phase1Evaluation(
   processPackage: ProcessPackage,
   records: LifecycleRecord[],
@@ -929,9 +922,7 @@ describe("Phase 1 hardening route evidence", () => {
   let processPackage: ProcessPackage;
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = deepFreeze(loaded.package);
+    processPackage = await canonicalProcessPackage();
   });
 
   it("proves Phase 1 VSP creation and exposes its fresh independent Review route", () => {

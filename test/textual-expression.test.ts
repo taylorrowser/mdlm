@@ -2,7 +2,6 @@ import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleRecord,
   type LoadProcessPackageResult,
   type ProcessPackage,
@@ -14,6 +13,7 @@ import {
   type ExpressionDefinitionCatalogs,
   validateExpressionDependencyCycles,
 } from "../src/expression.js";
+import { canonicalProcessPackage as loadCanonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 const canonicalProcessRoot = path.join(process.cwd(), ".lifecycle/process");
 const relationshipOverlayPath = path.join(
@@ -21,14 +21,6 @@ const relationshipOverlayPath = path.join(
   "states/relationship-overlays.yaml",
 );
 let canonicalProcessPackage: ProcessPackage;
-
-function deepFreeze<T>(value: T): T {
-  if (value && typeof value === "object" && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const nested of Object.values(value)) deepFreeze(nested);
-  }
-  return value;
-}
 
 function expressionCatalogs(
   states = canonicalProcessPackage.states,
@@ -186,13 +178,7 @@ function pspCreatedUnder(processRef: string): LifecycleRecord {
 
 describe("textual MDLM expressions", () => {
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(canonicalProcessRoot);
-    expect(
-      loaded.ok,
-      loaded.diagnostics.map((diagnostic) => diagnostic.message).join("\n"),
-    ).toBe(true);
-    if (!loaded.ok) throw new Error("Canonical Process Package did not load");
-    canonicalProcessPackage = deepFreeze(loaded.package);
+    canonicalProcessPackage = await loadCanonicalProcessPackage();
   });
 
   it("loads and evaluates a textual comparison from a Process Package", async () => {

@@ -1,12 +1,11 @@
-import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
 const processRef = "mdlm-bootstrap@0.74.0#sha256:test";
@@ -173,10 +172,7 @@ function selected(records: LifecycleRecord[]): string[] {
 
 describe("initial product-intent authority selectors", () => {
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(path.resolve(".lifecycle/process"));
-    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
-    if (!loaded.ok) throw new Error("Process Package failed to load");
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
   });
 
   it("keeps optional Question work hidden until initial product intent passes Review", () => {

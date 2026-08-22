@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
-import { evaluateLifecycle, loadProcessPackage, type ExactTypedEntity, type LifecycleRecord, type ProcessPackage } from "../src/index.js";
+import { evaluateLifecycle, type ExactTypedEntity, type LifecycleRecord, type ProcessPackage } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
-const processRoot = ".lifecycle/process";
 const processRef = "mdlm-bootstrap@0.71.0#sha256:shared-system";
 let processPackage: ProcessPackage;
 const rev = (id: string, n = 1) => `${id}-r${String(n).padStart(5, "0")}`;
@@ -24,7 +24,7 @@ const requirement = (title: string) => ({title, rationale: "One shared lineage."
 const dwp = (title: string) => ({title, rationale: "Separate exact consumer coverage.", stage: "completion", architecture_element: "AEL-1020000000", target_child_type: "SYS", behavioral_slice: title, expected_coverage: [title], exclusions: [], dependencies: [], required_review_policy: "review-applicability@1", parent_coverage_status: "complete", deferred_questions: [], cross_group_dependencies: [], output_reviews_complete: true, simplification_disposition: "retained"});
 const verification = (title: string) => ({title, rationale: "Exact evidence dependency.", kind: "pilot", method: "test", assessment_mode: "automatic", claim: {kind: "pilot", scope: "verification-design", formal_evidence_eligible: false}, acceptance_criteria: ["observable"], evidence_requirements: ["exact"], expected_success_activity: "success", expected_discrimination_activity: "reject"});
 
-beforeAll(async () => { const loaded = await loadProcessPackage(processRoot); if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics)); processPackage = loaded.package; });
+beforeAll(async () => { processPackage = await canonicalProcessPackage(); });
 
 describe("shared accepted SYS package behavior", () => {
   it("selects only the current Revision of each accepted consumer Stable Datum lineage", () => {

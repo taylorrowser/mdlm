@@ -2,8 +2,9 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { describe, expect, it } from "vitest";
-import { loadProcessPackage, resolveType } from "../src/index.js";
+import { beforeAll, describe, expect, it } from "vitest";
+import { loadProcessPackage, resolveType, type ProcessPackage } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 async function copiedProcessPackage(): Promise<string> {
   const temporaryRoot = await fs.mkdtemp(
@@ -17,13 +18,14 @@ async function copiedProcessPackage(): Promise<string> {
 }
 
 describe("resolveType", () => {
-  it("flattens the kernel envelope and requirement template chain for STK", async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  let processPackage: ProcessPackage;
 
-    const result = resolveType(loaded.package, "STK");
+  beforeAll(async () => {
+    processPackage = await canonicalProcessPackage();
+  });
+
+  it("flattens the kernel envelope and requirement template chain for STK", () => {
+    const result = resolveType(processPackage, "STK");
 
     expect(result.ok, result.diagnostics.map((item) => item.message).join("\n")).toBe(
       true,
@@ -90,13 +92,8 @@ describe("resolveType", () => {
     );
   });
 
-  it("requires exact findings for a gate rejection without changing approval", async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-
-    const result = resolveType(loaded.package, "DEC");
+  it("requires exact findings for a gate rejection without changing approval", () => {
+    const result = resolveType(processPackage, "DEC");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
@@ -129,13 +126,8 @@ describe("resolveType", () => {
     })).toBe(true);
   });
 
-  it("binds Phase 0 simplification failure to one exact structured target", async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-
-    const result = resolveType(loaded.package, "REV");
+  it("binds Phase 0 simplification failure to one exact structured target", () => {
+    const result = resolveType(processPackage, "REV");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
@@ -195,12 +187,8 @@ describe("resolveType", () => {
     ).toBe(true);
   });
 
-  it("requires evidence-complete primary blockers while keeping non-blocking triage usable", async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    const result = resolveType(loaded.package, "REV");
+  it("requires evidence-complete primary blockers while keeping non-blocking triage usable", () => {
+    const result = resolveType(processPackage, "REV");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
@@ -271,13 +259,8 @@ describe("resolveType", () => {
     ).toBe(false);
   });
 
-  it("preserves package-authored conditional payload constraints", async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-
-    const result = resolveType(loaded.package, "QST");
+  it("preserves package-authored conditional payload constraints", () => {
+    const result = resolveType(processPackage, "QST");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const validate = new Ajv2020({ allErrors: true, strict: false }).compile(

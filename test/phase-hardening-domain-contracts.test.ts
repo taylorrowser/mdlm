@@ -3,8 +3,9 @@ import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { beforeAll, describe, expect, it } from "vitest";
-import { evaluateLifecycle, loadProcessPackage, resolveType, type ProcessPackage } from "../src/index.js";
+import { evaluateLifecycle, resolveType, type ProcessPackage } from "../src/index.js";
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 const processRef = "mdlm-bootstrap@0.71.0#sha256:hardening-contracts";
@@ -94,9 +95,7 @@ describe("Phase-hardening domain route contracts", () => {
   let processPackage: ProcessPackage;
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
   });
 
   it("derives exact Phase 0 Review work from a published product specification", () => {

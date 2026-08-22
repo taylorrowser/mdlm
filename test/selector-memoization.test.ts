@@ -1,10 +1,9 @@
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleRecord,
 } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 const processRef = "mdlm-bootstrap@0.71.0#sha256:selector-memoization";
 
@@ -41,11 +40,10 @@ function draftProduct(): LifecycleRecord {
 
 describe("LifecycleEvaluator Selector memoization", () => {
   it("evaluates each equivalent Selector query once per exact snapshot", async () => {
-    const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    const processPackage = structuredClone(await canonicalProcessPackage());
 
     const queryReads = new Map<string, number>();
-    for (const definition of Object.values(loaded.package.selectors)) {
+    for (const definition of Object.values(processPackage.selectors)) {
       const query = definition.query;
       Object.defineProperty(definition, "query", {
         configurable: true,
@@ -56,7 +54,7 @@ describe("LifecycleEvaluator Selector memoization", () => {
       });
     }
 
-    const evaluation = evaluateLifecycle(loaded.package, {
+    const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
       records: [draftProduct()],

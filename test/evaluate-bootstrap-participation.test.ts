@@ -1,14 +1,13 @@
-import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
 import { nextWorkProjection } from "../src/lifecycle-inspection.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { reviewedGateFixture } from "./helpers/lifecycle-scenarios.js";
 
@@ -175,11 +174,7 @@ describe("bootstrap Scenario participation Policies", () => {
   let processPackage: ProcessPackage;
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
   });
 
   it("names exact Lifecycle Data evidence for every package-defined participation boundary", () => {

@@ -24,6 +24,7 @@ import {
   prepareNextAssignment,
   submitAssignment,
 } from "./helpers/assignment-submission.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { mdlm, selectProcessPackageFixture } from "./helpers/mdlm.js";
 import { copiedProcessPackage } from "./helpers/process-package.js";
 
@@ -187,11 +188,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
   let completionReady: Snapshot;
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
     completionReady = await fixture("phase2-completion-ready.json");
     const currentRef = completionReady.processRef;
     const retainedContext = completionReady.records.find(

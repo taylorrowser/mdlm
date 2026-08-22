@@ -1,10 +1,9 @@
-import path from "node:path";
 import { expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleRecord,
 } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 const processRef = "mdlm-bootstrap@0.74.0#coherent-phase-2-readiness";
@@ -19,10 +18,7 @@ function datum(
 }
 
 it("groups one coherent stakeholder context into one ASP and DWP readiness route", async () => {
-  const loaded = await loadProcessPackage(
-    path.join(process.cwd(), ".lifecycle/process"),
-  );
-  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  const processPackage = await canonicalProcessPackage();
 
   const product = datum("PSP", "PSP-0COHERENT1", {
     title: "Coherent product",
@@ -76,7 +72,7 @@ it("groups one coherent stakeholder context into one ASP and DWP readiness route
   ]));
 
   const snapshot = (records: LifecycleRecord[]) => evaluateLifecycle(
-    loaded.package,
+    processPackage,
     {
       processRef,
       phaseId: "phase-2-system-definition",

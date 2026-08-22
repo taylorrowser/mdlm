@@ -17,9 +17,12 @@ function createCheapBatches(entries) {
   const longestFirst = [...entries].sort((left, right) =>
     right.measuredDurationMs - left.measuredDurationMs || left.file.localeCompare(right.file));
   for (const entry of longestFirst) {
-    batches.sort((left, right) =>
-      left.estimatedDurationMs - right.estimatedDurationMs || left.id.localeCompare(right.id));
-    const batch = batches[0];
+    const available = batches
+      .filter((batch) => batch.files.length < MAX_CHEAP_FILES_PER_BATCH)
+      .sort((left, right) =>
+        left.estimatedDurationMs - right.estimatedDurationMs || left.id.localeCompare(right.id));
+    const batch = available[0];
+    if (!batch) throw new Error("Cheap test files exceed the bounded batch capacity");
     batch.files.push(entry.file);
     batch.estimatedDurationMs += Math.max(0, entry.measuredDurationMs - FOCUSED_VITEST_STARTUP_MS);
   }
