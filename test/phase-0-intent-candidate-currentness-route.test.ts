@@ -125,45 +125,6 @@ function passingReviewOutput(
   }];
 }
 
-function stakeholderOwnedFailureOutput(
-  prepared: PreparedAssignment,
-): ProposedOutput[] {
-  const subject = inputRevision(prepared, "subject");
-  return [{
-    localId: "review",
-    name: "review",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "REV",
-      payload: {
-        title: `Failed independent Review of ${subject}`,
-        review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-        findings: [{
-          id: "F-001",
-          target: subject,
-          relationship: "primary",
-          severity: "blocking",
-          criterion: "Consequential ambiguity requires stakeholder-owned correction.",
-          evidence: "The gate authority is not yet sufficient for acceptance.",
-          material_consequence: "Acceptance would rely on unresolved gate authority.",
-          summary: "Correct and rereview the exact gate Decision.",
-        }],
-        correction_authority: "stakeholder",
-        outcome: "fail",
-      },
-      links: [
-        { type: "reviews", target: subject },
-        {
-          type: "contextualizes",
-          target: inputRevision(prepared, "review_context"),
-        },
-      ],
-      body: "The gate Decision requires exact stakeholder correction authority.\n",
-    },
-  }];
-}
-
 function sourceBoundaryOutput(prepared: PreparedAssignment): ProposedOutput[] {
   const source = inputRevision(prepared, "source");
   return [{
@@ -1036,77 +997,12 @@ describe("Phase 0 intent candidate currentness", () => {
       expect(gateReviewContextMembers).not.toContain(
         unrelatedReplacementRevision,
       );
-      const failedGateReviewOutputs = await submit(
+      const gateReviewOutputs = await submit(
         repository,
         gateReview,
-        stakeholderOwnedFailureOutput(gateReview),
+        passingReviewOutput(gateReview),
       );
-      const failedGateReviewRevision = outputRevision(
-        failedGateReviewOutputs,
-        "review",
-      );
-
-      const gateCorrection = await prepareNextAssignment(
-        repository,
-        "revise-gate-signoff-after-review@2",
-      );
-      expect(inputRevision(gateCorrection, "decision")).toBe(gateDecisionRevision);
-      expect(inputRevisions(gateCorrection, "failed_reviews")).toEqual([
-        failedGateReviewRevision,
-      ]);
-      const correctedGateRevision = `${exactInput(gateCorrection, "decision").identity.id}-r00002`;
-      await submit(repository, gateCorrection, [{
-        localId: "replacement",
-        name: "replacement",
-        invocation: 0,
-        lifecycleDatum: {
-          id: exactInput(gateCorrection, "decision").identity.id,
-          type: "DEC",
-          payload: {
-            title: "Approve current candidate after Review correction",
-            rationale: "The stakeholder corrected the failed gate authority.",
-            kind: "gate-signoff",
-            decision: "Approve the current candidate with the Review finding addressed.",
-            alternatives: ["Reject the current candidate"],
-            effective_scope: replacementCandidateRevision,
-            gate_outcome: "approve",
-          },
-          links: [
-            { type: "justifies", target: replacementCandidateRevision },
-            { type: "corrects-review", target: failedGateReviewRevision },
-          ],
-          body: "The corrected gate Decision addresses the exact failed Review.\n",
-        },
-      }]);
-
-      let correctedGateReview = await prepareNextAssignment(repository);
-      if (correctedGateReview.packet.scenario.reference === "create-review-context@1") {
-        expect(inputRevision(correctedGateReview, "subject")).toBe(correctedGateRevision);
-        await submit(
-          repository,
-          correctedGateReview,
-          reviewContextOutput(correctedGateReview),
-        );
-        correctedGateReview = await prepareNextAssignment(
-          repository,
-          "review-datum-in-context@2",
-        );
-      }
-      expect(correctedGateReview.packet.scenario.reference).toBe(
-        "review-datum-in-context@2",
-      );
-      expect(inputRevision(correctedGateReview, "subject")).toBe(
-        correctedGateRevision,
-      );
-      const correctedGateReviewOutputs = await submit(
-        repository,
-        correctedGateReview,
-        passingReviewOutput(correctedGateReview),
-      );
-      const correctedGateReviewRevision = outputRevision(
-        correctedGateReviewOutputs,
-        "review",
-      );
+      const gateReviewRevision = outputRevision(gateReviewOutputs, "review");
 
       const acceptance = await prepareNextAssignment(
         repository,
@@ -1116,10 +1012,10 @@ describe("Phase 0 intent candidate currentness", () => {
         replacementCandidateRevision,
       );
       expect(inputRevision(acceptance, "gate_signoff")).toBe(
-        correctedGateRevision,
+        gateDecisionRevision,
       );
       expect(inputRevisions(acceptance, "signoff_reviews")).toEqual([
-        correctedGateReviewRevision,
+        gateReviewRevision,
       ]);
       const acceptedOutputs = await submit(repository, acceptance, [{
         localId: "accepted",
@@ -1139,8 +1035,8 @@ describe("Phase 0 intent candidate currentness", () => {
             ),
             evidence: [
               ...inputRevisions(acceptance, "candidate_reviews"),
-              correctedGateRevision,
-              correctedGateReviewRevision,
+              gateDecisionRevision,
+              gateReviewRevision,
             ],
           },
           links: [{
@@ -1157,5 +1053,5 @@ describe("Phase 0 intent candidate currentness", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 410_000);
+  }, 300_000);
 });

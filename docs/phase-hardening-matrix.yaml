@@ -1050,8 +1050,8 @@ rows:
           rereviewed."
       - route: reviewed rejection
         executable:
-          file: test/phase-0-intent-candidate-currentness-route.test.ts
-          test: rebuilds only answer-affected foundation lineages before accepting the current candidate through the reviewed gate
+          file: test/phase-0-hardening-routes.test.ts
+          test: candidate-authority public route reaches corrected gate review and Phase 0 acceptance
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
             superseding candidate."
