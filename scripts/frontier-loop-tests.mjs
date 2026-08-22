@@ -352,6 +352,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(phaseTwoSource, /const CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS = 510_000;/);
   assert.match(phaseTwoSource, /runZeroInterfacePhaseTwoRoute,\n  CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS,/);
   assert.match(assignmentSource, /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /await copyRepository\(initializedTemplateRepository, activeTemplateRepository\);\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const allocated = await mdlm\(activeTemplateRepository, "next"\);[\s\S]*?responseSchema:[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /await copyRepository\(activeTemplateRepository, correctionTemplateRepository\);[\s\S]*?correctionDiagnostics: malformedResult\.malformedResponse\.diagnostics,[\s\S]*?\n  \}, CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /const historicalSource = cloneHistoricalRepository\(templateParent\);[\s\S]*?historicalProcessPackage = deepFreeze\(loaded\.package\);\n  \}, CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS\);/);

@@ -301,7 +301,7 @@ describe("MDLM Assignment leasing and preparation", () => {
 
   beforeAll(async () => {
     await copyRepository(initializedTemplateRepository, activeTemplateRepository);
-  });
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     const allocated = await mdlm(activeTemplateRepository, "next");
