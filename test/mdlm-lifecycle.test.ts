@@ -3,7 +3,18 @@ import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { LifecycleRecord, LifecycleSnapshot } from "../src/index.js";
+import {
+  evaluateLifecycle,
+  loadProcessPackage,
+  type LifecycleRecord,
+  type LifecycleSnapshot,
+  type ProcessPackage,
+} from "../src/index.js";
+import {
+  activeLifecycleEvaluation,
+  looseEndsProjection,
+  phaseStatusProjection,
+} from "../src/lifecycle-inspection.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import {
   acceptedIntentForReviewedGate,
@@ -21,6 +32,14 @@ const prototypeSnapshot = path.join(
 async function applicationMdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value)) deepFreeze(nested);
+  }
+  return value;
 }
 
 async function writeSnapshot(
@@ -57,6 +76,7 @@ function waivedRecords(): LifecycleRecord[] {
 
 describe("mdlm lifecycle status and next work", () => {
   let repositoryRoot: string;
+  let processPackage: ProcessPackage;
 
   beforeAll(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-lifecycle-"));
@@ -67,6 +87,18 @@ describe("mdlm lifecycle status and next work", () => {
       "--json",
     );
     expect(initialized.status, initialized.stdout).toBe(0);
+    const descriptor = JSON.parse(await fs.readFile(
+      path.join(repositoryRoot, ".lifecycle/repository.json"),
+      "utf8",
+    )) as { package: { reference: string } };
+    const loaded = await loadProcessPackage(path.join(
+      repositoryRoot,
+      ".lifecycle/packages",
+      descriptor.package.reference,
+    ));
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    processPackage = deepFreeze(loaded.package);
   });
 
   afterAll(async () => {
@@ -330,23 +362,13 @@ describe("mdlm lifecycle status and next work", () => {
 
   it("preserves blocked gate evidence", async () => {
     const gateFixture = reviewedGateFixture("git:mdlm-lifecycle");
-    const blockedGateSnapshot = await writeSnapshot(repositoryRoot, "blocked-gate", {
+    const blockedGate = phaseStatusProjection(evaluateLifecycle(processPackage, {
       processRef: "git:mdlm-lifecycle",
       phaseId: "phase-0-wayfinding",
       records: gateFixture.beforeSignoffReview,
       dependencyComparisons: [],
-    });
-    const blockedGate = await applicationMdlm(
-      repositoryRoot,
-      "phase",
-      "status",
-      "phase-0-wayfinding",
-      "--snapshot",
-      blockedGateSnapshot,
-      "--json",
-    );
-    expect(blockedGate.status, blockedGate.stderr).toBe(0);
-    expect(JSON.parse(blockedGate.stdout).phaseStatus.gate.evaluations).toEqual([
+    }));
+    expect(blockedGate?.gate.evaluations).toEqual([
       expect.objectContaining({
         complete: false,
         status: "blocked",
@@ -365,23 +387,21 @@ describe("mdlm lifecycle status and next work", () => {
       "git:mdlm-lifecycle",
       gateFixture,
     );
-    const gateSnapshot = await writeSnapshot(repositoryRoot, "reviewed-gate", {
+    const gateSnapshotValue: LifecycleSnapshot = {
       processRef: "git:mdlm-lifecycle",
       phaseId: "phase-0-wayfinding",
       records: [...gateFixture.records, acceptedIntent],
       dependencyComparisons: [],
-    });
-    const gate = await applicationMdlm(
+    };
+    const gateSnapshot = await writeSnapshot(
       repositoryRoot,
-      "phase",
-      "status",
-      "phase-0-wayfinding",
-      "--snapshot",
-      gateSnapshot,
-      "--json",
+      "reviewed-gate",
+      gateSnapshotValue,
     );
-    expect(gate.status, gate.stderr).toBe(0);
-    expect(JSON.parse(gate.stdout).phaseStatus.gate.evaluations).toEqual([
+    const gate = phaseStatusProjection(
+      evaluateLifecycle(processPackage, gateSnapshotValue),
+    );
+    expect(gate?.gate.evaluations).toEqual([
       expect.objectContaining({
         complete: true,
         status: "satisfied",
@@ -417,16 +437,10 @@ describe("mdlm lifecycle status and next work", () => {
       `Progression Evidence: ${gateFixture.signoff.datum.revision_id}`,
     );
 
-    const activePhase = await applicationMdlm(
-      repositoryRoot,
-      "phase",
-      "status",
-      "--snapshot",
-      gateSnapshot,
-      "--json",
+    const activePhase = phaseStatusProjection(
+      activeLifecycleEvaluation(processPackage, gateSnapshotValue),
     );
-    expect(activePhase.status, activePhase.stderr).toBe(0);
-    expect(JSON.parse(activePhase.stdout).phaseStatus).toEqual(
+    expect(activePhase).toEqual(
       expect.objectContaining({
         id: "phase-1-product-assurance",
         progression: expect.objectContaining({
@@ -438,21 +452,21 @@ describe("mdlm lifecycle status and next work", () => {
   }, 10_000);
 
   it("preserves exact waiver evidence", async () => {
-    const waiverSnapshot = await writeSnapshot(repositoryRoot, "waived", {
+    const waiverSnapshotValue: LifecycleSnapshot = {
       processRef: "git:mdlm-lifecycle",
       phaseId: "phase-0-wayfinding",
       records: waivedRecords(),
       dependencyComparisons: [],
-    });
-    const waiver = await applicationMdlm(
+    };
+    const waiverSnapshot = await writeSnapshot(
       repositoryRoot,
-      "loose-ends",
-      "--snapshot",
-      waiverSnapshot,
-      "--json",
+      "waived",
+      waiverSnapshotValue,
     );
-    expect(waiver.status, waiver.stderr).toBe(0);
-    expect(JSON.parse(waiver.stdout).looseEnds.waiverSuppressed).toEqual([
+    const waiver = looseEndsProjection(
+      evaluateLifecycle(processPackage, waiverSnapshotValue),
+    );
+    expect(waiver?.waiverSuppressed).toEqual([
       expect.objectContaining({
         id: "review-context-required@2:PSP-7K3M9Q2D8F-r00001:git:mdlm-lifecycle",
         satisfied: false,

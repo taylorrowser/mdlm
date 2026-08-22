@@ -1,8 +1,16 @@
 import { spawnSync } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { parse } from "yaml";
 import { executeCommandApplication } from "../src/command-application.js";
 import {
@@ -177,16 +185,36 @@ function exactInput(packet: Packet, name: string): string {
 describe("delegated Review Assignment packets", () => {
   let parent: string;
   let repository: string;
+  let templateParent: string;
+  let templateRepository: string;
+
+  beforeAll(async () => {
+    templateParent = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-review-packet-template-"),
+    );
+    templateRepository = path.join(templateParent, "repository");
+    expectSuccess(
+      await mdlm(templateParent, "init", templateRepository, "--json"),
+      "mdlm init template",
+    );
+    await installLifecycleDataFixture(templateRepository, "review-foundation");
+  });
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-review-packet-"));
     repository = path.join(parent, "repository");
-    expectSuccess(await mdlm(parent, "init", repository, "--json"), "mdlm init");
-    await installLifecycleDataFixture(repository, "review-foundation");
+    await fs.cp(templateRepository, repository, {
+      recursive: true,
+      mode: fsConstants.COPYFILE_FICLONE,
+    });
   });
 
   afterEach(async () => {
     await fs.rm(parent, { recursive: true, force: true });
+  });
+
+  afterAll(async () => {
+    await fs.rm(templateParent, { recursive: true, force: true });
   });
 
   it(

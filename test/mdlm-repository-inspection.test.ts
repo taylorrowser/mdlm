@@ -1,11 +1,23 @@
-import { promises as fs } from "node:fs";
+import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { loadProcessPackage, type DatumEnvelope } from "../src/index.js";
+import {
+  loadProcessPackage,
+  type DatumEnvelope,
+  type ProcessPackage,
+} from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
-import { readRepositoryData } from "../src/lifecycle-repository.js";
+import {
+  datumHistory,
+  inspectBacklinks,
+  listData,
+  readRepositoryData,
+  showDatum,
+  traceGraph,
+} from "../src/lifecycle-repository.js";
+import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { executeCommandApplication } from "../src/command-application.js";
 
 async function mdlm(repository: string, ...arguments_: string[]) {
@@ -38,6 +50,14 @@ function expectSuccess(
   command: string,
 ): void {
   expect(result.status, `${command}\n${result.stderr}${result.stdout}`).toBe(0);
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value)) deepFreeze(nested);
+  }
+  return value;
 }
 
 async function writeDatum(repository: string, datum: DatumEnvelope): Promise<string> {
@@ -123,24 +143,15 @@ async function publishLinkedWayfinding(repository: string): Promise<{
 
 async function freezeFirstRevisions(
   repository: string,
+  processPackage: ProcessPackage,
+  processRef: string,
   map: PublishedOutput,
   question: PublishedOutput,
 ): Promise<DatumEnvelope> {
-  const descriptor = JSON.parse(await fs.readFile(
-    path.join(repository, ".lifecycle/repository.json"),
-    "utf8",
-  )) as { package: { reference: string; digest: string } };
-  const loaded = await loadProcessPackage(path.join(
-    repository,
-    ".lifecycle/packages",
-    descriptor.package.reference,
-  ));
-  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-  const processRef = `${descriptor.package.reference}#${descriptor.package.digest}`;
   const baselineId = "BSL-1040000001";
   const finalized = await finalizeExactBaselineScenarioOutput(
     repository,
-    loaded.package,
+    processPackage,
     processRef,
     {
       id: baselineId,
@@ -174,11 +185,15 @@ async function freezeFirstRevisions(
 
 async function arrangeReaderRepository(
   repository: string,
+  processPackage: ProcessPackage,
+  processRef: string,
   existing?: Awaited<ReturnType<typeof publishLinkedWayfinding>>,
 ) {
   const published = existing ?? await publishLinkedWayfinding(repository);
   const baseline = await freezeFirstRevisions(
     repository,
+    processPackage,
+    processRef,
     published.map,
     published.question,
   );
@@ -201,6 +216,8 @@ describe("MDLM repository inspection", () => {
   let templateParent: string;
   let templateRepository: string;
   let publishedTemplateRepository: string;
+  let processPackage: ProcessPackage;
+  let processRef: string;
   let templateFixture: Promise<{
     published: Awaited<ReturnType<typeof publishLinkedWayfinding>>;
     arranged: Awaited<ReturnType<typeof arrangeReaderRepository>>;
@@ -221,12 +238,33 @@ describe("MDLM repository inspection", () => {
       "--json",
     );
     expectSuccess(initialized, "mdlm init template");
+    const descriptor = JSON.parse(await fs.readFile(
+      path.join(templateRepository, ".lifecycle/repository.json"),
+      "utf8",
+    )) as { package: { reference: string; digest: string } };
+    const loaded = await loadProcessPackage(path.join(
+      templateRepository,
+      ".lifecycle/packages",
+      descriptor.package.reference,
+    ));
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    processPackage = deepFreeze(loaded.package);
+    processRef = `${descriptor.package.reference}#${descriptor.package.digest}`;
     publishedTemplateRepository = path.join(templateParent, "published-repository");
     templateFixture = (async () => {
       const published = await publishLinkedWayfinding(templateRepository);
-      await fs.cp(templateRepository, publishedTemplateRepository, { recursive: true });
-      const arranged = await arrangeReaderRepository(templateRepository, published);
-      return { published, arranged };
+      await fs.cp(templateRepository, publishedTemplateRepository, {
+        recursive: true,
+        mode: fsConstants.COPYFILE_FICLONE,
+      });
+      const arranged = await arrangeReaderRepository(
+        templateRepository,
+        processPackage,
+        processRef,
+        published,
+      );
+      return deepFreeze({ published, arranged });
     })();
   });
 
@@ -239,7 +277,10 @@ describe("MDLM repository inspection", () => {
     Awaited<ReturnType<typeof publishLinkedWayfinding>>
   > {
     const fixture = await templateFixture;
-    await fs.cp(publishedTemplateRepository, repository, { recursive: true });
+    await fs.cp(publishedTemplateRepository, repository, {
+      recursive: true,
+      mode: fsConstants.COPYFILE_FICLONE,
+    });
     return structuredClone(fixture.published);
   }
 
@@ -247,7 +288,10 @@ describe("MDLM repository inspection", () => {
     Awaited<ReturnType<typeof arrangeReaderRepository>>
   > {
     const fixture = await templateFixture;
-    await fs.cp(templateRepository, repository, { recursive: true });
+    await fs.cp(templateRepository, repository, {
+      recursive: true,
+      mode: fsConstants.COPYFILE_FICLONE,
+    });
     return structuredClone(fixture.arranged);
   }
 
@@ -262,19 +306,7 @@ describe("MDLM repository inspection", () => {
 
   it("reloads repository data when execution provenance changes", async () => {
     const published = await installPublishedTemplate();
-    const descriptor = JSON.parse(await fs.readFile(
-      path.join(repository, ".lifecycle/repository.json"),
-      "utf8",
-    )) as { package: { reference: string } };
-    const loaded = await loadProcessPackage(path.join(
-      repository,
-      ".lifecycle/packages",
-      descriptor.package.reference,
-    ));
-    expect(loaded.ok).toBe(true);
-    if (!loaded.ok) return;
-
-    const initial = await readRepositoryData(repository, loaded.package);
+    const initial = await readRepositoryData(repository, processPackage);
     expect(initial.ok).toBe(true);
     if (!initial.ok) return;
     const map = initial.value.find((item) =>
@@ -283,14 +315,14 @@ describe("MDLM repository inspection", () => {
     expect(map.lifecycleDatum.integrity.scenario_execution_valid).toBe(true);
     (map.lifecycleDatum.datum.payload as Record<string, unknown>).title =
       "Caller mutation must not affect a later repository read";
-    const isolated = await readRepositoryData(repository, loaded.package);
+    const isolated = await readRepositoryData(repository, processPackage);
     expect(isolated.ok).toBe(true);
     if (!isolated.ok) return;
     expect(isolated.value.find((item) =>
       item.lifecycleDatum.datum.revision_id === published.map.lifecycleDatum.revisionId
     )?.lifecycleDatum.datum.payload.title).toBe("Linked reader graph");
 
-    const mutatedPackage = structuredClone(loaded.package);
+    const mutatedPackage = structuredClone(processPackage);
     const mapPayloadSchema = mutatedPackage.types.MAP?.payload_schema as {
       required: string[];
     };
@@ -315,7 +347,7 @@ describe("MDLM repository inspection", () => {
     execution.status = "failed";
     await fs.writeFile(executionPath, `${JSON.stringify(execution, null, 2)}\n`);
 
-    const changed = await readRepositoryData(repository, loaded.package);
+    const changed = await readRepositoryData(repository, processPackage);
     expect(changed.ok).toBe(true);
     if (!changed.ok) return;
     expect(changed.value.find((item) =>
@@ -344,14 +376,15 @@ describe("MDLM repository inspection", () => {
       projections: { backlinks: [] },
     });
 
-    const exactShow = await mdlm(
+    const exactShow = await showDatum(
       repository,
-      "show",
+      processPackage,
+      processRef,
       map.lifecycleDatum.revisionId,
-      "--json",
     );
-    expectSuccess(exactShow, "mdlm show <revision-id>");
-    expect(JSON.parse(exactShow.stdout).lifecycleDatum).toMatchObject({
+    expect(exactShow.ok).toBe(true);
+    if (!exactShow.ok) return;
+    expect(exactShow.value.lifecycleDatum).toMatchObject({
       datum: {
         revision: 1,
         revision_id: map.lifecycleDatum.revisionId,
@@ -360,11 +393,10 @@ describe("MDLM repository inspection", () => {
       storage: { editable: false, frozen: true },
     });
 
-    const listed = await mdlm(repository, "list", "--json");
-    expectSuccess(listed, "mdlm list");
-    const data = JSON.parse(listed.stdout).data as Array<{
-      lifecycleDatum: { datum: DatumEnvelope };
-    }>;
+    const listed = await listData(repository, processPackage, processRef);
+    expect(listed.ok).toBe(true);
+    if (!listed.ok) return;
+    const data = listed.value;
     expect(data).toHaveLength(3);
     expect(data.map((item) => item.lifecycleDatum.datum.revision_id)).toEqual(
       expect.arrayContaining([
@@ -376,9 +408,14 @@ describe("MDLM repository inspection", () => {
     expect(data.map((item) => item.lifecycleDatum.datum.revision_id))
       .not.toContain(map.lifecycleDatum.revisionId);
 
-    const history = await mdlm(repository, "history", map.lifecycleDatum.id, "--json");
-    expectSuccess(history, "mdlm history");
-    expect(JSON.parse(history.stdout).history).toEqual({
+    const history = await datumHistory(
+      repository,
+      processPackage,
+      map.lifecycleDatum.id,
+    );
+    expect(history.ok).toBe(true);
+    if (!history.ok) return;
+    expect(history.value).toEqual({
       id: map.lifecycleDatum.id,
       type: "MAP",
       revisions: [{
@@ -400,14 +437,14 @@ describe("MDLM repository inspection", () => {
   it("computes backlinks and relation-filtered traces from source-owned links", async () => {
     const { map, question, secondMap } = await installArrangedTemplate();
 
-    const backlinks = await mdlm(
+    const backlinks = await inspectBacklinks(
       repository,
-      "backlinks",
+      processPackage,
       question.lifecycleDatum.id,
-      "--json",
     );
-    expectSuccess(backlinks, "mdlm backlinks");
-    expect(JSON.parse(backlinks.stdout).backlinks).toEqual({
+    expect(backlinks.ok).toBe(true);
+    if (!backlinks.ok) return;
+    expect(backlinks.value).toEqual({
       identity: question.lifecycleDatum.id,
       identityKind: "stable-datum",
       type: "QST",
@@ -430,18 +467,16 @@ describe("MDLM repository inspection", () => {
       }],
     });
 
-    const indexedTrace = await mdlm(
+    const indexedTrace = await traceGraph(
       repository,
-      "trace",
+      processPackage,
       question.lifecycleDatum.id,
-      "--relation",
       "indexes",
-      "--depth",
-      "1",
-      "--json",
+      1,
     );
-    expectSuccess(indexedTrace, "mdlm trace --relation indexes");
-    expect(JSON.parse(indexedTrace.stdout).trace).toMatchObject({
+    expect(indexedTrace.ok).toBe(true);
+    if (!indexedTrace.ok) return;
+    expect(indexedTrace.value).toMatchObject({
       root: {
         identity: question.lifecycleDatum.id,
         identityKind: "stable-datum",
@@ -460,18 +495,16 @@ describe("MDLM repository inspection", () => {
       ],
     });
 
-    const sourceTrace = await mdlm(
+    const sourceTrace = await traceGraph(
       repository,
-      "trace",
+      processPackage,
       map.lifecycleDatum.id,
-      "--relation",
       "indexes",
-      "--depth",
-      "1",
-      "--json",
+      1,
     );
-    expectSuccess(sourceTrace, "mdlm trace from stable source");
-    expect(JSON.parse(sourceTrace.stdout).trace).toMatchObject({
+    expect(sourceTrace.ok).toBe(true);
+    if (!sourceTrace.ok) return;
+    expect(sourceTrace.value).toMatchObject({
       root: {
         identity: map.lifecycleDatum.id,
         identityKind: "stable-datum",
@@ -495,10 +528,25 @@ describe("MDLM repository inspection", () => {
 
   it("rebuilds disposable index and report projections from Markdown truth", async () => {
     const { map, secondMap } = await installArrangedTemplate();
-    const firstDoctor = await mdlm(repository, "doctor", "--json");
-    expectSuccess(firstDoctor, "mdlm doctor");
-    expect(JSON.parse(firstDoctor.stdout)).toMatchObject({
-      baselineRepositoryVerification: { verifiedBaselines: 1, processDrift: 0 },
+    const loadedInspection = await loadRepositoryInspection(
+      repository,
+      processPackage,
+      processRef,
+    );
+    expect(loadedInspection.ok).toBe(true);
+    if (!loadedInspection.ok) return;
+    const inspection = loadedInspection.value;
+    const baselineVerification = await inspection.verifyBaselines();
+    expect(baselineVerification.ok).toBe(true);
+    if (!baselineVerification.ok) return;
+    expect(baselineVerification.value).toMatchObject({
+      verifiedBaselines: 1,
+      processDrift: 0,
+    });
+    const firstDoctor = await inspection.rebuildGeneratedProjections();
+    expect(firstDoctor.ok).toBe(true);
+    if (!firstDoctor.ok) return;
+    expect(firstDoctor.value).toMatchObject({
       index: {
         rebuilt: true,
         data: 4,
@@ -511,21 +559,32 @@ describe("MDLM repository inspection", () => {
       },
     });
 
-    const shownBeforeDeletion = await mdlm(repository, "show", map.lifecycleDatum.id, "--json");
-    expectSuccess(shownBeforeDeletion, "mdlm show before generated deletion");
+    const shownBeforeDeletion = await showDatum(
+      repository,
+      processPackage,
+      processRef,
+      map.lifecycleDatum.id,
+    );
+    expect(shownBeforeDeletion.ok).toBe(true);
+    if (!shownBeforeDeletion.ok) return;
     await fs.rm(path.join(repository, ".lifecycle/generated"), {
       recursive: true,
       force: true,
     });
-    const shownAfterDeletion = await mdlm(repository, "show", map.lifecycleDatum.id, "--json");
-    expectSuccess(shownAfterDeletion, "mdlm show after generated deletion");
-    expect(JSON.parse(shownAfterDeletion.stdout)).toEqual(
-      JSON.parse(shownBeforeDeletion.stdout),
+    const shownAfterDeletion = await showDatum(
+      repository,
+      processPackage,
+      processRef,
+      map.lifecycleDatum.id,
     );
+    expect(shownAfterDeletion.ok).toBe(true);
+    if (!shownAfterDeletion.ok) return;
+    expect(shownAfterDeletion.value).toEqual(shownBeforeDeletion.value);
 
-    const rebuilt = await mdlm(repository, "doctor", "--json");
-    expectSuccess(rebuilt, "mdlm doctor rebuild");
-    expect(JSON.parse(rebuilt.stdout)).toMatchObject({
+    const rebuilt = await inspection.rebuildGeneratedProjections();
+    expect(rebuilt.ok).toBe(true);
+    if (!rebuilt.ok) return;
+    expect(rebuilt.value).toMatchObject({
       index: { rebuilt: true, data: 4 },
       report: { rebuilt: true, data: 3 },
     });
@@ -544,9 +603,10 @@ describe("MDLM repository inspection", () => {
     ));
     expect(report.data).toHaveLength(3);
 
-    const unchanged = await mdlm(repository, "doctor", "--json");
-    expectSuccess(unchanged, "mdlm doctor unchanged");
-    expect(JSON.parse(unchanged.stdout)).toMatchObject({
+    const unchanged = await inspection.rebuildGeneratedProjections();
+    expect(unchanged.ok).toBe(true);
+    if (!unchanged.ok) return;
+    expect(unchanged.value).toMatchObject({
       index: { rebuilt: false },
       report: { rebuilt: false },
     });
