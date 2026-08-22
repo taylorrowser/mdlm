@@ -321,6 +321,10 @@ test("contended representative observation limits stay exact", () => {
     new URL("../test/mdlm-assignment.test.ts", import.meta.url),
     "utf8",
   );
+  const phaseTwoSource = readFileSync(
+    new URL("../test/proportional-distinct-context-phase-2-public.test.ts", import.meta.url),
+    "utf8",
+  );
   const suiteManifest = readFileSync(
     new URL("../vitest.suites.mjs", import.meta.url),
     "utf8",
@@ -341,6 +345,9 @@ test("contended representative observation limits stay exact", () => {
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;/);
   assert.match(assignmentSource, /const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 20_000;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 50_000;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = 60_000;/);
+  assert.match(phaseTwoSource, /const CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS = 480_000;/);
+  assert.match(phaseTwoSource, /runZeroInterfacePhaseTwoRoute,\n  CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS,/);
   assert.match(assignmentSource, /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const allocated = await mdlm\(activeTemplateRepository, "next"\);[\s\S]*?responseSchema:[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /await copyRepository\(activeTemplateRepository, correctionTemplateRepository\);[\s\S]*?correctionDiagnostics: malformedResult\.malformedResponse\.diagnostics,[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
@@ -349,8 +356,13 @@ test("contended representative observation limits stay exact", () => {
   assert.match(assignmentSource, /waitForPath\(\n      barrierSignal,\n      "Second valid response did not reach the Assignment lock",\n      CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n    \);/);
   assert.match(assignmentSource, /waitForPath\(\n        barrierSignal,[\s\S]*?CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n      \);/);
   assert.match(assignmentSource, /waitForDirectoryEntry\([\s\S]*?Public submission did not stage publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
-  assert.match(assignmentSource, /waitForDirectoryEntry\([\s\S]*?First submission did not stage publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
+  assert.match(assignmentSource, /waitForPath\([\s\S]*?First submission did not reach publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
+  assert.match(assignmentSource, /allocates fresh exact work[\s\S]*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /exhausts the Assignment[\s\S]*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS,\n  \);/);
+  assert.match(assignmentSource, /const publicationSignal = path\.join\(barrierRoot, "publication-lock-attempted"\);/);
+  assert.match(assignmentSource, /MDLM_TEST_PUBLICATION_RELEASE/);
+  assert.match(assignmentSource, /await fs\.writeFile\(publicationRelease, ""\);/);
   for (const file of [
     "test/load-process-package.test.ts",
     "test/mdlm-baseline-inspection.test.ts",

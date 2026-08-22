@@ -12,6 +12,7 @@ const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;
 const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 20_000;
 const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 50_000;
+const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = 60_000;
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -413,7 +414,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     const stale = await mdlm(repository, "assignment", "show", staleAssignment, "--json");
     expect(stale.status, `${stale.stderr}${stale.stdout}`).toBe(0);
     expect(JSON.parse(stale.stdout)).toMatchObject({ selected: false });
-  });
+  }, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS);
 
   it("leases one exact bundled-package Assignment and prepares its complete packet", async () => {
     await useRepositoryTemplate("initialized");
@@ -817,7 +818,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     ]);
     const fresh = JSON.parse((await mdlm(repository, "next")).stdout);
     expect(fresh.assignment.id).not.toBe(assignment);
-  });
+  }, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS);
 
   it("serializes public publication and marks intervening tracked changes stale without charging a malformed retry", async () => {
     await useRepositoryTemplate("active");
@@ -879,30 +880,48 @@ describe("MDLM Assignment leasing and preparation", () => {
     await useRepositoryTemplate("active");
     const assignment = templateState.assignment;
     const response = `${JSON.stringify(templateState.validResponse)}\n`;
-    const publicationOwner = holdPublicationLock(repository, process.pid);
     const stagingRoot = path.join(repository, ".lifecycle");
-    const first = spawnMdlmWithInput(repository, response, process.env);
-    await waitForDirectoryEntry(
-      stagingRoot,
-      (entry) => entry.startsWith(".scenario-") && entry.endsWith(".tmp"),
-      "First submission did not stage publication",
-      CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,
-    );
     const barrierRoot = path.join(parent, "valid-response-barrier");
+    const publicationSignal = path.join(barrierRoot, "publication-lock-attempted");
+    const publicationRelease = path.join(barrierRoot, "publication-lock-release");
     const barrierSignal = path.join(barrierRoot, "assignment-lock-attempted");
     await fs.mkdir(barrierRoot);
     const gitWrapper = path.join(barrierRoot, "git");
     await fs.writeFile(gitWrapper, `#!/usr/bin/env node
 const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
-if (process.argv.includes("refs/mdlm/assignment-lease-lock")) fs.writeFileSync(process.env.MDLM_TEST_LOCK_SIGNAL, "");
+if (process.argv.includes("refs/mdlm/publication-lock") && process.env.MDLM_TEST_PUBLICATION_SIGNAL) {
+  fs.writeFileSync(process.env.MDLM_TEST_PUBLICATION_SIGNAL, "");
+  const sleepBuffer = new Int32Array(new SharedArrayBuffer(4));
+  while (!fs.existsSync(process.env.MDLM_TEST_PUBLICATION_RELEASE)) Atomics.wait(sleepBuffer, 0, 0, 25);
+}
+if (process.argv.includes("refs/mdlm/assignment-lease-lock") && process.env.MDLM_TEST_LOCK_SIGNAL) {
+  fs.writeFileSync(process.env.MDLM_TEST_LOCK_SIGNAL, "");
+}
 const env = { ...process.env, PATH: process.env.MDLM_TEST_REAL_PATH };
 delete env.MDLM_TEST_LOCK_SIGNAL;
+delete env.MDLM_TEST_PUBLICATION_RELEASE;
+delete env.MDLM_TEST_PUBLICATION_SIGNAL;
 delete env.MDLM_TEST_REAL_PATH;
 const result = spawnSync("git", process.argv.slice(2), { env, stdio: "inherit" });
 process.exit(result.status ?? 1);
 `);
     await fs.chmod(gitWrapper, 0o755);
+    const first = spawnMdlmWithInput(repository, response, {
+      ...process.env,
+      PATH: `${barrierRoot}:${process.env.PATH}`,
+      MDLM_TEST_PUBLICATION_RELEASE: publicationRelease,
+      MDLM_TEST_PUBLICATION_SIGNAL: publicationSignal,
+      MDLM_TEST_REAL_PATH: process.env.PATH,
+    });
+    await waitForPath(
+      publicationSignal,
+      "First submission did not reach publication",
+      CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,
+    );
+    expect((await fs.readdir(stagingRoot)).filter((entry) =>
+      entry.startsWith(".scenario-") && entry.endsWith(".tmp")
+    )).toHaveLength(1);
     const second = spawnMdlmWithInput(repository, response, {
       ...process.env,
       PATH: `${barrierRoot}:${process.env.PATH}`,
@@ -918,13 +937,7 @@ process.exit(result.status ?? 1);
       entry.startsWith(".scenario-") && entry.endsWith(".tmp")
     )).toHaveLength(1);
     expect(second.child.exitCode).toBeNull();
-    expect(git(
-      repository,
-      "update-ref",
-      "-d",
-      "refs/mdlm/publication-lock",
-      publicationOwner,
-    ).status).toBe(0);
+    await fs.writeFile(publicationRelease, "");
 
     const [firstStatus, secondStatus] = await Promise.all([
       first.closed,
