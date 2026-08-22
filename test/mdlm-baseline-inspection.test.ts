@@ -14,7 +14,7 @@ import {
 } from "../src/lifecycle-repository.js";
 import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
-import { mdlm, mdlmWithEnvironment } from "./helpers/mdlm.js";
+import { mdlmWithEnvironment } from "./helpers/mdlm.js";
 
 async function executeMdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
@@ -299,14 +299,14 @@ async function arrangeChangedBaselines(repository: string): Promise<BaselineFixt
   return { before, after, firstMap, secondMap, oldEvidence, newEvidence };
 }
 
-describe("compiled mdlm baseline inspection", () => {
+describe("mdlm baseline inspection", () => {
   let parent: string;
   let repository: string;
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-baseline-inspection-"));
     repository = path.join(parent, "repository");
-    const initialized = mdlm(parent, "init", repository, "--json");
+    const initialized = await executeMdlm(parent, "init", repository, "--json");
     expectSuccess(initialized, "mdlm init");
   });
 
@@ -715,7 +715,7 @@ describe("compiled mdlm baseline inspection", () => {
     const fixture = await arrangeChangedBaselines(repository);
 
     for (const baseline of [fixture.before, fixture.after]) {
-      const verified = mdlm(
+      const verified = await executeMdlm(
         repository,
         "baseline",
         "verify",
@@ -742,7 +742,7 @@ describe("compiled mdlm baseline inspection", () => {
       });
     }
 
-    const compared = mdlm(
+    const compared = await executeMdlm(
       repository,
       "baseline",
       "diff",
@@ -848,7 +848,7 @@ describe("compiled mdlm baseline inspection", () => {
       body: "Freeze exact malformed UTF-8 member bytes.\n",
     });
 
-    const verified = mdlm(
+    const verified = await executeMdlm(
       repository,
       "baseline",
       "verify",
@@ -864,7 +864,7 @@ describe("compiled mdlm baseline inspection", () => {
     const memberBytes = await fs.readFile(memberPath, "utf8");
 
     await fs.writeFile(memberPath, `${memberBytes}changed frozen byte\n`);
-    const hashFailure = mdlm(
+    const hashFailure = await executeMdlm(
       repository,
       "baseline",
       "verify",
@@ -886,7 +886,7 @@ describe("compiled mdlm baseline inspection", () => {
     };
     resolutionSnapshot.resolved_links[fixture.firstMap.datum.revision_id] = [];
     await writeDatum(repository, corruptResolution);
-    const resolutionFailure = mdlm(
+    const resolutionFailure = await executeMdlm(
       repository,
       "baseline",
       "verify",
@@ -909,7 +909,7 @@ describe("compiled mdlm baseline inspection", () => {
       `${fixture.oldEvidence.datum.id}-r00002`,
     ];
     await writeDatum(repository, missingResolution);
-    const missingTarget = mdlm(
+    const missingTarget = await executeMdlm(
       repository,
       "baseline",
       "verify",
@@ -926,7 +926,7 @@ describe("compiled mdlm baseline inspection", () => {
 
     await writeDatum(repository, fixture.before.datum);
     await fs.rm(memberPath);
-    const missingMember = mdlm(
+    const missingMember = await executeMdlm(
       repository,
       "baseline",
       "verify",

@@ -2,12 +2,22 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { executeCommandApplication } from "../src/command-application.js";
 import {
-  mdlm,
-  selectBootstrapProcessPackage,
+  mdlm as processMdlm,
   selectProcessPackageFixture,
 } from "./helpers/mdlm.js";
 import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
+
+async function applicationMdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+async function initializeRepository(repository: string): Promise<void> {
+  const initialized = await applicationMdlm(repository, "init", ".", "--json");
+  expect(initialized.status, initialized.stdout).toBe(0);
+}
 
 describe("mdlm schema", () => {
   let repositoryRoot: string;
@@ -26,10 +36,10 @@ describe("mdlm schema", () => {
     ]);
   });
 
-  it("projects one effective lifecycle type from the exact selected Process Package", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
+  it("projects one effective lifecycle type from the exact selected Process Package", async () => {
+    await initializeRepository(repositoryRoot);
 
-    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
+    const result = await applicationMdlm(repositoryRoot, "schema", "STK", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -138,10 +148,10 @@ describe("mdlm schema", () => {
     });
   });
 
-  it("requires an explicit correction-authority classification for every failed Review", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
+  it("requires an explicit correction-authority classification for every failed Review", async () => {
+    await initializeRepository(repositoryRoot);
 
-    const result = mdlm(repositoryRoot, "schema", "REV", "--json");
+    const result = processMdlm(repositoryRoot, "schema", "REV", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     const schema = JSON.parse(result.stdout).schema;
@@ -165,7 +175,7 @@ describe("mdlm schema", () => {
     externalRoots.push(path.dirname(processRoot));
     await selectProcessPackageFixture(repositoryRoot, processRoot);
 
-    const result = mdlm(repositoryRoot, "schema", "SNP", "--json");
+    const result = await applicationMdlm(repositoryRoot, "schema", "SNP", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout).schema).toEqual(expect.objectContaining({
@@ -177,13 +187,13 @@ describe("mdlm schema", () => {
     }));
   });
 
-  it("renders the same effective type evidence for a human", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
-    const machine = mdlm(repositoryRoot, "schema", "STK", "--json");
+  it("renders the same effective type evidence for a human", async () => {
+    await initializeRepository(repositoryRoot);
+    const machine = await applicationMdlm(repositoryRoot, "schema", "STK", "--json");
     expect(machine.status, machine.stderr).toBe(0);
     const output = JSON.parse(machine.stdout);
 
-    const human = mdlm(repositoryRoot, "schema", "STK");
+    const human = await applicationMdlm(repositoryRoot, "schema", "STK");
 
     expect(human.status, human.stderr).toBe(0);
     for (const evidence of [
@@ -204,10 +214,10 @@ describe("mdlm schema", () => {
     }
   });
 
-  it("returns a typed diagnostic for an unknown lifecycle type", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
+  it("returns a typed diagnostic for an unknown lifecycle type", async () => {
+    await initializeRepository(repositoryRoot);
 
-    const result = mdlm(repositoryRoot, "schema", "UNKNOWN", "--json");
+    const result = await applicationMdlm(repositoryRoot, "schema", "UNKNOWN", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -225,8 +235,8 @@ describe("mdlm schema", () => {
     });
   });
 
-  it("returns a typed diagnostic when no Process Package is selected", () => {
-    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
+  it("returns a typed diagnostic when no Process Package is selected", async () => {
+    const result = await applicationMdlm(repositoryRoot, "schema", "STK", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -242,14 +252,14 @@ describe("mdlm schema", () => {
   });
 
   it("returns selected-package diagnostics instead of inspecting an invalid package", async () => {
-    selectBootstrapProcessPackage(repositoryRoot);
+    await initializeRepository(repositoryRoot);
     const selectedType = path.join(
       repositoryRoot,
       ".lifecycle/packages/mdlm-bootstrap@0.74.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 
-    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
+    const result = await applicationMdlm(repositoryRoot, "schema", "STK", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
