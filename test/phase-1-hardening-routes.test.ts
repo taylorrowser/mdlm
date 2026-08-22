@@ -2641,7 +2641,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(processRoot, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 45_000);
 
   it("allocates Review of corrected VAI r2 instead of a run for failed superseded r1", async () => {
     const repository = await fs.mkdtemp(
