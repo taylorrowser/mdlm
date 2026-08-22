@@ -357,8 +357,10 @@ test("contended representative observation limits stay exact", () => {
   assert.match(assignmentSource, /waitForPath\(\n        barrierSignal,[\s\S]*?CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n      \);/);
   assert.match(assignmentSource, /waitForDirectoryEntry\([\s\S]*?Public submission did not stage publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
   assert.match(assignmentSource, /waitForPath\([\s\S]*?First submission did not reach publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
-  assert.match(assignmentSource, /allocates fresh exact work[\s\S]*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
-  assert.match(assignmentSource, /exhausts the Assignment[\s\S]*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /allocates fresh exact work(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /leases one exact bundled-package Assignment(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /preserves the same Assignment for one malformed-response correction(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /exhausts the Assignment(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS,\n  \);/);
   assert.match(assignmentSource, /const publicationSignal = path\.join\(barrierRoot, "publication-lock-attempted"\);/);
   assert.match(assignmentSource, /MDLM_TEST_PUBLICATION_RELEASE/);

@@ -616,7 +616,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(ignored.stdout).toBe(".lifecycle/work/active-assignment.json\n");
     expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
       .toEqual([".gitkeep"]);
-  });
+  }, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS);
 
   it("declares every typed inability and abandons one exact Assignment without publication", async () => {
     await useRepositoryTemplate("active");
@@ -773,7 +773,7 @@ describe("MDLM Assignment leasing and preparation", () => {
         response: expect.objectContaining({ assignment }),
       }),
     }));
-  });
+  }, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS);
 
   it("exhausts the Assignment on a second malformed response and reports the terminal disposition", async () => {
     await useRepositoryTemplate("correction");
