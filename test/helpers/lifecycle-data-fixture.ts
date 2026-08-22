@@ -7,6 +7,7 @@ export type LifecycleDataFixture =
   | "candidate-currentness"
   | "corrected-gate"
   | "initial-intent-foundation"
+  | "resolved-initial-intent"
   | "review-foundation";
 
 type FixtureEntry = { path: string; source: string };

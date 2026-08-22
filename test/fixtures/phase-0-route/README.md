@@ -6,6 +6,7 @@ These gzip archives contain JSON arrays of UTF-8 Lifecycle Data files. They are 
 - `candidate-currentness` stops immediately before `revise-intent-candidate-after-review@3`, after the reviewed answer has replaced only the affected PSP and STK lineages.
 - `corrected-gate` stops immediately before `revise-gate-signoff-after-review@2`, after the first gate Decision has failed Review.
 - `initial-intent-foundation` stops after the initial MAP and its generated exact source boundaries, immediately before attended product-intent resolution.
+- `resolved-initial-intent` stops after attended product-intent resolution publishes the answered Question and exact authority Decision, immediately before their Reviews and correction.
 - `review-foundation` stops after public PSP publication and immediately before automatic MAP Review Context materialization.
 
 The archives use deterministic gzip headers. Their uncompressed SHA-256 digests are:
@@ -14,6 +15,7 @@ The archives use deterministic gzip headers. Their uncompressed SHA-256 digests 
 - `candidate-currentness`: `d1e721228716094272d76e43f243d06ffd2b5d4b908dfa0e193a2f098e6bf921`
 - `corrected-gate`: `7135250bb077fb61513df5e6c63635b62264eff965269c05e8e8c38b0274a35d`
 - `initial-intent-foundation`: `b9b560310529d393d0509445286c58a794697d4ea5f0edd777dbb84f8f745eca`
+- `resolved-initial-intent`: `e4c1de143c72abcab9f217354f8547e2dadffa2c8c17c844b14e3a649f48fc57`
 - `review-foundation`: `9839fb1bbe50630f79495586d2d14ff9197fa210bbc875b22986389b6a04cedb`
 
 `test/helpers/lifecycle-data-fixture.ts` installs an archive into a newly initialized repository. The resumed public command must load and validate the records, exact package provenance, authority-evidence executions, links, baseline snapshots, and current obligations before it can prepare or publish the next Assignment.
