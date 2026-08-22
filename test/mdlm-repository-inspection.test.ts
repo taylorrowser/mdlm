@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { loadProcessPackage, type DatumEnvelope } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
 import { readRepositoryData } from "../src/lifecycle-repository.js";
@@ -172,8 +172,11 @@ async function freezeFirstRevisions(
   return finalized.value.output.datum;
 }
 
-async function arrangeReaderRepository(repository: string) {
-  const published = await publishLinkedWayfinding(repository);
+async function arrangeReaderRepository(
+  repository: string,
+  existing?: Awaited<ReturnType<typeof publishLinkedWayfinding>>,
+) {
+  const published = existing ?? await publishLinkedWayfinding(repository);
   const baseline = await freezeFirstRevisions(
     repository,
     published.map,
@@ -195,22 +198,70 @@ async function arrangeReaderRepository(repository: string) {
 }
 
 describe("MDLM repository inspection", () => {
+  let templateParent: string;
+  let templateRepository: string;
+  let publishedTemplateRepository: string;
+  let templateFixture: Promise<{
+    published: Awaited<ReturnType<typeof publishLinkedWayfinding>>;
+    arranged: Awaited<ReturnType<typeof arrangeReaderRepository>>;
+  }>;
   let parent: string;
   let repository: string;
+
+  beforeAll(async () => {
+    templateParent = await fs.mkdtemp(path.join(
+      os.tmpdir(),
+      "mdlm-reader-inspection-template-",
+    ));
+    templateRepository = path.join(templateParent, "repository");
+    const initialized = await mdlm(
+      templateParent,
+      "init",
+      templateRepository,
+      "--json",
+    );
+    expectSuccess(initialized, "mdlm init template");
+    publishedTemplateRepository = path.join(templateParent, "published-repository");
+    templateFixture = (async () => {
+      const published = await publishLinkedWayfinding(templateRepository);
+      await fs.cp(templateRepository, publishedTemplateRepository, { recursive: true });
+      const arranged = await arrangeReaderRepository(templateRepository, published);
+      return { published, arranged };
+    })();
+  });
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-reader-inspection-"));
     repository = path.join(parent, "repository");
-    const initialized = await mdlm(parent, "init", repository, "--json");
-    expectSuccess(initialized, "mdlm init");
   });
+
+  async function installPublishedTemplate(): Promise<
+    Awaited<ReturnType<typeof publishLinkedWayfinding>>
+  > {
+    const fixture = await templateFixture;
+    await fs.cp(publishedTemplateRepository, repository, { recursive: true });
+    return structuredClone(fixture.published);
+  }
+
+  async function installArrangedTemplate(): Promise<
+    Awaited<ReturnType<typeof arrangeReaderRepository>>
+  > {
+    const fixture = await templateFixture;
+    await fs.cp(templateRepository, repository, { recursive: true });
+    return structuredClone(fixture.arranged);
+  }
 
   afterEach(async () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
+  afterAll(async () => {
+    await templateFixture;
+    await fs.rm(templateParent, { recursive: true, force: true });
+  });
+
   it("reloads repository data when execution provenance changes", async () => {
-    const published = await publishLinkedWayfinding(repository);
+    const published = await installPublishedTemplate();
     const descriptor = JSON.parse(await fs.readFile(
       path.join(repository, ".lifecycle/repository.json"),
       "utf8",
@@ -273,9 +324,7 @@ describe("MDLM repository inspection", () => {
   });
 
   it("shows and lists exact data while preserving linked multi-Revision history", async () => {
-    const { map, question, baseline, secondMap } = await arrangeReaderRepository(
-      repository,
-    );
+    const { map, question, baseline, secondMap } = await installArrangedTemplate();
 
     const stableShow = await mdlm(repository, "show", map.lifecycleDatum.id, "--json");
     expectSuccess(stableShow, "mdlm show <stable-id>");
@@ -349,7 +398,7 @@ describe("MDLM repository inspection", () => {
   });
 
   it("computes backlinks and relation-filtered traces from source-owned links", async () => {
-    const { map, question, secondMap } = await arrangeReaderRepository(repository);
+    const { map, question, secondMap } = await installArrangedTemplate();
 
     const backlinks = await mdlm(
       repository,
@@ -445,7 +494,7 @@ describe("MDLM repository inspection", () => {
   });
 
   it("rebuilds disposable index and report projections from Markdown truth", async () => {
-    const { map, secondMap } = await arrangeReaderRepository(repository);
+    const { map, secondMap } = await installArrangedTemplate();
     const firstDoctor = await mdlm(repository, "doctor", "--json");
     expectSuccess(firstDoctor, "mdlm doctor");
     expect(JSON.parse(firstDoctor.stdout)).toMatchObject({

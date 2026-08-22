@@ -3,7 +3,7 @@ import { promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
@@ -300,18 +300,38 @@ async function arrangeChangedBaselines(repository: string): Promise<BaselineFixt
 }
 
 describe("mdlm baseline inspection", () => {
+  let templateParent: string;
+  let templateRepository: string;
   let parent: string;
   let repository: string;
+
+  beforeAll(async () => {
+    templateParent = await fs.mkdtemp(path.join(
+      os.tmpdir(),
+      "mdlm-baseline-inspection-template-",
+    ));
+    templateRepository = path.join(templateParent, "repository");
+    const initialized = await executeMdlm(
+      templateParent,
+      "init",
+      templateRepository,
+      "--json",
+    );
+    expectSuccess(initialized, "mdlm init template");
+  });
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-baseline-inspection-"));
     repository = path.join(parent, "repository");
-    const initialized = await executeMdlm(parent, "init", repository, "--json");
-    expectSuccess(initialized, "mdlm init");
+    await fs.cp(templateRepository, repository, { recursive: true });
   });
 
   afterEach(async () => {
     await fs.rm(parent, { recursive: true, force: true });
+  });
+
+  afterAll(async () => {
+    await fs.rm(templateParent, { recursive: true, force: true });
   });
 
   it("verifies shared composed descendants once while finalizing a baseline", async () => {
