@@ -369,6 +369,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(assignmentSource, /leases one exact bundled-package Assignment(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /preserves the same Assignment for one malformed-response correction(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /exhausts the Assignment(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /allows only one concurrent valid response(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS,\n  \);/);
   assert.match(assignmentSource, /const publicationSignal = path\.join\(barrierRoot, "publication-lock-attempted"\);/);
   assert.match(assignmentSource, /MDLM_TEST_PUBLICATION_RELEASE/);

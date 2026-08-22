@@ -956,7 +956,7 @@ process.exit(result.status ?? 1);
       ".lifecycle/data/.transactions",
     );
     expect(await fs.readdir(transactionsRoot)).toHaveLength(1);
-  });
+  }, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS);
 
   it.each([
     ["malformed", "a fresh Assignment", "{not-json\n", false],
