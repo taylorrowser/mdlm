@@ -26,7 +26,6 @@ import {
   type RepositoryTransaction,
 } from "./repository-inspection.js";
 import { measure } from "./performance-diagnostics.js";
-import { processPackageDigest } from "./process-package-digest.js";
 import {
   classifyOperatorOutcome,
   type CheckpointConversation,
@@ -400,69 +399,6 @@ interface ExactAssignment {
   classification: Extract<OperatorOutcomeClassification, {
     kind: "assignment" | "attention-required";
   }>;
-}
-
-interface PreparedAssignmentCacheEntry {
-  lease: AssignmentLease;
-  package: { reference: string; digest: string };
-  repositoryDataDigest: string;
-  packet: AssignmentPacket;
-}
-
-const preparedAssignmentCache = new Map<string, PreparedAssignmentCacheEntry>();
-const preparedAssignmentCacheLimit = 64;
-
-function preparedAssignmentCacheKey(
-  repositoryRoot: string,
-  assignmentId: string,
-): string {
-  return `${path.resolve(repositoryRoot)}\0${assignmentId}`;
-}
-
-async function cachePreparedAssignment(
-  repositoryRoot: string,
-  assignmentId: string,
-  exact: ExactAssignment,
-  exactRepositoryDataDigest: string | undefined,
-): Promise<void> {
-  if (!exactRepositoryDataDigest) return;
-  const repositoryDataRoot = path.join(repositoryRoot, ".lifecycle/data");
-  try {
-    const repositoryBefore = await confirmRepositoryFingerprint(
-      repositoryRoot,
-      exact.lease.repository,
-    );
-    if (!repositoryBefore.ok) return;
-    const repositoryDataDigest = await processPackageDigest(repositoryDataRoot);
-    if (repositoryDataDigest !== exactRepositoryDataDigest) return;
-    const lease: AssignmentLease = { ...exact.lease, id: assignmentId };
-    const cachedPacket = structuredClone(packet(exact, lease));
-    const [repositoryDataAfter, repositoryAfter] = await Promise.all([
-      processPackageDigest(repositoryDataRoot),
-      confirmRepositoryFingerprint(repositoryRoot, exact.lease.repository),
-    ]);
-    if (
-      repositoryDataAfter !== exactRepositoryDataDigest ||
-      !repositoryAfter.ok
-    ) return;
-    const key = preparedAssignmentCacheKey(repositoryRoot, assignmentId);
-    preparedAssignmentCache.delete(key);
-    preparedAssignmentCache.set(key, {
-      lease: structuredClone(lease),
-      package: {
-        reference: exact.summary.reference,
-        digest: exact.summary.digest,
-      },
-      repositoryDataDigest,
-      packet: cachedPacket,
-    });
-  } catch {
-    return;
-  }
-  if (preparedAssignmentCache.size > preparedAssignmentCacheLimit) {
-    const oldest = preparedAssignmentCache.keys().next().value;
-    if (oldest !== undefined) preparedAssignmentCache.delete(oldest);
-  }
 }
 
 interface ExactOperatorState {
@@ -1557,27 +1493,7 @@ async function leaseNextAssignmentLocked(
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   let activeLease = persisted.value;
-  let repositoryDataDigestBefore: string | undefined;
-  try {
-    repositoryDataDigestBefore = await processPackageDigest(
-      path.join(repositoryRoot, ".lifecycle/data"),
-    );
-  } catch {
-    repositoryDataDigestBefore = undefined;
-  }
   let state = await exactOperatorState(repositoryRoot);
-  let exactRepositoryDataDigest: string | undefined;
-  try {
-    const repositoryDataDigestAfter = await processPackageDigest(
-      path.join(repositoryRoot, ".lifecycle/data"),
-    );
-    exactRepositoryDataDigest =
-        repositoryDataDigestAfter === repositoryDataDigestBefore
-      ? repositoryDataDigestAfter
-      : undefined;
-  } catch {
-    exactRepositoryDataDigest = undefined;
-  }
   if (!state.ok) {
     if (
       activeLease &&
@@ -1644,7 +1560,6 @@ async function leaseNextAssignmentLocked(
     await fs.rm(leasePath(repositoryRoot), { force: true });
     activeLease = undefined;
     if (!materialized.ok) return materialized;
-    exactRepositoryDataDigest = undefined;
     materializedExecutions.push({
       id: materialized.value.id,
       scenario: materialized.value.definition.scenario,
@@ -1704,12 +1619,6 @@ async function leaseNextAssignmentLocked(
     );
   }
   if (activeLease && sameAssignment(activeLease, exact)) {
-    await cachePreparedAssignment(
-      repositoryRoot,
-      activeLease.id,
-      exact,
-      exactRepositoryDataDigest,
-    );
     return {
       ok: true,
       value: leasedOutcome(exact, activeLease.id, materializedExecutions),
@@ -1728,12 +1637,6 @@ async function leaseNextAssignmentLocked(
   };
   await renewLeaseLock();
   await writeLease(repositoryRoot, lease);
-  await cachePreparedAssignment(
-    repositoryRoot,
-    lease.id,
-    exact,
-    exactRepositoryDataDigest,
-  );
   return {
     ok: true,
     value: leasedOutcome(exact, lease.id, materializedExecutions),
@@ -2693,64 +2596,6 @@ export async function prepareAssignment(
   const lease = persisted.value;
   if (!lease || lease.disposition !== "active" || lease.id !== assignmentId) {
     return unavailableSubmission(assignmentId);
-  }
-  const cacheKey = preparedAssignmentCacheKey(repositoryRoot, assignmentId);
-  const cached = preparedAssignmentCache.get(cacheKey);
-  if (
-    cached && lease.disposition === "active" &&
-    isDeepStrictEqual(
-      assignmentCoordinates(lease),
-      assignmentCoordinates(cached.lease),
-    )
-  ) {
-    const repositoryBefore = await confirmRepositoryFingerprint(
-      repositoryRoot,
-      cached.lease.repository,
-    );
-    let dataDigestBefore: string | undefined;
-    try {
-      dataDigestBefore = await processPackageDigest(
-        path.join(repositoryRoot, ".lifecycle/data"),
-      );
-    } catch {
-      dataDigestBefore = undefined;
-    }
-    if (
-      repositoryBefore.ok &&
-      dataDigestBefore === cached.repositoryDataDigest
-    ) {
-      const selected = await selectedRepositoryPackage(repositoryRoot);
-      const packageMatches = selected.ok &&
-        selected.summary.reference === cached.package.reference &&
-        selected.summary.digest === cached.package.digest;
-      let dataDigestAfter: string | undefined;
-      let packageDigestAfter: string | undefined;
-      try {
-        [dataDigestAfter, packageDigestAfter] = packageMatches
-          ? await Promise.all([
-              processPackageDigest(path.join(repositoryRoot, ".lifecycle/data")),
-              processPackageDigest(selected.processPackage.root),
-            ])
-          : [undefined, undefined];
-      } catch {
-        dataDigestAfter = undefined;
-        packageDigestAfter = undefined;
-      }
-      const repositoryAfter =
-          dataDigestAfter === cached.repositoryDataDigest &&
-          packageDigestAfter === cached.package.digest
-        ? await confirmRepositoryFingerprint(repositoryRoot, cached.lease.repository)
-        : undefined;
-      if (repositoryAfter?.ok) {
-        preparedAssignmentCache.delete(cacheKey);
-        return {
-          ok: true,
-          value: structuredClone(cached.packet),
-          diagnostics: [],
-        };
-      }
-    }
-    preparedAssignmentCache.delete(cacheKey);
   }
   const exact = await exactAssignment(repositoryRoot);
   if (!exact.ok && exact.diagnostics.some((item) =>

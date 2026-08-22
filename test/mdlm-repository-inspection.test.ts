@@ -209,7 +209,7 @@ describe("MDLM repository inspection", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
-  it("invalidates a cached repository view when execution provenance changes", async () => {
+  it("reloads repository data when execution provenance changes", async () => {
     const published = await publishLinkedWayfinding(repository);
     const descriptor = JSON.parse(await fs.readFile(
       path.join(repository, ".lifecycle/repository.json"),
@@ -231,7 +231,7 @@ describe("MDLM repository inspection", () => {
     )!;
     expect(map.lifecycleDatum.integrity.scenario_execution_valid).toBe(true);
     (map.lifecycleDatum.datum.payload as Record<string, unknown>).title =
-      "Caller mutation must not poison the repository cache";
+      "Caller mutation must not affect a later repository read";
     const isolated = await readRepositoryData(repository, loaded.package);
     expect(isolated.ok).toBe(true);
     if (!isolated.ok) return;

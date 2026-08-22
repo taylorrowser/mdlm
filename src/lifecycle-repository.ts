@@ -879,37 +879,8 @@ function authorityEvidenceExecutionDiagnostic(
       };
 }
 
-type RepositoryDataCacheEntry = {
-  parsed: ParsedDatum[];
-  transactionDigests: Map<string, string>;
-};
-
-const repositoryDataCache = new Map<string, RepositoryDataCacheEntry>();
-const repositoryDataCacheLimit = 16;
-
 function sourceDigest(source: Uint8Array): string {
   return `sha256:${createHash("sha256").update(source).digest("hex")}`;
-}
-
-function processPackageStateDigest(processPackage: ProcessPackage): string {
-  return sourceDigest(Buffer.from(JSON.stringify(processPackage)));
-}
-
-function repositoryDataCacheKey(
-  root: string,
-  packageDigest: string,
-  packageStateDigest: string,
-  sources: readonly { relativePath: string; source: Uint8Array }[],
-): string {
-  const hash = createHash("sha256");
-  for (const { relativePath, source } of sources) {
-    hash.update(relativePath);
-    hash.update("\0");
-    hash.update(String(source.byteLength));
-    hash.update("\0");
-    hash.update(source);
-  }
-  return `${path.resolve(root)}\0${packageDigest}\0${packageStateDigest}\0${hash.digest("hex")}`;
 }
 
 async function captureTransactionSources(
@@ -942,21 +913,6 @@ async function captureTransactionSources(
   }
 }
 
-async function transactionsMatch(
-  root: string,
-  expected: ReadonlyMap<string, string>,
-): Promise<boolean> {
-  try {
-    const actual = await Promise.all([...expected].map(
-      async ([relativePath, digest]) =>
-        sourceDigest(await fs.readFile(path.join(root, relativePath))) === digest,
-    ));
-    return actual.every(Boolean);
-  } catch {
-    return false;
-  }
-}
-
 export async function readRepositoryData(
   root: string,
   processPackage: ProcessPackage,
@@ -971,23 +927,6 @@ export async function readRepositoryData(
     source: await fs.readFile(path.join(root, relativePath)),
   })));
   const selectedDigest = await processPackageDigest(processPackage.root);
-  const packageStateDigest = processPackageStateDigest(processPackage);
-  const cacheKey = repositoryDataCacheKey(
-    root,
-    selectedDigest,
-    packageStateDigest,
-    sources,
-  );
-  const cached = repositoryDataCache.get(cacheKey);
-  if (
-    cached &&
-    await transactionsMatch(root, cached.transactionDigests) &&
-    processPackageStateDigest(processPackage) === packageStateDigest
-  ) {
-    repositoryDataCache.delete(cacheKey);
-    repositoryDataCache.set(cacheKey, cached);
-    return { ok: true, value: structuredClone(cached.parsed), diagnostics: [] };
-  }
   recordWork("repository.parse.records", relativePaths.length);
   const parsedResults = await measureAsync(
     "repository.parse",
@@ -1057,34 +996,9 @@ export async function readRepositoryData(
       ));
     }
   });
-  if (diagnostics.length > 0) return { ok: false, diagnostics };
-  const selectedProcessReference = `${selectedReference}#${selectedDigest}`;
-  if (
-    capturedTransactions &&
-    processPackageStateDigest(processPackage) === packageStateDigest &&
-    parsed.every((item) =>
-      item.lifecycleDatum.datum.created_by.process_ref === selectedProcessReference
-    )
-  ) {
-    const digests = new Map([...capturedTransactions.values()].map((source) =>
-      [source.relativePath, source.digest] as const
-    ));
-    const rootPrefix = `${path.resolve(root)}\0`;
-    for (const existingKey of repositoryDataCache.keys()) {
-      if (existingKey.startsWith(rootPrefix) && existingKey !== cacheKey) {
-        repositoryDataCache.delete(existingKey);
-      }
-    }
-    repositoryDataCache.set(cacheKey, {
-      parsed: structuredClone(parsed),
-      transactionDigests: digests,
-    });
-    if (repositoryDataCache.size > repositoryDataCacheLimit) {
-      const oldest = repositoryDataCache.keys().next().value;
-      if (oldest !== undefined) repositoryDataCache.delete(oldest);
-    }
-  }
-  return { ok: true, value: parsed, diagnostics: [] };
+  return diagnostics.length > 0
+    ? { ok: false, diagnostics }
+    : { ok: true, value: parsed, diagnostics: [] };
 }
 
 export async function repositoryLifecycleSnapshot(

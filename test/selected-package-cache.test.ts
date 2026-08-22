@@ -31,7 +31,7 @@ async function copyRepository(source: string): Promise<string> {
   return repository;
 }
 
-describe("selected Process Package cache", () => {
+describe("selected Process Package isolation", () => {
   it("isolates callers and package roots", async () => {
     const firstRoot = await initializedRepository();
     const secondRoot = await copyRepository(firstRoot);

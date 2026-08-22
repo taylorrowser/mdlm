@@ -311,24 +311,8 @@ function validateKernelCapabilities(
   return diagnostics;
 }
 
-const parsedYamlDocuments = new Map<string, unknown>();
-const parsedYamlDocumentLimit = 1_024;
-
 async function readYaml(filePath: string): Promise<unknown> {
-  const source = await fs.readFile(filePath, "utf8");
-  if (parsedYamlDocuments.has(source)) {
-    const cached = parsedYamlDocuments.get(source);
-    parsedYamlDocuments.delete(source);
-    parsedYamlDocuments.set(source, cached);
-    return structuredClone(cached);
-  }
-  const parsed = parse(source);
-  parsedYamlDocuments.set(source, parsed);
-  if (parsedYamlDocuments.size > parsedYamlDocumentLimit) {
-    const oldest = parsedYamlDocuments.keys().next().value;
-    if (oldest !== undefined) parsedYamlDocuments.delete(oldest);
-  }
-  return structuredClone(parsed);
+  return parse(await fs.readFile(filePath, "utf8"));
 }
 
 async function yamlFiles(directory: string): Promise<string[]> {
@@ -588,36 +572,24 @@ function validateScenarioPromptDeclarations(
   });
 }
 
-const metaValidatorSets = new Map<string, Map<string, ValidateFunction>>();
-const metaValidatorSetLimit = 8;
-
 async function createMetaValidators(
   metaDirectory: string,
 ): Promise<Map<string, ValidateFunction>> {
-  const schemaFiles = (await fs.readdir(metaDirectory))
-    .filter((name) => name.endsWith(".json"))
-    .sort();
-  const sources = await Promise.all(
-    schemaFiles.map((name) => fs.readFile(path.join(metaDirectory, name), "utf8")),
-  );
-  const cacheKey = schemaFiles.map((name, index) => `${name}\0${sources[index]}`)
-    .join("\0");
-  const cached = metaValidatorSets.get(cacheKey);
-  if (cached) {
-    metaValidatorSets.delete(cacheKey);
-    metaValidatorSets.set(cacheKey, cached);
-    return cached;
-  }
-
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   const addFormats = formatsPlugin as unknown as (
     instance: Ajv2020,
   ) => Ajv2020;
   addFormats(ajv);
-  const schemas = schemaFiles.map((name, index) => ({
-    name,
-    schema: JSON.parse(sources[index]!),
-  }));
+
+  const schemaFiles = (await fs.readdir(metaDirectory))
+    .filter((name) => name.endsWith(".json"))
+    .sort();
+  const schemas = await Promise.all(
+    schemaFiles.map(async (name) => ({
+      name,
+      schema: JSON.parse(await fs.readFile(path.join(metaDirectory, name), "utf8")),
+    })),
+  );
 
   for (const { schema } of schemas) ajv.addSchema(schema);
 
@@ -627,11 +599,6 @@ async function createMetaValidators(
     if (!id) continue;
     const validator = ajv.getSchema(id);
     if (validator) validators.set(name, validator);
-  }
-  metaValidatorSets.set(cacheKey, validators);
-  if (metaValidatorSets.size > metaValidatorSetLimit) {
-    const oldest = metaValidatorSets.keys().next().value;
-    if (oldest !== undefined) metaValidatorSets.delete(oldest);
   }
   return validators;
 }
