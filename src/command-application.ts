@@ -1421,6 +1421,42 @@ async function showSelectedPackage(
   };
 }
 
+/** Render one already-inspected operator status without rereading repository state. */
+export function renderOperatorStatus(status: OperatorStatus): string {
+  const transaction = status.recentTransaction.available
+    ? `${status.recentTransaction.id} [${status.recentTransaction.status}] ${status.recentTransaction.scenario}`
+    : "none";
+  const assignment = "assignment" in status.currentOutcome
+    ? status.currentOutcome.assignment.allocation === "active"
+      ? `active ${status.currentOutcome.assignment.id}`
+      : "not allocated"
+    : "none";
+  const terminal = "evidence" in status.currentOutcome
+    ? [
+        `Terminal Explanation: ${status.currentOutcome.explanation}`,
+        `Terminal Evidence: ${status.currentOutcome.evidence.profile} — ${status.currentOutcome.evidence.condition.source} => ${status.currentOutcome.evidence.condition.result}`,
+        `Terminal Selector Evidence: ${JSON.stringify(status.currentOutcome.evidence.condition.selectors)}`,
+      ]
+    : [];
+  return [
+    `Process Package: ${status.package.reference}`,
+    `Implementation Profile: ${status.profile.reference} [${status.profile.status}]`,
+    "Integrity: valid",
+    `Active Phase: ${status.activePhase.reference} — ${status.activePhase.name}`,
+    `Purpose: ${status.activePhase.purpose}`,
+    `Coverage: ${status.activePhase.coverage}`,
+    `Profile Omitted Coverage: ${status.omittedCoverage.profile.join(", ") || "none"}`,
+    `Phase Omitted Coverage: ${status.omittedCoverage.phase.join(", ") || "none"}`,
+    `Recent Transaction: ${transaction}`,
+    `Unresolved Work: total=${status.unresolvedWork.total}, dispatchable=${status.unresolvedWork.dispatchable}, by-status=${JSON.stringify(status.unresolvedWork.byStatus)}`,
+    `Current Operator Outcome: ${status.currentOutcome.outcome}`,
+    `Assignment: ${assignment}`,
+    ...terminal,
+    "Drill Down:",
+    ...status.drillDownCommands.map((command) => `  ${command}`),
+  ].join("\n");
+}
+
 function renderCommandResult(result: CommandResult): string {
   if (!result.ok && result.validation) {
     return [
@@ -1630,40 +1666,7 @@ function renderCommandResult(result: CommandResult): string {
     result.contract === "mdlm-status@1" && result.package && result.profile &&
     result.activePhase && result.omittedCoverage && result.recentTransaction &&
     result.unresolvedWork && result.currentOutcome && result.drillDownCommands
-  ) {
-    const transaction = result.recentTransaction.available
-      ? `${result.recentTransaction.id} [${result.recentTransaction.status}] ${result.recentTransaction.scenario}`
-      : "none";
-    const assignment = "assignment" in result.currentOutcome
-      ? result.currentOutcome.assignment.allocation === "active"
-        ? `active ${result.currentOutcome.assignment.id}`
-        : "not allocated"
-      : "none";
-    const terminal = "evidence" in result.currentOutcome
-      ? [
-          `Terminal Explanation: ${result.currentOutcome.explanation}`,
-          `Terminal Evidence: ${result.currentOutcome.evidence.profile} — ${result.currentOutcome.evidence.condition.source} => ${result.currentOutcome.evidence.condition.result}`,
-          `Terminal Selector Evidence: ${JSON.stringify(result.currentOutcome.evidence.condition.selectors)}`,
-        ]
-      : [];
-    return [
-      `Process Package: ${result.package.reference}`,
-      `Implementation Profile: ${result.profile.reference} [${result.profile.status}]`,
-      `Integrity: valid`,
-      `Active Phase: ${result.activePhase.reference} — ${result.activePhase.name}`,
-      `Purpose: ${result.activePhase.purpose}`,
-      `Coverage: ${result.activePhase.coverage}`,
-      `Profile Omitted Coverage: ${result.omittedCoverage.profile.join(", ") || "none"}`,
-      `Phase Omitted Coverage: ${result.omittedCoverage.phase.join(", ") || "none"}`,
-      `Recent Transaction: ${transaction}`,
-      `Unresolved Work: total=${result.unresolvedWork.total}, dispatchable=${result.unresolvedWork.dispatchable}, by-status=${JSON.stringify(result.unresolvedWork.byStatus)}`,
-      `Current Operator Outcome: ${result.currentOutcome.outcome}`,
-      `Assignment: ${assignment}`,
-      ...terminal,
-      `Drill Down:`,
-      ...result.drillDownCommands.map((command) => `  ${command}`),
-    ].join("\n");
-  }
+  ) return renderOperatorStatus(result as OperatorStatus);
   if (result.evaluation && result.package) {
     const evaluation = result.evaluation;
     const evidence = evaluation.evidence.map((item) => {
