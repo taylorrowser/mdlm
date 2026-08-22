@@ -338,11 +338,13 @@ test("contended representative observation limits stay exact", () => {
   assert.match(loadSource, /beforeAll\(async \(\) => \{[\s\S]*?validPackage = result\.package;\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
   assert.match(baselineSource, /const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(baselineSource, /const CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(baselineSource, /const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(baselineSource, /const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
   assert.match(baselineSource, /const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;/);
   assert.match(baselineSource, /immutableSelectedPackage = deepFreeze\([\s\S]*?\n  \}, CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /changedBaselineFixture = deepFreeze\([\s\S]*?\n  \}, CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /await arrangeManyBaselines\([\s\S]*?\n  \}, CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
   assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(assignmentSource, /const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = 30_000;/);

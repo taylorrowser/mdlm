@@ -22,6 +22,7 @@ import { mdlmWithEnvironment } from "./helpers/mdlm.js";
 
 const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+const CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;
@@ -455,7 +456,7 @@ describe("mdlm baseline inspection", () => {
       manyBaselineTemplateRepository,
       changedBaselineFixture,
     );
-  });
+  }, CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     const historicalSource = cloneHistoricalRepository(templateParent);
