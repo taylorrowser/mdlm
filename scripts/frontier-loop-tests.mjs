@@ -340,6 +340,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(baselineSource, /const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(baselineSource, /const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(baselineSource, /const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
+  assert.match(baselineSource, /const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;/);
   assert.match(baselineSource, /immutableSelectedPackage = deepFreeze\([\s\S]*?\n  \}, CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /changedBaselineFixture = deepFreeze\([\s\S]*?\n  \}, CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
@@ -357,6 +358,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(assignmentSource, /await copyRepository\(activeTemplateRepository, correctionTemplateRepository\);[\s\S]*?correctionDiagnostics: malformedResult\.malformedResponse\.diagnostics,[\s\S]*?\n  \}, CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /const historicalSource = cloneHistoricalRepository\(templateParent\);[\s\S]*?historicalProcessPackage = deepFreeze\(loaded\.package\);\n  \}, CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /beforeEach\(async \(\{ task \}\) => \{[\s\S]*?await copyRepositoryFoundation\([\s\S]*?\n  \}, CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /rejects Assignment preparation across concurrent tracked changes(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /waitForPath\(\n      barrierSignal,\n      "Second valid response did not reach the Assignment lock",\n      CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n    \);/);
   assert.match(assignmentSource, /waitForPath\(\n        barrierSignal,[\s\S]*?CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n      \);/);
   assert.match(assignmentSource, /waitForDirectoryEntry\([\s\S]*?Public submission did not stage publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);

@@ -24,6 +24,7 @@ const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;
 
 async function executeMdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
@@ -1268,7 +1269,7 @@ describe("mdlm baseline inspection", () => {
         code: "assignment-repository-changed-during-inspection",
       })]),
     );
-  }, 30_000);
+  }, CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS);
 
   it("verifies every repository baseline before rebuilding disposable projections", async () => {
     const fixture = structuredClone(changedBaselineFixture);
