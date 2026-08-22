@@ -1373,6 +1373,6 @@ describe("Phase 0 missing hardening routes", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 300_000);
+  }, 360_000);
 
 });

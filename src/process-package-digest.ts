@@ -2,14 +2,19 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-async function filePaths(root: string, directory = root): Promise<string[]> {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  const nested = await Promise.all(entries.map(async (entry) => {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return filePaths(root, entryPath);
-    return entry.isFile() ? [path.relative(root, entryPath)] : [];
-  }));
-  return nested.flat().sort();
+async function filePaths(root: string): Promise<string[]> {
+  const directories = [root];
+  const paths: string[] = [];
+  while (directories.length > 0) {
+    const directory = directories.pop()!;
+    const entries = await fs.readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) directories.push(entryPath);
+      else if (entry.isFile()) paths.push(path.relative(root, entryPath));
+    }
+  }
+  return paths.sort();
 }
 
 /** Hash the exact current package bytes. No metadata or watcher result is trusted. */
