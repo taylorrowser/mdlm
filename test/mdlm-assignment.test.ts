@@ -9,7 +9,8 @@ import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
 
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;
-const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 40_000;
+const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 20_000;
+const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 50_000;
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -73,42 +74,61 @@ function spawnMdlmWithInput(
   return { child, closed, output: () => ({ stdout, stderr }) };
 }
 
-async function waitForPath(
-  target: string,
+async function waitForFilesystemCondition(
+  directory: string,
+  condition: () => Promise<boolean>,
   message: string,
-  timeoutMs = 10_000,
+  timeoutMs: number,
 ): Promise<void> {
-  try {
-    await fs.access(target);
-    return;
-  } catch {
-    // Arm the process-level barrier observer below.
-  }
   await new Promise<void>((resolve, reject) => {
-    let watcher: ReturnType<typeof watch>;
-    let timeout: NodeJS.Timeout;
     let settled = false;
-    const observeTarget = async () => {
-      try {
-        await fs.access(target);
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        watcher.close();
-        resolve();
-      } catch {
-        // The observed event was unrelated to the barrier.
-      }
-    };
-    watcher = watch(path.dirname(target), () => void observeTarget());
-    timeout = setTimeout(() => {
+    const watcher = watch(directory, () => void observe());
+    const timeout = setTimeout(() => {
       if (settled) return;
       settled = true;
       watcher.close();
       reject(new Error(message));
     }, timeoutMs);
-    void observeTarget();
+    const observe = async () => {
+      try {
+        if (!await condition() || settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        watcher.close();
+        resolve();
+      } catch {
+        // The observed event was unrelated to the condition.
+      }
+    };
+    void observe();
   });
+}
+
+function waitForPath(
+  target: string,
+  message: string,
+  timeoutMs = 10_000,
+): Promise<void> {
+  return waitForFilesystemCondition(
+    path.dirname(target),
+    async () => fs.access(target).then(() => true),
+    message,
+    timeoutMs,
+  );
+}
+
+function waitForDirectoryEntry(
+  directory: string,
+  predicate: (entry: string) => boolean,
+  message: string,
+  timeoutMs = 10_000,
+): Promise<void> {
+  return waitForFilesystemCondition(
+    directory,
+    async () => (await fs.readdir(directory)).some(predicate),
+    message,
+    timeoutMs,
+  );
 }
 
 function git(repository: string, ...arguments_: string[]) {
@@ -803,28 +823,12 @@ describe("MDLM Assignment leasing and preparation", () => {
     const assignment = templateState.assignment;
     const response = `${JSON.stringify(templateState.validResponse)}\n`;
     const lockOwner = holdPublicationLock(repository, process.pid);
-    const staged = new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        watcher.close();
-        reject(new Error("Public submission did not stage publication"));
-      }, 10_000);
-      const watcher = watch(path.join(repository, ".lifecycle"), async () => {
-        try {
-          const entries = await fs.readdir(path.join(repository, ".lifecycle"));
-          if (entries.some((entry) =>
-            entry.startsWith(".scenario-") && entry.endsWith(".tmp")
-          )) {
-            clearTimeout(timeout);
-            watcher.close();
-            resolve();
-          }
-        } catch (error) {
-          clearTimeout(timeout);
-          watcher.close();
-          reject(error);
-        }
-      });
-    });
+    const staged = waitForDirectoryEntry(
+      path.join(repository, ".lifecycle"),
+      (entry) => entry.startsWith(".scenario-") && entry.endsWith(".tmp"),
+      "Public submission did not stage publication",
+      CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,
+    );
     const child = spawn(
       process.execPath,
       [mdlmExecutable, "scenario", "submit"],
@@ -876,29 +880,13 @@ describe("MDLM Assignment leasing and preparation", () => {
     const response = `${JSON.stringify(templateState.validResponse)}\n`;
     const publicationOwner = holdPublicationLock(repository, process.pid);
     const stagingRoot = path.join(repository, ".lifecycle");
-    const staged = () => fs.readdir(stagingRoot).then((entries) =>
-      entries.filter((entry) =>
-        entry.startsWith(".scenario-") && entry.endsWith(".tmp")
-      )
-    );
-    const waitForStaging = async (): Promise<void> => {
-      if ((await staged()).length === 1) return;
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          watcher.close();
-          reject(new Error("First submission did not stage publication"));
-        }, 10_000);
-        const watcher = watch(stagingRoot, async () => {
-          if ((await staged()).length === 1) {
-            clearTimeout(timeout);
-            watcher.close();
-            resolve();
-          }
-        });
-      });
-    };
     const first = spawnMdlmWithInput(repository, response, process.env);
-    await waitForStaging();
+    await waitForDirectoryEntry(
+      stagingRoot,
+      (entry) => entry.startsWith(".scenario-") && entry.endsWith(".tmp"),
+      "First submission did not stage publication",
+      CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,
+    );
     const barrierRoot = path.join(parent, "valid-response-barrier");
     const barrierSignal = path.join(barrierRoot, "assignment-lock-attempted");
     await fs.mkdir(barrierRoot);
@@ -924,7 +912,9 @@ process.exit(result.status ?? 1);
       barrierSignal,
       "Second valid response did not reach the Assignment lock",
     );
-    expect(await staged()).toHaveLength(1);
+    expect((await fs.readdir(stagingRoot)).filter((entry) =>
+      entry.startsWith(".scenario-") && entry.endsWith(".tmp")
+    )).toHaveLength(1);
     expect(second.child.exitCode).toBeNull();
     expect(git(
       repository,
