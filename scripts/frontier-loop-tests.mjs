@@ -342,6 +342,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(baselineSource, /immutableSelectedPackage = deepFreeze\([\s\S]*?\n  \}, CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
   assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(assignmentSource, /const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;/);
   assert.match(assignmentSource, /const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 20_000;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 60_000;/);
@@ -350,7 +351,7 @@ test("contended representative observation limits stay exact", () => {
   assert.match(phaseTwoSource, /runZeroInterfacePhaseTwoRoute,\n  CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS,/);
   assert.match(assignmentSource, /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const allocated = await mdlm\(activeTemplateRepository, "next"\);[\s\S]*?responseSchema:[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
-  assert.match(assignmentSource, /await copyRepository\(activeTemplateRepository, correctionTemplateRepository\);[\s\S]*?correctionDiagnostics: malformedResult\.malformedResponse\.diagnostics,[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /await copyRepository\(activeTemplateRepository, correctionTemplateRepository\);[\s\S]*?correctionDiagnostics: malformedResult\.malformedResponse\.diagnostics,[\s\S]*?\n  \}, CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /const historicalSource = cloneHistoricalRepository\(templateParent\);[\s\S]*?historicalProcessPackage = deepFreeze\(loaded\.package\);\n  \}, CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /beforeEach\(async \(\{ task \}\) => \{[\s\S]*?await copyRepositoryFoundation\([\s\S]*?\n  \}, CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /waitForPath\(\n      barrierSignal,\n      "Second valid response did not reach the Assignment lock",\n      CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n    \);/);

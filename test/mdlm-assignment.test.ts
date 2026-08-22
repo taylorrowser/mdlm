@@ -9,6 +9,7 @@ import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
 
 const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;
 const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 20_000;
 const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 60_000;
@@ -364,7 +365,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       ),
       correctionDiagnostics: malformedResult.malformedResponse.diagnostics,
     };
-  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
+  }, CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS);
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-assignment-public-"));
