@@ -692,7 +692,7 @@ rows:
       - route: consolidated checkpoint
         executable:
           file: test/operator-outcome.test.ts
-          test: projects one complete checkpoint conversation and the first exact Assignment
+          test: consolidates every compatible Question at an active checkpoint before other work
         evidence:
           facts: "consolidated checkpoint: Every compatible source-bounded open preferential QST in one declared Consolidation
             Group at its ready checkpoint."
@@ -1051,7 +1051,7 @@ rows:
       - route: reviewed rejection
         executable:
           file: test/phase-0-corrected-gate-route.test.ts
-          test: resumes at failed gate authority, reviews its correction, and accepts Phase 0 intent
+          test: corrects gate authority and atomically materializes its exact Review Context
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
             superseding candidate."
