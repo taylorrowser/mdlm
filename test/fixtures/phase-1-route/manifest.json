@@ -1,0 +1,25 @@
+{
+  "contract": "mdlm-current-lifecycle-data-fixtures@1",
+  "fixtures": {
+    "phase-1-vai-correction-ready": {
+      "archive": "phase-1-vai-correction-ready.data.json.gz",
+      "compressedSha256": "1147b114464ac865baf2220aeeab3c71333823a94ffd5eb13ce51e3a7efc4659",
+      "contentSha256": "69778114d94a97798bf88c751827bf740049845eada653f266fefd507ae816f9",
+      "entryCount": 20,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:9599fa8cd7d2557c24e62da6ce4b44324dd26e01a810272820051067fc54eca4"
+      },
+      "checkpoint": "Immediately before the failed VAI r1 Review in the corrected-VAI public route, after exact Review Context publication and the preceding passing Review transaction.",
+      "provenance": {
+        "sourceCommit": "f41a24e39d9d530d3c53831ebcd144d9270f1367",
+        "sourceTree": "2783907599e3156dad30acf90d580912ffde47b7",
+        "route": "test/phase-1-hardening-routes.test.ts: allocates Review of corrected VAI r2 instead of a run for failed superseded r1",
+        "captureLog": "/tmp/issue-203-phase-1-vai-fixture-capture.log",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 99615 ms whole process group",
+        "compression": "gzip -n -9"
+      }
+    }
+  }
+}

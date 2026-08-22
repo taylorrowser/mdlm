@@ -6,12 +6,10 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  classifyOperatorOutcome,
   evaluateLifecycle,
   loadProcessPackage,
   resolveType,
   type LifecycleRecord,
-  type OperatorWorkFacts,
   type ProcessPackage,
 } from "../src/index.js";
 import {
@@ -33,6 +31,7 @@ import {
   submitAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
+import { installCurrentLifecycleDataFixture } from "./helpers/current-lifecycle-data-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { mdlm, selectProcessPackageFixture } from "./helpers/mdlm.js";
 import { copiedProcessPackage } from "./helpers/process-package.js";
@@ -671,42 +670,41 @@ function pilotRun(
   return { run, result };
 }
 
+type PayloadValidator = (payload: unknown) => boolean;
+
+const payloadValidatorSets = new WeakMap<
+  ProcessPackage,
+  { ajv: Ajv2020; validators: Map<string, PayloadValidator> }
+>();
+
 function validatePayload(
   processPackage: ProcessPackage,
   type: string,
   payload: Record<string, unknown>,
 ): boolean {
-  const resolved = resolveType(processPackage, type);
-  if (!resolved.ok) throw new Error(JSON.stringify(resolved.diagnostics));
-  const ajv = new Ajv2020({ allErrors: true, strict: false });
-  formatsPlugin.default(ajv);
-  return ajv.compile(resolved.type.payloadSchema)(payload) === true;
+  let set = payloadValidatorSets.get(processPackage);
+  if (!set) {
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    formatsPlugin.default(ajv);
+    set = { ajv, validators: new Map() };
+    payloadValidatorSets.set(processPackage, set);
+  }
+  let validator = set.validators.get(type);
+  if (!validator) {
+    const resolved = resolveType(processPackage, type);
+    if (!resolved.ok) throw new Error(JSON.stringify(resolved.diagnostics));
+    validator = set.ajv.compile(resolved.type.payloadSchema);
+    set.validators.set(type, validator);
+  }
+  return validator(payload) === true;
 }
 
-function operatorOutcome(
-  result: ReturnType<typeof evaluateLifecycle>,
-) {
-  const phase = result.phase ? `${result.phase.id}@${result.phase.version}` : "";
-  const work: OperatorWorkFacts[] = result.looseEnds.map((item) => ({
-    kind: "obligation",
-    phase,
-    instance: item.id,
-    definition: item.obligation,
-    subject: item.subject,
-    scenario: item.actionableResolver ?? item.eventualResolver,
-    dispatchable: item.dispatchable,
-    authorityRequirements: (item.participation ?? []).map((participation) => ({
-      policy: participation.policy,
-      authorityRequirement: participation.authorityRequirement,
-      attentionSchedule: participation.attentionSchedule,
-    })),
-    explanation: item.explanation,
-    status: item.status,
-    blockedBy: item.blockedBy,
-    blockerChains: item.blockerChains,
-    unresolvedBindings: item.unresolvedBindings,
-  }));
-  return classifyOperatorOutcome(work, result.terminalOutcome);
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value)) deepFreeze(nested);
+  }
+  return value;
 }
 
 function phase1Evaluation(
@@ -791,7 +789,7 @@ describe("Phase 1 hardening route evidence", () => {
   beforeAll(async () => {
     const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = deepFreeze(loaded.package);
   });
 
   it("proves Phase 1 VSP creation and exposes its fresh independent Review route", () => {
@@ -2011,28 +2009,30 @@ describe("Phase 1 hardening route evidence", () => {
       const expectedData = before.value.map((item) => item.lifecycleDatum.datum);
 
       for (const omittedKind of [
-      "normal",
-      "extra-argument",
-      "omitted-argument",
-      "raw-malformed",
-    ]) {
-    const valid = targetPayload();
-    expect(validatePayload(processPackage, "ART", valid)).toBe(true);
-    const malformed = structuredClone(valid) as Record<string, any>;
-    const cases = malformed.public_interface.argument_cases as Array<{
-      id: string;
-      kind: string;
-      expected_observation: Record<string, unknown>;
-    }>;
-    const omittedIndex = cases.findIndex((item) => item.kind === omittedKind);
-    const retained = cases.find((item) => item.kind !== omittedKind);
-    if (omittedIndex < 0 || !retained) throw new Error(`missing command case ${omittedKind}`);
-    cases[omittedIndex] = {
-      ...structuredClone(retained),
-      id: `${retained.id}-duplicate`,
-    };
-    expect(cases).toHaveLength(4);
-    expect(validatePayload(processPackage, "ART", malformed)).toBe(false);
+        "normal",
+        "extra-argument",
+        "omitted-argument",
+        "raw-malformed",
+      ]) {
+        const valid = targetPayload();
+        expect(validatePayload(processPackage, "ART", valid)).toBe(true);
+        const malformed = structuredClone(valid) as Record<string, any>;
+        const cases = malformed.public_interface.argument_cases as Array<{
+          id: string;
+          kind: string;
+          expected_observation: Record<string, unknown>;
+        }>;
+        const omittedIndex = cases.findIndex((item) => item.kind === omittedKind);
+        const retained = cases.find((item) => item.kind !== omittedKind);
+        if (omittedIndex < 0 || !retained) {
+          throw new Error(`missing command case ${omittedKind}`);
+        }
+        cases[omittedIndex] = {
+          ...structuredClone(retained),
+          id: `${retained.id}-duplicate`,
+        };
+        expect(cases).toHaveLength(4);
+        expect(validatePayload(processPackage, "ART", malformed)).toBe(false);
 
         const malformedTarget = target(`ART-0HARDMTRX${omittedKind.length}`);
         malformedTarget.datum.payload = malformed;
@@ -2979,110 +2979,42 @@ describe("Phase 1 hardening route evidence", () => {
           item.datum.type === "BSL" &&
           item.datum.payload.scope === replacementRevision,
       )!;
-      let stored: LifecycleRecord["datum"][] = [];
-      const publishFixtureRecords = async (
-        records: LifecycleRecord["datum"][],
-        executionId: string,
-        finalized: Array<{
-          capability: "exact-baseline@1";
-          datum: LifecycleRecord["datum"];
-        }> = [],
-      ) => {
-        const publication = await publishScenarioMutation(
-          repository,
-          loadedFixture.package,
-          stored,
-          records,
-          executionId,
-          { contract: "phase-1-vai-correction-fixture@1" },
-          finalized,
-        );
-        if (!publication.ok)
-          throw new Error(JSON.stringify(publication.diagnostics));
-        stored = [...stored, ...records];
-      };
-      await publishFixtureRecords(
-        baseRecords.map((item) => item.datum),
-        "phase-1-vai-correction-base",
+      await installCurrentLifecycleDataFixture(
+        repository,
+        "phase-1-vai-correction-ready",
       );
-      const finalizedInitialContexts = [];
-      for (const context of initialContexts) {
-        const contextReview = reviews.find((review) =>
-          review.datum.links.some(
-            (link) =>
-              link.type === "contextualizes" &&
-              link.target === context.datum.revision_id,
-          ),
-        );
-        const subjectRevision = contextReview?.datum.links.find(
-          (link) => link.type === "reviews",
-        )?.target;
-        const subjectRecord = sourceRecords.find(
-          (item) => item.datum.revision_id === subjectRevision,
-        );
-        if (subjectRecord?.datum.type === "VAI") {
-          context.datum.payload.definition_members = [subjectRevision];
-          context.datum.payload.evidence = [];
-          delete context.datum.payload.snapshot;
-        } else if (subjectRecord?.datum.type === "VSP") {
-          const governedRequirement = subjectRecord.datum.links.find(
-            (link) => link.type === "governs-revision",
-          )?.target;
-          context.datum.payload.definition_members = [
-            subjectRevision,
-            ...(governedRequirement ? [governedRequirement] : []),
-          ];
-          context.datum.payload.evidence = [];
-          delete context.datum.payload.snapshot;
-        }
-        const finalized = await finalizeExactBaselineScenarioOutput(
-          repository,
-          loadedFixture.package,
-          fixtureProcessRef,
-          context.datum,
-        );
-        if (!finalized.ok)
-          throw new Error(JSON.stringify(finalized.diagnostics));
-        finalizedInitialContexts.push(finalized.value.output);
-      }
-      await publishFixtureRecords(
-        finalizedInitialContexts.map((item) => item.datum),
-        "phase-1-vai-correction-contexts",
-        finalizedInitialContexts,
+      const failedReviewRecord = reviews.find(
+        (review) => review.datum.payload.outcome === "fail",
+      )!;
+      const preparedFailedReview = await prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
       );
-      const pendingReviews = [...reviews];
-      let failedReviewRevision: string | undefined;
-      while (pendingReviews.length > 0) {
-        const prepared = await prepareNextAssignment(
-          repository,
-          "review-datum-in-context@2",
-        );
-        const subject = inputRevision(prepared, "subject");
-        const reviewIndex = pendingReviews.findIndex((item) =>
-          item.datum.links.some((link) =>
-            link.type === "reviews" && link.target === subject
-          )
-        );
-        expect(reviewIndex).toBeGreaterThanOrEqual(0);
-        const review = pendingReviews.splice(reviewIndex, 1)[0]!;
-        const submitted = await submitAssignment(repository, prepared, [{
+      expect(inputRevision(preparedFailedReview, "subject")).toBe(
+        failedReviewRecord.datum.links.find((link) => link.type === "reviews")!
+          .target,
+      );
+      const failedReviewSubmission = await submitAssignment(
+        repository,
+        preparedFailedReview,
+        [{
           localId: "review",
           name: "review",
           invocation: 0,
           lifecycleDatum: {
             type: "REV",
-            payload: review.datum.payload,
-            links: review.datum.links,
-            body: review.datum.body,
+            payload: failedReviewRecord.datum.payload,
+            links: failedReviewRecord.datum.links,
+            body: failedReviewRecord.datum.body,
           },
-        }]);
-        expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
-        if (review.datum.payload.outcome === "fail") {
-          failedReviewRevision = JSON.parse(submitted.stdout).execution.outputs[0]
-            .lifecycleDatum.revisionId;
-          break;
-        }
-      }
+        }],
+      );
+      expect(
+        failedReviewSubmission.status,
+        `${failedReviewSubmission.stderr}${failedReviewSubmission.stdout}`,
+      ).toBe(0);
+      const failedReviewRevision = JSON.parse(failedReviewSubmission.stdout)
+        .execution.outputs[0].lifecycleDatum.revisionId as string;
       expect(failedReviewRevision).toMatch(/^REV-.*-r00001$/);
       const replacementRecord = replacementRecords.find(
         (item) => item.datum.type === "VAI",
@@ -3151,7 +3083,7 @@ describe("Phase 1 hardening route evidence", () => {
       ).toBe(replacementRevision);
       const afterReviews = await readRepositoryData(repository, loadedFixture.package);
       if (!afterReviews.ok) throw new Error(JSON.stringify(afterReviews.diagnostics));
-      stored = afterReviews.value.map((item) => item.lifecycleDatum.datum);
+      const stored = afterReviews.value.map((item) => item.lifecycleDatum.datum);
       replacementContextRecord.datum.payload.definition_members = [
         replacementRevision,
       ];
@@ -3169,11 +3101,20 @@ describe("Phase 1 hardening route evidence", () => {
           JSON.stringify(finalizedReplacementContext.diagnostics),
         );
       }
-      await publishFixtureRecords(
+      const replacementContextPublication = await publishScenarioMutation(
+        repository,
+        loadedFixture.package,
+        stored,
         [finalizedReplacementContext.value.output.datum],
         "phase-1-vai-correction-r2-context",
+        { contract: "phase-1-vai-correction-fixture@1" },
         [finalizedReplacementContext.value.output],
       );
+      if (!replacementContextPublication.ok) {
+        throw new Error(
+          JSON.stringify(replacementContextPublication.diagnostics),
+        );
+      }
 
       const firstRevision = sourceRecords.find(
         (item) =>

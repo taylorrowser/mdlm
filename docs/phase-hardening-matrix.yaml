@@ -660,7 +660,7 @@ rows:
       - route: immediate blocking
         executable:
           file: test/operator-outcome.test.ts
-          test: returns immediate attended work with an exact Assignment and Authority Requirement
+          test: classifies immediate attended work with its exact authority requirement
         evidence:
           facts: "immediate blocking: One source-bounded open preferential QST whose exact target cannot proceed without
             stakeholder intent."
