@@ -6,6 +6,7 @@ import { stringify } from "yaml";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
+import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
 import {
   finalizeExactBaselineScenarioOutput,
   verifyExactBaseline,
@@ -80,8 +81,8 @@ function holdPublicationLock(repository: string, owner: string): string {
   return objectId;
 }
 
-function cloneBaselineHeavyRepository(parent: string, name: string): string {
-  const repository = path.join(parent, name);
+function cloneHistoricalRepository(parent: string): string {
+  const repository = path.join(parent, "historical-source");
   const cloned = spawnSync(
     "git",
     [
@@ -95,7 +96,7 @@ function cloneBaselineHeavyRepository(parent: string, name: string): string {
   );
   expect(
     cloned.status,
-    `git clone fixture\n${cloned.stderr}${cloned.stdout}`,
+    `git clone historical fixture\n${cloned.stderr}${cloned.stdout}`,
   ).toBe(0);
   return repository;
 }
@@ -355,6 +356,36 @@ async function arrangeChangedBaselines(repository: string): Promise<BaselineFixt
   return { before, after, firstMap, secondMap, oldEvidence, newEvidence };
 }
 
+async function arrangeManyBaselines(
+  source: string,
+  destination: string,
+  fixture: BaselineFixture,
+): Promise<void> {
+  await copyRepositoryFoundation(source, destination);
+  const template = fixture.before.datum;
+  await Promise.all(Array.from({ length: 29 }, async (_, index) => {
+    const id = `BSL-10500000${String(index + 1).padStart(2, "0")}`;
+    const revisionId = `${id}-r00001`;
+    const snapshot = structuredClone(template.payload.snapshot) as {
+      resolved_links: Record<string, string[]>;
+    };
+    const selfLinks = snapshot.resolved_links[template.revision_id] ?? [];
+    delete snapshot.resolved_links[template.revision_id];
+    snapshot.resolved_links[revisionId] = selfLinks;
+    await writeDatum(destination, {
+      ...structuredClone(template),
+      id,
+      revision_id: revisionId,
+      payload: {
+        ...structuredClone(template.payload),
+        title: `Exact baseline ${index + 3}`,
+        group: "many-baseline-verification",
+        snapshot,
+      },
+    });
+  }));
+}
+
 describe("mdlm baseline inspection", () => {
   const changedBaselineTests = new Set([
     "verifies exact members and evidence and reports substantive baseline differences",
@@ -367,7 +398,12 @@ describe("mdlm baseline inspection", () => {
   let templateRepository: string;
   let changedTemplateRepository: string;
   let changedBaselineFixture: BaselineFixture;
-  let baselineHeavyTemplateRepository: string;
+  let manyBaselineTemplateRepository: string;
+  let historicalProcessRoot: string;
+  let historicalProcessPackage: ProcessPackage;
+  let historicalProcessRef: string;
+  let historicalRepository: string;
+  let historicalBaselineRevision: string;
   let parent: string;
   let repository: string;
 
@@ -377,16 +413,22 @@ describe("mdlm baseline inspection", () => {
       "mdlm-baseline-inspection-template-",
     ));
     templateRepository = path.join(templateParent, "repository");
-    const initialized = await executeMdlm(
-      templateParent,
-      "init",
+    const processRoot = path.resolve(".lifecycle/process");
+    const loaded = await loadProcessPackage(processRoot);
+    expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const initialized = await initializeRepositoryFromLoadedProcessPackage(
       templateRepository,
-      "--json",
+      processRoot,
+      loaded.package,
     );
-    expectSuccess(initialized, "mdlm init template");
-    immutableSelectedPackage = deepFreeze(
-      await selectedPackage(templateRepository),
-    );
+    expect(initialized.ok, initialized.ok ? "" : JSON.stringify(initialized.diagnostics))
+      .toBe(true);
+    if (!initialized.ok) return;
+    immutableSelectedPackage = deepFreeze({
+      processPackage: loaded.package,
+      processRef: `${initialized.package.reference}#${initialized.package.digest}`,
+    });
   });
 
   beforeAll(async () => {
@@ -397,11 +439,80 @@ describe("mdlm baseline inspection", () => {
     );
   });
 
-  beforeAll(() => {
-    baselineHeavyTemplateRepository = cloneBaselineHeavyRepository(
+  beforeAll(async () => {
+    manyBaselineTemplateRepository = path.join(
       templateParent,
-      "baseline-heavy-repository",
+      "many-baseline-repository",
     );
+    await arrangeManyBaselines(
+      changedTemplateRepository,
+      manyBaselineTemplateRepository,
+      changedBaselineFixture,
+    );
+  });
+
+  beforeAll(async () => {
+    const historicalSource = cloneHistoricalRepository(templateParent);
+    const selection = JSON.parse(await fs.readFile(
+      path.join(historicalSource, ".lifecycle/process-selection.json"),
+      "utf8",
+    )) as { package: { path: string } };
+    historicalProcessRoot = path.resolve(historicalSource, selection.package.path);
+    const loaded = await loadProcessPackage(historicalProcessRoot);
+    expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    historicalProcessPackage = deepFreeze(loaded.package);
+  });
+
+  beforeAll(async () => {
+    historicalRepository = path.join(templateParent, "historical-baseline");
+    const initialized = await initializeRepositoryFromLoadedProcessPackage(
+      historicalRepository,
+      historicalProcessRoot,
+      historicalProcessPackage,
+    );
+    expect(initialized.ok, initialized.ok ? "" : JSON.stringify(initialized.diagnostics))
+      .toBe(true);
+    if (!initialized.ok) return;
+    historicalProcessRef =
+      `${initialized.package.reference}#${initialized.package.digest}`;
+    const evidence = await writeDatum(
+      historicalRepository,
+      question(historicalProcessRef, "QST-1060000001", "Historical evidence"),
+    );
+    const member = await writeDatum(
+      historicalRepository,
+      mapRevision(historicalProcessRef, 1, evidence.datum.id),
+    );
+    const baselineId = "BSL-1060000001";
+    const baseline = await freezeBaseline(
+      historicalRepository,
+      historicalProcessPackage,
+      historicalProcessRef,
+      {
+        id: baselineId,
+        revision: 1,
+        revision_id: `${baselineId}-r00001`,
+        type: "BSL",
+        payload: {
+          title: "Historical-package exact baseline",
+          kind: "level-candidate",
+          role: "candidate",
+          scope: "historical compatibility",
+          group: "inspection",
+          definition_members: [member.datum.revision_id],
+          evidence: [evidence.datum.revision_id],
+        },
+        links: [],
+        created_by: authoring(
+          historicalProcessRef,
+          "create-candidate-baseline@1",
+          "prompts/create-candidate-baseline.md@1",
+        ),
+        body: "One bounded historical-package exact baseline.\n",
+      },
+    );
+    historicalBaselineRevision = baseline.datum.revision_id;
   });
 
   beforeEach(async ({ task }) => {
@@ -1078,14 +1189,30 @@ describe("mdlm baseline inspection", () => {
     });
   });
 
+  it("verifies a bounded historical-package exact baseline", async () => {
+    expect(historicalProcessRef).toContain("mdlm-bootstrap@0.66.0#sha256:");
+    const verified = await verifyExactBaseline(
+      historicalRepository,
+      historicalProcessPackage,
+      historicalProcessRef,
+      historicalBaselineRevision,
+    );
+    expect(verified.ok).toBe(true);
+    if (!verified.ok) throw new Error(JSON.stringify(verified.diagnostics));
+    expect(verified.value).toMatchObject({
+      baselineRevision: historicalBaselineRevision,
+      valid: true,
+      checkedHashes: 2,
+    });
+  });
+
   it("loads one snapshot while verifying many exact baselines", async () => {
     const { processPackage, processRef } = await selectedPackage(
-      baselineHeavyTemplateRepository,
-      false,
+      manyBaselineTemplateRepository,
     );
     const result = await collectPerformanceDiagnostics(async () => {
       const inspection = await loadRepositoryInspection(
-        baselineHeavyTemplateRepository,
+        manyBaselineTemplateRepository,
         processPackage,
         processRef,
       );
@@ -1100,7 +1227,7 @@ describe("mdlm baseline inspection", () => {
       contract: "mdlm-performance@1",
       repository: { loads: 1, markdownFiles: expect.any(Number) },
     });
-    expect(result.diagnostics.repository.markdownFiles).toBeGreaterThan(100);
+    expect(result.diagnostics.repository.markdownFiles).toBeGreaterThan(30);
     expect(result.diagnostics.work["baseline.revisions-checked"])
       .toBeGreaterThan(30);
   }, 30_000);
@@ -1126,8 +1253,7 @@ describe("mdlm baseline inspection", () => {
   });
 
   it("rejects Assignment preparation across concurrent tracked changes", async () => {
-    const baselineHeavyRepository = baselineHeavyTemplateRepository;
-    const result = await nextDuringTrackedChanges(baselineHeavyRepository);
+    const result = await nextDuringTrackedChanges(repository);
     expect(
       result.exit,
       `concurrent mdlm next\n${result.stderr}${result.stdout}`,

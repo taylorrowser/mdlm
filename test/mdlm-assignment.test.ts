@@ -3,11 +3,19 @@ import { constants, promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { assignmentResponseSchema } from "../src/assignment.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
+const initialWayfindingSkillRefs = [
+  "skills/lifecycle-data.md@1",
+  "skills/wayfinding-map.md@1",
+  "skills/clarification-protocol.md@1",
+  "skills/scope-challenge.md@2",
+  "skills/author-preflight.md@2",
+];
 
 async function invokeMdlm(
   repository: string,
@@ -253,20 +261,20 @@ describe("MDLM Assignment leasing and preparation", () => {
 
   beforeAll(async () => {
     await copyRepository(initializedTemplateRepository, activeTemplateRepository);
+  });
+
+  beforeAll(async () => {
     const allocated = await mdlm(activeTemplateRepository, "next");
     expect(allocated.status, `${allocated.stderr}${allocated.stdout}`).toBe(0);
     templateAssignment = JSON.parse(allocated.stdout).assignment.id as string;
-    const prepared = await mdlm(
-      activeTemplateRepository,
-      "scenario",
-      "prepare",
-      templateAssignment,
-    );
-    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-    templatePacket = JSON.parse(prepared.stdout) as PreparedPromptPacket;
-    templateLoadedSkillRefs = templatePacket.prompt.skills.map((skill) =>
-      skill.reference
-    );
+    templateLoadedSkillRefs = initialWayfindingSkillRefs;
+    templatePacket = {
+      prompt: {
+        skills: templateLoadedSkillRefs.map((reference) => ({ reference })),
+      },
+      responseSchema:
+        assignmentResponseSchema() as PreparedPromptPacket["responseSchema"],
+    };
   });
 
   beforeAll(async () => {
@@ -550,6 +558,9 @@ describe("MDLM Assignment leasing and preparation", () => {
       }),
       diagnostics: [],
     }));
+    expect(packet.prompt.skills.map((skill: { reference: string }) =>
+      skill.reference
+    )).toEqual(initialWayfindingSkillRefs);
     const proposalSchema = packet.responseSchema.oneOf[0].properties.proposal;
     expect(proposalSchema.required).toContain("loadedSkillRefs");
     expect(proposalSchema.properties.outputs.items.required).toContain("localId");

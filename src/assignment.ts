@@ -1878,7 +1878,8 @@ export async function inspectOperatorStatus(
   };
 }
 
-function responseSchema(): Record<string, unknown> {
+/** Return the exact response contract embedded in every Assignment packet. */
+export function assignmentResponseSchema(): Record<string, unknown> {
   const diagnostic = {
     type: "object",
     additionalProperties: false,
@@ -2026,7 +2027,7 @@ interface UnableAssignmentResponse {
 type AssignmentResponse = ProposalAssignmentResponse | UnableAssignmentResponse;
 
 const validateAssignmentResponse = new Ajv2020({ allErrors: true, strict: false })
-  .compile(responseSchema());
+  .compile(assignmentResponseSchema());
 
 function responseDiagnostics(errors: ErrorObject[] | null | undefined): ProcessDiagnostic[] {
   return (errors ?? []).map((error) => ({
@@ -2179,7 +2180,7 @@ function packet(
       requiredLinks: output.requiredLinks,
     })),
     completion: exact.dryRun.completion,
-    responseSchema: responseSchema(),
+    responseSchema: assignmentResponseSchema(),
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation
       ? {

@@ -597,47 +597,48 @@ describe("loadProcessPackage", () => {
         "every: {selector: review-required-revisions@1, arguments: {}, as: item, satisfies: {present: {var: item}}}",
       present: "present: {var: subject}",
     };
-
-    const results = await Promise.all(
-      Object.values(legacyForms).map(async (legacySource) => {
-        const processRoot = await copiedProcessPackage();
-        const statePath = path.join(
-          processRoot,
-          "states/relationship-overlays.yaml",
-        );
-        const state = await fs.readFile(statePath, "utf8");
-        await fs.writeFile(
-          statePath,
-          state.replace(
-            "    when: 'subject.provenance.process_ref != process.current_ref'",
-            `    when:\n      ${legacySource}`,
-          ),
-        );
-        return loadProcessPackage(processRoot);
-      }),
-    );
-
-    for (const result of results) {
-      expect(result.ok).toBe(false);
-      expect(result.diagnostics).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            code: "legacy-expression-authoring",
-            path: expect.stringContaining(
-              "relationship-overlays.yaml#rules[2].when",
-            ),
-            message:
-              "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
-          }),
-          expect.objectContaining({
-            code: "meta-schema",
-            path: expect.stringContaining(
-              "relationship-overlays.yaml/rules/2/when",
-            ),
-            message: "must be string",
-          }),
-        ]),
+    const processRoot = await copiedProcessPackage();
+    try {
+      const statePath = path.join(
+        processRoot,
+        "states/relationship-overlays.yaml",
       );
+      const state = await fs.readFile(statePath, "utf8");
+      const legacyRules = Object.entries(legacyForms).map(
+        ([family, source], index) => `  - value: process-drift
+    priority: ${90 - index}
+    when:
+      ${source}
+    explanation: Reject the legacy ${family} expression family.`,
+      ).join("\n");
+      await fs.writeFile(statePath, `${state.trimEnd()}\n${legacyRules}\n`);
+
+      const result = await loadProcessPackage(processRoot);
+
+      expect(result.ok).toBe(false);
+      const expectedRuleIndexes = Object.keys(legacyForms).map(
+        (_, index) => index + 3,
+      );
+      expect(result.diagnostics.filter((item) =>
+        item.code === "legacy-expression-authoring"
+      )).toEqual(expectedRuleIndexes.map((index) => expect.objectContaining({
+        path: expect.stringContaining(
+          `relationship-overlays.yaml#rules[${index}].when`,
+        ),
+        message:
+          "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
+      })));
+      expect(result.diagnostics.filter((item) =>
+        item.code === "meta-schema" &&
+        item.path?.includes("relationship-overlays.yaml/rules/")
+      )).toEqual(expectedRuleIndexes.map((index) => expect.objectContaining({
+        path: expect.stringContaining(
+          `relationship-overlays.yaml/rules/${index}/when`,
+        ),
+        message: "must be string",
+      })));
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
   }, 20_000);
 

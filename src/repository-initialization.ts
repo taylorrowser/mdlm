@@ -3,7 +3,12 @@ import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { promisify } from "node:util";
-import { loadProcessPackage, type ProcessDiagnostic, type ProcessPackage } from "./index.js";
+import {
+  loadProcessPackage,
+  type LoadProcessPackageResult,
+  type ProcessDiagnostic,
+  type ProcessPackage,
+} from "./index.js";
 import {
   packageSummary,
   packagesRelativePath,
@@ -165,10 +170,10 @@ async function publish(
   }
 }
 
-/** Initialize one destination with an exact Process Package directory. */
-export async function initializeRepositoryFromProcessPackage(
+async function initializeRepository(
   destination: string,
   processPackageRoot: string,
+  loadPackage: () => Promise<LoadProcessPackageResult>,
 ): Promise<RepositoryInitialization> {
   const resolvedDestination = path.resolve(destination);
   let state: "absent" | "empty" | "nonempty";
@@ -189,7 +194,7 @@ export async function initializeRepositoryFromProcessPackage(
     );
   }
 
-  const loaded = await loadProcessPackage(processPackageRoot);
+  const loaded = await loadPackage();
   if (!loaded.ok) return { ok: false, diagnostics: loaded.diagnostics };
   const summary = await packageSummary(loaded.package, processPackageRoot);
   const repository = repositorySummary(loaded.package);
@@ -256,6 +261,31 @@ export async function initializeRepositoryFromProcessPackage(
   } finally {
     await fs.rm(preparationRoot, { recursive: true, force: true });
   }
+}
+
+/** Initialize one destination with an exact, already validated Process Package. */
+export function initializeRepositoryFromLoadedProcessPackage(
+  destination: string,
+  processPackageRoot: string,
+  processPackage: ProcessPackage,
+): Promise<RepositoryInitialization> {
+  return initializeRepository(
+    destination,
+    processPackageRoot,
+    async () => ({ ok: true, package: processPackage, diagnostics: [] }),
+  );
+}
+
+/** Validate an exact Process Package directory and initialize one destination. */
+export function initializeRepositoryFromProcessPackage(
+  destination: string,
+  processPackageRoot: string,
+): Promise<RepositoryInitialization> {
+  return initializeRepository(
+    destination,
+    processPackageRoot,
+    () => loadProcessPackage(processPackageRoot),
+  );
 }
 
 /** Initialize one destination with MDLM's bundled Example Process Package. */
