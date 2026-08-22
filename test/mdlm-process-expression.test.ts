@@ -2,7 +2,12 @@ import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mdlm, selectBootstrapProcessPackage } from "./helpers/mdlm.js";
+import { executeCommandApplication } from "../src/command-application.js";
+
+async function applicationMdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
 
 const snapshot = path.join(process.cwd(), "examples/psp-to-sys-snapshot.yaml");
 const subjectRevision = "PSP-7K3M9Q2D8F-r00001";
@@ -12,17 +17,23 @@ describe("mdlm process expression evaluation", () => {
 
   beforeEach(async () => {
     repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-expression-"));
-    selectBootstrapProcessPackage(repositoryRoot);
+    const initialized = await applicationMdlm(
+      repositoryRoot,
+      "init",
+      ".",
+      "--json",
+    );
+    expect(initialized.status, initialized.stdout).toBe(0);
   });
 
   afterEach(async () => {
     await fs.rm(repositoryRoot, { recursive: true, force: true });
   });
 
-  it("evaluates a definition field with its actual contract and explains traversal", () => {
+  it("evaluates a definition field with its actual contract and explains traversal", async () => {
     const target = "review-context-required@2#satisfied_when";
     const bindings = JSON.stringify({ subject: subjectRevision });
-    const result = mdlm(
+    const result = await applicationMdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -110,7 +121,7 @@ describe("mdlm process expression evaluation", () => {
       diagnostics: [],
     });
 
-    const human = mdlm(
+    const human = await applicationMdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -135,8 +146,8 @@ describe("mdlm process expression evaluation", () => {
     );
   });
 
-  it("addresses nested expression fields without exposing compiled nodes", () => {
-    const result = mdlm(
+  it("addresses nested expression fields without exposing compiled nodes", async () => {
+    const result = await applicationMdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -166,8 +177,8 @@ describe("mdlm process expression evaluation", () => {
     }));
   });
 
-  it("rejects bindings outside the addressed field's actual contract", () => {
-    const result = mdlm(
+  it("rejects bindings outside the addressed field's actual contract", async () => {
+    const result = await applicationMdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -191,8 +202,8 @@ describe("mdlm process expression evaluation", () => {
     });
   });
 
-  it("rejects a supplied value that does not match the compiled binding type", () => {
-    const result = mdlm(
+  it("rejects a supplied value that does not match the compiled binding type", async () => {
+    const result = await applicationMdlm(
       repositoryRoot,
       "process",
       "expression",
@@ -216,7 +227,7 @@ describe("mdlm process expression evaluation", () => {
     });
   });
 
-  it("directly evaluates relations, Selectors, Policies, Computed States, and Obligations", () => {
+  it("directly evaluates relations, Selectors, Policies, Computed States, and Obligations", async () => {
     const cases = [
       {
         arguments: [
@@ -308,7 +319,7 @@ describe("mdlm process expression evaluation", () => {
     ];
 
     for (const testCase of cases) {
-      const result = mdlm(
+      const result = await applicationMdlm(
         repositoryRoot,
         ...testCase.arguments,
         "--snapshot",
@@ -362,7 +373,7 @@ describe("mdlm process expression evaluation", () => {
       }
     }
 
-    const human = mdlm(
+    const human = await applicationMdlm(
       repositoryRoot,
       "state",
       "evaluate",
