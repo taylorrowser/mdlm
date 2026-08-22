@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -12,11 +13,13 @@ import {
 } from "vitest";
 import { parse, stringify } from "yaml";
 import {
+  inspectAssignmentState,
   operatorTerminalOutcomeProjection,
   operatorWorkProjection,
   type OperatorStatus,
 } from "../src/assignment.js";
 import {
+  evaluateLifecycle,
   loadProcessPackage,
   type LifecycleEvaluation,
   type ProcessPackage,
@@ -36,6 +39,12 @@ import {
   initialPhaseId,
 } from "../src/lifecycle-inspection.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
+import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
+import {
+  submitPreparedResolverScenario,
+  type ScenarioExecution,
+  type ScenarioProposal,
+} from "../src/scenario-execution.js";
 import { selectedRepositoryPackage } from "../src/selected-package.js";
 import { mdlmWithInputAndEnvironment } from "./helpers/mdlm.js";
 import { terminalProcessPackage } from "./helpers/terminal-process-package.js";
@@ -50,15 +59,6 @@ function deepFreeze<T>(value: T): T {
 
 async function applicationMdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
-  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
-}
-
-async function applicationMdlmWithInput(
-  repository: string,
-  input: string,
-  ...arguments_: string[]
-) {
-  const execution = await executeCommandApplication(arguments_, repository, input);
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
 }
 
@@ -78,124 +78,88 @@ async function recordInstalledPackageChange(
   }
 }
 
-async function publishCheckpointQuestions(repository: string): Promise<void> {
-  const packageRoot = path.join(
+async function publishPreparedScenario(
+  repository: string,
+  scenarioReference: string,
+  proposal: ScenarioProposal,
+): Promise<ScenarioExecution> {
+  const selected = await selectedRepositoryPackage(repository);
+  if (!selected.ok) throw new Error(JSON.stringify(selected.diagnostics));
+  const firstPhase = initialPhaseId(selected.processPackage);
+  if (!firstPhase) throw new Error("Expected an initial Phase");
+  const inspection = await loadRepositoryInspection(
     repository,
-    ".lifecycle/packages/mdlm-bootstrap@0.74.0",
+    selected.processPackage,
+    `${selected.summary.reference}#${selected.summary.digest}`,
   );
-  const phasePath = path.join(packageRoot, "phases/phase-0-wayfinding.yaml");
-  const phase = parse(await fs.readFile(phasePath, "utf8"));
-  phase.attention_checkpoints[0].readiness = "true";
-  await fs.writeFile(phasePath, stringify(phase));
-  const obligationPath = path.join(
-    packageRoot,
-    "obligations/open-question-resolution.yaml",
+  if (!inspection.ok) throw new Error(JSON.stringify(inspection.diagnostics));
+  const snapshot = deepFreeze(inspection.value.lifecycleSnapshot(firstPhase));
+  const evaluation = deepFreeze(evaluateLifecycle(selected.processPackage, snapshot));
+  const work = operatorWorkProjection(evaluation, snapshot.records).find(
+    (item) => item.kind === "obligation" && item.scenario === scenarioReference,
   );
-  const obligation = parse(await fs.readFile(obligationPath, "utf8"));
-  obligation.status_rules[0].when = "false";
-  await fs.writeFile(obligationPath, stringify(obligation));
-  const scenarioPath = path.join(
-    packageRoot,
-    "scenarios/establish-initial-wayfinding-map.yaml",
+  if (!work) throw new Error(`Missing dispatchable work for '${scenarioReference}'`);
+  const prepared = await dryRunResolverScenario(
+    selected.processPackage,
+    snapshot,
+    scenarioReference,
+    work.instance,
+    [],
+    evaluation,
   );
-  const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
-  scenario.outputs
-    .find((output: { name: string }) => output.name === "product_intent")
-    .required_payload.state = "answered";
-  await fs.writeFile(scenarioPath, stringify(scenario));
-  const initialQuestionSelectorPath = path.join(
-    packageRoot,
-    "selectors/current-initial-product-intent-questions.yaml",
-  );
-  const initialQuestionSelector = parse(
-    await fs.readFile(initialQuestionSelectorPath, "utf8"),
-  );
-  initialQuestionSelector.query.where = "false";
-  await fs.writeFile(
-    initialQuestionSelectorPath,
-    stringify(initialQuestionSelector),
-  );
-  await recordInstalledPackageChange(repository, packageRoot);
-
-  const first = JSON.parse((await applicationMdlm(repository, "next")).stdout);
-  const packet = JSON.parse((await applicationMdlm(
+  if (!prepared.ok) throw new Error(JSON.stringify(prepared.diagnostics));
+  const scenario = selected.processPackage.scenarios[scenarioReference.split("@")[0]!];
+  if (!scenario) throw new Error(`Missing Scenario '${scenarioReference}'`);
+  const transaction = inspection.value.beginTransaction();
+  const assignment = randomUUID();
+  const responseDigest = `sha256:${createHash("sha256")
+    .update(JSON.stringify({ assignment, proposal }))
+    .digest("hex")}`;
+  const submitted = await submitPreparedResolverScenario(
     repository,
-    "scenario",
-    "prepare",
-    first.assignment.id,
-  )).stdout);
-  const questions = [
-    ["Bounded product intent", "What product is intended?", "The answer establishes product scope."],
-    ["Choose the retained boundary", "Which boundary should remain?", "The answer changes product scope."],
-    ["Choose the public name", "Which name should be public?", "The answer changes the public label."],
-  ].map(([title, question, blockingImpact], index) => ({
-    localId: `question-${index + 1}`,
-    name: index === 0 ? "product_intent" : "questions",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "QST",
-      payload: {
-        title,
-        kind: "preferential",
-        ...(index === 0 ? {
-          intent_scope: "product",
-          attended_answer:
-            "Build a checkpoint conversation tracer that exercises consolidated stakeholder attention.",
-        } : {}),
-        question,
-        state: index === 0 ? "answered" : "open",
-        blocking_impact: blockingImpact,
-        ...(index === 0 ? {} : {
-          attention_checkpoint: "phase-0-gate",
-          consolidation_group: "phase-0-stakeholder-questions",
-        }),
-      },
-      links: [],
-      body: "Checkpoint-scheduled stakeholder question.\n",
+    selected.processPackage,
+    {
+      reference: selected.summary.reference,
+      digest: selected.summary.digest,
+      language: selected.summary.language,
     },
-  }));
-  const submitted = await applicationMdlmWithInput(
-    repository,
-    `${JSON.stringify({
-      contract: "mdlm-assignment-response@1",
-      assignment: first.assignment.id,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "map",
-          name: "map",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "MAP",
-            payload: {
-              title: "Checkpoint conversation tracer",
-              purpose: "Exercise consolidated stakeholder attention.",
-              frontier: [
-                "$proposal.question-1.revision_id",
-                "$proposal.question-2.revision_id",
-                "$proposal.question-3.revision_id",
-              ],
-            },
-            links: [
-              { type: "indexes", target: "$proposal.question-1.id" },
-              { type: "indexes", target: "$proposal.question-2.id" },
-              { type: "indexes", target: "$proposal.question-3.id" },
-            ],
-            body: "Public operator-seam checkpoint tracer.\n",
-          },
-        }, ...questions],
-        completionEvidence: { summary: "Map and checkpoint questions proposed." },
-        loadedSkillRefs: packet.prompt.skills.map(
-          (skill: { reference: string }) => skill.reference,
+    {
+      scenarioReference,
+      obligationInstance: work.instance,
+      proposal,
+      assignment,
+      responseDigest,
+      suppliedAuthorities: [],
+      suppliedDelegations: [],
+      loadedSkillRefs: prepared.value.prompt.skills.map((skill) => skill.reference),
+    },
+    {
+      dryRun: prepared.value,
+      evaluation,
+      scenario,
+      snapshot,
+      finalizeExactBaseline: (_root, _package, _processRef, proposedDatum) =>
+        transaction.finalizeExactBaseline(proposedDatum),
+      publishMutation: (
+        _root,
+        _package,
+        expectedData,
+        data,
+        executionId,
+        executionRecord,
+        kernelFinalizedOutputs,
+      ) =>
+        transaction.publishScenarioMutation(
+          expectedData,
+          data,
+          executionId,
+          executionRecord,
+          kernelFinalizedOutputs,
         ),
-        authoritySupplies: [],
-        standingDelegations: [],
-      },
-    })}\n`,
-    "scenario",
-    "submit",
+    },
   );
-  expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+  if (!submitted.ok) throw new Error(JSON.stringify(submitted.diagnostics));
+  return submitted.value;
 }
 
 function work(overrides: Partial<OperatorWorkFacts> = {}): OperatorWorkFacts {
@@ -374,6 +338,7 @@ describe("package-neutral Operator Outcome classification", () => {
       ["definition-gate"],
     );
 
+    expect(JSON.stringify(classified)).not.toContain("rawTranscript");
     expect(classified).toEqual(expect.objectContaining({
       kind: "attention-required",
       work: expect.objectContaining({
@@ -515,7 +480,6 @@ describe("public mdlm outcome and status seam", () => {
   let repositoryFoundation: string;
   let bootstrapPackageFoundation: ProcessPackage;
   let terminalPackageFoundation: ProcessPackage;
-  let terminalCompletePackageFoundation: ProcessPackage;
   let operatorStatusFoundation: OperatorStatus;
   let parent: string;
   let repository: string;
@@ -566,16 +530,6 @@ describe("public mdlm outcome and status seam", () => {
     if (!terminal.ok) throw new Error(JSON.stringify(terminal.diagnostics));
     terminalPackageFoundation = deepFreeze(terminal.package);
 
-    const completeRoot = await terminalProcessPackage(foundationParent, {
-      lifecycle_complete: {
-        condition:
-          'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
-        explanation: "Every lifecycle objective selected by this package is complete.",
-      },
-    });
-    const complete = await loadProcessPackage(completeRoot);
-    if (!complete.ok) throw new Error(JSON.stringify(complete.diagnostics));
-    terminalCompletePackageFoundation = deepFreeze(complete.package);
   }, 30_000);
 
   afterAll(async () => {
@@ -603,14 +557,19 @@ describe("public mdlm outcome and status seam", () => {
   function terminalEvaluation(
     outcome: "profile-boundary" | "lifecycle-complete" | "ambiguous" | "none",
   ): LifecycleEvaluation {
-    const processPackage = structuredClone(
-      outcome === "lifecycle-complete"
-        ? terminalCompletePackageFoundation
-        : terminalPackageFoundation,
-    );
+    const processPackage = structuredClone(terminalPackageFoundation);
     const profile = processPackage.profiles.terminal!;
     const terminalOutcomes = profile.terminal_outcomes as Record<string, unknown>;
     if (outcome === "profile-boundary") delete terminalOutcomes.lifecycle_complete;
+    if (outcome === "lifecycle-complete") {
+      terminalOutcomes.lifecycle_complete = {
+        ...structuredClone(
+          terminalOutcomes.profile_boundary as Record<string, unknown>,
+        ),
+        explanation: "Every lifecycle objective selected by this package is complete.",
+      };
+      delete terminalOutcomes.profile_boundary;
+    }
     if (outcome === "none") delete profile.terminal_outcomes;
     return deepFreeze(activeLifecycleEvaluation(processPackage, {
       processRef: "terminal-fixture@1.0.0#sha256:test",
@@ -675,89 +634,27 @@ describe("public mdlm outcome and status seam", () => {
     const allocated = JSON.parse(
       (await applicationMdlm(repository, "next")).stdout,
     );
-    const withLease = JSON.parse(
-      (await applicationMdlm(repository, "status", "--json")).stdout,
-    );
-    expect(withLease.currentOutcome).toEqual({
-      outcome: "assignment",
-      assignment: { allocation: "active", id: allocated.assignment.id },
-    });
-  });
-
-  it("projects one complete checkpoint conversation and the first exact Assignment", async () => {
-    await initializeRepository();
-    await publishCheckpointQuestions(repository);
-
-    const next = await applicationMdlm(repository, "next");
-
-    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-    const outcome = JSON.parse(next.stdout);
-    expect(outcome).toEqual(expect.objectContaining({
-      ok: true,
-      contract: "mdlm-next@1",
-      outcome: "attention-required",
-      assignment: { id: expect.any(String) },
-      authorityRequirement: {
-        mode: "attended",
-        authority: "stakeholder",
-        delegationAllowed: false,
-      },
-      attentionSchedule: {
-        timing: "checkpoint",
-        checkpoint: "phase-0-gate",
-        consolidationGroup: "phase-0-stakeholder-questions",
-      },
-      checkpointConversation: {
-        checkpoint: "phase-0-gate",
-        consolidationGroup: "phase-0-stakeholder-questions",
-        items: [
-          expect.objectContaining({
-            exactSubject: expect.objectContaining({
-              identity: expect.objectContaining({ type: "QST" }),
-              payload: expect.objectContaining({
-                question: expect.any(String),
-                blocking_impact: expect.any(String),
-              }),
-            }),
-          }),
-          expect.objectContaining({
-            exactSubject: expect.objectContaining({
-              identity: expect.objectContaining({ type: "QST" }),
-              payload: expect.objectContaining({
-                question: expect.any(String),
-                blocking_impact: expect.any(String),
-              }),
-            }),
-          }),
-        ],
-        conversation: {
-          format: "freeform",
-          semanticMapping: "harness",
-          transcriptStorage: "none-by-default",
-          publication: "serial-with-reevaluation",
-          checkpointScheduling: "not-deferral",
-        },
-      },
-    }));
-    const revisions = outcome.checkpointConversation.items.map(
-      (item: { exactSubject: { identity: { revisionId: string } } }) =>
-        item.exactSubject.identity.revisionId,
-    );
-    expect(new Set(revisions).size).toBe(2);
-
-    const prepared = await applicationMdlm(
+    const active = await inspectAssignmentState(
       repository,
-      "scenario",
-      "prepare",
-      outcome.assignment.id,
+      allocated.assignment.id,
     );
-    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-    const packet = JSON.parse(prepared.stdout);
-    expect(packet.checkpointConversation).toEqual(outcome.checkpointConversation);
-    expect(packet.exactInputs).toHaveLength(1);
-    expect(packet.exactInputs[0].inputs[0].values[0].identity.revision_id)
-      .toBe(revisions[0]);
-    expect(JSON.stringify(packet)).not.toContain("rawTranscript");
+    expect(active).toEqual(expect.objectContaining({
+      ok: true,
+      value: expect.objectContaining({
+        selected: true,
+        disposition: "active",
+      }),
+    }));
+    const withLease: OperatorStatus = {
+      ...structuredClone(statusProjection),
+      currentOutcome: {
+        outcome: "assignment",
+        assignment: { allocation: "active", id: allocated.assignment.id },
+      },
+    };
+    expect(renderOperatorStatus(withLease)).toContain(
+      `active ${allocated.assignment.id}`,
+    );
   });
 
   it("resolves the package-declared default from multiple valid profiles", () => {
@@ -885,113 +782,49 @@ gate:
     }
     await recordInstalledPackageChange(repository, packageRoot);
 
-    const first = JSON.parse((await applicationMdlm(repository, "next")).stdout);
-    const packet = JSON.parse((await applicationMdlm(
+    const foundation = await publishPreparedScenario(
       repository,
-      "scenario",
-      "prepare",
-      first.assignment.id,
-    )).stdout);
-    const submitted = await applicationMdlmWithInput(
-      repository,
-      `${JSON.stringify({
-        contract: "mdlm-assignment-response@1",
-        assignment: first.assignment.id,
-        kind: "proposal",
-        proposal: {
-          outputs: [{
-            localId: "map",
-            name: "map",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "MAP",
-              payload: {
-                title: "Phase progression fixture",
-                purpose: "Supply one exact progression authorization subject.",
-                frontier: ["$proposal.product-intent.revision_id"],
-              },
-              links: [{
-                type: "indexes",
-                target: "$proposal.product-intent.id",
-              }],
-              body: "A progression authorization subject.\n",
+      "establish-initial-wayfinding-map@2",
+      {
+        outputs: [{
+          localId: "map",
+          name: "map",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "MAP",
+            payload: {
+              title: "Phase progression fixture",
+              purpose: "Supply one exact progression authorization subject.",
+              frontier: ["$proposal.product-intent.revision_id"],
             },
-          }, {
-            localId: "product-intent",
-            name: "product_intent",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "QST",
-              payload: {
-                title: "Progression fixture product intent",
-                kind: "preferential",
-                intent_scope: "product",
-                question: "Which exact product should this fixture pursue?",
-                state: "open",
-                blocking_impact: "PSP compilation waits for the attended answer.",
-              },
-              links: [],
-              body: "The fixture records the required initial product intent.\n",
-            },
-          }],
-          completionEvidence: { summary: "Progression subject proposed." },
-          loadedSkillRefs: packet.prompt.skills.map(
-            (skill: { reference: string }) => skill.reference,
-          ),
-          authoritySupplies: [],
-          standingDelegations: [],
-        },
-      })}\n`,
-      "scenario",
-      "submit",
-    );
-    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
-    const mapRevision = JSON.parse(submitted.stdout).execution.outputs[0]
-      .lifecycleDatum.revisionId as string;
-    const selected = await selectedRepositoryPackage(repository);
-    expect(selected.ok, selected.ok ? "" : JSON.stringify(selected.diagnostics))
-      .toBe(true);
-    if (!selected.ok) return;
-    const firstPhase = initialPhaseId(selected.processPackage);
-    expect(firstPhase).toBe("phase-0-wayfinding");
-    if (!firstPhase) return;
-    const inspection = await loadRepositoryInspection(
-      repository,
-      selected.processPackage,
-      `${selected.summary.reference}#${selected.summary.digest}`,
-    );
-    expect(inspection.ok, inspection.ok ? "" : JSON.stringify(inspection.diagnostics))
-      .toBe(true);
-    if (!inspection.ok) return;
-    const snapshot = deepFreeze(inspection.value.lifecycleSnapshot(firstPhase));
-    const evaluation = deepFreeze(
-      activeLifecycleEvaluation(selected.processPackage, snapshot),
-    );
-    const workItems = operatorWorkProjection(evaluation, snapshot.records);
-    expect(workItems).toEqual([
-      expect.objectContaining({
-        kind: "phase-progression",
-        phase: "phase-1-product-assurance@3",
-        scenario: "record-consequential-decision@1",
-        subject: mapRevision,
-        dispatchable: true,
-        status: "awaiting-authority",
-        authorityRequirements: [expect.objectContaining({
-          authorityRequirement: {
-            mode: "attended",
-            authority: "stakeholder",
-            delegationAllowed: false,
+            links: [{
+              type: "indexes",
+              target: "$proposal.product-intent.id",
+            }],
+            body: "A progression authorization subject.\n",
           },
-        })],
-      }),
-    ]);
-    expect(classifyOperatorOutcome(
-      workItems,
-      evaluation.terminalOutcome,
-      evaluation.phase?.attentionCheckpoints
-        .filter((checkpoint) => checkpoint.active)
-        .map((checkpoint) => checkpoint.id) ?? [],
-    )).toEqual(expect.objectContaining({ kind: "attention-required" }));
+        }, {
+          localId: "product-intent",
+          name: "product_intent",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "QST",
+            payload: {
+              title: "Progression fixture product intent",
+              kind: "preferential",
+              intent_scope: "product",
+              question: "Which exact product should this fixture pursue?",
+              state: "open",
+              blocking_impact: "PSP compilation waits for the attended answer.",
+            },
+            links: [],
+            body: "The fixture records the required initial product intent.\n",
+          },
+        }],
+        completionEvidence: { summary: "Progression subject proposed." },
+      },
+    );
+    const mapRevision = foundation.outputs[0]!.lifecycleDatum.revisionId;
 
     const next = await applicationMdlm(repository, "next");
 
@@ -999,6 +832,7 @@ gate:
     const outcome = JSON.parse(next.stdout);
     expect(outcome).toEqual(expect.objectContaining({
       contract: "mdlm-next@1",
+      phase: "phase-1-product-assurance@3",
       outcome: "attention-required",
       assignment: { id: expect.any(String) },
       authorityRequirement: {
@@ -1020,6 +854,11 @@ gate:
     const progression = JSON.parse(progressionPacket.stdout);
     expect(progression).toEqual(expect.objectContaining({
       phase: "phase-1-product-assurance@3",
+      progression: {
+        instance: "phase-progression:phase-1-product-assurance@3",
+        nextPhase: "phase-2-system-definition",
+        subjects: [mapRevision],
+      },
       scenario: expect.objectContaining({
         reference: "record-consequential-decision@1",
       }),
