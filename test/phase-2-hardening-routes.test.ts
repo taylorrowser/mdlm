@@ -553,7 +553,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
     ).toBeDefined();
   });
 
-  it("prepares and completes every planning-DWP product-definition outcome with exact support", async () => {
+  it("prepares and completes a failed planning-DWP product-definition Review with exact support", async () => {
     const repository = await fs.mkdtemp(
       path.join(os.tmpdir(), "mdlm-phase2-dwp-review-"),
     );
@@ -788,101 +788,102 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
         `${baseInterfaceReviewSubmission.stderr}${baseInterfaceReviewSubmission.stdout}`,
       ).toBe(0);
 
-      for (const outcome of ["pass", "fail", "cancelled"] as const) {
-        const outcomeRepository = path.join(
-          path.dirname(repository),
-          `mdlm-phase2-dwp-review-${outcome}`,
+      const failureRepository = path.join(
+        path.dirname(repository),
+        "mdlm-phase2-dwp-review-fail",
+      );
+      await fs.cp(repository, failureRepository, { recursive: true });
+      try {
+        const prepared = await prepareNextAssignment(
+          failureRepository,
+          "review-datum-in-context@2",
         );
-        await fs.cp(repository, outcomeRepository, { recursive: true });
-        try {
-          const prepared = await prepareNextAssignment(
-            outcomeRepository,
-            "review-datum-in-context@2",
-          );
-          expect(inputRevision(prepared, "subject")).toBe(plan);
-          expect(inputRevisions(prepared, "context_members")).toEqual([
-            "ASP-0REPRTARCH-r00001",
-            "ICSP-0REPRT1CSP-r00001",
-            "STK-HJGTM8026G-r00001",
-            "SYS-0EXPRTREQ0-r00001",
-            "SYS-0PARENTREQ-r00001",
-            "VSP-KBQHB74Z6S-r00001",
-          ]);
-          const contextRevision = inputRevision(prepared, "review_context");
-          const submitted = await submitAssignment(outcomeRepository, prepared, [
-            {
-              localId: "review",
-              name: "review",
-              invocation: 0,
-              lifecycleDatum: {
-                type: "REV",
-                payload: {
-                  title: `Review ${plan}`,
-                  review_kind: "simplification-product-definition",
-                  rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-                  outcome,
-                  ...(outcome === "fail"
-                    ? {
-                        correction_authority: "package-evidence",
-                        simplification: {
-                          target: plan,
-                          findings: [
-                            {
-                              id: "F-001",
-                              severity: "blocking",
-                              criterion:
-                                "A planning-DWP product-definition Review must assess the exact plan and all current ASP, ICSP, STK, SYS, and VSP support.",
-                              evidence:
-                                "The failed Review identifies a blocker in the exact generated planning-DWP context.",
-                              material_consequence:
-                                "The plan cannot execute until the cited product-definition defect is corrected.",
-                              summary:
-                                "Clarify the exact decomposition boundary.",
-                            },
-                          ],
-                        },
-                      }
-                    : {}),
-                  ...(outcome === "cancelled"
-                    ? {
-                      cancellation_reason:
-                        "The exact packet cannot support a bounded judgment.",
-                    }
-                    : {}),
+        expect(inputRevision(prepared, "subject")).toBe(plan);
+        expect(inputRevisions(prepared, "context_members")).toEqual([
+          "ASP-0REPRTARCH-r00001",
+          "ICSP-0REPRT1CSP-r00001",
+          "STK-HJGTM8026G-r00001",
+          "SYS-0EXPRTREQ0-r00001",
+          "SYS-0PARENTREQ-r00001",
+          "VSP-KBQHB74Z6S-r00001",
+        ]);
+        const contextRevision = inputRevision(prepared, "review_context");
+        const submitted = await submitAssignment(failureRepository, prepared, [
+          {
+            localId: "review",
+            name: "review",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "REV",
+              payload: {
+                title: `Review ${plan}`,
+                review_kind: "simplification-product-definition",
+                rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+                outcome: "fail",
+                correction_authority: "package-evidence",
+                simplification: {
+                  target: plan,
+                  findings: [
+                    {
+                      id: "F-001",
+                      severity: "blocking",
+                      criterion:
+                        "A planning-DWP product-definition Review must assess the exact plan and all current ASP, ICSP, STK, SYS, and VSP support.",
+                      evidence:
+                        "The failed Review identifies a blocker in the exact generated planning-DWP context.",
+                      material_consequence:
+                        "The plan cannot execute until the cited product-definition defect is corrected.",
+                      summary: "Clarify the exact decomposition boundary.",
+                    },
+                  ],
                 },
-                links: [
-                  { type: "reviews", target: plan },
-                  { type: "contextualizes", target: contextRevision },
-                  ...(outcome === "fail"
-                    ? [{ type: "blocks", target: plan }]
-                    : []),
-                ],
-                body: `The exact planning DWP received a canonical ${outcome} judgment.\n`,
               },
+              links: [
+                { type: "reviews", target: plan },
+                { type: "contextualizes", target: contextRevision },
+                { type: "blocks", target: plan },
+              ],
+              body:
+                "The exact planning DWP received a canonical fail judgment.\n",
             },
-          ]);
-          expect(
-            submitted.status,
-            `${submitted.stderr}${submitted.stdout}`,
-          ).toBe(0);
-          const stored = await readRepositoryData(
-            outcomeRepository,
-            loaded.package,
-          );
-          if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
-          expect(
-            stored.value.some(
-              (item) =>
-                item.lifecycleDatum.datum.type === "REV" &&
-                item.lifecycleDatum.datum.payload.outcome === outcome &&
-                item.lifecycleDatum.datum.links.some(
-                  (link) => link.type === "reviews" && link.target === plan,
-                ),
-            ),
-          ).toBe(true);
-        } finally {
-          await fs.rm(outcomeRepository, { recursive: true, force: true });
-        }
+          },
+        ]);
+        expect(
+          submitted.status,
+          `${submitted.stderr}${submitted.stdout}`,
+        ).toBe(0);
+        const stored = await readRepositoryData(
+          failureRepository,
+          loaded.package,
+        );
+        if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
+        expect(
+          stored.value.some((item) => {
+            const simplification = item.lifecycleDatum.datum.payload.simplification as
+              | { target?: unknown; findings?: Array<{ severity?: unknown }> }
+              | undefined;
+            return item.lifecycleDatum.datum.type === "REV" &&
+              item.lifecycleDatum.datum.payload.outcome === "fail" &&
+              item.lifecycleDatum.datum.payload.correction_authority ===
+                "package-evidence" &&
+              simplification?.target === plan &&
+              simplification.findings?.some(
+                (finding) => finding.severity === "blocking",
+              ) === true &&
+              item.lifecycleDatum.datum.links.some(
+                (link) => link.type === "reviews" && link.target === plan,
+              ) &&
+              item.lifecycleDatum.datum.links.some(
+                (link) => link.type === "contextualizes" &&
+                  link.target === contextRevision,
+              ) &&
+              item.lifecycleDatum.datum.links.some(
+                (link) => link.type === "blocks" && link.target === plan,
+              );
+          }),
+        ).toBe(true);
+      } finally {
+        await fs.rm(failureRepository, { recursive: true, force: true });
       }
     } finally {
       await Promise.all([

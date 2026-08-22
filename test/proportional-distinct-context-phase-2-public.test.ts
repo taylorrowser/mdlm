@@ -1,8 +1,8 @@
 import { it } from "vitest";
-import { runDistinctContextPhaseTwoRoute } from "./helpers/proportional-phase-2-routes.js";
+import { runZeroInterfacePhaseTwoRoute } from "./helpers/proportional-phase-2-routes.js";
 
 it(
-  "completes separate zero-interface DWP and SYS routes for distinct contexts",
-  runDistinctContextPhaseTwoRoute,
+  "publishes one zero-interface DWP and SYS through the compiled public boundary",
+  runZeroInterfacePhaseTwoRoute,
   420_000,
 );

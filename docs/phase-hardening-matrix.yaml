@@ -119,7 +119,7 @@ rows:
       - route: STK
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: publishes STK through draft-stakeholder-requirements atomically and yields fresh STK Review work
+          test: prepares the exact PSP parent in both STK Review context Assignments
         evidence:
           facts: One current reviewed PSP and the newly published STK Revision.
           links: The STK derived-from link names the exact governing PSP Stable Datum.
@@ -726,7 +726,7 @@ rows:
       - route: empirical answer
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: publishes an empirical QST answer without an empirical DEC through resolve-question@2
+          test: declares empirical QST answers with an optional Decision output
         evidence:
           facts: "empirical answer: One source-bounded open empirical QST with available exact evidence and one same-lineage
             answered Revision."
@@ -793,8 +793,7 @@ rows:
       - route: unavailable evidence
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: abandons a source-bounded unavailable-evidence Assignment without publication and requires deliberate fresh
-            attention
+          test: keeps a source-bounded unavailable-evidence Question unchanged and attended-delegable for a deliberate fresh allocation
         evidence:
           facts: "unavailable evidence: One source-bounded open empirical QST and one typed Assignment Response reporting
             unavailable evidence."
@@ -1141,8 +1140,8 @@ rows:
           replaced and rereviewed."
       - route: same-gate return
         executable:
-          file: test/phase-0-hardening-routes.test.ts
-          test: returns corrected and freshly reviewed Phase 0 evidence to the same gate without reusing the rejected sign-off
+          file: test/phase-0-corrected-gate-route.test.ts
+          test: accepts corrected Phase 0 intent from its reviewed checkpoint
         evidence:
           facts: "same-gate return: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
             superseding candidate."
@@ -1759,7 +1758,7 @@ rows:
       - route: planning DWP independent Review
         executable:
           file: test/phase-2-hardening-routes.test.ts
-          test: prepares and completes every planning-DWP product-definition outcome with exact support
+          test: prepares and completes a failed planning-DWP product-definition Review with exact support
         evidence:
           facts: One exact planning DWP, its allocated ASP, all governing ICSP Revisions, applicable current SYS support, and one exact frozen Review Context.
           links: The Review reviews the exact DWP and contextualizes its frozen context; a failed judgment blocks only that exact DWP.
