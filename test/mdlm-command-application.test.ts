@@ -4,12 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
-import { loadProcessPackage } from "../src/index.js";
-import {
-  processCapabilities,
-  processInspection,
-} from "../src/process-package-inspection.js";
-import { testProcessFixtures } from "../src/process-package-fixtures.js";
 import { readScenarioExecution } from "../src/scenario-execution.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
 
@@ -309,26 +303,26 @@ describe("clean mdlm command application", () => {
       }
       expect(storedExecution.value.id).toBe(execution.id);
 
-      const descriptor = JSON.parse(await fs.readFile(
-        path.join(repository, ".lifecycle/repository.json"),
-        "utf8",
-      )) as { package: { reference: string } };
-      const packageRoot = path.join(
-        repository,
-        ".lifecycle/packages",
-        descriptor.package.reference,
-      );
-      const loadedPackage = await loadProcessPackage(packageRoot);
-      expect(loadedPackage.ok).toBe(true);
-      if (!loadedPackage.ok) throw new Error(JSON.stringify(loadedPackage.diagnostics));
-      expect(processInspection(loadedPackage.package).status).toBe("experimental");
-      const fixtureTests = await testProcessFixtures(packageRoot);
-      expect(fixtureTests.ok).toBe(true);
-      if (!fixtureTests.ok) throw new Error(JSON.stringify(fixtureTests.diagnostics));
-      expect(fixtureTests.value.failed).toBe(0);
-
-      expect(processCapabilities(loadedPackage.package).hostFunctions).toEqual(
+      const commandReaders = Promise.all([
+        executeMdlm(repository, "process", "capabilities", "--json"),
+        executeMdlm(
+          repository,
+          "baseline",
+          "verify",
+          "BSL-0000000000",
+          "--json",
+        ),
+      ]);
+      const [capabilities, missingBaseline] = await commandReaders;
+      expect(capabilities.status, capabilities.stdout).toBe(0);
+      expect(JSON.parse(capabilities.stdout).capabilities.hostFunctions).toEqual(
         expect.arrayContaining(["array_has_field", "first"]),
+      );
+      expect(missingBaseline.status).toBe(1);
+      expect(JSON.parse(missingBaseline.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "unknown-baseline" }),
+        ]),
       );
 
     },
