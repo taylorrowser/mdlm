@@ -455,6 +455,13 @@ describe("public mdlm outcome and status seam", () => {
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-operator-outcome-"));
     repository = path.join(parent, "repository");
+  });
+
+  afterEach(async () => {
+    await fs.rm(parent, { recursive: true, force: true });
+  });
+
+  async function initializeRepository(): Promise<void> {
     const initialized = await applicationMdlm(
       parent,
       "init",
@@ -462,13 +469,10 @@ describe("public mdlm outcome and status seam", () => {
       "--json",
     );
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-  });
-
-  afterEach(async () => {
-    await fs.rm(parent, { recursive: true, force: true });
-  });
+  }
 
   it("reports status without allocating an Assignment", async () => {
+    await initializeRepository();
     const status = await applicationMdlm(repository, "status", "--json");
 
     expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
@@ -556,6 +560,7 @@ describe("public mdlm outcome and status seam", () => {
   });
 
   it("projects one complete checkpoint conversation and the first exact Assignment", async () => {
+    await initializeRepository();
     await publishCheckpointQuestions(repository);
 
     const next = await applicationMdlm(repository, "next");
@@ -631,6 +636,7 @@ describe("public mdlm outcome and status seam", () => {
   });
 
   it("resolves the package-declared default from multiple valid profiles", async () => {
+    await initializeRepository();
     const packageRoot = path.join(
       repository,
       ".lifecycle/packages/mdlm-bootstrap@0.74.0",
@@ -660,6 +666,7 @@ describe("public mdlm outcome and status seam", () => {
   });
 
   it("submits package-declared progression in a noninitial Phase from one inspection", async () => {
+    await initializeRepository();
     const packageRoot = path.join(
       repository,
       ".lifecycle/packages/mdlm-bootstrap@0.74.0",
@@ -1078,6 +1085,7 @@ gate:
   });
 
   it("returns versioned Invalid for malformed repository selection JSON", async () => {
+    await initializeRepository();
     await fs.writeFile(
       path.join(repository, ".lifecycle/process-selection.json"),
       "{not-json\n",
@@ -1099,6 +1107,7 @@ gate:
   });
 
   it("returns Invalid with a nonzero command status for integrity failure", async () => {
+    await initializeRepository();
     await fs.appendFile(
       path.join(
         repository,
