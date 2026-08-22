@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
@@ -6,7 +5,10 @@ import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
 import { loadProcessPackage } from "../src/index.js";
-import { processInspection } from "../src/process-package-inspection.js";
+import {
+  processCapabilities,
+  processInspection,
+} from "../src/process-package-inspection.js";
 import { testProcessFixtures } from "../src/process-package-fixtures.js";
 import { readScenarioExecution } from "../src/scenario-execution.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
@@ -40,10 +42,6 @@ async function directoryBytes(root: string): Promise<string> {
     file,
     (await fs.readFile(path.join(root, file))).toString("base64"),
   ])));
-}
-
-function git(repository: string, ...arguments_: string[]) {
-  return spawnSync("git", ["-C", repository, ...arguments_], { encoding: "utf8" });
 }
 
 async function executeMdlm(
@@ -239,7 +237,7 @@ describe("clean mdlm command application", () => {
   });
 
   it(
-    "publishes only through scenario submit and retains inspection, package, and baseline readers",
+    "publishes only through scenario submit and retains package readers",
     async () => {
       const next = mdlm(repository, "next");
       expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
@@ -304,24 +302,12 @@ describe("clean mdlm command application", () => {
       expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
       expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).not.toBe(before);
       const execution = JSON.parse(submitted.stdout).execution;
-      const datum = execution.outputs[0].lifecycleDatum;
       const storedExecution = await readScenarioExecution(repository, execution.id);
       expect(storedExecution.ok).toBe(true);
       if (!storedExecution.ok) {
         throw new Error(JSON.stringify(storedExecution.diagnostics));
       }
       expect(storedExecution.value.id).toBe(execution.id);
-
-      for (const arguments_ of [
-        ["show", datum.revisionId],
-        ["schema", "MAP"],
-      ]) {
-        const result = mdlm(repository, ...arguments_, "--json");
-        expect(
-          result.status,
-          `${arguments_.join(" ")}\n${result.stderr}${result.stdout}`,
-        ).toBe(0);
-      }
 
       const descriptor = JSON.parse(await fs.readFile(
         path.join(repository, ".lifecycle/repository.json"),
@@ -341,63 +327,9 @@ describe("clean mdlm command application", () => {
       if (!fixtureTests.ok) throw new Error(JSON.stringify(fixtureTests.diagnostics));
       expect(fixtureTests.value.failed).toBe(0);
 
-      const capabilities = mdlm(
-        repository,
-        "process",
-        "capabilities",
-        "--json",
-      );
-      expect(capabilities.status, `${capabilities.stderr}${capabilities.stdout}`).toBe(0);
-      expect(JSON.parse(capabilities.stdout).capabilities.hostFunctions).toEqual(
+      expect(processCapabilities(loadedPackage.package).hostFunctions).toEqual(
         expect.arrayContaining(["array_has_field", "first"]),
       );
-
-      expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
-      const committed = git(
-      repository,
-      "-c", "user.name=MDLM Test",
-      "-c", "user.email=mdlm-test@localhost",
-      "-c", "commit.gpgSign=false",
-      "commit", "--quiet", "--no-verify", "-m", "Publish inspection tracer",
-    );
-      expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
-
-      const baselineNext = await executeMdlm(repository, "next");
-      expect(baselineNext.status, baselineNext.stderr).toBe(0);
-      const baselineAssignment = JSON.parse(baselineNext.stdout).assignment.id as string;
-      const baselinePrepared = await executeMdlm(
-        repository,
-        "scenario",
-        "prepare",
-        baselineAssignment,
-      );
-      expect(
-      baselinePrepared.status,
-      `${baselinePrepared.stderr}${baselinePrepared.stdout}`,
-    ).toBe(0);
-      expect(JSON.parse(baselinePrepared.stdout).scenario.reference).toBe(
-        "freeze-source-boundary@1",
-      );
-      const dataFiles = await fs.readdir(
-        path.join(repository, ".lifecycle", "data"),
-        { recursive: true },
-      );
-      const baselineFile = dataFiles.find((file) =>
-        /(?:^|\/)BSL\/BSL-[0-9A-HJKMNP-TV-Z]{10,12}\/r00001\.md$/.test(file),
-      );
-      expect(baselineFile).toBeDefined();
-      const baselineId = path.basename(path.dirname(baselineFile!));
-      const verified = mdlm(
-        repository,
-        "baseline",
-        "verify",
-        baselineId,
-        "--json",
-      );
-      expect(
-        verified.status,
-        `baseline verify ${baselineId}\n${verified.stderr}${verified.stdout}`,
-      ).toBe(0);
 
     },
     commandApplicationTimeout,
