@@ -5,7 +5,8 @@ import { gunzipSync } from "node:zlib";
 export type LifecycleDataFixture =
   | "candidate-publication"
   | "candidate-currentness"
-  | "corrected-gate";
+  | "corrected-gate"
+  | "review-foundation";
 
 type FixtureEntry = { path: string; source: string };
 

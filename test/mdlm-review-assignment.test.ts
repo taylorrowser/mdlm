@@ -9,6 +9,7 @@ import {
   mdlmWithEnvironment as processMdlmWithEnvironment,
   mdlmWithInputAndEnvironment as processMdlmWithInputAndEnvironment,
 } from "./helpers/mdlm.js";
+import { installLifecycleDataFixture } from "./helpers/lifecycle-data-fixture.js";
 
 async function mdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
@@ -147,167 +148,30 @@ async function lifecycleDatumCount(repository: string): Promise<number> {
   return entries.filter((entry) => entry.endsWith(".md")).length;
 }
 
+async function fixtureRevision(repository: string, type: string): Promise<string> {
+  const dataRoot = path.join(repository, ".lifecycle/data");
+  const entries = await fs.readdir(dataRoot, { recursive: true });
+  const revisions = new Set<string>();
+  for (const entry of entries.filter((candidate) => candidate.endsWith(".md"))) {
+    const datum = parseLifecycleMarkdown(
+      await fs.readFile(path.join(dataRoot, entry), "utf8"),
+    );
+    if (datum.type === type && typeof datum.revision_id === "string") {
+      revisions.add(datum.revision_id);
+    }
+  }
+  if (revisions.size !== 1) {
+    throw new Error(`Expected one ${type} fixture Revision, found ${revisions.size}`);
+  }
+  return [...revisions][0]!;
+}
+
 function exactInput(packet: Packet, name: string): string {
   const value = packet.exactInputs[0]?.inputs.find((input) => input.name === name)
     ?.values[0]?.identity;
   const exact = value?.revision_id ?? value?.id;
   if (!exact) throw new Error(`Missing exact '${name}' input`);
   return exact;
-}
-
-async function publishInitialProductDefinition(
-  repository: string,
-  mapOutput: Record<string, any>,
-  productOutput: Record<string, any>,
-): Promise<{ mapRevision: string }> {
-  mapOutput.lifecycleDatum.payload.frontier = [
-    "$proposal.product-intent.revision_id",
-  ];
-  mapOutput.lifecycleDatum.links = [{
-    type: "indexes",
-    target: "$proposal.product-intent.id",
-  }];
-  const mapPacket = await prepareNext(repository);
-  expect(mapPacket.scenario.reference).toBe("establish-initial-wayfinding-map@2");
-  const mapSubmission = await submitProposal(repository, mapPacket, [mapOutput, {
-    localId: "product-intent",
-    name: "product_intent",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "QST",
-      payload: {
-        title: "Exact delegated-review product intent",
-        kind: "preferential",
-        intent_scope: "product",
-        question: "Which exact product should this review route define?",
-        state: "open",
-        blocking_impact: "PSP compilation waits for the attended answer.",
-      },
-      links: [],
-      body: "The initial product intent requires an attended stakeholder answer.\n",
-    },
-  }]);
-  const mapRevision = mapSubmission.execution.outputs.find(
-    (output: { name: string }) => output.name === "map",
-  ).lifecycleDatum.revisionId as string;
-  const question = mapSubmission.execution.outputs.find(
-    (output: { name: string }) => output.name === "product_intent",
-  ).lifecycleDatum as { id: string; revisionId: string };
-  commitLifecycleData(repository, "Publish delegated Review route map");
-
-  const boundaryPacket = await prepareNext(repository);
-  expect(boundaryPacket.scenario.reference).toBe("freeze-source-boundary@1");
-  await submitProposal(repository, boundaryPacket, [{
-    localId: "boundary",
-    name: "boundary",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "BSL",
-      payload: {
-        title: "Exact initial product-intent source boundary",
-        kind: "source-boundary",
-        role: "source-boundary",
-        scope: question.revisionId,
-        group: "SAME-LINEAGE",
-        definition_members: [question.revisionId],
-        evidence: [],
-      },
-      links: [],
-      body: "The product-intent Question is the exact source boundary.\n",
-    },
-  }]);
-  commitLifecycleData(repository, "Freeze product-intent source boundary");
-
-  const resolutionPacket = await prepareNext(repository);
-  expect(resolutionPacket.scenario.reference).toBe("resolve-question@2");
-  const answeredRevision = `${question.id}-r00002`;
-  const resolution = await submitProposal(repository, resolutionPacket, [{
-    localId: "decision",
-    name: "decision",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "DEC",
-      payload: {
-        title: "Define the delegated Review test product",
-        rationale: "The attended stakeholder supplied this exact bounded intent.",
-        kind: "scope",
-        decision: "Build only the bounded product used by this delegated Review regression.",
-        alternatives: ["Infer product intent from ambient repository context"],
-        effective_scope: answeredRevision,
-      },
-      links: [
-        { type: "resolves", target: question.revisionId },
-        { type: "resolves", target: "$proposal.answered.revision_id" },
-      ],
-      body: "The attended answer establishes exact product authority.\n",
-    },
-  }, {
-    localId: "answered",
-    name: "updated_question",
-    invocation: 0,
-    lifecycleDatum: {
-      id: question.id,
-      type: "QST",
-      payload: {
-        title: "Exact delegated-review product intent",
-        kind: "preferential",
-        intent_scope: "product",
-        question: "Which exact product should this review route define?",
-        state: "answered",
-        blocking_impact: "PSP compilation waits for the attended answer.",
-        attended_answer:
-          "Build only the bounded product used by this delegated Review regression.",
-      },
-      links: [],
-      body: "The initial product-intent Question has an attended answer.\n",
-    },
-  }], ["stakeholder"]);
-  const decisionRevision = resolution.execution.outputs.find(
-    (output: { name: string }) => output.name === "decision",
-  ).lifecycleDatum.revisionId as string;
-  commitLifecycleData(repository, "Resolve exact initial product intent");
-
-  let productPacket: Packet | undefined;
-  for (let step = 0; step < 6; step += 1) {
-    const packet = await prepareNext(repository);
-    if (packet.scenario.reference === "compile-psp@3") {
-      productPacket = packet;
-      break;
-    }
-    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
-    await submitProposal(repository, packet, [{
-      localId: "review",
-      name: "review",
-      invocation: 0,
-      lifecycleDatum: {
-        type: "REV",
-        payload: {
-          title: `Passing independent Review of ${exactInput(packet, "subject")}`,
-          review_kind: "contextual",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-          findings: [],
-          outcome: "pass",
-        },
-        links: [
-          { type: "reviews", target: exactInput(packet, "subject") },
-          { type: "contextualizes", target: exactInput(packet, "review_context") },
-        ],
-        body: "The exact Revision passes independent Review.\n",
-      },
-    }], ["independent-reviewer"]);
-    commitLifecycleData(repository, "Review product-intent authority");
-  }
-  expect(productPacket).toBeDefined();
-  expect(exactInput(productPacket!, "product_intent_authority")).toBe(
-    decisionRevision,
-  );
-  productOutput.lifecycleDatum.links = [{
-    type: "derived-from",
-    target: decisionRevision,
-  }];
-  await submitProposal(repository, productPacket!, [productOutput]);
-  commitLifecycleData(repository, "Publish delegated Review route product");
-  return { mapRevision };
 }
 
 describe("delegated Review Assignment packets", () => {
@@ -318,6 +182,7 @@ describe("delegated Review Assignment packets", () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-review-packet-"));
     repository = path.join(parent, "repository");
     expectSuccess(await mdlm(parent, "init", repository, "--json"), "mdlm init");
+    await installLifecycleDataFixture(repository, "review-foundation");
   });
 
   afterEach(async () => {
@@ -327,39 +192,9 @@ describe("delegated Review Assignment packets", () => {
   it(
     "supplies the exact resolved rubric and accepts an unchanged packet-only judgment",
     async () => {
-      const { mapRevision } = await publishInitialProductDefinition(repository, {
-        localId: "map",
-        name: "map",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "MAP",
-          payload: {
-            title: "Review packet regression map",
-            purpose: "Prove delegated reviewers receive exact policy evidence.",
-            frontier: [],
-          },
-          links: [],
-          body: "The packet must contain everything needed for independent judgment.\n",
-        },
-      }, {
-        localId: "product",
-        name: "product_specification",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "PSP",
-          payload: {
-            title: "Review packet regression product",
-            rationale: "Keep the public lifecycle route genuine and bounded.",
-            problem: "Delegated review packets can omit applicable rubric evidence.",
-            users: ["independent reviewers"],
-            goals: ["Supply exact resolved policy evidence in the packet."],
-            non_goals: ["Predetermine the review outcome."],
-            success_measures: ["A packet-only judgment submits unchanged."],
-          },
-          links: [],
-          body: "A minimal product definition used only to reach the Review route.\n",
-        },
-      });
+      const mapRevision = await fixtureRevision(repository, "MAP");
+      // The fixture stops after exact public PSP publication. This test retains
+      // true-process Review materialization and submission.
 
       const nextReview = processMdlmWithEnvironment(
         repository,
@@ -577,40 +412,6 @@ describe("delegated Review Assignment packets", () => {
   it(
     "rejects an unclassified failed Review atomically and routes explicit package-evidence correction autonomously",
     async () => {
-      await publishInitialProductDefinition(repository, {
-        localId: "map",
-        name: "map",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "MAP",
-          payload: {
-            title: "Offline availability review map",
-            purpose: "Bound one offline availability commitment for independent Review.",
-            frontier: [],
-          },
-          links: [],
-          body: "A package-neutral route to one bounded product commitment.\n",
-        },
-      }, {
-        localId: "product",
-        name: "product_specification",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "PSP",
-          payload: {
-            title: "Bounded offline availability",
-            rationale: "Users need one previously opened item while disconnected.",
-            problem: "A brief connection loss currently hides all prior work.",
-            users: ["field operator"],
-            goals: ["Keep one previously opened item readable while offline."],
-            non_goals: ["Offline editing", "Background synchronization"],
-            success_measures: ["A previously opened item remains readable without a connection."],
-          },
-          links: [],
-          body: "The commitment is deliberately bounded to read-only availability.\n",
-        },
-      });
-
       const reviewPacket = await prepareNext(repository);
       expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
       const subject = exactInput(reviewPacket, "subject");
