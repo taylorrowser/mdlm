@@ -20,19 +20,34 @@
     },
     "candidate-publication": {
       "archive": "candidate-publication.data.json.gz",
-      "compressedSha256": "341181a4dd6c467a6a1fba9bcdcf556e6ea4b220069f14fb0292a0da4860d51c",
-      "contentSha256": "e1f99535105b72e4eb74607ae70a0a7b26e6a71ac2c3ebe3d43b1555b73b3b25",
-      "entryCount": 23,
+      "compressedSha256": "0ad54618d492c9214988ac6220b5944983cb8541b01f0d38ff7e2be312b1eba3",
+      "contentSha256": "6ffffd99b049de5e4318d683952335c4729c926ce0e002745c7ce91d38ee9d3b",
+      "entryCount": 25,
       "gzipHeaderMtime": 0,
       "processPackage": {
         "reference": "mdlm-bootstrap@0.74.0",
         "digest": "sha256:deb27430c4d239eb67a1c19025d77dd6623813f83b0588681eebfc07bdfa8a0d"
       },
       "checkpoint": "Immediately before exact Phase 0 intent candidate publication.",
+      "prepared": {
+        "archive": "candidate-publication.prepared.json.gz",
+        "compressedSha256": "f4c30c96cf07cf41e5e1cf48c8670b893f715ab3b588e10a3f52583c520825c0",
+        "contentSha256": "3a495cec5d75bb293c291bbeca55512c2fd53abfb2d2a6e6b6d135f56b5088bd",
+        "gzipHeaderMtime": 0,
+        "scenario": "create-phase-0-intent-candidate@1",
+        "sourceCommit": "202766ad0933f23c0a883081a6dcb1fba9fa7f91",
+        "sourceTree": "c8413b81f1bc8b09b810ce810584d66db5f5f8b4",
+        "captureLog": "/tmp/issue-203-candidate-prepared-recapture.log",
+        "captureResult": "exit 0; 1 passed; 3 skipped; 21342 ms whole process group",
+        "compression": "gzip -n -9"
+      },
       "provenance": {
-        "sourceCommit": "21fc0fac811b7c31f42bdee4f9bd12478ea2bf9a",
-        "sourceTree": "2369aee3cadd6983cc92348533097e8b743dac7d",
-        "route": "test/phase-0-corrected-gate-route.test.ts: rejects a candidate without exact member evidence without publishing partial data"
+        "sourceCommit": "202766ad0933f23c0a883081a6dcb1fba9fa7f91",
+        "sourceTree": "c8413b81f1bc8b09b810ce810584d66db5f5f8b4",
+        "route": "test/phase-0-corrected-gate-route.test.ts: rejects a candidate without exact member evidence without publishing partial data",
+        "captureLog": "/tmp/issue-203-candidate-prepared-recapture.log",
+        "captureResult": "exit 0; 1 passed; 3 skipped; 21342 ms whole process group; captured after automatic prerequisite materialization and before candidate submission",
+        "compression": "gzip -n -9"
       }
     },
     "corrected-gate": {
@@ -46,10 +61,86 @@
         "digest": "sha256:deb27430c4d239eb67a1c19025d77dd6623813f83b0588681eebfc07bdfa8a0d"
       },
       "checkpoint": "Immediately before corrected gate signoff, after the first gate Decision failed contextual Review.",
+      "prepared": {
+        "archive": "corrected-gate.prepared.json.gz",
+        "compressedSha256": "3d542bbbd2659919c67e2470637845e3d007d064a0016605e03e8717777964e4",
+        "contentSha256": "43a6a60c5eff95405d67c8878321bd44cd5956a6af80f7c49bcf0e231f6f5eb0",
+        "gzipHeaderMtime": 0,
+        "scenario": "revise-gate-signoff-after-review@2",
+        "sourceCommit": "202766ad0933f23c0a883081a6dcb1fba9fa7f91",
+        "sourceTree": "c8413b81f1bc8b09b810ce810584d66db5f5f8b4",
+        "captureLog": "/tmp/issue-203-correction-prepared-capture.log",
+        "captureResult": "exit 0; 1 passed; 3 skipped; 24379 ms whole process group",
+        "compression": "gzip -n -9"
+      },
       "provenance": {
         "sourceCommit": "21fc0fac811b7c31f42bdee4f9bd12478ea2bf9a",
         "sourceTree": "2369aee3cadd6983cc92348533097e8b743dac7d",
         "route": "test/phase-0-corrected-gate-route.test.ts: resumes at failed gate authority, reviews its correction, and accepts Phase 0 intent"
+      }
+    },
+    "corrected-gate-acceptance-ready": {
+      "archive": "corrected-gate-acceptance-ready.data.json.gz",
+      "compressedSha256": "de9f26e10119b2f4e01a35dbcaa52c826649cc85637b9dce171d7616c2925575",
+      "contentSha256": "affb5ca11cb2ccbd7c84873dca957bfc657c7d3c0ec491f0702b2d2f60ad74fb",
+      "entryCount": 65,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:deb27430c4d239eb67a1c19025d77dd6623813f83b0588681eebfc07bdfa8a0d"
+      },
+      "checkpoint": "Immediately before Phase 0 acceptance, after public Review of the corrected gate Decision.",
+      "prepared": {
+        "archive": "corrected-gate-acceptance-ready.prepared.json.gz",
+        "compressedSha256": "2df770880276b608993efbd41ec11a05d457d07db43706f97c2c8fd072500c4a",
+        "contentSha256": "e6949f41baf4822544b81da3820943982755177f15fbfb5d90e83b3a1f5a463c",
+        "gzipHeaderMtime": 0,
+        "scenario": "accept-phase-0-intent@1",
+        "sourceCommit": "202766ad0933f23c0a883081a6dcb1fba9fa7f91",
+        "sourceTree": "c8413b81f1bc8b09b810ce810584d66db5f5f8b4",
+        "captureLog": "/tmp/issue-203-acceptance-prepared-capture.log",
+        "captureResult": "exit 0; 1 passed; 3 skipped; 58833 ms whole process group",
+        "compression": "gzip -n -9"
+      },
+      "provenance": {
+        "sourceCommit": "202766ad0933f23c0a883081a6dcb1fba9fa7f91",
+        "sourceTree": "c8413b81f1bc8b09b810ce810584d66db5f5f8b4",
+        "route": "test/phase-0-corrected-gate-route.test.ts: resumes at failed gate authority, reviews its correction, and accepts Phase 0 intent",
+        "captureLog": "/tmp/issue-203-phase0-late-fixture-recapture.log",
+        "captureResult": "exit 0; 1 passed; 1 skipped; 85066 ms whole process group; captured after public corrected-gate Review",
+        "compression": "gzip -n -9"
+      }
+    },
+    "corrected-gate-review-ready": {
+      "archive": "corrected-gate-review-ready.data.json.gz",
+      "compressedSha256": "b392657cfd219f09b6ef36f871108dcff13b3e54111e97e4b13a28e0d075c052",
+      "contentSha256": "dad44ca0a866301082b1f8b6d28963b704596a2873495815f085d5d7c6b3ba6c",
+      "entryCount": 63,
+      "gzipHeaderMtime": 0,
+      "processPackage": {
+        "reference": "mdlm-bootstrap@0.74.0",
+        "digest": "sha256:deb27430c4d239eb67a1c19025d77dd6623813f83b0588681eebfc07bdfa8a0d"
+      },
+      "checkpoint": "Immediately before contextual Review, after correction and automatic exact Review Context materialization.",
+      "prepared": {
+        "archive": "corrected-gate-review-ready.prepared.json.gz",
+        "compressedSha256": "8ef7ec771d99f627a6f2b9147d2cef0198359a8747a75cdc6e9d9e145c568e33",
+        "contentSha256": "3ac5ff41b58f644e3d7cdb1b1f8ae095572bcb5f7a107b4ab11fc6e4610994bc",
+        "gzipHeaderMtime": 0,
+        "scenario": "review-datum-in-context@2",
+        "sourceCommit": "202766ad0933f23c0a883081a6dcb1fba9fa7f91",
+        "sourceTree": "c8413b81f1bc8b09b810ce810584d66db5f5f8b4",
+        "captureLog": "/tmp/issue-203-review-prepared-capture.log",
+        "captureResult": "exit 0; 1 passed; 3 skipped; 20766 ms whole process group",
+        "compression": "gzip -n -9"
+      },
+      "provenance": {
+        "sourceCommit": "202766ad0933f23c0a883081a6dcb1fba9fa7f91",
+        "sourceTree": "c8413b81f1bc8b09b810ce810584d66db5f5f8b4",
+        "route": "test/phase-0-corrected-gate-route.test.ts: resumes at failed gate authority, reviews its correction, and accepts Phase 0 intent",
+        "captureLog": "/tmp/issue-203-phase0-late-fixture-recapture.log",
+        "captureResult": "exit 0; 1 passed; 1 skipped; 85066 ms whole process group; captured after public correction and automatic Review Context preparation",
+        "compression": "gzip -n -9"
       }
     },
     "initial-intent-foundation": {

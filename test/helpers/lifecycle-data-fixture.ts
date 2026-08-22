@@ -1,13 +1,20 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
 import { gunzipSync } from "node:zlib";
+import type { PreparedAssignment } from "./assignment-submission.js";
+
+const executeFile = promisify(execFile);
 import { processPackageDigest } from "../../src/process-package-digest.js";
 
 const fixtureNames = [
   "candidate-currentness",
   "candidate-publication",
   "corrected-gate",
+  "corrected-gate-acceptance-ready",
+  "corrected-gate-review-ready",
   "initial-intent-foundation",
   "resolved-initial-intent",
   "review-foundation",
@@ -24,7 +31,26 @@ type FixtureDefinition = {
   gzipHeaderMtime: number;
   processPackage: { reference: string; digest: string };
   checkpoint: string;
-  provenance: { sourceCommit: string; sourceTree: string; route: string };
+  prepared?: {
+    archive: string;
+    compressedSha256: string;
+    contentSha256: string;
+    gzipHeaderMtime: number;
+    scenario: string;
+    sourceCommit: string;
+    sourceTree: string;
+    captureLog: string;
+    captureResult: string;
+    compression: "gzip -n -9";
+  };
+  provenance: {
+    sourceCommit: string;
+    sourceTree: string;
+    route: string;
+    captureLog?: string;
+    captureResult?: string;
+    compression?: "gzip -n -9";
+  };
 };
 type FixtureManifest = {
   contract: "mdlm-lifecycle-data-fixtures@1";
@@ -119,6 +145,7 @@ function validateFixtureTransactions(entries: FixtureEntry[]): void {
 function fixtureDefinition(value: unknown): FixtureDefinition {
   const definition = value as Partial<FixtureDefinition> | null;
   const provenance = definition?.provenance;
+  const prepared = definition?.prepared;
   if (
     typeof definition !== "object" || definition === null ||
     typeof definition.archive !== "string" ||
@@ -129,10 +156,28 @@ function fixtureDefinition(value: unknown): FixtureDefinition {
     typeof definition.processPackage?.reference !== "string" ||
     !/^sha256:[a-f0-9]{64}$/.test(definition.processPackage.digest) ||
     typeof definition.checkpoint !== "string" || definition.checkpoint === "" ||
+    (prepared !== undefined && (
+      typeof prepared.archive !== "string" ||
+      !/^[a-f0-9]{64}$/.test(prepared.compressedSha256 ?? "") ||
+      !/^[a-f0-9]{64}$/.test(prepared.contentSha256 ?? "") ||
+      prepared.gzipHeaderMtime !== 0 ||
+      typeof prepared.scenario !== "string" || prepared.scenario === "" ||
+      !/^[a-f0-9]{40}$/.test(prepared.sourceCommit ?? "") ||
+      !/^[a-f0-9]{40}$/.test(prepared.sourceTree ?? "") ||
+      typeof prepared.captureLog !== "string" || prepared.captureLog === "" ||
+      typeof prepared.captureResult !== "string" || prepared.captureResult === "" ||
+      prepared.compression !== "gzip -n -9"
+    )) ||
     typeof provenance !== "object" || provenance === null ||
     !/^[a-f0-9]{40}$/.test(provenance.sourceCommit ?? "") ||
     !/^[a-f0-9]{40}$/.test(provenance.sourceTree ?? "") ||
-    typeof provenance.route !== "string" || provenance.route === ""
+    typeof provenance.route !== "string" || provenance.route === "" ||
+    (provenance.captureLog !== undefined &&
+      (typeof provenance.captureLog !== "string" || provenance.captureLog === "")) ||
+    (provenance.captureResult !== undefined &&
+      (typeof provenance.captureResult !== "string" ||
+        provenance.captureResult === "")) ||
+    (provenance.compression !== undefined && provenance.compression !== "gzip -n -9")
   ) {
     throw new Error("Invalid Lifecycle Data fixture definition");
   }
@@ -229,4 +274,87 @@ export async function installLifecycleDataFixture(
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, entry.source, { flag: "wx" });
   }
+}
+
+export async function installPreparedLifecycleDataFixture(
+  repository: string,
+  fixture: LifecycleDataFixture,
+): Promise<PreparedAssignment> {
+  await installLifecycleDataFixture(repository, fixture);
+  const definition = (await manifest()).fixtures[fixture];
+  const preparedDefinition = definition.prepared;
+  if (!preparedDefinition) {
+    throw new Error(`Fixture '${fixture}' has no prepared Assignment`);
+  }
+  const archivePath = path.resolve(fixtureRoot, preparedDefinition.archive);
+  if (!archivePath.startsWith(`${path.resolve(fixtureRoot)}${path.sep}`)) {
+    throw new Error(`Prepared archive path escapes the fixture root for '${fixture}'`);
+  }
+  const archive = await fs.readFile(archivePath);
+  if (sha256(archive) !== preparedDefinition.compressedSha256) {
+    throw new Error(`Prepared archive digest mismatch for fixture '${fixture}'`);
+  }
+  if (
+    archive.length < 8 ||
+    archive.readUInt32LE(4) !== preparedDefinition.gzipHeaderMtime
+  ) {
+    throw new Error(`Non-deterministic prepared gzip header for fixture '${fixture}'`);
+  }
+  const content = gunzipSync(archive);
+  if (sha256(content) !== preparedDefinition.contentSha256) {
+    throw new Error(`Prepared content digest mismatch for fixture '${fixture}'`);
+  }
+  const prepared = JSON.parse(content.toString("utf8")) as {
+    packet?: Record<string, any>;
+    lease?: Record<string, any>;
+  };
+  if (
+    prepared.lease?.contract !== "mdlm-assignment-lease@1" ||
+    prepared.lease.disposition !== "active" ||
+    typeof prepared.lease.id !== "string" ||
+    prepared.lease.scenario !== preparedDefinition.scenario ||
+    prepared.lease.package?.reference !== definition.processPackage.reference ||
+    prepared.lease.package?.digest !== definition.processPackage.digest ||
+    prepared.packet?.contract !== "mdlm-assignment-packet@2" ||
+    prepared.packet.package?.reference !== definition.processPackage.reference ||
+    prepared.packet.package?.digest !== definition.processPackage.digest ||
+    prepared.packet.assignment?.id !== prepared.lease.id ||
+    prepared.packet.scenario?.reference !== preparedDefinition.scenario
+  ) {
+    throw new Error(`Invalid prepared Assignment fixture '${fixture}'`);
+  }
+
+  const [{ stdout: headSource }, { stdout: stagedDiff }, { stdout: worktreeDiff }] =
+    await Promise.all([
+      executeFile("git", ["rev-parse", "HEAD"], { cwd: repository, encoding: "utf8" }),
+      executeFile(
+        "git",
+        ["diff", "--binary", "--no-ext-diff", "--cached", "HEAD", "--"],
+        { cwd: repository, encoding: "utf8" },
+      ),
+      executeFile(
+        "git",
+        ["diff", "--binary", "--no-ext-diff", "--"],
+        { cwd: repository, encoding: "utf8" },
+      ),
+    ]);
+  const head = headSource.trim();
+  const repositoryFingerprint = {
+    head,
+    trackedState: `sha256:${sha256(Buffer.from(
+      `${head}\0staged\0${stagedDiff}\0worktree\0${worktreeDiff}`,
+    ))}`,
+  };
+  prepared.lease.repository = repositoryFingerprint;
+  prepared.packet.repository = repositoryFingerprint;
+  const workRoot = path.join(repository, ".lifecycle/work");
+  await fs.mkdir(workRoot, { recursive: true });
+  await fs.writeFile(
+    path.join(workRoot, "active-assignment.json"),
+    `${JSON.stringify(prepared.lease, null, 2)}\n`,
+  );
+  return {
+    outcome: { assignment: { id: prepared.lease.id } },
+    packet: prepared.packet,
+  };
 }
