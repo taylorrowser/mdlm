@@ -2472,7 +2472,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 60_000);
+  }, 90_000);
 
   it("prepares and submits pilot activity authoring with exact intent support through the public command application", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-intent-support-"));

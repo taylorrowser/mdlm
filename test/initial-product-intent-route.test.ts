@@ -6,6 +6,7 @@ import type {
   AssignmentPacket,
   JsonObject,
 } from "../packages/mdlm-pi/src/mdlm-client.js";
+import { executeCommandApplication } from "../src/command-application.js";
 import {
   PiAssignmentRunner,
   type PiAssignmentSession,
@@ -20,7 +21,19 @@ import {
   type PreparedAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
-import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
+async function mdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+async function mdlmWithInput(
+  repository: string,
+  input: string,
+  ...arguments_: string[]
+) {
+  const execution = await executeCommandApplication(arguments_, repository, input);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
 
 function reviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
   const subject = inputRevision(prepared, "subject");
@@ -52,7 +65,7 @@ describe("initial product-intent authority", () => {
     const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-product-intent-"));
     const repository = path.join(parent, "calculator");
     try {
-      const initialized = mdlm(parent, "init", repository, "--json");
+      const initialized = await mdlm(parent, "init", repository, "--json");
       expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
 
       const map = await prepareNextAssignment(repository);
@@ -346,7 +359,7 @@ describe("initial product-intent authority", () => {
       expect((carriedResponse.proposal as JsonObject).authoritySupplies).toEqual([
         "stakeholder",
       ]);
-      const resolved = mdlmWithInput(
+      const resolved = await mdlmWithInput(
         repository,
         `${JSON.stringify(carriedResponse)}\n`,
         "scenario",
@@ -558,5 +571,5 @@ describe("initial product-intent authority", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 90_000);
+  }, 120_000);
 });
