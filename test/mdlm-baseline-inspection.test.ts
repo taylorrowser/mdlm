@@ -21,6 +21,7 @@ import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlmWithEnvironment } from "./helpers/mdlm.js";
 
 const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 20_000;
 
@@ -441,7 +442,7 @@ describe("mdlm baseline inspection", () => {
     changedBaselineFixture = deepFreeze(
       await arrangeChangedBaselines(changedTemplateRepository),
     );
-  });
+  }, CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     manyBaselineTemplateRepository = path.join(
