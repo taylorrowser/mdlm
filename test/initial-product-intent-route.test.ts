@@ -21,6 +21,7 @@ import {
   type PreparedAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
+import { installLifecycleDataFixture } from "./helpers/lifecycle-data-fixture.js";
 async function mdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
@@ -68,100 +69,37 @@ describe("initial product-intent authority", () => {
       const initialized = await mdlm(parent, "init", repository, "--json");
       expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
 
-      const map = await prepareNextAssignment(repository);
-      expect(map.packet.scenario.reference).toBe(
-        "establish-initial-wayfinding-map@2",
+      await installLifecycleDataFixture(
+        repository,
+        "initial-intent-foundation",
       );
-      const initialIntentOutput = "product_intent";
-      const mapOutputs: ProposedOutput[] = [{
-        localId: "map",
-        name: "map",
-        invocation: 0,
+      const listed = await mdlm(repository, "list", "--json");
+      expect(listed.status, `${listed.stderr}${listed.stdout}`).toBe(0);
+      const records = (JSON.parse(listed.stdout).data as Array<{
         lifecycleDatum: {
-          type: "MAP",
-          payload: {
-            title: "Calculator product-intent frontier",
-            purpose: "Obtain the user's exact intended product before specification.",
-            frontier: [
-              "$proposal.product_intent.revision_id",
-              "$proposal.optional-one.revision_id",
-              "$proposal.optional-two.revision_id",
-            ],
-          },
-          links: [
-            { type: "indexes", target: "$proposal.product_intent.id" },
-            { type: "indexes", target: "$proposal.optional-one.id" },
-            { type: "indexes", target: "$proposal.optional-two.id" },
-          ],
-          body: "The map indexes the initial product intent and every optional Question.\n",
-        },
-      }, {
-        localId: "product_intent",
-        name: initialIntentOutput,
-        invocation: 0,
-        lifecycleDatum: {
-          type: "QST",
-          payload: {
-            title: "Requested output boundary",
-            kind: "preferential",
-            intent_scope: "product",
-            question: "What product do you currently intend to build?",
-            state: "open",
-            blocking_impact: "A PSP cannot be compiled without the user's answer.",
-          },
-          links: [],
-          body: "The initial product intent requires an attended stakeholder answer.\n",
-        },
-      }, ...["one", "two"].map((suffix): ProposedOutput => ({
-        localId: `optional-${suffix}`,
-        name: "questions",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "QST",
-          payload: {
-            title: `Already answered optional Question ${suffix}`,
-            kind: "empirical",
-            evidence_available: true,
-            question: `Was optional observation ${suffix} supplied?`,
-            state: "answered",
-            blocking_impact: "None; the observation is already answered.",
-          },
-          links: [],
-          body: "The optional initial Question is structurally indexed by the MAP.\n",
-        },
-      }))];
-      const publishedMap = await submitAssignment(repository, map, mapOutputs);
-      expect(publishedMap.status, `${publishedMap.stderr}${publishedMap.stdout}`).toBe(0);
-      const mapExecution = JSON.parse(publishedMap.stdout).execution;
-      const openQuestion = mapExecution.outputs.find(
-        (output: { name: string }) => output.name === initialIntentOutput,
-      ).lifecycleDatum;
-
-      const boundary = await prepareNextAssignment(repository);
-      expect(boundary.packet.scenario.reference).toBe("freeze-source-boundary@1");
-      expect(inputRevision(boundary, "source")).toBe(openQuestion.revisionId);
-      const bounded = await submitAssignment(repository, boundary, [{
-        localId: "boundary",
-        name: "boundary",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Exact initial product-intent source boundary",
-            kind: "source-boundary",
-            role: "source-boundary",
-            scope: openQuestion.revisionId,
-            group: "SAME-LINEAGE",
-            definition_members: [openQuestion.revisionId],
-            evidence: [],
-          },
-          links: [],
-          body: "The initial product-intent Question is the exact source boundary.\n",
-        },
-      }]);
-      expect(bounded.status, `${bounded.stderr}${bounded.stdout}`).toBe(0);
-      const sourceBoundary = JSON.parse(bounded.stdout).execution.outputs[0]
-        .lifecycleDatum.revisionId as string;
+          datum: {
+            id: string;
+            revision_id: string;
+            type: string;
+            payload: JsonObject;
+          };
+        };
+      }>).map((item) => item.lifecycleDatum.datum);
+      const initialIntent = records.find((datum) =>
+        datum.type === "QST" && datum.payload.intent_scope === "product"
+      );
+      expect(initialIntent).toBeDefined();
+      const openQuestion = {
+        id: initialIntent!.id,
+        revisionId: initialIntent!.revision_id,
+      };
+      const sourceBoundaryDatum = records.find((datum) =>
+        datum.type === "BSL" && datum.payload.scope === openQuestion.revisionId
+      );
+      expect(sourceBoundaryDatum?.payload.definition_members).toEqual([
+        openQuestion.revisionId,
+      ]);
+      const sourceBoundary = sourceBoundaryDatum!.revision_id;
 
       const resolution = await prepareNextAssignment(repository, "resolve-question@2");
       expect(resolution.outcome).toEqual(expect.objectContaining({
