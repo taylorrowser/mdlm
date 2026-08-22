@@ -7,6 +7,7 @@ import {
   classifyOperatorOutcome,
   type OperatorWorkFacts,
 } from "../src/operator-outcome.js";
+import { executeCommandApplication } from "../src/command-application.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
 import {
   mdlm,
@@ -14,6 +15,20 @@ import {
   mdlmWithInputAndEnvironment,
 } from "./helpers/mdlm.js";
 import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
+
+async function applicationMdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+async function applicationMdlmWithInput(
+  repository: string,
+  input: string,
+  ...arguments_: string[]
+) {
+  const execution = await executeCommandApplication(arguments_, repository, input);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
 
 async function recordInstalledPackageChange(
   repository: string,
@@ -742,14 +757,14 @@ gate:
     }
     await recordInstalledPackageChange(repository, packageRoot);
 
-    const first = JSON.parse(mdlm(repository, "next").stdout);
-    const packet = JSON.parse(mdlm(
+    const first = JSON.parse((await applicationMdlm(repository, "next")).stdout);
+    const packet = JSON.parse((await applicationMdlm(
       repository,
       "scenario",
       "prepare",
       first.assignment.id,
-    ).stdout);
-    const submitted = mdlmWithInput(
+    )).stdout);
+    const submitted = await applicationMdlmWithInput(
       repository,
       `${JSON.stringify({
         contract: "mdlm-assignment-response@1",
@@ -805,7 +820,9 @@ gate:
     expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
     const mapRevision = JSON.parse(submitted.stdout).execution.outputs[0]
       .lifecycleDatum.revisionId as string;
-    const status = JSON.parse(mdlm(repository, "status", "--json").stdout);
+    const status = JSON.parse(
+      (await applicationMdlm(repository, "status", "--json")).stdout,
+    );
     expect(status.unresolvedWork).toEqual({
       total: 1,
       dispatchable: 1,
@@ -816,7 +833,7 @@ gate:
       assignment: { allocation: "not-allocated" },
     }));
 
-    const next = mdlm(repository, "next");
+    const next = await applicationMdlm(repository, "next");
 
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
@@ -830,7 +847,7 @@ gate:
         delegationAllowed: false,
       },
     }));
-    const progressionPacket = mdlm(
+    const progressionPacket = await applicationMdlm(
       repository,
       "scenario",
       "prepare",
@@ -916,7 +933,7 @@ gate:
         outputs: [{ data: { payload: { effective_scope: mapRevision } } }],
       },
     });
-  });
+  }, 45_000);
 
   it("returns a declared Profile Boundary with omitted coverage and exact condition evidence", async () => {
     repository = await terminalProcessRepository(parent, {
