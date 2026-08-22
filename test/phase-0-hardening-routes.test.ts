@@ -1776,7 +1776,7 @@ describe("Phase 0 missing hardening routes", () => {
   });
 
 
-  it("declares empirical QST answers with an optional Decision output", () => {
+  it("satisfies an empirical QST obligation with a same-lineage answer and no Decision", () => {
     const scenario = processPackage.scenarios["resolve-question"]!;
     expect(scenario.outputs).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -1798,6 +1798,42 @@ describe("Phase 0 missing hardening routes", () => {
       '(question.payload.kind == "empirical"\n  && updated_question.payload.state == "answered")\n  || decision != null',
     );
     expect(scenario.resolves).toEqual(["open-question-resolution"]);
+
+    const source = record("QST", "QST-1030000099", {
+      title: "Empirical package answer",
+      kind: "empirical",
+      question: "Does the exact evidence establish the bounded result?",
+      state: "open",
+      blocking_impact: "The bounded result remains unknown.",
+      evidence_available: true,
+    }, { scenario: "freeze-source-boundary@1" });
+    const boundary = record("BSL", "BSL-1030000099", {
+      title: "Empirical answer source boundary",
+      kind: "source-boundary",
+      role: "source-boundary",
+      scope: source.datum.revision_id,
+      group: "SAME-LINEAGE",
+      definition_members: [source.datum.revision_id],
+      evidence: [],
+    }, { scenario: "freeze-source-boundary@1" });
+    boundary.integrity.scenario_execution_valid = true;
+    const answered = record("QST", source.datum.id, {
+      ...source.datum.payload,
+      state: "answered",
+    }, { revision: 2, scenario: "resolve-question@2" });
+    const completed = evaluateLifecycle(
+      processPackage,
+      snapshot([source, boundary, answered]),
+    );
+    expect(completed.obligations.some((item) =>
+      item.obligation === "open-question-resolution" && !item.satisfied
+    )).toBe(false);
+    expect(completed.looseEnds.some((item) =>
+      item.subject === source.datum.revision_id
+    )).toBe(false);
+    expect([source, boundary, answered].some((item) =>
+      item.datum.type === "DEC"
+    )).toBe(false);
   });
 
   it("resolves a source-bounded prototype Question only with the exact ART bounded DEC and same-lineage answer", async () => {

@@ -1,12 +1,55 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { validateDefinitionGraph } from "../src/definition-graph.js";
 import { loadProcessPackage } from "../src/index.js";
+import type {
+  ProcessPackage,
+  VersionedDefinition,
+} from "../src/index.js";
+import {
+  participationResult,
+  validateParticipationPolicy,
+} from "../src/participation.js";
 import { participationProcessPackage } from "./helpers/participation-process.js";
 
 const temporaryRoots: string[] = [];
+let validPackage: ProcessPackage;
 
-afterEach(async () => {
+function object(value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Expected an object");
+  }
+  return value as Record<string, unknown>;
+}
+
+function clonedPolicy(id: string): VersionedDefinition {
+  const policy = validPackage.policies[id];
+  if (!policy) throw new Error(`Missing Policy '${id}'`);
+  return structuredClone(policy);
+}
+
+function graphDiagnostics(
+  mutate: (definitions: ProcessPackage) => void,
+) {
+  const definitions = structuredClone(validPackage);
+  mutate(definitions);
+  return validateDefinitionGraph(definitions.manifest, definitions);
+}
+
+beforeAll(async () => {
+  const processRoot = await participationProcessPackage();
+  temporaryRoots.push(path.dirname(processRoot));
+  const loaded = await loadProcessPackage(processRoot);
+  expect(
+    loaded.ok,
+    loaded.diagnostics.map((item) => `${item.code}: ${item.message}`).join("\n"),
+  ).toBe(true);
+  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  validPackage = loaded.package;
+});
+
+afterAll(async () => {
   await Promise.all(
     temporaryRoots.splice(0).map((root) =>
       fs.rm(root, { recursive: true, force: true })
@@ -15,18 +58,8 @@ afterEach(async () => {
 });
 
 describe("Scenario participation Policy validation", () => {
-  it("accepts a versioned Policy with exact Scenario input arguments and the standard result", async () => {
-    const processRoot = await participationProcessPackage();
-    temporaryRoots.push(path.dirname(processRoot));
-
-    const loaded = await loadProcessPackage(processRoot);
-
-    expect(
-      loaded.ok,
-      loaded.diagnostics.map((item) => `${item.code}: ${item.message}`).join("\n"),
-    ).toBe(true);
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    expect(loaded.package.scenarios["resolve-question"]?.participation)
+  it("accepts a versioned Policy with exact Scenario input arguments and the standard result", () => {
+    expect(validPackage.scenarios["resolve-question"]?.participation)
       .toEqual(expect.objectContaining({
         policy_ref: "question-participation@1",
         arguments: expect.objectContaining({
@@ -34,56 +67,91 @@ describe("Scenario participation Policy validation", () => {
           selected_phase: expect.any(Object),
         }),
       }));
+
+    const policy = clonedPolicy("question-participation");
+    expect(validateParticipationPolicy(policy, "policies.question-participation"))
+      .toEqual([]);
+    expect(participationResult(policy.default)).toEqual({
+      authorityRequirement: {
+        mode: "attended",
+        authority: "stakeholder",
+        delegationAllowed: false,
+      },
+      attentionSchedule: {
+        timing: "checkpoint",
+        checkpoint: "phase-0-gate",
+        consolidationGroup: "phase-0-stakeholder-questions",
+      },
+    });
   });
 
-  it("keeps authority mode, delegation allowance, and attention timing independent", async () => {
-    const processRoot = await participationProcessPackage();
-    temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(processRoot, "policies/process-participation.yaml");
-    await fs.writeFile(
-      policyPath,
-      (await fs.readFile(policyPath, "utf8")).replace(
-        "  delegation_allowed: false",
-        "  delegation_allowed: true",
-      ),
-    );
+  it("keeps authority mode, delegation allowance, and attention timing independent", () => {
+    const policy = clonedPolicy("process-participation");
+    object(policy.default).delegation_allowed = true;
 
-    const loaded = await loadProcessPackage(processRoot);
-
-    expect(
-      loaded.ok,
-      loaded.diagnostics.map((item) => item.message).join("\n"),
-    ).toBe(true);
+    expect(validateParticipationPolicy(policy, "policies.process-participation"))
+      .toEqual([]);
   });
 
   it.each([
     {
       name: "missing exact authority evidence",
-      mutate: (source: string) =>
-        source.replace("authority_evidence: {output: decision, type: DEC}\n", ""),
-      code: "scenario-authority-evidence-required",
+      mutate: (definitions: ProcessPackage) => {
+        delete definitions.scenarios["resolve-question"]?.authority_evidence;
+      },
+      diagnostic: {
+        code: "scenario-authority-evidence-required",
+        path: "scenarios.resolve-question.authority_evidence",
+        message: "Scenario 'resolve-question@2' must name the Lifecycle Data output that records non-autonomous authority",
+      },
     },
     {
       name: "authority evidence that is not a declared output",
-      mutate: (source: string) =>
-        source.replace(
-          "authority_evidence: {output: decision, type: DEC}",
-          "authority_evidence: {output: missing, type: DEC}",
-        ),
-      code: "scenario-authority-evidence-output",
+      mutate: (definitions: ProcessPackage) => {
+        definitions.scenarios["resolve-question"]!.authority_evidence = {
+          output: "missing",
+          type: "DEC",
+        };
+      },
+      diagnostic: {
+        code: "scenario-authority-evidence-output",
+        path: "scenarios.resolve-question.authority_evidence",
+        message: "Scenario 'resolve-question@2' authority evidence must name a declared output and one of its Lifecycle Data types",
+      },
     },
     {
       name: "an unknown Policy reference",
-      mutate: (source: string) =>
-        source.replace("question-participation@1", "missing-participation@1"),
-      code: "unknown-reference",
+      mutate: (definitions: ProcessPackage) => {
+        object(definitions.scenarios["resolve-question"]!.participation)
+          .policy_ref = "missing-participation@1";
+      },
+      diagnostic: {
+        code: "unknown-reference",
+        path: "scenarios.resolve-question.participation.policy_ref",
+        message: "Unknown Participation Policy reference 'missing-participation@1'",
+      },
     },
     {
       name: "missing Policy parameters",
-      mutate: (source: string) =>
-        source.replace("    question: question", "    unexpected: question"),
-      code: "participation-policy-arguments",
+      mutate: (definitions: ProcessPackage) => {
+        const participation = object(
+          definitions.scenarios["resolve-question"]!.participation,
+        );
+        const argumentsValue = object(participation.arguments);
+        argumentsValue.unexpected = argumentsValue.question;
+        delete argumentsValue.question;
+      },
+      diagnostic: {
+        code: "participation-policy-arguments",
+        path: "scenarios.resolve-question.participation.arguments",
+        message: "Scenario 'resolve-question' participation arguments must exactly match Policy 'question-participation@1'; missing: question; unknown: unexpected",
+      },
     },
+  ])("rejects $name", ({ mutate, diagnostic }) => {
+    expect(graphDiagnostics(mutate)).toEqual([diagnostic]);
+  });
+
+  it.each([
     {
       name: "an argument with the wrong typed expression",
       mutate: (source: string) =>
@@ -210,54 +278,36 @@ describe("Scenario participation Policy validation", () => {
     ]));
   });
 
-  it("rejects undeclared lifecycle types in participation parameters", async () => {
-    const processRoot = await participationProcessPackage();
-    temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/question-participation.yaml",
-    );
-    await fs.writeFile(
-      policyPath,
-      (await fs.readFile(policyPath, "utf8")).replace(
-        "types: [QST]",
-        "types: [ZZZ]",
-      ),
-    );
+  it("rejects undeclared lifecycle types in participation parameters", () => {
+    const diagnostics = graphDiagnostics((definitions) => {
+      const parameters = definitions.policies["question-participation"]!
+        .parameters as Array<Record<string, unknown>>;
+      parameters[0]!.types = ["ZZZ"];
+    });
 
-    const loaded = await loadProcessPackage(processRoot);
-
-    expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        code: "unknown-participation-policy-type",
-      }),
-    ]));
+    expect(diagnostics).toEqual(expect.arrayContaining([{
+      code: "unknown-participation-policy-type",
+      path: "policies.question-participation.parameters[0].types[0]",
+      message: "Participation Policy 'question-participation@1' references undeclared lifecycle type 'ZZZ'",
+    }]));
   });
 
-  it("rejects duplicate participation Policy parameter names", async () => {
-    const processRoot = await participationProcessPackage();
-    temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/question-participation.yaml",
-    );
-    await fs.writeFile(
-      policyPath,
-      (await fs.readFile(policyPath, "utf8")).replace(
-        "  - {name: question, kind: revision, types: [QST]}",
-        "  - {name: question, kind: revision, types: [QST]}\n  - {name: question, kind: scalar, scalar_type: string}",
-      ),
-    );
+  it("rejects duplicate participation Policy parameter names", () => {
+    const diagnostics = graphDiagnostics((definitions) => {
+      const parameters = definitions.policies["question-participation"]!
+        .parameters as Array<Record<string, unknown>>;
+      parameters.push({
+        name: "question",
+        kind: "scalar",
+        scalar_type: "string",
+      });
+    });
 
-    const loaded = await loadProcessPackage(processRoot);
-
-    expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        code: "participation-policy-parameters",
-      }),
-    ]));
+    expect(diagnostics).toEqual(expect.arrayContaining([{
+      code: "participation-policy-parameters",
+      path: "policies.question-participation.parameters",
+      message: "Participation Policy 'question-participation@1' has duplicate parameter names",
+    }]));
   });
 
   it("rejects an unknown payload path on a typed Policy parameter", async () => {
@@ -475,52 +525,37 @@ rules:
     ]));
   });
 
-  it("rejects an invalid Authority Requirement or Attention Schedule result", async () => {
-    const processRoot = await participationProcessPackage();
-    temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/question-participation.yaml",
-    );
-    const source = await fs.readFile(policyPath, "utf8");
-    await fs.writeFile(
-      policyPath,
-      source.replace(
-        "  attention_checkpoint: phase-0-gate",
-        "  attention_checkpoint: null",
-      ),
-    );
+  it("rejects an invalid Authority Requirement or Attention Schedule result", () => {
+    const policy = clonedPolicy("question-participation");
+    object(policy.default).attention_checkpoint = null;
 
-    const loaded = await loadProcessPackage(processRoot);
-
-    expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "participation-policy-result" }),
-    ]));
+    expect(validateParticipationPolicy(policy, "policies.question-participation"))
+      .toEqual([{
+        code: "participation-policy-result",
+        path: "policies.question-participation.default",
+        message: "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
+      }]);
   });
 
-  it("rejects results that violate additional declared Policy constraints", async () => {
-    const processRoot = await participationProcessPackage();
-    temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/question-participation.yaml",
-    );
-    const source = await fs.readFile(policyPath, "utf8");
-    await fs.writeFile(
-      policyPath,
-      source.replace(
-        "authority: {type: string, minLength: 1}",
-        "authority: {type: string, minLength: 1, enum: [stakeholder]}",
-      ),
-    );
+  it("rejects results that violate additional declared Policy constraints", () => {
+    const policy = clonedPolicy("question-participation");
+    const schema = object(policy.result_schema);
+    const properties = object(schema.properties);
+    object(properties.authority).enum = ["stakeholder"];
 
-    const loaded = await loadProcessPackage(processRoot);
-
-    expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "participation-policy-result" }),
-    ]));
+    expect(validateParticipationPolicy(policy, "policies.question-participation"))
+      .toEqual([
+        {
+          code: "participation-policy-result",
+          path: "policies.question-participation.rules[0].result",
+          message: "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
+        },
+        {
+          code: "participation-policy-result",
+          path: "policies.question-participation.rules[1].result",
+          message: "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
+        },
+      ]);
   });
 
   it("rejects a Policy without the standardized participation result", async () => {

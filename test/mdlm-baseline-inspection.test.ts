@@ -238,8 +238,11 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-async function selectedPackage(repository: string): Promise<SelectedPackageFixture> {
-  if (immutableSelectedPackage) return immutableSelectedPackage;
+async function selectedPackage(
+  repository: string,
+  useCachedFixture = true,
+): Promise<SelectedPackageFixture> {
+  if (useCachedFixture && immutableSelectedPackage) return immutableSelectedPackage;
   const descriptor = JSON.parse(await fs.readFile(
     path.join(repository, ".lifecycle/repository.json"),
     "utf8",
@@ -384,11 +387,17 @@ describe("mdlm baseline inspection", () => {
     immutableSelectedPackage = deepFreeze(
       await selectedPackage(templateRepository),
     );
+  });
+
+  beforeAll(async () => {
     changedTemplateRepository = path.join(templateParent, "changed-repository");
     await copyRepositoryFoundation(templateRepository, changedTemplateRepository);
     changedBaselineFixture = deepFreeze(
       await arrangeChangedBaselines(changedTemplateRepository),
     );
+  });
+
+  beforeAll(() => {
     baselineHeavyTemplateRepository = cloneBaselineHeavyRepository(
       templateParent,
       "baseline-heavy-repository",
@@ -1069,22 +1078,31 @@ describe("mdlm baseline inspection", () => {
     });
   });
 
-  it("loads one snapshot while doctor verifies many exact baselines", async () => {
-    const baselineHeavyRepository = baselineHeavyTemplateRepository;
-    const doctor = mdlmWithEnvironment(
-      baselineHeavyRepository,
-      { MDLM_PERFORMANCE: "json" },
-      "doctor",
-      "--json",
+  it("loads one snapshot while verifying many exact baselines", async () => {
+    const { processPackage, processRef } = await selectedPackage(
+      baselineHeavyTemplateRepository,
+      false,
     );
-    expectSuccess(doctor, "baseline-heavy mdlm doctor");
-    const diagnostics = JSON.parse(doctor.stderr);
-    expect(diagnostics).toMatchObject({
+    const result = await collectPerformanceDiagnostics(async () => {
+      const inspection = await loadRepositoryInspection(
+        baselineHeavyTemplateRepository,
+        processPackage,
+        processRef,
+      );
+      expect(inspection.ok).toBe(true);
+      if (!inspection.ok) throw new Error(JSON.stringify(inspection.diagnostics));
+      return inspection.value.verifyBaselines();
+    });
+    expect(result.value.ok).toBe(true);
+    if (!result.value.ok) throw new Error(JSON.stringify(result.value.diagnostics));
+    expect(result.value.value.verifiedBaselines).toBeGreaterThan(30);
+    expect(result.diagnostics).toMatchObject({
       contract: "mdlm-performance@1",
       repository: { loads: 1, markdownFiles: expect.any(Number) },
     });
-    expect(diagnostics.repository.markdownFiles).toBeGreaterThan(100);
-    expect(diagnostics.work["baseline.revisions-checked"]).toBeGreaterThan(30);
+    expect(result.diagnostics.repository.markdownFiles).toBeGreaterThan(100);
+    expect(result.diagnostics.work["baseline.revisions-checked"])
+      .toBeGreaterThan(30);
   }, 30_000);
 
   it("loads one snapshot for current-package baseline operator inspection", () => {
@@ -1105,7 +1123,7 @@ describe("mdlm baseline inspection", () => {
         "lifecycle.evaluation": { count: 1 },
       },
     });
-  }, 30_000);
+  });
 
   it("rejects Assignment preparation across concurrent tracked changes", async () => {
     const baselineHeavyRepository = baselineHeavyTemplateRepository;

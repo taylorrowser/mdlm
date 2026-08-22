@@ -121,8 +121,8 @@ rows:
           file: test/phase-0-hardening-routes.test.ts
           test: prepares the exact PSP parent in both STK Review context Assignments
         evidence:
-          facts: One current reviewed PSP and the newly published STK Revision.
-          links: The STK derived-from link names the exact governing PSP Stable Datum.
+          facts: One current reviewed PSP and one current STK Revision are prepared for exact Review Context and Review Assignments.
+          links: Both prepared Assignments bind the STK to the exact governing PSP Revision selected from its derived-from relationship.
         selectors:
           - phase-0-foundation-members@1
         obligations:
@@ -136,8 +136,8 @@ rows:
         next:
           - assignment
         budget: No lifecycle Correction cycle is consumed.
-        disposition: Successful atomic publication yields fresh Review work for the STK; malformed publication writes nothing.
-        reuse: Reviewed MAP and PSP evidence remains reusable; the new STK receives fresh context and Review.
+        disposition: The exact STK yields context-creation work followed by Review work; neither Assignment substitutes a different PSP parent.
+        reuse: Reviewed MAP and PSP evidence remains reusable while the STK receives its own exact context and Review.
       - route: candidate creation
         executable:
           file: test/phase-0-hardening-routes.test.ts
@@ -726,7 +726,7 @@ rows:
       - route: empirical answer
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: declares empirical QST answers with an optional Decision output
+          test: satisfies an empirical QST obligation with a same-lineage answer and no Decision
         evidence:
           facts: "empirical answer: One source-bounded open empirical QST with available exact evidence and one same-lineage
             answered Revision."
