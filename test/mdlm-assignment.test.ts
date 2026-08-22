@@ -10,6 +10,7 @@ import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
 const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 30_000;
 const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 30_000;
 const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 75_000;
@@ -370,7 +371,7 @@ describe("MDLM Assignment leasing and preparation", () => {
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-assignment-public-"));
     repository = path.join(parent, "repository");
-  });
+  }, CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS);
 
   const useRepositoryTemplate = (kind: "initialized" | "active" | "correction") =>
     copyRepository(

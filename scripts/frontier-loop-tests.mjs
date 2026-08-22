@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import * as ts from "typescript";
 import { commandResult } from "./frontier-command.mjs";
 import {
   AgentProcessTimeoutError,
@@ -306,6 +307,113 @@ test("completed failed validation resumes without launching another editing agen
   assert.equal(resumesAtValidation({ kind: "validation" }), true);
   assert.equal(resumesAtValidation({ kind: "review" }), true);
   assert.equal(resumesAtValidation({ kind: "implementation" }), false);
+});
+
+test("root Vitest files have one resource class and a finite heavy worker cap", async () => {
+  const { rootVitestSuites, testFiles } = await import("../vitest.suites.mjs");
+  const discovered = readdirSync(new URL("../test", import.meta.url), {
+    withFileTypes: true,
+  })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".test.ts"))
+    .map((entry) => `test/${entry.name}`)
+    .sort();
+  const classified = rootVitestSuites.flatMap((suite) => suite.files);
+
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.id), [
+    "process-repository-heavy",
+    "standard-resource",
+    "cheap-in-process",
+  ]);
+  assert.equal(discovered.length, 47);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 27, 16]);
+  assert.equal(rootVitestSuites.every((suite) => suite.files.length > 0), true);
+  assert.equal(classified.length, new Set(classified).size);
+  assert.deepEqual([...classified].sort(), discovered);
+  assert.deepEqual([...testFiles].sort(), discovered);
+
+  const heavy = rootVitestSuites.find(
+    (suite) => suite.id === "process-repository-heavy",
+  );
+  const cheap = rootVitestSuites.find((suite) => suite.id === "cheap-in-process");
+  assert.equal(Number.isFinite(heavy.maxWorkers), true);
+  assert.equal(heavy.maxWorkers, 2);
+  assert.ok(cheap.maxWorkers > heavy.maxWorkers);
+});
+
+test("the authoritative runner executes every declared resource class", () => {
+  const source = readFileSync(
+    new URL("./authoritative-tests.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /import \{ rootVitestSuites \} from "\.\.\/vitest\.suites\.mjs";/);
+  assert.match(source, /for \(const suite of rootVitestSuites\)/);
+  assert.match(source, /`--maxWorkers=\$\{suite\.maxWorkers\}`/);
+  assert.match(source, /\.\.\.suite\.files/);
+});
+
+test("retained heavy cohort setup hooks use named finite limits", () => {
+  const files = [
+    "test/load-process-package.test.ts",
+    "test/mdlm-baseline-inspection.test.ts",
+    "test/mdlm-assignment.test.ts",
+    "test/proportional-distinct-context-phase-2-public.test.ts",
+  ];
+  let hookCount = 0;
+
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    const sourceFile = ts.createSourceFile(
+      file,
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    const finiteLimits = new Map();
+
+    const visit = (node) => {
+      if (ts.isVariableDeclaration(node)
+        && ts.isIdentifier(node.name)
+        && node.initializer
+        && ts.isNumericLiteral(node.initializer)) {
+        finiteLimits.set(node.name.text, Number(node.initializer.text));
+      }
+      if (ts.isCallExpression(node)
+        && ts.isIdentifier(node.expression)
+        && ["beforeAll", "beforeEach"].includes(node.expression.text)) {
+        hookCount += 1;
+        assert.equal(
+          node.arguments.length >= 2,
+          true,
+          `${file} ${node.expression.text} has an implicit setup-hook limit`,
+        );
+        const limit = node.arguments[1];
+        assert.equal(
+          ts.isIdentifier(limit),
+          true,
+          `${file} ${node.expression.text} must use a named setup-hook limit`,
+        );
+        if (ts.isIdentifier(limit)) {
+          const milliseconds = finiteLimits.get(limit.text);
+          assert.equal(
+            Number.isFinite(milliseconds) && milliseconds > 0,
+            true,
+            `${file} ${limit.text} is not a finite positive limit`,
+          );
+          assert.notEqual(
+            milliseconds,
+            10_000,
+            `${file} ${limit.text} retains the default 10,000 ms setup limit`,
+          );
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  }
+
+  assert.equal(hookCount, 12);
 });
 
 test("contended representative observation limits stay exact", () => {
