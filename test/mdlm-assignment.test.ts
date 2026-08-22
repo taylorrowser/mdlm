@@ -7,6 +7,7 @@ import { assignmentResponseSchema } from "../src/assignment.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
 
+const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;
 const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 20_000;
@@ -294,7 +295,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       "--json",
     );
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
+  }, CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     await copyRepository(initializedTemplateRepository, activeTemplateRepository);

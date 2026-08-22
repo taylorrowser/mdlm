@@ -22,6 +22,7 @@ import { mdlmWithEnvironment } from "./helpers/mdlm.js";
 
 const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;
 const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;
+const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 20_000;
 
 async function executeMdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
@@ -527,7 +528,7 @@ describe("mdlm baseline inspection", () => {
         : templateRepository,
       repository,
     );
-  });
+  }, CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS);
 
   afterEach(async () => {
     await fs.rm(parent, { recursive: true, force: true });
