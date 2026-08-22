@@ -20,6 +20,8 @@ import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlmWithEnvironment } from "./helpers/mdlm.js";
 
+const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+
 async function executeMdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
@@ -429,7 +431,7 @@ describe("mdlm baseline inspection", () => {
       processPackage: loaded.package,
       processRef: `${initialized.package.reference}#${initialized.package.digest}`,
     });
-  });
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     changedTemplateRepository = path.join(templateParent, "changed-repository");

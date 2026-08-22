@@ -308,6 +308,49 @@ test("completed failed validation resumes without launching another editing agen
   assert.equal(resumesAtValidation({ kind: "implementation" }), false);
 });
 
+test("contended representative observation limits stay exact", () => {
+  const loadSource = readFileSync(
+    new URL("../test/load-process-package.test.ts", import.meta.url),
+    "utf8",
+  );
+  const baselineSource = readFileSync(
+    new URL("../test/mdlm-baseline-inspection.test.ts", import.meta.url),
+    "utf8",
+  );
+  const assignmentSource = readFileSync(
+    new URL("../test/mdlm-assignment.test.ts", import.meta.url),
+    "utf8",
+  );
+  const suiteManifest = readFileSync(
+    new URL("../vitest.suites.mjs", import.meta.url),
+    "utf8",
+  );
+  const vitestConfig = readFileSync(
+    new URL("../vitest.fast.config.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(loadSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(loadSource, /beforeAll\(async \(\) => \{[\s\S]*?validPackage = result\.package;\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(baselineSource, /immutableSelectedPackage = deepFreeze\([\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 40_000;/);
+  assert.match(assignmentSource, /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /waitForPath\(\n        barrierSignal,[\s\S]*?CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n      \);/);
+  assert.match(assignmentSource, /CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS,\n  \);/);
+  for (const file of [
+    "test/load-process-package.test.ts",
+    "test/mdlm-baseline-inspection.test.ts",
+    "test/mdlm-assignment.test.ts",
+    "test/proportional-distinct-context-phase-2-public.test.ts",
+  ]) {
+    assert.match(suiteManifest, new RegExp(`"${file.replaceAll(".", "\\.")}"`));
+  }
+  assert.match(vitestConfig, /maxWorkers: 4/);
+});
+
 test("authoritative product tests default to an exact ten-minute process budget", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
   assert.match(

@@ -7,6 +7,10 @@ import { assignmentResponseSchema } from "../src/assignment.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
 
+const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 20_000;
+const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 40_000;
+
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
 const initialWayfindingSkillRefs = [
@@ -69,28 +73,41 @@ function spawnMdlmWithInput(
   return { child, closed, output: () => ({ stdout, stderr }) };
 }
 
-async function waitForPath(target: string, message: string): Promise<void> {
+async function waitForPath(
+  target: string,
+  message: string,
+  timeoutMs = 10_000,
+): Promise<void> {
   try {
     await fs.access(target);
     return;
   } catch {
-    // Wait for the process-level barrier below.
+    // Arm the process-level barrier observer below.
   }
   await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      watcher.close();
-      reject(new Error(message));
-    }, 10_000);
-    const watcher = watch(path.dirname(target), async () => {
+    let watcher: ReturnType<typeof watch>;
+    let timeout: NodeJS.Timeout;
+    let settled = false;
+    const observeTarget = async () => {
       try {
         await fs.access(target);
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
         watcher.close();
         resolve();
       } catch {
         // The observed event was unrelated to the barrier.
       }
-    });
+    };
+    watcher = watch(path.dirname(target), () => void observeTarget());
+    timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      watcher.close();
+      reject(new Error(message));
+    }, timeoutMs);
+    void observeTarget();
   });
 }
 
@@ -257,7 +274,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       "--json",
     );
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-  });
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
   beforeAll(async () => {
     await copyRepository(initializedTemplateRepository, activeTemplateRepository);
@@ -990,6 +1007,7 @@ process.exit(result.status ?? 1);
       await waitForPath(
         barrierSignal,
         `${kind} response did not reach the Assignment lease lock`,
+        CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,
       );
 
       const winning = spawnMdlmWithInput(repository, validResponse, {
@@ -1056,7 +1074,7 @@ process.exit(result.status ?? 1);
       const doctor = await mdlm(repository, "doctor", "--json");
       expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
     },
-    30_000,
+    CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS,
   );
 
   it("stops a corrected response when tracked state became stale and publishes nothing", async () => {

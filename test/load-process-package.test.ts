@@ -7,6 +7,8 @@ import { loadProcessPackage, type ProcessPackage } from "../src/index.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
 import { validateScenarioContracts } from "../src/scenario-contract.js";
 
+const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+
 async function copiedProcessPackage(): Promise<string> {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
   const processRoot = path.join(temporaryRoot, "process");
@@ -27,7 +29,7 @@ describe("loadProcessPackage", () => {
       .toBe(true);
     if (!result.ok) throw new Error("Bootstrap process package did not load");
     validPackage = result.package;
-  });
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
   function clonedValidPackage(): ProcessPackage {
     return structuredClone(validPackage);
