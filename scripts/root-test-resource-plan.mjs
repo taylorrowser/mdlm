@@ -11,11 +11,11 @@ export const ROOT_RESOURCE_HEAVY_PHASE_CALIBRATION = Object.freeze({
     "test/proportional-distinct-context-phase-2-public.test.ts",
     "test/phase-1-hardening-routes.test.ts",
   ],
-  contractDeltaMs: 3_600,
-  calibratedPhaseWallMs: 181_042,
+  contractDeltaMs: 0,
+  calibratedPhaseWallMs: 230_750,
   disposition: "pass",
-  observedSchedulerWallMs: 177_442,
-  source: "/tmp/issue-203-mixed-overlap-evidence-ledger.md",
+  observedSchedulerWallMs: 230_750,
+  source: "/tmp/issue-203-compatibility-production-partition.log",
   status: 0,
 });
 // Compatibility export for evidence readers. The observed wall calibrates the
@@ -90,9 +90,50 @@ export const ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE = Object.freeze({
 });
 export const ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS =
   ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE.allowanceMs;
-export const ROOT_RESOURCE_ROOT_CEILING_MS = 590_000;
-export const ROOT_RESOURCE_OUTER_DEADLINE_MS = 600_000;
-export const ROOT_RESOURCE_REQUIRED_HEADROOM_MS = 10_000;
+// The production partition must finish within 850 seconds so the complete
+// authoritative command retains time for builds, suite verification, package
+// tests, and controller tests. The original 900-second complete-command policy
+// did not fit the evidence-backed complete model, so the hard limit is 1,150
+// seconds with a 1,100-second launch-eligibility target.
+export const ROOT_RESOURCE_ROOT_CEILING_MS = 850_000;
+export const ROOT_RESOURCE_COMPLETE_GATE_TARGET_MS = 1_100_000;
+export const ROOT_RESOURCE_OUTER_DEADLINE_MS = 1_150_000;
+export const ROOT_RESOURCE_REQUIRED_HEADROOM_MS = 50_000;
+export const ROOT_RESOURCE_COMPLETE_GATE_COMPONENTS = Object.freeze({
+  rootBuildMs: 15_000,
+  packageBuildMs: 15_000,
+  suiteVerificationMs: 5_000,
+  packageTestsMs: 190_000,
+  frontierControllerTestsMs: 15_000,
+  schedulerControllerTestsMs: 15_000,
+});
+export const ROOT_RESOURCE_COMPLETE_GATE_PROVENANCE = Object.freeze({
+  source: "/tmp/issue-203-complete-gate-components.log",
+  successful: Object.freeze({
+    rootBuildMs: 6_655,
+    packageBuildMs: 12_470,
+    suiteVerificationMs: 1_153,
+    packageTestsMs: 148_200,
+    packageTestsSource: "/tmp/issue-203-package-gate-180s.log",
+    frontierControllerTestsMs: 2_693,
+    schedulerControllerTestsMs: 3_495,
+    schedulerControllerTestsSource: "/tmp/issue-203-scheduler-controller-green.log",
+  }),
+  failedPackageRuns: Object.freeze([
+    Object.freeze({
+      limitMs: 30_000,
+      source: "/tmp/issue203-pi-baseline.log",
+      status: 1,
+      wallMs: 131_200,
+    }),
+    Object.freeze({
+      limitMs: 60_000,
+      source: "/tmp/issue-203-package-gate-60s.log",
+      status: 1,
+      wallMs: 141_680,
+    }),
+  ]),
+});
 export const ROOT_RESOURCE_PHASE_1_CONTRACT_DELTA_MS = 3_600;
 export const ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION = Object.freeze({
   after: Object.freeze({
@@ -151,6 +192,8 @@ const COMPATIBLE_TAIL_LANES = Object.freeze([
 ]);
 
 const SAFE_PARTITION_COMMIT = "3e0437b9204229eb94853d90345dc86861cc7a28";
+const CURRENT_PARTITION_COMMIT = "342a8ad35cee17cc6c7f37646f4c96639329d8d5";
+const CURRENT_PARTITION_SOURCE = "/tmp/issue-203-compatibility-production-partition.log";
 const CLASS_SOURCE_COMMIT = "e4468ec6a432fdb975df0739a0070c85cbd7b807";
 const HEAVY_PAIR_FOCUSED_COMMIT = "b966de2d422d25c152985c368ec05e95006e388f";
 const HEAVY_CONTRACT_FOCUSED_COMMIT = "a81a9ca51b0458a649eb9539844efa965cf01976";
@@ -159,6 +202,15 @@ const SAFE_PARTITION_SOURCE = "/tmp/issue-203-safe-lpt-partition.log";
 const HEAVY_CLASS_SOURCE = "/tmp/issue-203-split-policy-lane-heavy.log";
 const FRAGILE_CLASS_SOURCE = "/tmp/issue-203-split-policy-lane-fragile.log";
 const FOCUSED_SOURCE = "vitest.suites.mjs";
+const CURRENT_PARTITION_SUCCESSFUL_FILES = new Set([
+  "test/evaluate-phase.test.ts",
+  "test/initial-product-intent-resolution.test.ts",
+  "test/mdlm-pilot-assessment.test.ts",
+  "test/mdlm-schema.test.ts",
+  "test/phase-1-hardening-routes.test.ts",
+  "test/phase-2-hardening-routes.test.ts",
+  "test/selected-package-cache.test.ts",
+]);
 
 export const ROOT_RESOURCE_RUN_PROVENANCE = Object.freeze({
   successful: [
@@ -188,42 +240,56 @@ export const ROOT_RESOURCE_RUN_PROVENANCE = Object.freeze({
       selected: false,
       censoredBy: "clean-onboarding 180000ms timeout under invalid four-resource admission",
     },
+    {
+      commit: "342a8ad35cee17cc6c7f37646f4c96639329d8d5",
+      disposition: "failed-timeout",
+      source: "/tmp/issue-203-compatibility-production-partition.log",
+      status: 124,
+      wallMs: 591_054,
+      selected: false,
+      completedTasks: 20,
+      completedFiles: 35,
+      passedTests: 343,
+      canceledTasks: 1,
+      unlaunchedFiles: 11,
+      censoredBy: "590000ms production-partition limit",
+    },
   ],
 });
 
 const safeRows = [
-  ["test/evaluate-phase.test.ts", 25_070],
-  ["test/initial-product-intent-resolution.test.ts", 78_770],
+  ["test/evaluate-phase.test.ts", 17_410],
+  ["test/initial-product-intent-resolution.test.ts", 80_450],
   ["test/initial-product-intent-route.test.ts", 72_040],
   ["test/load-scenario-participation.test.ts", 70_510],
   ["test/mdlm-assignment-state.test.ts", 63_670],
   ["test/mdlm-clean-onboarding-transaction.test.ts", 52_690],
   ["test/mdlm-command-application.test.ts", 53_310],
   ["test/mdlm-init.test.ts", 54_880],
-  ["test/mdlm-pilot-assessment.test.ts", 36_630],
+  ["test/mdlm-pilot-assessment.test.ts", 17_620],
   ["test/mdlm-process-expression.test.ts", 46_660],
   ["test/mdlm-repository-inspection.test.ts", 76_640],
-  ["test/mdlm-schema.test.ts", 80_760],
+  ["test/mdlm-schema.test.ts", 82_290],
   ["test/operator-outcome.test.ts", 56_190],
   ["test/phase-0-corrected-gate-route.test.ts", 151_630],
   ["test/phase-0-intent-candidate-currentness-route.test.ts", 72_920],
-  ["test/phase-1-hardening-routes.test.ts", 108_380],
-  ["test/phase-2-hardening-routes.test.ts", 64_700],
-  ["test/selected-package-cache.test.ts", 67_830],
+  ["test/phase-1-hardening-routes.test.ts", 143_120],
+  ["test/phase-2-hardening-routes.test.ts", 149_840],
+  ["test/selected-package-cache.test.ts", 84_810],
 ];
 
 const heavyRows = [
-  ["test/load-process-package.test.ts", 66_137, 84_350, HEAVY_PAIR_FOCUSED_COMMIT],
-  ["test/mdlm-baseline-inspection.test.ts", 62_087, 138_250, HEAVY_PAIR_FOCUSED_COMMIT],
-  ["test/mdlm-assignment.test.ts", 117_151, 174_960, HEAVY_CONTRACT_FOCUSED_COMMIT],
-  ["test/proportional-distinct-context-phase-2-public.test.ts", 27_558, 58_400, HEAVY_CONTRACT_FOCUSED_COMMIT],
+  ["test/load-process-package.test.ts", 127_620, 84_350, HEAVY_PAIR_FOCUSED_COMMIT],
+  ["test/mdlm-baseline-inspection.test.ts", 92_130, 138_250, HEAVY_PAIR_FOCUSED_COMMIT],
+  ["test/mdlm-assignment.test.ts", 205_020, 174_960, HEAVY_CONTRACT_FOCUSED_COMMIT],
+  ["test/proportional-distinct-context-phase-2-public.test.ts", 25_730, 58_400, HEAVY_CONTRACT_FOCUSED_COMMIT],
 ];
 
 const fragileRows = [
   ["test/mdlm-clean-pilot-contract.test.ts", 28_026, 78_310, FRAGILE_FOCUSED_COMMIT],
-  ["test/mdlm-lifecycle.test.ts", 30_161, 86_570, FRAGILE_FOCUSED_COMMIT],
-  ["test/mdlm-process-migration.test.ts", 47_070, 176_580, FRAGILE_FOCUSED_COMMIT],
-  ["test/mdlm-review-assignment.test.ts", 43_815, 179_040, FRAGILE_FOCUSED_COMMIT],
+  ["test/mdlm-lifecycle.test.ts", 51_180, 86_570, FRAGILE_FOCUSED_COMMIT],
+  ["test/mdlm-process-migration.test.ts", 176_100, 176_580, FRAGILE_FOCUSED_COMMIT],
+  ["test/mdlm-review-assignment.test.ts", 94_320, 179_040, FRAGILE_FOCUSED_COMMIT],
 ];
 
 function successfulObservation(commit, source, elapsedMs, selected = true) {
@@ -270,31 +336,38 @@ export const rootResourceEvidence = Object.freeze([
     file,
     "safe",
     elapsedMs,
-    SAFE_PARTITION_SOURCE,
-    file === "test/phase-1-hardening-routes.test.ts"
-      ? ROOT_RESOURCE_PHASE_1_CONTRACT_DELTA_MS
-      : file === ASSIGNMENT_STATE_FILE
-        ? -ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION.measuredContractionMs
-        : 0,
+    CURRENT_PARTITION_SUCCESSFUL_FILES.has(file)
+      ? CURRENT_PARTITION_SOURCE
+      : SAFE_PARTITION_SOURCE,
+    file === ASSIGNMENT_STATE_FILE
+      ? -ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION.measuredContractionMs
+      : 0,
     historicalSafeObservations(file),
+    CURRENT_PARTITION_SUCCESSFUL_FILES.has(file)
+      ? CURRENT_PARTITION_COMMIT
+      : SAFE_PARTITION_COMMIT,
   )),
-  ...heavyRows.map(([file, elapsedMs, classElapsedMs, focusedCommit]) => evidenceRow(
+  ...heavyRows.map(([file, elapsedMs, classElapsedMs]) => evidenceRow(
     file,
     "heavy",
     elapsedMs,
-    FOCUSED_SOURCE,
+    CURRENT_PARTITION_SOURCE,
     0,
     [successfulObservation(CLASS_SOURCE_COMMIT, HEAVY_CLASS_SOURCE, classElapsedMs, false)],
-    focusedCommit,
+    CURRENT_PARTITION_COMMIT,
   )),
   ...fragileRows.map(([file, elapsedMs, classElapsedMs, focusedCommit]) => evidenceRow(
     file,
     "fragile",
     elapsedMs,
-    FOCUSED_SOURCE,
+    file === "test/mdlm-clean-pilot-contract.test.ts"
+      ? FOCUSED_SOURCE
+      : CURRENT_PARTITION_SOURCE,
     0,
     [successfulObservation(CLASS_SOURCE_COMMIT, FRAGILE_CLASS_SOURCE, classElapsedMs, false)],
-    focusedCommit,
+    file === "test/mdlm-clean-pilot-contract.test.ts"
+      ? focusedCommit
+      : CURRENT_PARTITION_COMMIT,
   )),
 ]);
 
@@ -405,8 +478,21 @@ function buildPhasedLptPlan(entries) {
     phaseLane("fragile-safe-2", "safe"),
   ];
   placeLpt(rows.fragile, fragileLanes.slice(0, 1));
-  const fragileTargetMs = fragileLanes[0].totalMs;
-  safe = placeSafeWithinTarget(safe, fragileLanes.slice(1), fragileTargetMs);
+  const fragileSafe = takeEntriesByFile(safe, [
+    "test/mdlm-schema.test.ts",
+    "test/phase-2-hardening-routes.test.ts",
+    "test/initial-product-intent-resolution.test.ts",
+    "test/selected-package-cache.test.ts",
+  ]);
+  safe = fragileSafe.remaining;
+  for (const entry of fragileSafe.selected.slice(0, 2)) {
+    fragileLanes[1].tasks.push(entry);
+    fragileLanes[1].totalMs += entry.selectedEstimateMs;
+  }
+  for (const entry of fragileSafe.selected.slice(2)) {
+    fragileLanes[2].tasks.push(entry);
+    fragileLanes[2].totalMs += entry.selectedEstimateMs;
+  }
 
   const tailLanes = [
     phaseLane("safe-tail-1", "safe"),

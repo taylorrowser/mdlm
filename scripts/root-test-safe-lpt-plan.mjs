@@ -1,3 +1,5 @@
+// Retained only to interpret the superseded 590-second safe-LPT evidence.
+// Launch eligibility comes from root-test-resource-plan.mjs.
 export const SAFE_LPT_LANE_COUNT = 3;
 export const SAFE_LPT_ROOT_CEILING_MS = 590_000;
 export const SAFE_LPT_MAX2_COMMIT = "b2e60ac152b63cbb9be10b49b5dcf7515d46dabf";

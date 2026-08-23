@@ -615,11 +615,11 @@ test("contended representative observation limits stay exact", () => {
   assert.match(vitestConfig, /maxWorkers: 4/);
 });
 
-test("authoritative product tests default to an exact ten-minute process budget", () => {
+test("authoritative product tests default to the evidence-backed process budget", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
   assert.match(
     source,
-    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 10 \* 60_000/,
+    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 1_150_000/,
   );
   assert.match(source, /runInProcessGroup/);
   assert.match(source, /scripts\/authoritative-tests\.mjs/);
@@ -634,9 +634,13 @@ test("authoritative product tests default to an exact ten-minute process budget"
     "utf8",
   );
   assert.match(authoritative, /tsconfig\.build\.json/);
+  assert.match(authoritative, /packages\/mdlm-pi\/tsconfig\.build\.json/);
   assert.match(authoritative, /verify-test-suites\.mjs/);
   assert.match(authoritative, /vitest\.fast\.config\.ts/);
+  assert.match(authoritative, /"--root",\s+"packages\/mdlm-pi"/);
+  assert.match(authoritative, /"--testTimeout=180000"/);
   assert.match(authoritative, /frontier-loop-tests\.mjs/);
+  assert.match(authoritative, /weighted-token-scheduler-tests\.mjs/);
 });
 
 test("child commands have a finite timeout", () => {

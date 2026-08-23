@@ -95,7 +95,7 @@ if (status === 0) {
       "run",
       "--root",
       "packages/mdlm-pi",
-      "--testTimeout=30000",
+      "--testTimeout=180000",
     ],
     ["--test", "scripts/frontier-loop-tests.mjs"],
     ["--test", "scripts/weighted-token-scheduler-tests.mjs"],

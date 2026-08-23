@@ -100,20 +100,20 @@ test("the global resource event table selects only successful evidence for all 2
   );
   assert.equal(rootResourceEvidence
     .filter((entry) => entry.resourceClass === "safe")
-    .reduce((total, entry) => total + entry.selectedEvidence.elapsedMs, 0), 1_233_280);
+    .reduce((total, entry) => total + entry.selectedEvidence.elapsedMs, 0), 1_346_680);
   assert.deepEqual(
     rootResourceEvidence
       .filter((entry) => entry.resourceClass !== "safe")
       .map((entry) => [entry.file, entry.selectedEvidence.elapsedMs, entry.selectedEvidence.source]),
     [
-      ["test/load-process-package.test.ts", 66_137, "vitest.suites.mjs"],
-      ["test/mdlm-baseline-inspection.test.ts", 62_087, "vitest.suites.mjs"],
-      ["test/mdlm-assignment.test.ts", 117_151, "vitest.suites.mjs"],
-      ["test/proportional-distinct-context-phase-2-public.test.ts", 27_558, "vitest.suites.mjs"],
+      ["test/load-process-package.test.ts", 127_620, "/tmp/issue-203-compatibility-production-partition.log"],
+      ["test/mdlm-baseline-inspection.test.ts", 92_130, "/tmp/issue-203-compatibility-production-partition.log"],
+      ["test/mdlm-assignment.test.ts", 205_020, "/tmp/issue-203-compatibility-production-partition.log"],
+      ["test/proportional-distinct-context-phase-2-public.test.ts", 25_730, "/tmp/issue-203-compatibility-production-partition.log"],
       ["test/mdlm-clean-pilot-contract.test.ts", 28_026, "vitest.suites.mjs"],
-      ["test/mdlm-lifecycle.test.ts", 30_161, "vitest.suites.mjs"],
-      ["test/mdlm-process-migration.test.ts", 47_070, "vitest.suites.mjs"],
-      ["test/mdlm-review-assignment.test.ts", 43_815, "vitest.suites.mjs"],
+      ["test/mdlm-lifecycle.test.ts", 51_180, "/tmp/issue-203-compatibility-production-partition.log"],
+      ["test/mdlm-process-migration.test.ts", 176_100, "/tmp/issue-203-compatibility-production-partition.log"],
+      ["test/mdlm-review-assignment.test.ts", 94_320, "/tmp/issue-203-compatibility-production-partition.log"],
     ],
   );
   assert.deepEqual(
@@ -121,6 +121,7 @@ test("the global resource event table selects only successful evidence for all 2
     [
       ["3e0437b9204229eb94853d90345dc86861cc7a28", 1, false],
       ["c4f254b71a26658ba58f4b5872509d08806a9b4c", 1, false],
+      ["342a8ad35cee17cc6c7f37646f4c96639329d8d5", 124, false],
     ],
   );
   assert.equal(rootResourcePhases.length, 3);
@@ -224,11 +225,11 @@ test("the phased policy selects schedule-matched focused observations and measur
       "test/proportional-distinct-context-phase-2-public.test.ts",
       "test/phase-1-hardening-routes.test.ts",
     ],
-    contractDeltaMs: 3_600,
-    calibratedPhaseWallMs: 181_042,
+    contractDeltaMs: 0,
+    calibratedPhaseWallMs: 230_750,
     disposition: "pass",
-    observedSchedulerWallMs: 177_442,
-    source: "/tmp/issue-203-mixed-overlap-evidence-ledger.md",
+    observedSchedulerWallMs: 230_750,
+    source: "/tmp/issue-203-compatibility-production-partition.log",
     status: 0,
   });
   assert.equal(ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS, 0);
@@ -252,10 +253,10 @@ test("the phased policy selects schedule-matched focused observations and measur
       .filter((entry) => entry.resourceClass === "heavy")
       .map((entry) => [entry.file, entry.selectedEstimateMs, entry.selectedEvidence.commit]),
     [
-      ["test/load-process-package.test.ts", 66_137, "b966de2d422d25c152985c368ec05e95006e388f"],
-      ["test/mdlm-baseline-inspection.test.ts", 62_087, "b966de2d422d25c152985c368ec05e95006e388f"],
-      ["test/mdlm-assignment.test.ts", 117_151, "a81a9ca51b0458a649eb9539844efa965cf01976"],
-      ["test/proportional-distinct-context-phase-2-public.test.ts", 27_558, "a81a9ca51b0458a649eb9539844efa965cf01976"],
+      ["test/load-process-package.test.ts", 127_620, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
+      ["test/mdlm-baseline-inspection.test.ts", 92_130, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
+      ["test/mdlm-assignment.test.ts", 205_020, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
+      ["test/proportional-distinct-context-phase-2-public.test.ts", 25_730, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
     ],
   );
   assert.deepEqual(
@@ -264,9 +265,9 @@ test("the phased policy selects schedule-matched focused observations and measur
       .map((entry) => [entry.file, entry.selectedEstimateMs, entry.selectedEvidence.commit]),
     [
       ["test/mdlm-clean-pilot-contract.test.ts", 28_026, "af632593793368513247aed19b3f34996919340a"],
-      ["test/mdlm-lifecycle.test.ts", 30_161, "af632593793368513247aed19b3f34996919340a"],
-      ["test/mdlm-process-migration.test.ts", 47_070, "af632593793368513247aed19b3f34996919340a"],
-      ["test/mdlm-review-assignment.test.ts", 43_815, "af632593793368513247aed19b3f34996919340a"],
+      ["test/mdlm-lifecycle.test.ts", 51_180, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
+      ["test/mdlm-process-migration.test.ts", 176_100, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
+      ["test/mdlm-review-assignment.test.ts", 94_320, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
     ],
   );
   assert.deepEqual(rootResourcePhases.map((phase) => phase.id), [
@@ -274,7 +275,7 @@ test("the phased policy selects schedule-matched focused observations and measur
     "one-fragile-plus-two-safe",
     "three-safe-tail",
   ]);
-  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [181_042, 149_072, 258_280]);
+  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [230_750, 349_626, 258_280]);
   assert.deepEqual(
     rootResourcePhases[0].lanes.find((lane) => lane.role === "safe").tasks.map((entry) => entry.file),
     [
@@ -655,15 +656,17 @@ test("the compatibility-aware successful-evidence model qualifies the calibrated
   });
   assert.equal(model.status, 0, model.stderr);
   assert.match(model.stdout, /root_files=47 tasks=32 resource_tasks=26 fourth_token_tasks=6 token_capacity=4/);
-  assert.match(model.stdout, /resource_total_work_ms=1658255 resource_lower_bound_ms=552752 barrier_lower_bound_ms=582469 resource_lpt_maximum_ms=588394 resource_compatible_maximum_ms=588394/);
-  assert.match(model.stdout, /raw_target_ms=588500 minimum_aggregate_contraction_ms=0/);
-  assert.match(model.stdout, /resource_phase=two-heavy-plus-one-safe order=0 predicted_ms=181042/);
-  assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=173680 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
-  assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=149072/);
+  assert.match(model.stdout, /resource_total_work_ms=2146176 resource_lower_bound_ms=715392 barrier_lower_bound_ms=719059 resource_lpt_maximum_ms=838656 resource_compatible_maximum_ms=838656/);
+  assert.match(model.stdout, /raw_target_ms=848500 minimum_aggregate_contraction_ms=0/);
+  assert.match(model.stdout, /resource_phase=two-heavy-plus-one-safe order=0 predicted_ms=230750/);
+  assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=178150 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
+  assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=349626/);
   assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=258280/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=581032 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 modeled_root_ms=589894/);
-  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=106/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=10106 required_outer_headroom_ms=10000 headroom_margin_ms=106/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=838656 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 modeled_root_ms=840156/);
+  assert.match(model.stdout, /root_eligibility_ms=850000 root_margin_ms=9844/);
+  assert.match(model.stdout, /modeled_complete_gate_ms=1095156/);
+  assert.match(model.stdout, /complete_gate_target_ms=1100000 complete_gate_margin_ms=4844/);
+  assert.match(model.stdout, /outer_deadline_ms=1150000 outer_margin_ms=54844 required_outer_headroom_ms=50000 headroom_margin_ms=4844/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
