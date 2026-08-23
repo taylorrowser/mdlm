@@ -25,6 +25,10 @@ export const PROCESS_REPOSITORY_CHILD_TIMEOUT_MS = 60_000;
 export const CONTENDED_IN_PROCESS_SETUP_LIMITS = Object.freeze({
   // Twice the 12,520 ms contended file observation, strictly rounded upward.
   "test/evaluate-phase.test.ts": 30_000,
+  // The 10,300 ms failed max-3 setup observation is status evidence only.
+  // Apply the central 30,000 ms contended setup limit without treating the
+  // failed file wall as a successful timing input.
+  "test/evaluate-scoped-obligation.test.ts": 30_000,
   // Twice the measured 4,505 ms hook, strictly rounded upward.
   "test/load-scenario-participation.test.ts": 20_000,
   // Twice the 15,650 ms contended whole-file setup proxy, strictly rounded upward.
@@ -590,6 +594,7 @@ export function renderRootTestObservationInventory(root = process.cwd()) {
     "- Process/repository bounded child observations: 6 × the exact failed 10,000 ms helper observation gives 60,000 ms, one third of the 180,000 ms enclosing test floor.",
     "- Participation hook: 2 × 4,505 ms strictly rounds to 20,000 ms.",
     "- Evaluate-phase hook: 2 × the 12,520 ms contended file observation strictly rounds to 30,000 ms.",
+    "- Scoped-obligation hook: the failed 10,300 ms setup observation remains failure evidence; the central 30,000 ms contended setup limit clears it without treating that wall as a successful timing input.",
     "- Phase 0 hardening hook: the conservative 15,650 ms whole-file setup proxy doubled and strictly rounded gives 40,000 ms.",
     "- Former process/repository 20,000 ms hooks and 5,000/40,000/45,000/70,000/75,000/120,000 ms tests now use the central floors; stronger 360,000 and 510,000 ms process/repository tests remain.",
     "- Canonical/in-process measured 20,000/30,000/40,000 ms hooks and the 420,000 ms proportional test remain unchanged.",

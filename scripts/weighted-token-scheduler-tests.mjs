@@ -75,8 +75,12 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
 
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
-    "process-repository-heavy": 2,
-    "process-repository-safe": 2,
+    "process-repository-heavy": 1,
+    "repository-public-fragile": 1,
+    "process-repository-safe": 3,
+    "canonical-evaluator-safe": 3,
+    "canonical-fixture-filler": 1,
+    "cheap-in-process": 1,
   });
   assert.equal(rootTestManifest.length, 47);
   assert.equal(new Set(declared).size, 47);
@@ -90,9 +94,9 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
     Object.fromEntries(Object.entries(Object.groupBy(rootTestManifest, (entry) => entry.runtimeClass))
       .map(([runtimeClass, entries]) => [runtimeClass, `${entries.length}@${entries[0].weight}`])),
     {
-      "process-repository-heavy": "4@2",
-      "repository-public-fragile": "4@2",
-      "process-repository-safe": "16@2",
+      "process-repository-heavy": "4@1",
+      "repository-public-fragile": "4@1",
+      "process-repository-safe": "16@1",
       "canonical-evaluator-safe": "3@1",
       "canonical-fixture-filler": "3@1",
       "cheap-in-process": "17@1",
@@ -153,7 +157,7 @@ test("canonical filler aliases resolve through the production task path", () => 
   assert.deepEqual(createRootTestTasksForClass("canonical-fixture-fillers"), []);
 });
 
-test("exact-current safe work is split by measured boundary ownership without using failed timings", () => {
+test("exact-current safe ownership retains focused fallbacks without using failed timings", () => {
   assert.deepEqual(
     rootTestManifest
       .filter((entry) => entry.runtimeClass === "canonical-evaluator-safe")
@@ -169,22 +173,22 @@ test("exact-current safe work is split by measured boundary ownership without us
       .filter((entry) => entry.runtimeClass === "process-repository-safe")
       .map(({ file, weight, measuredDurationMs }) => [file, weight, measuredDurationMs]),
     [
-      ["test/initial-product-intent-resolution.test.ts", 2, 36_894],
-      ["test/initial-product-intent-route.test.ts", 2, 46_607],
-      ["test/mdlm-assignment-state.test.ts", 2, 57_581],
-      ["test/mdlm-clean-onboarding-transaction.test.ts", 2, 58_206],
-      ["test/mdlm-command-application.test.ts", 2, 63_686],
-      ["test/mdlm-init.test.ts", 2, 55_478],
-      ["test/mdlm-pilot-assessment.test.ts", 2, 15_950],
-      ["test/mdlm-process-expression.test.ts", 2, 47_352],
-      ["test/mdlm-repository-inspection.test.ts", 2, 25_853],
-      ["test/mdlm-schema.test.ts", 2, 33_817],
-      ["test/operator-outcome.test.ts", 2, 51_114],
-      ["test/phase-0-corrected-gate-route.test.ts", 2, 85_291],
-      ["test/phase-0-intent-candidate-currentness-route.test.ts", 2, 72_074],
-      ["test/phase-1-hardening-routes.test.ts", 2, 101_498],
-      ["test/phase-2-hardening-routes.test.ts", 2, 59_745],
-      ["test/selected-package-cache.test.ts", 2, 29_228],
+      ["test/initial-product-intent-resolution.test.ts", 1, 36_894],
+      ["test/initial-product-intent-route.test.ts", 1, 46_607],
+      ["test/mdlm-assignment-state.test.ts", 1, 57_581],
+      ["test/mdlm-clean-onboarding-transaction.test.ts", 1, 58_206],
+      ["test/mdlm-command-application.test.ts", 1, 63_686],
+      ["test/mdlm-init.test.ts", 1, 55_478],
+      ["test/mdlm-pilot-assessment.test.ts", 1, 15_950],
+      ["test/mdlm-process-expression.test.ts", 1, 47_352],
+      ["test/mdlm-repository-inspection.test.ts", 1, 25_853],
+      ["test/mdlm-schema.test.ts", 1, 33_817],
+      ["test/operator-outcome.test.ts", 1, 51_114],
+      ["test/phase-0-corrected-gate-route.test.ts", 1, 85_291],
+      ["test/phase-0-intent-candidate-currentness-route.test.ts", 1, 72_074],
+      ["test/phase-1-hardening-routes.test.ts", 1, 101_498],
+      ["test/phase-2-hardening-routes.test.ts", 1, 59_745],
+      ["test/selected-package-cache.test.ts", 1, 29_228],
     ],
   );
   assert.deepEqual(
@@ -200,7 +204,13 @@ test("exact-current safe work is split by measured boundary ownership without us
   );
 });
 
-test("the ownership-split safe lanes share the four-token production budget", () => {
+test("the fixed safe LPT plan covers all 19 files once below the 590-second ceiling", async () => {
+  const {
+    SAFE_LPT_LANE_COUNT,
+    SAFE_LPT_ROOT_CEILING_MS,
+    safeLptEvidence,
+    safeLptPlan,
+  } = await import("./root-test-safe-lpt-plan.mjs");
   const restrictive = createRootTestTasksForClass("process-repository-safe");
   const light = createRootTestTasksForClass("canonical-evaluator-safe");
   const tasks = [...restrictive, ...light];
@@ -211,24 +221,102 @@ test("the ownership-split safe lanes share the four-token production budget", ()
     classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
   });
 
-  assert.equal(restrictive.length, 16);
-  assert.equal(light.length, 3);
+  assert.equal(SAFE_LPT_LANE_COUNT, 3);
+  assert.equal(SAFE_LPT_ROOT_CEILING_MS, 590_000);
+  assert.equal(safeLptEvidence.length, 19);
+  assert.equal(new Set(safeLptEvidence.map((entry) => entry.file)).size, 19);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(Object.groupBy(
+      safeLptEvidence,
+      (entry) => entry.estimateKind,
+    )).map(([kind, entries]) => [kind, entries.length])),
+    { "observed-success-max3": 11, "exact-head-focused-model-fallback": 8 },
+  );
+  assert.deepEqual(
+    ["max2", "max3", "split"].map((run) => [
+      run,
+      Object.fromEntries(Object.entries(Object.groupBy(
+        safeLptEvidence,
+        (entry) => entry[run].disposition,
+      )).map(([disposition, entries]) => [disposition, entries.length])),
+    ]),
+    [
+      ["max2", { pass: 11, canceled: 2, unadmitted: 6 }],
+      ["max3", { pass: 11, canceled: 3, unadmitted: 5 }],
+      ["split", { pass: 8, canceled: 4, unadmitted: 6, "failed-hook-timeout": 1 }],
+    ],
+  );
+  assert.equal(safeLptEvidence.every((entry) => ["max2", "max3", "split"].every((run) =>
+    entry[run].launched === entry[run].admitted
+      && entry[run].canceled === (entry[run].disposition === "canceled")
+      && entry[run].completed === ["pass", "failed-hook-timeout"].includes(entry[run].disposition))), true);
+  assert.deepEqual(
+    safeLptPlan.map((lane) => ({
+      id: lane.id,
+      totalMs: lane.totalMs,
+      files: lane.tasks.map((entry) => entry.file),
+    })),
+    [
+      {
+        id: "safe-lpt-1",
+        totalMs: 575_327,
+        files: [
+          "test/load-scenario-participation.test.ts",
+          "test/mdlm-command-application.test.ts",
+          "test/mdlm-init.test.ts",
+          "test/phase-0-intent-candidate-currentness-route.test.ts",
+          "test/mdlm-schema.test.ts",
+          "test/mdlm-pilot-assessment.test.ts",
+        ],
+      },
+      {
+        id: "safe-lpt-2",
+        totalMs: 580_283,
+        files: [
+          "test/phase-1-hardening-routes.test.ts",
+          "test/operator-outcome.test.ts",
+          "test/mdlm-process-expression.test.ts",
+          "test/phase-0-corrected-gate-route.test.ts",
+          "test/mdlm-repository-inspection.test.ts",
+        ],
+      },
+      {
+        id: "safe-lpt-3",
+        totalMs: 580_361,
+        files: [
+          "test/phase-2-hardening-routes.test.ts",
+          "test/mdlm-assignment-state.test.ts",
+          "test/mdlm-clean-onboarding-transaction.test.ts",
+          "test/initial-product-intent-route.test.ts",
+          "test/initial-product-intent-resolution.test.ts",
+          "test/selected-package-cache.test.ts",
+          "test/evaluate-phase.test.ts",
+          "test/evaluate-scoped-obligation.test.ts",
+        ],
+      },
+    ],
+  );
+  assert.equal(tasks.length, 19);
   assert.equal(new Set(tasks.flatMap((task) => task.files)).size, 19);
+  assert.equal(tasks.every((task) => task.files.length === 1 && task.weight === 1), true);
+  assert.equal(tasks.every((task) => /^safe-lpt-[123]$/.test(task.scheduleLaneId)), true);
   assert.equal(rootTestTasksCanOverlap(restrictive[0], light[0]), true);
-  assert.equal(simulation.maximumActiveWeight, ROOT_TEST_TOKEN_CAPACITY);
+  assert.equal(simulation.wallMs, 580_361);
+  assert.equal(simulation.maximumActiveWeight, 3);
   assert.equal(simulation.launches.every((launch) => launch.activeWeight <= ROOT_TEST_TOKEN_CAPACITY), true);
+  assert.equal(Math.max(...safeLptPlan.map((lane) => lane.totalMs)) <= SAFE_LPT_ROOT_CEILING_MS, true);
 });
 
-test("exact-current heavy, ownership-split safe, and mixed observations select the lower honest policy", () => {
+test("the exact-current fixed LPT model qualifies with a single background lane", () => {
   assert.deepEqual(
     rootTestManifest
       .filter((entry) => entry.runtimeClass === "process-repository-heavy")
-      .map(({ file, measuredDurationMs }) => [file, measuredDurationMs]),
+      .map(({ file, weight, measuredDurationMs }) => [file, weight, measuredDurationMs]),
     [
-      ["test/load-process-package.test.ts", 66_137],
-      ["test/mdlm-baseline-inspection.test.ts", 62_087],
-      ["test/mdlm-assignment.test.ts", 117_151],
-      ["test/proportional-distinct-context-phase-2-public.test.ts", 27_558],
+      ["test/load-process-package.test.ts", 1, 66_137],
+      ["test/mdlm-baseline-inspection.test.ts", 1, 62_087],
+      ["test/mdlm-assignment.test.ts", 1, 117_151],
+      ["test/proportional-distinct-context-phase-2-public.test.ts", 1, 27_558],
     ],
   );
 
@@ -236,15 +324,16 @@ test("exact-current heavy, ownership-split safe, and mixed observations select t
     cwd: new URL("..", import.meta.url),
     encoding: "utf8",
   });
-  assert.equal(model.status, 2, model.stderr);
-  assert.match(model.stdout, /mixed_predicted_ms=117151 mixed_observed_scheduler_wall_ms=122735 mixed_observed_wrapper_wall_ms=122898 mixed_test_work_ms=161680/);
-  assert.match(model.stdout, /mixed_contention_multiplier=1\.047665 mixed_contention_allowance_ms=5584/);
-  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=684156 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=5584 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=768335/);
-  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=685373 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=4 mixed_allowance_ms=22336 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=729709/);
-  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=729709/);
-  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=-139709/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-129709 required_outer_headroom_ms=10000 headroom_margin_ms=-139709/);
-  assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
+  assert.equal(model.status, 0, model.stderr);
+  assert.match(model.stdout, /safe_lpt_total_work_ms=1735971 safe_lpt_lower_bound_ms=578657 safe_lpt_predicted_maximum_ms=580361/);
+  assert.match(model.stdout, /safe_lpt_lane=safe-lpt-1 predicted_ms=575327 files=6/);
+  assert.match(model.stdout, /safe_lpt_lane=safe-lpt-2 predicted_ms=580283 files=5/);
+  assert.match(model.stdout, /safe_lpt_lane=safe-lpt-3 predicted_ms=580361 files=8/);
+  assert.match(model.stdout, /policy=safe-lpt-with-background simulated_schedule_ms=580361 background_work_ms=512842 orchestration_allowance_ms=2000 additional_reserve_ms=0 modeled_root_ms=582361/);
+  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=7639/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=17639 required_outer_headroom_ms=10000 headroom_margin_ms=7639/);
+  assert.match(model.stdout, /maximum_active_weight=4/);
+  assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
 
 test("the schedule simulator uses the same deterministic token and compatibility policy", () => {
@@ -266,15 +355,18 @@ test("the schedule simulator uses the same deterministic token and compatibility
   assert.equal(simulation.maximumActiveWeight, 3);
 });
 
-test("one-heavy safe fill admission is shared by deterministic simulation and runtime", async () => {
+test("fixed safe lanes and the background lane share simulation and runtime admission", async () => {
   const tasks = [
-    { id: "heavy-a", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 10 },
-    { id: "heavy-b", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 5 },
-    { id: "safe-a", runtimeClass: "canonical-evaluator-safe", weight: 1, estimatedDurationMs: 4 },
-    { id: "safe-b", runtimeClass: "canonical-evaluator-safe", weight: 1, estimatedDurationMs: 6 },
-    { id: "safe-c", runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 3 },
+    { id: "safe-1a", runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 10, scheduleLaneId: "safe-lpt-1", laneOrder: 0 },
+    { id: "safe-1b", runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 5, scheduleLaneId: "safe-lpt-1", laneOrder: 1 },
+    { id: "safe-2a", runtimeClass: "canonical-evaluator-safe", weight: 1, estimatedDurationMs: 8, scheduleLaneId: "safe-lpt-2", laneOrder: 0 },
+    { id: "safe-3a", runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 7, scheduleLaneId: "safe-lpt-3", laneOrder: 0 },
+    { id: "background-a", runtimeClass: "process-repository-heavy", weight: 1, estimatedDurationMs: 6, scheduleLaneId: "background" },
+    { id: "background-b", runtimeClass: "canonical-fixture-filler", weight: 1, estimatedDurationMs: 4, scheduleLaneId: "background" },
   ];
-  const canAdmit = createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICIES.ONE_HEAVY_WHILE_SAFE);
+  const canAdmit = createRootTestAdmissionPolicy(
+    ROOT_TEST_SCHEDULING_POLICIES.SAFE_LPT_WITH_BACKGROUND,
+  );
   const options = {
     capacity: 4,
     canAdmit,
@@ -283,30 +375,29 @@ test("one-heavy safe fill admission is shared by deterministic simulation and ru
   };
   const simulation = simulateWeightedSchedule(tasks, options);
   assert.deepEqual(simulation.launches.map(({ atMs, taskId, activeWeight }) => [atMs, taskId, activeWeight]), [
-    [0, "heavy-a", 2],
-    [0, "safe-a", 3],
-    [0, "safe-b", 4],
-    [4, "safe-c", 4],
-    [7, "heavy-b", 4],
+    [0, "safe-1a", 1],
+    [0, "safe-2a", 2],
+    [0, "safe-3a", 3],
+    [0, "background-a", 4],
+    [6, "background-b", 4],
+    [10, "safe-1b", 1],
   ]);
-  assert.equal(simulation.wallMs, 12);
+  assert.equal(simulation.wallMs, 15);
   assert.equal(simulation.maximumActiveWeight, 4);
 
   const controlled = controlledLauncher();
   const scheduled = runWeightedSchedule(tasks, { ...options, launch: controlled.launch });
-  await waitFor(() => controlled.events.length === 3, "one heavy and two safe tasks did not launch");
-  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b"]);
-  controlled.controls.get("safe-a").completion.resolve({ status: 0, signal: null });
-  await waitFor(() => controlled.events.length === 4, "safe work did not backfill beside heavy work");
-  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c"]);
-  controlled.controls.get("safe-b").completion.resolve({ status: 0, signal: null });
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c"]);
-  controlled.controls.get("safe-c").completion.resolve({ status: 0, signal: null });
-  await waitFor(() => controlled.events.length === 5, "second heavy did not launch after safe work drained");
-  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c", "heavy-b"]);
-  controlled.controls.get("heavy-a").completion.resolve({ status: 0, signal: null });
-  controlled.controls.get("heavy-b").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 4, "three safe lane heads and background did not launch");
+  assert.deepEqual(controlled.events, ["safe-1a", "safe-2a", "safe-3a", "background-a"]);
+  controlled.controls.get("background-a").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 5, "background lane did not advance");
+  assert.deepEqual(controlled.events.at(-1), "background-b");
+  controlled.controls.get("safe-1a").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 6, "safe LPT lane did not advance");
+  assert.deepEqual(controlled.events.at(-1), "safe-1b");
+  for (const id of ["safe-1b", "safe-2a", "safe-3a", "background-b"]) {
+    controlled.controls.get(id).completion.resolve({ status: 0, signal: null });
+  }
   await scheduled;
 });
 

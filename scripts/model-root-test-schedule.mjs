@@ -1,8 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
-  FOCUSED_VITEST_STARTUP_MS,
   ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-  ROOT_TEST_SCHEDULING_POLICIES,
   ROOT_TEST_SCHEDULING_POLICY,
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestAdmissionPolicy,
@@ -10,21 +8,23 @@ import {
   rootTestManifest,
   rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
+import {
+  SAFE_LPT_IDEAL_LOWER_BOUND_MS,
+  SAFE_LPT_PREDICTED_MAXIMUM_MS,
+  SAFE_LPT_ROOT_CEILING_MS,
+  SAFE_LPT_TOTAL_WORK_MS,
+  safeLptPlan,
+} from "./root-test-safe-lpt-plan.mjs";
 import { simulateWeightedSchedule } from "./weighted-token-scheduler.mjs";
 
-const ROOT_ELIGIBILITY_MS = 590_000;
+const ROOT_ELIGIBILITY_MS = SAFE_LPT_ROOT_CEILING_MS;
 const OUTER_DEADLINE_MS = 600_000;
 const REQUIRED_OUTER_HEADROOM_MS = 10_000;
 const ORCHESTRATION_ALLOWANCE_MS = 2_000;
-const CONSERVATIVE_RESERVE_MS = 20_000;
-const HEAVY_PAIR_CONTENTION_ALLOWANCE_MS = 56_595;
-const THREE_WAY_CONTENTION_ALLOWANCE_MS = 41_689;
-const MIXED_PREDICTED_MS = 117_151;
-const MIXED_OBSERVED_SCHEDULER_WALL_MS = 122_735;
-const MIXED_OBSERVED_WRAPPER_WALL_MS = 122_898;
-const MIXED_TEST_WORK_MS = 161_680;
-const MIXED_CONTENTION_ALLOWANCE_MS = MIXED_OBSERVED_SCHEDULER_WALL_MS - MIXED_PREDICTED_MS;
-const MIXED_CONTENTION_MULTIPLIER = MIXED_OBSERVED_SCHEDULER_WALL_MS / MIXED_PREDICTED_MS;
+// Max-3 successful elapsed values already include focused startup and
+// three-process contention. Keep failed/censored values out rather than
+// applying the former generic reserve a second time.
+const ADDITIONAL_RESERVE_MS = 0;
 
 function git(...arguments_) {
   const result = spawnSync("git", arguments_, { encoding: "utf8" });
@@ -32,92 +32,44 @@ function git(...arguments_) {
   return result.stdout.trim();
 }
 
-function countOverlapWindows(tasks, simulation, predicate) {
-  const taskById = new Map(tasks.map((task) => [task.id, task]));
-  const executions = simulation.launches.map((launch) => {
-    const task = taskById.get(launch.taskId);
-    return { ...task, startsAtMs: launch.atMs, completesAtMs: launch.atMs + task.estimatedDurationMs };
-  });
-  const boundaries = [...new Set(executions.flatMap((task) => [task.startsAtMs, task.completesAtMs]))]
-    .sort((left, right) => left - right);
-  let windows = 0;
-  let activePreviously = false;
-  for (let index = 0; index < boundaries.length - 1; index += 1) {
-    const nowMs = boundaries[index];
-    const active = executions.filter((task) => task.startsAtMs <= nowMs && task.completesAtMs > nowMs);
-    const activeNow = predicate(active);
-    if (activeNow && !activePreviously) windows += 1;
-    activePreviously = activeNow;
-  }
-  return windows;
-}
+const tasks = createRootTestTasks(ROOT_TEST_SCHEDULING_POLICY);
+const simulation = simulateWeightedSchedule(tasks, {
+  capacity: ROOT_TEST_TOKEN_CAPACITY,
+  canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
+  canOverlap: rootTestTasksCanOverlap,
+  classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+});
+const backgroundTasks = tasks.filter((task) => task.scheduleLaneId === "background");
+const backgroundWorkMs = backgroundTasks
+  .reduce((total, task) => total + task.estimatedDurationMs, 0);
+const modeledRootMs = simulation.wallMs + ORCHESTRATION_ALLOWANCE_MS + ADDITIONAL_RESERVE_MS;
+const rootMarginMs = ROOT_ELIGIBILITY_MS - modeledRootMs;
+const outerMarginMs = OUTER_DEADLINE_MS - modeledRootMs;
+const headroomMarginMs = outerMarginMs - REQUIRED_OUTER_HEADROOM_MS;
+const eligible = rootMarginMs >= 0 && headroomMarginMs >= 0;
 
-function simulatePolicy(policy) {
-  const tasks = createRootTestTasks(policy);
-  const simulation = simulateWeightedSchedule(tasks, {
-    capacity: ROOT_TEST_TOKEN_CAPACITY,
-    canAdmit: createRootTestAdmissionPolicy(policy),
-    canOverlap: rootTestTasksCanOverlap,
-    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-  });
-  const isHeavy = (task) => task.runtimeClass === "process-repository-heavy";
-  const isSafe = (task) => ["process-repository-safe", "canonical-evaluator-safe"]
-    .includes(task.runtimeClass);
-  const isLightSafe = (task) => task.runtimeClass === "canonical-evaluator-safe";
-  const heavyPairWindows = countOverlapWindows(tasks, simulation,
-    (active) => active.filter(isHeavy).length >= 2);
-  const mixedWindows = countOverlapWindows(tasks, simulation,
-    (active) => active.some(isHeavy) && active.some(isSafe));
-  const threeWayWindows = countOverlapWindows(tasks, simulation,
-    (active) => active.filter(isLightSafe).length >= 3);
-  const heavyPairAllowanceMs = heavyPairWindows > 0 ? HEAVY_PAIR_CONTENTION_ALLOWANCE_MS : 0;
-  const mixedAllowanceMs = mixedWindows * MIXED_CONTENTION_ALLOWANCE_MS;
-  const threeWayAllowanceMs = threeWayWindows > 0 ? THREE_WAY_CONTENTION_ALLOWANCE_MS : 0;
-  const modeledRootMs = simulation.wallMs
-    + heavyPairAllowanceMs
-    + mixedAllowanceMs
-    + threeWayAllowanceMs
-    + ORCHESTRATION_ALLOWANCE_MS
-    + CONSERVATIVE_RESERVE_MS;
-  return {
-    heavyPairAllowanceMs,
-    heavyPairWindows,
-    mixedAllowanceMs,
-    mixedWindows,
-    modeledRootMs,
-    policy,
-    simulation,
-    tasks,
-    threeWayAllowanceMs,
-    threeWayWindows,
-  };
+const scheduledFiles = tasks.flatMap((task) => task.files);
+if (scheduledFiles.length !== rootTestManifest.length
+  || new Set(scheduledFiles).size !== rootTestManifest.length) {
+  throw new Error("Modeled schedule must cover every root file exactly once");
+}
+if (SAFE_LPT_PREDICTED_MAXIMUM_MS > ROOT_ELIGIBILITY_MS) {
+  throw new Error("Safe LPT plan exceeds the root eligibility ceiling");
 }
 
 const status = git("status", "--short");
 const identity = status === "" ? git("rev-parse", "HEAD^{tree}") : "DIRTY";
-const results = Object.values(ROOT_TEST_SCHEDULING_POLICIES).map(simulatePolicy);
-const selected = results.reduce((best, result) => result.modeledRootMs < best.modeledRootMs ? result : best);
-if (selected.policy !== ROOT_TEST_SCHEDULING_POLICY) {
-  throw new Error(`Runtime policy ${ROOT_TEST_SCHEDULING_POLICY} does not match modeled winner ${selected.policy}`);
-}
-const rootMarginMs = ROOT_ELIGIBILITY_MS - selected.modeledRootMs;
-const outerMarginMs = OUTER_DEADLINE_MS - selected.modeledRootMs;
-const headroomMarginMs = outerMarginMs - REQUIRED_OUTER_HEADROOM_MS;
-const eligible = rootMarginMs >= 0 && headroomMarginMs >= 0;
-
 process.stdout.write(`commit=${git("rev-parse", "HEAD")} tree=${identity} clean=${status === ""}\n`);
-process.stdout.write(`root_files=${rootTestManifest.length} tasks=${selected.tasks.length} token_capacity=${ROOT_TEST_TOKEN_CAPACITY} class_concurrency_limits=${JSON.stringify(ROOT_TEST_CLASS_CONCURRENCY_LIMITS)}\n`);
-process.stdout.write(`focused_startup_ms=${FOCUSED_VITEST_STARTUP_MS} orchestration_allowance_ms=${ORCHESTRATION_ALLOWANCE_MS} conservative_reserve_ms=${CONSERVATIVE_RESERVE_MS}\n`);
-process.stdout.write(`mixed_predicted_ms=${MIXED_PREDICTED_MS} mixed_observed_scheduler_wall_ms=${MIXED_OBSERVED_SCHEDULER_WALL_MS} mixed_observed_wrapper_wall_ms=${MIXED_OBSERVED_WRAPPER_WALL_MS} mixed_test_work_ms=${MIXED_TEST_WORK_MS}\n`);
-process.stdout.write(`mixed_contention_multiplier=${MIXED_CONTENTION_MULTIPLIER.toFixed(6)} mixed_contention_allowance_ms=${MIXED_CONTENTION_ALLOWANCE_MS}\n`);
-for (const result of results) {
-  process.stdout.write(`policy=${result.policy} simulated_schedule_ms=${result.simulation.wallMs} heavy_pair_windows=${result.heavyPairWindows} heavy_pair_allowance_ms=${result.heavyPairAllowanceMs} mixed_windows=${result.mixedWindows} mixed_allowance_ms=${result.mixedAllowanceMs} three_way_windows=${result.threeWayWindows} three_way_allowance_ms=${result.threeWayAllowanceMs} modeled_root_ms=${result.modeledRootMs}\n`);
+process.stdout.write(`root_files=${rootTestManifest.length} tasks=${tasks.length} token_capacity=${ROOT_TEST_TOKEN_CAPACITY} class_concurrency_limits=${JSON.stringify(ROOT_TEST_CLASS_CONCURRENCY_LIMITS)}\n`);
+process.stdout.write(`safe_lpt_total_work_ms=${SAFE_LPT_TOTAL_WORK_MS} safe_lpt_lower_bound_ms=${SAFE_LPT_IDEAL_LOWER_BOUND_MS} safe_lpt_predicted_maximum_ms=${SAFE_LPT_PREDICTED_MAXIMUM_MS}\n`);
+for (const lane of safeLptPlan) {
+  process.stdout.write(`safe_lpt_lane=${lane.id} predicted_ms=${lane.totalMs} files=${lane.tasks.length} tasks=${lane.tasks.map((task) => task.file).join(",")}\n`);
 }
-process.stdout.write(`selected_policy=${selected.policy} modeled_root_ms=${selected.modeledRootMs}\n`);
+process.stdout.write(`policy=${ROOT_TEST_SCHEDULING_POLICY} simulated_schedule_ms=${simulation.wallMs} background_work_ms=${backgroundWorkMs} orchestration_allowance_ms=${ORCHESTRATION_ALLOWANCE_MS} additional_reserve_ms=${ADDITIONAL_RESERVE_MS} modeled_root_ms=${modeledRootMs}\n`);
 process.stdout.write(`root_eligibility_ms=${ROOT_ELIGIBILITY_MS} root_margin_ms=${rootMarginMs}\n`);
 process.stdout.write(`outer_deadline_ms=${OUTER_DEADLINE_MS} outer_margin_ms=${outerMarginMs} required_outer_headroom_ms=${REQUIRED_OUTER_HEADROOM_MS} headroom_margin_ms=${headroomMarginMs}\n`);
-process.stdout.write(`maximum_active_weight=${selected.simulation.maximumActiveWeight}\n`);
-selected.simulation.launches.forEach((launch) => {
+process.stdout.write(`maximum_active_weight=${simulation.maximumActiveWeight}\n`);
+simulation.launches.forEach((launch) => {
   process.stdout.write(`launch_at_ms=${launch.atMs} task=${launch.taskId} active_weight=${launch.activeWeight}\n`);
 });
 process.stdout.write(`claim=${eligible ? "GO_MODEL_QUALIFIED" : "NO_GO_MODEL_BLOCKER"}\n`);

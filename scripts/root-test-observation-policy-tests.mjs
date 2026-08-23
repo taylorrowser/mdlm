@@ -168,6 +168,7 @@ test("all 47 root tests have complete child-process observation policy", async (
 
 test("all 47 root tests have complete executable observation-limit policy", async () => {
   const {
+    CONTENDED_IN_PROCESS_SETUP_LIMITS,
     PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
     PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
     ROOT_TEST_OBSERVATION_KINDS,
@@ -187,9 +188,21 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
     CANONICAL_IN_PROCESS: "canonical-in-process",
     PROCESS_REPOSITORY: "process-repository",
   });
+  assert.deepEqual(CONTENDED_IN_PROCESS_SETUP_LIMITS, {
+    "test/evaluate-phase.test.ts": 30_000,
+    "test/evaluate-scoped-obligation.test.ts": 30_000,
+    "test/load-scenario-participation.test.ts": 20_000,
+    "test/phase-0-hardening-routes.test.ts": 40_000,
+  });
   const verifiedFiles = verifyRootTestObservationPolicy();
   const verifiedByFile = new Map(verifiedFiles.map((file) => [file.file, file]));
   assert.equal(verifiedFiles.length, 47);
+  const scopedObligation = verifiedByFile.get("test/evaluate-scoped-obligation.test.ts");
+  assert.equal(scopedObligation.effectiveDefaultHookTimeoutMs, 30_000);
+  assert.equal(
+    scopedObligation.boundaries.find((boundary) => boundary.call === "beforeAll")?.effectiveTimeoutMs,
+    30_000,
+  );
   assert.equal(PROCESS_REPOSITORY_HOOK_TIMEOUT_MS, 40_000);
   assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 180_000);
   assert.deepEqual(
@@ -458,9 +471,13 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
 });
 
 test("known contended in-process setup hooks use measured named limits", async () => {
-  const { CONTENDED_IN_PROCESS_SETUP_LIMITS } = await import("./root-test-observation-policy.mjs");
+  const {
+    CONTENDED_IN_PROCESS_SETUP_LIMITS,
+    renderRootTestObservationInventory,
+  } = await import("./root-test-observation-policy.mjs");
   assert.deepEqual(CONTENDED_IN_PROCESS_SETUP_LIMITS, {
     "test/evaluate-phase.test.ts": 30_000,
+    "test/evaluate-scoped-obligation.test.ts": 30_000,
     "test/load-scenario-participation.test.ts": 20_000,
     "test/phase-0-hardening-routes.test.ts": 40_000,
   });
@@ -471,4 +488,8 @@ test("known contended in-process setup hooks use measured named limits", async (
   );
   assert.match(setupSource, /CONTENDED_IN_PROCESS_SETUP_LIMITS\[policy\.file\]/);
   assert.match(setupSource, /vi\.setConfig\(\{ hookTimeout \}\)/);
+  assert.match(
+    renderRootTestObservationInventory(),
+    /Scoped-obligation hook: the failed 10,300 ms setup observation remains failure evidence; the central 30,000 ms contended setup limit clears it/,
+  );
 });
