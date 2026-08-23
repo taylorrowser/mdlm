@@ -19,9 +19,10 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 type Snapshot = LifecycleSnapshot & { dependencyComparisons: [] };
 
-// Round the larger of the 3,413 ms green hook and 11,659 ms failed file up to
-// 20,000 ms, leaving 16,587 ms above the measured hook.
-const CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS = 20_000;
+// The exact 3bf9e2e authoritative rerun censored this hook at 20,000 ms under
+// four-token contention. Double that failed lower bound to retain a finite
+// 40,000 ms observation without treating the censored duration as a success.
+const CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS = 40_000;
 
 const fixtureRoot = path.join(process.cwd(), "test/fixtures/phase-hardening");
 const changeId = "CHG-YSYT05KE22-r00001";
