@@ -134,15 +134,89 @@ test("the global resource event table selects only successful evidence for all 2
 
 test("the phased policy selects schedule-matched focused observations and measured allowances", async () => {
   const {
+    ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION,
     ROOT_RESOURCE_BARRIER_LOWER_BOUND_MS,
     ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS,
     ROOT_RESOURCE_FRAGILE_CALIBRATION,
     ROOT_RESOURCE_HEAVY_ALLOWANCE_MS,
     ROOT_RESOURCE_HEAVY_PHASE_CALIBRATION,
+    ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS,
+    ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE,
     rootResourceEvidence,
     rootResourcePhases,
   } = await import("./root-test-resource-plan.mjs");
 
+  assert.equal(ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS, 1_500);
+  assert.deepEqual(ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE, {
+    allowanceMs: 1_500,
+    largestSuccessfulOverheadMs: 1_271,
+    roundingMs: 229,
+    successfulCohorts: [
+      {
+        cohort: "heavy-pair",
+        overheadMs: 1_271,
+        schedulerWallMs: 178_958,
+        source: "/tmp/issue-203-heavy-pair-exact-current.log",
+        status: 0,
+        wrapperSource: "/tmp/issue-203-heavy-pair-wrapper.mjs",
+        wrapperWallMs: 180_229,
+      },
+      {
+        cohort: "representative",
+        overheadMs: 134,
+        schedulerWallMs: 131_170,
+        source: "/tmp/issue-203-token-calibration-representative.log",
+        status: 0,
+        wrapperSource: "/tmp/issue-203-run-token-calibration-wrapper.mjs",
+        wrapperWallMs: 131_304,
+      },
+      {
+        cohort: "three-process",
+        overheadMs: 163,
+        schedulerWallMs: 122_735,
+        source: "/tmp/issue-203-final-three-process-cohort.log",
+        status: 0,
+        wrapperSource: "/tmp/issue-203-three-process-wrapper.mjs",
+        wrapperWallMs: 122_898,
+      },
+      {
+        cohort: "fragile",
+        overheadMs: 157,
+        schedulerWallMs: 104_892,
+        source: "/tmp/issue-203-fragile-mixed-calibration.log",
+        status: 0,
+        wrapperSource: "/tmp/issue-203-run-fragile-mixed-calibration-wrapper.mjs",
+        wrapperWallMs: 105_049,
+      },
+    ],
+  });
+  assert.deepEqual(ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION, {
+    after: {
+      disposition: "pass",
+      source: "/tmp/issue-203-assignment-state-after.log",
+      status: 0,
+      wallMs: 44_059,
+    },
+    before: {
+      disposition: "pass",
+      source: "/tmp/issue-203-assignment-state-before.log",
+      status: 0,
+      wallMs: 44_689,
+    },
+    measuredContractionMs: 630,
+  });
+  assert.deepEqual(
+    (({ modeledContractDeltaMs, selectedEstimateMs, selectedEvidence }) => ({
+      modeledContractDeltaMs,
+      selectedEstimateMs,
+      selectedEvidenceMs: selectedEvidence.elapsedMs,
+    }))(rootResourceEvidence.find((entry) => entry.file === "test/mdlm-assignment-state.test.ts")),
+    {
+      modeledContractDeltaMs: -630,
+      selectedEstimateMs: 63_040,
+      selectedEvidenceMs: 63_670,
+    },
+  );
   assert.equal(ROOT_RESOURCE_HEAVY_ALLOWANCE_MS, 0);
   assert.deepEqual(ROOT_RESOURCE_HEAVY_PHASE_CALIBRATION, {
     cohort: [
@@ -200,7 +274,7 @@ test("the phased policy selects schedule-matched focused observations and measur
     "one-fragile-plus-two-safe",
     "three-safe-tail",
   ]);
-  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [181_042, 149_072, 257_630]);
+  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [181_042, 149_072, 258_280]);
   assert.deepEqual(
     rootResourcePhases[0].lanes.find((lane) => lane.role === "safe").tasks.map((entry) => entry.file),
     [
@@ -211,9 +285,60 @@ test("the phased policy selects schedule-matched focused observations and measur
   );
   assert.deepEqual(
     rootResourcePhases[2].lanes.map((lane) => lane.totalMs).sort((left, right) => left - right),
-    [256_030, 257_480, 257_630],
+    [254_480, 257_750, 258_280],
   );
   assert.equal(Number.isInteger(ROOT_RESOURCE_BARRIER_LOWER_BOUND_MS), true);
+});
+
+test("the safe-LPT tail contract orders and overlaps the intent route compatibly", async () => {
+  const {
+    ROOT_RESOURCE_TAIL_COMPATIBILITY,
+  } = await import("./root-test-resource-plan.mjs");
+  const tasks = createRootTestTasks();
+  const simulation = simulateWeightedSchedule(tasks, {
+    capacity: ROOT_TEST_TOKEN_CAPACITY,
+    canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
+    canOverlap: rootTestTasksCanOverlap,
+    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+  });
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const intervalById = new Map(simulation.launches.map((launch) => [
+    launch.taskId,
+    {
+      endMs: launch.atMs + taskById.get(launch.taskId).estimatedDurationMs,
+      startMs: launch.atMs,
+    },
+  ]));
+  const routeId = "test/initial-product-intent-route.test.ts";
+  const assignmentId = "test/mdlm-assignment-state.test.ts";
+  const cleanId = "test/mdlm-clean-onboarding-transaction.test.ts";
+  const route = intervalById.get(routeId);
+  const overlapsRoute = (taskId) => {
+    const interval = intervalById.get(taskId);
+    return interval.startMs < route.endMs && route.startMs < interval.endMs;
+  };
+
+  assert.deepEqual(ROOT_RESOURCE_TAIL_COMPATIBILITY, {
+    source: "/tmp/issue-203-safe-lpt-partition.log",
+    orderedLane: [assignmentId, cleanId, routeId],
+    completesBeforeRoute: [
+      assignmentId,
+      cleanId,
+      "test/mdlm-command-application.test.ts",
+    ],
+    overlapsRoute: [
+      "test/mdlm-process-expression.test.ts",
+      "test/phase-0-intent-candidate-currentness-route.test.ts",
+    ],
+  });
+  assert.equal(taskById.get(assignmentId).scheduleLaneId, taskById.get(routeId).scheduleLaneId);
+  assert.equal(taskById.get(cleanId).scheduleLaneId, taskById.get(routeId).scheduleLaneId);
+  for (const taskId of ROOT_RESOURCE_TAIL_COMPATIBILITY.completesBeforeRoute) {
+    assert.equal(intervalById.get(taskId).endMs <= route.startMs, true, taskId);
+  }
+  for (const taskId of ROOT_RESOURCE_TAIL_COMPATIBILITY.overlapsRoute) {
+    assert.equal(overlapsRoute(taskId), true, taskId);
+  }
 });
 
 test("production construction admits no fourth resource owner", () => {
@@ -376,7 +501,7 @@ test("exact-current safe ownership retains focused fallbacks without using faile
     [
       ["test/evaluate-phase.test.ts", 1, 8_883],
       ["test/evaluate-scoped-obligation.test.ts", 1, 8_019],
-      ["test/load-scenario-participation.test.ts", 1, 70_789],
+      ["test/load-scenario-participation.test.ts", 1, 53_552],
     ],
   );
   assert.deepEqual(
@@ -386,7 +511,7 @@ test("exact-current safe ownership retains focused fallbacks without using faile
     [
       ["test/initial-product-intent-resolution.test.ts", 1, 36_894],
       ["test/initial-product-intent-route.test.ts", 1, 46_607],
-      ["test/mdlm-assignment-state.test.ts", 1, 57_581],
+      ["test/mdlm-assignment-state.test.ts", 1, 44_059],
       ["test/mdlm-clean-onboarding-transaction.test.ts", 1, 58_206],
       ["test/mdlm-command-application.test.ts", 1, 63_686],
       ["test/mdlm-init.test.ts", 1, 55_478],
@@ -399,7 +524,7 @@ test("exact-current safe ownership retains focused fallbacks without using faile
       ["test/phase-0-intent-candidate-currentness-route.test.ts", 1, 72_074],
       ["test/phase-1-hardening-routes.test.ts", 1, 105_098],
       ["test/phase-2-hardening-routes.test.ts", 1, 59_745],
-      ["test/selected-package-cache.test.ts", 1, 29_228],
+      ["test/selected-package-cache.test.ts", 1, 22_915],
     ],
   );
   assert.deepEqual(
@@ -523,22 +648,22 @@ test("the historical safe LPT table retains successful and censored evidence", a
   assert.equal(Math.max(...safeLptPlan.map((lane) => lane.totalMs)) <= SAFE_LPT_ROOT_CEILING_MS, true);
 });
 
-test("the exact-observation global resource model qualifies the calibrated phased schedule", () => {
+test("the compatibility-aware successful-evidence model qualifies the calibrated schedule", () => {
   const model = spawnSync(process.execPath, ["scripts/model-root-test-schedule.mjs"], {
     cwd: new URL("..", import.meta.url),
     encoding: "utf8",
   });
   assert.equal(model.status, 0, model.stderr);
   assert.match(model.stdout, /root_files=47 tasks=32 resource_tasks=26 fourth_token_tasks=6 token_capacity=4/);
-  assert.match(model.stdout, /resource_total_work_ms=1658885 resource_lower_bound_ms=552962 barrier_lower_bound_ms=582679 resource_lpt_maximum_ms=587744 resource_compatible_maximum_ms=587744/);
-  assert.match(model.stdout, /raw_target_ms=588000 minimum_aggregate_contraction_ms=0/);
+  assert.match(model.stdout, /resource_total_work_ms=1658255 resource_lower_bound_ms=552752 barrier_lower_bound_ms=582469 resource_lpt_maximum_ms=588394 resource_compatible_maximum_ms=588394/);
+  assert.match(model.stdout, /raw_target_ms=588500 minimum_aggregate_contraction_ms=0/);
   assert.match(model.stdout, /resource_phase=two-heavy-plus-one-safe order=0 predicted_ms=181042/);
   assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=173680 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
   assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=149072/);
-  assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=257630/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=580382 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=2000 modeled_root_ms=589744/);
-  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=256/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=10256 required_outer_headroom_ms=10000 headroom_margin_ms=256/);
+  assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=258280/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=581032 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 modeled_root_ms=589894/);
+  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=106/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=10106 required_outer_headroom_ms=10000 headroom_margin_ms=106/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });

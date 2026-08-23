@@ -42,11 +42,113 @@ export const ROOT_RESOURCE_FRAGILE_CALIBRATION = Object.freeze({
 // Compatibility name retained for packet readers written against e1.
 export const ROOT_RESOURCE_MIXED_ALLOWANCE_PROVENANCE =
   ROOT_RESOURCE_HEAVY_ALLOWANCE_PROVENANCE;
-export const ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS = 2_000;
+// Each successful wrapper starts its clock immediately before the process-group
+// call that runs the scheduler. The largest observed wrapper overhead is 1,271
+// ms. Rounding it upward by 229 ms retains a conservative 1,500 ms allowance.
+export const ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE = Object.freeze({
+  allowanceMs: 1_500,
+  largestSuccessfulOverheadMs: 1_271,
+  roundingMs: 229,
+  successfulCohorts: Object.freeze([
+    Object.freeze({
+      cohort: "heavy-pair",
+      overheadMs: 1_271,
+      schedulerWallMs: 178_958,
+      source: "/tmp/issue-203-heavy-pair-exact-current.log",
+      status: 0,
+      wrapperSource: "/tmp/issue-203-heavy-pair-wrapper.mjs",
+      wrapperWallMs: 180_229,
+    }),
+    Object.freeze({
+      cohort: "representative",
+      overheadMs: 134,
+      schedulerWallMs: 131_170,
+      source: "/tmp/issue-203-token-calibration-representative.log",
+      status: 0,
+      wrapperSource: "/tmp/issue-203-run-token-calibration-wrapper.mjs",
+      wrapperWallMs: 131_304,
+    }),
+    Object.freeze({
+      cohort: "three-process",
+      overheadMs: 163,
+      schedulerWallMs: 122_735,
+      source: "/tmp/issue-203-final-three-process-cohort.log",
+      status: 0,
+      wrapperSource: "/tmp/issue-203-three-process-wrapper.mjs",
+      wrapperWallMs: 122_898,
+    }),
+    Object.freeze({
+      cohort: "fragile",
+      overheadMs: 157,
+      schedulerWallMs: 104_892,
+      source: "/tmp/issue-203-fragile-mixed-calibration.log",
+      status: 0,
+      wrapperSource: "/tmp/issue-203-run-fragile-mixed-calibration-wrapper.mjs",
+      wrapperWallMs: 105_049,
+    }),
+  ]),
+});
+export const ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS =
+  ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE.allowanceMs;
 export const ROOT_RESOURCE_ROOT_CEILING_MS = 590_000;
 export const ROOT_RESOURCE_OUTER_DEADLINE_MS = 600_000;
 export const ROOT_RESOURCE_REQUIRED_HEADROOM_MS = 10_000;
 export const ROOT_RESOURCE_PHASE_1_CONTRACT_DELTA_MS = 3_600;
+export const ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION = Object.freeze({
+  after: Object.freeze({
+    disposition: "pass",
+    source: "/tmp/issue-203-assignment-state-after.log",
+    status: 0,
+    wallMs: 44_059,
+  }),
+  before: Object.freeze({
+    disposition: "pass",
+    source: "/tmp/issue-203-assignment-state-before.log",
+    status: 0,
+    wallMs: 44_689,
+  }),
+  measuredContractionMs: 630,
+});
+
+const ASSIGNMENT_STATE_FILE = "test/mdlm-assignment-state.test.ts";
+const CLEAN_ONBOARDING_FILE = "test/mdlm-clean-onboarding-transaction.test.ts";
+const INITIAL_INTENT_ROUTE_FILE = "test/initial-product-intent-route.test.ts";
+export const ROOT_RESOURCE_TAIL_COMPATIBILITY = Object.freeze({
+  source: "/tmp/issue-203-safe-lpt-partition.log",
+  orderedLane: Object.freeze([
+    ASSIGNMENT_STATE_FILE,
+    CLEAN_ONBOARDING_FILE,
+    INITIAL_INTENT_ROUTE_FILE,
+  ]),
+  completesBeforeRoute: Object.freeze([
+    ASSIGNMENT_STATE_FILE,
+    CLEAN_ONBOARDING_FILE,
+    "test/mdlm-command-application.test.ts",
+  ]),
+  overlapsRoute: Object.freeze([
+    "test/mdlm-process-expression.test.ts",
+    "test/phase-0-intent-candidate-currentness-route.test.ts",
+  ]),
+});
+const COMPATIBLE_TAIL_LANES = Object.freeze([
+  Object.freeze([
+    ASSIGNMENT_STATE_FILE,
+    CLEAN_ONBOARDING_FILE,
+    "test/load-scenario-participation.test.ts",
+    INITIAL_INTENT_ROUTE_FILE,
+  ]),
+  Object.freeze([
+    "test/mdlm-repository-inspection.test.ts",
+    "test/mdlm-command-application.test.ts",
+    "test/mdlm-init.test.ts",
+    "test/phase-0-intent-candidate-currentness-route.test.ts",
+  ]),
+  Object.freeze([
+    "test/phase-0-corrected-gate-route.test.ts",
+    "test/operator-outcome.test.ts",
+    "test/mdlm-process-expression.test.ts",
+  ]),
+]);
 
 const SAFE_PARTITION_COMMIT = "3e0437b9204229eb94853d90345dc86861cc7a28";
 const CLASS_SOURCE_COMMIT = "e4468ec6a432fdb975df0739a0070c85cbd7b807";
@@ -169,7 +271,11 @@ export const rootResourceEvidence = Object.freeze([
     "safe",
     elapsedMs,
     SAFE_PARTITION_SOURCE,
-    file === "test/phase-1-hardening-routes.test.ts" ? ROOT_RESOURCE_PHASE_1_CONTRACT_DELTA_MS : 0,
+    file === "test/phase-1-hardening-routes.test.ts"
+      ? ROOT_RESOURCE_PHASE_1_CONTRACT_DELTA_MS
+      : file === ASSIGNMENT_STATE_FILE
+        ? -ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION.measuredContractionMs
+        : 0,
     historicalSafeObservations(file),
   )),
   ...heavyRows.map(([file, elapsedMs, classElapsedMs, focusedCommit]) => evidenceRow(
@@ -221,43 +327,20 @@ function takeEntriesByFile(entries, files) {
   return { remaining: entries.filter((entry) => byFile.has(entry.file)), selected };
 }
 
-function placeExactMinimax(entries, lanes) {
-  const rows = longestFirst(entries);
-  const totals = lanes.map((lane) => lane.totalMs);
-  const assignments = rows.map(() => -1);
-  let bestMaximum = Number.POSITIVE_INFINITY;
-  let bestAssignments;
-
-  function search(index) {
-    if (index === rows.length) {
-      const maximum = Math.max(...totals);
-      if (maximum < bestMaximum) {
-        bestMaximum = maximum;
-        bestAssignments = [...assignments];
-      }
-      return;
+function placeCompatibleTail(entries, lanes) {
+  const byFile = new Map(entries.map((entry) => [entry.file, entry]));
+  COMPATIBLE_TAIL_LANES.forEach((files, laneIndex) => {
+    for (const file of files) {
+      const entry = byFile.get(file);
+      if (!entry) throw new Error(`Required compatible tail task is absent: ${file}`);
+      lanes[laneIndex].tasks.push(entry);
+      lanes[laneIndex].totalMs += entry.selectedEstimateMs;
+      byFile.delete(file);
     }
-    const entry = rows[index];
-    const seenTotals = new Set();
-    for (let laneIndex = 0; laneIndex < lanes.length; laneIndex += 1) {
-      if (seenTotals.has(totals[laneIndex])) continue;
-      seenTotals.add(totals[laneIndex]);
-      const nextTotal = totals[laneIndex] + entry.selectedEstimateMs;
-      if (nextTotal >= bestMaximum) continue;
-      totals[laneIndex] = nextTotal;
-      assignments[index] = laneIndex;
-      search(index + 1);
-      totals[laneIndex] -= entry.selectedEstimateMs;
-    }
-  }
-
-  search(0);
-  if (!bestAssignments) throw new Error("Exact safe-tail partition made no progress");
-  rows.forEach((entry, index) => {
-    const lane = lanes[bestAssignments[index]];
-    lane.tasks.push(entry);
-    lane.totalMs += entry.selectedEstimateMs;
   });
+  if (byFile.size !== 0) {
+    throw new Error(`Compatible tail policy left tasks unassigned: ${[...byFile.keys()].join(",")}`);
+  }
 }
 
 function placeSafeWithinTarget(entries, lanes, targetMs) {
@@ -330,7 +413,7 @@ function buildPhasedLptPlan(entries) {
     phaseLane("safe-tail-2", "safe"),
     phaseLane("safe-tail-3", "safe"),
   ];
-  placeExactMinimax(safe, tailLanes);
+  placeCompatibleTail(safe, tailLanes);
 
   return Object.freeze([
     freezePhase(

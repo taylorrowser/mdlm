@@ -210,8 +210,8 @@ describe("MDLM Assignment leasing and preparation", () => {
       ".lifecycle/work/active-assignment.json",
     ))).rejects.toMatchObject({ code: "ENOENT" });
 
-    const doctor = await mdlm(repository, "doctor", "--json");
-    expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+    const integrity = git(repository, "fsck", "--strict");
+    expect(integrity.status, `${integrity.stderr}${integrity.stdout}`).toBe(0);
     expect(git(repository, "status", "--porcelain").stdout).toContain(
       "?? .lifecycle/data/.transactions/",
     );
