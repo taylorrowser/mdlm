@@ -13,6 +13,7 @@ import {
   ROOT_RESOURCE_COMPATIBLE_MAXIMUM_MS,
   ROOT_RESOURCE_COMPLETE_GATE_COMPONENTS,
   ROOT_RESOURCE_COMPLETE_GATE_TARGET_MS,
+  ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_MS,
   ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS,
   ROOT_RESOURCE_HEAVY_ALLOWANCE_MS,
   ROOT_RESOURCE_IDEAL_LOWER_BOUND_MS,
@@ -49,7 +50,8 @@ const fourthTokenWorkMs = fourthTokenTasks
 const predictedScheduleMs = Math.max(simulation.wallMs, ROOT_RESOURCE_COMPATIBLE_MAXIMUM_MS);
 const modeledRootMs = predictedScheduleMs
   + ROOT_RESOURCE_MIXED_ALLOWANCE_MS
-  + ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS;
+  + ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS
+  + ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_MS;
 const requiredCompleteGateComponents = [
   "rootBuildMs",
   "packageBuildMs",
@@ -97,7 +99,7 @@ for (const phase of rootResourcePhases) {
     process.stdout.write(`resource_phase_lane=${phase.id}/${lane.id} role=${lane.role} predicted_ms=${lane.totalMs} files=${lane.tasks.length} tasks=${lane.tasks.map((task) => task.file).join(",")}\n`);
   }
 }
-process.stdout.write(`policy=${ROOT_TEST_SCHEDULING_POLICY} simulated_schedule_ms=${simulation.wallMs} fourth_token_work_ms=${fourthTokenWorkMs} heavy_allowance_ms=${ROOT_RESOURCE_HEAVY_ALLOWANCE_MS} fragile_allowance_ms=${ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS} mixed_allowance_ms=${ROOT_RESOURCE_MIXED_ALLOWANCE_MS} orchestration_allowance_ms=${ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS} modeled_root_ms=${modeledRootMs}\n`);
+process.stdout.write(`policy=${ROOT_TEST_SCHEDULING_POLICY} simulated_schedule_ms=${simulation.wallMs} fourth_token_work_ms=${fourthTokenWorkMs} heavy_allowance_ms=${ROOT_RESOURCE_HEAVY_ALLOWANCE_MS} fragile_allowance_ms=${ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS} mixed_allowance_ms=${ROOT_RESOURCE_MIXED_ALLOWANCE_MS} orchestration_allowance_ms=${ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS} current_host_variance_allowance_ms=${ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_MS} modeled_root_ms=${modeledRootMs}\n`);
 process.stdout.write(`root_eligibility_ms=${ROOT_RESOURCE_ROOT_CEILING_MS} root_margin_ms=${rootMarginMs}\n`);
 process.stdout.write(`complete_gate_components_ms=${JSON.stringify(ROOT_RESOURCE_COMPLETE_GATE_COMPONENTS)} non_root_gate_ms=${nonRootGateMs} modeled_complete_gate_ms=${modeledCompleteGateMs}\n`);
 process.stdout.write(`complete_gate_target_ms=${ROOT_RESOURCE_COMPLETE_GATE_TARGET_MS} complete_gate_margin_ms=${completeGateMarginMs}\n`);

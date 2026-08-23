@@ -538,7 +538,7 @@ test("contended representative observation limits stay exact", () => {
   );
   assert.match(
     changeAndPilotSource,
-    /larger of the 3,413 ms green hook and 11,659 ms failed file up[\s\S]*?20,000 ms, leaving 16,587 ms above the measured hook\.[\s\S]*?const CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS = 20_000;/,
+    /censored this hook at 20,000 ms[\s\S]*?finite[\s\S]*?40,000 ms observation[\s\S]*?const CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS = 40_000;/,
   );
   assert.match(
     changeAndPilotSource,
@@ -619,7 +619,7 @@ test("authoritative product tests default to the evidence-backed process budget"
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
   assert.match(
     source,
-    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 1_150_000/,
+    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 2_000_000/,
   );
   assert.match(source, /runInProcessGroup/);
   assert.match(source, /scripts\/authoritative-tests\.mjs/);
