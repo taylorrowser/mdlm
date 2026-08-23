@@ -154,7 +154,11 @@ export class PiAssignmentRunner {
       }
       const response = correctMissingUnattendedAuthority(packet, options.correction) ??
         active.response;
-      return carryAttendedAuthority(response, attendedAuthority, assignmentId);
+      return carryAttendedAuthority(
+        restorePacketInvalidCorrectionRouting(packet, options.correction, response),
+        attendedAuthority,
+        assignmentId,
+      );
     } catch (error) {
       await this.close(assignmentId);
       throw error;
@@ -373,6 +377,95 @@ function correctMissingUnattendedAuthority(
       authoritySupplies: requiredAuthorities,
     },
   };
+}
+
+function restorePacketInvalidCorrectionRouting(
+  packet: AssignmentPacket,
+  correction: AssignmentCorrection | undefined,
+  response: JsonObject,
+): JsonObject {
+  if (
+    correction === undefined || correction.previousResponse.kind !== "proposal" ||
+    response.kind !== "proposal" || !Array.isArray(correction.diagnostics) ||
+    correction.diagnostics.length === 0 ||
+    !correction.diagnostics.every((diagnostic) =>
+      isJsonObject(diagnostic) && diagnostic.code === "scenario-authority-unexpected"
+    )
+  ) return response;
+
+  const previousProposal = correction.previousResponse.proposal;
+  const proposal = response.proposal;
+  const exactInputs = packet.exactInputs;
+  const outputContracts = packet.outputs;
+  if (
+    !isJsonObject(previousProposal) || !Array.isArray(previousProposal.outputs) ||
+    !isJsonObject(proposal) || !Array.isArray(proposal.outputs) ||
+    !Array.isArray(exactInputs) || !Array.isArray(outputContracts)
+  ) return response;
+
+  const declaredNames = new Set<string>();
+  for (const contract of outputContracts) {
+    if (isJsonObject(contract) && typeof contract.name === "string") {
+      declaredNames.add(contract.name);
+    }
+  }
+  type OutputRouting = { name: string; invocation: number };
+  const routingByLocalId = new Map<string, OutputRouting>();
+  const duplicateLocalIds = new Set<string>();
+  const routingByPosition: Array<OutputRouting | undefined> = [];
+  for (const output of previousProposal.outputs) {
+    const routing = isJsonObject(output) && typeof output.name === "string" &&
+        declaredNames.has(output.name) && Number.isInteger(output.invocation) &&
+        (output.invocation as number) >= 0 &&
+        (output.invocation as number) < exactInputs.length
+      ? { name: output.name, invocation: output.invocation as number }
+      : undefined;
+    routingByPosition.push(routing);
+    if (routing === undefined || !isJsonObject(output) || typeof output.localId !== "string") {
+      continue;
+    }
+    if (routingByLocalId.has(output.localId)) {
+      routingByLocalId.delete(output.localId);
+      duplicateLocalIds.add(output.localId);
+    } else if (!duplicateLocalIds.has(output.localId)) {
+      routingByLocalId.set(output.localId, routing);
+    }
+  }
+
+  const priorRoutingHasCompleteUniqueLocalIds =
+    routingByLocalId.size === previousProposal.outputs.length;
+  const correctedLocalIds = proposal.outputs.flatMap((output) =>
+    isJsonObject(output) && typeof output.localId === "string" ? [output.localId] : []
+  );
+  const correctionPreservesLocalIdSet =
+    priorRoutingHasCompleteUniqueLocalIds &&
+    correctedLocalIds.length === proposal.outputs.length &&
+    new Set(correctedLocalIds).size === correctedLocalIds.length &&
+    correctedLocalIds.length === routingByLocalId.size &&
+    correctedLocalIds.every((localId) => routingByLocalId.has(localId));
+
+  let changed = false;
+  const outputs = proposal.outputs.map((output, index) => {
+    if (!isJsonObject(output)) return output;
+    const priorRouting = correctionPreservesLocalIdSet && typeof output.localId === "string"
+      ? routingByLocalId.get(output.localId)
+      : routingByPosition[index];
+    if (priorRouting === undefined) return output;
+    const nameIsPacketInvalid =
+      typeof output.name !== "string" || !declaredNames.has(output.name);
+    const invocationIsPacketInvalid =
+      !Number.isInteger(output.invocation) || (output.invocation as number) < 0 ||
+      (output.invocation as number) >= exactInputs.length;
+    if (!nameIsPacketInvalid && !invocationIsPacketInvalid) return output;
+    changed = true;
+    return {
+      ...output,
+      ...(nameIsPacketInvalid ? { name: priorRouting.name } : {}),
+      ...(invocationIsPacketInvalid ? { invocation: priorRouting.invocation } : {}),
+    };
+  });
+  if (!changed) return response;
+  return { ...response, proposal: { ...proposal, outputs } };
 }
 
 function carryAttendedAuthority(

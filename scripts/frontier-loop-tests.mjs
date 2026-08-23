@@ -619,7 +619,7 @@ test("authoritative product tests default to the evidence-backed process budget"
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
   assert.match(
     source,
-    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 2_000_000/,
+    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 2_400_000/,
   );
   assert.match(source, /runInProcessGroup/);
   assert.match(source, /scripts\/authoritative-tests\.mjs/);

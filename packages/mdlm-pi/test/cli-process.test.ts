@@ -12,6 +12,7 @@ const executeFile = promisify(execFile);
 const projectRoot = path.resolve(import.meta.dirname, "../../..");
 const cli = path.join(projectRoot, "packages/mdlm-pi/dist/cli.js");
 const runLockStaleMs = 10_000;
+const ownerProcessReadyTimeoutMs = 15_000;
 const temporaryRoots: string[] = [];
 
 afterEach(async () => {
@@ -677,7 +678,8 @@ async function commandLog(log: string): Promise<unknown[]> {
 }
 
 async function waitForFile(file: string, child: ChildProcess): Promise<void> {
-  for (let attempts = 0; attempts < 300; attempts += 1) {
+  const deadline = Date.now() + ownerProcessReadyTimeoutMs;
+  while (Date.now() < deadline) {
     try {
       await readFile(file);
       return;
@@ -687,7 +689,7 @@ async function waitForFile(file: string, child: ChildProcess): Promise<void> {
     }
   }
   child.kill("SIGTERM");
-  throw new Error("Timed out waiting for the owner process");
+  throw new Error(`Timed out after ${ownerProcessReadyTimeoutMs} ms waiting for the owner process`);
 }
 
 async function killProcessGroup(pid: number): Promise<void> {
