@@ -463,6 +463,18 @@ test("contended representative observation limits stay exact", () => {
     new URL("../test/proportional-distinct-context-phase-2-public.test.ts", import.meta.url),
     "utf8",
   );
+  const reviewAssignmentSource = readFileSync(
+    new URL("../test/mdlm-review-assignment.test.ts", import.meta.url),
+    "utf8",
+  );
+  const commandApplicationSource = readFileSync(
+    new URL("../test/mdlm-command-application.test.ts", import.meta.url),
+    "utf8",
+  );
+  const changeAndPilotSource = readFileSync(
+    new URL("../test/change-and-pilot-hardening-routes.test.ts", import.meta.url),
+    "utf8",
+  );
   const suiteManifest = readFileSync(
     new URL("../vitest.suites.mjs", import.meta.url),
     "utf8",
@@ -472,6 +484,30 @@ test("contended representative observation limits stay exact", () => {
     "utf8",
   );
 
+  assert.match(
+    reviewAssignmentSource,
+    /Twice the 44,830 ms isolated pass is 89,660 ms; round up to 90,000 ms\.[\s\S]*?leaves 26,825 ms above the 63,175 ms contended failure observation\.[\s\S]*?const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = 90_000;/,
+  );
+  assert.match(
+    reviewAssignmentSource,
+    /forks one exact Review Context across passing Review and package-evidence correction(?:(?!\n\n  it\()[\s\S])*?CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS,/,
+  );
+  assert.match(
+    commandApplicationSource,
+    /larger of the 4,486 ms green hook and 10,876 ms failed file up[\s\S]*?20,000 ms, leaving 15,514 ms above the measured hook\.[\s\S]*?const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS = 20_000;/,
+  );
+  assert.match(
+    commandApplicationSource,
+    /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    changeAndPilotSource,
+    /larger of the 3,413 ms green hook and 11,659 ms failed file up[\s\S]*?20,000 ms, leaving 16,587 ms above the measured hook\.[\s\S]*?const CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS = 20_000;/,
+  );
+  assert.match(
+    changeAndPilotSource,
+    /processPackage = loaded\.package;\n\}, CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS\);/,
+  );
   assert.match(loadSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(loadSource, /beforeAll\(async \(\) => \{[\s\S]*?validPackage = result\.package;\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;/);

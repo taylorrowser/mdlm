@@ -11,6 +11,9 @@ const projectRoot = process.cwd();
 // The compiled-CLI transaction repeatedly reloads the full selected package;
 // keep a finite bound above the observed cold-run contention window.
 const commandApplicationTimeout = 60_000;
+// Round the larger of the 4,486 ms green hook and 10,876 ms failed file up to
+// 20,000 ms, leaving 15,514 ms above the measured hook.
+const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS = 20_000;
 
 async function copyRepositoryFoundation(
   source: string,
@@ -83,7 +86,7 @@ describe("clean mdlm command application", () => {
       "--json",
     );
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-  });
+  }, CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS);
 
   beforeEach(async () => {
     parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-command-"));

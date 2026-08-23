@@ -25,7 +25,9 @@ async function mdlmWithInput(
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
 }
 
-const timeout = 60_000;
+// Twice the 44,830 ms isolated pass is 89,660 ms; round up to 90,000 ms.
+// This leaves 26,825 ms above the 63,175 ms contended failure observation.
+const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = 90_000;
 
 function parseLifecycleMarkdown(source: string): Record<string, unknown> {
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(source);
@@ -531,6 +533,6 @@ describe("delegated Review Assignment packets", () => {
       expect(corrected.execution.outputs).toHaveLength(1);
       expect(corrected.execution.outputs[0].name).toBe("replacement");
     },
-    timeout,
+    CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS,
   );
 });
