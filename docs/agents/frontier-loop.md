@@ -141,12 +141,17 @@ node scripts/frontier-loop.mjs status --parent 123
 
 ## Test tiers
 
-`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs fast package/evaluator coverage plus representative compiled-CLI contracts, and runs controller tests. Its target wall time is under seven minutes.
+`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs each root task through the weighted process scheduler, and runs controller tests. The four-token root schedule assigns all 26 process, repository, public, and compiled resource owners to deterministic lanes in three ordered phases: two heavy plus one safe, one fragile plus two safe, then three safe tails. A barrier separates each phase. Each resource file runs in its own isolated Vitest process with `--maxWorkers=1`; resource work is never batched. The fourth token is available only to evaluator, canonical fixture filler, and cheap work. Descriptive runtime classes do not decide resource ownership: `load-scenario-participation` remains a resource owner, while only `evaluate-scoped-obligation` moves to fourth-token evaluator work. Heavy is capped at two owners, fragile at one, safe at three, and heavy never overlaps fragile. No more than three resource tasks or four total tasks may run at once.
+
+The durable event table and barrier-aware phase plan are in `scripts/root-test-resource-plan.mjs`. It retains successful observations separately from failed, canceled, timed-out, and unadmitted evidence. Only successful observations can supply selected estimates. The final three-safe tail uses a compatibility-tested partition rather than greedy LPT. The production partition must model at 850,000 ms or less. The complete model also covers both builds, suite verification, package tests, and both controller test commands. It must fit a 1,100,000 ms launch target and leave at least 50,000 ms below the exact 1,150,000 ms process deadline. The initial 900,000 ms policy was rejected because the latest partition evidence and package-test timing put the complete model above 850,000 ms. A `NO_GO_MODEL_BLOCKER` result prohibits an authoritative launch. Do not describe a small observation set as p95 evidence.
+
+The earlier stakeholder criteria recorded on issue #203 are superseded policy history and do not override the current host model. Earlier gate timeouts remain failures rather than timing successes.
 
 `npm test` is the single bounded authoritative gate. It combines package/evaluator contracts with representative compiled-public transactions instead of retaining exhaustive duplicate lifecycle reconstructions. `npm run test:all` is an alias for the same complete bounded gate. New test files must be classified in `vitest.suites.mjs`; verification fails if a file is missing, duplicated, or stale.
 
 Environment overrides:
 
+- `MDLM_TEST_BUDGET_MS` — authoritative gate process budget; defaults to exactly `1_150_000` milliseconds;
 - `MDLM_FRONTIER_PARENT` — default priority-map parent issue;
 - `MDLM_FRONTIER_SESSION` — tmux session name;
 - `MDLM_FRONTIER_DIR` — operational state/log/worktree root;

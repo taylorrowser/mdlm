@@ -2,8 +2,6 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-const cachedDigests = new Map<string, Promise<string>>();
-
 async function filePaths(root: string, directory = root): Promise<string[]> {
   const entries = await fs.readdir(directory, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
@@ -14,25 +12,24 @@ async function filePaths(root: string, directory = root): Promise<string[]> {
   return nested.flat().sort();
 }
 
-async function calculateDigest(root: string): Promise<string> {
+/** Hash the exact current package bytes. No metadata or watcher result is trusted. */
+export async function processPackageDigest(root: string): Promise<string> {
+  const resolvedRoot = path.resolve(root);
+  const paths = await filePaths(resolvedRoot);
   const hash = createHash("sha256");
-  for (const relativePath of await filePaths(root)) {
-    const contents = await fs.readFile(path.join(root, relativePath));
-    hash.update(relativePath);
-    hash.update("\0");
-    hash.update(String(contents.byteLength));
-    hash.update("\0");
-    hash.update(contents);
+  for (let index = 0; index < paths.length; index += 32) {
+    const batch = paths.slice(index, index + 32);
+    const contents = await Promise.all(batch.map((relativePath) =>
+      fs.readFile(path.join(resolvedRoot, relativePath))
+    ));
+    for (const [offset, relativePath] of batch.entries()) {
+      const content = contents[offset]!;
+      hash.update(relativePath);
+      hash.update("\0");
+      hash.update(String(content.byteLength));
+      hash.update("\0");
+      hash.update(content);
+    }
   }
   return `sha256:${hash.digest("hex")}`;
-}
-
-export function processPackageDigest(root: string): Promise<string> {
-  const resolved = path.resolve(root);
-  const cached = cachedDigests.get(resolved);
-  if (cached) return cached;
-  const digest = calculateDigest(resolved);
-  cachedDigests.set(resolved, digest);
-  void digest.catch(() => cachedDigests.delete(resolved));
-  return digest;
 }

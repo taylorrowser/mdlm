@@ -1,11 +1,10 @@
-import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
 function psp(revision = 1): LifecycleRecord {
@@ -65,11 +64,7 @@ describe("evaluateLifecycle Obligation history", () => {
   let processPackage: ProcessPackage;
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
   });
 
   it("retains an earlier exact explanation while evaluating a revised subject", () => {

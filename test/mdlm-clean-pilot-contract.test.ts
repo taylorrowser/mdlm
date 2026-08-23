@@ -3,6 +3,8 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
+import { executeCommandApplication } from "../src/command-application.js";
 
 const executable = path.join(process.cwd(), "dist/mdlm.js");
 
@@ -13,6 +15,11 @@ function mdlm(repository: string, args: string[], input?: string) {
     maxBuffer: 10 * 1024 * 1024,
     ...(input === undefined ? {} : { input }),
   });
+}
+
+async function executeMdlm(repository: string, args: string[]) {
+  const execution = await executeCommandApplication(args, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
 }
 
 function git(repository: string, ...args: string[]) {
@@ -32,19 +39,20 @@ describe("clean pilot public-process contract", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-clean-pilot-"));
     roots.push(root);
     const repository = path.join(root, "repository");
-    const initialized = mdlm(root, ["init", repository, "--json"]);
+    const initialized = await executeMdlm(root, ["init", repository, "--json"]);
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
 
-    const next = mdlm(repository, ["next"]);
+    const next = await executeMdlm(repository, ["next"]);
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
     expect(outcome.outcome).toBe("assignment");
 
-    const prepared = mdlm(repository, ["scenario", "prepare", outcome.assignment.id]);
-    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-    const packet = JSON.parse(prepared.stdout);
-    expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@2");
+    const lease = JSON.parse(await fs.readFile(path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    ), "utf8"));
+    expect(lease.scenario).toBe("establish-initial-wayfinding-map@2");
 
     const response = {
       contract: "mdlm-assignment-response@1",
@@ -87,9 +95,13 @@ describe("clean pilot public-process contract", () => {
           },
         }],
         completionEvidence: { summary: "Established the exact pilot frontier." },
-        loadedSkillRefs: packet.prompt.skills.map(
-          (skill: { reference: string }) => skill.reference,
-        ),
+        loadedSkillRefs: [
+          "skills/lifecycle-data.md@1",
+          "skills/wayfinding-map.md@1",
+          "skills/clarification-protocol.md@1",
+          "skills/scope-challenge.md@2",
+          "skills/author-preflight.md@2",
+        ],
         authoritySupplies: [],
         standingDelegations: [],
       },
@@ -144,5 +156,5 @@ describe("clean pilot public-process contract", () => {
     expect(JSON.parse(stale.stdout).diagnostics).toEqual([
       expect.objectContaining({ code: "assignment-stale" }),
     ]);
-  }, 30_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });

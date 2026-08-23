@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { mdlm, mdlmWithInput } from "./mdlm.js";
+import { executeCommandApplication } from "../../src/command-application.js";
 
 export interface PreparedAssignment {
   outcome: Record<string, any>;
@@ -21,18 +21,27 @@ export interface ProposedOutput {
   };
 }
 
-export function prepareNextAssignment(
+async function invokeCommandApplication(
+  repository: string,
+  arguments_: string[],
+  input?: string,
+) {
+  const execution = await executeCommandApplication(arguments_, repository, input);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+export async function prepareNextAssignment(
   repository: string,
   expectedScenario?: string,
-): PreparedAssignment {
-  const next = mdlm(repository, "next");
+): Promise<PreparedAssignment> {
+  const next = await invokeCommandApplication(repository, ["next"]);
   if (next.status !== 0) throw new Error(`${next.stderr}${next.stdout}`);
   const outcome = JSON.parse(next.stdout);
   const assignment = outcome.assignment?.id;
   if (typeof assignment !== "string") {
     throw new Error(`Expected an Assignment, received ${next.stdout}`);
   }
-  const prepared = mdlm(repository, "scenario", "prepare", assignment);
+  const prepared = await invokeCommandApplication(repository, ["scenario", "prepare", assignment]);
   if (prepared.status !== 0) {
     throw new Error(`${prepared.stderr}${prepared.stdout}`);
   }
@@ -75,11 +84,10 @@ export function submitAssignment(
   outputs: ProposedOutput[],
   completionEvidence?: unknown,
 ) {
-  return mdlmWithInput(
+  return invokeCommandApplication(
     repository,
+    ["scenario", "submit"],
     `${JSON.stringify(assignmentResponse(prepared, outputs, completionEvidence))}\n`,
-    "scenario",
-    "submit",
   );
 }
 

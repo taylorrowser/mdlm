@@ -3,7 +3,7 @@ import path from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { loadProcessPackage } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 type DefinitionKind = "obligations" | "phases" | "policies" | "scenarios" | "selectors";
 type ExecutableEvidence = { file: string; test: string };
@@ -333,8 +333,7 @@ describe("Phase-hardening matrix", () => {
     expect(matrix.rows.length).toBeGreaterThan(0);
     expect(new Set(matrix.rows.map((row) => row.id)).size).toBe(matrix.rows.length);
 
-    const loaded = await loadProcessPackage(path.join(projectRoot, ".lifecycle/process"));
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    const processPackage = await canonicalProcessPackage();
     const testFiles = new Set(
       [...(await fs.readFile(path.join(projectRoot, "vitest.suites.mjs"), "utf8"))
         .matchAll(/"(test\/[^"]+\.test\.ts)"/g)]
@@ -393,23 +392,23 @@ describe("Phase-hardening matrix", () => {
 
         for (const reference of route.selectors) {
           expect(definitions.selectors, `${label}: ${reference}`).toContain(reference);
-          const selector = loaded.package.selectors[reference.split("@")[0]!];
+          const selector = processPackage.selectors[reference.split("@")[0]!];
           expect(selector?.query, `${label}: compiled Selector ${reference}`).toEqual(expect.any(Object));
         }
         for (const reference of route.obligations) {
           expect(definitions.obligations, `${label}: ${reference}`).toContain(reference);
-          const obligation = loaded.package.obligations[reference.split("@")[0]!];
+          const obligation = processPackage.obligations[reference.split("@")[0]!];
           expect((obligation?.resolve_with as { scenario?: string })?.scenario, `${label}: Resolver binding`)
             .toBe(route.resolvers[0]);
         }
         for (const reference of route.participation.policies) {
           expect(definitions.policies, `${label}: ${reference}`).toContain(reference);
-          expect(loaded.package.policies[reference.split("@")[0]!]?.result_schema, `${label}: Policy result`)
+          expect(processPackage.policies[reference.split("@")[0]!]?.result_schema, `${label}: Policy result`)
             .toEqual(expect.any(Object));
         }
         for (const reference of route.resolvers) {
           expect(definitions.scenarios, `${label}: ${reference}`).toContain(reference);
-          const scenario = loaded.package.scenarios[reference.split("@")[0]!];
+          const scenario = processPackage.scenarios[reference.split("@")[0]!];
           expect(scenario?.outputs, `${label}: Resolver outputs`).toEqual(expect.any(Array));
           expect(scenario?.completion, `${label}: compiled Resolver completion`).toEqual(expect.any(Object));
           const declaredPolicy = (scenario?.participation as { policy_ref?: string } | undefined)

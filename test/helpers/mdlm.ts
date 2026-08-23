@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { loadProcessPackage } from "../../src/index.js";
+import { initializeRepositoryFromProcessPackage } from "../../src/repository-initialization.js";
 import {
   packageSummary,
   processSelection,
@@ -88,6 +89,18 @@ export function selectBootstrapProcessPackage(repositoryRoot: string): void {
       `Could not initialize test repository: ${initialized.stderr}${initialized.stdout}`,
     );
   }
+}
+
+/** Initialize an exact-package fixture without compiled command transport or replacement work. */
+export async function initializeProcessPackageFixture(
+  repositoryRoot: string,
+  packageRoot: string,
+): Promise<void> {
+  const initialized = await initializeRepositoryFromProcessPackage(
+    repositoryRoot,
+    packageRoot,
+  );
+  if (!initialized.ok) throw new Error(JSON.stringify(initialized.diagnostics));
 }
 
 /**

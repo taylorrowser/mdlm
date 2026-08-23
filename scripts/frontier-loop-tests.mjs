@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import * as ts from "typescript";
 import { commandResult } from "./frontier-command.mjs";
 import {
   AgentProcessTimeoutError,
@@ -308,9 +309,318 @@ test("completed failed validation resumes without launching another editing agen
   assert.equal(resumesAtValidation({ kind: "implementation" }), false);
 });
 
-test("authoritative product tests have a seven-minute process budget", () => {
+test("root Vitest files have one weighted runtime class", async () => {
+  const { rootVitestSuites, testFiles } = await import("../vitest.suites.mjs");
+  const {
+    ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+    ROOT_TEST_TOKEN_CAPACITY,
+    rootTestManifest,
+  } = await import("./root-test-schedule.mjs");
+  const discovered = readdirSync(new URL("../test", import.meta.url), {
+    withFileTypes: true,
+  })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".test.ts"))
+    .map((entry) => `test/${entry.name}`)
+    .sort();
+  const classified = rootVitestSuites.flatMap((suite) => suite.files);
+
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.id), [
+    "process-repository-heavy",
+    "repository-public-fragile",
+    "process-repository-safe",
+    "canonical-evaluator-safe",
+    "canonical-fixture-filler",
+    "cheap-in-process",
+  ]);
+  assert.equal(discovered.length, 47);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 4, 16, 3, 3, 17]);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [1, 1, 1, 1, 1, 1]);
+  assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
+  assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
+    "process-repository-heavy": 2,
+    "repository-public-fragile": 1,
+    "process-repository-safe": 3,
+    "canonical-evaluator-safe": 3,
+    "canonical-fixture-filler": 1,
+    "cheap-in-process": 1,
+  });
+  assert.equal(rootTestManifest.every((entry) => Number.isInteger(entry.weight)
+    && entry.weight > 0
+    && entry.weight <= ROOT_TEST_TOKEN_CAPACITY), true);
+  assert.equal(classified.length, new Set(classified).size);
+  assert.deepEqual([...classified].sort(), discovered);
+  assert.deepEqual([...testFiles].sort(), discovered);
+});
+
+test("the initial product-intent route reuses the verified package without bypassing repository publication", () => {
+  const source = readFileSync(
+    new URL("../test/initial-product-intent-route.test.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /canonicalProcessPackage/);
+  assert.match(source, /initializeRepositoryFromLoadedProcessPackage/);
+  assert.doesNotMatch(source, /mdlm\(parent,\s*"init"/);
+  assert.match(source, /installLifecycleDataFixture/);
+  assert.match(source, /prepareNextAssignment/);
+  assert.match(source, /submitAssignment/);
+});
+
+test("the authoritative runner uses the bounded weighted process scheduler", () => {
+  const source = readFileSync(
+    new URL("./authoritative-tests.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /createRootTestTasks/);
+  assert.match(source, /runWeightedSchedule/);
+  assert.match(source, /launchProcessGroupTask/);
+  assert.match(source, /ROOT_TEST_TOKEN_CAPACITY/);
+  assert.match(source, /ROOT_TEST_CLASS_CONCURRENCY_LIMITS/);
+  assert.match(source, /createRootTestAdmissionPolicy/);
+  assert.match(source, /ROOT_TEST_SCHEDULING_POLICY/);
+  assert.match(source, /rootTestTasksCanOverlap/);
+  assert.match(source, /--maxWorkers=1/);
+  assert.match(source, /\.\.\.task\.files/);
+  assert.match(source, /terminationGrace: 1_000/);
+  assert.match(source, /AbortController/);
+  assert.match(source, /SIGTERM/);
+});
+
+test("retained heavy cohort setup hooks use named finite limits", () => {
+  const files = [
+    "test/load-process-package.test.ts",
+    "test/mdlm-baseline-inspection.test.ts",
+    "test/mdlm-assignment.test.ts",
+    "test/proportional-distinct-context-phase-2-public.test.ts",
+  ];
+  let hookCount = 0;
+
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    const sourceFile = ts.createSourceFile(
+      file,
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    const finiteLimits = new Map([
+      ["PROCESS_REPOSITORY_HOOK_TIMEOUT_MS", 40_000],
+      ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", 180_000],
+    ]);
+
+    const visit = (node) => {
+      if (ts.isVariableDeclaration(node)
+        && ts.isIdentifier(node.name)
+        && node.initializer) {
+        if (ts.isNumericLiteral(node.initializer)) {
+          finiteLimits.set(node.name.text, Number(node.initializer.text));
+        } else if (ts.isIdentifier(node.initializer)
+          && finiteLimits.has(node.initializer.text)) {
+          finiteLimits.set(node.name.text, finiteLimits.get(node.initializer.text));
+        }
+      }
+      if (ts.isCallExpression(node)
+        && ts.isIdentifier(node.expression)
+        && ["beforeAll", "beforeEach"].includes(node.expression.text)) {
+        hookCount += 1;
+        assert.equal(
+          node.arguments.length >= 2,
+          true,
+          `${file} ${node.expression.text} has an implicit setup-hook limit`,
+        );
+        const limit = node.arguments[1];
+        assert.equal(
+          ts.isIdentifier(limit),
+          true,
+          `${file} ${node.expression.text} must use a named setup-hook limit`,
+        );
+        if (ts.isIdentifier(limit)) {
+          const milliseconds = finiteLimits.get(limit.text);
+          assert.equal(
+            Number.isFinite(milliseconds) && milliseconds > 0,
+            true,
+            `${file} ${limit.text} is not a finite positive limit`,
+          );
+          assert.notEqual(
+            milliseconds,
+            10_000,
+            `${file} ${limit.text} retains the default 10,000 ms setup limit`,
+          );
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  }
+
+  assert.equal(hookCount, 13);
+});
+
+test("contended representative observation limits stay exact", () => {
+  const loadSource = readFileSync(
+    new URL("../test/load-process-package.test.ts", import.meta.url),
+    "utf8",
+  );
+  const baselineSource = readFileSync(
+    new URL("../test/mdlm-baseline-inspection.test.ts", import.meta.url),
+    "utf8",
+  );
+  const assignmentSource = readFileSync(
+    new URL("../test/mdlm-assignment.test.ts", import.meta.url),
+    "utf8",
+  );
+  const phaseTwoSource = readFileSync(
+    new URL("../test/proportional-distinct-context-phase-2-public.test.ts", import.meta.url),
+    "utf8",
+  );
+  const reviewAssignmentSource = readFileSync(
+    new URL("../test/mdlm-review-assignment.test.ts", import.meta.url),
+    "utf8",
+  );
+  const commandApplicationSource = readFileSync(
+    new URL("../test/mdlm-command-application.test.ts", import.meta.url),
+    "utf8",
+  );
+  const changeAndPilotSource = readFileSync(
+    new URL("../test/change-and-pilot-hardening-routes.test.ts", import.meta.url),
+    "utf8",
+  );
+  const correctedGateSource = readFileSync(
+    new URL("../test/phase-0-corrected-gate-route.test.ts", import.meta.url),
+    "utf8",
+  );
+  const processMigrationSource = readFileSync(
+    new URL("../test/mdlm-process-migration.test.ts", import.meta.url),
+    "utf8",
+  );
+  const suiteManifest = readFileSync(
+    new URL("../vitest.suites.mjs", import.meta.url),
+    "utf8",
+  );
+  const vitestConfig = readFileSync(
+    new URL("../vitest.fast.config.ts", import.meta.url),
+    "utf8",
+  );
+  const observationPolicy = readFileSync(
+    new URL("./root-test-observation-policy.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    observationPolicy,
+    /4 × 44,830 ms = 179,320 ms\.[\s\S]*?PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 180_000;/,
+  );
+  assert.match(
+    observationPolicy,
+    /Six times that observation[\s\S]*?PROCESS_REPOSITORY_CHILD_TIMEOUT_MS = 60_000;/,
+  );
+  assert.match(
+    observationPolicy,
+    /effectiveTimeoutMs < PROCESS_REPOSITORY_CHILD_TIMEOUT_MS/,
+  );
+  assert.match(
+    reviewAssignmentSource,
+    /const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
+  );
+  assert.match(
+    reviewAssignmentSource,
+    /forks one exact Review Context across passing Review and package-evidence correction(?:(?!\n\n  it\()[\s\S])*?CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS,/,
+  );
+  assert.match(
+    commandApplicationSource,
+    /const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS =\n  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/,
+  );
+  assert.match(
+    commandApplicationSource,
+    /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    changeAndPilotSource,
+    /larger of the 3,413 ms green hook and 11,659 ms failed file up[\s\S]*?20,000 ms, leaving 16,587 ms above the measured hook\.[\s\S]*?const CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS = 20_000;/,
+  );
+  assert.match(
+    changeAndPilotSource,
+    /processPackage = loaded\.package;\n\}, CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    correctedGateSource,
+    /const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
+  );
+  assert.match(
+    correctedGateSource,
+    /accepts corrected Phase 0 intent from its reviewed checkpoint(?:(?!\n\n  it\()[\s\S])*?CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    processMigrationSource,
+    /const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
+  );
+  assert.match(
+    processMigrationSource,
+    /rejects incompatible and byte-changed packages without changing exact contract bytes(?:(?!\n\n  it\()[\s\S])*?CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    processMigrationSource,
+    /rejects migration from a synthetic package when the target requires a fresh repository(?:(?!\n\n\}\);)[\s\S])*?CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS\);/,
+  );
+  assert.match(loadSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(loadSource, /beforeAll\(async \(\) => \{[\s\S]*?validPackage = result\.package;\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(baselineSource, /const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(baselineSource, /const CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(baselineSource, /const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(baselineSource, /const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(baselineSource, /const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/);
+  assert.match(baselineSource, /immutableSelectedPackage = deepFreeze\([\s\S]*?\n  \}, CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /changedBaselineFixture = deepFreeze\([\s\S]*?\n  \}, CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /await arrangeManyBaselines\([\s\S]*?\n  \}, CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(assignmentSource, /const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 30_000;/);
+  assert.match(assignmentSource, /const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 30_000;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/);
+  assert.match(phaseTwoSource, /const CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS = 510_000;/);
+  assert.match(phaseTwoSource, /runZeroInterfacePhaseTwoRoute,\n  CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS,/);
+  assert.match(assignmentSource, /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /await copyRepository\(initializedTemplateRepository, activeTemplateRepository\);\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /const allocated = await mdlm\(activeTemplateRepository, "next"\);[\s\S]*?responseSchema:[\s\S]*?\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /await copyRepository\(activeTemplateRepository, correctionTemplateRepository\);[\s\S]*?correctionDiagnostics: malformedResult\.malformedResponse\.diagnostics,[\s\S]*?\n  \}, CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /const historicalSource = cloneHistoricalRepository\(templateParent\);[\s\S]*?historicalProcessPackage = deepFreeze\(loaded\.package\);\n  \}, CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /beforeEach\(async \(\{ task \}\) => \{[\s\S]*?await copyRepositoryFoundation\([\s\S]*?\n  \}, CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS\);/);
+  assert.match(baselineSource, /rejects Assignment preparation across concurrent tracked changes(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /waitForPath\(\n      barrierSignal,\n      "Second valid response did not reach the Assignment lock",\n      CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n    \);/);
+  assert.match(assignmentSource, /waitForPath\(\n        barrierSignal,[\s\S]*?CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS,\n      \);/);
+  assert.match(assignmentSource, /waitForDirectoryEntry\([\s\S]*?Public submission did not stage publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
+  assert.match(assignmentSource, /waitForPath\([\s\S]*?First submission did not reach publication[\s\S]*?CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS,\n    \);/);
+  assert.match(assignmentSource, /allocates fresh exact work(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /leases one exact bundled-package Assignment(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /preserves the same Assignment for one malformed-response correction(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /exhausts the Assignment(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /allows only one concurrent valid response(?:(?!\n\n  it\()[\s\S])*?\}, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS\);/);
+  assert.match(assignmentSource, /CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS,\n  \);/);
+  assert.match(assignmentSource, /const publicationSignal = path\.join\(barrierRoot, "publication-lock-attempted"\);/);
+  assert.match(assignmentSource, /MDLM_TEST_PUBLICATION_RELEASE/);
+  assert.match(assignmentSource, /await fs\.writeFile\(publicationRelease, ""\);/);
+  for (const file of [
+    "test/load-process-package.test.ts",
+    "test/mdlm-baseline-inspection.test.ts",
+    "test/mdlm-assignment.test.ts",
+    "test/proportional-distinct-context-phase-2-public.test.ts",
+  ]) {
+    assert.match(suiteManifest, new RegExp(`"${file.replaceAll(".", "\\.")}"`));
+  }
+  assert.match(vitestConfig, /maxWorkers: 4/);
+});
+
+test("authoritative product tests default to the evidence-backed process budget", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
-  assert.match(source, /7 \* 60_000/);
+  assert.match(
+    source,
+    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 1_150_000/,
+  );
   assert.match(source, /runInProcessGroup/);
   assert.match(source, /scripts\/authoritative-tests\.mjs/);
   assert.match(source, /terminationGrace: 2_000/);
@@ -324,9 +634,13 @@ test("authoritative product tests have a seven-minute process budget", () => {
     "utf8",
   );
   assert.match(authoritative, /tsconfig\.build\.json/);
+  assert.match(authoritative, /packages\/mdlm-pi\/tsconfig\.build\.json/);
   assert.match(authoritative, /verify-test-suites\.mjs/);
   assert.match(authoritative, /vitest\.fast\.config\.ts/);
+  assert.match(authoritative, /"--root",\s+"packages\/mdlm-pi"/);
+  assert.match(authoritative, /"--testTimeout=180000"/);
   assert.match(authoritative, /frontier-loop-tests\.mjs/);
+  assert.match(authoritative, /weighted-token-scheduler-tests\.mjs/);
 });
 
 test("child commands have a finite timeout", () => {

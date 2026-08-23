@@ -1,35 +1,82 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { executeCommandApplication } from "../src/command-application.js";
 import {
-  mdlm,
-  selectBootstrapProcessPackage,
-  selectProcessPackageFixture,
-} from "./helpers/mdlm.js";
+  loadProcessPackage,
+  resolveType,
+  type ProcessPackage,
+} from "../src/index.js";
+import {
+  packageSummary,
+  processSelection,
+  type PackageSummary,
+} from "../src/repository-contract.js";
 import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
+async function applicationMdlm(repository: string, ...arguments_: string[]) {
+  const execution = await executeCommandApplication(arguments_, repository);
+  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value)) deepFreeze(nested);
+  }
+  return value;
+}
+
+async function arrangeSelectedPackage(
+  repository: string,
+  sourceRoot: string,
+  summary: PackageSummary,
+): Promise<void> {
+  const lifecycleRoot = path.join(repository, ".lifecycle");
+  const installedRoot = path.join(
+    lifecycleRoot,
+    "packages",
+    summary.reference,
+  );
+  await fs.mkdir(path.dirname(installedRoot), { recursive: true });
+  await fs.cp(sourceRoot, installedRoot, { recursive: true });
+  await fs.writeFile(
+    path.join(lifecycleRoot, "process-selection.json"),
+    `${JSON.stringify(processSelection(summary), null, 2)}\n`,
+  );
+}
+
 describe("mdlm schema", () => {
-  let repositoryRoot: string;
-  const externalRoots: string[] = [];
+  const temporaryRoots: string[] = [];
+  let currentPackage: ProcessPackage;
+  let currentSummary: PackageSummary;
+  let publicRepository: string;
 
-  beforeEach(async () => {
-    repositoryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-schema-"));
+  async function temporaryRepository(prefix: string): Promise<string> {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+    temporaryRoots.push(root);
+    return root;
+  }
+
+  beforeAll(async () => {
+    const currentRoot = path.join(process.cwd(), ".lifecycle/process");
+    const loaded = await loadProcessPackage(currentRoot);
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    currentPackage = deepFreeze(loaded.package);
+    currentSummary = deepFreeze(await packageSummary(currentPackage, currentRoot));
+    publicRepository = await temporaryRepository("mdlm-schema-public-");
+    await arrangeSelectedPackage(publicRepository, currentRoot, currentSummary);
   });
 
-  afterEach(async () => {
-    await Promise.all([
-      fs.rm(repositoryRoot, { recursive: true, force: true }),
-      ...externalRoots.splice(0).map((root) =>
-        fs.rm(root, { recursive: true, force: true })
-      ),
-    ]);
+  afterAll(async () => {
+    await Promise.all(
+      temporaryRoots.map((root) => fs.rm(root, { recursive: true, force: true })),
+    );
   });
 
-  it("projects one effective lifecycle type from the exact selected Process Package", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
-
-    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
+  it("projects one effective lifecycle type from the exact selected Process Package", async () => {
+    const result = await applicationMdlm(publicRepository, "schema", "STK", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -139,18 +186,19 @@ describe("mdlm schema", () => {
   });
 
   it("requires an explicit correction-authority classification for every failed Review", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
+    const resolved = resolveType(currentPackage, "REV");
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
 
-    const result = mdlm(repositoryRoot, "schema", "REV", "--json");
-
-    expect(result.status, result.stderr).toBe(0);
-    const schema = JSON.parse(result.stdout).schema;
-    expect(schema.definition).toBe("REV@7");
-    expect(schema.flattenedPayloadSchema.properties.correction_authority)
+    expect(`${resolved.type.id}@${resolved.type.version}`).toBe("REV@7");
+    expect(resolved.type.payloadSchema.properties.correction_authority)
       .toEqual(expect.objectContaining({
         enum: ["stakeholder", "package-evidence"],
       }));
-    expect(schema.flattenedPayloadSchema.allOf[0].allOf).toContainEqual({
+    expect(
+      (resolved.type.payloadSchema.allOf as Array<Record<string, unknown>>)[0]
+        ?.allOf,
+    ).toContainEqual({
       if: {
         properties: { outcome: { const: "fail" } },
         required: ["outcome"],
@@ -162,10 +210,17 @@ describe("mdlm schema", () => {
 
   it("reports the Kernel Capability binding for any package-defined type ID", async () => {
     const processRoot = await renamedBaselineProcessPackage("mdlm-schema-neutral-");
-    externalRoots.push(path.dirname(processRoot));
-    await selectProcessPackageFixture(repositoryRoot, processRoot);
+    temporaryRoots.push(path.dirname(processRoot));
+    const loaded = await loadProcessPackage(processRoot);
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    const renamedPackage = deepFreeze(loaded.package);
+    const renamedSummary = deepFreeze(
+      await packageSummary(renamedPackage, processRoot),
+    );
+    const repository = await temporaryRepository("mdlm-schema-neutral-repository-");
+    await arrangeSelectedPackage(repository, processRoot, renamedSummary);
 
-    const result = mdlm(repositoryRoot, "schema", "SNP", "--json");
+    const result = await applicationMdlm(repository, "schema", "SNP", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout).schema).toEqual(expect.objectContaining({
@@ -177,37 +232,39 @@ describe("mdlm schema", () => {
     }));
   });
 
-  it("renders the same effective type evidence for a human", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
-    const machine = mdlm(repositoryRoot, "schema", "STK", "--json");
-    expect(machine.status, machine.stderr).toBe(0);
-    const output = JSON.parse(machine.stdout);
+  it("renders the same effective type evidence for a human", async () => {
+    const resolved = resolveType(currentPackage, "STK");
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
 
-    const human = mdlm(repositoryRoot, "schema", "STK");
+    const human = await applicationMdlm(publicRepository, "schema", "STK");
 
     expect(human.status, human.stderr).toBe(0);
     for (const evidence of [
-      `Process Package: ${output.package.reference}`,
-      `Expression Language: ${output.package.language}`,
-      `Digest: ${output.package.digest}`,
-      `Lifecycle Type: ${output.schema.definition}`,
-      `Name: ${output.schema.name}`,
-      `Description: ${output.schema.description}`,
-      `Template Chain: ${output.schema.templateChain.join(" → ")}`,
-      `Effective Envelope: ${JSON.stringify(output.schema.effectiveEnvelope)}`,
-      `Flattened Payload Schema: ${JSON.stringify(output.schema.flattenedPayloadSchema)}`,
-      `Source-owned Link Contracts: ${JSON.stringify(output.schema.sourceOwnedLinkContracts)}`,
-      `Lifecycle Behavior: ${JSON.stringify(output.schema.lifecycleBehavior)}`,
+      `Process Package: ${currentSummary.reference}`,
+      `Expression Language: ${currentSummary.language}`,
+      `Digest: ${currentSummary.digest}`,
+      `Lifecycle Type: ${resolved.type.id}@${resolved.type.version}`,
+      `Name: ${resolved.type.name}`,
+      `Description: ${resolved.type.description}`,
+      `Template Chain: ${resolved.type.templateChain.join(" → ")}`,
+      `Effective Envelope: ${JSON.stringify(resolved.type.envelopeSchema)}`,
+      `Flattened Payload Schema: ${JSON.stringify(resolved.type.payloadSchema)}`,
+      `Source-owned Link Contracts: ${JSON.stringify(resolved.type.outgoingLinks)}`,
+      `Lifecycle Behavior: ${JSON.stringify(resolved.type.lifecycle)}`,
       "Kernel Capability Bindings: none",
     ]) {
       expect(human.stdout).toContain(evidence);
     }
   });
 
-  it("returns a typed diagnostic for an unknown lifecycle type", () => {
-    selectBootstrapProcessPackage(repositoryRoot);
-
-    const result = mdlm(repositoryRoot, "schema", "UNKNOWN", "--json");
+  it("returns a typed diagnostic for an unknown lifecycle type", async () => {
+    const result = await applicationMdlm(
+      publicRepository,
+      "schema",
+      "UNKNOWN",
+      "--json",
+    );
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -225,8 +282,9 @@ describe("mdlm schema", () => {
     });
   });
 
-  it("returns a typed diagnostic when no Process Package is selected", () => {
-    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
+  it("returns a typed diagnostic when no Process Package is selected", async () => {
+    const repository = await temporaryRepository("mdlm-schema-unselected-");
+    const result = await applicationMdlm(repository, "schema", "STK", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -242,14 +300,19 @@ describe("mdlm schema", () => {
   });
 
   it("returns selected-package diagnostics instead of inspecting an invalid package", async () => {
-    selectBootstrapProcessPackage(repositoryRoot);
+    const repository = await temporaryRepository("mdlm-schema-invalid-");
+    await arrangeSelectedPackage(
+      repository,
+      path.join(process.cwd(), ".lifecycle/process"),
+      currentSummary,
+    );
     const selectedType = path.join(
-      repositoryRoot,
+      repository,
       ".lifecycle/packages/mdlm-bootstrap@0.74.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 
-    const result = mdlm(repositoryRoot, "schema", "STK", "--json");
+    const result = await applicationMdlm(repository, "schema", "STK", "--json");
 
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -259,6 +322,44 @@ describe("mdlm schema", () => {
       diagnostics: [expect.objectContaining({
         code: "meta-schema",
         path: expect.stringContaining("types/STK.yaml"),
+      })],
+    });
+  });
+
+  it("rejects a schema-valid selected package whose exact bytes are no longer current", async () => {
+    const repository = await temporaryRepository("mdlm-schema-stale-");
+    await arrangeSelectedPackage(
+      repository,
+      path.join(process.cwd(), ".lifecycle/process"),
+      currentSummary,
+    );
+    const selectedType = path.join(
+      repository,
+      ".lifecycle/packages/mdlm-bootstrap@0.74.0/types/STK.yaml",
+    );
+    await fs.writeFile(
+      selectedType,
+      (await fs.readFile(selectedType, "utf8")).replace(
+        "description: Singular stakeholder-visible",
+        "description: Exact singular stakeholder-visible",
+      ),
+    );
+
+    const result = await applicationMdlm(repository, "schema", "STK", "--json");
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual({
+      ok: false,
+      command: "schema",
+      selected: true,
+      diagnostics: [expect.objectContaining({
+        code: "process-package-selection-mismatch",
+        path: expect.stringContaining(
+          ".lifecycle/packages/mdlm-bootstrap@0.74.0",
+        ),
+        message: expect.stringContaining(
+          "no longer matches its exact recorded version, language, and digest",
+        ),
       })],
     });
   });

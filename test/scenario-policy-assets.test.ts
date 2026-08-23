@@ -12,6 +12,7 @@ import {
   dryRunExplicitScenario,
   dryRunResolverScenario,
 } from "../src/scenario-dry-run.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { terminalProcessPackage } from "./helpers/terminal-process-package.js";
 
@@ -75,9 +76,7 @@ describe("package-authored review Policy evidence", () => {
 
   it("applies ephemeral author preflight to every authored Lifecycle Data route", async () => {
     const root = path.join(process.cwd(), ".lifecycle/process");
-    const loaded = await loadProcessPackage(root);
-    expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics)).toBe(true);
-    if (!loaded.ok) return;
+    const processPackage = await canonicalProcessPackage();
     const nonAuthorRoutes = new Set([
       "create-review-context",
       "execute-verification-run",
@@ -85,11 +84,11 @@ describe("package-authored review Policy evidence", () => {
       "simplify-architecture-and-interfaces",
     ]);
     const missing: string[] = [];
-    for (const scenario of Object.values(loaded.package.scenarios)) {
+    for (const scenario of Object.values(processPackage.scenarios)) {
       const authored = (scenario.outputs as { types?: string[] }[]).some((output) =>
         (output.types ?? []).some((type) =>
-          loaded.package.types[type]?.lifecycle &&
-          (loaded.package.types[type].lifecycle as { authorship?: string }).authorship ===
+          processPackage.types[type]?.lifecycle &&
+          (processPackage.types[type].lifecycle as { authorship?: string }).authorship ===
             "authored"
         )
       );

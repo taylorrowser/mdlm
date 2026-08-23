@@ -2,7 +2,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { loadProcessPackage, type ProcessPackage } from "../src/index.js";
+import type { ProcessPackage } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 type Route = {
   route: string;
@@ -33,9 +34,7 @@ describe("Phase 1 route contracts", () => {
   let routes: Route[];
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
     const matrix = parse(await fs.readFile(
       path.join(process.cwd(), "docs/phase-hardening-matrix.yaml"),
       "utf8",

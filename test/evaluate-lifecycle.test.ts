@@ -1,11 +1,10 @@
-import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 const PSP_ID = "PSP-7K3M9Q2D8F";
 const PSP_REVISION = `${PSP_ID}-r00001`;
@@ -14,11 +13,7 @@ describe("evaluateLifecycle", () => {
   let processPackage: ProcessPackage;
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
   });
 
   it("explains the review work for a valid draft PSP with no review context", () => {

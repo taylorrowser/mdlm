@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import {
   mdlm,
   selectProcessPackageFixture,
@@ -9,6 +10,9 @@ import {
 } from "./helpers/mdlm.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
+
+const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS =
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;
 
 async function packageCopy(
   parent: string,
@@ -58,8 +62,12 @@ describe("mdlm Process Package migration integrity", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
-  it("rejects an incompatible package without changing exact contract bytes", async () => {
+  it("rejects incompatible and byte-changed packages without changing exact contract bytes", async () => {
     const previousRoot = await packageCopy(parent, "previous", "0.40.0");
+    await selectProcessPackageFixture(repository, previousRoot);
+    const changedPackageRepository = path.join(parent, "changed-package-repository");
+    await fs.cp(repository, changedPackageRepository, { recursive: true });
+
     const incompatibleRoot = await packageCopy(
       parent,
       "incompatible",
@@ -73,27 +81,51 @@ describe("mdlm Process Package migration integrity", () => {
         "media_type: text/plain",
       ),
     );
-    await selectProcessPackageFixture(repository, previousRoot);
-    const targetReference = await stageProcessPackageFixture(
+    const incompatibleReference = await stageProcessPackageFixture(
       repository,
       incompatibleRoot,
     );
-    const before = await contractBytes(repository);
-
-    const migrated = mdlm(
+    const beforeIncompatible = await contractBytes(repository);
+    const incompatible = mdlm(
       repository,
       "process",
       "migrate",
-      targetReference,
+      incompatibleReference,
       "--json",
     );
-
-    expect(migrated.status).toBe(1);
-    expect(JSON.parse(migrated.stdout).diagnostics).toContainEqual(
+    expect(incompatible.status).toBe(1);
+    expect(JSON.parse(incompatible.stdout).diagnostics).toContainEqual(
       expect.objectContaining({ code: "repository-contract-incompatible" }),
     );
-    expect(await contractBytes(repository)).toBe(before);
-  }, 30_000);
+    expect(await contractBytes(repository)).toBe(beforeIncompatible);
+
+    const changedReference = await stageProcessPackageFixture(
+      changedPackageRepository,
+      bootstrapPackage,
+    );
+    const targetObligation = path.join(
+      changedPackageRepository,
+      ".lifecycle/packages",
+      changedReference,
+      "obligations/review-context-required.yaml",
+    );
+    await fs.appendFile(targetObligation, "unexpected: true\n");
+    const beforeChanged = await contractBytes(changedPackageRepository);
+    const changed = mdlm(
+      changedPackageRepository,
+      "process",
+      "migrate",
+      changedReference,
+      "--json",
+    );
+    expect(changed.status).toBe(1);
+    expect(JSON.parse(changed.stdout).diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "meta-schema" }),
+      ]),
+    );
+    expect(await contractBytes(changedPackageRepository)).toBe(beforeChanged);
+  }, CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS);
 
   it("rejects migration from a synthetic package when the target requires a fresh repository", async () => {
     const previousRoot = await packageCopy(
@@ -122,38 +154,6 @@ describe("mdlm Process Package migration integrity", () => {
       expect.objectContaining({ code: "fresh-repository-required" }),
     );
     expect(await contractBytes(repository)).toBe(before);
-  }, 30_000);
+  }, CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS);
 
-  it("refuses a staged package that changed after its exact digest was recorded", async () => {
-    const previousRoot = await packageCopy(parent, "previous", "0.40.0");
-    await selectProcessPackageFixture(repository, previousRoot);
-    const targetReference = await stageProcessPackageFixture(
-      repository,
-      bootstrapPackage,
-    );
-    const targetObligation = path.join(
-      repository,
-      ".lifecycle/packages",
-      targetReference,
-      "obligations/review-context-required.yaml",
-    );
-    await fs.appendFile(targetObligation, "unexpected: true\n");
-    const before = await contractBytes(repository);
-
-    const migrated = mdlm(
-      repository,
-      "process",
-      "migrate",
-      targetReference,
-      "--json",
-    );
-
-    expect(migrated.status).toBe(1);
-    expect(JSON.parse(migrated.stdout).diagnostics).toEqual(
-      expect.arrayContaining([
-      expect.objectContaining({ code: "meta-schema" }),
-      ]),
-    );
-    expect(await contractBytes(repository)).toBe(before);
-  }, 30_000);
 });

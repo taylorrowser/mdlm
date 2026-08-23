@@ -3,7 +3,12 @@ import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { promisify } from "node:util";
-import { loadProcessPackage, type ProcessDiagnostic, type ProcessPackage } from "./index.js";
+import {
+  loadProcessPackage,
+  type LoadProcessPackageResult,
+  type ProcessDiagnostic,
+  type ProcessPackage,
+} from "./index.js";
 import {
   packageSummary,
   packagesRelativePath,
@@ -51,12 +56,13 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
 
 async function prepareRepository(
   preparationRoot: string,
+  processPackageRoot: string,
   processPackage: ProcessPackage,
   summary: PackageSummary,
 ): Promise<void> {
   const lifecycleRoot = path.join(preparationRoot, ".lifecycle");
   await fs.cp(
-    bundledProcessPackage,
+    processPackageRoot,
     path.join(preparationRoot, packagesRelativePath, summary.reference),
     { recursive: true },
   );
@@ -164,9 +170,10 @@ async function publish(
   }
 }
 
-/** Initialize one destination with MDLM's bundled Example Process Package. */
-export async function initializeBundledRepository(
+async function initializeRepository(
   destination: string,
+  processPackageRoot: string,
+  loadPackage: () => Promise<LoadProcessPackageResult>,
 ): Promise<RepositoryInitialization> {
   const resolvedDestination = path.resolve(destination);
   let state: "absent" | "empty" | "nonempty";
@@ -187,9 +194,9 @@ export async function initializeBundledRepository(
     );
   }
 
-  const loaded = await loadProcessPackage(bundledProcessPackage);
+  const loaded = await loadPackage();
   if (!loaded.ok) return { ok: false, diagnostics: loaded.diagnostics };
-  const summary = await packageSummary(loaded.package, bundledProcessPackage);
+  const summary = await packageSummary(loaded.package, processPackageRoot);
   const repository = repositorySummary(loaded.package);
 
   const parent = path.dirname(resolvedDestination);
@@ -216,7 +223,12 @@ export async function initializeBundledRepository(
 
   try {
     try {
-      await prepareRepository(preparationRoot, loaded.package, summary);
+      await prepareRepository(
+        preparationRoot,
+        processPackageRoot,
+        loaded.package,
+        summary,
+      );
     } catch (error) {
       return failure(
         "initialization-preparation-failed",
@@ -249,4 +261,36 @@ export async function initializeBundledRepository(
   } finally {
     await fs.rm(preparationRoot, { recursive: true, force: true });
   }
+}
+
+/** Initialize one destination with an exact, already validated Process Package. */
+export function initializeRepositoryFromLoadedProcessPackage(
+  destination: string,
+  processPackageRoot: string,
+  processPackage: ProcessPackage,
+): Promise<RepositoryInitialization> {
+  return initializeRepository(
+    destination,
+    processPackageRoot,
+    async () => ({ ok: true, package: processPackage, diagnostics: [] }),
+  );
+}
+
+/** Validate an exact Process Package directory and initialize one destination. */
+export function initializeRepositoryFromProcessPackage(
+  destination: string,
+  processPackageRoot: string,
+): Promise<RepositoryInitialization> {
+  return initializeRepository(
+    destination,
+    processPackageRoot,
+    () => loadProcessPackage(processPackageRoot),
+  );
+}
+
+/** Initialize one destination with MDLM's bundled Example Process Package. */
+export function initializeBundledRepository(
+  destination: string,
+): Promise<RepositoryInitialization> {
+  return initializeRepositoryFromProcessPackage(destination, bundledProcessPackage);
 }

@@ -166,7 +166,8 @@ function cardinalityRange(cardinality: string): { minimum: number; maximum: numb
   }
 }
 
-function outputContractDiagnostics(
+/** Validate one Scenario proposal against its declared per-invocation output contract. */
+export function scenarioOutputContractDiagnostics(
   scenario: VersionedDefinition,
   invocations: ScenarioDryRunInvocation[],
   outputs: ScenarioOutputProposal[],
@@ -521,6 +522,23 @@ async function prepareRepositoryScenario(
     : dryRun;
 }
 
+/** Validate that a Scenario Proposal reports the exact prepared skills in packet order. */
+export function validateScenarioSkillProvenance(
+  scenarioReference: string,
+  declaredSkillRefs: string[],
+  loadedSkillRefs: string[],
+): ProcessDiagnostic[] {
+  const exact = loadedSkillRefs.length === declaredSkillRefs.length &&
+    loadedSkillRefs.every((reference, index) => reference === declaredSkillRefs[index]);
+  return exact
+    ? []
+    : [{
+        code: "scenario-skill-provenance-mismatch",
+        path: `${scenarioReference}#skills`,
+        message: `Scenario Proposal must report exact Assignment skills in packet order; expected ${JSON.stringify(declaredSkillRefs)}, received ${JSON.stringify(loadedSkillRefs)}`,
+      }];
+}
+
 async function submitScenario(
   repositoryRoot: string,
   processPackage: ProcessPackage,
@@ -673,17 +691,13 @@ async function submitScenario(
   );
   const declaredSkillRefs = dryRun.prompt.skills.map((skill) => skill.reference);
   const loadedSkillRefs = submittedResponse.loadedSkillRefs;
-  const exactSkillProvenance = loadedSkillRefs.length === declaredSkillRefs.length &&
-    loadedSkillRefs.every((reference, index) => reference === declaredSkillRefs[index]);
-  if (!exactSkillProvenance) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "scenario-skill-provenance-mismatch",
-        path: `${scenarioReference}#skills`,
-        message: `Scenario Proposal must report exact Assignment skills in packet order; expected ${JSON.stringify(declaredSkillRefs)}, received ${JSON.stringify(loadedSkillRefs)}`,
-      }],
-    };
+  const skillDiagnostics = validateScenarioSkillProvenance(
+    scenarioReference,
+    declaredSkillRefs,
+    loadedSkillRefs,
+  );
+  if (skillDiagnostics.length > 0) {
+    return { ok: false, diagnostics: skillDiagnostics };
   }
   const loadedSkills = loadedSkillRefs.map((reference) =>
     dryRun.prompt.skills.find((skill) => skill.reference === reference)!
@@ -712,7 +726,7 @@ async function submitScenario(
     }
   }
   const scenario = selectedScenario;
-  const contractDiagnostics = outputContractDiagnostics(
+  const contractDiagnostics = scenarioOutputContractDiagnostics(
     scenario,
     dryRun.invocations,
     proposal.outputs,

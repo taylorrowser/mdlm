@@ -1,5 +1,6 @@
+import { promises as fs } from "node:fs";
 import path from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
   loadProcessPackage,
@@ -7,6 +8,7 @@ import {
   type LifecycleSnapshot,
   type ProcessPackage,
 } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import {
   acceptedIntentForReviewedGate,
@@ -76,13 +78,16 @@ function candidate(id: string, scope: string): LifecycleRecord {
 
 describe("phase evaluation", () => {
   let processPackage: ProcessPackage;
+  const temporaryProcessParents = new Set<string>();
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
+  });
+
+  afterAll(async () => {
+    await Promise.all([...temporaryProcessParents].map((parent) =>
+      fs.rm(parent, { recursive: true, force: true })
+    ));
   });
 
   it("explains failed entry and missing candidates with expression and Selector evidence", () => {
@@ -495,6 +500,7 @@ describe("phase evaluation", () => {
 
   it("can require a separate exact reviewed progression Decision", async () => {
     const processRoot = await distinctProgressionProcessPackage();
+    temporaryProcessParents.add(path.dirname(processRoot));
     const loaded = await loadProcessPackage(processRoot);
     expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
       .toBe(true);
@@ -602,9 +608,9 @@ describe("phase evaluation", () => {
   });
 
   it("returns exact package-typed candidates in declared order without mutating the snapshot", async () => {
-    const loaded = await loadProcessPackage(
-      await renamedBaselineProcessPackage(),
-    );
+    const processRoot = await renamedBaselineProcessPackage();
+    temporaryProcessParents.add(path.dirname(processRoot));
+    const loaded = await loadProcessPackage(processRoot);
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) return;
     const zebra = candidate("SNP-7K3M9Q2D8F", "zebra");

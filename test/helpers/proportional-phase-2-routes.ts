@@ -5,6 +5,8 @@ import path from "node:path";
 import { parse, stringify } from "yaml";
 import { expect } from "vitest";
 import { mdlm, mdlmWithInput, selectProcessPackageFixture } from "./mdlm.js";
+import { installProportionalPhaseTwoReadyFixture } from
+  "./proportional-phase-2-ready-fixture.js";
 
 interface PacketValue {
   identity: { id: string; type: string; revision_id?: string };
@@ -230,13 +232,6 @@ function reviewPacket(repository: string, packet: Packet): string {
   return subjects[0]!;
 }
 
-function reviewNext(repository: string): string {
-  return reviewPacket(
-    repository,
-    prepare(repository, "review-datum-in-context@2"),
-  );
-}
-
 function prepareScenarioAfterReviews(
   repository: string,
   scenario: string,
@@ -248,88 +243,6 @@ function prepareScenarioAfterReviews(
     reviewPacket(repository, packet);
   }
   throw new Error(`public route did not reach ${scenario}`);
-}
-
-function simplifyDefinitionSet(repository: string, packet: Packet): string {
-  const plan = exactInputs(packet, "plan")[0]!;
-  const context = exactInputs(packet, "subject_context")[0]!;
-  const execution = submit(
-    repository,
-    packet,
-    [
-      {
-        localId: "review",
-        name: "review",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "REV",
-          payload: {
-            title: `Simplify architecture definition set for ${plan}`,
-            review_kind: "simplification-architecture-interfaces",
-            decomposition_plan_revision: plan,
-            rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-            outcome: "pass",
-          },
-          links: [
-            { type: "reviews", target: context },
-            { type: "contextualizes", target: context },
-          ],
-          body: "The complete ASP, ICSP, DWP, and SYS set is minimal, coherent, and traceable.\n",
-        },
-      },
-    ],
-    ["independent-reviewer"],
-  );
-  commit(repository, `Simplify definition set for ${plan}`);
-  return submittedRevision(execution, "review");
-}
-
-function completePlan(repository: string, packet: Packet): string {
-  const plan = exactInputs(packet, "plan")[0]!;
-  const shown = mdlm(repository, "show", plan, "--json");
-  expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
-  const planPayload = JSON.parse(shown.stdout).lifecycleDatum.datum.payload;
-  const parents = exactInputs(packet, "parents");
-  const outputs = exactInputs(packet, "outputs");
-  const architecture = exactInputs(packet, "architecture")[0]!;
-  const interfaces = exactInputs(packet, "interfaces");
-  const strategy = exactInputs(packet, "verification_strategy")[0]!;
-  const simplificationReviews = exactInputs(packet, "simplification_reviews");
-  const execution = submit(repository, packet, [
-    {
-      localId: "completion",
-      name: "completion",
-      invocation: 0,
-      lifecycleDatum: {
-        id: plan.replace(/-r[0-9]{5}$/, ""),
-        type: "DWP",
-        payload: {
-          ...planPayload,
-          stage: "completion",
-          parent_coverage_status: "complete",
-          deferred_questions: [],
-          cross_group_dependencies: [],
-          output_reviews_complete: true,
-          simplification_disposition: "retained",
-        },
-        links: [
-          { type: "derived-from", target: plan },
-          ...parents.map((target) => ({ type: "decomposes", target })),
-          ...outputs.map((target) => ({ type: "produces", target })),
-          { type: "allocated-to", target: architecture },
-          ...interfaces.map((target) => ({ type: "governed-by", target })),
-          { type: "verified-under", target: strategy },
-          ...simplificationReviews.map((target) => ({
-            type: "justifies",
-            target,
-          })),
-        ],
-        body: "Every exact parent is covered by reviewed SYS output in the simplified definition set.\n",
-      },
-    },
-  ]);
-  commit(repository, `Complete ${plan}`);
-  return submittedRevision(execution, "completion");
 }
 
 async function phaseTwoOnlyPackage(parent: string): Promise<string> {
@@ -778,167 +691,24 @@ async function seedPublicPhaseTwoEntry(
   return { product, requirements: seededRequirements, strategy };
 }
 
-export async function runCoherentPhaseTwoRoute(): Promise<void> {
+
+export async function reconstructZeroInterfacePhaseTwoRouteForCapture(): Promise<void> {
   const parent = await fs.mkdtemp(
-    path.join(os.tmpdir(), "mdlm-public-phase2-"),
+    path.join(os.tmpdir(), "mdlm-public-zero-interface-phase2-"),
   );
   try {
     const repository = path.join(parent, "repository");
     await fs.mkdir(repository);
     const processRoot = await phaseTwoOnlyPackage(parent);
     await selectProcessPackageFixture(repository, processRoot);
-    const seedPacket = prepare(repository, "seed-public-phase-2-definitions@1");
-    const productPayload = {
-      title: "Two-behavior public product",
-      rationale: "Exercise proportional grouped publication.",
-      problem: "Two related behaviors need one coherent system definition.",
-      users: ["operator"],
-      goals: ["Convert valid input", "Reject invalid input"],
-      non_goals: ["Choose implementation details"],
-      success_measures: ["Both behaviors have observable SYS definitions"],
-    };
-    const requirementPayload = (statement: string) => ({
-      title: statement,
-      rationale: "One stakeholder-visible behavior.",
-      statement,
-      verification_intent: `Observe that the product will ${statement.toLowerCase()}.`,
-      stakeholder: "operator",
-      priority: "must",
-      system_context: "product",
-    });
-    const strategyPayload = {
-      title: "Public black-box strategy",
-      rationale: "Both behaviors share one observable boundary.",
-      level: "system",
-      permitted_methods: ["test"],
-      independence: {
-        boundary: "black-box",
-        prohibited_inputs: [
-          "product source code",
-          "product unit tests",
-          "private implementation details",
-          "uncontrolled implementation shortcuts",
-        ],
-      },
-      evidence_policy: "Retain exact input, output, and exit status.",
-      assessment_policy: "Both positive and negative behavior must pass.",
-      environment_profile: {
-        id: "public-cli",
-        purpose: "Exercise the compiled public route.",
-        capabilities: {
-          controllability: ["input"],
-          observability: ["output", "exit status"],
-          external_services: [],
-          timing: "bounded",
-        },
-      },
-    };
-    const seedExecution = submit(repository, seedPacket, [
-      {
-        localId: "product",
-        name: "product",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "PSP",
-          payload: productPayload,
-          links: [],
-          body: "One coherent two-behavior product.\n",
-        },
-      },
-      ...["Convert valid input", "Reject invalid input"].map(
-        (statement, index) => ({
-          localId: `requirement-${index + 1}`,
-          name: "requirements",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "STK",
-            payload: requirementPayload(statement),
-            links: [{ type: "derived-from", target: "$proposal.product.id" }],
-            body: "One stakeholder-visible behavior.\n",
-          },
-        }),
-      ),
-      {
-        localId: "strategy",
-        name: "strategy",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "VSP",
-          payload: strategyPayload,
-          links: [1, 2].flatMap((index) => [
-            { type: "governs", target: `$proposal.requirement-${index}.id` },
-            {
-              type: "governs-revision",
-              target: `$proposal.requirement-${index}.revision_id`,
-            },
-          ]),
-          body: "One shared black-box verification strategy.\n",
-        },
-      },
+    const seeded = await seedPublicPhaseTwoEntry(repository, [
+      { statement: "Accept a client request", systemContext: "client" },
     ]);
-    commit(repository, "Publish public Phase 2 entry definitions");
-    const seeded = seedExecution.outputs.map((output) => ({
-      name: output.name,
-      revision: output.lifecycleDatum.revisionId,
-    }));
-    const asRecord = (revision: string) => ({
-      datum: {
-        id: revision.replace(/-r[0-9]{5}$/, ""),
-        revision_id: revision,
-      },
-    });
-    const product = asRecord(
-      seeded.find((output) => output.name === "product")!.revision,
-    );
-    const seededRequirements = seeded.filter(
-      (output) => output.name === "requirements",
-    );
-    const valid = asRecord(seededRequirements[0]!.revision);
-    const invalid = asRecord(seededRequirements[1]!.revision);
-    const strategy = asRecord(
-      seeded.find((output) => output.name === "strategy")!.revision,
-    );
-
-    const acceptancePacket = prepare(
-      repository,
-      "seed-public-phase-2-acceptance@1",
-    );
-    expect(exactInputs(acceptancePacket, "requirements").sort()).toEqual(
-      [valid.datum.revision_id, invalid.datum.revision_id].sort(),
-    );
-    submit(repository, acceptancePacket, [
-      {
-        localId: "accepted",
-        name: "accepted",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Accepted public Phase 2 intent",
-            kind: "intent-approved",
-            role: "accepted",
-            scope: "public-phase2",
-            group: "DEFAULT",
-            definition_members: [
-              product.datum.revision_id,
-              valid.datum.revision_id,
-              invalid.datum.revision_id,
-            ],
-            evidence: [],
-          },
-          links: [],
-          body: "",
-        },
-      },
-    ]);
-    commit(repository, "Freeze public Phase 2 entry definitions");
+    const requirement = seeded.requirements[0]!.datum.revision_id;
 
     const architecturePacket = prepare(
       repository,
       "define-system-architecture@3",
-    );
-    expect(exactInputs(architecturePacket, "requirements").sort()).toEqual(
-      [valid.datum.revision_id, invalid.datum.revision_id].sort(),
     );
     const architectureExecution = submit(repository, architecturePacket, [
       {
@@ -948,39 +718,23 @@ export async function runCoherentPhaseTwoRoute(): Promise<void> {
         lifecycleDatum: {
           type: "ASP",
           payload: {
-            title: "Shared conversion boundary architecture",
+            title: "Client responsibility architecture",
             rationale:
-              "Both behaviors share one responsibility and trust context.",
+              "One responsibility has no independently controlled internal boundary.",
             level: "system",
-            elements: [
-              {
-                id: "AEL-0PABEAEM01",
-                alias: "CALLER",
-                title: "Caller",
-                responsibilities: ["Supply one conversion request"],
-              },
-              {
-                id: "AEL-0PABEAEM02",
-                alias: "CONVERTER",
-                title: "Converter",
-                responsibilities: [
-                  "Return a conversion or controlled rejection",
-                ],
-              },
-            ],
-            internal_interactions: [],
-            controlled_boundaries: [{
-              from_element: "AEL-0PABEAEM01",
-              to_element: "AEL-0PABEAEM02",
+            elements: [{
+              id: "AEL-0C1ENTCTX01",
+              alias: "CLIENT",
+              title: "Client responsibility",
+              responsibilities: ["Own the client behavior"],
             }],
-            constraints: ["One deterministic result per request"],
-            nominated_risks: ["Invalid input could be mistaken for success"],
+            internal_interactions: [],
+            controlled_boundaries: [],
+            constraints: ["Remain solution-independent"],
+            nominated_risks: ["The client behavior could be omitted"],
           },
-          links: [valid, invalid].map((item) => ({
-            type: "governs",
-            target: item.datum.revision_id,
-          })),
-          body: "One architecture is sufficient for both related behaviors.\n",
+          links: [{ type: "governs", target: requirement }],
+          body: "One context with no controlled internal boundary.\n",
         },
       },
     ]);
@@ -988,58 +742,13 @@ export async function runCoherentPhaseTwoRoute(): Promise<void> {
       architectureExecution,
       "architecture",
     );
-    commit(repository, "Publish shared architecture");
+    commit(repository, "Publish client architecture");
 
-    const interfacePacket = prepare(
-      repository,
-      "define-interface-control-specification@2",
-    );
-    const interfaceExecution = submit(repository, interfacePacket, [
-      {
-        localId: "interface",
-        name: "interface",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "ICSP",
-          payload: {
-            title: "Conversion command boundary",
-            rationale: "The caller and converter are independently controlled.",
-            architecture_revision: architecture,
-            boundaries: [{
-              from_element: "AEL-0PABEAEM01",
-              to_element: "AEL-0PABEAEM02",
-            }],
-            operations: ["submit conversion request"],
-            schemas: [
-              "input value and source unit",
-              "result value or rejection",
-            ],
-            units: ["declared by request"],
-            timing: ["one bounded response"],
-            errors: ["invalid input returns controlled rejection"],
-            security: [],
-            ordering: ["responses correspond to request order"],
-            compatibility: ["version 1 requests remain accepted"],
-            interface_version: "1",
-          },
-          links: [{ type: "defines-interface-for", target: architecture }],
-          body: "One actual controlled boundary.\n",
-        },
-      },
-    ]);
-    const interfaceRevision = submittedRevision(
-      interfaceExecution,
-      "interface",
-    );
-    commit(repository, "Publish actual interface");
-
-    const planPacket = prepare(
+    const planPacket = prepareScenarioAfterReviews(
       repository,
       "define-decomposition-work-package@3",
     );
-    expect(exactInputs(planPacket, "parents").sort()).toEqual(
-      [valid.datum.revision_id, invalid.datum.revision_id].sort(),
-    );
+    expect(exactInputs(planPacket, "interfaces")).toEqual([]);
     const planExecution = submit(repository, planPacket, [
       {
         localId: "plan",
@@ -1048,499 +757,114 @@ export async function runCoherentPhaseTwoRoute(): Promise<void> {
         lifecycleDatum: {
           type: "DWP",
           payload: {
-            title: "Conversion behavior slice",
-            rationale:
-              "Positive conversion and controlled rejection form one cohesive slice.",
-            stage: "planning",
-            architecture_element: "AEL-0PABEAEM02",
+            title: "Client behavior slice",
+            rationale: "Keep the client behavior independently verifiable.",
+            architecture_element: "AEL-0C1ENTCTX01",
             target_child_type: "SYS",
-            behavioral_slice:
-              "Define valid conversion and invalid-input rejection.",
-            expected_coverage: ["valid conversion", "invalid rejection"],
-            exclusions: ["implementation design"],
+            behavioral_slice: "Define the exact client system behavior.",
+            expected_coverage: ["One exact stakeholder behavior"],
+            exclusions: ["Implementation design"],
             dependencies: [],
             required_review_policy: "review-applicability@1",
+            stage: "planning",
           },
           links: [
-            ...[valid, invalid].map((item) => ({
-              type: "decomposes",
-              target: item.datum.revision_id,
-            })),
+            { type: "decomposes", target: requirement },
             { type: "allocated-to", target: architecture },
-            { type: "governed-by", target: interfaceRevision },
-            { type: "verified-under", target: strategy.datum.revision_id },
+            { type: "verified-under", target: seeded.strategy.datum.revision_id },
           ],
-          body: "One many-parent plan, not one plan per requirement.\n",
+          body: "One cohesive zero-interface decomposition slice.\n",
         },
       },
     ]);
     const plan = submittedRevision(planExecution, "plan");
-    commit(repository, "Publish many-parent decomposition plan");
-    const reviewed = new Set<string>();
-    while (
-      !reviewed.has(plan) ||
-      !reviewed.has(interfaceRevision) ||
-      !reviewed.has(strategy.datum.revision_id)
-    ) {
-      reviewed.add(reviewNext(repository));
-    }
-    expect(reviewed).toEqual(
-      new Set([
-        architecture,
-        interfaceRevision,
-        plan,
-        strategy.datum.revision_id,
-      ]),
-    );
+    commit(repository, "Publish client decomposition plan");
 
-    const executionPacket = prepare(
+    const executionPacket = prepareScenarioAfterReviews(
       repository,
       "execute-decomposition-work-package@2",
     );
-    const parentInputs = exactInputs(executionPacket, "parents");
-    const architectureInput = exactInputs(executionPacket, "architecture")[0]!;
-    const interfaceInput = exactInputs(executionPacket, "interfaces")[0]!;
-    const execution = submit(
-      repository,
-      executionPacket,
-      parentInputs.map((parent, index) => ({
-        localId: `system-requirement-${index}`,
+    expect(exactInputs(executionPacket, "interfaces")).toEqual([]);
+    expect(exactInputs(executionPacket, "plan")).toEqual([plan]);
+    const execution = submit(repository, executionPacket, [
+      {
+        localId: "requirement",
         name: "requirements",
         invocation: 0,
         lifecycleDatum: {
           type: "SYS",
           payload: {
-            title:
-              index === 0
-                ? "Deterministic valid conversion"
-                : "Controlled invalid rejection",
-            rationale: "Allocate one distinct observable system behavior.",
-            statement:
-              index === 0
-                ? "The system shall return the deterministic converted value for valid input."
-                : "The system shall reject invalid input without reporting conversion success.",
-            verification_intent:
-              index === 0
-                ? "Submit valid input and compare the exact converted value."
-                : "Submit invalid input and observe rejection and non-success status.",
+            title: "Client observable system behavior",
+            rationale: "Allocate one exact solution-independent behavior.",
+            statement: "The system shall accept a client request deterministically.",
+            verification_intent: "Observe the exact client outcome.",
           },
           links: [
-            { type: "derived-from", target: parent },
+            { type: "derived-from", target: requirement },
             { type: "decomposes", target: plan },
-            { type: "allocated-to", target: architectureInput },
-            { type: "governed-by", target: interfaceInput },
+            { type: "allocated-to", target: architecture },
           ],
-          body: "One solution-independent observable behavior.\n",
-        },
-      })),
-    );
-    commit(repository, "Publish detailed system behaviors");
-
-    const systemRevisions = execution.outputs
-      .filter((output) => output.name === "requirements")
-      .map((output) => output.lifecycleDatum.revisionId);
-    expect(systemRevisions).toHaveLength(2);
-    const expectedSystemReviewMembers = new Map(
-      systemRevisions.map((revision, index) => [
-        revision,
-        [architectureInput, plan, interfaceInput, parentInputs[index]!],
-      ]),
-    );
-    for (const revision of systemRevisions) {
-      const shown = mdlm(repository, "show", revision, "--json");
-      expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
-      expect(JSON.parse(shown.stdout).lifecycleDatum.datum).toEqual(
-        expect.objectContaining({
-          revision_id: revision,
-          type: "SYS",
-        }),
-      );
-    }
-
-    let completedPlan: string | undefined;
-    let simplificationReview: string | undefined;
-    for (let step = 0; step < 12 && !completedPlan; step += 1) {
-      const packet = prepareAny(repository);
-      if (packet.scenario.reference === "review-datum-in-context@2") {
-        for (let invocation = 0; invocation < packet.exactInputs.length; invocation += 1) {
-          const subject = exactInputsAt(packet, invocation, "subject")[0]!;
-          const expectedMembers = expectedSystemReviewMembers.get(subject);
-          if (expectedMembers) {
-            expect(exactInputsAt(packet, invocation, "context_members")).toEqual(
-              expectedMembers,
-            );
-          }
-        }
-        reviewPacket(repository, packet);
-      } else if (
-        packet.scenario.reference === "simplify-architecture-and-interfaces@2"
-      ) {
-        expect(new Set(exactInputs(packet, "definition_members"))).toEqual(
-          new Set([architecture, interfaceRevision, plan, ...systemRevisions]),
-        );
-        simplificationReview = simplifyDefinitionSet(repository, packet);
-      } else if (
-        packet.scenario.reference === "complete-decomposition-work-package@2"
-      ) {
-        completedPlan = completePlan(repository, packet);
-      } else {
-        throw new Error(
-          `Unexpected post-output route ${packet.scenario.reference}`,
-        );
-      }
-    }
-    expect(completedPlan).toBe(`${plan.replace(/-r[0-9]{5}$/, "")}-r00002`);
-    expect(simplificationReview).toBeDefined();
-
-    const groupPacket = prepareScenarioAfterReviews(
-      repository,
-      "create-decomposition-group-candidate@1",
-    );
-    const groupExecution = submit(repository, groupPacket, [
-      {
-        localId: "group-candidate",
-        name: "candidate",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Reviewed conversion decomposition group",
-            kind: "group-candidate",
-            role: "candidate",
-            scope: completedPlan,
-            group: "DEFAULT",
-            definition_members: [
-              completedPlan,
-              architecture,
-              interfaceRevision,
-              ...systemRevisions,
-            ],
-            evidence: [simplificationReview],
-          },
-          links: [],
-          body: "One exact reviewed conversion decomposition group.\n",
+          body: "One detailed solution-independent system behavior.\n",
         },
       },
     ]);
-    commit(repository, "Freeze reviewed decomposition group");
-    const group = submittedRevision(groupExecution, "candidate");
-
-    const levelPacket = prepareScenarioAfterReviews(
-      repository,
-      "create-system-level-candidate@1",
-    );
-    expect(exactInputs(levelPacket, "group")).toEqual([group]);
-    const levelDefinitions = [
-      ...exactInputs(levelPacket, "architecture"),
-      ...exactInputs(levelPacket, "interfaces"),
-      ...exactInputs(levelPacket, "verification_strategy"),
-    ];
-    const levelExecution = submit(repository, levelPacket, [
-      {
-        localId: "level-candidate",
-        name: "candidate",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Reviewed conversion system candidate",
-            kind: "level-candidate",
-            role: "candidate",
-            scope: "SYSTEM",
-            group: "DEFAULT",
-            definition_members: levelDefinitions,
-            evidence: [],
-          },
-          links: [{ type: "composes", target: group }],
-          body: "One exact composed system candidate.\n",
-        },
-      },
-    ]);
-    commit(repository, "Freeze system-level candidate");
-    const levelCandidate = submittedRevision(levelExecution, "candidate");
-
-    const gatePacket = prepareScenarioAfterReviews(
-      repository,
-      "record-gate-signoff@3",
-    );
-    expect(exactInputs(gatePacket, "candidate")).toEqual([levelCandidate]);
-    submit(
-      repository,
-      gatePacket,
-      [
-        {
-          localId: "decision",
-          name: "decision",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "DEC",
-            payload: {
-              title: "Authorize reviewed conversion system",
-              rationale:
-                "Every exact candidate member is independently reviewed.",
-              kind: "gate-signoff",
-              gate_outcome: "approve",
-              decision: "Approve the exact conversion system candidate.",
-              alternatives: ["Return the candidate for correction"],
-              effective_scope: levelCandidate,
-            },
-            links: [{ type: "justifies", target: levelCandidate }],
-            body: "Attended stakeholder authority approved this exact candidate.\n",
-          },
-        },
-      ],
-      ["stakeholder"],
-    );
-    commit(repository, "Approve system-level candidate");
-
-    const acceptance = prepareScenarioAfterReviews(
-      repository,
-      "accept-phase-2-system@1",
-    );
-    const acceptedExecution = submit(repository, acceptance, [
-      {
-        localId: "accepted-system",
-        name: "accepted",
-        invocation: 0,
-        lifecycleDatum: {
-          type: "BSL",
-          payload: {
-            title: "Accepted conversion system definition",
-            kind: "level-accepted",
-            role: "accepted",
-            scope: "SYSTEM",
-            group: "DEFAULT",
-            definition_members: exactInputs(acceptance, "definition_members"),
-            evidence: exactInputs(acceptance, "evidence"),
-          },
-          links: [{ type: "promotes", target: levelCandidate }],
-          body: "Mechanically accepted from exact reviewed and authorized evidence.\n",
-        },
-      },
-    ]);
-    commit(repository, "Accept Phase 2 system definition");
-    expect(submittedRevision(acceptedExecution, "accepted")).toMatch(/^BSL-/);
-    const status = mdlm(repository, "status", "--json");
-    expect(status.status, `${status.stderr}${status.stdout}`).toBe(0);
-    expect(JSON.parse(status.stdout).activePhase).toEqual(
-      expect.objectContaining({ reference: "phase-2-pilot-assessment@3" }),
-    );
+    commit(repository, "Publish client system behavior");
+    const system = submittedRevision(execution, "requirements");
+    const shown = mdlm(repository, "show", system, "--json");
+    expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
+    expect(JSON.parse(shown.stdout).lifecycleDatum.datum.type).toBe("SYS");
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
 }
 
-export async function runDistinctContextPhaseTwoRoute(): Promise<void> {
+export async function runZeroInterfacePhaseTwoRoute(): Promise<void> {
   const parent = await fs.mkdtemp(
-    path.join(os.tmpdir(), "mdlm-public-multi-phase2-"),
+    path.join(os.tmpdir(), "mdlm-public-zero-interface-phase2-"),
   );
   try {
     const repository = path.join(parent, "repository");
-    await fs.mkdir(repository);
-    const processRoot = await phaseTwoOnlyPackage(parent);
-    await selectProcessPackageFixture(repository, processRoot);
-    const seeded = await seedPublicPhaseTwoEntry(repository, [
-      { statement: "Accept a client request", systemContext: "client" },
-      { statement: "Persist an accepted request", systemContext: "service" },
+    const checkpoint = await installProportionalPhaseTwoReadyFixture(repository);
+    expect(Object.isFrozen(checkpoint)).toBe(true);
+    const executionPacket = prepare(
+      repository,
+      "execute-decomposition-work-package@2",
+    );
+    expect(exactInputs(executionPacket, "interfaces")).toEqual([]);
+    expect(exactInputs(executionPacket, "plan")).toEqual([checkpoint.plan]);
+    expect(exactInputs(executionPacket, "parents")).toEqual([
+      checkpoint.requirement,
     ]);
-
-    const contexts = new Map(
-      seeded.requirements.map((requirement, index) => [
-        requirement.datum.revision_id,
-        index === 0 ? "client" : "service",
-      ]),
-    );
-    const architectures = new Map<string, string>();
-    const architectureElements = new Map<string, string>();
-    const plans = new Map<string, string>();
-    const systems = new Set<string>();
-    const reviewedSystems = new Set<string>();
-    const completedPlans = new Set<string>();
-
-    for (let step = 0; step < 40 && completedPlans.size < 2; step += 1) {
-      const packet = prepareAny(repository);
-      if (packet.scenario.reference === "define-system-architecture@3") {
-        const requirementInputs = exactInputs(packet, "requirements");
-        expect(requirementInputs).toHaveLength(1);
-        const requirement = requirementInputs[0]!;
-        const context = contexts.get(requirement)!;
-        const element =
-          context === "client" ? "AEL-0C1ENTCTX01" : "AEL-0SERVCTX001";
-        const execution = submit(repository, packet, [
-          {
-            localId: "architecture",
-            name: "architecture",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "ASP",
-              payload: {
-                title: `${context} responsibility architecture`,
-                rationale:
-                  "This context has one responsibility and no independently controlled internal boundary.",
-                level: "system",
-                elements: [
-                  {
-                    id: element,
-                    alias: context.toUpperCase(),
-                    title: `${context} responsibility`,
-                    responsibilities: [`Own the ${context} behavior`],
-                  },
-                ],
-                internal_interactions: [],
-                controlled_boundaries: [],
-                constraints: ["Remain solution-independent"],
-                nominated_risks: [
-                  "Context behavior could be omitted from detailed definition",
-                ],
-              },
-              links: [{ type: "governs", target: requirement }],
-              body: "One context with no independently controlled internal boundary.\n",
-            },
+    expect(exactInputs(executionPacket, "architecture")).toEqual([
+      checkpoint.architecture,
+    ]);
+    const execution = submit(repository, executionPacket, [
+      {
+        localId: "requirement",
+        name: "requirements",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "SYS",
+          payload: {
+            title: "Client observable system behavior",
+            rationale: "Allocate one exact solution-independent behavior.",
+            statement: "The system shall accept a client request deterministically.",
+            verification_intent: "Observe the exact client outcome.",
           },
-        ]);
-        architectures.set(
-          requirement,
-          submittedRevision(execution, "architecture"),
-        );
-        architectureElements.set(requirement, element);
-        commit(repository, `Publish ${context} architecture`);
-        continue;
-      }
-
-      if (packet.scenario.reference === "define-decomposition-work-package@3") {
-        const requirement = exactInputs(packet, "parents")[0]!;
-        expect(exactInputs(packet, "interfaces")).toEqual([]);
-        const architecture = exactInputs(packet, "architecture")[0]!;
-        expect(architecture).toBe(architectures.get(requirement));
-        const strategy = exactInputs(packet, "verification_strategy")[0]!;
-        const execution = submit(repository, packet, [
-          {
-            localId: "plan",
-            name: "plan",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "DWP",
-              payload: {
-                title: `${contexts.get(requirement)} behavior slice`,
-                rationale:
-                  "Keep the distinct context independently changeable and verifiable.",
-                architecture_element: architectureElements.get(requirement),
-                target_child_type: "SYS",
-                behavioral_slice: `Define the exact ${contexts.get(requirement)} system behavior.`,
-                expected_coverage: ["One exact stakeholder behavior"],
-                exclusions: ["Implementation design"],
-                dependencies: [],
-                required_review_policy: "review-applicability@1",
-                stage: "planning",
-              },
-              links: [
-                { type: "decomposes", target: requirement },
-                { type: "allocated-to", target: architecture },
-                { type: "verified-under", target: strategy },
-              ],
-              body: "One cohesive no-interface decomposition slice.\n",
-            },
-          },
-        ]);
-        plans.set(requirement, submittedRevision(execution, "plan"));
-        commit(
-          repository,
-          `Publish ${contexts.get(requirement)} decomposition plan`,
-        );
-        continue;
-      }
-
-      if (packet.scenario.reference === "review-datum-in-context@2") {
-        const subjects = packet.exactInputs.map(
-          (_, invocation) => exactInputsAt(packet, invocation, "subject")[0]!,
-        );
-        reviewPacket(repository, packet);
-        for (const subject of subjects) {
-          if (subject.startsWith("SYS-")) reviewedSystems.add(subject);
-        }
-        continue;
-      }
-
-      if (
-        packet.scenario.reference === "execute-decomposition-work-package@2"
-      ) {
-        const requirement = exactInputs(packet, "parents")[0]!;
-        expect(exactInputs(packet, "interfaces")).toEqual([]);
-        expect(exactInputs(packet, "plan")).toEqual([plans.get(requirement)]);
-        const architecture = exactInputs(packet, "architecture")[0]!;
-        const execution = submit(repository, packet, [
-          {
-            localId: "requirement",
-            name: "requirements",
-            invocation: 0,
-            lifecycleDatum: {
-              type: "SYS",
-              payload: {
-                title: `${contexts.get(requirement)} observable system behavior`,
-                rationale: "Allocate one exact solution-independent behavior.",
-                statement: `The system shall complete the ${contexts.get(requirement)} behavior deterministically.`,
-                verification_intent: `Observe the exact ${contexts.get(requirement)} outcome at the public boundary.`,
-              },
-              links: [
-                { type: "derived-from", target: requirement },
-                { type: "decomposes", target: plans.get(requirement)! },
-                { type: "allocated-to", target: architecture },
-              ],
-              body: "One detailed solution-independent system behavior.\n",
-            },
-          },
-        ]);
-        systems.add(submittedRevision(execution, "requirements"));
-        commit(
-          repository,
-          `Publish ${contexts.get(requirement)} system behavior`,
-        );
-        continue;
-      }
-
-      if (
-        packet.scenario.reference === "simplify-architecture-and-interfaces@2"
-      ) {
-        const definitionMembers = exactInputs(packet, "definition_members");
-        expect(
-          definitionMembers.filter((member) => member.startsWith("ASP-")),
-        ).toHaveLength(1);
-        expect(
-          definitionMembers.filter((member) => member.startsWith("DWP-")),
-        ).toHaveLength(1);
-        expect(
-          definitionMembers.filter((member) => member.startsWith("SYS-")),
-        ).toHaveLength(1);
-        expect(
-          definitionMembers.some((member) => member.startsWith("ICSP-")),
-        ).toBe(false);
-        simplifyDefinitionSet(repository, packet);
-        continue;
-      }
-
-      if (
-        packet.scenario.reference === "complete-decomposition-work-package@2"
-      ) {
-        expect(exactInputs(packet, "interfaces")).toEqual([]);
-        completedPlans.add(completePlan(repository, packet));
-        continue;
-      }
-
-      throw new Error(`Unexpected route ${packet.scenario.reference}`);
-    }
-
-    expect(architectures.size).toBe(2);
-    expect(plans.size).toBe(2);
-    expect(systems.size).toBe(2);
-    expect(reviewedSystems).toEqual(systems);
-    expect(completedPlans.size).toBe(2);
-    expect([...completedPlans]).toEqual(
-      expect.arrayContaining(
-        [...plans.values()].map(
-          (plan) => `${plan.replace(/-r[0-9]{5}$/, "")}-r00002`,
-        ),
-      ),
-    );
+          links: [
+            { type: "derived-from", target: checkpoint.requirement },
+            { type: "decomposes", target: checkpoint.plan },
+            { type: "allocated-to", target: checkpoint.architecture },
+          ],
+          body: "One detailed solution-independent system behavior.\n",
+        },
+      },
+    ]);
+    commit(repository, "Publish client system behavior");
+    const system = submittedRevision(execution, "requirements");
+    const shown = mdlm(repository, "show", system, "--json");
+    expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
+    expect(JSON.parse(shown.stdout).lifecycleDatum.datum.type).toBe("SYS");
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }

@@ -119,10 +119,10 @@ rows:
       - route: STK
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: publishes STK through draft-stakeholder-requirements atomically and yields fresh STK Review work
+          test: prepares the exact PSP parent in both STK Review context Assignments
         evidence:
-          facts: One current reviewed PSP and the newly published STK Revision.
-          links: The STK derived-from link names the exact governing PSP Stable Datum.
+          facts: One current reviewed PSP and one current STK Revision are prepared for exact Review Context and Review Assignments.
+          links: Both prepared Assignments bind the STK to the exact governing PSP Revision selected from its derived-from relationship.
         selectors:
           - phase-0-foundation-members@1
         obligations:
@@ -136,8 +136,8 @@ rows:
         next:
           - assignment
         budget: No lifecycle Correction cycle is consumed.
-        disposition: Successful atomic publication yields fresh Review work for the STK; malformed publication writes nothing.
-        reuse: Reviewed MAP and PSP evidence remains reusable; the new STK receives fresh context and Review.
+        disposition: The exact STK yields context-creation work followed by Review work; neither Assignment substitutes a different PSP parent.
+        reuse: Reviewed MAP and PSP evidence remains reusable while the STK receives its own exact context and Review.
       - route: candidate creation
         executable:
           file: test/phase-0-hardening-routes.test.ts
@@ -660,7 +660,7 @@ rows:
       - route: immediate blocking
         executable:
           file: test/operator-outcome.test.ts
-          test: returns immediate attended work with an exact Assignment and Authority Requirement
+          test: classifies immediate attended work with its exact authority requirement
         evidence:
           facts: "immediate blocking: One source-bounded open preferential QST whose exact target cannot proceed without
             stakeholder intent."
@@ -692,7 +692,7 @@ rows:
       - route: consolidated checkpoint
         executable:
           file: test/operator-outcome.test.ts
-          test: projects one complete checkpoint conversation and the first exact Assignment
+          test: consolidates every compatible Question at an active checkpoint before other work
         evidence:
           facts: "consolidated checkpoint: Every compatible source-bounded open preferential QST in one declared Consolidation
             Group at its ready checkpoint."
@@ -726,7 +726,7 @@ rows:
       - route: empirical answer
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: publishes an empirical QST answer without an empirical DEC through resolve-question@2
+          test: satisfies an empirical QST obligation with a same-lineage answer and no Decision
         evidence:
           facts: "empirical answer: One source-bounded open empirical QST with available exact evidence and one same-lineage
             answered Revision."
@@ -793,8 +793,7 @@ rows:
       - route: unavailable evidence
         executable:
           file: test/phase-0-hardening-routes.test.ts
-          test: abandons a source-bounded unavailable-evidence Assignment without publication and requires deliberate fresh
-            attention
+          test: keeps a source-bounded unavailable-evidence Question unchanged and attended-delegable for a deliberate fresh allocation
         evidence:
           facts: "unavailable evidence: One source-bounded open empirical QST and one typed Assignment Response reporting
             unavailable evidence."
@@ -1050,8 +1049,8 @@ rows:
           rereviewed."
       - route: reviewed rejection
         executable:
-          file: test/phase-0-hardening-routes.test.ts
-          test: candidate-authority public route reaches corrected gate review and Phase 0 acceptance
+          file: test/phase-0-corrected-gate-route.test.ts
+          test: corrects gate authority and atomically materializes its exact Review Context
         evidence:
           facts: "reviewed rejection: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
             superseding candidate."
@@ -1141,8 +1140,8 @@ rows:
           replaced and rereviewed."
       - route: same-gate return
         executable:
-          file: test/phase-0-hardening-routes.test.ts
-          test: returns corrected and freshly reviewed Phase 0 evidence to the same gate without reusing the rejected sign-off
+          file: test/phase-0-corrected-gate-route.test.ts
+          test: accepts corrected Phase 0 intent from its reviewed checkpoint
         evidence:
           facts: "same-gate return: Exact candidate, attended gate DEC, DEC Review, canonical blockers, corrected members, and
             superseding candidate."
@@ -1759,7 +1758,7 @@ rows:
       - route: planning DWP independent Review
         executable:
           file: test/phase-2-hardening-routes.test.ts
-          test: prepares and completes every planning-DWP product-definition outcome with exact support
+          test: prepares and completes a failed planning-DWP product-definition Review with exact support
         evidence:
           facts: One exact planning DWP, its allocated ASP, all governing ICSP Revisions, applicable current SYS support, and one exact frozen Review Context.
           links: The Review reviews the exact DWP and contextualizes its frozen context; a failed judgment blocks only that exact DWP.

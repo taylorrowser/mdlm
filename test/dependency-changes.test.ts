@@ -8,15 +8,14 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
 const processRoot = path.resolve(".lifecycle/process");
 let processPackage: ProcessPackage;
 
 beforeAll(async () => {
-  const loaded = await loadProcessPackage(processRoot);
-  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-  processPackage = loaded.package;
+  processPackage = await canonicalProcessPackage();
 });
 
 function revision(

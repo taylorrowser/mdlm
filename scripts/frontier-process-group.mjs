@@ -38,49 +38,98 @@ async function terminateRemainingGroup(pid, terminationGrace) {
   await waitForGroupExit(pid);
 }
 
+export function launchInProcessGroup(command, args, options = {}) {
+  if (!("darwin" === process.platform || "linux" === process.platform)) {
+    throw new Error(`Process-group execution is unsupported on ${process.platform}`);
+  }
+  const terminationGrace = options.terminationGrace ?? 2_000;
+  const child = spawn(command, args, {
+    cwd: options.cwd,
+    env: { ...process.env, ...options.environment },
+    detached: true,
+    stdio: options.stdio ?? ["ignore", "inherit", "inherit"],
+  });
+
+  let settled = false;
+  let resolveChild;
+  const childClosed = new Promise((resolve) => { resolveChild = resolve; });
+  const settle = (outcome) => {
+    if (settled) return;
+    settled = true;
+    resolveChild(outcome);
+  };
+  child.once("error", (error) => {
+    settle({ status: 1, signal: null, startupError: error.message });
+  });
+  child.once("close", (status, signal) => {
+    settle({ status, signal, startupError: null });
+  });
+
+  let termination;
+  const terminate = async () => {
+    termination ??= (async () => {
+      if (child.pid) await terminateRemainingGroup(child.pid, terminationGrace);
+      await childClosed;
+    })();
+    await termination;
+  };
+  const completion = (async () => {
+    const outcome = await childClosed;
+    await terminate();
+    return outcome;
+  })();
+
+  return { completion, pid: child.pid, terminate };
+}
+
 async function launchFromStandardInput() {
   let input = "";
   for await (const chunk of process.stdin) input += chunk;
   const { command, args, cwd, environment, timeout, terminationGrace } = JSON.parse(input);
-  const child = spawn(command, args, {
+  let notifySignal;
+  const signalReached = new Promise((resolve) => { notifySignal = resolve; });
+  const onTerm = () => notifySignal("SIGTERM");
+  const onInterrupt = () => notifySignal("SIGINT");
+  process.once("SIGTERM", onTerm);
+  process.once("SIGINT", onInterrupt);
+  const launched = launchInProcessGroup(command, args, {
     cwd,
-    env: environment,
-    detached: true,
-    stdio: ["ignore", "inherit", "inherit"],
-  });
-
-  let childOutcome;
-  let resolveChild;
-  const childClosed = new Promise((resolve) => { resolveChild = resolve; });
-  child.once("error", (error) => {
-    childOutcome = { status: 1, signal: null, startupError: error.message };
-    resolveChild();
-  });
-  child.once("close", (status, signal) => {
-    childOutcome = { status, signal, startupError: null };
-    resolveChild();
+    environment,
+    terminationGrace,
   });
 
   let timeoutHandle;
   const timeoutReached = new Promise((resolve) => {
     timeoutHandle = setTimeout(() => resolve("timeout"), timeout);
   });
-  const timerResult = await Promise.race([
-    childClosed.then(() => "closed"),
+  const result = await Promise.race([
+    launched.completion.then(() => "closed"),
     timeoutReached,
+    signalReached,
   ]);
-  if (timerResult === "closed") {
-    clearTimeout(timeoutHandle);
-    if (child.pid) await terminateRemainingGroup(child.pid, terminationGrace);
+  clearTimeout(timeoutHandle);
+
+  if (result === "closed") {
+    process.removeListener("SIGTERM", onTerm);
+    process.removeListener("SIGINT", onInterrupt);
+    const childOutcome = await launched.completion;
     if (childOutcome.startupError) process.stderr.write(`FRONTIER_PROCESS_START_FAILED: ${childOutcome.startupError}\n`);
     process.exitCode = childOutcome.status ?? 1;
     return;
   }
 
-  await terminateRemainingGroup(child.pid, terminationGrace);
-  await childClosed;
-  process.stderr.write(`FRONTIER_PROCESS_TIMEOUT: command exceeded ${timeout}ms; process group terminated\n`);
-  process.exitCode = timeoutExitStatus;
+  // Keep both handlers installed through cleanup so repeated signals cannot
+  // restore default termination and orphan the detached child group.
+  await launched.terminate();
+  process.removeListener("SIGTERM", onTerm);
+  process.removeListener("SIGINT", onInterrupt);
+  if (result === "timeout") {
+    process.stderr.write(`FRONTIER_PROCESS_TIMEOUT: command exceeded ${timeout}ms; process group terminated\n`);
+    process.exitCode = timeoutExitStatus;
+    return;
+  }
+
+  process.kill(process.pid, result);
 }
 
 export function runInProcessGroup(command, args, options = {}) {

@@ -728,9 +728,10 @@ function phaseReference(evaluation: LifecycleEvaluation): string {
   return phase ? `${phase.id}@${phase.version}` : "";
 }
 
-function operatorWork(
+/** Project package-neutral operator work from one lifecycle evaluation and its Lifecycle Data. */
+export function operatorWorkProjection(
   evaluation: LifecycleEvaluation,
-  records: LifecycleRecord[] = [],
+  records: readonly LifecycleRecord[] = [],
 ): OperatorWorkFacts[] {
   const phase = phaseReference(evaluation);
   const recordsByRevision = new Map(
@@ -971,7 +972,7 @@ async function operatorStateFromSnapshot(
   if (evaluation.diagnostics.length > 0) {
     return { ok: false, diagnostics: evaluation.diagnostics };
   }
-  const workItems = operatorWork(evaluation, snapshot.records);
+  const workItems = operatorWorkProjection(evaluation, snapshot.records);
   const classification = classifyOperatorOutcome(
     workItems,
     evaluation.terminalOutcome,
@@ -1608,7 +1609,7 @@ async function leaseNextAssignmentLocked(
           explanation: classification.explanation,
           blockers: classification.blockers,
         }
-      : { ...base, ...terminalOutcomeProjection(classification) };
+      : { ...base, ...operatorTerminalOutcomeProjection(classification) };
     return { ok: true, value, diagnostics: [] };
   }
   const exact = state.value.assignment;
@@ -1705,7 +1706,8 @@ async function recentTransaction(
     : { available: false };
 }
 
-function terminalOutcomeProjection(
+/** Project one package-declared successful terminal classification for next/status composition. */
+export function operatorTerminalOutcomeProjection(
   classification: Extract<OperatorOutcomeClassification, {
     kind: "profile-boundary-reached" | "lifecycle-complete";
   }>,
@@ -1741,7 +1743,7 @@ function statusOutcome(
   if (
     classification.kind === "profile-boundary-reached" ||
     classification.kind === "lifecycle-complete"
-  ) return terminalOutcomeProjection(classification);
+  ) return operatorTerminalOutcomeProjection(classification);
   const exact = state.assignment;
   const assignment = exact && activeLease && sameAssignment(activeLease, exact)
     ? { allocation: "active" as const, id: activeLease.id }
@@ -1876,7 +1878,8 @@ export async function inspectOperatorStatus(
   };
 }
 
-function responseSchema(): Record<string, unknown> {
+/** Return the exact response contract embedded in every Assignment packet. */
+export function assignmentResponseSchema(): Record<string, unknown> {
   const diagnostic = {
     type: "object",
     additionalProperties: false,
@@ -2024,7 +2027,7 @@ interface UnableAssignmentResponse {
 type AssignmentResponse = ProposalAssignmentResponse | UnableAssignmentResponse;
 
 const validateAssignmentResponse = new Ajv2020({ allErrors: true, strict: false })
-  .compile(responseSchema());
+  .compile(assignmentResponseSchema());
 
 function responseDiagnostics(errors: ErrorObject[] | null | undefined): ProcessDiagnostic[] {
   return (errors ?? []).map((error) => ({
@@ -2177,7 +2180,7 @@ function packet(
       requiredLinks: output.requiredLinks,
     })),
     completion: exact.dryRun.completion,
-    responseSchema: responseSchema(),
+    responseSchema: assignmentResponseSchema(),
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation
       ? {

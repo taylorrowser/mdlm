@@ -1,13 +1,12 @@
-import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type ExactTypedEntity,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
 const ids = {
@@ -119,11 +118,7 @@ describe("exact DWP parent Revision matching", () => {
   let processPackage: ProcessPackage;
 
   beforeAll(async () => {
-    const loaded = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = loaded.package;
+    processPackage = await canonicalProcessPackage();
   });
 
   it("rejects same-lineage parent substitutions from completion coverage", () => {

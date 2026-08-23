@@ -1,8 +1,18 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { loadProcessPackage } from "../src/index.js";
+import { beforeAll, describe, expect, it } from "vitest";
+import { validateDefinitionGraph } from "../src/definition-graph.js";
+import { loadProcessPackage, type ProcessPackage } from "../src/index.js";
+import { processPackageDigest } from "../src/process-package-digest.js";
+import { validateScenarioContracts } from "../src/scenario-contract.js";
+import {
+  canonicalProcessPackage,
+  verifyCanonicalProcessPackageFixture,
+} from "./helpers/canonical-process-package-fixture.js";
+
+const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
+const CANONICAL_PROCESS_ROOT = ".lifecycle/process";
 
 async function copiedProcessPackage(): Promise<string> {
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
@@ -13,16 +23,186 @@ async function copiedProcessPackage(): Promise<string> {
   return processRoot;
 }
 
+describe("canonical immutable ProcessPackage fixture", () => {
+  let livePackage: ProcessPackage;
+
+  beforeAll(async () => {
+    const loaded = await loadProcessPackage(CANONICAL_PROCESS_ROOT);
+    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
+      .toBe(true);
+    if (!loaded.ok) throw new Error("Canonical process package did not load");
+    livePackage = loaded.package;
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
+
+  it("is exact, recursively frozen, and isolated from mutable clones", async () => {
+    const fixturePackage = await canonicalProcessPackage();
+    await expect(verifyCanonicalProcessPackageFixture(livePackage)).resolves.toEqual({
+      processPackage: "mdlm-bootstrap@0.74.0",
+      verified: true,
+    });
+    expect(fixturePackage).toStrictEqual(livePackage);
+
+    const assertFrozen = (value: unknown): void => {
+      if (typeof value !== "object" || value === null) return;
+      expect(Object.isFrozen(value)).toBe(true);
+      for (const nested of Object.values(value)) assertFrozen(nested);
+    };
+    assertFrozen(fixturePackage);
+
+    const mutable = structuredClone(fixturePackage);
+    mutable.manifest.version = "mutated-test-clone";
+    expect(fixturePackage.manifest.version).toBe("0.74.0");
+  });
+
+  it("rejects artifact hash and source-provenance drift", async () => {
+    const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-canonical-fixture-"));
+    try {
+      const fixtureRoot = path.join(temporaryRoot, "fixture");
+      await fs.cp(
+        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
+        fixtureRoot,
+        { recursive: true },
+      );
+      const manifestPath = path.join(fixtureRoot, "manifest.json");
+      const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+        artifact: { archive: string };
+        processPackage: { digest: string };
+      };
+      const archivePath = path.join(fixtureRoot, manifest.artifact.archive);
+      await fs.appendFile(archivePath, "drift");
+      await expect(canonicalProcessPackage({ fixtureRoot })).rejects.toThrow(
+        "Compressed digest mismatch",
+      );
+
+      await fs.rm(fixtureRoot, { recursive: true, force: true });
+      await fs.cp(
+        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
+        fixtureRoot,
+        { recursive: true },
+      );
+      const driftedManifest = JSON.parse(
+        await fs.readFile(path.join(fixtureRoot, "manifest.json"), "utf8"),
+      ) as { processPackage: { digest: string } };
+      driftedManifest.processPackage.digest = `sha256:${"0".repeat(64)}`;
+      await fs.writeFile(
+        path.join(fixtureRoot, "manifest.json"),
+        `${JSON.stringify(driftedManifest, null, 2)}\n`,
+      );
+      await expect(
+        verifyCanonicalProcessPackageFixture(livePackage, { fixtureRoot }),
+      ).rejects.toThrow("Source Process Package digest mismatch");
+    } finally {
+      await fs.rm(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("loadProcessPackage", () => {
-  it("loads and validates the bootstrap process package", async () => {
+  let validPackage: ProcessPackage;
+
+  beforeAll(async () => {
     const result = await loadProcessPackage(
       path.join(process.cwd(), ".lifecycle/process"),
     );
+    expect(result.ok, result.diagnostics.map((item) => item.message).join("\n"))
+      .toBe(true);
+    if (!result.ok) throw new Error("Bootstrap process package did not load");
+    validPackage = result.package;
+  }, CONTENDED_SETUP_HOOK_TIMEOUT_MS);
 
-    expect(result.ok, result.diagnostics.map((item) => item.message).join("\n")).toBe(
-      true,
+  function clonedValidPackage(): ProcessPackage {
+    return structuredClone(validPackage);
+  }
+
+  function graphResult(processPackage: ProcessPackage) {
+    const diagnostics = validateDefinitionGraph(
+      processPackage.manifest,
+      processPackage,
     );
-    if (!result.ok) return;
+    return { ok: diagnostics.length === 0, diagnostics };
+  }
+
+  function scenarioContractResult(processPackage: ProcessPackage) {
+    const diagnostics = validateScenarioContracts(processPackage);
+    return { ok: diagnostics.length === 0, diagnostics };
+  }
+
+  function record(value: unknown): Record<string, unknown> {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new Error("Expected definition field to be a record");
+    }
+    return value as Record<string, unknown>;
+  }
+
+  function records(value: unknown): Record<string, unknown>[] {
+    if (!Array.isArray(value)) {
+      throw new Error("Expected definition field to be an array");
+    }
+    return value.map(record);
+  }
+
+  it("recalculates a package digest after nested package bytes change", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-package-digest-"));
+    try {
+      const nested = path.join(root, "definitions");
+      await fs.mkdir(nested);
+      const definition = path.join(nested, "example.yaml");
+      await fs.writeFile(definition, "value: one\n");
+      const initial = await processPackageDigest(root);
+
+      await fs.writeFile(definition, "value: two\n");
+
+      expect(await processPackageDigest(root)).not.toBe(initial);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("isolates parsed documents and refreshes validators after schema bytes change", async () => {
+    const processRoot = await copiedProcessPackage();
+    try {
+      const first = await loadProcessPackage(processRoot);
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+      first.package.manifest.version = "poisoned-by-caller";
+
+      const second = await loadProcessPackage(processRoot);
+      expect(second.ok).toBe(true);
+      if (!second.ok) return;
+      expect(second.package.manifest.version).toBe("0.74.0");
+
+      const manifestSchemaPath = path.join(
+        processRoot,
+        "meta",
+        "manifest.schema.json",
+      );
+      const manifestSchema = JSON.parse(
+        await fs.readFile(manifestSchemaPath, "utf8"),
+      ) as Record<string, unknown>;
+      await fs.writeFile(
+        manifestSchemaPath,
+        `${JSON.stringify({ ...manifestSchema, not: {} }, null, 2)}\n`,
+      );
+
+      const changedSchema = await loadProcessPackage(processRoot);
+      expect(changedSchema.ok).toBe(false);
+      expect(changedSchema.diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          code: "meta-schema",
+          path: expect.stringMatching(/manifest\.yaml$/),
+        }),
+      ]));
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  });
+
+  it("loads and validates the bootstrap process package", async () => {
+    const result = {
+      ok: true as const,
+      package: validPackage,
+      diagnostics: [] as const,
+    };
 
     expect(result.package.manifest.version).toBe("0.74.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
@@ -276,19 +456,14 @@ describe("loadProcessPackage", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
-  it("rejects review Policy argument mappings that do not cover the Policy", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/review-datum-in-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("  subject: subject", "  other: subject"),
-    );
+  it("rejects review Policy argument mappings that do not cover the Policy", () => {
+    const processPackage = clonedValidPackage();
+    const scenario = processPackage.scenarios["review-datum-in-context"]!;
+    const argumentsByName = record(scenario.review_policy_arguments);
+    argumentsByName.other = argumentsByName.subject;
+    delete argumentsByName.subject;
 
-    const result = await loadProcessPackage(processRoot);
+    const result = graphResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
@@ -344,22 +519,13 @@ describe("loadProcessPackage", () => {
     }));
   });
 
-  it("rejects Review Policies with duplicate parameter names", async () => {
-    const processRoot = await copiedProcessPackage();
-    const policyPath = path.join(
-      processRoot,
-      "policies/review-applicability.yaml",
-    );
-    const policy = await fs.readFile(policyPath, "utf8");
-    await fs.writeFile(
-      policyPath,
-      policy.replace(
-        "  - {name: subject, kind: revision}",
-        "  - {name: subject, kind: revision}\n  - {name: subject, kind: stable-datum}",
-      ),
-    );
+  it("rejects Review Policies with duplicate parameter names", () => {
+    const processPackage = clonedValidPackage();
+    const policy = processPackage.policies["review-applicability"]!;
+    const parameters = records(policy.parameters);
+    policy.parameters = [...parameters, { ...parameters[0] }];
 
-    const result = await loadProcessPackage(processRoot);
+    const result = graphResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
@@ -368,15 +534,12 @@ describe("loadProcessPackage", () => {
     }));
   });
 
-  it("validates Review Context membership contracts for DEC and CHG callers", async () => {
-    const result = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-
-    expect(result.ok, result.diagnostics.map((item) => item.message).join("\n")).toBe(
-      true,
-    );
-    if (!result.ok) return;
+  it("validates Review Context membership contracts for DEC and CHG callers", () => {
+    const result = {
+      ok: true as const,
+      package: validPackage,
+      diagnostics: [] as const,
+    };
 
     expect(result.package.selectors["review-context-contains-member"]?.parameters)
       .toEqual(expect.arrayContaining([
@@ -388,13 +551,12 @@ describe("loadProcessPackage", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
-  it("compiles package-authored terminal outcome conditions", async () => {
-    const result = await loadProcessPackage(
-      path.join(process.cwd(), ".lifecycle/process"),
-    );
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
+  it("compiles package-authored terminal outcome conditions", () => {
+    const result = {
+      ok: true as const,
+      package: validPackage,
+      diagnostics: [] as const,
+    };
     expect(result.package.profiles.bootstrap?.terminal_outcomes).toEqual({
       profile_boundary: {
         condition: expect.objectContaining({
@@ -411,7 +573,7 @@ describe("loadProcessPackage", () => {
     });
   });
 
-  it("rejects malformed, unresolved, and ambiguous terminal outcome declarations", async () => {
+  it("rejects malformed and unresolved terminal outcome declarations", async () => {
     const malformedRoot = await copiedProcessPackage();
     const malformedPath = path.join(malformedRoot, "profiles/bootstrap.yaml");
     const malformed = await fs.readFile(malformedPath, "utf8");
@@ -432,24 +594,9 @@ describe("loadProcessPackage", () => {
         'exists("unknown-terminal-evidence@1", {})',
       ),
     );
-    const ambiguousRoot = await copiedProcessPackage();
-    const ambiguousPath = path.join(ambiguousRoot, "profiles/bootstrap.yaml");
-    const ambiguous = await fs.readFile(ambiguousPath, "utf8");
-    await fs.writeFile(
-      ambiguousPath,
-      ambiguous.replace(
-        /    condition: >-[\s\S]*?    explanation: The selected profile/,
-        "    condition: 'true'\n    explanation: The selected profile",
-      ).replace(
-        /    condition: >-[\s\S]*?    explanation: Every current/,
-        "    condition: 'true'\n    explanation: Every current",
-      ),
-    );
-
-    const [malformedResult, unresolvedResult, ambiguousResult] = await Promise.all([
+    const [malformedResult, unresolvedResult] = await Promise.all([
       loadProcessPackage(malformedRoot),
       loadProcessPackage(unresolvedRoot),
-      loadProcessPackage(ambiguousRoot),
     ]);
 
     expect(malformedResult).toEqual(expect.objectContaining({
@@ -470,7 +617,20 @@ describe("loadProcessPackage", () => {
         ),
       })]),
     }));
-    expect(ambiguousResult).toEqual({
+  });
+
+  it("rejects ambiguous terminal outcome declarations", () => {
+    const processPackage = clonedValidPackage();
+    const outcomes = record(
+      processPackage.profiles.bootstrap!.terminal_outcomes,
+    );
+    const boundary = record(outcomes.profile_boundary);
+    const complete = record(outcomes.lifecycle_complete);
+    complete.condition = structuredClone(boundary.condition);
+
+    const result = graphResult(processPackage);
+
+    expect(result).toEqual({
       ok: false,
       diagnostics: [expect.objectContaining({
         code: "ambiguous-terminal-outcomes",
@@ -479,19 +639,13 @@ describe("loadProcessPackage", () => {
     });
   });
 
-  it("rejects ambiguous explicit-initiation and Resolver semantics", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/chart-wayfinding-map.yaml",
-    );
-    const source = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      source.replace("resolves: []", "resolves: [open-question-resolution]"),
-    );
+  it("rejects ambiguous explicit-initiation and Resolver semantics", () => {
+    const processPackage = clonedValidPackage();
+    processPackage.scenarios["chart-wayfinding-map"]!.resolves = [
+      "open-question-resolution",
+    ];
 
-    const result = await loadProcessPackage(processRoot);
+    const result = scenarioContractResult(processPackage);
 
     expect(result).toEqual({
       ok: false,
@@ -524,47 +678,48 @@ describe("loadProcessPackage", () => {
         "every: {selector: review-required-revisions@1, arguments: {}, as: item, satisfies: {present: {var: item}}}",
       present: "present: {var: subject}",
     };
-
-    const results = await Promise.all(
-      Object.values(legacyForms).map(async (legacySource) => {
-        const processRoot = await copiedProcessPackage();
-        const statePath = path.join(
-          processRoot,
-          "states/relationship-overlays.yaml",
-        );
-        const state = await fs.readFile(statePath, "utf8");
-        await fs.writeFile(
-          statePath,
-          state.replace(
-            "    when: 'subject.provenance.process_ref != process.current_ref'",
-            `    when:\n      ${legacySource}`,
-          ),
-        );
-        return loadProcessPackage(processRoot);
-      }),
-    );
-
-    for (const result of results) {
-      expect(result.ok).toBe(false);
-      expect(result.diagnostics).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            code: "legacy-expression-authoring",
-            path: expect.stringContaining(
-              "relationship-overlays.yaml#rules[2].when",
-            ),
-            message:
-              "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
-          }),
-          expect.objectContaining({
-            code: "meta-schema",
-            path: expect.stringContaining(
-              "relationship-overlays.yaml/rules/2/when",
-            ),
-            message: "must be string",
-          }),
-        ]),
+    const processRoot = await copiedProcessPackage();
+    try {
+      const statePath = path.join(
+        processRoot,
+        "states/relationship-overlays.yaml",
       );
+      const state = await fs.readFile(statePath, "utf8");
+      const legacyRules = Object.entries(legacyForms).map(
+        ([family, source], index) => `  - value: process-drift
+    priority: ${90 - index}
+    when:
+      ${source}
+    explanation: Reject the legacy ${family} expression family.`,
+      ).join("\n");
+      await fs.writeFile(statePath, `${state.trimEnd()}\n${legacyRules}\n`);
+
+      const result = await loadProcessPackage(processRoot);
+
+      expect(result.ok).toBe(false);
+      const expectedRuleIndexes = Object.keys(legacyForms).map(
+        (_, index) => index + 3,
+      );
+      expect(result.diagnostics.filter((item) =>
+        item.code === "legacy-expression-authoring"
+      )).toEqual(expectedRuleIndexes.map((index) => expect.objectContaining({
+        path: expect.stringContaining(
+          `relationship-overlays.yaml#rules[${index}].when`,
+        ),
+        message:
+          "Expression-bearing fields require mdlm-expression@1 textual source; legacy YAML expression trees are not accepted",
+      })));
+      expect(result.diagnostics.filter((item) =>
+        item.code === "meta-schema" &&
+        item.path?.includes("relationship-overlays.yaml/rules/")
+      )).toEqual(expectedRuleIndexes.map((index) => expect.objectContaining({
+        path: expect.stringContaining(
+          `relationship-overlays.yaml/rules/${index}/when`,
+        ),
+        message: "must be string",
+      })));
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
   }, 20_000);
 
@@ -598,19 +753,14 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects disagreement between the manifest and loaded definition catalogs", async () => {
-    const processRoot = await copiedProcessPackage();
-    const manifestPath = path.join(processRoot, "manifest.yaml");
-    const manifest = await fs.readFile(manifestPath, "utf8");
-    await fs.writeFile(
-      manifestPath,
-      manifest.replace(
-        "  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, stakeholder-change-correction-participation, pilot-assessment-correction-participation]",
-        "  policies: [dependency-reassessment, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, stakeholder-change-correction-participation, pilot-assessment-correction-participation]",
-      ),
+  it("rejects disagreement between the manifest and loaded definition catalogs", () => {
+    const processPackage = clonedValidPackage();
+    const catalog = record(processPackage.manifest.catalog);
+    catalog.policies = (catalog.policies as unknown[]).filter(
+      (policy) => policy !== "review-applicability",
     );
 
-    const result = await loadProcessPackage(processRoot);
+    const result = graphResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -648,16 +798,18 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects a version-mismatched Policy reference", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(processRoot, "scenarios/compile-psp.yaml");
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("review-applicability@1", "review-applicability@2"),
-    );
+  it("rejects mismatched Policy and unknown Resolver references in one package", () => {
+    const processPackage = clonedValidPackage();
+    processPackage.scenarios["compile-psp"]!.review_policy_ref =
+      "review-applicability@2";
+    record(
+      processPackage.obligations["review-context-required"]!.resolve_with,
+    ).scenario = "missing-scenario@1";
+    processPackage.scenarios["create-review-context"]!.resolves = [
+      "missing-obligation",
+    ];
 
-    const result = await loadProcessPackage(processRoot);
+    const result = graphResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -668,20 +820,26 @@ describe("loadProcessPackage", () => {
           message:
             "Reference 'review-applicability@2' resolves to review-applicability@1",
         }),
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "obligations.review-context-required.resolve_with.scenario",
+          message: "Unknown Scenario reference 'missing-scenario@1'",
+        }),
+        expect.objectContaining({
+          code: "unknown-reference",
+          path: "scenarios.create-review-context.resolves[0]",
+          message: "Unknown Obligation reference 'missing-obligation'",
+        }),
       ]),
     );
   });
 
-  it("rejects an unknown Policy reference in a Scenario", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(processRoot, "scenarios/compile-psp.yaml");
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("review-applicability@1", "missing-policy@1"),
-    );
+  it("rejects an unknown Policy reference in a Scenario", () => {
+    const processPackage = clonedValidPackage();
+    processPackage.scenarios["compile-psp"]!.review_policy_ref =
+      "missing-policy@1";
 
-    const result = await loadProcessPackage(processRoot);
+    const result = graphResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -695,22 +853,22 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects a Resolver Scenario with a missing required input binding", async () => {
-    const processRoot = await copiedProcessPackage();
-    const obligationPath = path.join(
-      processRoot,
-      "obligations/review-context-required.yaml",
+  it("rejects malformed Resolver inputs and Scenario contracts in one package", () => {
+    const processPackage = clonedValidPackage();
+    const resolver = record(
+      processPackage.obligations["review-context-required"]!.resolve_with,
     );
-    const obligation = await fs.readFile(obligationPath, "utf8");
-    await fs.writeFile(
-      obligationPath,
-      obligation.replace(
-        "  inputs:\n    subject: subject\n    context_members: 'select(\"review-context-members-for@1\", {subject: subject})'",
-        "  inputs: {}",
-      ),
+    const resolverInputs = record(resolver.inputs);
+    resolver.inputs = { surprise: resolverInputs.subject };
+    const reviewInputs = records(
+      processPackage.scenarios["review-datum-in-context"]!.inputs,
     );
+    reviewInputs.find((input) => input.name === "subject")!.types = ["QST"];
+    records(
+      processPackage.scenarios["compile-psp"]!.outputs,
+    )[0]!.types = ["XYZ"];
 
-    const result = await loadProcessPackage(processRoot);
+    const result = scenarioContractResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -721,26 +879,46 @@ describe("loadProcessPackage", () => {
           message:
             "Obligation 'review-context-required' does not bind required input 'subject' for Resolver Scenario 'create-review-context@1'",
         }),
+        expect.objectContaining({
+          code: "resolver-input-undeclared",
+          path: "obligations.review-context-required.resolve_with.inputs.surprise",
+          message:
+            "Obligation 'review-context-required' binds undeclared input 'surprise' for Resolver Scenario 'create-review-context@1'",
+        }),
+        expect.objectContaining({
+          code: "impossible-required-link-target",
+          path:
+            "scenarios.review-datum-in-context.outputs[0].required_links[0].target.input",
+          message:
+            "Scenario 'review-datum-in-context' requires link 'reviews' from output type REV to input 'subject' of unsupported type QST",
+        }),
+        expect.objectContaining({
+          code: "unknown-scenario-output-type",
+          path: "scenarios.compile-psp.outputs[0].types[0]",
+          message:
+            "Scenario 'compile-psp' output 'product_specification' references undeclared lifecycle type 'XYZ'",
+        }),
       ]),
     );
   });
 
-  it("rejects a Resolver binding with incompatible lifecycle types", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/create-review-context.yaml",
+  it("rejects incompatible Scenario contracts in one malformed package", () => {
+    const processPackage = clonedValidPackage();
+    const resolverScenario = processPackage.scenarios["create-review-context"]!;
+    const resolverSubject = records(resolverScenario.inputs)
+      .find((input) => input.name === "subject")!;
+    resolverSubject.types = ["QST"];
+    resolverSubject.identity = "stable";
+    resolverSubject.cardinality = "one-or-more";
+    resolverScenario.prohibited_inputs = ["subject"];
+    const reviewInputs = records(
+      processPackage.scenarios["review-datum-in-context"]!.inputs,
     );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace(
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]",
-        "types: [QST]",
-      ),
-    );
+    reviewInputs.find((input) => input.name === "review_context")!.cardinality =
+      "zero-or-one";
+    reviewInputs.find((input) => input.name === "subject")!.identity = "stable";
 
-    const result = await loadProcessPackage(processRoot);
+    const result = scenarioContractResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -751,111 +929,18 @@ describe("loadProcessPackage", () => {
           message:
             "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide ASP, BSL, CHG, DEC, DWP, ENV, ICSP, MAP, PAS, PRB, PSP, STK, SYS, VAI, VER, VSP",
         }),
-      ]),
-    );
-  });
-
-  it("rejects a Resolver binding with an incompatible identity kind", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/create-review-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("identity: revision", "identity: stable"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
         expect.objectContaining({
           code: "resolver-input-kind",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
             "Resolver input 'subject' for Scenario 'create-review-context@1' requires stable identity, but the binding provides revision",
         }),
-      ]),
-    );
-  });
-
-  it("rejects a Resolver binding with incompatible cardinality", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/create-review-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("cardinality: one, identity", "cardinality: one-or-more, identity"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
         expect.objectContaining({
           code: "resolver-input-cardinality",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
           message:
             "Resolver input 'subject' for Scenario 'create-review-context@1' requires one-or-more values, but the binding provides one",
         }),
-      ]),
-    );
-  });
-
-  it("rejects a Resolver binding for an undeclared Scenario input", async () => {
-    const processRoot = await copiedProcessPackage();
-    const obligationPath = path.join(
-      processRoot,
-      "obligations/review-context-required.yaml",
-    );
-    const obligation = await fs.readFile(obligationPath, "utf8");
-    await fs.writeFile(
-      obligationPath,
-      obligation.replace("    subject: subject", "    subject: subject\n    surprise: subject"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "resolver-input-undeclared",
-          path: "obligations.review-context-required.resolve_with.inputs.surprise",
-          message:
-            "Obligation 'review-context-required' binds undeclared input 'surprise' for Resolver Scenario 'create-review-context@1'",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects a required link to an optional target when the link requires one", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/review-datum-in-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace(
-        "  - {name: review_context, types: [BSL], cardinality: one, identity: revision}",
-        "  - {name: review_context, types: [BSL], cardinality: zero-or-one, identity: revision}",
-      ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
         expect.objectContaining({
           code: "impossible-required-link-cardinality",
           path:
@@ -863,30 +948,6 @@ describe("loadProcessPackage", () => {
           message:
             "Scenario 'review-datum-in-context' requires link 'contextualizes' with at least one target, but input 'review_context' may provide zero",
         }),
-      ]),
-    );
-  });
-
-  it("rejects a required link whose target identity violates its source contract", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/review-datum-in-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace(
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision",
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: stable",
-      ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
         expect.objectContaining({
           code: "impossible-required-link-identity",
           path:
@@ -894,54 +955,23 @@ describe("loadProcessPackage", () => {
           message:
             "Scenario 'review-datum-in-context' requires link 'reviews' from output type REV to revision identity, but input 'subject' provides stable",
         }),
-      ]),
-    );
-  });
-
-  it("rejects a required link whose target types violate its source contract", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/review-datum-in-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace(
-        "types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]",
-        "types: [QST]",
-      ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
         expect.objectContaining({
-          code: "impossible-required-link-target",
-          path:
-            "scenarios.review-datum-in-context.outputs[0].required_links[0].target.input",
+          code: "prohibited-scenario-input",
+          path: "scenarios.create-review-context.prohibited_inputs[0]",
           message:
-            "Scenario 'review-datum-in-context' requires link 'reviews' from output type REV to input 'subject' of unsupported type QST",
+            "Scenario 'create-review-context' declares input 'subject' as prohibited",
         }),
       ]),
     );
   });
 
-  it("rejects a required link unavailable on the declared output type", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/review-datum-in-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("types: [REV]", "types: [DEC]"),
-    );
+  it("rejects a required link unavailable on the declared output type", () => {
+    const processPackage = clonedValidPackage();
+    records(
+      processPackage.scenarios["review-datum-in-context"]!.outputs,
+    )[0]!.types = ["DEC"];
 
-    const result = await loadProcessPackage(processRoot);
+    const result = scenarioContractResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -957,19 +987,15 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects a required output link to an undeclared Scenario value", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/review-datum-in-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("target: {input: subject}", "target: {input: missing}"),
-    );
+  it("rejects a required output link to an undeclared Scenario value", () => {
+    const processPackage = clonedValidPackage();
+    const reviewOutput = records(
+      processPackage.scenarios["review-datum-in-context"]!.outputs,
+    )[0]!;
+    const reviewsLink = records(reviewOutput.required_links)[0]!;
+    record(reviewsLink.target).input = "missing";
 
-    const result = await loadProcessPackage(processRoot);
+    const result = scenarioContractResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -985,70 +1011,14 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects a Scenario that also prohibits one of its declared inputs", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/create-review-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace(
-        "prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth]",
-        "prohibited_inputs: [subject]",
-      ),
+  it("rejects an enabled Obligation whose Resolver Scenario is disabled", () => {
+    const processPackage = clonedValidPackage();
+    const phase = processPackage.phases["phase-0-wayfinding"]!;
+    phase.scenarios = (phase.scenarios as unknown[]).filter(
+      (scenario) => scenario !== "create-review-context@1",
     );
 
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "prohibited-scenario-input",
-          path: "scenarios.create-review-context.prohibited_inputs[0]",
-          message:
-            "Scenario 'create-review-context' declares input 'subject' as prohibited",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects a Scenario output with an undeclared lifecycle type", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(processRoot, "scenarios/compile-psp.yaml");
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("types: [PSP]", "types: [XYZ]"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "unknown-scenario-output-type",
-          path: "scenarios.compile-psp.outputs[0].types[0]",
-          message:
-            "Scenario 'compile-psp' output 'product_specification' references undeclared lifecycle type 'XYZ'",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects an enabled Obligation whose Resolver Scenario is disabled", async () => {
-    const processRoot = await copiedProcessPackage();
-    const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
-    const phase = await fs.readFile(phasePath, "utf8");
-    await fs.writeFile(
-      phasePath,
-      phase.replace("  - create-review-context@1\n", ""),
-    );
-
-    const result = await loadProcessPackage(processRoot);
+    const result = scenarioContractResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -1063,68 +1033,58 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects an unknown Scenario reference in an Obligation", async () => {
-    const processRoot = await copiedProcessPackage();
-    const obligationPath = path.join(
-      processRoot,
-      "obligations/review-context-required.yaml",
-    );
-    const obligation = await fs.readFile(obligationPath, "utf8");
-    await fs.writeFile(
-      obligationPath,
-      obligation.replace("create-review-context@1", "missing-scenario@1"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "unknown-reference",
-          path: "obligations.review-context-required.resolve_with.scenario",
-          message: "Unknown Scenario reference 'missing-scenario@1'",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects an unknown Obligation named by a resolving Scenario", async () => {
-    const processRoot = await copiedProcessPackage();
-    const scenarioPath = path.join(
-      processRoot,
-      "scenarios/create-review-context.yaml",
-    );
-    const scenario = await fs.readFile(scenarioPath, "utf8");
-    await fs.writeFile(
-      scenarioPath,
-      scenario.replace("review-context-required", "missing-obligation"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "unknown-reference",
-          path: "scenarios.create-review-context.resolves[0]",
-          message: "Unknown Obligation reference 'missing-obligation'",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects an unknown Obligation reference in a Phase", async () => {
+  it("rejects an unknown readiness Selector in a Phase checkpoint", async () => {
     const processRoot = await copiedProcessPackage();
     const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
     const phase = await fs.readFile(phasePath, "utf8");
     await fs.writeFile(
       phasePath,
-      phase.replace("review-context-required@2", "missing-obligation@2"),
+      phase.replace(
+        '      exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})',
+        '      exists("missing-checkpoint-selector@1", {})',
+      ),
     );
 
     const result = await loadProcessPackage(processRoot);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "expression-unknown-selector",
+          path: expect.stringContaining("#attention_checkpoints[0].readiness"),
+        }),
+      ]),
+    );
+  });
+
+  it("rejects malformed Phase and Obligation graph references", () => {
+    const processPackage = clonedValidPackage();
+    const phase = processPackage.phases["phase-0-wayfinding"]!;
+    const obligations = [...(phase.obligations as unknown[])];
+    obligations[8] = "missing-obligation@2";
+    phase.obligations = obligations;
+    const checkpoints = records(phase.attention_checkpoints);
+    phase.attention_checkpoints = [
+      ...checkpoints,
+      { ...checkpoints[0], readiness: { source: "true" } },
+    ];
+    record(phase.gate).obligation = "missing-gate-obligation@2";
+    const progression = record(phase.progression);
+    progression.next_phase = "phase-9-missing";
+    record(progression.authorization).evidence_selector =
+      "missing-progression-evidence@1";
+
+    const statusRules = records(
+      processPackage.obligations["passing-review-required"]!.status_rules,
+    );
+    records(statusRules[1]!.blocked_by)[0]!.obligation =
+      "missing-obligation@2";
+    processPackage.obligations["review-context-required"]!.phases = [
+      "phase-9-missing",
+    ];
+
+    const result = graphResult(processPackage);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual(
@@ -1134,160 +1094,27 @@ describe("loadProcessPackage", () => {
           path: "phases.phase-0-wayfinding.obligations[8]",
           message: "Unknown Obligation reference 'missing-obligation@2'",
         }),
-      ]),
-    );
-  });
-
-  it("rejects an unknown blocking Obligation reference", async () => {
-    const processRoot = await copiedProcessPackage();
-    const obligationPath = path.join(
-      processRoot,
-      "obligations/passing-review-required.yaml",
-    );
-    const obligation = await fs.readFile(obligationPath, "utf8");
-    await fs.writeFile(
-      obligationPath,
-      obligation.replace(
-        "review-context-required@2",
-        "missing-obligation@2",
-      ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
         expect.objectContaining({
           code: "unknown-reference",
           path:
             "obligations.passing-review-required.status_rules[1].blocked_by[0].obligation",
           message: "Unknown Obligation reference 'missing-obligation@2'",
         }),
-      ]),
-    );
-  });
-
-  it("rejects duplicate and malformed Phase attention checkpoint declarations", async () => {
-    const duplicateRoot = await copiedProcessPackage();
-    const duplicatePath = path.join(
-      duplicateRoot,
-      "phases/phase-0-wayfinding.yaml",
-    );
-    const duplicate = await fs.readFile(duplicatePath, "utf8");
-    await fs.writeFile(
-      duplicatePath,
-      duplicate.replace(
-        "scenarios:",
-        "  - id: phase-0-gate\n    readiness: 'true'\nscenarios:",
-      ),
-    );
-    const malformedRoot = await copiedProcessPackage();
-    const malformedPath = path.join(
-      malformedRoot,
-      "phases/phase-0-wayfinding.yaml",
-    );
-    const malformed = await fs.readFile(malformedPath, "utf8");
-    await fs.writeFile(
-      malformedPath,
-      malformed.replace(
-        '      exists("candidate-baselines-of-kind@1", {baseline_kind: "intent-level-candidate"})',
-        '      exists("missing-checkpoint-selector@1", {})',
-      ),
-    );
-
-    const duplicateResult = await loadProcessPackage(duplicateRoot);
-    const malformedResult = await loadProcessPackage(malformedRoot);
-
-    expect(duplicateResult.ok).toBe(false);
-    expect(duplicateResult.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "duplicate-attention-checkpoint" }),
-    ]));
-    expect(malformedResult.ok).toBe(false);
-    expect(malformedResult.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        code: "expression-unknown-selector",
-        path: expect.stringContaining("#attention_checkpoints[0].readiness"),
-      }),
-    ]));
-  });
-
-  it("rejects an unknown gate Obligation reference in a Phase", async () => {
-    const processRoot = await copiedProcessPackage();
-    const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
-    const phase = await fs.readFile(phasePath, "utf8");
-    await fs.writeFile(
-      phasePath,
-      phase.replace(
-        "  obligation: candidate-gate-signoff@3",
-        "  obligation: missing-gate-obligation@2",
-      ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
+        expect.objectContaining({ code: "duplicate-attention-checkpoint" }),
         expect.objectContaining({
           code: "unknown-reference",
           path: "phases.phase-0-wayfinding.gate.obligation",
           message: "Unknown Obligation reference 'missing-gate-obligation@2'",
         }),
-      ]),
-    );
-  });
-
-  it("rejects unknown declarative Phase progression references", async () => {
-    const processRoot = await copiedProcessPackage();
-    const phasePath = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
-    const phase = await fs.readFile(phasePath, "utf8");
-    await fs.writeFile(
-      phasePath,
-      phase
-        .replace(
-          "  next_phase: phase-1-product-assurance",
-          "  next_phase: phase-9-missing",
-        )
-        .replace(
-          "    evidence_selector: applicable-gate-signoffs-for@1",
-          "    evidence_selector: missing-progression-evidence@1",
-        ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        code: "unknown-phase-reference",
-        path: "phases.phase-0-wayfinding.progression.next_phase",
-      }),
-      expect.objectContaining({
-        code: "unknown-reference",
-        path:
-          "phases.phase-0-wayfinding.progression.authorization.evidence_selector",
-      }),
-    ]));
-  });
-
-  it("rejects an unknown Phase reference in an Obligation", async () => {
-    const processRoot = await copiedProcessPackage();
-    const obligationPath = path.join(
-      processRoot,
-      "obligations/review-context-required.yaml",
-    );
-    const obligation = await fs.readFile(obligationPath, "utf8");
-    await fs.writeFile(
-      obligationPath,
-      obligation.replace("phase-0-wayfinding", "phase-9-missing"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unknown-phase-reference",
+          path: "phases.phase-0-wayfinding.progression.next_phase",
+        }),
+        expect.objectContaining({
+          code: "unknown-reference",
+          path:
+            "phases.phase-0-wayfinding.progression.authorization.evidence_selector",
+        }),
         expect.objectContaining({
           code: "unknown-reference",
           path: "obligations.review-context-required.phases[0]",
@@ -1331,7 +1158,7 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects a duplicate inherited outgoing-link ID", async () => {
+  it("rejects malformed inheritance and Selector dependencies in one package", async () => {
     const processRoot = await copiedProcessPackage();
     const templatePath = path.join(
       processRoot,
@@ -1351,24 +1178,6 @@ describe("loadProcessPackage", () => {
       templatePath,
       template.replace("outgoing_links:\n", duplicateLink),
     );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "duplicate-inherited-link",
-          path: "types.STK.outgoing_links",
-          message:
-            "Lifecycle type 'STK' redeclares inherited outgoing link 'derived-from'",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects changing an inherited property to an incompatible type", async () => {
-    const processRoot = await copiedProcessPackage();
     const childPath = path.join(
       processRoot,
       "templates/rationale-bearing.yaml",
@@ -1381,6 +1190,30 @@ describe("loadProcessPackage", () => {
         "    rationale: {type: string, minLength: 1}\n    title: {type: number, minimum: 1}",
       ),
     );
+    const acceptedPath = path.join(
+      processRoot,
+      "selectors/newer-accepted-revisions-for.yaml",
+    );
+    const accepted = await fs.readFile(acceptedPath, "utf8");
+    await fs.writeFile(
+      acceptedPath,
+      accepted.replace(
+        "selector: newer-revisions-for@1",
+        "selector: newer-editable-revisions-for@1",
+      ),
+    );
+    const editablePath = path.join(
+      processRoot,
+      "selectors/newer-editable-revisions-for.yaml",
+    );
+    const editable = await fs.readFile(editablePath, "utf8");
+    await fs.writeFile(
+      editablePath,
+      editable.replace(
+        "selector: newer-revisions-for@1",
+        "selector: newer-accepted-revisions-for@1",
+      ),
+    );
 
     const result = await loadProcessPackage(processRoot);
 
@@ -1388,17 +1221,29 @@ describe("loadProcessPackage", () => {
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          code: "duplicate-inherited-link",
+          path: "types.STK.outgoing_links",
+          message:
+            "Lifecycle type 'STK' redeclares inherited outgoing link 'derived-from'",
+        }),
+        expect.objectContaining({
           code: "incompatible-inherited-property",
           path:
             "templates.rationale-bearing.payload_schema.properties.title.type",
           message:
             "Payload Template 'rationale-bearing' changes inherited property 'title' from type string to number",
         }),
+        expect.objectContaining({
+          code: "expression-dependency-cycle",
+          path: "selector:newer-accepted-revisions-for",
+          message:
+            "Expression dependency cycle: Selector 'newer-accepted-revisions-for@1' -> Selector 'newer-editable-revisions-for@1' -> Selector 'newer-accepted-revisions-for@1'",
+        }),
       ]),
     );
   });
 
-  it("rejects widening an inherited payload constraint", async () => {
+  it("rejects inherited payload widening and unknown template extension", async () => {
     const processRoot = await copiedProcessPackage();
     const parentPath = path.join(
       processRoot,
@@ -1421,6 +1266,12 @@ describe("loadProcessPackage", () => {
         "    rationale: {type: string, minLength: 1}\n    title: {type: string, minLength: 2}",
       ),
     );
+    const typePath = path.join(processRoot, "types/STK.yaml");
+    const typeDefinition = await fs.readFile(typePath, "utf8");
+    await fs.writeFile(
+      typePath,
+      typeDefinition.replace("requirement@2", "missing-template@1"),
+    );
 
     const result = await loadProcessPackage(processRoot);
 
@@ -1433,6 +1284,10 @@ describe("loadProcessPackage", () => {
             "templates.rationale-bearing.payload_schema.properties.title.minLength",
           message:
             "Payload Template 'rationale-bearing' widens inherited constraint 'title.minLength' from 5 to 2",
+        }),
+        expect.objectContaining({
+          code: "unknown-reference",
+          message: expect.stringContaining("missing-template@1"),
         }),
       ]),
     );
@@ -1481,86 +1336,34 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects a type that extends an unknown template", async () => {
-    const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-"));
-    const processRoot = path.join(temporaryRoot, "process");
-    await fs.cp(path.join(process.cwd(), ".lifecycle/process"), processRoot, {
-      recursive: true,
-    });
-    const typePath = path.join(processRoot, "types/STK.yaml");
-    const typeDefinition = await fs.readFile(typePath, "utf8");
-    await fs.writeFile(
-      typePath,
-      typeDefinition.replace("requirement@2", "missing-template@1"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "unknown-reference",
-          message: expect.stringContaining("missing-template@1"),
-        }),
-      ]),
-    );
-  });
-
-  it("rejects a Selector dependency cycle with its complete path", async () => {
+  it("rejects malformed prompt and skill declarations in one package", async () => {
     const processRoot = await copiedProcessPackage();
-    const acceptedPath = path.join(
-      processRoot,
-      "selectors/newer-accepted-revisions-for.yaml",
-    );
-    const accepted = await fs.readFile(acceptedPath, "utf8");
-    await fs.writeFile(
-      acceptedPath,
-      accepted.replace(
-        "selector: newer-revisions-for@1",
-        "selector: newer-editable-revisions-for@1",
-      ),
-    );
-    const editablePath = path.join(
-      processRoot,
-      "selectors/newer-editable-revisions-for.yaml",
-    );
-    const editable = await fs.readFile(editablePath, "utf8");
-    await fs.writeFile(
-      editablePath,
-      editable.replace(
-        "selector: newer-revisions-for@1",
-        "selector: newer-accepted-revisions-for@1",
-      ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "expression-dependency-cycle",
-          path: "selector:newer-accepted-revisions-for",
-          message:
-            "Expression dependency cycle: Selector 'newer-accepted-revisions-for@1' -> Selector 'newer-editable-revisions-for@1' -> Selector 'newer-accepted-revisions-for@1'",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects prompt skills outside the manifest catalog during package loading", async () => {
-    const processRoot = await copiedProcessPackage();
-    const promptPath = path.join(
+    const declarationPromptPath = path.join(
       processRoot,
       "prompts/escalate-foundation-review-correction.md",
     );
     await fs.writeFile(
-      promptPath,
-      (await fs.readFile(promptPath, "utf8")).replace(
+      declarationPromptPath,
+      (await fs.readFile(declarationPromptPath, "utf8")).replace(
         "skills/requirement-writing.md@1",
         "skills/not-declared.md@1",
       ),
+    );
+    const promptPath = path.join(
+      processRoot,
+      "prompts/chart-wayfinding-map.md",
+    );
+    const outsidePath = path.join(path.dirname(processRoot), "outside-prompt.md");
+    await fs.writeFile(
+      outsidePath,
+      await fs.readFile(promptPath, "utf8"),
+    );
+    await fs.rm(promptPath);
+    await fs.symlink(outsidePath, promptPath);
+    const skillPath = path.join(processRoot, "skills/lifecycle-data.md");
+    await fs.writeFile(
+      skillPath,
+      (await fs.readFile(skillPath, "utf8")).replace("version: 1", "version: 2"),
     );
 
     const result = await loadProcessPackage(processRoot);
@@ -1568,8 +1371,16 @@ describe("loadProcessPackage", () => {
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
       code: "prompt-skill-not-declared",
-      path: promptPath,
+      path: declarationPromptPath,
       message: expect.stringContaining("skills/not-declared.md@1"),
+    }));
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "prompt-outside-package",
+      path: promptPath,
+    }));
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "skill-version-mismatch",
+      path: skillPath,
     }));
   });
 
@@ -1602,23 +1413,6 @@ describe("loadProcessPackage", () => {
     }));
   });
 
-  it("rejects prompt symlinks escaping the package during package loading", async () => {
-    const processRoot = await copiedProcessPackage();
-    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
-    const outsidePath = path.join(path.dirname(processRoot), "outside-prompt.md");
-    await fs.writeFile(outsidePath, await fs.readFile(promptPath, "utf8"));
-    await fs.rm(promptPath);
-    await fs.symlink(outsidePath, promptPath);
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "prompt-outside-package",
-      path: promptPath,
-    }));
-  });
-
   it("rejects malformed legacy body skill references during package loading", async () => {
     const processRoot = await copiedProcessPackage();
     const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
@@ -1630,23 +1424,6 @@ describe("loadProcessPackage", () => {
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
       code: "prompt-skills-invalid",
       path: promptPath,
-    }));
-  });
-
-  it("rejects mismatched declared skill identity during package loading", async () => {
-    const processRoot = await copiedProcessPackage();
-    const skillPath = path.join(processRoot, "skills/lifecycle-data.md");
-    await fs.writeFile(
-      skillPath,
-      (await fs.readFile(skillPath, "utf8")).replace("version: 1", "version: 2"),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "skill-version-mismatch",
-      path: skillPath,
     }));
   });
 

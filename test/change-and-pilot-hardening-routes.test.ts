@@ -19,6 +19,10 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 type Snapshot = LifecycleSnapshot & { dependencyComparisons: [] };
 
+// Round the larger of the 3,413 ms green hook and 11,659 ms failed file up to
+// 20,000 ms, leaving 16,587 ms above the measured hook.
+const CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS = 20_000;
+
 const fixtureRoot = path.join(process.cwd(), "test/fixtures/phase-hardening");
 const changeId = "CHG-YSYT05KE22-r00001";
 const sharedChangeId = "CHG-1TGXYWDZ3T-r00001";
@@ -469,7 +473,7 @@ beforeAll(async () => {
   const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   processPackage = loaded.package;
-});
+}, CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS);
 
 describe("accepted stakeholder change hardening routes", () => {
   it("routes a failed draft stakeholder requirement Review to autonomous correction", async () => {

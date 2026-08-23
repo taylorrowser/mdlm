@@ -56,7 +56,7 @@ result_schema:
 default: {matches: false}
 rules:
   - priority: 100
-    when: 'value == "phase-0-wayfinding@4"'
+    when: 'value == "phase-0-wayfinding@5"'
     result: {matches: true}
 `,
   );
@@ -155,9 +155,9 @@ describe("evaluateLifecycle scoped Obligations", () => {
     expect(evaluation.diagnostics).toEqual([]);
     expect(evaluation.looseEnds).toEqual([
       expect.objectContaining({
-        id: `initial-map-required@1:phase-0-wayfinding@4:${PROCESS_REF}`,
+        id: `initial-map-required@1:phase-0-wayfinding@5:${PROCESS_REF}`,
         obligation: "initial-map-required",
-        subject: "phase-0-wayfinding@4",
+        subject: "phase-0-wayfinding@5",
         status: "ready",
         eventualResolver: "chart-wayfinding-map@1",
         actionableResolver: "chart-wayfinding-map@1",
