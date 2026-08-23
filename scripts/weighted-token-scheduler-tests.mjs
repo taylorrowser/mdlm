@@ -18,6 +18,7 @@ import {
   MAX_CHEAP_FILES_PER_BATCH,
   ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
   ROOT_TEST_SCHEDULING_POLICIES,
+  ROOT_TEST_SCHEDULING_POLICY,
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestAdmissionPolicy,
   createRootTestTasks,
@@ -75,7 +76,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
     "process-repository-heavy": 2,
-    "repository-public-three-way-safe": 2,
+    "process-repository-safe": 2,
   });
   assert.equal(rootTestManifest.length, 47);
   assert.equal(new Set(declared).size, 47);
@@ -83,7 +84,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   for (const entry of rootTestManifest) {
     assert.equal(Number.isInteger(entry.weight) && entry.weight > 0 && entry.weight <= ROOT_TEST_TOKEN_CAPACITY, true);
     assert.equal(Number.isInteger(entry.measuredDurationMs) && entry.measuredDurationMs > 0, true);
-    assert.match(entry.runtimeClass, /^(process-repository-heavy|repository-public-fragile|repository-public-three-way-safe|canonical-fixture-filler|cheap-in-process)$/);
+    assert.match(entry.runtimeClass, /^(process-repository-heavy|repository-public-fragile|process-repository-safe|canonical-evaluator-safe|canonical-fixture-filler|cheap-in-process)$/);
   }
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(rootTestManifest, (entry) => entry.runtimeClass))
@@ -91,7 +92,8 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
     {
       "process-repository-heavy": "4@2",
       "repository-public-fragile": "4@2",
-      "repository-public-three-way-safe": "19@1",
+      "process-repository-safe": "16@2",
+      "canonical-evaluator-safe": "3@1",
       "canonical-fixture-filler": "3@1",
       "cheap-in-process": "17@1",
     },
@@ -110,7 +112,11 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   ), false);
   assert.equal(rootTestTasksCanOverlap(
     { runtimeClass: "process-repository-heavy" },
-    { runtimeClass: "repository-public-three-way-safe" },
+    { runtimeClass: "process-repository-safe" },
+  ), true);
+  assert.equal(rootTestTasksCanOverlap(
+    { runtimeClass: "process-repository-safe" },
+    { runtimeClass: "canonical-evaluator-safe" },
   ), true);
   assert.equal(rootTestTasksCanOverlap(
     { runtimeClass: "process-repository-heavy" },
@@ -147,31 +153,38 @@ test("canonical filler aliases resolve through the production task path", () => 
   assert.deepEqual(createRootTestTasksForClass("canonical-fixture-fillers"), []);
 });
 
-test("exact-current three-way outcomes remain calibrated without using failed timings", () => {
+test("exact-current safe work is split by measured boundary ownership without using failed timings", () => {
   assert.deepEqual(
     rootTestManifest
-      .filter((entry) => entry.runtimeClass === "repository-public-three-way-safe")
-      .map(({ file, measuredDurationMs }) => [file, measuredDurationMs]),
+      .filter((entry) => entry.runtimeClass === "canonical-evaluator-safe")
+      .map(({ file, weight, measuredDurationMs }) => [file, weight, measuredDurationMs]),
     [
-      ["test/evaluate-phase.test.ts", 8_883],
-      ["test/evaluate-scoped-obligation.test.ts", 8_019],
-      ["test/initial-product-intent-resolution.test.ts", 36_894],
-      ["test/initial-product-intent-route.test.ts", 46_607],
-      ["test/load-scenario-participation.test.ts", 70_789],
-      ["test/mdlm-assignment-state.test.ts", 57_581],
-      ["test/mdlm-clean-onboarding-transaction.test.ts", 58_206],
-      ["test/mdlm-command-application.test.ts", 63_686],
-      ["test/mdlm-init.test.ts", 55_478],
-      ["test/mdlm-pilot-assessment.test.ts", 15_950],
-      ["test/mdlm-process-expression.test.ts", 47_352],
-      ["test/mdlm-repository-inspection.test.ts", 25_853],
-      ["test/mdlm-schema.test.ts", 33_817],
-      ["test/operator-outcome.test.ts", 51_114],
-      ["test/phase-0-corrected-gate-route.test.ts", 85_291],
-      ["test/phase-0-intent-candidate-currentness-route.test.ts", 72_074],
-      ["test/phase-1-hardening-routes.test.ts", 101_498],
-      ["test/phase-2-hardening-routes.test.ts", 59_745],
-      ["test/selected-package-cache.test.ts", 29_228],
+      ["test/evaluate-phase.test.ts", 1, 8_883],
+      ["test/evaluate-scoped-obligation.test.ts", 1, 8_019],
+      ["test/load-scenario-participation.test.ts", 1, 70_789],
+    ],
+  );
+  assert.deepEqual(
+    rootTestManifest
+      .filter((entry) => entry.runtimeClass === "process-repository-safe")
+      .map(({ file, weight, measuredDurationMs }) => [file, weight, measuredDurationMs]),
+    [
+      ["test/initial-product-intent-resolution.test.ts", 2, 36_894],
+      ["test/initial-product-intent-route.test.ts", 2, 46_607],
+      ["test/mdlm-assignment-state.test.ts", 2, 57_581],
+      ["test/mdlm-clean-onboarding-transaction.test.ts", 2, 58_206],
+      ["test/mdlm-command-application.test.ts", 2, 63_686],
+      ["test/mdlm-init.test.ts", 2, 55_478],
+      ["test/mdlm-pilot-assessment.test.ts", 2, 15_950],
+      ["test/mdlm-process-expression.test.ts", 2, 47_352],
+      ["test/mdlm-repository-inspection.test.ts", 2, 25_853],
+      ["test/mdlm-schema.test.ts", 2, 33_817],
+      ["test/operator-outcome.test.ts", 2, 51_114],
+      ["test/phase-0-corrected-gate-route.test.ts", 2, 85_291],
+      ["test/phase-0-intent-candidate-currentness-route.test.ts", 2, 72_074],
+      ["test/phase-1-hardening-routes.test.ts", 2, 101_498],
+      ["test/phase-2-hardening-routes.test.ts", 2, 59_745],
+      ["test/selected-package-cache.test.ts", 2, 29_228],
     ],
   );
   assert.deepEqual(
@@ -187,7 +200,26 @@ test("exact-current three-way outcomes remain calibrated without using failed ti
   );
 });
 
-test("exact-current heavy, bounded-safe, and mixed observations select the lower honest policy", () => {
+test("the ownership-split safe lanes share the four-token production budget", () => {
+  const restrictive = createRootTestTasksForClass("process-repository-safe");
+  const light = createRootTestTasksForClass("canonical-evaluator-safe");
+  const tasks = [...restrictive, ...light];
+  const simulation = simulateWeightedSchedule(tasks, {
+    capacity: ROOT_TEST_TOKEN_CAPACITY,
+    canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
+    canOverlap: rootTestTasksCanOverlap,
+    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+  });
+
+  assert.equal(restrictive.length, 16);
+  assert.equal(light.length, 3);
+  assert.equal(new Set(tasks.flatMap((task) => task.files)).size, 19);
+  assert.equal(rootTestTasksCanOverlap(restrictive[0], light[0]), true);
+  assert.equal(simulation.maximumActiveWeight, ROOT_TEST_TOKEN_CAPACITY);
+  assert.equal(simulation.launches.every((launch) => launch.activeWeight <= ROOT_TEST_TOKEN_CAPACITY), true);
+});
+
+test("exact-current heavy, ownership-split safe, and mixed observations select the lower honest policy", () => {
   assert.deepEqual(
     rootTestManifest
       .filter((entry) => entry.runtimeClass === "process-repository-heavy")
@@ -204,15 +236,15 @@ test("exact-current heavy, bounded-safe, and mixed observations select the lower
     cwd: new URL("..", import.meta.url),
     encoding: "utf8",
   });
-  assert.equal(model.status, 0, model.stderr);
+  assert.equal(model.status, 2, model.stderr);
   assert.match(model.stdout, /mixed_predicted_ms=117151 mixed_observed_scheduler_wall_ms=122735 mixed_observed_wrapper_wall_ms=122898 mixed_test_work_ms=161680/);
   assert.match(model.stdout, /mixed_contention_multiplier=1\.047665 mixed_contention_allowance_ms=5584/);
-  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=593335 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=5584 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=677514/);
-  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=467966 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=2 mixed_allowance_ms=11168 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=501134/);
-  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=501134/);
-  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=88866/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=98866 required_outer_headroom_ms=10000 headroom_margin_ms=88866/);
-  assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
+  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=684156 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=5584 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=768335/);
+  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=685373 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=4 mixed_allowance_ms=22336 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=729709/);
+  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=729709/);
+  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=-139709/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-129709 required_outer_headroom_ms=10000 headroom_margin_ms=-139709/);
+  assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
 });
 
 test("the schedule simulator uses the same deterministic token and compatibility policy", () => {
@@ -238,9 +270,9 @@ test("one-heavy safe fill admission is shared by deterministic simulation and ru
   const tasks = [
     { id: "heavy-a", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 10 },
     { id: "heavy-b", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 5 },
-    { id: "safe-a", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 4 },
-    { id: "safe-b", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 6 },
-    { id: "safe-c", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 3 },
+    { id: "safe-a", runtimeClass: "canonical-evaluator-safe", weight: 1, estimatedDurationMs: 4 },
+    { id: "safe-b", runtimeClass: "canonical-evaluator-safe", weight: 1, estimatedDurationMs: 6 },
+    { id: "safe-c", runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 3 },
   ];
   const canAdmit = createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICIES.ONE_HEAVY_WHILE_SAFE);
   const options = {

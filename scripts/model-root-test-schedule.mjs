@@ -61,13 +61,15 @@ function simulatePolicy(policy) {
     classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
   });
   const isHeavy = (task) => task.runtimeClass === "process-repository-heavy";
-  const isSafe = (task) => task.runtimeClass === "repository-public-three-way-safe";
+  const isSafe = (task) => ["process-repository-safe", "canonical-evaluator-safe"]
+    .includes(task.runtimeClass);
+  const isLightSafe = (task) => task.runtimeClass === "canonical-evaluator-safe";
   const heavyPairWindows = countOverlapWindows(tasks, simulation,
     (active) => active.filter(isHeavy).length >= 2);
   const mixedWindows = countOverlapWindows(tasks, simulation,
     (active) => active.some(isHeavy) && active.some(isSafe));
   const threeWayWindows = countOverlapWindows(tasks, simulation,
-    (active) => active.filter(isSafe).length >= 3);
+    (active) => active.filter(isLightSafe).length >= 3);
   const heavyPairAllowanceMs = heavyPairWindows > 0 ? HEAVY_PAIR_CONTENTION_ALLOWANCE_MS : 0;
   const mixedAllowanceMs = mixedWindows * MIXED_CONTENTION_ALLOWANCE_MS;
   const threeWayAllowanceMs = threeWayWindows > 0 ? THREE_WAY_CONTENTION_ALLOWANCE_MS : 0;

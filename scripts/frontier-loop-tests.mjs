@@ -327,17 +327,18 @@ test("root Vitest files have one weighted runtime class", async () => {
   assert.deepEqual(rootVitestSuites.map((suite) => suite.id), [
     "process-repository-heavy",
     "repository-public-fragile",
-    "repository-public-three-way-safe",
+    "process-repository-safe",
+    "canonical-evaluator-safe",
     "canonical-fixture-filler",
     "cheap-in-process",
   ]);
   assert.equal(discovered.length, 47);
-  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 4, 19, 3, 17]);
-  assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [2, 2, 1, 1, 1]);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 4, 16, 3, 3, 17]);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [2, 2, 2, 1, 1, 1]);
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
     "process-repository-heavy": 2,
-    "repository-public-three-way-safe": 2,
+    "process-repository-safe": 2,
   });
   assert.equal(rootTestManifest.every((entry) => Number.isInteger(entry.weight)
     && entry.weight > 0

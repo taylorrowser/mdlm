@@ -4,8 +4,12 @@ export { rootTestManifest };
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
   "process-repository-heavy": 2,
-  "repository-public-three-way-safe": 2,
+  "process-repository-safe": 2,
 });
+const SAFE_RUNTIME_CLASSES = new Set([
+  "process-repository-safe",
+  "canonical-evaluator-safe",
+]);
 export const ROOT_TEST_SCHEDULING_POLICIES = Object.freeze({
   HEAVY_PAIR_FIRST: "heavy-pair-first",
   ONE_HEAVY_WHILE_SAFE: "one-heavy-while-safe",
@@ -27,7 +31,7 @@ export function createRootTestAdmissionPolicy(policy) {
   if (policy === ROOT_TEST_SCHEDULING_POLICIES.HEAVY_PAIR_FIRST) return () => true;
   return (candidate, { pendingTasks, runningTasks }) => {
     const isHeavy = (task) => task.runtimeClass === "process-repository-heavy";
-    const isSafe = (task) => task.runtimeClass === "repository-public-three-way-safe";
+    const isSafe = (task) => SAFE_RUNTIME_CLASSES.has(task.runtimeClass);
     const safeWorkRemains = pendingTasks.some(isSafe) || runningTasks.some(isSafe);
     return !safeWorkRemains || !isHeavy(candidate) || !runningTasks.some(isHeavy);
   };

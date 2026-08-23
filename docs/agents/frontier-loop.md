@@ -141,7 +141,7 @@ node scripts/frontier-loop.mjs status --parent 123
 
 ## Test tiers
 
-`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs each root resource class at its declared finite worker cap, and runs controller tests. Its default process budget is exactly 10 minutes. On the current four-logical-CPU, two-physical-core SMT host, preflight evidence must conservatively model the complete root gate at 590 seconds or less, including class work, selected concurrency, orchestration overhead, and reserve. The model must leave at least 10 seconds below the exact 600-second process deadline. Do not describe a small observation set as p95 evidence.
+`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs each root resource class at its declared finite worker cap, and runs controller tests. The four-token root schedule assigns weight 2 to process/repository safe work and weight 1 to canonical/evaluator safe work; the two ownership-based lanes may overlap only while their combined admitted weight remains at most four. Its default process budget is exactly 10 minutes. On the current four-logical-CPU, two-physical-core SMT host, preflight evidence must conservatively model the complete root gate at 590 seconds or less, including class work, selected concurrency, orchestration overhead, and reserve. The model must leave at least 10 seconds below the exact 600-second process deadline. Do not describe a small observation set as p95 evidence.
 
 The earlier stakeholder criteria recorded on issue #203 are superseded policy history and do not override the current host model. Earlier gate timeouts remain failures rather than timing successes.
 
