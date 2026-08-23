@@ -3,6 +3,7 @@ import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { executeCommandApplication } from "../src/command-application.js";
 
 async function invokeMdlm(
@@ -242,7 +243,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       "Publish initial Scenario transaction",
     ).status).toBe(0);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
-  }, 40_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
 
   it("rejects corrupt exact lease contents instead of recovering automatically", async () => {

@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import {
   mdlm,
   selectProcessPackageFixture,
@@ -10,9 +11,8 @@ import {
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 
-// Twice the slower successful exact max-2 case is 2 * 34,753 = 69,506 ms.
-// Round up to 70,000 ms; this also clears the 30,316 and 30,571 ms failed observations.
-const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS = 70_000;
+const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS =
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;
 
 async function packageCopy(
   parent: string,

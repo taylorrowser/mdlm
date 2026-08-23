@@ -74,10 +74,8 @@ function passingReviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
 const processRef =
   "mdlm-bootstrap@0.74.0#sha256:deb27430c4d239eb67a1c19025d77dd6623813f83b0588681eebfc07bdfa8a0d";
 
-// Twice the 27,550 ms successful exact max-2 case is 55,100 ms,
-// below the 61,111 ms failed observation.
-// Round the larger observation up to the next 10,000 ms boundary.
-const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS = 70_000;
+const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS =
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;
 
 function scenarioExecution(stdout: string): Record<string, any> {
   return JSON.parse(stdout).execution as Record<string, any>;

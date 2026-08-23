@@ -402,7 +402,7 @@ test("retained heavy cohort setup hooks use named finite limits", () => {
     );
     const finiteLimits = new Map([
       ["PROCESS_REPOSITORY_HOOK_TIMEOUT_MS", 40_000],
-      ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", 110_000],
+      ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", 180_000],
     ]);
 
     const visit = (node) => {
@@ -505,11 +505,11 @@ test("contended representative observation limits stay exact", () => {
 
   assert.match(
     observationPolicy,
-    /2 × 54,154 ms = 108,308 ms\.[\s\S]*?PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 110_000;/,
+    /4 × 44,830 ms = 179,320 ms\.[\s\S]*?PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 180_000;/,
   );
   assert.match(
     reviewAssignmentSource,
-    /Twice the 54,154 ms exact max-2 pass is 108,308 ms; round strictly up\.[\s\S]*?clears the retained 91,141 ms failure\.[\s\S]*?const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
+    /const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
   );
   assert.match(
     reviewAssignmentSource,
@@ -517,7 +517,7 @@ test("contended representative observation limits stay exact", () => {
   );
   assert.match(
     commandApplicationSource,
-    /larger of the 4,486 ms green hook and 10,876 ms failed file up[\s\S]*?20,000 ms, leaving 15,514 ms above the measured hook\.[\s\S]*?const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS = 20_000;/,
+    /const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS =\n  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/,
   );
   assert.match(
     commandApplicationSource,
@@ -533,7 +533,7 @@ test("contended representative observation limits stay exact", () => {
   );
   assert.match(
     correctedGateSource,
-    /Twice the 27,550 ms successful exact max-2 case is 55,100 ms,[\s\S]*?below the 61,111 ms failed observation\.[\s\S]*?Round the larger observation up to the next 10,000 ms boundary\.[\s\S]*?const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS = 70_000;/,
+    /const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
   );
   assert.match(
     correctedGateSource,
@@ -541,7 +541,7 @@ test("contended representative observation limits stay exact", () => {
   );
   assert.match(
     processMigrationSource,
-    /Twice the slower successful exact max-2 case is 2 \* 34,753 = 69,506 ms\.[\s\S]*?Round up to 70,000 ms; this also clears the 30,316 and 30,571 ms failed observations\.[\s\S]*?const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS = 70_000;/,
+    /const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
   );
   assert.match(
     processMigrationSource,
@@ -554,21 +554,21 @@ test("contended representative observation limits stay exact", () => {
   assert.match(loadSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(loadSource, /beforeAll\(async \(\) => \{[\s\S]*?validPackage = result\.package;\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
-  assert.match(baselineSource, /const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
-  assert.match(baselineSource, /const CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
-  assert.match(baselineSource, /const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(baselineSource, /const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(baselineSource, /const CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
+  assert.match(baselineSource, /const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
   assert.match(baselineSource, /const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
-  assert.match(baselineSource, /const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;/);
+  assert.match(baselineSource, /const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/);
   assert.match(baselineSource, /immutableSelectedPackage = deepFreeze\([\s\S]*?\n  \}, CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /changedBaselineFixture = deepFreeze\([\s\S]*?\n  \}, CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /await arrangeManyBaselines\([\s\S]*?\n  \}, CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(assignmentSource, /const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
-  assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
+  assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
   assert.match(assignmentSource, /const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 30_000;/);
   assert.match(assignmentSource, /const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 30_000;/);
-  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 75_000;/);
-  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = 75_000;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/);
+  assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/);
   assert.match(phaseTwoSource, /const CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS = 510_000;/);
   assert.match(phaseTwoSource, /runZeroInterfacePhaseTwoRoute,\n  CONTENDED_PHASE_TWO_TEST_TIMEOUT_MS,/);
   assert.match(assignmentSource, /expect\(initialized\.status,[\s\S]*?\n  \}, CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS\);/);

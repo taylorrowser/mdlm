@@ -8,9 +8,9 @@ export const ROOT_TEST_OBSERVATION_KINDS = Object.freeze({
   PROCESS_REPOSITORY: "process-repository",
 });
 
-// Review Assignment is the slowest exact max-2 test: 2 × 54,154 ms = 108,308 ms.
-// Round strictly upward to the next 10,000 ms boundary.
-export const PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 110_000;
+// Four times the slower successful exact max-2 case is 4 × 44,830 ms = 179,320 ms.
+// Round upward to 180,000 ms; this clears the observed 60/63/90/91/110/111,585 ms failures.
+export const PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 180_000;
 
 // Phase 0's contended 15,650 ms whole-file work is the conservative setup proxy:
 // 2 × 15,650 ms = 31,300 ms, rounded strictly upward to 40,000 ms.
@@ -94,7 +94,7 @@ export const rootTestObservationPolicy = Object.freeze(rootTestManifest.map((ent
       ? PROCESS_REPOSITORY_HOOK_TIMEOUT_MS
       : contendedSetup ?? 10_000,
     disposition: central
-      ? "replace inherited process/repository bounds with central max-2 limits; retain measured explicit non-stale bounds"
+      ? "apply central process/repository floors; retain stronger explicit bounds"
       : contendedSetup
         ? "retain canonical/in-process test semantics and apply the measured contended setup-hook limit"
         : "retain authoritative 45,000 ms test and 10,000 ms hook defaults for canonical/in-process work",
@@ -118,7 +118,6 @@ export function rootTestObservationPolicyForPath(testPath, root = process.cwd())
 
 const testCalls = new Set(["it", "test"]);
 const hookCalls = new Set(["beforeAll", "beforeEach", "afterAll", "afterEach"]);
-const staleLimits = new Set([10_000, 30_000, 60_000, 90_000]);
 
 function calledBoundary(call) {
   if (ts.isIdentifier(call.expression)) return call.expression.text;
@@ -210,10 +209,13 @@ export function verifyRootTestObservationPolicy(root = process.cwd()) {
           const effectiveTimeoutMs = explicit ?? (isTest
             ? policy.effectiveDefaultTestTimeoutMs
             : policy.effectiveDefaultHookTimeoutMs);
+          const minimumTimeoutMs = isTest
+            ? PROCESS_REPOSITORY_TEST_TIMEOUT_MS
+            : PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
           if (policy.observationKind === ROOT_TEST_OBSERVATION_KINDS.PROCESS_REPOSITORY
-            && staleLimits.has(effectiveTimeoutMs)) {
+            && effectiveTimeoutMs < minimumTimeoutMs) {
             throw new Error(
-              `${policy.file}:${line} retains stale effective ${effectiveTimeoutMs} ms ${name} limit`,
+              `${policy.file}:${line} has ${effectiveTimeoutMs} ms effective ${isTest ? "test" : "hook"} timeout below the ${minimumTimeoutMs} ms process/repository floor`,
             );
           }
           boundaries.push(Object.freeze({
@@ -264,12 +266,13 @@ export function renderRootTestObservationInventory(root = process.cwd()) {
   lines.push(
     "## Measured formulas and retained dispositions",
     "",
-    "- Review Assignment: 2 × 54,154 ms = 108,308 ms; strict 10,000 ms rounding gives 110,000 ms and clears the retained 91,141 ms failure.",
+    "- Process/repository tests: 4 × 44,830 ms = 179,320 ms; upward rounding gives 180,000 ms and clears the observed 60/63/90/91/110/111,585 ms failures.",
     "- Process/repository hooks: Phase 0's 15,650 ms contended whole-file setup proxy doubled to 31,300 ms; strict rounding gives 40,000 ms.",
     "- Participation hook: 2 × 4,505 ms strictly rounds to 20,000 ms.",
     "- Evaluate-phase hook: 2 × the 12,520 ms contended file observation strictly rounds to 30,000 ms.",
     "- Phase 0 hardening hook: the conservative 15,650 ms whole-file setup proxy doubled and strictly rounded gives 40,000 ms.",
-    "- Corrected gate and migration retain their successful measured 70,000 ms named limits; 75,000/120,000/180,000/360,000/420,000/510,000 ms named limits remain where their existing evidence is stronger.",
+    "- Former process/repository 20,000 ms hooks and 5,000/40,000/45,000/70,000/75,000/120,000 ms tests now use the central floors; stronger 360,000 and 510,000 ms process/repository tests remain.",
+    "- Canonical/in-process measured 20,000/30,000/40,000 ms hooks and the 420,000 ms proportional test remain unchanged.",
     "- Canonical/in-process tests otherwise retain the authoritative 45,000 ms test and 10,000 ms hook semantics.",
     "- Internal synchronization, child-process safety, domain payload, and the exact 600,000 ms authoritative wrapper deadlines are not Vitest observation limits and were not changed.",
     "",

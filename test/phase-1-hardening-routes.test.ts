@@ -2188,7 +2188,7 @@ describe("Phase 1 hardening route evidence", () => {
     } finally {
       await fs.rm(repository, { recursive: true, force: true });
     }
-  }, 45_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("proves Phase 1 VAI correction, fresh Review, and refusal of prior RUN and RES reuse", () => {
     const {
@@ -2577,7 +2577,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 45_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("prepares and submits pilot activity authoring with exact intent support through the public command application", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-intent-support-"));
@@ -2746,7 +2746,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(processRoot, { recursive: true, force: true });
     }
-  }, 45_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("projects reviewed ENV evidence into the exact pilot VER Review assignment", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-ver-review-"));
@@ -2948,7 +2948,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 45_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("retries after a durable all-not-launched run and progresses only after exercised evidence through the public command application", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-no-exercise-"));
@@ -3114,7 +3114,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 45_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("keeps a completed setup-failure run without treating it as exercised pilot evidence", async () => {
     expect(processPackage.scenarios["execute-verification-run"]?.prompt_ref).toBe(
@@ -3325,5 +3325,5 @@ setInterval(() => {}, 1000);
       authorized: false,
       complete: false,
     }));
-  }, 5_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });

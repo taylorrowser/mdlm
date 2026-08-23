@@ -26,8 +26,6 @@ async function mdlmWithInput(
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
 }
 
-// Twice the 54,154 ms exact max-2 pass is 108,308 ms; round strictly up.
-// The resulting shared bound also clears the retained 91,141 ms failure.
 const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;
 
 function parseLifecycleMarkdown(source: string): Record<string, unknown> {

@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
 import {
   directoryDigest,
@@ -273,5 +274,5 @@ describe("initial product-intent authority", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 120_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });

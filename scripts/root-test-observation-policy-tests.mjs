@@ -1,9 +1,18 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import * as ts from "typescript";
 
-const FORBIDDEN_STALE_LIMITS_MS = new Set([10_000, 30_000, 60_000, 90_000]);
+const PROCESS_REPOSITORY_TEST_FLOOR_MS = 180_000;
+const PROCESS_REPOSITORY_HOOK_FLOOR_MS = 40_000;
 const TEST_CALLS = new Set(["it", "test"]);
 const HOOK_CALLS = new Set(["beforeAll", "beforeEach", "afterAll", "afterEach"]);
 
@@ -23,7 +32,7 @@ function calledName(call) {
 function declaredNumericLimits(sourceFile) {
   const limits = new Map([
     ["PROCESS_REPOSITORY_HOOK_TIMEOUT_MS", 40_000],
-    ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", 110_000],
+    ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", PROCESS_REPOSITORY_TEST_FLOOR_MS],
   ]);
   const visit = (node) => {
     if (ts.isVariableDeclaration(node)
@@ -53,6 +62,29 @@ function explicitLimit(call, name, limits) {
   return undefined;
 }
 
+test("every process/repository boundary obeys the central observation floors", async () => {
+  const {
+    PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
+    PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
+    ROOT_TEST_OBSERVATION_KINDS,
+    verifyRootTestObservationPolicy,
+  } = await import("./root-test-observation-policy.mjs");
+
+  const violations = verifyRootTestObservationPolicy()
+    .filter((file) =>
+      file.observationKind === ROOT_TEST_OBSERVATION_KINDS.PROCESS_REPOSITORY)
+    .flatMap((file) => file.boundaries
+      .filter((boundary) => boundary.effectiveTimeoutMs < (boundary.kind === "test"
+        ? 180_000
+        : 40_000))
+      .map((boundary) =>
+        `${file.file}:${boundary.line} ${boundary.kind} ${boundary.declaredLimit}=${boundary.effectiveTimeoutMs}`));
+
+  assert.deepEqual(violations, []);
+  assert.equal(PROCESS_REPOSITORY_HOOK_TIMEOUT_MS, 40_000);
+  assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 180_000);
+});
+
 test("all 47 root tests have complete executable observation-limit policy", async () => {
   const {
     PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
@@ -74,9 +106,11 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
     CANONICAL_IN_PROCESS: "canonical-in-process",
     PROCESS_REPOSITORY: "process-repository",
   });
-  assert.equal(verifyRootTestObservationPolicy().length, 47);
+  const verifiedFiles = verifyRootTestObservationPolicy();
+  const verifiedByFile = new Map(verifiedFiles.map((file) => [file.file, file]));
+  assert.equal(verifiedFiles.length, 47);
   assert.equal(PROCESS_REPOSITORY_HOOK_TIMEOUT_MS, 40_000);
-  assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 110_000);
+  assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 180_000);
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(
       rootTestObservationPolicy,
@@ -93,6 +127,7 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
   assert.match(configSource, /setupFiles:\s*\["\.\/test\/setup-root-observation-limits\.ts"\]/);
   assert.match(setupSource, /vi\.setConfig\(\{[\s\S]*?hookTimeout:[\s\S]*?testTimeout:/);
 
+  let totalBoundaryCount = 0;
   for (const policy of rootTestObservationPolicy) {
     assert.match(policy.observationKind, /^(canonical-in-process|process-repository)$/);
     assert.equal(typeof policy.boundaryOwnership, "string");
@@ -113,12 +148,11 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
       ts.ScriptKind.TS,
     );
     const limits = declaredNumericLimits(sourceFile);
-    let boundaryCount = 0;
+    const expectedBoundaries = [];
     const visit = (node) => {
       if (ts.isCallExpression(node)) {
         const name = calledName(node);
         if (name && (TEST_CALLS.has(name) || HOOK_CALLS.has(name))) {
-          boundaryCount += 1;
           const argumentIndex = TEST_CALLS.has(name) ? 2 : 1;
           const hasExplicit = node.arguments[argumentIndex] !== undefined;
           const explicit = explicitLimit(node, name, limits);
@@ -134,16 +168,185 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
             ? policy.effectiveDefaultTestTimeoutMs
             : policy.effectiveDefaultHookTimeoutMs);
           assert.equal(Number.isFinite(effective) && effective > 0, true);
-          if (policy.observationKind === ROOT_TEST_OBSERVATION_KINDS.PROCESS_REPOSITORY
-            && FORBIDDEN_STALE_LIMITS_MS.has(effective)) {
-            assert.fail(`${policy.file}:${line} retains stale effective ${effective} ms ${name} limit`);
+          const kind = TEST_CALLS.has(name) ? "test" : "hook";
+          if (policy.observationKind === ROOT_TEST_OBSERVATION_KINDS.PROCESS_REPOSITORY) {
+            const floor = kind === "test"
+              ? PROCESS_REPOSITORY_TEST_FLOOR_MS
+              : PROCESS_REPOSITORY_HOOK_FLOOR_MS;
+            assert.equal(
+              effective >= floor,
+              true,
+              `${policy.file}:${line} has ${effective} ms effective ${kind} timeout below ${floor} ms`,
+            );
           }
+          expectedBoundaries.push({
+            line,
+            kind,
+            call: name,
+            declaredLimit: node.arguments[argumentIndex]?.getText(sourceFile) ?? "policy default",
+            effectiveTimeoutMs: effective,
+          });
         }
       }
       ts.forEachChild(node, visit);
     };
     visit(sourceFile);
-    assert.notEqual(boundaryCount, 0, `${policy.file} has no test or hook boundaries`);
+    assert.notEqual(expectedBoundaries.length, 0, `${policy.file} has no test or hook boundaries`);
+    totalBoundaryCount += expectedBoundaries.length;
+    assert.deepEqual(
+      verifiedByFile.get(policy.file)?.boundaries.map((boundary) => ({
+        line: boundary.line,
+        kind: boundary.kind,
+        call: boundary.call,
+        declaredLimit: boundary.declaredLimit,
+        effectiveTimeoutMs: boundary.effectiveTimeoutMs,
+      })),
+      expectedBoundaries,
+      `${policy.file} policy verification did not cover every parsed boundary exactly once`,
+    );
+  }
+  assert.equal(totalBoundaryCount, 484);
+});
+
+test("the verifier rejects every former below-floor boundary and unresolved explicit values", async () => {
+  const { rootTestManifest } = await import("../vitest.suites.mjs");
+  const { verifyRootTestObservationPolicy } = await import("./root-test-observation-policy.mjs");
+  const root = mkdtempSync(join(tmpdir(), "mdlm-observation-policy-"));
+  const copy = (relativePath) => {
+    const target = join(root, relativePath);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, readFileSync(new URL(`../${relativePath}`, import.meta.url)));
+  };
+
+  try {
+    copy("vitest.fast.config.ts");
+    copy("test/setup-root-observation-limits.ts");
+    for (const { file } of rootTestManifest) copy(file);
+    assert.equal(verifyRootTestObservationPolicy(root).length, 47);
+
+    const cases = [
+      {
+        label: "baseline hook 20,000",
+        file: "test/mdlm-baseline-inspection.test.ts",
+        from: "const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;",
+        to: "const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;",
+        expected: ["effective hook timeout", "40000 ms process/repository floor"],
+      },
+      {
+        label: "baseline test 45,000",
+        file: "test/mdlm-baseline-inspection.test.ts",
+        from: "const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
+        to: "const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "assignment hook 20,000",
+        file: "test/mdlm-assignment.test.ts",
+        from: "const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;",
+        to: "const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 20_000;",
+        expected: ["effective hook timeout", "40000 ms process/repository floor"],
+      },
+      {
+        label: "assignment test 75,000",
+        file: "test/mdlm-assignment.test.ts",
+        from: "const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
+        to: "const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = 75_000;",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "review test 110,000",
+        file: "test/mdlm-review-assignment.test.ts",
+        from: "const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
+        to: "const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = 110_000;",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "operator test 45,000",
+        file: "test/operator-outcome.test.ts",
+        from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n\n  it(\"returns a declared Profile Boundary with omitted coverage and exact condition evidence\", () => {",
+        to: "  }, 45_000);\n\n  it(\"returns a declared Profile Boundary with omitted coverage and exact condition evidence\", () => {",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "initial product-intent route test 120,000",
+        file: "test/initial-product-intent-route.test.ts",
+        from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n});",
+        to: "  }, 120_000);\n});",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "assignment-state test 40,000",
+        file: "test/mdlm-assignment-state.test.ts",
+        from: "    expect(git(repository, \"status\", \"--porcelain\").stdout).toBe(\"\");\n  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);",
+        to: "    expect(git(repository, \"status\", \"--porcelain\").stdout).toBe(\"\");\n  }, 40_000);",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "command hook 20,000",
+        file: "test/mdlm-command-application.test.ts",
+        from: "const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS =\n  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;",
+        to: "const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS = 20_000;",
+        expected: ["effective hook timeout", "40000 ms process/repository floor"],
+      },
+      {
+        label: "migration test 70,000",
+        file: "test/mdlm-process-migration.test.ts",
+        from: "const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
+        to: "const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS = 70_000;",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "corrected-gate test 70,000",
+        file: "test/phase-0-corrected-gate-route.test.ts",
+        from: "const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
+        to: "const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS = 70_000;",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "phase-1 cleanup test 5,000",
+        file: "test/phase-1-hardening-routes.test.ts",
+        from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n});",
+        to: "  }, 5_000);\n});",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "arbitrary test value one millisecond below the floor",
+        file: "test/phase-1-hardening-routes.test.ts",
+        from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n\n  it(\"proves Phase 1 VAI correction, fresh Review, and refusal of prior RUN and RES reuse\", () => {",
+        to: "  }, 179_999);\n\n  it(\"proves Phase 1 VAI correction, fresh Review, and refusal of prior RUN and RES reuse\", () => {",
+        expected: ["effective test timeout", "180000 ms process/repository floor"],
+      },
+      {
+        label: "unresolved explicit boundary identifier",
+        file: "test/initial-product-intent-route.test.ts",
+        from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n});",
+        to: "  }, MISSING_PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n});",
+        expected: ["unclassified explicit it limit"],
+      },
+    ];
+
+    for (const mutation of cases) {
+      const target = join(root, mutation.file);
+      const original = readFileSync(target, "utf8");
+      assert.equal(
+        original.split(mutation.from).length - 1,
+        1,
+        `${mutation.label} fixture seam must occur exactly once`,
+      );
+      writeFileSync(target, original.replace(mutation.from, mutation.to));
+      assert.throws(
+        () => verifyRootTestObservationPolicy(root),
+        (error) => {
+          assert.match(error.message, new RegExp(mutation.file.replaceAll(".", "\\.")));
+          for (const fragment of mutation.expected) assert.ok(error.message.includes(fragment));
+          return true;
+        },
+        mutation.label,
+      );
+      writeFileSync(target, original);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 

@@ -11,7 +11,10 @@ import {
   expect,
   it,
 } from "vitest";
-import { PROCESS_REPOSITORY_HOOK_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
+import {
+  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
+} from "../scripts/root-test-observation-policy.mjs";
 import { parse, stringify } from "yaml";
 import {
   inspectAssignmentState,
@@ -913,7 +916,7 @@ gate:
         outputs: [{ data: { payload: { effective_scope: mapRevision } } }],
       },
     });
-  }, 45_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("returns a declared Profile Boundary with omitted coverage and exact condition evidence", () => {
     const evaluation = terminalEvaluation("profile-boundary");

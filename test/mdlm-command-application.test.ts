@@ -3,7 +3,10 @@ import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
+import {
+  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
+} from "../scripts/root-test-observation-policy.mjs";
 import { executeCommandApplication } from "../src/command-application.js";
 import { readScenarioExecution } from "../src/scenario-execution.js";
 import { mdlm, mdlmWithInput } from "./helpers/mdlm.js";
@@ -12,9 +15,8 @@ const projectRoot = process.cwd();
 // The compiled-CLI transaction repeatedly reloads the full selected package;
 // use the complete max-2 process/repository observation bound.
 const commandApplicationTimeout = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;
-// Round the larger of the 4,486 ms green hook and 10,876 ms failed file up to
-// 20,000 ms, leaving 15,514 ms above the measured hook.
-const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS = 20_000;
+const CONTENDED_COMMAND_INITIALIZATION_HOOK_TIMEOUT_MS =
+  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
 
 async function copyRepositoryFoundation(
   source: string,
