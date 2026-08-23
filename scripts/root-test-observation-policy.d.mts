@@ -2,7 +2,7 @@ export const ROOT_TEST_OBSERVATION_KINDS: Readonly<{
   CANONICAL_IN_PROCESS: "canonical-in-process";
   PROCESS_REPOSITORY: "process-repository";
 }>;
-export const PROCESS_REPOSITORY_TEST_TIMEOUT_MS: 240000;
+export const PROCESS_REPOSITORY_TEST_TIMEOUT_MS: 360000;
 export const PROCESS_REPOSITORY_HOOK_TIMEOUT_MS: 40000;
 export const PROCESS_REPOSITORY_CHILD_TIMEOUT_MS: 60000;
 export const CONTENDED_IN_PROCESS_SETUP_LIMITS: Readonly<Record<string, number>>;

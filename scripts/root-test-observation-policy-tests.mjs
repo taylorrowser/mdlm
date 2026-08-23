@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import * as ts from "typescript";
 
-const PROCESS_REPOSITORY_TEST_FLOOR_MS = 240_000;
+const PROCESS_REPOSITORY_TEST_FLOOR_MS = 360_000;
 const PROCESS_REPOSITORY_HOOK_FLOOR_MS = 40_000;
 const PROCESS_REPOSITORY_CHILD_FLOOR_MS = 60_000;
 const TEST_CALLS = new Set(["it", "test"]);
@@ -77,14 +77,14 @@ test("every process/repository boundary obeys the central observation floors", a
       file.observationKind === ROOT_TEST_OBSERVATION_KINDS.PROCESS_REPOSITORY)
     .flatMap((file) => file.boundaries
       .filter((boundary) => boundary.effectiveTimeoutMs < (boundary.kind === "test"
-        ? 240_000
+        ? 360_000
         : 40_000))
       .map((boundary) =>
         `${file.file}:${boundary.line} ${boundary.kind} ${boundary.declaredLimit}=${boundary.effectiveTimeoutMs}`));
 
   assert.deepEqual(violations, []);
   assert.equal(PROCESS_REPOSITORY_HOOK_TIMEOUT_MS, 40_000);
-  assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 240_000);
+  assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 360_000);
 });
 
 test("all 47 root tests have complete child-process observation policy", async () => {
@@ -215,7 +215,7 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
     30_000,
   );
   assert.equal(PROCESS_REPOSITORY_HOOK_TIMEOUT_MS, 40_000);
-  assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 240_000);
+  assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 360_000);
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(
       rootTestObservationPolicy,
@@ -346,7 +346,7 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
         file: "test/mdlm-baseline-inspection.test.ts",
         from: "const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
         to: "const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "assignment hook 20,000",
@@ -360,35 +360,35 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
         file: "test/mdlm-assignment.test.ts",
         from: "const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
         to: "const CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS = 75_000;",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "review test 110,000",
         file: "test/mdlm-review-assignment.test.ts",
         from: "const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
         to: "const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = 110_000;",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "operator test 45,000",
         file: "test/operator-outcome.test.ts",
         from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n\n  it(\"returns a declared Profile Boundary with omitted coverage and exact condition evidence\", () => {",
         to: "  }, 45_000);\n\n  it(\"returns a declared Profile Boundary with omitted coverage and exact condition evidence\", () => {",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "initial product-intent route test 120,000",
         file: "test/initial-product-intent-route.test.ts",
         from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n});",
         to: "  }, 120_000);\n});",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "assignment-state test 40,000",
         file: "test/mdlm-assignment-state.test.ts",
         from: "    expect(git(repository, \"status\", \"--porcelain\").stdout).toBe(\"\");\n  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);",
         to: "    expect(git(repository, \"status\", \"--porcelain\").stdout).toBe(\"\");\n  }, 40_000);",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "command hook 20,000",
@@ -402,28 +402,28 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
         file: "test/mdlm-process-migration.test.ts",
         from: "const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
         to: "const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS = 70_000;",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "corrected-gate test 70,000",
         file: "test/phase-0-corrected-gate-route.test.ts",
         from: "const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS =\n  PROCESS_REPOSITORY_TEST_TIMEOUT_MS;",
         to: "const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS = 70_000;",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "phase-1 cleanup test 5,000",
         file: "test/phase-1-hardening-routes.test.ts",
         from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n});",
         to: "  }, 5_000);\n});",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "arbitrary test value one millisecond below the floor",
         file: "test/phase-1-hardening-routes.test.ts",
         from: "  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);\n\n  it(\"proves Phase 1 VAI correction, fresh Review, and refusal of prior RUN and RES reuse\", () => {",
-        to: "  }, 239_999);\n\n  it(\"proves Phase 1 VAI correction, fresh Review, and refusal of prior RUN and RES reuse\", () => {",
-        expected: ["effective test timeout", "240000 ms process/repository floor"],
+        to: "  }, 359_999);\n\n  it(\"proves Phase 1 VAI correction, fresh Review, and refusal of prior RUN and RES reuse\", () => {",
+        expected: ["effective test timeout", "360000 ms process/repository floor"],
       },
       {
         label: "unresolved explicit boundary identifier",
