@@ -58,6 +58,30 @@ function validatedClassConcurrencyLimits(declarations) {
   return limits;
 }
 
+function validatedConcurrencyGroups(declarations) {
+  if (declarations == null) return [];
+  if (typeof declarations !== "object" || Array.isArray(declarations)) {
+    throw new TypeError("Scheduler concurrencyGroups must be an object");
+  }
+  return Object.entries(declarations).map(([groupName, declaration]) => {
+    if (typeof declaration !== "object" || declaration == null || Array.isArray(declaration)) {
+      throw new TypeError(`Scheduler concurrencyGroups.${groupName} must be an object`);
+    }
+    if (!Number.isInteger(declaration.limit) || declaration.limit <= 0) {
+      throw new TypeError(`Scheduler concurrencyGroups.${groupName}.limit must be a positive integer`);
+    }
+    if (!Array.isArray(declaration.runtimeClasses) || declaration.runtimeClasses.length === 0
+      || declaration.runtimeClasses.some((runtimeClass) => typeof runtimeClass !== "string" || runtimeClass.length === 0)) {
+      throw new TypeError(`Scheduler concurrencyGroups.${groupName}.runtimeClasses must be a nonempty string array`);
+    }
+    const runtimeClasses = new Set(declaration.runtimeClasses);
+    if (runtimeClasses.size !== declaration.runtimeClasses.length) {
+      throw new TypeError(`Scheduler concurrencyGroups.${groupName}.runtimeClasses must not contain duplicates`);
+    }
+    return { limit: declaration.limit, runtimeClasses };
+  });
+}
+
 function canLaunchTask(
   candidate,
   pendingTasks,
@@ -66,13 +90,17 @@ function canLaunchTask(
   canOverlap,
   canAdmit,
   classConcurrencyLimits,
+  concurrencyGroups,
 ) {
   const classLimit = classConcurrencyLimits.get(candidate.runtimeClass);
   const activeInClass = classLimit == null
     ? 0
     : runningTasks.filter((running) => running.runtimeClass === candidate.runtimeClass).length;
+  const groupsHaveCapacity = concurrencyGroups.every((group) => !group.runtimeClasses.has(candidate.runtimeClass)
+    || runningTasks.filter((running) => group.runtimeClasses.has(running.runtimeClass)).length < group.limit);
   return candidate.weight <= availableWeight
     && (classLimit == null || activeInClass < classLimit)
+    && groupsHaveCapacity
     && runningTasks.every((running) => canOverlap(candidate, running))
     && canAdmit(candidate, { pendingTasks, runningTasks });
 }
@@ -97,6 +125,7 @@ export function simulateWeightedSchedule(tasks, options) {
   if (typeof canOverlap !== "function") throw new TypeError("Scheduler canOverlap must be a function");
   if (typeof canAdmit !== "function") throw new TypeError("Scheduler canAdmit must be a function");
   const classConcurrencyLimits = validatedClassConcurrencyLimits(options?.classConcurrencyLimits);
+  const concurrencyGroups = validatedConcurrencyGroups(options?.concurrencyGroups);
   const launches = [];
   let activeWeight = 0;
   let maximumActiveWeight = 0;
@@ -111,6 +140,7 @@ export function simulateWeightedSchedule(tasks, options) {
       canOverlap,
       canAdmit,
       classConcurrencyLimits,
+      concurrencyGroups,
     ));
     while (nextIndex >= 0) {
       const [task] = pending.splice(nextIndex, 1);
@@ -129,6 +159,7 @@ export function simulateWeightedSchedule(tasks, options) {
         canOverlap,
         canAdmit,
         classConcurrencyLimits,
+        concurrencyGroups,
       ));
     }
     if (running.length === 0) throw new Error("Weighted schedule simulation made no progress");
@@ -156,6 +187,7 @@ export async function runWeightedSchedule(tasks, options) {
   if (typeof canOverlap !== "function") throw new TypeError("Scheduler canOverlap must be a function");
   if (typeof canAdmit !== "function") throw new TypeError("Scheduler canAdmit must be a function");
   const classConcurrencyLimits = validatedClassConcurrencyLimits(options?.classConcurrencyLimits);
+  const concurrencyGroups = validatedConcurrencyGroups(options?.concurrencyGroups);
 
   const pending = [...tasks];
   const running = new Map();
@@ -210,6 +242,7 @@ export async function runWeightedSchedule(tasks, options) {
         canOverlap,
         canAdmit,
         classConcurrencyLimits,
+        concurrencyGroups,
       ));
       while (nextIndex >= 0 && !signal?.aborted && settledQueue.length === 0) {
         const [task] = pending.splice(nextIndex, 1);
@@ -247,6 +280,7 @@ export async function runWeightedSchedule(tasks, options) {
           canOverlap,
           canAdmit,
           classConcurrencyLimits,
+          concurrencyGroups,
         ));
       }
 
