@@ -3,7 +3,10 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
+import {
+  PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
+} from "../scripts/root-test-observation-policy.mjs";
 
 const executable = path.join(process.cwd(), "dist/mdlm.js");
 
@@ -12,7 +15,7 @@ function mdlm(repository: string, arguments_: string[], input?: string) {
     cwd: repository,
     encoding: "utf8",
     maxBuffer: 10 * 1024 * 1024,
-    timeout: 10_000,
+    timeout: PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
     ...(input === undefined ? {} : { input }),
   });
 }
@@ -20,7 +23,7 @@ function mdlm(repository: string, arguments_: string[], input?: string) {
 function git(repository: string, ...arguments_: string[]) {
   return spawnSync("git", ["-C", repository, ...arguments_], {
     encoding: "utf8",
-    timeout: 10_000,
+    timeout: PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
   });
 }
 

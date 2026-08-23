@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -13,6 +14,7 @@ import * as ts from "typescript";
 
 const PROCESS_REPOSITORY_TEST_FLOOR_MS = 180_000;
 const PROCESS_REPOSITORY_HOOK_FLOOR_MS = 40_000;
+const PROCESS_REPOSITORY_CHILD_FLOOR_MS = 60_000;
 const TEST_CALLS = new Set(["it", "test"]);
 const HOOK_CALLS = new Set(["beforeAll", "beforeEach", "afterAll", "afterEach"]);
 
@@ -83,6 +85,85 @@ test("every process/repository boundary obeys the central observation floors", a
   assert.deepEqual(violations, []);
   assert.equal(PROCESS_REPOSITORY_HOOK_TIMEOUT_MS, 40_000);
   assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 180_000);
+});
+
+test("all 47 root tests have complete child-process observation policy", async () => {
+  const {
+    PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
+    verifyRootTestChildProcessPolicy,
+  } = await import("./root-test-observation-policy.mjs");
+
+  const inventory = verifyRootTestChildProcessPolicy();
+  assert.equal(PROCESS_REPOSITORY_CHILD_TIMEOUT_MS, PROCESS_REPOSITORY_CHILD_FLOOR_MS);
+  assert.equal(inventory.manifests.length, 47);
+  assert.equal(new Set(inventory.manifests.map((entry) => entry.file)).size, 47);
+  assert.equal(inventory.launches.length, 29);
+  assert.equal(new Set(inventory.launches.map((entry) => entry.key)).size, 29);
+  assert.deepEqual(
+    [...new Set(inventory.launches.map((entry) => entry.file))].sort(),
+    [
+      "test/helpers/lifecycle-data-fixture.ts",
+      "test/helpers/mdlm.ts",
+      "test/helpers/proportional-phase-2-ready-fixture.ts",
+      "test/helpers/proportional-phase-2-routes.ts",
+      "test/mdlm-assignment-state.test.ts",
+      "test/mdlm-assignment.test.ts",
+      "test/mdlm-baseline-inspection.test.ts",
+      "test/mdlm-clean-onboarding-transaction.test.ts",
+      "test/mdlm-clean-pilot-contract.test.ts",
+      "test/mdlm-init.test.ts",
+      "test/mdlm-review-assignment.test.ts",
+      "test/phase-1-hardening-routes.test.ts",
+    ],
+  );
+
+  const bounded = inventory.launches.filter((entry) => entry.effectiveTimeoutMs !== null);
+  assert.deepEqual(
+    bounded.map((entry) => ({
+      file: entry.file,
+      api: entry.api,
+      declaredTimeout: entry.declaredTimeout,
+      effectiveTimeoutMs: entry.effectiveTimeoutMs,
+      disposition: entry.disposition,
+    })),
+    [
+      {
+        file: "test/mdlm-clean-onboarding-transaction.test.ts",
+        api: "spawnSync",
+        declaredTimeout: "PROCESS_REPOSITORY_CHILD_TIMEOUT_MS",
+        effectiveTimeoutMs: 60_000,
+        disposition: "central process/repository child observation deadline",
+      },
+      {
+        file: "test/mdlm-clean-onboarding-transaction.test.ts",
+        api: "spawnSync",
+        declaredTimeout: "PROCESS_REPOSITORY_CHILD_TIMEOUT_MS",
+        effectiveTimeoutMs: 60_000,
+        disposition: "central process/repository child observation deadline",
+      },
+    ],
+  );
+  assert.equal(
+    inventory.launches.filter((entry) => entry.effectiveTimeoutMs === null).length,
+    27,
+  );
+  assert.equal(
+    inventory.launches.every((entry) =>
+      entry.effectiveTimeoutMs === null ||
+      entry.effectiveTimeoutMs >= PROCESS_REPOSITORY_CHILD_FLOOR_MS),
+    true,
+  );
+  assert.deepEqual(
+    inventory.nonChildTimeouts.map((entry) => entry.kind),
+    [
+      "synchronization-barrier-default",
+      "synchronization-barrier-default",
+      "assignment-runner-domain-timeout",
+      "domain-fixture-deadlines",
+      "cleanup-proof-wrapper-deadlines",
+      "domain-contract-deadlines",
+    ],
+  );
 });
 
 test("all 47 root tests have complete executable observation-limit policy", async () => {
@@ -210,7 +291,10 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
 
 test("the verifier rejects every former below-floor boundary and unresolved explicit values", async () => {
   const { rootTestManifest } = await import("../vitest.suites.mjs");
-  const { verifyRootTestObservationPolicy } = await import("./root-test-observation-policy.mjs");
+  const {
+    verifyRootTestChildProcessPolicy,
+    verifyRootTestObservationPolicy,
+  } = await import("./root-test-observation-policy.mjs");
   const root = mkdtempSync(join(tmpdir(), "mdlm-observation-policy-"));
   const copy = (relativePath) => {
     const target = join(root, relativePath);
@@ -220,9 +304,10 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
 
   try {
     copy("vitest.fast.config.ts");
-    copy("test/setup-root-observation-limits.ts");
-    for (const { file } of rootTestManifest) copy(file);
+    cpSync(new URL("../test/", import.meta.url), join(root, "test"), { recursive: true });
+    assert.equal(rootTestManifest.length, 47);
     assert.equal(verifyRootTestObservationPolicy(root).length, 47);
+    assert.equal(verifyRootTestChildProcessPolicy(root).launches.length, 29);
 
     const cases = [
       {
@@ -345,6 +430,28 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
       );
       writeFileSync(target, original);
     }
+
+    const childTarget = join(root, "test/mdlm-clean-onboarding-transaction.test.ts");
+    const childOriginal = readFileSync(childTarget, "utf8");
+    const childSeam = "    maxBuffer: 10 * 1024 * 1024,\n    timeout: PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,";
+    assert.equal(childOriginal.split(childSeam).length - 1, 1);
+    writeFileSync(
+      childTarget,
+      childOriginal.replace(
+        childSeam,
+        "    maxBuffer: 10 * 1024 * 1024,\n    timeout: 59_999,",
+      ),
+    );
+    assert.throws(
+      () => verifyRootTestChildProcessPolicy(root),
+      (error) => {
+        assert.match(error.message, /mdlm-clean-onboarding-transaction\.test\.ts/);
+        assert.ok(error.message.includes("59999 ms is below the central 60000 ms floor"));
+        return true;
+      },
+      "child timeout one millisecond below the floor",
+    );
+    writeFileSync(childTarget, childOriginal);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

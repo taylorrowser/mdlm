@@ -508,6 +508,14 @@ test("contended representative observation limits stay exact", () => {
     /4 × 44,830 ms = 179,320 ms\.[\s\S]*?PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 180_000;/,
   );
   assert.match(
+    observationPolicy,
+    /Six times that observation[\s\S]*?PROCESS_REPOSITORY_CHILD_TIMEOUT_MS = 60_000;/,
+  );
+  assert.match(
+    observationPolicy,
+    /effectiveTimeoutMs < PROCESS_REPOSITORY_CHILD_TIMEOUT_MS/,
+  );
+  assert.match(
     reviewAssignmentSource,
     /const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
   );

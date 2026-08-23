@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import * as ts from "typescript";
 import { rootTestManifest } from "../vitest.suites.mjs";
@@ -15,6 +15,12 @@ export const PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 180_000;
 // Phase 0's contended 15,650 ms whole-file work is the conservative setup proxy:
 // 2 × 15,650 ms = 31,300 ms, rounded strictly upward to 40,000 ms.
 export const PROCESS_REPOSITORY_HOOK_TIMEOUT_MS = 40_000;
+
+// The failed clean-onboarding helper observed a compiled child for exactly
+// 10,000 ms. Six times that observation gives child startup and repository
+// initialization room while remaining one third of the 180,000 ms enclosing
+// process/repository test boundary.
+export const PROCESS_REPOSITORY_CHILD_TIMEOUT_MS = 60_000;
 
 export const CONTENDED_IN_PROCESS_SETUP_LIMITS = Object.freeze({
   // Twice the 12,520 ms contended file observation, strictly rounded upward.
@@ -237,14 +243,299 @@ export function verifyRootTestObservationPolicy(root = process.cwd()) {
   return Object.freeze(files);
 }
 
+const childProcessApis = new Set([
+  "exec", "execFile", "execFileSync", "execSync", "fork", "spawn", "spawnSync",
+]);
+const childProcessOptionsArgument = Object.freeze({
+  exec: 1,
+  execFile: 2,
+  execFileSync: 2,
+  execSync: 1,
+  fork: 2,
+  spawn: 2,
+  spawnSync: 2,
+});
+
+const nonChildTimeoutDispositions = Object.freeze([
+  {
+    file: "test/mdlm-assignment.test.ts",
+    search: "function waitForPath(\n  target: string,\n  message: string,\n  timeoutMs = 10_000,",
+    kind: "synchronization-barrier-default",
+    effectiveTimeout: "10,000 ms",
+    disposition: "filesystem synchronization barrier; not a child-process option",
+  },
+  {
+    file: "test/mdlm-assignment.test.ts",
+    search: "function waitForDirectoryEntry(\n  directory: string,\n  predicate: (entry: string) => boolean,\n  message: string,\n  timeoutMs = 10_000,",
+    kind: "synchronization-barrier-default",
+    effectiveTimeout: "10,000 ms",
+    disposition: "filesystem synchronization barrier; not a child-process option",
+  },
+  {
+    file: "test/initial-product-intent-resolution.test.ts",
+    search: "assignmentTimeoutMs: 1_000,",
+    kind: "assignment-runner-domain-timeout",
+    effectiveTimeout: "1,000 ms",
+    disposition: "assignment-runner contract input; not a child-process option",
+  },
+  {
+    file: "test/phase-1-hardening-routes.test.ts",
+    search: "deadlines_ms: { checkout: 30000, environment_check: 20000, product_case: 5000 },",
+    kind: "domain-fixture-deadlines",
+    effectiveTimeout: "checkout 30,000 ms; environment 20,000 ms; product case 5,000 ms; force 1,000 ms",
+    disposition: "Lifecycle Data fixture semantics; retained byte-for-byte",
+  },
+  {
+    file: "test/phase-1-hardening-routes.test.ts",
+    search: "runCase(stubbornGroup, 300, 100),",
+    kind: "cleanup-proof-wrapper-deadlines",
+    effectiveTimeout: "300/1,000 ms cases; 100 ms termination grace",
+    disposition: "intentional frontier timeout and cleanup contract exercise; outer spawnSync is unbounded",
+  },
+  {
+    file: "test/phase-hardening-domain-contracts.test.ts",
+    search: "deadlines_ms: { checkout: 30000, environment_check: 20000, product_case: 5000 }, deadline_scope: \"infrastructure-safety-only\"",
+    kind: "domain-contract-deadlines",
+    effectiveTimeout: "checkout 30,000 ms; environment 20,000 ms; product case 5,000 ms; force 1,000 ms",
+    disposition: "domain schema fixture semantics; retained byte-for-byte",
+  },
+]);
+
+function sourceLine(sourceFile, node) {
+  return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+}
+
+function resolveRelativeTestImport(importer, specifier, root) {
+  if (!specifier.startsWith(".")) return undefined;
+  const absoluteBase = path.resolve(root, path.dirname(importer), specifier);
+  const candidates = [absoluteBase];
+  if (/\.js$/.test(absoluteBase)) candidates.unshift(absoluteBase.replace(/\.js$/, ".ts"));
+  if (/\.mjs$/.test(absoluteBase)) candidates.unshift(absoluteBase.replace(/\.mjs$/, ".mts"));
+  if (!path.extname(absoluteBase)) {
+    candidates.push(`${absoluteBase}.ts`, `${absoluteBase}.mts`, path.join(absoluteBase, "index.ts"));
+  }
+  for (const candidate of candidates) {
+    const relative = path.relative(root, candidate).split(path.sep).join("/");
+    if (relative.startsWith("test/") && existsSync(candidate)) return relative;
+  }
+  return undefined;
+}
+
+function numericExpressionValue(expression, finiteLimits, parameterDefaults) {
+  const value = ts.isParenthesizedExpression(expression) ? expression.expression : expression;
+  if (ts.isNumericLiteral(value)) return Number(value.text);
+  if (ts.isIdentifier(value)) return finiteLimits.get(value.text) ?? parameterDefaults.get(value.text);
+  return undefined;
+}
+
+function enclosingParameterDefaults(node, finiteLimits) {
+  const defaults = new Map();
+  let current = node.parent;
+  while (current) {
+    if (ts.isFunctionLike(current)) {
+      for (const parameter of current.parameters) {
+        if (ts.isIdentifier(parameter.name) && parameter.initializer) {
+          const value = numericExpressionValue(parameter.initializer, finiteLimits, defaults);
+          if (value !== undefined) defaults.set(parameter.name.text, value);
+        }
+      }
+      break;
+    }
+    current = current.parent;
+  }
+  return defaults;
+}
+
+function timeoutFromOptions(expression, sourceFile, finiteLimits, parameterDefaults) {
+  const value = ts.isParenthesizedExpression(expression) ? expression.expression : expression;
+  if (ts.isConditionalExpression(value)) {
+    const left = timeoutFromOptions(value.whenTrue, sourceFile, finiteLimits, parameterDefaults);
+    const right = timeoutFromOptions(value.whenFalse, sourceFile, finiteLimits, parameterDefaults);
+    if (left === undefined && right === undefined) return undefined;
+    if (left?.effectiveTimeoutMs === right?.effectiveTimeoutMs) return left;
+    throw new Error(`${sourceFile.fileName}:${sourceLine(sourceFile, value)} has branch-dependent child timeout options`);
+  }
+  if (!ts.isObjectLiteralExpression(value)) {
+    throw new Error(`${sourceFile.fileName}:${sourceLine(sourceFile, value)} has unresolved child-process options`);
+  }
+  let timeout;
+  for (const property of value.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      const spreadTimeout = timeoutFromOptions(
+        property.expression,
+        sourceFile,
+        finiteLimits,
+        parameterDefaults,
+      );
+      if (spreadTimeout !== undefined) timeout = spreadTimeout;
+      continue;
+    }
+    if (!ts.isPropertyAssignment(property) || property.name.getText(sourceFile) !== "timeout") continue;
+    const effectiveTimeoutMs = numericExpressionValue(
+      property.initializer,
+      finiteLimits,
+      parameterDefaults,
+    );
+    if (effectiveTimeoutMs === undefined) {
+      throw new Error(
+        `${sourceFile.fileName}:${sourceLine(sourceFile, property)} has unresolved child timeout '${property.initializer.getText(sourceFile)}'`,
+      );
+    }
+    timeout = {
+      declaredTimeout: property.initializer.getText(sourceFile),
+      effectiveTimeoutMs,
+    };
+  }
+  return timeout;
+}
+
+function analyzeChildProcessSource(file, root, sourceCache) {
+  const cached = sourceCache.get(file);
+  if (cached) return cached;
+  const source = readFileSync(path.join(root, file), "utf8");
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const importedApis = new Map();
+  const imports = [];
+  const finiteLimits = new Map([
+    ["PROCESS_REPOSITORY_CHILD_TIMEOUT_MS", PROCESS_REPOSITORY_CHILD_TIMEOUT_MS],
+  ]);
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const specifier = statement.moduleSpecifier.text;
+    const dependency = resolveRelativeTestImport(file, specifier, root);
+    if (dependency) imports.push(dependency);
+    if (
+      specifier === "node:child_process" &&
+      statement.importClause?.namedBindings &&
+      ts.isNamedImports(statement.importClause.namedBindings)
+    ) {
+      for (const element of statement.importClause.namedBindings.elements) {
+        const api = (element.propertyName ?? element.name).text;
+        if (childProcessApis.has(api)) importedApis.set(element.name.text, api);
+      }
+    }
+  }
+
+  const visitDeclarations = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const numeric = numericExpressionValue(node.initializer, finiteLimits, new Map());
+      if (numeric !== undefined) finiteLimits.set(node.name.text, numeric);
+      if (
+        ts.isCallExpression(node.initializer) &&
+        ts.isIdentifier(node.initializer.expression) &&
+        node.initializer.expression.text === "promisify" &&
+        node.initializer.arguments.length === 1 &&
+        ts.isIdentifier(node.initializer.arguments[0])
+      ) {
+        const api = importedApis.get(node.initializer.arguments[0].text);
+        if (api) importedApis.set(node.name.text, api);
+      }
+    }
+    ts.forEachChild(node, visitDeclarations);
+  };
+  visitDeclarations(sourceFile);
+
+  const launches = [];
+  const visitLaunches = (node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && importedApis.has(node.expression.text)) {
+      const api = importedApis.get(node.expression.text);
+      const options = node.arguments[childProcessOptionsArgument[api]];
+      const timeout = options
+        ? timeoutFromOptions(options, sourceFile, finiteLimits, enclosingParameterDefaults(node, finiteLimits))
+        : undefined;
+      const line = sourceLine(sourceFile, node);
+      const effectiveTimeoutMs = timeout?.effectiveTimeoutMs ?? null;
+      if (effectiveTimeoutMs !== null && (!Number.isFinite(effectiveTimeoutMs) || effectiveTimeoutMs <= 0)) {
+        throw new Error(`${file}:${line} has a non-positive child timeout`);
+      }
+      if (effectiveTimeoutMs !== null && effectiveTimeoutMs < PROCESS_REPOSITORY_CHILD_TIMEOUT_MS) {
+        throw new Error(
+          `${file}:${line} child timeout ${effectiveTimeoutMs} ms is below the central ${PROCESS_REPOSITORY_CHILD_TIMEOUT_MS} ms floor`,
+        );
+      }
+      launches.push(Object.freeze({
+        key: `${file}:${line}:${api}`,
+        file,
+        line,
+        api,
+        declaredTimeout: timeout?.declaredTimeout ?? "none (unbounded)",
+        effectiveTimeoutMs,
+        disposition: effectiveTimeoutMs === null
+          ? "unbounded child launch; enclosing Vitest boundary owns observation"
+          : timeout.declaredTimeout === "PROCESS_REPOSITORY_CHILD_TIMEOUT_MS"
+          ? "central process/repository child observation deadline"
+          : "finite child observation deadline at or above central floor",
+      }));
+    }
+    ts.forEachChild(node, visitLaunches);
+  };
+  visitLaunches(sourceFile);
+
+  const result = Object.freeze({ imports: Object.freeze(imports), launches: Object.freeze(launches) });
+  sourceCache.set(file, result);
+  return result;
+}
+
+function locateNonChildTimeouts(root) {
+  return Object.freeze(nonChildTimeoutDispositions.map((entry) => {
+    const source = readFileSync(path.join(root, entry.file), "utf8");
+    const position = source.indexOf(entry.search);
+    if (position < 0 || source.indexOf(entry.search, position + 1) >= 0) {
+      throw new Error(`${entry.file} must contain exactly one classified ${entry.kind}`);
+    }
+    return Object.freeze({
+      file: entry.file,
+      line: source.slice(0, position).split("\n").length,
+      kind: entry.kind,
+      effectiveTimeout: entry.effectiveTimeout,
+      disposition: entry.disposition,
+    });
+  }));
+}
+
+export function verifyRootTestChildProcessPolicy(root = process.cwd()) {
+  const sourceCache = new Map();
+  const launchReachability = new Map();
+  const manifests = rootTestManifest.map((entry) => {
+    const visited = new Set();
+    const visit = (file) => {
+      if (visited.has(file)) return;
+      visited.add(file);
+      const analysis = analyzeChildProcessSource(file, root, sourceCache);
+      for (const launch of analysis.launches) {
+        const roots = launchReachability.get(launch.key) ?? new Set();
+        roots.add(entry.file);
+        launchReachability.set(launch.key, roots);
+      }
+      for (const dependency of analysis.imports) visit(dependency);
+    };
+    visit(entry.file);
+    return Object.freeze({ file: entry.file, sourceFiles: Object.freeze([...visited].sort()) });
+  });
+  const launches = [...sourceCache.values()]
+    .flatMap((entry) => entry.launches)
+    .sort((left, right) => left.file.localeCompare(right.file) || left.line - right.line)
+    .map((launch) => Object.freeze({
+      ...launch,
+      reachableFrom: Object.freeze([...(launchReachability.get(launch.key) ?? [])].sort()),
+    }));
+  return Object.freeze({
+    manifests: Object.freeze(manifests),
+    launches: Object.freeze(launches),
+    nonChildTimeouts: locateNonChildTimeouts(root),
+  });
+}
+
 export function renderRootTestObservationInventory(root = process.cwd()) {
   const files = verifyRootTestObservationPolicy(root);
+  const childProcesses = verifyRootTestChildProcessPolicy(root);
   const lines = [
     "# Issue 203 complete observation-limit inventory",
     "",
     `Generated from ${rootTestManifest.length} exact production root manifest entries.`,
     "Authoritative Vitest defaults before per-file policy: tests 45,000 ms; hooks 10,000 ms.",
-    `Process/repository policy: tests ${PROCESS_REPOSITORY_TEST_TIMEOUT_MS.toLocaleString("en-US")} ms; hooks ${PROCESS_REPOSITORY_HOOK_TIMEOUT_MS.toLocaleString("en-US")} ms.`,
+    `Process/repository policy: tests ${PROCESS_REPOSITORY_TEST_TIMEOUT_MS.toLocaleString("en-US")} ms; hooks ${PROCESS_REPOSITORY_HOOK_TIMEOUT_MS.toLocaleString("en-US")} ms; bounded child observations ${PROCESS_REPOSITORY_CHILD_TIMEOUT_MS.toLocaleString("en-US")} ms.`,
     "",
     "## Exact 47-file classification",
     "",
@@ -264,17 +555,46 @@ export function renderRootTestObservationInventory(root = process.cwd()) {
     lines.push("");
   }
   lines.push(
+    "## Test-owned child-process launch observations",
+    "",
+    "The AST walk starts at every exact root manifest entry and follows relative test-helper imports. `none (unbounded)` means Node has no child timeout option; the enclosing finite Vitest boundary remains the observation owner.",
+    "",
+    "| Source | API | Declared child timeout | Effective value | Disposition | Reachable root manifests |",
+    "|---|---|---|---:|---|---|",
+  );
+  for (const launch of childProcesses.launches) {
+    lines.push(
+      `| \`${launch.file}:${launch.line}\` | ${launch.api} | \`${launch.declaredTimeout}\` | ${launch.effectiveTimeoutMs === null ? "unbounded" : `${launch.effectiveTimeoutMs.toLocaleString("en-US")} ms`} | ${launch.disposition} | ${launch.reachableFrom.map((file) => `\`${file}\``).join("<br>")} |`,
+    );
+  }
+  lines.push(
+    "",
+    "## Classified non-child timeout semantics",
+    "",
+    "These timeout-like values are executable synchronization or domain-contract inputs, not Node child-process observation options.",
+    "",
+    "| Source | Kind | Effective value | Disposition |",
+    "|---|---|---|---|",
+  );
+  for (const timeout of childProcesses.nonChildTimeouts) {
+    lines.push(
+      `| \`${timeout.file}:${timeout.line}\` | ${timeout.kind} | ${timeout.effectiveTimeout} | ${timeout.disposition} |`,
+    );
+  }
+  lines.push(
+    "",
     "## Measured formulas and retained dispositions",
     "",
     "- Process/repository tests: 4 × 44,830 ms = 179,320 ms; upward rounding gives 180,000 ms and clears the observed 60/63/90/91/110/111,585 ms failures.",
     "- Process/repository hooks: Phase 0's 15,650 ms contended whole-file setup proxy doubled to 31,300 ms; strict rounding gives 40,000 ms.",
+    "- Process/repository bounded child observations: 6 × the exact failed 10,000 ms helper observation gives 60,000 ms, one third of the 180,000 ms enclosing test floor.",
     "- Participation hook: 2 × 4,505 ms strictly rounds to 20,000 ms.",
     "- Evaluate-phase hook: 2 × the 12,520 ms contended file observation strictly rounds to 30,000 ms.",
     "- Phase 0 hardening hook: the conservative 15,650 ms whole-file setup proxy doubled and strictly rounded gives 40,000 ms.",
     "- Former process/repository 20,000 ms hooks and 5,000/40,000/45,000/70,000/75,000/120,000 ms tests now use the central floors; stronger 360,000 and 510,000 ms process/repository tests remain.",
     "- Canonical/in-process measured 20,000/30,000/40,000 ms hooks and the 420,000 ms proportional test remain unchanged.",
     "- Canonical/in-process tests otherwise retain the authoritative 45,000 ms test and 10,000 ms hook semantics.",
-    "- Internal synchronization, child-process safety, domain payload, and the exact 600,000 ms authoritative wrapper deadlines are not Vitest observation limits and were not changed.",
+    "- Internal synchronization, intentional timeout-cleanup proof, domain payload, and the exact 600,000 ms authoritative wrapper deadlines are not child-process options or Vitest observation limits and were not changed.",
     "",
   );
   return lines.join("\n");
