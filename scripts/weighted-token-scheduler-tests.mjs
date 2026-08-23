@@ -16,6 +16,7 @@ import {
 import {
   CHEAP_BATCH_COUNT,
   MAX_CHEAP_FILES_PER_BATCH,
+  ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestTasks,
   rootTestManifest,
@@ -69,20 +70,24 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   const declared = rootTestManifest.map((entry) => entry.file);
 
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
+  assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
+    "repository-public-three-way-safe": 3,
+  });
   assert.equal(rootTestManifest.length, 47);
   assert.equal(new Set(declared).size, 47);
   assert.deepEqual([...declared].sort(), discovered);
   for (const entry of rootTestManifest) {
     assert.equal(Number.isInteger(entry.weight) && entry.weight > 0 && entry.weight <= ROOT_TEST_TOKEN_CAPACITY, true);
     assert.equal(Number.isInteger(entry.measuredDurationMs) && entry.measuredDurationMs > 0, true);
-    assert.match(entry.runtimeClass, /^(process-repository-heavy|repository-public-sensitive|canonical-fixture-filler|cheap-in-process)$/);
+    assert.match(entry.runtimeClass, /^(process-repository-heavy|repository-public-fragile|repository-public-three-way-safe|canonical-fixture-filler|cheap-in-process)$/);
   }
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(rootTestManifest, (entry) => entry.runtimeClass))
       .map(([runtimeClass, entries]) => [runtimeClass, `${entries.length}@${entries[0].weight}`])),
     {
       "process-repository-heavy": "4@2",
-      "repository-public-sensitive": "23@2",
+      "repository-public-fragile": "4@2",
+      "repository-public-three-way-safe": "19@1",
       "canonical-fixture-filler": "3@1",
       "cheap-in-process": "17@1",
     },
@@ -97,7 +102,11 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   );
   assert.equal(rootTestTasksCanOverlap(
     { runtimeClass: "process-repository-heavy" },
-    { runtimeClass: "repository-public-sensitive" },
+    { runtimeClass: "repository-public-fragile" },
+  ), false);
+  assert.equal(rootTestTasksCanOverlap(
+    { runtimeClass: "process-repository-heavy" },
+    { runtimeClass: "repository-public-three-way-safe" },
   ), false);
   assert.equal(rootTestTasksCanOverlap(
     { runtimeClass: "process-repository-heavy" },
@@ -118,7 +127,47 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(new Set(scheduledFiles).size, 47);
 });
 
-test("exact-current heavy observations and grouped contention remain calibrated", () => {
+test("exact-current three-way outcomes remain calibrated without using failed timings", () => {
+  assert.deepEqual(
+    rootTestManifest
+      .filter((entry) => entry.runtimeClass === "repository-public-three-way-safe")
+      .map(({ file, measuredDurationMs }) => [file, measuredDurationMs]),
+    [
+      ["test/evaluate-phase.test.ts", 17_183],
+      ["test/evaluate-scoped-obligation.test.ts", 8_019],
+      ["test/initial-product-intent-resolution.test.ts", 36_894],
+      ["test/initial-product-intent-route.test.ts", 46_607],
+      ["test/load-scenario-participation.test.ts", 70_789],
+      ["test/mdlm-assignment-state.test.ts", 57_581],
+      ["test/mdlm-clean-onboarding-transaction.test.ts", 58_206],
+      ["test/mdlm-command-application.test.ts", 63_686],
+      ["test/mdlm-init.test.ts", 55_478],
+      ["test/mdlm-pilot-assessment.test.ts", 15_950],
+      ["test/mdlm-process-expression.test.ts", 47_352],
+      ["test/mdlm-repository-inspection.test.ts", 43_809],
+      ["test/mdlm-schema.test.ts", 33_817],
+      ["test/operator-outcome.test.ts", 54_659],
+      ["test/phase-0-corrected-gate-route.test.ts", 85_291],
+      ["test/phase-0-intent-candidate-currentness-route.test.ts", 72_074],
+      ["test/phase-1-hardening-routes.test.ts", 101_498],
+      ["test/phase-2-hardening-routes.test.ts", 59_745],
+      ["test/selected-package-cache.test.ts", 29_228],
+    ],
+  );
+  assert.deepEqual(
+    rootTestManifest
+      .filter((entry) => entry.runtimeClass === "repository-public-fragile")
+      .map(({ file, measuredDurationMs }) => [file, measuredDurationMs]),
+    [
+      ["test/mdlm-clean-pilot-contract.test.ts", 28_026],
+      ["test/mdlm-lifecycle.test.ts", 30_161],
+      ["test/mdlm-process-migration.test.ts", 47_070],
+      ["test/mdlm-review-assignment.test.ts", 43_815],
+    ],
+  );
+});
+
+test("exact-current heavy and three-way representative observations remain calibrated", () => {
   assert.deepEqual(
     rootTestManifest
       .filter((entry) => entry.runtimeClass === "process-repository-heavy")
@@ -136,12 +185,11 @@ test("exact-current heavy observations and grouped contention remain calibrated"
     encoding: "utf8",
   });
   assert.equal(model.status, 2, model.stderr);
-  assert.match(model.stdout, /representative_predicted_ms=144100 representative_observed_wall_ms=131170/);
-  assert.match(model.stdout, /heavy_pair_focused_parallel_floor_ms=122363 heavy_pair_observed_scheduler_wall_ms=178958/);
-  assert.match(model.stdout, /heavy_pair_contention_multiplier=1\.463 heavy_pair_contention_allowance_ms=56595/);
-  assert.match(model.stdout, /simulated_schedule_ms=603057 modeled_root_ms=681652/);
-  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-141652/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-81652/);
+  assert.match(model.stdout, /representative_predicted_ms=223861 representative_observed_scheduler_wall_ms=265550 representative_observed_wrapper_wall_ms=265726/);
+  assert.match(model.stdout, /representative_contention_allowance_ms=41689/);
+  assert.match(model.stdout, /simulated_schedule_ms=558459 modeled_root_ms=622148/);
+  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-82148/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-22148/);
   assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
 });
 
@@ -162,6 +210,60 @@ test("the schedule simulator uses the same deterministic token and compatibility
     [10, "sensitive"],
   ]);
   assert.equal(simulation.maximumActiveWeight, 3);
+});
+
+test("class concurrency limits are shared by deterministic simulation and runtime admission", async () => {
+  const tasks = [
+    { id: "safe-a", runtimeClass: "safe-sensitive", weight: 1, estimatedDurationMs: 10 },
+    { id: "safe-b", runtimeClass: "safe-sensitive", weight: 1, estimatedDurationMs: 20 },
+    { id: "safe-c", runtimeClass: "safe-sensitive", weight: 1, estimatedDurationMs: 30 },
+    { id: "safe-d", runtimeClass: "safe-sensitive", weight: 1, estimatedDurationMs: 5 },
+    { id: "filler", runtimeClass: "filler", weight: 1, estimatedDurationMs: 4 },
+  ];
+  const classConcurrencyLimits = { "safe-sensitive": 3 };
+  const simulation = simulateWeightedSchedule(tasks, {
+    capacity: 4,
+    classConcurrencyLimits,
+  });
+  assert.deepEqual(simulation.launches.map(({ atMs, taskId }) => [atMs, taskId]), [
+    [0, "safe-a"],
+    [0, "safe-b"],
+    [0, "safe-c"],
+    [0, "filler"],
+    [10, "safe-d"],
+  ]);
+  assert.equal(simulation.wallMs, 30);
+  assert.equal(simulation.maximumActiveWeight, 4);
+
+  const controlled = controlledLauncher();
+  const activeSafe = new Set();
+  let maximumActiveSafe = 0;
+  const scheduled = runWeightedSchedule(tasks, {
+    capacity: 4,
+    classConcurrencyLimits,
+    launch: controlled.launch,
+    onEvent: (event) => {
+      if (!event.taskId.startsWith("safe-")) return;
+      if (event.type === "launch") activeSafe.add(event.taskId);
+      if (event.type === "complete") activeSafe.delete(event.taskId);
+      maximumActiveSafe = Math.max(maximumActiveSafe, activeSafe.size);
+    },
+  });
+
+  await waitFor(() => controlled.events.length === 4, "three capped tasks and filler did not launch");
+  assert.deepEqual(controlled.events, ["safe-a", "safe-b", "safe-c", "filler"]);
+  controlled.controls.get("filler").completion.resolve({ status: 0, signal: null });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(controlled.events, ["safe-a", "safe-b", "safe-c", "filler"]);
+  controlled.controls.get("safe-a").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 5, "waiting class member was starved");
+  assert.deepEqual(controlled.events, ["safe-a", "safe-b", "safe-c", "filler", "safe-d"]);
+  controlled.controls.get("safe-b").completion.resolve({ status: 0, signal: null });
+  controlled.controls.get("safe-c").completion.resolve({ status: 0, signal: null });
+  controlled.controls.get("safe-d").completion.resolve({ status: 0, signal: null });
+  await scheduled;
+  assert.equal(maximumActiveSafe, 3);
+  assert.equal(new Set(controlled.events).size, tasks.length);
 });
 
 test("the four-token scheduler backfills deterministically without exceeding its budget", async () => {
@@ -229,7 +331,7 @@ test("class compatibility blocks a token-valid conflict while safe fill continue
   assert.deepEqual(controlled.events, ["heavy", "filler-a", "filler-b", "sensitive"]);
 });
 
-test("the scheduler rejects invalid token declarations before launching", async () => {
+test("the scheduler rejects invalid token and class-limit declarations before launching", async () => {
   let launches = 0;
   await assert.rejects(
     runWeightedSchedule([{ id: "impossible", weight: 5 }], {
@@ -247,6 +349,17 @@ test("the scheduler rejects invalid token declarations before launching", async 
       launch: () => { throw new Error("must not launch"); },
     }),
     /duplicate/i,
+  );
+  await assert.rejects(
+    runWeightedSchedule([{ id: "valid", runtimeClass: "safe", weight: 1 }], {
+      capacity: 4,
+      classConcurrencyLimits: { safe: 0 },
+      launch: () => {
+        launches += 1;
+        throw new Error("must not launch");
+      },
+    }),
+    /classConcurrencyLimits\.safe.*positive integer/,
   );
   assert.equal(launches, 0);
 });

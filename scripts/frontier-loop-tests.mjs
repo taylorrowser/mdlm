@@ -311,7 +311,11 @@ test("completed failed validation resumes without launching another editing agen
 
 test("root Vitest files have one weighted runtime class", async () => {
   const { rootVitestSuites, testFiles } = await import("../vitest.suites.mjs");
-  const { ROOT_TEST_TOKEN_CAPACITY, rootTestManifest } = await import("./root-test-schedule.mjs");
+  const {
+    ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+    ROOT_TEST_TOKEN_CAPACITY,
+    rootTestManifest,
+  } = await import("./root-test-schedule.mjs");
   const discovered = readdirSync(new URL("../test", import.meta.url), {
     withFileTypes: true,
   })
@@ -322,20 +326,38 @@ test("root Vitest files have one weighted runtime class", async () => {
 
   assert.deepEqual(rootVitestSuites.map((suite) => suite.id), [
     "process-repository-heavy",
-    "repository-public-sensitive",
+    "repository-public-fragile",
+    "repository-public-three-way-safe",
     "canonical-fixture-filler",
     "cheap-in-process",
   ]);
   assert.equal(discovered.length, 47);
-  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 23, 3, 17]);
-  assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [2, 2, 1, 1]);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [4, 4, 19, 3, 17]);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [2, 2, 1, 1, 1]);
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
+  assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
+    "repository-public-three-way-safe": 3,
+  });
   assert.equal(rootTestManifest.every((entry) => Number.isInteger(entry.weight)
     && entry.weight > 0
     && entry.weight <= ROOT_TEST_TOKEN_CAPACITY), true);
   assert.equal(classified.length, new Set(classified).size);
   assert.deepEqual([...classified].sort(), discovered);
   assert.deepEqual([...testFiles].sort(), discovered);
+});
+
+test("the initial product-intent route reuses the verified package without bypassing repository publication", () => {
+  const source = readFileSync(
+    new URL("../test/initial-product-intent-route.test.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /canonicalProcessPackage/);
+  assert.match(source, /initializeRepositoryFromLoadedProcessPackage/);
+  assert.doesNotMatch(source, /mdlm\(parent,\s*"init"/);
+  assert.match(source, /installLifecycleDataFixture/);
+  assert.match(source, /prepareNextAssignment/);
+  assert.match(source, /submitAssignment/);
 });
 
 test("the authoritative runner uses the bounded weighted process scheduler", () => {
@@ -348,6 +370,7 @@ test("the authoritative runner uses the bounded weighted process scheduler", () 
   assert.match(source, /runWeightedSchedule/);
   assert.match(source, /launchProcessGroupTask/);
   assert.match(source, /ROOT_TEST_TOKEN_CAPACITY/);
+  assert.match(source, /ROOT_TEST_CLASS_CONCURRENCY_LIMITS/);
   assert.match(source, /rootTestTasksCanOverlap/);
   assert.match(source, /--maxWorkers=1/);
   assert.match(source, /\.\.\.task\.files/);

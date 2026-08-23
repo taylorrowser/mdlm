@@ -2,14 +2,17 @@ import { rootTestManifest } from "../vitest.suites.mjs";
 
 export { rootTestManifest };
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
+export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
+  "repository-public-three-way-safe": 3,
+});
 export const CHEAP_BATCH_COUNT = 2;
 export const MAX_CHEAP_FILES_PER_BATCH = 9;
 export const FOCUSED_VITEST_STARTUP_MS = 1_250;
 
 export function rootTestTasksCanOverlap(left, right) {
   const classes = new Set([left.runtimeClass, right.runtimeClass]);
-  return !(classes.has("process-repository-heavy")
-    && classes.has("repository-public-sensitive"));
+  const hasSensitive = [...classes].some((runtimeClass) => runtimeClass.startsWith("repository-public-"));
+  return !(classes.has("process-repository-heavy") && hasSensitive);
 }
 
 function createCheapBatches(entries) {

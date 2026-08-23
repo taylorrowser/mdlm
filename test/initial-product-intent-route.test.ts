@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { executeCommandApplication } from "../src/command-application.js";
+import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
 import {
   directoryDigest,
   inputRevision,
@@ -12,11 +12,8 @@ import {
   type PreparedAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { installLifecycleDataFixture } from "./helpers/lifecycle-data-fixture.js";
-async function mdlm(repository: string, ...arguments_: string[]) {
-  const execution = await executeCommandApplication(arguments_, repository);
-  return { status: execution.exitCode, stdout: execution.output, stderr: "" };
-}
 
 function reviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
   const subject = inputRevision(prepared, "subject");
@@ -48,8 +45,12 @@ describe("initial product-intent authority", () => {
     const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-product-intent-"));
     const repository = path.join(parent, "calculator");
     try {
-      const initialized = await mdlm(parent, "init", repository, "--json");
-      expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+      const initialized = await initializeRepositoryFromLoadedProcessPackage(
+        repository,
+        path.resolve(".lifecycle/process"),
+        await canonicalProcessPackage(),
+      );
+      expect(initialized.ok, initialized.ok ? "" : JSON.stringify(initialized.diagnostics)).toBe(true);
 
       await installLifecycleDataFixture(
         repository,
