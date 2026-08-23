@@ -8,9 +8,11 @@ export const ROOT_TEST_OBSERVATION_KINDS = Object.freeze({
   PROCESS_REPOSITORY: "process-repository",
 });
 
-// Four times the slower successful exact max-2 case is 4 × 44,830 ms = 179,320 ms.
-// Round upward to 180,000 ms; this clears the observed 60/63/90/91/110/111,585 ms failures.
-export const PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 180_000;
+// The exact bca07ad authoritative gate censored the restored initial-intent route at
+// 180,000 ms under valid three-way contention; 180 seconds is therefore a lower bound,
+// not successful timing evidence. Add one-third bounded observation room and round to
+// 240,000 ms. This does not change the separately enforced root or package hard limits.
+export const PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 240_000;
 
 // Phase 0's contended 15,650 ms whole-file work is the conservative setup proxy:
 // 2 × 15,650 ms = 31,300 ms, rounded strictly upward to 40,000 ms.
@@ -18,7 +20,7 @@ export const PROCESS_REPOSITORY_HOOK_TIMEOUT_MS = 40_000;
 
 // The failed clean-onboarding helper observed a compiled child for exactly
 // 10,000 ms. Six times that observation gives child startup and repository
-// initialization room while remaining one third of the 180,000 ms enclosing
+// initialization room while remaining one quarter of the 240,000 ms enclosing
 // process/repository test boundary.
 export const PROCESS_REPOSITORY_CHILD_TIMEOUT_MS = 60_000;
 
@@ -592,9 +594,9 @@ export function renderRootTestObservationInventory(root = process.cwd()) {
     "",
     "## Measured formulas and retained dispositions",
     "",
-    "- Process/repository tests: 4 × 44,830 ms = 179,320 ms; upward rounding gives 180,000 ms and clears the observed 60/63/90/91/110/111,585 ms failures.",
+    "- Process/repository tests: the exact bca07ad authoritative gate censored the restored initial-intent route at 180,000 ms under valid three-way contention; adding one-third bounded observation room gives 240,000 ms without using the censored duration as successful timing evidence.",
     "- Process/repository hooks: Phase 0's 15,650 ms contended whole-file setup proxy doubled to 31,300 ms; strict rounding gives 40,000 ms.",
-    "- Process/repository bounded child observations: 6 × the exact failed 10,000 ms helper observation gives 60,000 ms, one third of the 180,000 ms enclosing test floor.",
+    "- Process/repository bounded child observations: 6 × the exact failed 10,000 ms helper observation gives 60,000 ms, one quarter of the 240,000 ms enclosing test floor.",
     "- Participation hook: 2 × 4,505 ms strictly rounds to 20,000 ms.",
     "- Evaluate-phase hook: 2 × the 12,520 ms contended file observation strictly rounds to 30,000 ms.",
     "- Scoped-obligation hook: the failed 10,300 ms setup observation remains failure evidence; the central 30,000 ms contended setup limit clears it without treating that wall as a successful timing input.",

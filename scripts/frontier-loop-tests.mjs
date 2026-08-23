@@ -407,7 +407,7 @@ test("retained heavy cohort setup hooks use named finite limits", () => {
     );
     const finiteLimits = new Map([
       ["PROCESS_REPOSITORY_HOOK_TIMEOUT_MS", 40_000],
-      ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", 180_000],
+      ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", 240_000],
     ]);
 
     const visit = (node) => {
@@ -510,7 +510,7 @@ test("contended representative observation limits stay exact", () => {
 
   assert.match(
     observationPolicy,
-    /4 × 44,830 ms = 179,320 ms\.[\s\S]*?PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 180_000;/,
+    /censored the restored initial-intent route at[\s\S]*?180,000 ms[\s\S]*?PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 240_000;/,
   );
   assert.match(
     observationPolicy,

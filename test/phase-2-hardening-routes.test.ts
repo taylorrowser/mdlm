@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import {
   classifyOperatorOutcome,
   evaluateLifecycle,
@@ -888,7 +889,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
         fs.rm(path.dirname(processRoot), { recursive: true, force: true }),
       ]);
     }
-  }, 180_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("derives SYS execution when the exact output and its dependent Review are absent", () => {
     expectReady(
