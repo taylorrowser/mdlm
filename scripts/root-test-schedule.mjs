@@ -1,59 +1,38 @@
 import { rootTestManifest } from "../vitest.suites.mjs";
 import {
-  safeLptAssignmentFor,
-  safeLptEvidence,
-} from "./root-test-safe-lpt-plan.mjs";
+  createRootResourceAdmissionPolicy,
+  rootResourceAssignment,
+  rootResourceTaskCanOverlap,
+} from "./root-test-resource-plan.mjs";
 
 export { rootTestManifest };
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
-  "process-repository-heavy": 1,
-  "repository-public-fragile": 1,
+  "process-repository-heavy": 2,
+  "repository-public-fragile": 2,
   "process-repository-safe": 3,
   "canonical-evaluator-safe": 3,
   "canonical-fixture-filler": 1,
   "cheap-in-process": 1,
 });
-export const SAFE_RUNTIME_CLASSES = Object.freeze([
-  "process-repository-safe",
-  "canonical-evaluator-safe",
-]);
-const safeRuntimeClasses = new Set(SAFE_RUNTIME_CLASSES);
 export const ROOT_TEST_SCHEDULING_POLICIES = Object.freeze({
-  SAFE_LPT_WITH_BACKGROUND: "safe-lpt-with-background",
+  GLOBAL_RESOURCE_LPT: "global-resource-lpt",
 });
 export const ROOT_TEST_SCHEDULING_POLICY =
-  ROOT_TEST_SCHEDULING_POLICIES.SAFE_LPT_WITH_BACKGROUND;
+  ROOT_TEST_SCHEDULING_POLICIES.GLOBAL_RESOURCE_LPT;
 export const CHEAP_BATCH_COUNT = 2;
 export const MAX_CHEAP_FILES_PER_BATCH = 9;
 export const FOCUSED_VITEST_STARTUP_MS = 1_250;
 
-function isSafeTask(task) {
-  return safeRuntimeClasses.has(task.runtimeClass);
-}
-
 export function rootTestTasksCanOverlap(left, right) {
-  const classes = new Set([left.runtimeClass, right.runtimeClass]);
-  // Safe LPT work may use any of its three lanes beside the single background
-  // lane. The retained repository exclusion is between heavy and fragile work.
-  return !(classes.has("process-repository-heavy")
-    && classes.has("repository-public-fragile"));
+  return rootResourceTaskCanOverlap(left, right);
 }
 
 export function createRootTestAdmissionPolicy(policy) {
   if (!Object.values(ROOT_TEST_SCHEDULING_POLICIES).includes(policy)) {
     throw new TypeError(`Unknown root test scheduling policy: ${policy}`);
   }
-  return (candidate, { pendingTasks, runningTasks }) => {
-    if (!isSafeTask(candidate)) {
-      return !runningTasks.some((task) => !isSafeTask(task));
-    }
-    if (!candidate.scheduleLaneId || !Number.isInteger(candidate.laneOrder)) return false;
-    const sameLane = (task) => task.scheduleLaneId === candidate.scheduleLaneId;
-    return !runningTasks.some(sameLane)
-      && !pendingTasks.some((task) =>
-        sameLane(task) && task.laneOrder < candidate.laneOrder);
-  };
+  return createRootResourceAdmissionPolicy();
 }
 
 function createCheapBatches(entries) {
@@ -63,7 +42,8 @@ function createCheapBatches(entries) {
     weight: 1,
     files: [],
     estimatedDurationMs: FOCUSED_VITEST_STARTUP_MS,
-    scheduleLaneId: "background",
+    scheduleLaneId: "fourth-token",
+    resourceOwner: false,
   }));
   const longestFirst = [...entries].sort((left, right) =>
     right.measuredDurationMs - left.measuredDurationMs || left.file.localeCompare(right.file));
@@ -85,23 +65,21 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
   if (!Object.values(ROOT_TEST_SCHEDULING_POLICIES).includes(policy)) {
     throw new TypeError(`Unknown root test scheduling policy: ${policy}`);
   }
-  const safeFiles = new Set(safeLptEvidence.map((entry) => entry.file));
   const focused = rootTestManifest
     .filter((entry) => entry.runtimeClass !== "cheap-in-process")
     .map((entry) => {
-      const assignment = safeLptAssignmentFor(entry.file);
-      if (safeFiles.has(entry.file) !== Boolean(assignment)) {
-        throw new Error(`Safe LPT assignment mismatch for ${entry.file}`);
-      }
+      const assignment = rootResourceAssignment(entry.file);
       return {
         id: entry.file,
         runtimeClass: entry.runtimeClass,
         weight: entry.weight,
         files: [entry.file],
         estimatedDurationMs: assignment?.estimatedDurationMs ?? entry.measuredDurationMs,
-        estimateKind: assignment?.estimateKind ?? "exact-head-focused-model",
+        estimateKind: assignment ? "selected-successful-resource-observation" : "exact-head-focused-model",
         laneOrder: assignment?.laneOrder,
-        scheduleLaneId: assignment?.scheduleLaneId ?? "background",
+        scheduleLaneId: assignment?.scheduleLaneId ?? "fourth-token",
+        resourceClass: assignment?.resourceClass,
+        resourceOwner: assignment?.resourceOwner ?? false,
       };
     })
     .sort((left, right) =>
@@ -123,6 +101,6 @@ export function createRootTestTasksForClass(
     .filter((task) => task.runtimeClass === resolvedClass);
 }
 
-export function createSafeLptTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
-  return createRootTestTasks(policy).filter(isSafeTask);
+export function createResourceLptTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
+  return createRootTestTasks(policy).filter((task) => task.resourceOwner === true);
 }
