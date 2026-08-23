@@ -20,7 +20,6 @@ import {
 } from "../src/assignment.js";
 import {
   evaluateLifecycle,
-  loadProcessPackage,
   type LifecycleEvaluation,
   type ProcessPackage,
 } from "../src/index.js";
@@ -46,8 +45,9 @@ import {
   type ScenarioProposal,
 } from "../src/scenario-execution.js";
 import { selectedRepositoryPackage } from "../src/selected-package.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { mdlmWithInputAndEnvironment } from "./helpers/mdlm.js";
-import { terminalProcessPackage } from "./helpers/terminal-process-package.js";
+import { operatorTerminalProcessPackageFixture } from "./helpers/terminal-process-package-fixture.js";
 
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
@@ -508,28 +508,8 @@ describe("public mdlm outcome and status seam", () => {
       JSON.parse(status.stdout) as OperatorStatus,
     );
 
-    const bootstrap = await loadProcessPackage(path.join(
-      repositoryFoundation,
-      ".lifecycle/packages/mdlm-bootstrap@0.74.0",
-    ));
-    if (!bootstrap.ok) throw new Error(JSON.stringify(bootstrap.diagnostics));
-    bootstrapPackageFoundation = deepFreeze(bootstrap.package);
-
-    const terminalRoot = await terminalProcessPackage(foundationParent, {
-      profile_boundary: {
-        condition:
-          'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
-        explanation: "This exact profile intentionally omits external breadth.",
-      },
-      lifecycle_complete: {
-        condition: 'phase.id == "phase-0-terminal"',
-        explanation: "Every lifecycle objective selected by this package is complete.",
-      },
-    });
-    const terminal = await loadProcessPackage(terminalRoot);
-    if (!terminal.ok) throw new Error(JSON.stringify(terminal.diagnostics));
-    terminalPackageFoundation = deepFreeze(terminal.package);
-
+    bootstrapPackageFoundation = await canonicalProcessPackage();
+    terminalPackageFoundation = await operatorTerminalProcessPackageFixture();
   }, 30_000);
 
   afterAll(async () => {

@@ -35,7 +35,7 @@ export const rootTestManifest = [
   { file: "test/mdlm-repository-inspection.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 43_809 },
   { file: "test/mdlm-review-assignment.test.ts", runtimeClass: "repository-public-fragile", weight: 2, measuredDurationMs: 43_815 },
   { file: "test/mdlm-schema.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 33_817 },
-  { file: "test/operator-outcome.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 54_659 },
+  { file: "test/operator-outcome.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 51_114 },
   { file: "test/phase-0-corrected-gate-route.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 85_291 },
   { file: "test/phase-0-hardening-routes.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 8_157 },
   { file: "test/phase-0-intent-candidate-currentness-route.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 72_074 },

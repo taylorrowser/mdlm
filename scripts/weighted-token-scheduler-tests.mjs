@@ -149,7 +149,7 @@ test("exact-current three-way outcomes remain calibrated without using failed ti
       ["test/mdlm-process-expression.test.ts", 47_352],
       ["test/mdlm-repository-inspection.test.ts", 43_809],
       ["test/mdlm-schema.test.ts", 33_817],
-      ["test/operator-outcome.test.ts", 54_659],
+      ["test/operator-outcome.test.ts", 51_114],
       ["test/phase-0-corrected-gate-route.test.ts", 85_291],
       ["test/phase-0-intent-candidate-currentness-route.test.ts", 72_074],
       ["test/phase-1-hardening-routes.test.ts", 101_498],
@@ -190,11 +190,11 @@ test("exact-current heavy, three-way, and mixed observations select the lower ho
   assert.equal(model.status, 2, model.stderr);
   assert.match(model.stdout, /mixed_predicted_ms=122363 mixed_observed_scheduler_wall_ms=155870 mixed_observed_wrapper_wall_ms=156030 mixed_test_work_ms=331560/);
   assert.match(model.stdout, /mixed_contention_multiplier=1\.273833 mixed_contention_allowance_ms=33507/);
-  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=555051 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=1 three_way_allowance_ms=41689 modeled_root_ms=708842/);
-  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=526981 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=582488/);
-  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=582488/);
-  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-42488/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=17512 required_outer_headroom_ms=60000 headroom_margin_ms=-42488/);
+  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=553916 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=1 three_way_allowance_ms=41689 modeled_root_ms=707707/);
+  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=525104 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=580611/);
+  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=580611/);
+  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-40611/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=19389 required_outer_headroom_ms=60000 headroom_margin_ms=-40611/);
   assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
 });
 
