@@ -5,6 +5,8 @@ import path from "node:path";
 import { parse, stringify } from "yaml";
 import { expect } from "vitest";
 import { mdlm, mdlmWithInput, selectProcessPackageFixture } from "./mdlm.js";
+import { installProportionalPhaseTwoReadyFixture } from
+  "./proportional-phase-2-ready-fixture.js";
 
 interface PacketValue {
   identity: { id: string; type: string; revision_id?: string };
@@ -690,7 +692,7 @@ async function seedPublicPhaseTwoEntry(
 }
 
 
-export async function runZeroInterfacePhaseTwoRoute(): Promise<void> {
+export async function reconstructZeroInterfacePhaseTwoRouteForCapture(): Promise<void> {
   const parent = await fs.mkdtemp(
     path.join(os.tmpdir(), "mdlm-public-zero-interface-phase2-"),
   );
@@ -801,6 +803,58 @@ export async function runZeroInterfacePhaseTwoRoute(): Promise<void> {
             { type: "derived-from", target: requirement },
             { type: "decomposes", target: plan },
             { type: "allocated-to", target: architecture },
+          ],
+          body: "One detailed solution-independent system behavior.\n",
+        },
+      },
+    ]);
+    commit(repository, "Publish client system behavior");
+    const system = submittedRevision(execution, "requirements");
+    const shown = mdlm(repository, "show", system, "--json");
+    expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
+    expect(JSON.parse(shown.stdout).lifecycleDatum.datum.type).toBe("SYS");
+  } finally {
+    await fs.rm(parent, { recursive: true, force: true });
+  }
+}
+
+export async function runZeroInterfacePhaseTwoRoute(): Promise<void> {
+  const parent = await fs.mkdtemp(
+    path.join(os.tmpdir(), "mdlm-public-zero-interface-phase2-"),
+  );
+  try {
+    const repository = path.join(parent, "repository");
+    const checkpoint = await installProportionalPhaseTwoReadyFixture(repository);
+    expect(Object.isFrozen(checkpoint)).toBe(true);
+    const executionPacket = prepare(
+      repository,
+      "execute-decomposition-work-package@2",
+    );
+    expect(exactInputs(executionPacket, "interfaces")).toEqual([]);
+    expect(exactInputs(executionPacket, "plan")).toEqual([checkpoint.plan]);
+    expect(exactInputs(executionPacket, "parents")).toEqual([
+      checkpoint.requirement,
+    ]);
+    expect(exactInputs(executionPacket, "architecture")).toEqual([
+      checkpoint.architecture,
+    ]);
+    const execution = submit(repository, executionPacket, [
+      {
+        localId: "requirement",
+        name: "requirements",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "SYS",
+          payload: {
+            title: "Client observable system behavior",
+            rationale: "Allocate one exact solution-independent behavior.",
+            statement: "The system shall accept a client request deterministically.",
+            verification_intent: "Observe the exact client outcome.",
+          },
+          links: [
+            { type: "derived-from", target: checkpoint.requirement },
+            { type: "decomposes", target: checkpoint.plan },
+            { type: "allocated-to", target: checkpoint.architecture },
           ],
           body: "One detailed solution-independent system behavior.\n",
         },

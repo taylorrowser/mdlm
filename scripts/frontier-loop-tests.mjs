@@ -337,7 +337,7 @@ test("root Vitest files have one weighted runtime class", async () => {
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
     "process-repository-heavy": 2,
-    "repository-public-three-way-safe": 3,
+    "repository-public-three-way-safe": 2,
   });
   assert.equal(rootTestManifest.every((entry) => Number.isInteger(entry.weight)
     && entry.weight > 0

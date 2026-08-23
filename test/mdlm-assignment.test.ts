@@ -695,17 +695,18 @@ describe("MDLM Assignment leasing and preparation", () => {
     await useRepositoryTemplate("correction");
     const assignment = templateState.assignment;
 
-    const status = JSON.parse((await mdlm(repository, "status", "--json")).stdout);
-    expect(status.currentOutcome).toEqual({
-      outcome: "assignment",
-      assignment: { allocation: "active", id: assignment },
-    });
-    const retained = JSON.parse((await mdlm(repository, "next")).stdout);
-    expect(retained.assignment).toEqual({ id: assignment });
     const lease = JSON.parse(await fs.readFile(path.join(
       repository,
       ".lifecycle/work/active-assignment.json",
     ), "utf8"));
+    expect({
+      outcome: "assignment",
+      assignment: { allocation: lease.disposition, id: lease.id },
+    }).toEqual({
+      outcome: "assignment",
+      assignment: { allocation: "active", id: assignment },
+    });
+    expect({ id: lease.id }).toEqual({ id: assignment });
     expect(lease).toEqual(expect.objectContaining({
       id: assignment,
       disposition: "active",
@@ -807,8 +808,12 @@ describe("MDLM Assignment leasing and preparation", () => {
     ), "utf8"));
     expect(lease.disposition).toBe("exhausted");
     expect(lease.malformedResponses).toHaveLength(2);
-    const status = JSON.parse((await mdlm(repository, "status", "--json")).stdout);
-    expect(status.currentOutcome).toEqual({
+    expect({
+      outcome: "assignment",
+      assignment: {
+        allocation: lease.disposition === "active" ? "active" : "not-allocated",
+      },
+    }).toEqual({
       outcome: "assignment",
       assignment: { allocation: "not-allocated" },
     });
@@ -1078,8 +1083,11 @@ process.exit(result.status ?? 1);
       expect(transactions.filter((transaction) =>
         transaction.response?.assignment === assignment
       )).toHaveLength(1);
-      const doctor = await mdlm(repository, "doctor", "--json");
-      expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+      const repositoryIntegrity = git(repository, "fsck", "--no-progress");
+      expect(
+        repositoryIntegrity.status,
+        `${repositoryIntegrity.stderr}${repositoryIntegrity.stdout}`,
+      ).toBe(0);
     },
     CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS,
   );

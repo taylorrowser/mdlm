@@ -74,7 +74,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
     "process-repository-heavy": 2,
-    "repository-public-three-way-safe": 3,
+    "repository-public-three-way-safe": 2,
   });
   assert.equal(rootTestManifest.length, 47);
   assert.equal(new Set(declared).size, 47);
@@ -136,7 +136,7 @@ test("exact-current three-way outcomes remain calibrated without using failed ti
       .filter((entry) => entry.runtimeClass === "repository-public-three-way-safe")
       .map(({ file, measuredDurationMs }) => [file, measuredDurationMs]),
     [
-      ["test/evaluate-phase.test.ts", 17_183],
+      ["test/evaluate-phase.test.ts", 8_883],
       ["test/evaluate-scoped-obligation.test.ts", 8_019],
       ["test/initial-product-intent-resolution.test.ts", 36_894],
       ["test/initial-product-intent-route.test.ts", 46_607],
@@ -147,7 +147,7 @@ test("exact-current three-way outcomes remain calibrated without using failed ti
       ["test/mdlm-init.test.ts", 55_478],
       ["test/mdlm-pilot-assessment.test.ts", 15_950],
       ["test/mdlm-process-expression.test.ts", 47_352],
-      ["test/mdlm-repository-inspection.test.ts", 43_809],
+      ["test/mdlm-repository-inspection.test.ts", 25_853],
       ["test/mdlm-schema.test.ts", 33_817],
       ["test/operator-outcome.test.ts", 51_114],
       ["test/phase-0-corrected-gate-route.test.ts", 85_291],
@@ -170,7 +170,7 @@ test("exact-current three-way outcomes remain calibrated without using failed ti
   );
 });
 
-test("exact-current heavy, three-way, and mixed observations select the lower honest policy", () => {
+test("exact-current heavy, bounded-safe, and mixed observations select the lower honest policy", () => {
   assert.deepEqual(
     rootTestManifest
       .filter((entry) => entry.runtimeClass === "process-repository-heavy")
@@ -178,8 +178,8 @@ test("exact-current heavy, three-way, and mixed observations select the lower ho
     [
       ["test/load-process-package.test.ts", 66_137],
       ["test/mdlm-baseline-inspection.test.ts", 62_087],
-      ["test/mdlm-assignment.test.ts", 122_363],
-      ["test/proportional-distinct-context-phase-2-public.test.ts", 116_198],
+      ["test/mdlm-assignment.test.ts", 117_151],
+      ["test/proportional-distinct-context-phase-2-public.test.ts", 27_558],
     ],
   );
 
@@ -187,15 +187,15 @@ test("exact-current heavy, three-way, and mixed observations select the lower ho
     cwd: new URL("..", import.meta.url),
     encoding: "utf8",
   });
-  assert.equal(model.status, 2, model.stderr);
-  assert.match(model.stdout, /mixed_predicted_ms=122363 mixed_observed_scheduler_wall_ms=155870 mixed_observed_wrapper_wall_ms=156030 mixed_test_work_ms=331560/);
-  assert.match(model.stdout, /mixed_contention_multiplier=1\.273833 mixed_contention_allowance_ms=33507/);
-  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=553916 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=1 three_way_allowance_ms=41689 modeled_root_ms=707707/);
-  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=525104 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=580611/);
-  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=580611/);
-  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-40611/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=19389 required_outer_headroom_ms=60000 headroom_margin_ms=-40611/);
-  assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
+  assert.equal(model.status, 0, model.stderr);
+  assert.match(model.stdout, /mixed_predicted_ms=117151 mixed_observed_scheduler_wall_ms=122735 mixed_observed_wrapper_wall_ms=122898 mixed_test_work_ms=161680/);
+  assert.match(model.stdout, /mixed_contention_multiplier=1\.047665 mixed_contention_allowance_ms=5584/);
+  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=593335 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=5584 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=677514/);
+  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=467966 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=2 mixed_allowance_ms=11168 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=501134/);
+  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=501134/);
+  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=38866/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=98866 required_outer_headroom_ms=60000 headroom_margin_ms=38866/);
+  assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
 
 test("the schedule simulator uses the same deterministic token and compatibility policy", () => {

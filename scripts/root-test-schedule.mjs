@@ -4,7 +4,7 @@ export { rootTestManifest };
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
   "process-repository-heavy": 2,
-  "repository-public-three-way-safe": 3,
+  "repository-public-three-way-safe": 2,
 });
 export const ROOT_TEST_SCHEDULING_POLICIES = Object.freeze({
   HEAVY_PAIR_FIRST: "heavy-pair-first",

@@ -14,11 +14,11 @@ export const mdlmPiTestFiles = [
 export const rootTestManifest = [
   { file: "test/load-process-package.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 66_137 },
   { file: "test/mdlm-baseline-inspection.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 62_087 },
-  { file: "test/mdlm-assignment.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 122_363 },
-  { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 116_198 },
+  { file: "test/mdlm-assignment.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 117_151 },
+  { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 27_558 },
 
   { file: "test/dependency-changes.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 9_352 },
-  { file: "test/evaluate-phase.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 17_183 },
+  { file: "test/evaluate-phase.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 8_883 },
   { file: "test/evaluate-scoped-obligation.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 8_019 },
   { file: "test/initial-product-intent-resolution.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 36_894 },
   { file: "test/initial-product-intent-route.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 46_607 },
@@ -32,7 +32,7 @@ export const rootTestManifest = [
   { file: "test/mdlm-pilot-assessment.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 15_950 },
   { file: "test/mdlm-process-expression.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 47_352 },
   { file: "test/mdlm-process-migration.test.ts", runtimeClass: "repository-public-fragile", weight: 2, measuredDurationMs: 47_070 },
-  { file: "test/mdlm-repository-inspection.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 43_809 },
+  { file: "test/mdlm-repository-inspection.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 25_853 },
   { file: "test/mdlm-review-assignment.test.ts", runtimeClass: "repository-public-fragile", weight: 2, measuredDurationMs: 43_815 },
   { file: "test/mdlm-schema.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 33_817 },
   { file: "test/operator-outcome.test.ts", runtimeClass: "repository-public-three-way-safe", weight: 1, measuredDurationMs: 51_114 },

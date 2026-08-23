@@ -4,7 +4,6 @@ import path from "node:path";
 import { stringify } from "yaml";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-  loadProcessPackage,
   type DatumEnvelope,
   type ProcessPackage,
 } from "../src/index.js";
@@ -19,6 +18,8 @@ import {
 } from "../src/lifecycle-repository.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { executeCommandApplication } from "../src/command-application.js";
+import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 async function mdlm(repository: string, ...arguments_: string[]) {
   const execution = await executeCommandApplication(arguments_, repository);
@@ -221,7 +222,7 @@ describe("MDLM repository inspection", () => {
   let templateFixture: Promise<{
     published: Awaited<ReturnType<typeof publishLinkedWayfinding>>;
     arranged: Awaited<ReturnType<typeof arrangeReaderRepository>>;
-  }>;
+  }> | undefined;
   let parent: string;
   let repository: string;
 
@@ -231,28 +232,29 @@ describe("MDLM repository inspection", () => {
       "mdlm-reader-inspection-template-",
     ));
     templateRepository = path.join(templateParent, "repository");
-    const initialized = await mdlm(
-      templateParent,
-      "init",
+    processPackage = await canonicalProcessPackage();
+    const initialized = await initializeRepositoryFromLoadedProcessPackage(
       templateRepository,
-      "--json",
+      path.join(process.cwd(), ".lifecycle/process"),
+      processPackage,
     );
-    expectSuccess(initialized, "mdlm init template");
-    const descriptor = JSON.parse(await fs.readFile(
-      path.join(templateRepository, ".lifecycle/repository.json"),
-      "utf8",
-    )) as { package: { reference: string; digest: string } };
-    const loaded = await loadProcessPackage(path.join(
-      templateRepository,
-      ".lifecycle/packages",
-      descriptor.package.reference,
-    ));
-    expect(loaded.ok).toBe(true);
-    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-    processPackage = deepFreeze(loaded.package);
-    processRef = `${descriptor.package.reference}#${descriptor.package.digest}`;
+    expect(initialized.ok, JSON.stringify(initialized.diagnostics)).toBe(true);
+    if (!initialized.ok) throw new Error(JSON.stringify(initialized.diagnostics));
+    processRef =
+      `${initialized.package.reference}#${initialized.package.digest}`;
     publishedTemplateRepository = path.join(templateParent, "published-repository");
-    templateFixture = (async () => {
+  });
+
+  beforeEach(async () => {
+    parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-reader-inspection-"));
+    repository = path.join(parent, "repository");
+  });
+
+  function prepareTemplateFixture(): Promise<{
+    published: Awaited<ReturnType<typeof publishLinkedWayfinding>>;
+    arranged: Awaited<ReturnType<typeof arrangeReaderRepository>>;
+  }> {
+    templateFixture ??= (async () => {
       const published = await publishLinkedWayfinding(templateRepository);
       await fs.cp(templateRepository, publishedTemplateRepository, {
         recursive: true,
@@ -266,17 +268,13 @@ describe("MDLM repository inspection", () => {
       );
       return deepFreeze({ published, arranged });
     })();
-  });
-
-  beforeEach(async () => {
-    parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-reader-inspection-"));
-    repository = path.join(parent, "repository");
-  });
+    return templateFixture;
+  }
 
   async function installPublishedTemplate(): Promise<
     Awaited<ReturnType<typeof publishLinkedWayfinding>>
   > {
-    const fixture = await templateFixture;
+    const fixture = await prepareTemplateFixture();
     await fs.cp(publishedTemplateRepository, repository, {
       recursive: true,
       mode: fsConstants.COPYFILE_FICLONE,
@@ -287,7 +285,7 @@ describe("MDLM repository inspection", () => {
   async function installArrangedTemplate(): Promise<
     Awaited<ReturnType<typeof arrangeReaderRepository>>
   > {
-    const fixture = await templateFixture;
+    const fixture = await prepareTemplateFixture();
     await fs.cp(templateRepository, repository, {
       recursive: true,
       mode: fsConstants.COPYFILE_FICLONE,
