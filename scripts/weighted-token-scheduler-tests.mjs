@@ -17,7 +17,6 @@ import {
   CHEAP_BATCH_COUNT,
   MAX_CHEAP_FILES_PER_BATCH,
   ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-  ROOT_TEST_CONCURRENCY_GROUPS,
   ROOT_TEST_SCHEDULING_POLICIES,
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestAdmissionPolicy,
@@ -76,17 +75,6 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
     "process-repository-heavy": 2,
     "repository-public-three-way-safe": 3,
-    "repository-public-fragile": 2,
-  });
-  assert.deepEqual(ROOT_TEST_CONCURRENCY_GROUPS, {
-    "focused-repository-processes": {
-      limit: 3,
-      runtimeClasses: [
-        "process-repository-heavy",
-        "repository-public-three-way-safe",
-        "repository-public-fragile",
-      ],
-    },
   });
   assert.equal(rootTestManifest.length, 47);
   assert.equal(new Set(declared).size, 47);
@@ -100,8 +88,8 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
     Object.fromEntries(Object.entries(Object.groupBy(rootTestManifest, (entry) => entry.runtimeClass))
       .map(([runtimeClass, entries]) => [runtimeClass, `${entries.length}@${entries[0].weight}`])),
     {
-      "process-repository-heavy": "4@1",
-      "repository-public-fragile": "4@1",
+      "process-repository-heavy": "4@2",
+      "repository-public-fragile": "4@2",
       "repository-public-three-way-safe": "19@1",
       "canonical-fixture-filler": "3@1",
       "cheap-in-process": "17@1",
@@ -182,7 +170,7 @@ test("exact-current three-way outcomes remain calibrated without using failed ti
   );
 });
 
-test("the exact-current calibrated policy models only contention shapes that occur", () => {
+test("exact-current heavy, three-way, and mixed observations select the lower honest policy", () => {
   assert.deepEqual(
     rootTestManifest
       .filter((entry) => entry.runtimeClass === "process-repository-heavy")
@@ -200,12 +188,13 @@ test("the exact-current calibrated policy models only contention shapes that occ
     encoding: "utf8",
   });
   assert.equal(model.status, 2, model.stderr);
-  assert.match(model.stdout, /concurrency_groups=\{"focused-repository-processes":\{"limit":3,"runtimeClasses":\["process-repository-heavy","repository-public-three-way-safe","repository-public-fragile"\]\}\}/);
-  assert.match(model.stdout, /calibrated_focused_floor_ms=122363 calibrated_observed_scheduler_wall_ms=177442 calibrated_observed_wrapper_wall_ms=177601 calibrated_test_work_ms=443350 calibrated_contention_allowance_ms=55079/);
-  assert.match(model.stdout, /policy=calibrated-three-process simulated_schedule_ms=491586 calibrated_windows=2 calibrated_allowance_ms=55079 heavy_pair_only_windows=0 heavy_pair_only_allowance_ms=0 one_heavy_mixed_windows=3 one_heavy_mixed_allowance_ms=33507 three_safe_only_windows=4 three_safe_only_allowance_ms=41689 contention_allowance_ms=130275 modeled_root_ms=643861/);
-  assert.match(model.stdout, /selected_policy=calibrated-three-process modeled_root_ms=643861/);
-  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-103861/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-43861 required_outer_headroom_ms=60000 headroom_margin_ms=-103861/);
+  assert.match(model.stdout, /mixed_predicted_ms=122363 mixed_observed_scheduler_wall_ms=155870 mixed_observed_wrapper_wall_ms=156030 mixed_test_work_ms=331560/);
+  assert.match(model.stdout, /mixed_contention_multiplier=1\.273833 mixed_contention_allowance_ms=33507/);
+  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=553916 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=1 three_way_allowance_ms=41689 modeled_root_ms=707707/);
+  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=525104 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=580611/);
+  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=580611/);
+  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-40611/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=19389 required_outer_headroom_ms=60000 headroom_margin_ms=-40611/);
   assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
 });
 
@@ -228,83 +217,48 @@ test("the schedule simulator uses the same deterministic token and compatibility
   assert.equal(simulation.maximumActiveWeight, 3);
 });
 
-test("the focused repository group admits two heavy plus one safe and no fourth repository process", async () => {
+test("one-heavy safe fill admission is shared by deterministic simulation and runtime", async () => {
   const tasks = [
-    { id: "heavy-a", runtimeClass: "process-repository-heavy", weight: 1, estimatedDurationMs: 10 },
-    { id: "heavy-b", runtimeClass: "process-repository-heavy", weight: 1, estimatedDurationMs: 8 },
-    { id: "safe-a", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 6 },
-    { id: "safe-b", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 4 },
-    { id: "filler", runtimeClass: "canonical-fixture-filler", weight: 1, estimatedDurationMs: 3 },
+    { id: "heavy-a", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 10 },
+    { id: "heavy-b", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 5 },
+    { id: "safe-a", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 4 },
+    { id: "safe-b", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 6 },
+    { id: "safe-c", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 3 },
   ];
+  const canAdmit = createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICIES.ONE_HEAVY_WHILE_SAFE);
   const options = {
     capacity: 4,
-    canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICIES.CALIBRATED_THREE_PROCESS),
+    canAdmit,
     canOverlap: rootTestTasksCanOverlap,
     classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-    concurrencyGroups: ROOT_TEST_CONCURRENCY_GROUPS,
   };
   const simulation = simulateWeightedSchedule(tasks, options);
   assert.deepEqual(simulation.launches.map(({ atMs, taskId, activeWeight }) => [atMs, taskId, activeWeight]), [
-    [0, "heavy-a", 1],
-    [0, "heavy-b", 2],
+    [0, "heavy-a", 2],
     [0, "safe-a", 3],
-    [0, "filler", 4],
-    [6, "safe-b", 3],
+    [0, "safe-b", 4],
+    [4, "safe-c", 4],
+    [7, "heavy-b", 4],
   ]);
-  assert.equal(simulation.wallMs, 10);
+  assert.equal(simulation.wallMs, 12);
   assert.equal(simulation.maximumActiveWeight, 4);
 
   const controlled = controlledLauncher();
-  const activeRepository = new Set();
-  let maximumActiveRepository = 0;
-  const scheduled = runWeightedSchedule(tasks, {
-    ...options,
-    launch: controlled.launch,
-    onEvent: (event) => {
-      if (event.taskId === "filler") return;
-      if (event.type === "launch") activeRepository.add(event.taskId);
-      if (event.type === "complete") activeRepository.delete(event.taskId);
-      maximumActiveRepository = Math.max(maximumActiveRepository, activeRepository.size);
-    },
-  });
-  await waitFor(() => controlled.events.length === 4, "two heavy, one safe, and filler did not launch");
-  assert.deepEqual(controlled.events, ["heavy-a", "heavy-b", "safe-a", "filler"]);
-  controlled.controls.get("filler").completion.resolve({ status: 0, signal: null });
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(controlled.events, ["heavy-a", "heavy-b", "safe-a", "filler"]);
+  const scheduled = runWeightedSchedule(tasks, { ...options, launch: controlled.launch });
+  await waitFor(() => controlled.events.length === 3, "one heavy and two safe tasks did not launch");
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b"]);
   controlled.controls.get("safe-a").completion.resolve({ status: 0, signal: null });
-  await waitFor(() => controlled.events.length === 5, "waiting repository task was starved");
-  assert.deepEqual(controlled.events, ["heavy-a", "heavy-b", "safe-a", "filler", "safe-b"]);
+  await waitFor(() => controlled.events.length === 4, "safe work did not backfill beside heavy work");
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c"]);
+  controlled.controls.get("safe-b").completion.resolve({ status: 0, signal: null });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c"]);
+  controlled.controls.get("safe-c").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 5, "second heavy did not launch after safe work drained");
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c", "heavy-b"]);
   controlled.controls.get("heavy-a").completion.resolve({ status: 0, signal: null });
   controlled.controls.get("heavy-b").completion.resolve({ status: 0, signal: null });
-  controlled.controls.get("safe-b").completion.resolve({ status: 0, signal: null });
-  const result = await scheduled;
-  assert.equal(maximumActiveRepository, 3);
-  assert.equal(new Set(controlled.events).size, tasks.length);
-  assert.deepEqual([...result.completedTaskIds].sort(), tasks.map((task) => task.id).sort());
-});
-
-test("heavy and fragile class caps apply inside the shared repository process group", () => {
-  const options = {
-    capacity: 4,
-    canOverlap: rootTestTasksCanOverlap,
-    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-    concurrencyGroups: ROOT_TEST_CONCURRENCY_GROUPS,
-  };
-  for (const runtimeClass of ["process-repository-heavy", "repository-public-fragile"]) {
-    const simulation = simulateWeightedSchedule([
-      { id: "class-a", runtimeClass, weight: 1, estimatedDurationMs: 10 },
-      { id: "class-b", runtimeClass, weight: 1, estimatedDurationMs: 8 },
-      { id: "class-c", runtimeClass, weight: 1, estimatedDurationMs: 6 },
-      { id: "safe", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 4 },
-    ], options);
-    assert.deepEqual(simulation.launches.map(({ atMs, taskId }) => [atMs, taskId]), [
-      [0, "class-a"],
-      [0, "class-b"],
-      [0, "safe"],
-      [8, "class-c"],
-    ]);
-  }
+  await scheduled;
 });
 
 test("class concurrency limits are shared by deterministic simulation and runtime admission", async () => {
@@ -456,17 +410,6 @@ test("the scheduler rejects invalid token and class-limit declarations before la
     }),
     /classConcurrencyLimits\.safe.*positive integer/,
   );
-  await assert.rejects(
-    runWeightedSchedule([{ id: "valid", runtimeClass: "safe", weight: 1 }], {
-      capacity: 4,
-      concurrencyGroups: { repository: { limit: 0, runtimeClasses: ["safe"] } },
-      launch: () => {
-        launches += 1;
-        throw new Error("must not launch");
-      },
-    }),
-    /concurrencyGroups\.repository\.limit.*positive integer/,
-  );
   assert.equal(launches, 0);
 });
 
@@ -523,21 +466,15 @@ test("simultaneous success releases are drained before deterministic backfill", 
   await scheduled;
 });
 
-test("the first grouped task failure stops admission, cancels peers, and waits for cleanup", async () => {
+test("the first task failure stops launches, cancels peers, and waits for cleanup", async () => {
   const controlled = controlledLauncher();
   const scheduled = runWeightedSchedule([
-    { id: "failure", runtimeClass: "process-repository-heavy", weight: 1 },
-    { id: "peer", runtimeClass: "process-repository-heavy", weight: 1 },
-    { id: "safe-peer", runtimeClass: "repository-public-three-way-safe", weight: 1 },
-    { id: "never-launched", runtimeClass: "repository-public-three-way-safe", weight: 1 },
-  ], {
-    capacity: 4,
-    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-    concurrencyGroups: ROOT_TEST_CONCURRENCY_GROUPS,
-    launch: controlled.launch,
-  });
+    { id: "failure", weight: 2 },
+    { id: "peer", weight: 2 },
+    { id: "never-launched", weight: 1 },
+  ], { capacity: 4, launch: controlled.launch });
 
-  await waitFor(() => controlled.events.length === 3, "initial grouped peers did not launch");
+  await waitFor(() => controlled.events.length === 2, "initial peers did not launch");
   controlled.controls.get("failure").completion.resolve({ status: 7, signal: null });
 
   await assert.rejects(
@@ -546,9 +483,8 @@ test("the first grouped task failure stops admission, cancels peers, and waits f
       && error.taskId === "failure"
       && error.status === 7,
   );
-  assert.deepEqual(controlled.events, ["failure", "peer", "safe-peer"]);
+  assert.deepEqual(controlled.events, ["failure", "peer"]);
   assert.equal(controlled.controls.get("peer").terminateCalls, 1);
-  assert.equal(controlled.controls.get("safe-peer").terminateCalls, 1);
 });
 
 test("SIGTERM delivered to the process-group helper reaps its detached descendants", { timeout: 10_000 }, async () => {
@@ -659,11 +595,10 @@ test("fail-fast process cancellation removes a task and its descendant", { timeo
   try {
     await assert.rejects(
       runWeightedSchedule([
-        { id: "long-lived", runtimeClass: "process-repository-heavy", weight: 1, command: process.execPath, args: ["-e", longLivedSource] },
-        { id: "failure", runtimeClass: "repository-public-three-way-safe", weight: 1, command: process.execPath, args: ["-e", failingSource] },
+        { id: "long-lived", weight: 2, command: process.execPath, args: ["-e", longLivedSource] },
+        { id: "failure", weight: 2, command: process.execPath, args: ["-e", failingSource] },
       ], {
         capacity: 4,
-        concurrencyGroups: ROOT_TEST_CONCURRENCY_GROUPS,
         launch: (task) => launchProcessGroupTask(task, {
           terminationGrace: 100,
           stdio: "ignore",

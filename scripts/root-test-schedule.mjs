@@ -1,28 +1,16 @@
 import { rootTestManifest } from "../vitest.suites.mjs";
 
 export { rootTestManifest };
-// These are abstract admission tokens. Repository process contention is owned
-// independently by ROOT_TEST_CONCURRENCY_GROUPS, not inferred from CPU cores.
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
   "process-repository-heavy": 2,
   "repository-public-three-way-safe": 3,
-  "repository-public-fragile": 2,
-});
-export const ROOT_TEST_CONCURRENCY_GROUPS = Object.freeze({
-  "focused-repository-processes": Object.freeze({
-    limit: 3,
-    runtimeClasses: Object.freeze([
-      "process-repository-heavy",
-      "repository-public-three-way-safe",
-      "repository-public-fragile",
-    ]),
-  }),
 });
 export const ROOT_TEST_SCHEDULING_POLICIES = Object.freeze({
-  CALIBRATED_THREE_PROCESS: "calibrated-three-process",
+  HEAVY_PAIR_FIRST: "heavy-pair-first",
+  ONE_HEAVY_WHILE_SAFE: "one-heavy-while-safe",
 });
-export const ROOT_TEST_SCHEDULING_POLICY = ROOT_TEST_SCHEDULING_POLICIES.CALIBRATED_THREE_PROCESS;
+export const ROOT_TEST_SCHEDULING_POLICY = ROOT_TEST_SCHEDULING_POLICIES.ONE_HEAVY_WHILE_SAFE;
 export const CHEAP_BATCH_COUNT = 2;
 export const MAX_CHEAP_FILES_PER_BATCH = 9;
 export const FOCUSED_VITEST_STARTUP_MS = 1_250;
@@ -36,7 +24,13 @@ export function createRootTestAdmissionPolicy(policy) {
   if (!Object.values(ROOT_TEST_SCHEDULING_POLICIES).includes(policy)) {
     throw new TypeError(`Unknown root test scheduling policy: ${policy}`);
   }
-  return () => true;
+  if (policy === ROOT_TEST_SCHEDULING_POLICIES.HEAVY_PAIR_FIRST) return () => true;
+  return (candidate, { pendingTasks, runningTasks }) => {
+    const isHeavy = (task) => task.runtimeClass === "process-repository-heavy";
+    const isSafe = (task) => task.runtimeClass === "repository-public-three-way-safe";
+    const safeWorkRemains = pendingTasks.some(isSafe) || runningTasks.some(isSafe);
+    return !safeWorkRemains || !isHeavy(candidate) || !runningTasks.some(isHeavy);
+  };
 }
 
 function createCheapBatches(entries) {
@@ -80,5 +74,13 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
   const cheap = createCheapBatches(
     rootTestManifest.filter((entry) => entry.runtimeClass === "cheap-in-process"),
   );
-  return [...focused, ...cheap];
+  const tasks = [...focused, ...cheap];
+  if (policy !== ROOT_TEST_SCHEDULING_POLICIES.HEAVY_PAIR_FIRST) return tasks;
+  return tasks.sort((left, right) => {
+    const leftIsHeavy = left.runtimeClass === "process-repository-heavy";
+    const rightIsHeavy = right.runtimeClass === "process-repository-heavy";
+    return Number(rightIsHeavy) - Number(leftIsHeavy)
+      || right.estimatedDurationMs - left.estimatedDurationMs
+      || left.id.localeCompare(right.id);
+  });
 }

@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
   ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-  ROOT_TEST_CONCURRENCY_GROUPS,
   ROOT_TEST_SCHEDULING_POLICY,
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestAdmissionPolicy,
@@ -46,7 +45,6 @@ async function runRootTests() {
       canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
       canOverlap: rootTestTasksCanOverlap,
       classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
-      concurrencyGroups: ROOT_TEST_CONCURRENCY_GROUPS,
       signal: cancellation.signal,
       launch: (task) => launchProcessGroupTask({
         ...task,
