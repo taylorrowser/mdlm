@@ -415,7 +415,7 @@ test("retained heavy cohort setup hooks use named finite limits", () => {
     visit(sourceFile);
   }
 
-  assert.equal(hookCount, 12);
+  assert.equal(hookCount, 13);
 });
 
 test("contended representative observation limits stay exact", () => {
