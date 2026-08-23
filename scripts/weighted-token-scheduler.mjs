@@ -43,6 +43,11 @@ function taskFailed(outcome) {
   return outcome?.startupError != null || outcome?.status !== 0;
 }
 
+function canLaunchTask(candidate, runningTasks, availableWeight, canOverlap) {
+  return candidate.weight <= availableWeight
+    && runningTasks.every((running) => canOverlap(candidate, running));
+}
+
 async function cancelRunning(running, onEvent, activeWeight) {
   const cancellations = [];
   for (const { task, handle } of running.values()) {
@@ -58,13 +63,20 @@ export function simulateWeightedSchedule(tasks, options) {
   validateSchedule(tasks, capacity);
   const pending = tasks.map((task) => ({ ...task }));
   const running = [];
+  const canOverlap = options?.canOverlap ?? (() => true);
+  if (typeof canOverlap !== "function") throw new TypeError("Scheduler canOverlap must be a function");
   const launches = [];
   let activeWeight = 0;
   let maximumActiveWeight = 0;
   let nowMs = 0;
 
   while (pending.length > 0 || running.length > 0) {
-    let nextIndex = pending.findIndex((task) => task.weight <= capacity - activeWeight);
+    let nextIndex = pending.findIndex((task) => canLaunchTask(
+      task,
+      running,
+      capacity - activeWeight,
+      canOverlap,
+    ));
     while (nextIndex >= 0) {
       const [task] = pending.splice(nextIndex, 1);
       if (!Number.isFinite(task.estimatedDurationMs) || task.estimatedDurationMs <= 0) {
@@ -74,7 +86,12 @@ export function simulateWeightedSchedule(tasks, options) {
       maximumActiveWeight = Math.max(maximumActiveWeight, activeWeight);
       running.push({ ...task, completesAtMs: nowMs + task.estimatedDurationMs });
       launches.push({ atMs: nowMs, taskId: task.id, activeWeight });
-      nextIndex = pending.findIndex((candidate) => candidate.weight <= capacity - activeWeight);
+      nextIndex = pending.findIndex((candidate) => canLaunchTask(
+        candidate,
+        running,
+        capacity - activeWeight,
+        canOverlap,
+      ));
     }
     if (running.length === 0) throw new Error("Weighted schedule simulation made no progress");
     nowMs = Math.min(...running.map((task) => task.completesAtMs));
@@ -94,8 +111,10 @@ export async function runWeightedSchedule(tasks, options) {
   const launch = options?.launch;
   const onEvent = options?.onEvent ?? (() => {});
   const signal = options?.signal;
+  const canOverlap = options?.canOverlap ?? (() => true);
   validateSchedule(tasks, capacity);
   if (typeof launch !== "function") throw new TypeError("Scheduler launch must be a function");
+  if (typeof canOverlap !== "function") throw new TypeError("Scheduler canOverlap must be a function");
 
   const pending = [...tasks];
   const running = new Map();
@@ -142,7 +161,12 @@ export async function runWeightedSchedule(tasks, options) {
         throw new WeightedScheduleAbortedError(signal.reason);
       }
 
-      let nextIndex = pending.findIndex((task) => task.weight <= capacity - activeWeight);
+      let nextIndex = pending.findIndex((task) => canLaunchTask(
+        task,
+        [...running.values()].map((record) => record.task),
+        capacity - activeWeight,
+        canOverlap,
+      ));
       while (nextIndex >= 0 && !signal?.aborted && settledQueue.length === 0) {
         const [task] = pending.splice(nextIndex, 1);
         let handle;
@@ -171,7 +195,12 @@ export async function runWeightedSchedule(tasks, options) {
         running.set(task.id, { completion, handle, task });
         // Observe an already-settled launch before admitting another task.
         await Promise.resolve();
-        nextIndex = pending.findIndex((candidate) => candidate.weight <= capacity - activeWeight);
+        nextIndex = pending.findIndex((candidate) => canLaunchTask(
+          candidate,
+          [...running.values()].map((record) => record.task),
+          capacity - activeWeight,
+          canOverlap,
+        ));
       }
 
       if (settledQueue.length > 0) continue;

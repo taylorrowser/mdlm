@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import {
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestTasks,
+  rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
 import {
   WeightedScheduleTaskError,
@@ -38,6 +39,7 @@ async function runRootTests() {
     const tasks = createRootTestTasks();
     await runWeightedSchedule(tasks, {
       capacity: ROOT_TEST_TOKEN_CAPACITY,
+      canOverlap: rootTestTasksCanOverlap,
       signal: cancellation.signal,
       launch: (task) => launchProcessGroupTask({
         ...task,

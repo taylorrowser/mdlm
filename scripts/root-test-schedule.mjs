@@ -6,6 +6,12 @@ export const CHEAP_BATCH_COUNT = 2;
 export const MAX_CHEAP_FILES_PER_BATCH = 9;
 export const FOCUSED_VITEST_STARTUP_MS = 1_250;
 
+export function rootTestTasksCanOverlap(left, right) {
+  const classes = new Set([left.runtimeClass, right.runtimeClass]);
+  return !(classes.has("process-repository-heavy")
+    && classes.has("repository-public-sensitive"));
+}
+
 function createCheapBatches(entries) {
   const batches = Array.from({ length: CHEAP_BATCH_COUNT }, (_, index) => ({
     id: `cheap-in-process-${index + 1}`,

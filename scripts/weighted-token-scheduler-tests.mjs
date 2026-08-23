@@ -19,6 +19,7 @@ import {
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestTasks,
   rootTestManifest,
+  rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
 import { runInProcessGroup } from "./frontier-process-group.mjs";
 
@@ -74,8 +75,38 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   for (const entry of rootTestManifest) {
     assert.equal(Number.isInteger(entry.weight) && entry.weight > 0 && entry.weight <= ROOT_TEST_TOKEN_CAPACITY, true);
     assert.equal(Number.isInteger(entry.measuredDurationMs) && entry.measuredDurationMs > 0, true);
-    assert.match(entry.runtimeClass, /^(process-repository-heavy|repository-public-medium|cheap-in-process)$/);
+    assert.match(entry.runtimeClass, /^(process-repository-heavy|repository-public-sensitive|canonical-fixture-filler|cheap-in-process)$/);
   }
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(Object.groupBy(rootTestManifest, (entry) => entry.runtimeClass))
+      .map(([runtimeClass, entries]) => [runtimeClass, `${entries.length}@${entries[0].weight}`])),
+    {
+      "process-repository-heavy": "4@2",
+      "repository-public-sensitive": "23@2",
+      "canonical-fixture-filler": "3@1",
+      "cheap-in-process": "17@1",
+    },
+  );
+  assert.deepEqual(
+    rootTestManifest.filter((entry) => entry.runtimeClass === "canonical-fixture-filler").map((entry) => entry.file),
+    [
+      "test/dependency-changes.test.ts",
+      "test/phase-0-hardening-routes.test.ts",
+      "test/proportional-phase-2-public.test.ts",
+    ],
+  );
+  assert.equal(rootTestTasksCanOverlap(
+    { runtimeClass: "process-repository-heavy" },
+    { runtimeClass: "repository-public-sensitive" },
+  ), false);
+  assert.equal(rootTestTasksCanOverlap(
+    { runtimeClass: "process-repository-heavy" },
+    { runtimeClass: "process-repository-heavy" },
+  ), true);
+  assert.equal(rootTestTasksCanOverlap(
+    { runtimeClass: "process-repository-heavy" },
+    { runtimeClass: "canonical-fixture-filler" },
+  ), true);
 
   const tasks = createRootTestTasks();
   const scheduledFiles = tasks.flatMap((task) => task.files);
@@ -87,21 +118,23 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(new Set(scheduledFiles).size, 47);
 });
 
-test("the schedule simulator uses the same deterministic token policy", () => {
+test("the schedule simulator uses the same deterministic token and compatibility policy", () => {
   const simulation = simulateWeightedSchedule([
-    { id: "heavy", weight: 3, estimatedDurationMs: 10 },
-    { id: "medium-a", weight: 2, estimatedDurationMs: 8 },
-    { id: "medium-b", weight: 2, estimatedDurationMs: 7 },
-    { id: "cheap", weight: 1, estimatedDurationMs: 4 },
-  ], { capacity: 4 });
+    { id: "heavy", runtimeClass: "heavy", weight: 2, estimatedDurationMs: 10 },
+    { id: "sensitive", runtimeClass: "sensitive", weight: 2, estimatedDurationMs: 8 },
+    { id: "filler", runtimeClass: "filler", weight: 1, estimatedDurationMs: 4 },
+  ], {
+    capacity: 4,
+    canOverlap: (left, right) => !new Set([left.runtimeClass, right.runtimeClass]).has("heavy")
+      || !new Set([left.runtimeClass, right.runtimeClass]).has("sensitive"),
+  });
   assert.equal(simulation.wallMs, 18);
   assert.deepEqual(simulation.launches.map(({ atMs, taskId }) => [atMs, taskId]), [
     [0, "heavy"],
-    [0, "cheap"],
-    [10, "medium-a"],
-    [10, "medium-b"],
+    [0, "filler"],
+    [10, "sensitive"],
   ]);
-  assert.equal(simulation.maximumActiveWeight, 4);
+  assert.equal(simulation.maximumActiveWeight, 3);
 });
 
 test("the four-token scheduler backfills deterministically without exceeding its budget", async () => {
@@ -139,6 +172,34 @@ test("the four-token scheduler backfills deterministically without exceeding its
   assert.deepEqual(result.completedTaskIds, ["cheap-a", "cheap-b", "heavy", "medium-a", "medium-b"]);
   assert.equal(new Set(controlled.events).size, 5);
   assert.equal(Math.max(...schedulerEvents.map((event) => event.activeWeight)), 4);
+});
+
+test("class compatibility blocks a token-valid conflict while safe fill continues", async () => {
+  const controlled = controlledLauncher();
+  const scheduled = runWeightedSchedule([
+    { id: "heavy", runtimeClass: "heavy", weight: 2 },
+    { id: "sensitive", runtimeClass: "sensitive", weight: 2 },
+    { id: "filler-a", runtimeClass: "filler", weight: 1 },
+    { id: "filler-b", runtimeClass: "filler", weight: 1 },
+  ], {
+    capacity: 4,
+    canOverlap: (left, right) => !new Set([left.runtimeClass, right.runtimeClass]).has("heavy")
+      || !new Set([left.runtimeClass, right.runtimeClass]).has("sensitive"),
+    launch: controlled.launch,
+  });
+
+  await waitFor(() => controlled.events.length === 3, "heavy with safe fill did not launch");
+  assert.deepEqual(controlled.events, ["heavy", "filler-a", "filler-b"]);
+  controlled.controls.get("filler-a").completion.resolve({ status: 0, signal: null });
+  controlled.controls.get("filler-b").completion.resolve({ status: 0, signal: null });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(controlled.events, ["heavy", "filler-a", "filler-b"]);
+  controlled.controls.get("heavy").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 4, "sensitive task was starved");
+  controlled.controls.get("sensitive").completion.resolve({ status: 0, signal: null });
+
+  await scheduled;
+  assert.deepEqual(controlled.events, ["heavy", "filler-a", "filler-b", "sensitive"]);
 });
 
 test("the scheduler rejects invalid token declarations before launching", async () => {
