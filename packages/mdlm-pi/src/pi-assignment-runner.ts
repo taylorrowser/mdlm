@@ -409,30 +409,35 @@ function restorePacketInvalidCorrectionRouting(
       declaredNames.add(contract.name);
     }
   }
-  const routingByLocalId = new Map<string, { name: string; invocation: number }>();
+  type OutputRouting = { name: string; invocation: number };
+  const routingByLocalId = new Map<string, OutputRouting>();
   const duplicateLocalIds = new Set<string>();
+  const routingByPosition: Array<OutputRouting | undefined> = [];
   for (const output of previousProposal.outputs) {
-    if (
-      !isJsonObject(output) || typeof output.localId !== "string" ||
-      typeof output.name !== "string" || !declaredNames.has(output.name) ||
-      !Number.isInteger(output.invocation) || (output.invocation as number) < 0 ||
-      (output.invocation as number) >= exactInputs.length
-    ) continue;
+    const routing = isJsonObject(output) && typeof output.name === "string" &&
+        declaredNames.has(output.name) && Number.isInteger(output.invocation) &&
+        (output.invocation as number) >= 0 &&
+        (output.invocation as number) < exactInputs.length
+      ? { name: output.name, invocation: output.invocation as number }
+      : undefined;
+    routingByPosition.push(routing);
+    if (routing === undefined || !isJsonObject(output) || typeof output.localId !== "string") {
+      continue;
+    }
     if (routingByLocalId.has(output.localId)) {
       routingByLocalId.delete(output.localId);
       duplicateLocalIds.add(output.localId);
     } else if (!duplicateLocalIds.has(output.localId)) {
-      routingByLocalId.set(output.localId, {
-        name: output.name,
-        invocation: output.invocation as number,
-      });
+      routingByLocalId.set(output.localId, routing);
     }
   }
 
   let changed = false;
-  const outputs = proposal.outputs.map((output) => {
-    if (!isJsonObject(output) || typeof output.localId !== "string") return output;
-    const priorRouting = routingByLocalId.get(output.localId);
+  const outputs = proposal.outputs.map((output, index) => {
+    if (!isJsonObject(output)) return output;
+    const priorRouting = typeof output.localId === "string"
+      ? routingByLocalId.get(output.localId) ?? routingByPosition[index]
+      : routingByPosition[index];
     if (priorRouting === undefined) return output;
     const nameIsPacketInvalid =
       typeof output.name !== "string" || !declaredNames.has(output.name);

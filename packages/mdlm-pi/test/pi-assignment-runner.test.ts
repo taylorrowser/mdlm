@@ -241,6 +241,7 @@ describe("PiAssignmentRunner", () => {
           ...((initialResponse.proposal as JsonObject).outputs as JsonObject[]).slice(0, 2),
           {
             ...((initialResponse.proposal as JsonObject).outputs as JsonObject[])[2]!,
+            localId: "correctedSuccessQuestion",
             invocation: 1,
             lifecycleDatum: {
               type: "QST",
