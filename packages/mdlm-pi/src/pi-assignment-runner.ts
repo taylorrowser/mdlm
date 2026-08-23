@@ -432,10 +432,13 @@ function restorePacketInvalidCorrectionRouting(
     }
   }
 
+  const priorRoutingHasCompleteUniqueLocalIds =
+    routingByLocalId.size === previousProposal.outputs.length;
   const correctedLocalIds = proposal.outputs.flatMap((output) =>
     isJsonObject(output) && typeof output.localId === "string" ? [output.localId] : []
   );
   const correctionPreservesLocalIdSet =
+    priorRoutingHasCompleteUniqueLocalIds &&
     correctedLocalIds.length === proposal.outputs.length &&
     new Set(correctedLocalIds).size === correctedLocalIds.length &&
     correctedLocalIds.length === routingByLocalId.size &&

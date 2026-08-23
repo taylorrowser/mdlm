@@ -401,6 +401,97 @@ describe("PiAssignmentRunner", () => {
     await runner.dispose();
   });
 
+  it("uses positional routing when prior local ids were not unique and outputs were removed", async () => {
+    const initialResponse: JsonObject = {
+      contract: "mdlm-assignment-response@1",
+      assignment: assignmentId,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "collision",
+          name: "product_specification",
+          invocation: 0,
+          lifecycleDatum: { type: "PSP", payload: { title: "Initial specification" }, links: [] },
+        }, {
+          localId: "collision",
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: { type: "QST", payload: { title: "Initial question" }, links: [] },
+        }, {
+          localId: "kept",
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: { type: "QST", payload: { title: "Retained question" }, links: [] },
+        }],
+        authoritySupplies: ["unexpected-authority"],
+      },
+    };
+    const workerCorrection: JsonObject = {
+      ...initialResponse,
+      proposal: {
+        ...(initialResponse.proposal as JsonObject),
+        outputs: [{
+          localId: "kept",
+          name: "invented-output",
+          invocation: 1,
+          lifecycleDatum: { type: "QST", payload: { title: "Corrected content" }, links: [] },
+        }],
+        authoritySupplies: [],
+      },
+    };
+    const responses = [initialResponse, workerCorrection];
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async (_packet, capture) => {
+        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
+        return session;
+      }),
+    });
+    const compilePacket = packet(assignmentId, "compile-product-specification@1");
+    compilePacket.exactInputs = [{ inputs: [] }];
+    compilePacket.outputs = [{
+      name: "product_specification",
+      types: ["PSP"],
+      cardinality: "one",
+    }, {
+      name: "questions",
+      types: ["QST"],
+      cardinality: "zero-or-more",
+    }];
+
+    await expect(runner.run(compilePacket)).resolves.toEqual(initialResponse);
+    await expect(runner.run(compilePacket, {
+      correction: {
+        previousResponse: initialResponse,
+        diagnostics: [{
+          code: "scenario-authority-unexpected",
+          path: "compile-product-specification@1#authority",
+          message: "Scenario received authority not required by its exact participation",
+        }],
+      },
+    })).resolves.toEqual({
+      ...workerCorrection,
+      proposal: {
+        ...(workerCorrection.proposal as JsonObject),
+        outputs: [{
+          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[0]!,
+          name: "product_specification",
+          invocation: 0,
+        }],
+      },
+    });
+
+    await runner.dispose();
+  });
+
   it("normalizes equivalent worker and attended authority before capture", async () => {
     const response: JsonObject = {
       kind: "proposal",
