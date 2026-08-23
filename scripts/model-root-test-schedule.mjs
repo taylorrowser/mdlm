@@ -9,7 +9,10 @@ import {
   rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
 import {
+  ROOT_RESOURCE_BARRIER_LOWER_BOUND_MS,
   ROOT_RESOURCE_COMPATIBLE_MAXIMUM_MS,
+  ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS,
+  ROOT_RESOURCE_HEAVY_ALLOWANCE_MS,
   ROOT_RESOURCE_IDEAL_LOWER_BOUND_MS,
   ROOT_RESOURCE_LPT_MAXIMUM_MS,
   ROOT_RESOURCE_MINIMUM_AGGREGATE_CONTRACTION_MS,
@@ -20,7 +23,7 @@ import {
   ROOT_RESOURCE_REQUIRED_HEADROOM_MS,
   ROOT_RESOURCE_ROOT_CEILING_MS,
   ROOT_RESOURCE_TOTAL_WORK_MS,
-  rootResourcePlan,
+  rootResourcePhases,
 } from "./root-test-resource-plan.mjs";
 import { simulateWeightedSchedule } from "./weighted-token-scheduler.mjs";
 
@@ -55,23 +58,28 @@ if (scheduledFiles.length !== rootTestManifest.length
   || new Set(scheduledFiles).size !== rootTestManifest.length) {
   throw new Error("Modeled schedule must cover every root file exactly once");
 }
-if (resourceTasks.length !== 27 || new Set(resourceTasks.flatMap((task) => task.files)).size !== 27) {
-  throw new Error("Modeled schedule must cover all 27 resource files exactly once");
+if (resourceTasks.length !== 26 || new Set(resourceTasks.flatMap((task) => task.files)).size !== 26) {
+  throw new Error("Modeled schedule must cover all 26 resource files exactly once");
 }
-if (resourceTasks.some((task) => !/^resource-lpt-[123]$/.test(task.scheduleLaneId))) {
-  throw new Error("Every resource task must use one of the three fixed resource lanes");
+const phaseIds = rootResourcePhases.map((phase) => phase.id);
+if (resourceTasks.some((task) =>
+  !phaseIds.includes(task.schedulePhaseId) || !Number.isInteger(task.schedulePhaseOrder))) {
+  throw new Error("Every resource task must use one deterministic resource phase");
 }
 
 const status = git("status", "--short");
 const identity = status === "" ? git("rev-parse", "HEAD^{tree}") : "DIRTY";
 process.stdout.write(`commit=${git("rev-parse", "HEAD")} tree=${identity} clean=${status === ""}\n`);
 process.stdout.write(`root_files=${rootTestManifest.length} tasks=${tasks.length} resource_tasks=${resourceTasks.length} fourth_token_tasks=${fourthTokenTasks.length} token_capacity=${ROOT_TEST_TOKEN_CAPACITY} class_concurrency_limits=${JSON.stringify(ROOT_TEST_CLASS_CONCURRENCY_LIMITS)}\n`);
-process.stdout.write(`resource_total_work_ms=${ROOT_RESOURCE_TOTAL_WORK_MS} resource_lower_bound_ms=${ROOT_RESOURCE_IDEAL_LOWER_BOUND_MS} resource_lpt_maximum_ms=${ROOT_RESOURCE_LPT_MAXIMUM_MS} resource_compatible_maximum_ms=${ROOT_RESOURCE_COMPATIBLE_MAXIMUM_MS}\n`);
+process.stdout.write(`resource_total_work_ms=${ROOT_RESOURCE_TOTAL_WORK_MS} resource_lower_bound_ms=${ROOT_RESOURCE_IDEAL_LOWER_BOUND_MS} barrier_lower_bound_ms=${ROOT_RESOURCE_BARRIER_LOWER_BOUND_MS} resource_lpt_maximum_ms=${ROOT_RESOURCE_LPT_MAXIMUM_MS} resource_compatible_maximum_ms=${ROOT_RESOURCE_COMPATIBLE_MAXIMUM_MS}\n`);
 process.stdout.write(`raw_target_ms=${ROOT_RESOURCE_RAW_TARGET_MS} minimum_aggregate_contraction_ms=${ROOT_RESOURCE_MINIMUM_AGGREGATE_CONTRACTION_MS}\n`);
-for (const lane of rootResourcePlan) {
-  process.stdout.write(`resource_lane=${lane.id} predicted_ms=${lane.totalMs} files=${lane.tasks.length} tasks=${lane.tasks.map((task) => task.file).join(",")}\n`);
+for (const phase of rootResourcePhases) {
+  process.stdout.write(`resource_phase=${phase.id} order=${phase.order} predicted_ms=${phase.totalMs}\n`);
+  for (const lane of phase.lanes) {
+    process.stdout.write(`resource_phase_lane=${phase.id}/${lane.id} role=${lane.role} predicted_ms=${lane.totalMs} files=${lane.tasks.length} tasks=${lane.tasks.map((task) => task.file).join(",")}\n`);
+  }
 }
-process.stdout.write(`policy=${ROOT_TEST_SCHEDULING_POLICY} simulated_schedule_ms=${simulation.wallMs} fourth_token_work_ms=${fourthTokenWorkMs} mixed_allowance_ms=${ROOT_RESOURCE_MIXED_ALLOWANCE_MS} orchestration_allowance_ms=${ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS} modeled_root_ms=${modeledRootMs}\n`);
+process.stdout.write(`policy=${ROOT_TEST_SCHEDULING_POLICY} simulated_schedule_ms=${simulation.wallMs} fourth_token_work_ms=${fourthTokenWorkMs} heavy_allowance_ms=${ROOT_RESOURCE_HEAVY_ALLOWANCE_MS} fragile_allowance_ms=${ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS} mixed_allowance_ms=${ROOT_RESOURCE_MIXED_ALLOWANCE_MS} orchestration_allowance_ms=${ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS} modeled_root_ms=${modeledRootMs}\n`);
 process.stdout.write(`root_eligibility_ms=${ROOT_RESOURCE_ROOT_CEILING_MS} root_margin_ms=${rootMarginMs}\n`);
 process.stdout.write(`outer_deadline_ms=${ROOT_RESOURCE_OUTER_DEADLINE_MS} outer_margin_ms=${outerMarginMs} required_outer_headroom_ms=${ROOT_RESOURCE_REQUIRED_HEADROOM_MS} headroom_margin_ms=${headroomMarginMs}\n`);
 process.stdout.write(`maximum_active_weight=${simulation.maximumActiveWeight}\n`);

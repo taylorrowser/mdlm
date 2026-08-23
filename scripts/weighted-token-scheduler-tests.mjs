@@ -66,24 +66,25 @@ function controlledLauncher() {
   return { controls, events, launch };
 }
 
-test("the global resource event table selects only successful evidence for all 27 owners", async () => {
+test("the global resource event table selects only successful evidence for all 26 owners", async () => {
   const {
     ROOT_RESOURCE_LANE_COUNT,
     ROOT_RESOURCE_MIXED_ALLOWANCE_MS,
     ROOT_RESOURCE_RUN_PROVENANCE,
     rootResourceEvidence,
+    rootResourcePhases,
     rootResourcePlan,
   } = await import("./root-test-resource-plan.mjs");
-  const resourceFiles = rootTestManifest
-    .filter((entry) => !["canonical-fixture-filler", "cheap-in-process"].includes(entry.runtimeClass))
-    .map((entry) => entry.file)
+  const resourceFiles = createRootTestTasks()
+    .filter((task) => task.resourceOwner === true)
+    .flatMap((task) => task.files)
     .sort();
 
   assert.equal(ROOT_RESOURCE_LANE_COUNT, 3);
-  assert.equal(ROOT_RESOURCE_MIXED_ALLOWANCE_MS, 55_079);
-  assert.equal(rootResourceEvidence.length, 27);
+  assert.equal(ROOT_RESOURCE_MIXED_ALLOWANCE_MS, 0);
+  assert.equal(rootResourceEvidence.length, 26);
   assert.deepEqual(rootResourceEvidence.map((entry) => entry.file).sort(), resourceFiles);
-  assert.equal(new Set(rootResourceEvidence.map((entry) => entry.file)).size, 27);
+  assert.equal(new Set(rootResourceEvidence.map((entry) => entry.file)).size, 26);
   assert.equal(rootResourceEvidence.every((entry) =>
     entry.selectedEvidence.disposition === "pass"
       && Number.isInteger(entry.selectedEvidence.elapsedMs)
@@ -95,24 +96,24 @@ test("the global resource event table selects only successful evidence for all 2
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(rootResourceEvidence, (entry) => entry.resourceClass))
       .map(([resourceClass, entries]) => [resourceClass, entries.length])),
-    { safe: 19, heavy: 4, fragile: 4 },
+    { safe: 18, heavy: 4, fragile: 4 },
   );
   assert.equal(rootResourceEvidence
     .filter((entry) => entry.resourceClass === "safe")
-    .reduce((total, entry) => total + entry.selectedEvidence.elapsedMs, 0), 1_246_160);
+    .reduce((total, entry) => total + entry.selectedEvidence.elapsedMs, 0), 1_233_280);
   assert.deepEqual(
     rootResourceEvidence
       .filter((entry) => entry.resourceClass !== "safe")
       .map((entry) => [entry.file, entry.selectedEvidence.elapsedMs, entry.selectedEvidence.source]),
     [
-      ["test/load-process-package.test.ts", 84_350, "/tmp/issue-203-split-policy-lane-heavy.log"],
-      ["test/mdlm-baseline-inspection.test.ts", 138_250, "/tmp/issue-203-split-policy-lane-heavy.log"],
-      ["test/mdlm-assignment.test.ts", 174_960, "/tmp/issue-203-split-policy-lane-heavy.log"],
-      ["test/proportional-distinct-context-phase-2-public.test.ts", 58_400, "/tmp/issue-203-split-policy-lane-heavy.log"],
-      ["test/mdlm-clean-pilot-contract.test.ts", 78_310, "/tmp/issue-203-split-policy-lane-fragile.log"],
-      ["test/mdlm-lifecycle.test.ts", 86_570, "/tmp/issue-203-split-policy-lane-fragile.log"],
-      ["test/mdlm-process-migration.test.ts", 176_580, "/tmp/issue-203-split-policy-lane-fragile.log"],
-      ["test/mdlm-review-assignment.test.ts", 179_040, "/tmp/issue-203-split-policy-lane-fragile.log"],
+      ["test/load-process-package.test.ts", 66_137, "vitest.suites.mjs"],
+      ["test/mdlm-baseline-inspection.test.ts", 62_087, "vitest.suites.mjs"],
+      ["test/mdlm-assignment.test.ts", 117_151, "vitest.suites.mjs"],
+      ["test/proportional-distinct-context-phase-2-public.test.ts", 27_558, "vitest.suites.mjs"],
+      ["test/mdlm-clean-pilot-contract.test.ts", 28_026, "vitest.suites.mjs"],
+      ["test/mdlm-lifecycle.test.ts", 30_161, "vitest.suites.mjs"],
+      ["test/mdlm-process-migration.test.ts", 47_070, "vitest.suites.mjs"],
+      ["test/mdlm-review-assignment.test.ts", 43_815, "vitest.suites.mjs"],
     ],
   );
   assert.deepEqual(
@@ -122,16 +123,102 @@ test("the global resource event table selects only successful evidence for all 2
       ["c4f254b71a26658ba58f4b5872509d08806a9b4c", 1, false],
     ],
   );
-  assert.equal(rootResourcePlan.length, 3);
-  assert.equal(rootResourcePlan.flatMap((lane) => lane.tasks).length, 27);
+  assert.equal(rootResourcePhases.length, 3);
+  assert.equal(rootResourcePlan.length, 9);
+  assert.equal(rootResourcePlan.flatMap((lane) => lane.tasks).length, 26);
+  assert.equal(rootResourceEvidence
+    .filter((entry) => entry.resourceClass !== "safe")
+    .every((entry) => entry.observations.some((observation) =>
+      observation.source.includes("split-policy-lane") && observation.selected === false)), true);
+});
+
+test("the phased policy selects schedule-matched focused observations and measured allowances", async () => {
+  const {
+    ROOT_RESOURCE_BARRIER_LOWER_BOUND_MS,
+    ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS,
+    ROOT_RESOURCE_FRAGILE_CALIBRATION,
+    ROOT_RESOURCE_HEAVY_ALLOWANCE_MS,
+    ROOT_RESOURCE_HEAVY_PHASE_CALIBRATION,
+    rootResourceEvidence,
+    rootResourcePhases,
+  } = await import("./root-test-resource-plan.mjs");
+
+  assert.equal(ROOT_RESOURCE_HEAVY_ALLOWANCE_MS, 0);
+  assert.deepEqual(ROOT_RESOURCE_HEAVY_PHASE_CALIBRATION, {
+    cohort: [
+      "test/mdlm-assignment.test.ts",
+      "test/proportional-distinct-context-phase-2-public.test.ts",
+      "test/phase-1-hardening-routes.test.ts",
+    ],
+    contractDeltaMs: 3_600,
+    calibratedPhaseWallMs: 181_042,
+    disposition: "pass",
+    observedSchedulerWallMs: 177_442,
+    source: "/tmp/issue-203-mixed-overlap-evidence-ledger.md",
+    status: 0,
+  });
+  assert.equal(ROOT_RESOURCE_FRAGILE_ALLOWANCE_MS, 0);
+  assert.deepEqual(ROOT_RESOURCE_FRAGILE_CALIBRATION, {
+    cohort: [
+      "test/mdlm-review-assignment.test.ts",
+      "test/phase-0-corrected-gate-route.test.ts",
+      "test/phase-1-hardening-routes.test.ts",
+    ],
+    conservativeAllowanceMs: 0,
+    conservativeMultiplier: 1,
+    disposition: "pass",
+    focusedParallelFloorMs: 105_098,
+    observedSchedulerWallMs: 104_892,
+    observedWrapperWallMs: 105_049,
+    source: "/tmp/issue-203-fragile-mixed-calibration.md",
+    status: 0,
+  });
+  assert.deepEqual(
+    rootResourceEvidence
+      .filter((entry) => entry.resourceClass === "heavy")
+      .map((entry) => [entry.file, entry.selectedEstimateMs, entry.selectedEvidence.commit]),
+    [
+      ["test/load-process-package.test.ts", 66_137, "b966de2d422d25c152985c368ec05e95006e388f"],
+      ["test/mdlm-baseline-inspection.test.ts", 62_087, "b966de2d422d25c152985c368ec05e95006e388f"],
+      ["test/mdlm-assignment.test.ts", 117_151, "a81a9ca51b0458a649eb9539844efa965cf01976"],
+      ["test/proportional-distinct-context-phase-2-public.test.ts", 27_558, "a81a9ca51b0458a649eb9539844efa965cf01976"],
+    ],
+  );
+  assert.deepEqual(
+    rootResourceEvidence
+      .filter((entry) => entry.resourceClass === "fragile")
+      .map((entry) => [entry.file, entry.selectedEstimateMs, entry.selectedEvidence.commit]),
+    [
+      ["test/mdlm-clean-pilot-contract.test.ts", 28_026, "af632593793368513247aed19b3f34996919340a"],
+      ["test/mdlm-lifecycle.test.ts", 30_161, "af632593793368513247aed19b3f34996919340a"],
+      ["test/mdlm-process-migration.test.ts", 47_070, "af632593793368513247aed19b3f34996919340a"],
+      ["test/mdlm-review-assignment.test.ts", 43_815, "af632593793368513247aed19b3f34996919340a"],
+    ],
+  );
+  assert.deepEqual(rootResourcePhases.map((phase) => phase.id), [
+    "two-heavy-plus-one-safe",
+    "one-fragile-plus-two-safe",
+    "three-safe-tail",
+  ]);
+  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [181_042, 149_072, 257_630]);
+  assert.deepEqual(
+    rootResourcePhases[0].lanes.find((lane) => lane.role === "safe").tasks.map((entry) => entry.file),
+    [
+      "test/phase-1-hardening-routes.test.ts",
+      "test/mdlm-pilot-assessment.test.ts",
+      "test/evaluate-phase.test.ts",
+    ],
+  );
+  assert.deepEqual(
+    rootResourcePhases[2].lanes.map((lane) => lane.totalMs).sort((left, right) => left - right),
+    [256_030, 257_480, 257_630],
+  );
+  assert.equal(Number.isInteger(ROOT_RESOURCE_BARRIER_LOWER_BOUND_MS), true);
 });
 
 test("production construction admits no fourth resource owner", () => {
   const tasks = createRootTestTasks();
-  const resourceFiles = new Set(rootTestManifest
-    .filter((entry) => !["canonical-fixture-filler", "cheap-in-process"].includes(entry.runtimeClass))
-    .map((entry) => entry.file));
-  const resourceTasks = tasks.filter((task) => task.files.some((file) => resourceFiles.has(file)));
+  const resourceTasks = tasks.filter((task) => task.resourceOwner === true);
   const simulation = simulateWeightedSchedule(tasks, {
     capacity: ROOT_TEST_TOKEN_CAPACITY,
     canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
@@ -154,14 +241,39 @@ test("production construction admits no fourth resource owner", () => {
       && right.resourceClass === "fragile"
       && left.startMs < right.endMs
       && right.startMs < left.endMs));
+  const activeClassMaximum = (resourceClass) => Math.max(...eventTimes.map((atMs) =>
+    resourceIntervals.filter((interval) =>
+      interval.resourceClass === resourceClass
+        && interval.startMs <= atMs
+        && atMs < interval.endMs).length));
+  const launchesByPhase = Object.groupBy(
+    simulation.launches.filter((launch) => taskById.get(launch.taskId).resourceOwner === true),
+    (launch) => taskById.get(launch.taskId).schedulePhaseOrder,
+  );
+  const phaseWindows = Object.entries(launchesByPhase).map(([order, launches]) => ({
+    order: Number(order),
+    startMs: Math.min(...launches.map((launch) => launch.atMs)),
+    endMs: Math.max(...launches.map((launch) =>
+      launch.atMs + taskById.get(launch.taskId).estimatedDurationMs)),
+  })).sort((left, right) => left.order - right.order);
 
-  assert.equal(resourceTasks.length, 27);
-  assert.equal(resourceTasks.every((task) => /^resource-lpt-[123]$/.test(task.scheduleLaneId)), true);
+  assert.equal(resourceTasks.length, 26);
+  assert.equal(resourceTasks.every((task) =>
+    ["two-heavy-plus-one-safe", "one-fragile-plus-two-safe", "three-safe-tail"]
+      .includes(task.schedulePhaseId)), true);
+  assert.equal(resourceTasks.every((task) => Number.isInteger(task.schedulePhaseOrder)), true);
   assert.equal(maximumActiveResources, 3);
+  assert.equal(activeClassMaximum("heavy"), 2);
+  assert.equal(activeClassMaximum("fragile"), 1);
+  assert.equal(activeClassMaximum("safe"), 3);
   assert.equal(incompatibleOverlap, false);
+  assert.deepEqual(phaseWindows.map((window) => window.order), [0, 1, 2]);
+  assert.equal(phaseWindows.every((window, index) =>
+    index === 0 || phaseWindows[index - 1].endMs <= window.startMs), true);
   assert.equal(resourceTasks.find((task) => task.id === "test/load-scenario-participation.test.ts")?.resourceOwner, true);
+  assert.equal(tasks.find((task) => task.id === "test/evaluate-scoped-obligation.test.ts")?.resourceOwner, false);
   assert.equal(tasks.filter((task) => task.resourceOwner !== true).every((task) =>
-    ["canonical-fixture-filler", "cheap-in-process"].includes(task.runtimeClass)), true);
+    ["canonical-evaluator-safe", "canonical-fixture-filler", "cheap-in-process"].includes(task.runtimeClass)), true);
   assert.equal(simulation.maximumActiveWeight <= 4, true);
 });
 
@@ -175,7 +287,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
     "process-repository-heavy": 2,
-    "repository-public-fragile": 2,
+    "repository-public-fragile": 1,
     "process-repository-safe": 3,
     "canonical-evaluator-safe": 3,
     "canonical-fixture-filler": 1,
@@ -411,23 +523,24 @@ test("the historical safe LPT table retains successful and censored evidence", a
   assert.equal(Math.max(...safeLptPlan.map((lane) => lane.totalMs)) <= SAFE_LPT_ROOT_CEILING_MS, true);
 });
 
-test("the exact-observation global resource model reports the contraction blocker", () => {
+test("the exact-observation global resource model qualifies the calibrated phased schedule", () => {
   const model = spawnSync(process.execPath, ["scripts/model-root-test-schedule.mjs"], {
     cwd: new URL("..", import.meta.url),
     encoding: "utf8",
   });
-  assert.equal(model.status, 2, model.stderr);
-  assert.match(model.stdout, /root_files=47 tasks=32 resource_tasks=27 fourth_token_tasks=5 token_capacity=4/);
-  assert.match(model.stdout, /resource_total_work_ms=2226220 resource_lower_bound_ms=742074 resource_lpt_maximum_ms=748970 resource_compatible_maximum_ms=748970/);
-  assert.match(model.stdout, /raw_target_ms=532921 minimum_aggregate_contraction_ms=627457/);
-  assert.match(model.stdout, /resource_lane=resource-lpt-1 predicted_ms=735020 files=8/);
-  assert.match(model.stdout, /resource_lane=resource-lpt-2 predicted_ms=742230 files=9/);
-  assert.match(model.stdout, /resource_lane=resource-lpt-3 predicted_ms=748970 files=10/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=748970 fourth_token_work_ms=90837 mixed_allowance_ms=55079 orchestration_allowance_ms=2000 modeled_root_ms=806049/);
-  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=-216049/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-206049 required_outer_headroom_ms=10000 headroom_margin_ms=-216049/);
+  assert.equal(model.status, 0, model.stderr);
+  assert.match(model.stdout, /root_files=47 tasks=32 resource_tasks=26 fourth_token_tasks=6 token_capacity=4/);
+  assert.match(model.stdout, /resource_total_work_ms=1658885 resource_lower_bound_ms=552962 barrier_lower_bound_ms=582679 resource_lpt_maximum_ms=587744 resource_compatible_maximum_ms=587744/);
+  assert.match(model.stdout, /raw_target_ms=588000 minimum_aggregate_contraction_ms=0/);
+  assert.match(model.stdout, /resource_phase=two-heavy-plus-one-safe order=0 predicted_ms=181042/);
+  assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=173680 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
+  assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=149072/);
+  assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=257630/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=580382 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=2000 modeled_root_ms=589744/);
+  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=256/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=10256 required_outer_headroom_ms=10000 headroom_margin_ms=256/);
   assert.match(model.stdout, /maximum_active_weight=4/);
-  assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
+  assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
 
 test("the schedule simulator uses the same deterministic token and compatibility policy", () => {
@@ -449,19 +562,40 @@ test("the schedule simulator uses the same deterministic token and compatibility
   assert.equal(simulation.maximumActiveWeight, 3);
 });
 
-test("fixed resource lanes and the fourth token share simulation and runtime admission", async () => {
-  const resource = { resourceClass: "safe", resourceOwner: true };
+test("phased resource barriers and the fourth token share simulation and runtime admission", async () => {
+  const resource = (resourceClass, runtimeClass, schedulePhaseId, schedulePhaseOrder, scheduleLaneId, laneOrder) => ({
+    laneOrder,
+    resourceClass,
+    resourceOwner: true,
+    runtimeClass,
+    scheduleLaneId,
+    schedulePhaseId,
+    schedulePhaseOrder,
+    weight: 1,
+  });
   const tasks = [
-    { id: "resource-1a", ...resource, runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 10, scheduleLaneId: "resource-lpt-1", laneOrder: 0 },
-    { id: "resource-1b", ...resource, runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 5, scheduleLaneId: "resource-lpt-1", laneOrder: 1 },
-    { id: "resource-2a", ...resource, runtimeClass: "canonical-evaluator-safe", weight: 1, estimatedDurationMs: 8, scheduleLaneId: "resource-lpt-2", laneOrder: 0 },
-    { id: "resource-3a", ...resource, runtimeClass: "process-repository-safe", weight: 1, estimatedDurationMs: 7, scheduleLaneId: "resource-lpt-3", laneOrder: 0 },
+    { id: "heavy-a", estimatedDurationMs: 10, ...resource("heavy", "process-repository-heavy", "two-heavy-plus-one-safe", 0, "heavy-1", 0) },
+    { id: "heavy-b", estimatedDurationMs: 5, ...resource("heavy", "process-repository-heavy", "two-heavy-plus-one-safe", 0, "heavy-1", 1) },
+    { id: "heavy-c", estimatedDurationMs: 8, ...resource("heavy", "process-repository-heavy", "two-heavy-plus-one-safe", 0, "heavy-2", 0) },
+    { id: "safe-a", estimatedDurationMs: 7, ...resource("safe", "process-repository-safe", "two-heavy-plus-one-safe", 0, "heavy-safe-1", 0) },
+    { id: "fragile", estimatedDurationMs: 6, ...resource("fragile", "repository-public-fragile", "one-fragile-plus-two-safe", 1, "fragile-1", 0) },
+    { id: "safe-b", estimatedDurationMs: 4, ...resource("safe", "process-repository-safe", "one-fragile-plus-two-safe", 1, "fragile-safe-1", 0) },
+    { id: "safe-c", estimatedDurationMs: 3, ...resource("safe", "process-repository-safe", "one-fragile-plus-two-safe", 1, "fragile-safe-2", 0) },
+    { id: "tail", estimatedDurationMs: 2, ...resource("safe", "process-repository-safe", "three-safe-tail", 2, "safe-tail-1", 0) },
     { id: "fourth-a", resourceOwner: false, runtimeClass: "canonical-fixture-filler", weight: 1, estimatedDurationMs: 6, scheduleLaneId: "fourth-token" },
     { id: "fourth-b", resourceOwner: false, runtimeClass: "cheap-in-process", weight: 1, estimatedDurationMs: 4, scheduleLaneId: "fourth-token" },
   ];
   const canAdmit = createRootTestAdmissionPolicy(
     ROOT_TEST_SCHEDULING_POLICIES.GLOBAL_RESOURCE_LPT,
   );
+  assert.equal(canAdmit(
+    { ...tasks[0], schedulePhaseOrder: 1 },
+    { pendingTasks: [], runningTasks: [] },
+  ), false);
+  assert.equal(canAdmit(
+    { ...tasks[0], resourceClass: "safe" },
+    { pendingTasks: [], runningTasks: [] },
+  ), false);
   const options = {
     capacity: 4,
     canAdmit,
@@ -470,29 +604,41 @@ test("fixed resource lanes and the fourth token share simulation and runtime adm
   };
   const simulation = simulateWeightedSchedule(tasks, options);
   assert.deepEqual(simulation.launches.map(({ atMs, taskId, activeWeight }) => [atMs, taskId, activeWeight]), [
-    [0, "resource-1a", 1],
-    [0, "resource-2a", 2],
-    [0, "resource-3a", 3],
+    [0, "heavy-a", 1],
+    [0, "heavy-c", 2],
+    [0, "safe-a", 3],
     [0, "fourth-a", 4],
     [6, "fourth-b", 4],
-    [10, "resource-1b", 1],
+    [10, "heavy-b", 1],
+    [15, "fragile", 1],
+    [15, "safe-b", 2],
+    [15, "safe-c", 3],
+    [21, "tail", 1],
   ]);
-  assert.equal(simulation.wallMs, 15);
+  assert.equal(simulation.wallMs, 23);
   assert.equal(simulation.maximumActiveWeight, 4);
 
   const controlled = controlledLauncher();
   const scheduled = runWeightedSchedule(tasks, { ...options, launch: controlled.launch });
-  await waitFor(() => controlled.events.length === 4, "three resource lane heads and filler did not launch");
-  assert.deepEqual(controlled.events, ["resource-1a", "resource-2a", "resource-3a", "fourth-a"]);
+  await waitFor(() => controlled.events.length === 4, "heavy phase and filler did not launch");
+  assert.deepEqual(controlled.events, ["heavy-a", "heavy-c", "safe-a", "fourth-a"]);
   controlled.controls.get("fourth-a").completion.resolve({ status: 0, signal: null });
   await waitFor(() => controlled.events.length === 5, "fourth token did not advance");
-  assert.deepEqual(controlled.events.at(-1), "fourth-b");
-  controlled.controls.get("resource-1a").completion.resolve({ status: 0, signal: null });
-  await waitFor(() => controlled.events.length === 6, "resource LPT lane did not advance");
-  assert.deepEqual(controlled.events.at(-1), "resource-1b");
-  for (const id of ["resource-1b", "resource-2a", "resource-3a", "fourth-b"]) {
+  assert.equal(controlled.events.at(-1), "fourth-b");
+  for (const id of ["heavy-a", "heavy-c", "safe-a", "fourth-b"]) {
     controlled.controls.get(id).completion.resolve({ status: 0, signal: null });
   }
+  await waitFor(() => controlled.events.length === 6, "heavy lane did not advance before the barrier");
+  assert.equal(controlled.events.at(-1), "heavy-b");
+  controlled.controls.get("heavy-b").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 9, "fragile phase did not launch after the heavy barrier");
+  assert.deepEqual(controlled.events.slice(6), ["fragile", "safe-b", "safe-c"]);
+  for (const id of ["fragile", "safe-b", "safe-c"]) {
+    controlled.controls.get(id).completion.resolve({ status: 0, signal: null });
+  }
+  await waitFor(() => controlled.events.length === 10, "safe tail did not launch after the fragile barrier");
+  assert.equal(controlled.events.at(-1), "tail");
+  controlled.controls.get("tail").completion.resolve({ status: 0, signal: null });
   await scheduled;
 });
 

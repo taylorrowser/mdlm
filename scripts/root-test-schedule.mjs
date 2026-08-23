@@ -9,7 +9,7 @@ export { rootTestManifest };
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
   "process-repository-heavy": 2,
-  "repository-public-fragile": 2,
+  "repository-public-fragile": 1,
   "process-repository-safe": 3,
   "canonical-evaluator-safe": 3,
   "canonical-fixture-filler": 1,
@@ -23,6 +23,9 @@ export const ROOT_TEST_SCHEDULING_POLICY =
 export const CHEAP_BATCH_COUNT = 2;
 export const MAX_CHEAP_FILES_PER_BATCH = 9;
 export const FOCUSED_VITEST_STARTUP_MS = 1_250;
+const FOURTH_TOKEN_EVALUATOR_FILES = new Set([
+  "test/evaluate-scoped-obligation.test.ts",
+]);
 
 export function rootTestTasksCanOverlap(left, right) {
   return rootResourceTaskCanOverlap(left, right);
@@ -69,6 +72,11 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
     .filter((entry) => entry.runtimeClass !== "cheap-in-process")
     .map((entry) => {
       const assignment = rootResourceAssignment(entry.file);
+      const expectedResourceOwner = entry.runtimeClass !== "canonical-fixture-filler"
+        && !FOURTH_TOKEN_EVALUATOR_FILES.has(entry.file);
+      if (expectedResourceOwner !== (assignment != null)) {
+        throw new Error(`Resource assignment does not match manifest ownership: ${entry.file}`);
+      }
       return {
         id: entry.file,
         runtimeClass: entry.runtimeClass,
@@ -78,6 +86,8 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
         estimateKind: assignment ? "selected-successful-resource-observation" : "exact-head-focused-model",
         laneOrder: assignment?.laneOrder,
         scheduleLaneId: assignment?.scheduleLaneId ?? "fourth-token",
+        schedulePhaseId: assignment?.schedulePhaseId,
+        schedulePhaseOrder: assignment?.schedulePhaseOrder,
         resourceClass: assignment?.resourceClass,
         resourceOwner: assignment?.resourceOwner ?? false,
       };
