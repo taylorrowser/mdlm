@@ -149,9 +149,9 @@ test("the phased policy selects schedule-matched focused observations and measur
     rootResourcePhases,
   } = await import("./root-test-resource-plan.mjs");
 
-  assert.equal(ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_MS, 800_000);
+  assert.equal(ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_MS, 1_200_000);
   assert.deepEqual(ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_PROVENANCE, {
-    allowanceMs: 800_000,
+    allowanceMs: 1_200_000,
     attempts: [
       {
         launchedTasks: 27,
@@ -164,6 +164,14 @@ test("the phased policy selects schedule-matched focused observations and measur
         source: "/tmp/issue-205-authoritative-root-third.log",
         status: 124,
         wallMs: 1_152_517,
+      },
+      {
+        completedPackageTests: 105,
+        completedRootFiles: 47,
+        launchedTasks: 32,
+        source: "/tmp/issue-202-final2-authoritative-root.log",
+        status: 124,
+        wallMs: 2_002_518,
       },
     ],
     disposition: "censored current-host lower bound; allowance only, not selected successful timing",
@@ -683,11 +691,11 @@ test("the compatibility-aware successful-evidence model qualifies the calibrated
   assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=178150 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
   assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=349626/);
   assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=261570/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=841946 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=800000 modeled_root_ms=1643446/);
-  assert.match(model.stdout, /root_eligibility_ms=1700000 root_margin_ms=56554/);
-  assert.match(model.stdout, /modeled_complete_gate_ms=1898446/);
-  assert.match(model.stdout, /complete_gate_target_ms=1950000 complete_gate_margin_ms=51554/);
-  assert.match(model.stdout, /outer_deadline_ms=2000000 outer_margin_ms=101554 required_outer_headroom_ms=50000 headroom_margin_ms=51554/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=841946 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2043446/);
+  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=56554/);
+  assert.match(model.stdout, /modeled_complete_gate_ms=2298446/);
+  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=51554/);
+  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=101554 required_outer_headroom_ms=50000 headroom_margin_ms=51554/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });

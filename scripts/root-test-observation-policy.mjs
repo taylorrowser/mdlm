@@ -605,7 +605,7 @@ export function renderRootTestObservationInventory(root = process.cwd()) {
     "- Former process/repository 20,000 ms hooks and 5,000/40,000/45,000/70,000/75,000/120,000 ms tests now use the central floors; stronger 360,000 and 510,000 ms process/repository tests remain.",
     "- Canonical/in-process measured 20,000/30,000/40,000 ms hooks and the 420,000 ms proportional test remain unchanged.",
     "- Canonical/in-process tests otherwise retain the authoritative 45,000 ms test and 10,000 ms hook semantics.",
-    "- Internal synchronization, the test-owned timeout-cleanup proof, domain payload, and the exact 2,000,000 ms authoritative wrapper deadline are not child-process options or Vitest observation limits. Only the test-owned cleanup proof changed.",
+    "- Internal synchronization, the test-owned timeout-cleanup proof, domain payload, and the exact 2,400,000 ms authoritative wrapper deadline are not child-process options or Vitest observation limits. Only the test-owned cleanup proof changed.",
     "",
   );
   return lines.join("\n");

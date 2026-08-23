@@ -91,13 +91,14 @@ export const ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE = Object.freeze({
 export const ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_MS =
   ROOT_RESOURCE_ORCHESTRATION_ALLOWANCE_PROVENANCE.allowanceMs;
 // Two exact clean 3bf9e2e attempts reached the former 1,150,000 ms outer
-// deadline after launching only 27/32 and 26/32 production tasks. The old
-// 843,446 ms successful-evidence model therefore needs a bounded current-host
-// variance allowance, not another unchanged retry. 800,000 ms covers the
-// observed 306,554 ms model overrun plus the six unlaunched tail tasks and all
-// non-root components while preserving 50,000 ms of modeled reserve.
+// deadline after launching only 27/32 and 26/32 production tasks. A later exact
+// final-main candidate reached 2,000,000 ms after all 47 root files and all 105
+// package tests passed, with only the controllers pending. The 843,446 ms
+// successful-evidence model therefore needs a bounded current-host variance
+// allowance, not another unchanged retry. 1,200,000 ms covers that censored
+// complete-gate lower bound and preserves 50,000 ms of modeled reserve.
 export const ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_PROVENANCE = Object.freeze({
-  allowanceMs: 800_000,
+  allowanceMs: 1_200_000,
   attempts: Object.freeze([
     Object.freeze({
       launchedTasks: 27,
@@ -111,16 +112,24 @@ export const ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_PROVENANCE = Object.f
       status: 124,
       wallMs: 1_152_517,
     }),
+    Object.freeze({
+      completedPackageTests: 105,
+      completedRootFiles: 47,
+      launchedTasks: 32,
+      source: "/tmp/issue-202-final2-authoritative-root.log",
+      status: 124,
+      wallMs: 2_002_518,
+    }),
   ]),
   disposition: "censored current-host lower bound; allowance only, not selected successful timing",
 });
 export const ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_MS =
   ROOT_RESOURCE_CURRENT_HOST_VARIANCE_ALLOWANCE_PROVENANCE.allowanceMs;
-// The production partition must model within 1,700 seconds. The complete gate
-// target is 1,950 seconds and the exact hard deadline is 2,000 seconds.
-export const ROOT_RESOURCE_ROOT_CEILING_MS = 1_700_000;
-export const ROOT_RESOURCE_COMPLETE_GATE_TARGET_MS = 1_950_000;
-export const ROOT_RESOURCE_OUTER_DEADLINE_MS = 2_000_000;
+// The production partition must model within 2,100 seconds. The complete gate
+// target is 2,350 seconds and the exact hard deadline is 2,400 seconds.
+export const ROOT_RESOURCE_ROOT_CEILING_MS = 2_100_000;
+export const ROOT_RESOURCE_COMPLETE_GATE_TARGET_MS = 2_350_000;
+export const ROOT_RESOURCE_OUTER_DEADLINE_MS = 2_400_000;
 export const ROOT_RESOURCE_REQUIRED_HEADROOM_MS = 50_000;
 export const ROOT_RESOURCE_COMPLETE_GATE_COMPONENTS = Object.freeze({
   rootBuildMs: 15_000,
