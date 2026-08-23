@@ -21,6 +21,7 @@ import {
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestAdmissionPolicy,
   createRootTestTasks,
+  createRootTestTasksForClass,
   rootTestManifest,
   rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
@@ -128,6 +129,22 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(tasks.filter((task) => task.runtimeClass !== "cheap-in-process").every((task) => task.files.length === 1), true);
   assert.deepEqual([...scheduledFiles].sort(), discovered);
   assert.equal(new Set(scheduledFiles).size, 47);
+});
+
+test("canonical filler aliases resolve through the production task path", () => {
+  const expectedIds = [
+    "test/dependency-changes.test.ts",
+    "test/phase-0-hardening-routes.test.ts",
+    "test/proportional-phase-2-public.test.ts",
+  ];
+  const canonical = createRootTestTasksForClass("canonical-fixture-filler");
+  const acceptedAlias = createRootTestTasksForClass("canonical-filler");
+
+  assert.deepEqual(canonical.map((task) => task.id).sort(), expectedIds);
+  assert.deepEqual(acceptedAlias.map((task) => task.id).sort(), expectedIds);
+  assert.deepEqual(acceptedAlias, canonical);
+  assert.equal(canonical.every((task) => task.runtimeClass === "canonical-fixture-filler"), true);
+  assert.deepEqual(createRootTestTasksForClass("canonical-fixture-fillers"), []);
 });
 
 test("exact-current three-way outcomes remain calibrated without using failed timings", () => {

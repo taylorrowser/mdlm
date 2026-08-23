@@ -400,14 +400,21 @@ test("retained heavy cohort setup hooks use named finite limits", () => {
       true,
       ts.ScriptKind.TS,
     );
-    const finiteLimits = new Map();
+    const finiteLimits = new Map([
+      ["PROCESS_REPOSITORY_HOOK_TIMEOUT_MS", 40_000],
+      ["PROCESS_REPOSITORY_TEST_TIMEOUT_MS", 110_000],
+    ]);
 
     const visit = (node) => {
       if (ts.isVariableDeclaration(node)
         && ts.isIdentifier(node.name)
-        && node.initializer
-        && ts.isNumericLiteral(node.initializer)) {
-        finiteLimits.set(node.name.text, Number(node.initializer.text));
+        && node.initializer) {
+        if (ts.isNumericLiteral(node.initializer)) {
+          finiteLimits.set(node.name.text, Number(node.initializer.text));
+        } else if (ts.isIdentifier(node.initializer)
+          && finiteLimits.has(node.initializer.text)) {
+          finiteLimits.set(node.name.text, finiteLimits.get(node.initializer.text));
+        }
       }
       if (ts.isCallExpression(node)
         && ts.isIdentifier(node.expression)
@@ -491,10 +498,18 @@ test("contended representative observation limits stay exact", () => {
     new URL("../vitest.fast.config.ts", import.meta.url),
     "utf8",
   );
+  const observationPolicy = readFileSync(
+    new URL("./root-test-observation-policy.mjs", import.meta.url),
+    "utf8",
+  );
 
   assert.match(
+    observationPolicy,
+    /2 × 54,154 ms = 108,308 ms\.[\s\S]*?PROCESS_REPOSITORY_TEST_TIMEOUT_MS = 110_000;/,
+  );
+  assert.match(
     reviewAssignmentSource,
-    /Twice the 44,830 ms isolated pass is 89,660 ms; round up to 90,000 ms\.[\s\S]*?leaves 26,825 ms above the 63,175 ms contended failure observation\.[\s\S]*?const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = 90_000;/,
+    /Twice the 54,154 ms exact max-2 pass is 108,308 ms; round strictly up\.[\s\S]*?clears the retained 91,141 ms failure\.[\s\S]*?const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;/,
   );
   assert.match(
     reviewAssignmentSource,
@@ -538,18 +553,18 @@ test("contended representative observation limits stay exact", () => {
   );
   assert.match(loadSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(loadSource, /beforeAll\(async \(\) => \{[\s\S]*?validPackage = result\.package;\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);
-  assert.match(baselineSource, /const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
+  assert.match(baselineSource, /const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
   assert.match(baselineSource, /const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(baselineSource, /const CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(baselineSource, /const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
-  assert.match(baselineSource, /const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
+  assert.match(baselineSource, /const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
   assert.match(baselineSource, /const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;/);
   assert.match(baselineSource, /immutableSelectedPackage = deepFreeze\([\s\S]*?\n  \}, CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /changedBaselineFixture = deepFreeze\([\s\S]*?\n  \}, CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS\);/);
   assert.match(baselineSource, /await arrangeManyBaselines\([\s\S]*?\n  \}, CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS\);/);
-  assert.match(assignmentSource, /const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
+  assert.match(assignmentSource, /const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
   assert.match(assignmentSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
-  assert.match(assignmentSource, /const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = 30_000;/);
+  assert.match(assignmentSource, /const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 30_000;/);
   assert.match(assignmentSource, /const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 30_000;/);
   assert.match(assignmentSource, /const CONTENDED_ASSIGNMENT_RACE_TIMEOUT_MS = 75_000;/);

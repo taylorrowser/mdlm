@@ -3,13 +3,17 @@ import { constants, promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
+} from "../scripts/root-test-observation-policy.mjs";
 import { assignmentResponseSchema } from "../src/assignment.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
 
-const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;
-const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_CORRECTION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
 const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_ASSIGNMENT_BARRIER_TIMEOUT_MS = 30_000;
 const CONTENDED_PUBLICATION_BARRIER_TIMEOUT_MS = 30_000;
@@ -1176,7 +1180,7 @@ process.exit(result.status ?? 1);
         response: expect.objectContaining({ assignment: templateState.assignment }),
       }),
     }));
-  }, 30_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("rejects malformed Assignment Responses atomically", async () => {
     await useRepositoryTemplate("active");
@@ -1281,5 +1285,5 @@ process.exit(result.status ?? 1);
     expect(git(identityRepository, "diff", "--binary", "HEAD").stdout).toBe(before);
     expect((await fs.readdir(path.join(identityRepository, ".lifecycle/data"))).sort())
       .toEqual([".gitkeep"]);
-  }, 60_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });

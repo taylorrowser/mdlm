@@ -3,6 +3,7 @@ import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, onTestFinished } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { parse } from "yaml";
 import { executeCommandApplication } from "../src/command-application.js";
 import {
@@ -25,9 +26,9 @@ async function mdlmWithInput(
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
 }
 
-// Twice the 44,830 ms isolated pass is 89,660 ms; round up to 90,000 ms.
-// This leaves 26,825 ms above the 63,175 ms contended failure observation.
-const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = 90_000;
+// Twice the 54,154 ms exact max-2 pass is 108,308 ms; round strictly up.
+// The resulting shared bound also clears the retained 91,141 ms failure.
+const CONTENDED_REVIEW_ASSIGNMENT_TEST_TIMEOUT_MS = PROCESS_REPOSITORY_TEST_TIMEOUT_MS;
 
 function parseLifecycleMarkdown(source: string): Record<string, unknown> {
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(source);

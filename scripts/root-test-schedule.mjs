@@ -84,3 +84,14 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
       || left.id.localeCompare(right.id);
   });
 }
+
+export function createRootTestTasksForClass(
+  runtimeClass,
+  policy = ROOT_TEST_SCHEDULING_POLICY,
+) {
+  const resolvedClass = runtimeClass === "canonical-filler"
+    ? "canonical-fixture-filler"
+    : runtimeClass;
+  return createRootTestTasks(policy)
+    .filter((task) => task.runtimeClass === resolvedClass);
+}

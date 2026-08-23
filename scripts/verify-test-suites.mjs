@@ -10,6 +10,7 @@ import {
   ROOT_TEST_TOKEN_CAPACITY,
   rootTestManifest,
 } from "./root-test-schedule.mjs";
+import { verifyRootTestObservationPolicy } from "./root-test-observation-policy.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -92,6 +93,11 @@ for (const file of difference(mdlmPiDiscovered, mdlmPiTestFiles)) {
 }
 for (const file of difference(mdlmPiTestFiles, mdlmPiDiscovered)) {
   errors.push(`Stale mdlm-pi Vitest entry: ${file}`);
+}
+try {
+  verifyRootTestObservationPolicy(repositoryRoot);
+} catch (error) {
+  errors.push(error instanceof Error ? error.message : String(error));
 }
 
 if (errors.length > 0) {

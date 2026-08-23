@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { executeCommandApplication } from "../src/command-application.js";
 import { readScenarioExecution } from "../src/scenario-execution.js";
 import {
@@ -186,7 +187,7 @@ describe("Phase 0 corrected-gate public route", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 60_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("corrects gate authority and atomically materializes its exact Review Context", async () => {
     const { parent, repository } = await initializedRepository(
@@ -300,7 +301,7 @@ describe("Phase 0 corrected-gate public route", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 90_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("reviews corrected gate authority from its provenance-complete checkpoint", async () => {
     const { parent, repository } = await initializedRepository(
@@ -359,7 +360,7 @@ describe("Phase 0 corrected-gate public route", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 60_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("accepts corrected Phase 0 intent from its reviewed checkpoint", async () => {
     const { parent, repository } = await initializedRepository(

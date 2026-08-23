@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import type { AssignmentPacket, JsonObject } from "../packages/mdlm-pi/src/mdlm-client.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import {
@@ -227,5 +228,5 @@ describe("initial product-intent resolution authority", () => {
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }
-  }, 60_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });

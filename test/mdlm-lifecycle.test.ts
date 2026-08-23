@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import {
   evaluateLifecycle,
   loadProcessPackage,
@@ -379,7 +380,7 @@ describe("mdlm lifecycle status and next work", () => {
         ],
       }),
     ]);
-  }, 10_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("preserves reviewed gate evidence and progression", async () => {
     const gateFixture = reviewedGateFixture("git:mdlm-lifecycle");
@@ -449,7 +450,7 @@ describe("mdlm lifecycle status and next work", () => {
         }),
       }),
     );
-  }, 10_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("preserves exact waiver evidence", async () => {
     const waiverSnapshotValue: LifecycleSnapshot = {
@@ -501,5 +502,5 @@ describe("mdlm lifecycle status and next work", () => {
     expect(humanWaiver.stdout).toContain(
       "Waiver Evidence: DEC-8ZT5KQ3P9M-r00001",
     );
-  }, 10_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });

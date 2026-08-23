@@ -11,6 +11,7 @@ import {
   expect,
   it,
 } from "vitest";
+import { PROCESS_REPOSITORY_HOOK_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { parse, stringify } from "yaml";
 import {
   inspectAssignmentState,
@@ -510,7 +511,7 @@ describe("public mdlm outcome and status seam", () => {
 
     bootstrapPackageFoundation = await canonicalProcessPackage();
     terminalPackageFoundation = await operatorTerminalProcessPackageFixture();
-  }, 30_000);
+  }, PROCESS_REPOSITORY_HOOK_TIMEOUT_MS);
 
   afterAll(async () => {
     await fs.rm(foundationParent, { recursive: true, force: true });

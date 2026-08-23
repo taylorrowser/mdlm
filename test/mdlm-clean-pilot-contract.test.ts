@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { executeCommandApplication } from "../src/command-application.js";
 
 const executable = path.join(process.cwd(), "dist/mdlm.js");
@@ -155,5 +156,5 @@ describe("clean pilot public-process contract", () => {
     expect(JSON.parse(stale.stdout).diagnostics).toEqual([
       expect.objectContaining({ code: "assignment-stale" }),
     ]);
-  }, 30_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });

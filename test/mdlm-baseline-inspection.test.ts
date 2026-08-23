@@ -4,6 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { stringify } from "yaml";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
+  PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
+} from "../scripts/root-test-observation-policy.mjs";
 import { executeCommandApplication } from "../src/command-application.js";
 import { loadProcessPackage, type DatumEnvelope, type ProcessPackage } from "../src/index.js";
 import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
@@ -20,12 +24,12 @@ import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { mdlmWithEnvironment } from "./helpers/mdlm.js";
 
-const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_BASELINE_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
 const CONTENDED_CHANGED_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_MANY_BASELINE_SETUP_HOOK_TIMEOUT_MS = 20_000;
 const CONTENDED_HISTORICAL_SETUP_HOOK_TIMEOUT_MS = 20_000;
-const CONTENDED_HISTORICAL_BASELINE_SETUP_HOOK_TIMEOUT_MS = 30_000;
-const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = 30_000;
+const CONTENDED_HISTORICAL_BASELINE_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
+const CONTENDED_TEST_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
 const CONTENDED_TRACKED_CHANGES_TEST_TIMEOUT_MS = 45_000;
 
 async function executeMdlm(repository: string, ...arguments_: string[]) {
@@ -1238,7 +1242,7 @@ describe("mdlm baseline inspection", () => {
     expect(result.diagnostics.repository.markdownFiles).toBeGreaterThan(30);
     expect(result.diagnostics.work["baseline.revisions-checked"])
       .toBeGreaterThan(30);
-  }, 30_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("loads one snapshot for current-package baseline operator inspection", () => {
     const status = mdlmWithEnvironment(

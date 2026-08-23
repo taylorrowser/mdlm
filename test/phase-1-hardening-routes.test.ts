@@ -5,6 +5,7 @@ import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { beforeAll, describe, expect, it } from "vitest";
+import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import {
   evaluateLifecycle,
   loadProcessPackage,
@@ -2801,7 +2802,7 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(repository, { recursive: true, force: true });
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  }, 30_000);
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("allocates Review of corrected VAI r2 instead of a run for failed superseded r1", async () => {
     const repository = await fs.mkdtemp(
