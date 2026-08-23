@@ -17,7 +17,7 @@
         "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
         "route": "test/phase-1-hardening-routes.test.ts: retries after a durable all-not-launched run and progresses only after exercised evidence through the public command application",
         "captureLog": "/tmp/issue-203-phase1-pilot-retry-exact-recapture.log",
-        "captureResult": "exit 0; 1 passed; 25 skipped; 35184 ms whole process group; source records captured with the exact selected package digest",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 35184 ms whole process group; source Lifecycle Data captured with the exact selected package digest",
         "compression": "gzip -n -9"
       }
     },
@@ -37,7 +37,7 @@
         "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
         "route": "test/phase-1-hardening-routes.test.ts: executes and repository-validates exact RUN and RES outputs through the package Scenario",
         "captureLog": "/tmp/issue-203-phase1-runres-exact-recapture.log",
-        "captureResult": "exit 0; 1 passed; 25 skipped; 50257 ms whole process group; source records captured with the exact selected package digest",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 50257 ms whole process group; source Lifecycle Data captured with the exact selected package digest",
         "compression": "gzip -n -9"
       }
     },
@@ -51,13 +51,13 @@
         "reference": "mdlm-bootstrap@0.74.0",
         "digest": "sha256:fe4b03737ad107e325e14ce24d53389ae1fa0636222297d83ccdfe4901bf6784"
       },
-      "checkpoint": "Immediately after exact RUN/RES Scenario publication, retaining the completed Assignment-backed execution and all source records.",
+      "checkpoint": "Immediately after exact RUN/RES Scenario publication, retaining the completed Assignment-backed execution and all source Lifecycle Data.",
       "provenance": {
         "sourceCommit": "245e873dc826c2c287d429c3df681df8fbee287f",
         "sourceTree": "d97ddef5c8e835589775a19ef12171e30074d859",
         "route": "test/phase-1-hardening-routes.test.ts: executes and repository-validates exact RUN and RES outputs through the package Scenario",
         "captureLog": "/tmp/issue-203-phase1-runres-exact-recapture.log",
-        "captureResult": "exit 0; 1 passed; 25 skipped; 50257 ms whole process group; source records captured with the exact selected package digest",
+        "captureResult": "exit 0; 1 passed; 25 skipped; 50257 ms whole process group; source Lifecycle Data captured with the exact selected package digest",
         "compression": "gzip -n -9"
       }
     },

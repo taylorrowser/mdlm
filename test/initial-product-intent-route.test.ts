@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
+import { executeCommandApplication } from "../src/command-application.js";
 import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
 import {
   directoryDigest,
@@ -271,6 +272,112 @@ describe("initial product-intent authority", () => {
       };
       const product = await submitAssignment(repository, compile!, [productOutput]);
       expect(product.status, `${product.stderr}${product.stdout}`).toBe(0);
+      const publishedProduct = JSON.parse(product.stdout).execution.outputs[0]
+        .lifecycleDatum;
+
+      let stakeholderDraft: PreparedAssignment | undefined;
+      for (let step = 0; step < 3; step += 1) {
+        const prepared = await prepareNextAssignment(repository);
+        if (prepared.packet.scenario.reference === "draft-stakeholder-requirements@2") {
+          stakeholderDraft = prepared;
+          break;
+        }
+        expect(prepared.packet.scenario.reference).toBe("review-datum-in-context@2");
+        const reviewed = await submitAssignment(repository, prepared, reviewOutput(prepared));
+        expect(reviewed.status, `${reviewed.stderr}${reviewed.stdout}`).toBe(0);
+      }
+      expect(stakeholderDraft).toBeDefined();
+      const requiredStakeholderDraft = stakeholderDraft!;
+      expect(inputRevision(requiredStakeholderDraft, "product_specification")).toBe(
+        publishedProduct.revisionId,
+      );
+      const dataRootAfterProduct = path.join(repository, ".lifecycle", "data");
+      const beforeMalformedStakeholder = await directoryDigest(dataRootAfterProduct);
+      const stakeholderOutput: ProposedOutput = {
+        localId: "requirement",
+        name: "requirements",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "STK",
+          payload: {
+            title: "Command-line conversion stakeholder requirement",
+            rationale: "Retain one exact current-package public authoring route.",
+            statement: "The converter shall apply the accepted formulas and output contract.",
+            verification_intent: "Exercise both unit directions and every invalid input class.",
+            stakeholder: "command-line user",
+            priority: "must",
+            system_context: "temperature-converter",
+          },
+          links: [],
+          body: "This requirement derives from the exact current product specification.\n",
+        },
+      };
+      const malformedStakeholder = await submitAssignment(
+        repository,
+        requiredStakeholderDraft,
+        [stakeholderOutput],
+      );
+      expect(malformedStakeholder.status).toBe(1);
+      expect(JSON.parse(malformedStakeholder.stdout).diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-output-required-link-missing" }),
+        ]),
+      );
+      expect(await directoryDigest(dataRootAfterProduct)).toBe(
+        beforeMalformedStakeholder,
+      );
+
+      stakeholderOutput.lifecycleDatum.links = [{
+        type: "derived-from",
+        target: publishedProduct.id,
+      }];
+      const stakeholder = await submitAssignment(
+        repository,
+        requiredStakeholderDraft,
+        [stakeholderOutput],
+      );
+      expect(stakeholder.status, `${stakeholder.stderr}${stakeholder.stdout}`).toBe(0);
+      const stakeholderExecution = JSON.parse(stakeholder.stdout).execution;
+      expect(stakeholderExecution.definition.scenario).toBe(
+        "draft-stakeholder-requirements@2",
+      );
+      const publishedStakeholder = stakeholderExecution.outputs[0].lifecycleDatum;
+      expect(stakeholderExecution.outputs[0].data.links).toContainEqual({
+        type: "derived-from",
+        target: publishedProduct.id,
+      });
+
+      const nextReview = await prepareNextAssignment(repository);
+      expect(nextReview.packet.scenario.reference).not.toBe(
+        "create-review-context@1",
+      );
+      const listed = await executeCommandApplication(["list", "--json"], repository);
+      expect(listed.exitCode, listed.output).toBe(0);
+      const generatedContext = (
+        JSON.parse(listed.output).data as Array<{
+          lifecycleDatum: { datum: { type: string; payload: Record<string, unknown> } };
+        }>
+      )
+        .map((item) => item.lifecycleDatum.datum)
+        .find((datum) =>
+          datum.type === "BSL" &&
+          datum.payload.scope === publishedStakeholder.revisionId
+        );
+      expect(generatedContext?.payload.definition_members).toEqual([
+        publishedProduct.revisionId,
+        publishedStakeholder.revisionId,
+      ]);
+      expect(generatedContext?.payload.evidence).toEqual([]);
+      const generatedSnapshot = generatedContext?.payload.snapshot as
+        { member_hashes: Record<string, string> } | undefined;
+      expect(Object.keys(generatedSnapshot?.member_hashes ?? {})).toEqual([
+        publishedProduct.revisionId,
+        publishedStakeholder.revisionId,
+      ]);
+      expect(Object.values(generatedSnapshot?.member_hashes ?? {})).toEqual([
+        expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+      ]);
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
     }

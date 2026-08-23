@@ -750,9 +750,7 @@ interface ScenarioExecutionProvenance {
 }
 
 interface CapturedTransactionSource {
-  relativePath: string;
   source: string;
-  digest: string;
 }
 
 async function scenarioExecutionProvenance(
@@ -896,17 +894,13 @@ async function captureTransactionSources(
   ))].sort();
   try {
     return new Map(await Promise.all(transactions.map(async (transaction) => {
-      const relativePath = path.join(
+      const executionPath = path.join(
         ".lifecycle/data/.transactions",
         transaction,
         "execution.json",
       );
-      const source = await fs.readFile(path.join(root, relativePath), "utf8");
-      return [transaction, {
-        relativePath,
-        source,
-        digest: sourceDigest(Buffer.from(source)),
-      }] as const;
+      const source = await fs.readFile(path.join(root, executionPath), "utf8");
+      return [transaction, { source }] as const;
     })));
   } catch {
     return undefined;

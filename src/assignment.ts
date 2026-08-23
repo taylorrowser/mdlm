@@ -728,7 +728,7 @@ function phaseReference(evaluation: LifecycleEvaluation): string {
   return phase ? `${phase.id}@${phase.version}` : "";
 }
 
-/** Project package-neutral operator work from one lifecycle evaluation and its records. */
+/** Project package-neutral operator work from one lifecycle evaluation and its Lifecycle Data. */
 export function operatorWorkProjection(
   evaluation: LifecycleEvaluation,
   records: readonly LifecycleRecord[] = [],
