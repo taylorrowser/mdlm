@@ -307,7 +307,7 @@ describe("PiAssignmentRunner", () => {
     await runner.dispose();
   });
 
-  it("retains corrected output routing for a non-authority diagnostic", async () => {
+  it("retains packet-valid routing repaired alongside unexpected authority", async () => {
     const initialResponse: JsonObject = {
       contract: "mdlm-assignment-response@1",
       assignment: assignmentId,
@@ -319,7 +319,7 @@ describe("PiAssignmentRunner", () => {
           invocation: 0,
           lifecycleDatum: { type: "QST", payload: { title: "Wrong type" }, links: [] },
         }],
-        authoritySupplies: [],
+        authoritySupplies: ["unexpected-authority"],
       },
     };
     const workerCorrection: JsonObject = {
@@ -332,6 +332,7 @@ describe("PiAssignmentRunner", () => {
           invocation: 0,
           lifecycleDatum: { type: "QST", payload: { title: "Corrected routing" }, links: [] },
         }],
+        authoritySupplies: [],
       },
     };
     const responses = [initialResponse, workerCorrection];
@@ -367,9 +368,9 @@ describe("PiAssignmentRunner", () => {
       correction: {
         previousResponse: initialResponse,
         diagnostics: [{
-          code: "scenario-output-type-invalid",
-          path: "proposal.outputs[0].lifecycleDatum.type",
-          message: "Output type is invalid for its declared output name",
+          code: "scenario-authority-unexpected",
+          path: "compile-product-specification@1#authority",
+          message: "Scenario received authority not required by its exact participation",
         }],
       },
     })).resolves.toEqual(workerCorrection);

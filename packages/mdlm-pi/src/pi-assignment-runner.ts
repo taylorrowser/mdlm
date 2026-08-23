@@ -155,7 +155,7 @@ export class PiAssignmentRunner {
       const response = correctMissingUnattendedAuthority(packet, options.correction) ??
         active.response;
       return carryAttendedAuthority(
-        preserveValidCorrectionOutputRouting(packet, options.correction, response),
+        restorePacketInvalidCorrectionRouting(packet, options.correction, response),
         attendedAuthority,
         assignmentId,
       );
@@ -379,7 +379,7 @@ function correctMissingUnattendedAuthority(
   };
 }
 
-function preserveValidCorrectionOutputRouting(
+function restorePacketInvalidCorrectionRouting(
   packet: AssignmentPacket,
   correction: AssignmentCorrection | undefined,
   response: JsonObject,
@@ -432,13 +432,20 @@ function preserveValidCorrectionOutputRouting(
   let changed = false;
   const outputs = proposal.outputs.map((output) => {
     if (!isJsonObject(output) || typeof output.localId !== "string") return output;
-    const routing = routingByLocalId.get(output.localId);
-    if (
-      routing === undefined ||
-      (output.name === routing.name && output.invocation === routing.invocation)
-    ) return output;
+    const priorRouting = routingByLocalId.get(output.localId);
+    if (priorRouting === undefined) return output;
+    const nameIsPacketInvalid =
+      typeof output.name !== "string" || !declaredNames.has(output.name);
+    const invocationIsPacketInvalid =
+      !Number.isInteger(output.invocation) || (output.invocation as number) < 0 ||
+      (output.invocation as number) >= exactInputs.length;
+    if (!nameIsPacketInvalid && !invocationIsPacketInvalid) return output;
     changed = true;
-    return { ...output, ...routing };
+    return {
+      ...output,
+      ...(nameIsPacketInvalid ? { name: priorRouting.name } : {}),
+      ...(invocationIsPacketInvalid ? { invocation: priorRouting.invocation } : {}),
+    };
   });
   if (!changed) return response;
   return { ...response, proposal: { ...proposal, outputs } };
