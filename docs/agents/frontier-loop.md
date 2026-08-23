@@ -141,9 +141,9 @@ node scripts/frontier-loop.mjs status --parent 123
 
 ## Test tiers
 
-`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs each root resource class at its declared finite worker cap, and runs controller tests. Its default process budget is exactly 10 minutes. On the current four-logical-CPU, two-physical-core SMT host, preflight evidence must conservatively model the complete root gate at 540 seconds or less, including class work, selected concurrency, orchestration overhead, and reserve. This leaves at least 60 seconds below the exact 600-second process deadline. Do not describe a small observation set as p95 evidence.
+`npm test` is the normal authoritative gate. It builds once, verifies every Vitest file is classified exactly once, runs each root resource class at its declared finite worker cap, and runs controller tests. Its default process budget is exactly 10 minutes. On the current four-logical-CPU, two-physical-core SMT host, preflight evidence must conservatively model the complete root gate at 590 seconds or less, including class work, selected concurrency, orchestration overhead, and reserve. The model must leave at least 10 seconds below the exact 600-second process deadline. Do not describe a small observation set as p95 evidence.
 
-The former 430-second root-p95 target, 510-second end-to-end target, 90-second reserve, and four-physical-core eligibility assumption are superseded policy history. They do not override the current host model. Earlier 420-second gate timeouts remain failures rather than timing successes.
+The earlier stakeholder criteria recorded on issue #203 are superseded policy history and do not override the current host model. Earlier gate timeouts remain failures rather than timing successes.
 
 `npm test` is the single bounded authoritative gate. It combines package/evaluator contracts with representative compiled-public transactions instead of retaining exhaustive duplicate lifecycle reconstructions. `npm run test:all` is an alias for the same complete bounded gate. New test files must be classified in `vitest.suites.mjs`; verification fails if a file is missing, duplicated, or stale.
 

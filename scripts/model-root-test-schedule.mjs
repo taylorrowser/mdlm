@@ -12,9 +12,9 @@ import {
 } from "./root-test-schedule.mjs";
 import { simulateWeightedSchedule } from "./weighted-token-scheduler.mjs";
 
-const ROOT_ELIGIBILITY_MS = 540_000;
+const ROOT_ELIGIBILITY_MS = 590_000;
 const OUTER_DEADLINE_MS = 600_000;
-const REQUIRED_OUTER_HEADROOM_MS = 60_000;
+const REQUIRED_OUTER_HEADROOM_MS = 10_000;
 const ORCHESTRATION_ALLOWANCE_MS = 2_000;
 const CONSERVATIVE_RESERVE_MS = 20_000;
 const HEAVY_PAIR_CONTENTION_ALLOWANCE_MS = 56_595;

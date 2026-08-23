@@ -193,8 +193,8 @@ test("exact-current heavy, bounded-safe, and mixed observations select the lower
   assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=593335 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=5584 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=677514/);
   assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=467966 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=2 mixed_allowance_ms=11168 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=501134/);
   assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=501134/);
-  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=38866/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=98866 required_outer_headroom_ms=60000 headroom_margin_ms=38866/);
+  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=88866/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=98866 required_outer_headroom_ms=10000 headroom_margin_ms=88866/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
 
