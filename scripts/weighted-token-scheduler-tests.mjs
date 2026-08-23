@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -116,6 +116,33 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(tasks.filter((task) => task.runtimeClass !== "cheap-in-process").every((task) => task.files.length === 1), true);
   assert.deepEqual([...scheduledFiles].sort(), discovered);
   assert.equal(new Set(scheduledFiles).size, 47);
+});
+
+test("exact-current heavy observations and grouped contention remain calibrated", () => {
+  assert.deepEqual(
+    rootTestManifest
+      .filter((entry) => entry.runtimeClass === "process-repository-heavy")
+      .map(({ file, measuredDurationMs }) => [file, measuredDurationMs]),
+    [
+      ["test/load-process-package.test.ts", 66_137],
+      ["test/mdlm-baseline-inspection.test.ts", 62_087],
+      ["test/mdlm-assignment.test.ts", 122_363],
+      ["test/proportional-distinct-context-phase-2-public.test.ts", 116_198],
+    ],
+  );
+
+  const model = spawnSync(process.execPath, ["scripts/model-root-test-schedule.mjs"], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8",
+  });
+  assert.equal(model.status, 2, model.stderr);
+  assert.match(model.stdout, /representative_predicted_ms=144100 representative_observed_wall_ms=131170/);
+  assert.match(model.stdout, /heavy_pair_focused_parallel_floor_ms=122363 heavy_pair_observed_scheduler_wall_ms=178958/);
+  assert.match(model.stdout, /heavy_pair_contention_multiplier=1\.463 heavy_pair_contention_allowance_ms=56595/);
+  assert.match(model.stdout, /simulated_schedule_ms=603057 modeled_root_ms=681652/);
+  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-141652/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-81652/);
+  assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
 });
 
 test("the schedule simulator uses the same deterministic token and compatibility policy", () => {

@@ -12,10 +12,10 @@ export const mdlmPiTestFiles = [
 // Durations are the latest selected successful focused observations. They
 // include focused Vitest startup and remain estimates, not p95s.
 export const rootTestManifest = [
-  { file: "test/load-process-package.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 81_460 },
-  { file: "test/mdlm-baseline-inspection.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 97_030 },
-  { file: "test/mdlm-assignment.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 179_860 },
-  { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 187_150 },
+  { file: "test/load-process-package.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 66_137 },
+  { file: "test/mdlm-baseline-inspection.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 62_087 },
+  { file: "test/mdlm-assignment.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 122_363 },
+  { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 2, measuredDurationMs: 116_198 },
 
   { file: "test/dependency-changes.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 9_352 },
   { file: "test/evaluate-phase.test.ts", runtimeClass: "repository-public-sensitive", weight: 2, measuredDurationMs: 10_925 },
