@@ -1,7 +1,9 @@
 import { spawnSync } from "node:child_process";
 import {
   ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+  ROOT_TEST_SCHEDULING_POLICY,
   ROOT_TEST_TOKEN_CAPACITY,
+  createRootTestAdmissionPolicy,
   createRootTestTasks,
   rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
@@ -40,6 +42,7 @@ async function runRootTests() {
     const tasks = createRootTestTasks();
     await runWeightedSchedule(tasks, {
       capacity: ROOT_TEST_TOKEN_CAPACITY,
+      canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
       canOverlap: rootTestTasksCanOverlap,
       classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
       signal: cancellation.signal,

@@ -17,7 +17,9 @@ import {
   CHEAP_BATCH_COUNT,
   MAX_CHEAP_FILES_PER_BATCH,
   ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+  ROOT_TEST_SCHEDULING_POLICIES,
   ROOT_TEST_TOKEN_CAPACITY,
+  createRootTestAdmissionPolicy,
   createRootTestTasks,
   rootTestManifest,
   rootTestTasksCanOverlap,
@@ -71,6 +73,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
 
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
+    "process-repository-heavy": 2,
     "repository-public-three-way-safe": 3,
   });
   assert.equal(rootTestManifest.length, 47);
@@ -107,7 +110,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(rootTestTasksCanOverlap(
     { runtimeClass: "process-repository-heavy" },
     { runtimeClass: "repository-public-three-way-safe" },
-  ), false);
+  ), true);
   assert.equal(rootTestTasksCanOverlap(
     { runtimeClass: "process-repository-heavy" },
     { runtimeClass: "process-repository-heavy" },
@@ -167,7 +170,7 @@ test("exact-current three-way outcomes remain calibrated without using failed ti
   );
 });
 
-test("exact-current heavy and three-way representative observations remain calibrated", () => {
+test("exact-current heavy, three-way, and mixed observations select the lower honest policy", () => {
   assert.deepEqual(
     rootTestManifest
       .filter((entry) => entry.runtimeClass === "process-repository-heavy")
@@ -185,11 +188,13 @@ test("exact-current heavy and three-way representative observations remain calib
     encoding: "utf8",
   });
   assert.equal(model.status, 2, model.stderr);
-  assert.match(model.stdout, /representative_predicted_ms=223861 representative_observed_scheduler_wall_ms=265550 representative_observed_wrapper_wall_ms=265726/);
-  assert.match(model.stdout, /representative_contention_allowance_ms=41689/);
-  assert.match(model.stdout, /simulated_schedule_ms=558459 modeled_root_ms=622148/);
-  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-82148/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=-22148/);
+  assert.match(model.stdout, /mixed_predicted_ms=122363 mixed_observed_scheduler_wall_ms=155870 mixed_observed_wrapper_wall_ms=156030 mixed_test_work_ms=331560/);
+  assert.match(model.stdout, /mixed_contention_multiplier=1\.273833 mixed_contention_allowance_ms=33507/);
+  assert.match(model.stdout, /policy=heavy-pair-first simulated_schedule_ms=555051 heavy_pair_windows=1 heavy_pair_allowance_ms=56595 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=1 three_way_allowance_ms=41689 modeled_root_ms=708842/);
+  assert.match(model.stdout, /policy=one-heavy-while-safe simulated_schedule_ms=526981 heavy_pair_windows=0 heavy_pair_allowance_ms=0 mixed_windows=1 mixed_allowance_ms=33507 three_way_windows=0 three_way_allowance_ms=0 modeled_root_ms=582488/);
+  assert.match(model.stdout, /selected_policy=one-heavy-while-safe modeled_root_ms=582488/);
+  assert.match(model.stdout, /root_eligibility_ms=540000 root_margin_ms=-42488/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=17512 required_outer_headroom_ms=60000 headroom_margin_ms=-42488/);
   assert.match(model.stdout, /claim=NO_GO_MODEL_BLOCKER/);
 });
 
@@ -210,6 +215,50 @@ test("the schedule simulator uses the same deterministic token and compatibility
     [10, "sensitive"],
   ]);
   assert.equal(simulation.maximumActiveWeight, 3);
+});
+
+test("one-heavy safe fill admission is shared by deterministic simulation and runtime", async () => {
+  const tasks = [
+    { id: "heavy-a", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 10 },
+    { id: "heavy-b", runtimeClass: "process-repository-heavy", weight: 2, estimatedDurationMs: 5 },
+    { id: "safe-a", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 4 },
+    { id: "safe-b", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 6 },
+    { id: "safe-c", runtimeClass: "repository-public-three-way-safe", weight: 1, estimatedDurationMs: 3 },
+  ];
+  const canAdmit = createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICIES.ONE_HEAVY_WHILE_SAFE);
+  const options = {
+    capacity: 4,
+    canAdmit,
+    canOverlap: rootTestTasksCanOverlap,
+    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+  };
+  const simulation = simulateWeightedSchedule(tasks, options);
+  assert.deepEqual(simulation.launches.map(({ atMs, taskId, activeWeight }) => [atMs, taskId, activeWeight]), [
+    [0, "heavy-a", 2],
+    [0, "safe-a", 3],
+    [0, "safe-b", 4],
+    [4, "safe-c", 4],
+    [7, "heavy-b", 4],
+  ]);
+  assert.equal(simulation.wallMs, 12);
+  assert.equal(simulation.maximumActiveWeight, 4);
+
+  const controlled = controlledLauncher();
+  const scheduled = runWeightedSchedule(tasks, { ...options, launch: controlled.launch });
+  await waitFor(() => controlled.events.length === 3, "one heavy and two safe tasks did not launch");
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b"]);
+  controlled.controls.get("safe-a").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 4, "safe work did not backfill beside heavy work");
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c"]);
+  controlled.controls.get("safe-b").completion.resolve({ status: 0, signal: null });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c"]);
+  controlled.controls.get("safe-c").completion.resolve({ status: 0, signal: null });
+  await waitFor(() => controlled.events.length === 5, "second heavy did not launch after safe work drained");
+  assert.deepEqual(controlled.events, ["heavy-a", "safe-a", "safe-b", "safe-c", "heavy-b"]);
+  controlled.controls.get("heavy-a").completion.resolve({ status: 0, signal: null });
+  controlled.controls.get("heavy-b").completion.resolve({ status: 0, signal: null });
+  await scheduled;
 });
 
 test("class concurrency limits are shared by deterministic simulation and runtime admission", async () => {
