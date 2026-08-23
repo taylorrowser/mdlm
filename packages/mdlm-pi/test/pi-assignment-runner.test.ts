@@ -308,7 +308,7 @@ describe("PiAssignmentRunner", () => {
     await runner.dispose();
   });
 
-  it("retains packet-valid routing repaired alongside unexpected authority", async () => {
+  it("retains packet-valid repairs while restoring duplicate-local-id routing", async () => {
     const initialResponse: JsonObject = {
       contract: "mdlm-assignment-response@1",
       assignment: assignmentId,
@@ -319,6 +319,11 @@ describe("PiAssignmentRunner", () => {
           name: "product_specification",
           invocation: 0,
           lifecycleDatum: { type: "QST", payload: { title: "Wrong type" }, links: [] },
+        }, {
+          localId: "question",
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: { type: "QST", payload: { title: "Initial question" }, links: [] },
         }],
         authoritySupplies: ["unexpected-authority"],
       },
@@ -332,6 +337,11 @@ describe("PiAssignmentRunner", () => {
           name: "questions",
           invocation: 0,
           lifecycleDatum: { type: "QST", payload: { title: "Corrected routing" }, links: [] },
+        }, {
+          localId: "result",
+          name: "invented-output",
+          invocation: 1,
+          lifecycleDatum: { type: "QST", payload: { title: "Corrected question" }, links: [] },
         }],
         authoritySupplies: [],
       },
@@ -374,7 +384,19 @@ describe("PiAssignmentRunner", () => {
           message: "Scenario received authority not required by its exact participation",
         }],
       },
-    })).resolves.toEqual(workerCorrection);
+    })).resolves.toEqual({
+      ...workerCorrection,
+      proposal: {
+        ...(workerCorrection.proposal as JsonObject),
+        outputs: [{
+          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[0]!,
+        }, {
+          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[1]!,
+          name: "questions",
+          invocation: 0,
+        }],
+      },
+    });
 
     await runner.dispose();
   });

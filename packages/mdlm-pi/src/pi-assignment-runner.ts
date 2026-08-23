@@ -432,11 +432,20 @@ function restorePacketInvalidCorrectionRouting(
     }
   }
 
+  const correctedLocalIds = proposal.outputs.flatMap((output) =>
+    isJsonObject(output) && typeof output.localId === "string" ? [output.localId] : []
+  );
+  const correctionPreservesLocalIdSet =
+    correctedLocalIds.length === proposal.outputs.length &&
+    new Set(correctedLocalIds).size === correctedLocalIds.length &&
+    correctedLocalIds.length === routingByLocalId.size &&
+    correctedLocalIds.every((localId) => routingByLocalId.has(localId));
+
   let changed = false;
   const outputs = proposal.outputs.map((output, index) => {
     if (!isJsonObject(output)) return output;
-    const priorRouting = typeof output.localId === "string"
-      ? routingByLocalId.get(output.localId) ?? routingByPosition[index]
+    const priorRouting = correctionPreservesLocalIdSet && typeof output.localId === "string"
+      ? routingByLocalId.get(output.localId)
       : routingByPosition[index];
     if (priorRouting === undefined) return output;
     const nameIsPacketInvalid =
