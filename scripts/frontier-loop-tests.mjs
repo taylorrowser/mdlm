@@ -336,6 +336,7 @@ test("root Vitest files have one weighted runtime class", async () => {
   assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [2, 2, 1, 1, 1]);
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
+    "process-repository-heavy": 2,
     "repository-public-three-way-safe": 3,
   });
   assert.equal(rootTestManifest.every((entry) => Number.isInteger(entry.weight)
@@ -371,6 +372,8 @@ test("the authoritative runner uses the bounded weighted process scheduler", () 
   assert.match(source, /launchProcessGroupTask/);
   assert.match(source, /ROOT_TEST_TOKEN_CAPACITY/);
   assert.match(source, /ROOT_TEST_CLASS_CONCURRENCY_LIMITS/);
+  assert.match(source, /createRootTestAdmissionPolicy/);
+  assert.match(source, /ROOT_TEST_SCHEDULING_POLICY/);
   assert.match(source, /rootTestTasksCanOverlap/);
   assert.match(source, /--maxWorkers=1/);
   assert.match(source, /\.\.\.task\.files/);
