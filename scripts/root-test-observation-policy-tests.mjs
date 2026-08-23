@@ -164,6 +164,17 @@ test("all 47 root tests have complete child-process observation policy", async (
       "domain-contract-deadlines",
     ],
   );
+  assert.deepEqual(
+    inventory.nonChildTimeouts.find((entry) =>
+      entry.kind === "cleanup-proof-wrapper-deadlines"),
+    {
+      file: "test/phase-1-hardening-routes.test.ts",
+      line: 48,
+      kind: "cleanup-proof-wrapper-deadlines",
+      effectiveTimeout: "3,000 ms cleanup probe with 1,000 ms grace; 1,000 ms subsequent case with 100 ms grace",
+      disposition: "test-owned cleanup contract deadline sized for the measured four-process root cohort; outer spawnSync is unbounded and production deadlines are unchanged",
+    },
+  );
 });
 
 test("all 47 root tests have complete executable observation-limit policy", async () => {
@@ -488,8 +499,13 @@ test("known contended in-process setup hooks use measured named limits", async (
   );
   assert.match(setupSource, /CONTENDED_IN_PROCESS_SETUP_LIMITS\[policy\.file\]/);
   assert.match(setupSource, /vi\.setConfig\(\{ hookTimeout \}\)/);
+  const rendered = renderRootTestObservationInventory();
   assert.match(
-    renderRootTestObservationInventory(),
+    rendered,
     /Scoped-obligation hook: the failed 10,300 ms setup observation remains failure evidence; the central 30,000 ms contended setup limit clears it/,
+  );
+  assert.match(
+    rendered,
+    /Phase 1 cleanup probe: the authoritative four-process start proved 300 ms plus 100 ms grace could expire before descendant readiness/,
   );
 });

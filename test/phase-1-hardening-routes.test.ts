@@ -43,6 +43,11 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { initializeProcessPackageFixture } from "./helpers/mdlm.js";import { copiedProcessPackage } from "./helpers/process-package.js";
 
 const processRef = "mdlm-bootstrap@0.71.0#sha256:phase-1-route-evidence";
+// This test-owned deadline covers a Node parent and descendant starting under
+// the measured four-process root cohort. It does not change a product deadline.
+const CLEANUP_PROBE_TIMEOUT_MS = 3_000;
+const CLEANUP_PROBE_TERMINATION_GRACE_MS = 1_000;
+const CLEANUP_PROBE_PARTIAL_MARKER = "partial-before-timeout";
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
 
@@ -3215,14 +3220,12 @@ describe("Phase 1 hardening route evidence", () => {
     const stubbornGroup = `
 const { spawn } = require("node:child_process");
 process.on("SIGTERM", () => process.stdout.write("parent-term-observed\\n"));
+process.stdout.write(${JSON.stringify(CLEANUP_PROBE_PARTIAL_MARKER)} + " parent=" + process.pid + "\\n");
 const descendant = spawn(process.execPath, ["-e", ${JSON.stringify(`
 process.on("SIGTERM", () => process.stdout.write("descendant-term-observed\\n"));
 process.stdout.write("descendant-ready pid=" + process.pid + "\\n");
 setInterval(() => {}, 1000);
 `)}], { stdio: ["ignore", "pipe", "inherit"] });
-descendant.stdout.once("data", (chunk) => {
-  process.stdout.write("partial-before-timeout parent=" + process.pid + " " + chunk);
-});
 descendant.stdout.pipe(process.stdout, { end: false });
 setInterval(() => {}, 1000);
 `;
@@ -3240,11 +3243,16 @@ setInterval(() => {}, 1000);
       });
 
     const aggregated = [
-      runCase(stubbornGroup, 300, 100),
+      runCase(
+        stubbornGroup,
+        CLEANUP_PROBE_TIMEOUT_MS,
+        CLEANUP_PROBE_TERMINATION_GRACE_MS,
+      ),
       runCase('process.stdout.write("subsequent-case-succeeded\\n")', 1_000, 100),
     ];
     expect(aggregated[0]).toEqual(expect.objectContaining({ status: 124 }));
-    expect(aggregated[0]!.stdout).toContain("partial-before-timeout");
+    expect(aggregated[0]!.stdout).toContain(CLEANUP_PROBE_PARTIAL_MARKER);
+    expect(aggregated[0]!.stdout).toContain("descendant-ready");
     expect(aggregated[0]!.stdout).toContain("parent-term-observed");
     expect(aggregated[0]!.stdout).toContain("descendant-term-observed");
     expect(aggregated[0]!.stderr).toContain("FRONTIER_PROCESS_TIMEOUT");

@@ -3,6 +3,10 @@ export const SAFE_LPT_ROOT_CEILING_MS = 590_000;
 export const SAFE_LPT_MAX2_COMMIT = "b2e60ac152b63cbb9be10b49b5dcf7515d46dabf";
 export const SAFE_LPT_MAX3_COMMIT = SAFE_LPT_MAX2_COMMIT;
 export const SAFE_LPT_SPLIT_COMMIT = "e4468ec6a432fdb975df0739a0070c85cbd7b807";
+// The Phase 1 test-owned cleanup contract increased from 300 + 100 ms to
+// 3,000 + 1,000 ms. Preserve the historical observations below and model the
+// exact 3,600 ms increase separately rather than relabeling it as measured.
+export const SAFE_LPT_PHASE_1_CLEANUP_CONTRACT_DELTA_MS = 3_600;
 export const SAFE_LPT_RUN_PROVENANCE = Object.freeze({
   max2: Object.freeze({
     commit: SAFE_LPT_MAX2_COMMIT,
@@ -89,20 +93,30 @@ export const safeLptEvidence = Object.freeze(evidence.map(([
   max2,
   max3,
   split,
-]) => Object.freeze({
-  file,
-  runtimeClass,
-  resourceOwnership,
-  focusedModelFallbackMs,
-  max2: outcome(max2),
-  max3: outcome(max3),
-  split: outcome(split),
-  selectedEstimateMs: max3[0] === "pass" ? max3[1] : focusedModelFallbackMs,
-  estimateKind: max3[0] === "pass"
-    ? "observed-success-max3"
-    : "exact-head-focused-model-fallback",
-  compatibleLaneIds: laneIds,
-})));
+]) => {
+  const selectedBaseEstimateMs = max3[0] === "pass" ? max3[1] : focusedModelFallbackMs;
+  const modeledContractDeltaMs = file === "test/phase-1-hardening-routes.test.ts"
+    ? SAFE_LPT_PHASE_1_CLEANUP_CONTRACT_DELTA_MS
+    : 0;
+  return Object.freeze({
+    file,
+    runtimeClass,
+    resourceOwnership,
+    focusedModelFallbackMs,
+    max2: outcome(max2),
+    max3: outcome(max3),
+    split: outcome(split),
+    selectedBaseEstimateMs,
+    modeledContractDeltaMs,
+    selectedEstimateMs: selectedBaseEstimateMs + modeledContractDeltaMs,
+    estimateKind: modeledContractDeltaMs > 0
+      ? "observed-success-max3-plus-intentional-contract-delta"
+      : max3[0] === "pass"
+        ? "observed-success-max3"
+        : "exact-head-focused-model-fallback",
+    compatibleLaneIds: laneIds,
+  });
+}));
 
 function createLptPlan(rows) {
   const lanes = laneIds.map((id) => ({ id, tasks: [], totalMs: 0 }));

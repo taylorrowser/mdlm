@@ -39,7 +39,8 @@ export const rootTestManifest = [
   { file: "test/phase-0-corrected-gate-route.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 85_291 },
   { file: "test/phase-0-hardening-routes.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 8_157 },
   { file: "test/phase-0-intent-candidate-currentness-route.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 72_074 },
-  { file: "test/phase-1-hardening-routes.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 101_498 },
+  // 101,498 ms focused observation plus the explicit 3,600 ms cleanup-contract increase.
+  { file: "test/phase-1-hardening-routes.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 105_098 },
   { file: "test/phase-2-hardening-routes.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 59_745 },
   { file: "test/proportional-phase-2-public.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 2_378 },
   { file: "test/selected-package-cache.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 29_228 },

@@ -186,7 +186,7 @@ test("exact-current safe ownership retains focused fallbacks without using faile
       ["test/operator-outcome.test.ts", 1, 51_114],
       ["test/phase-0-corrected-gate-route.test.ts", 1, 85_291],
       ["test/phase-0-intent-candidate-currentness-route.test.ts", 1, 72_074],
-      ["test/phase-1-hardening-routes.test.ts", 1, 101_498],
+      ["test/phase-1-hardening-routes.test.ts", 1, 105_098],
       ["test/phase-2-hardening-routes.test.ts", 1, 59_745],
       ["test/selected-package-cache.test.ts", 1, 29_228],
     ],
@@ -207,6 +207,7 @@ test("exact-current safe ownership retains focused fallbacks without using faile
 test("the fixed safe LPT plan covers all 19 files once below the 590-second ceiling", async () => {
   const {
     SAFE_LPT_LANE_COUNT,
+    SAFE_LPT_PHASE_1_CLEANUP_CONTRACT_DELTA_MS,
     SAFE_LPT_ROOT_CEILING_MS,
     safeLptEvidence,
     safeLptPlan,
@@ -230,7 +231,28 @@ test("the fixed safe LPT plan covers all 19 files once below the 590-second ceil
       safeLptEvidence,
       (entry) => entry.estimateKind,
     )).map(([kind, entries]) => [kind, entries.length])),
-    { "observed-success-max3": 11, "exact-head-focused-model-fallback": 8 },
+    {
+      "observed-success-max3": 10,
+      "observed-success-max3-plus-intentional-contract-delta": 1,
+      "exact-head-focused-model-fallback": 8,
+    },
+  );
+  assert.equal(SAFE_LPT_PHASE_1_CLEANUP_CONTRACT_DELTA_MS, 3_600);
+  assert.deepEqual(
+    (({ focusedModelFallbackMs, selectedBaseEstimateMs, modeledContractDeltaMs, selectedEstimateMs, estimateKind }) => ({
+      focusedModelFallbackMs,
+      selectedBaseEstimateMs,
+      modeledContractDeltaMs,
+      selectedEstimateMs,
+      estimateKind,
+    }))(safeLptEvidence.find((entry) => entry.file === "test/phase-1-hardening-routes.test.ts")),
+    {
+      focusedModelFallbackMs: 101_498,
+      selectedBaseEstimateMs: 169_240,
+      modeledContractDeltaMs: 3_600,
+      selectedEstimateMs: 172_840,
+      estimateKind: "observed-success-max3-plus-intentional-contract-delta",
+    },
   );
   assert.deepEqual(
     ["max2", "max3", "split"].map((run) => [
@@ -271,7 +293,7 @@ test("the fixed safe LPT plan covers all 19 files once below the 590-second ceil
       },
       {
         id: "safe-lpt-2",
-        totalMs: 580_283,
+        totalMs: 583_883,
         files: [
           "test/phase-1-hardening-routes.test.ts",
           "test/operator-outcome.test.ts",
@@ -301,7 +323,7 @@ test("the fixed safe LPT plan covers all 19 files once below the 590-second ceil
   assert.equal(tasks.every((task) => task.files.length === 1 && task.weight === 1), true);
   assert.equal(tasks.every((task) => /^safe-lpt-[123]$/.test(task.scheduleLaneId)), true);
   assert.equal(rootTestTasksCanOverlap(restrictive[0], light[0]), true);
-  assert.equal(simulation.wallMs, 580_361);
+  assert.equal(simulation.wallMs, 583_883);
   assert.equal(simulation.maximumActiveWeight, 3);
   assert.equal(simulation.launches.every((launch) => launch.activeWeight <= ROOT_TEST_TOKEN_CAPACITY), true);
   assert.equal(Math.max(...safeLptPlan.map((lane) => lane.totalMs)) <= SAFE_LPT_ROOT_CEILING_MS, true);
@@ -325,13 +347,13 @@ test("the exact-current fixed LPT model qualifies with a single background lane"
     encoding: "utf8",
   });
   assert.equal(model.status, 0, model.stderr);
-  assert.match(model.stdout, /safe_lpt_total_work_ms=1735971 safe_lpt_lower_bound_ms=578657 safe_lpt_predicted_maximum_ms=580361/);
+  assert.match(model.stdout, /safe_lpt_total_work_ms=1739571 safe_lpt_lower_bound_ms=579857 safe_lpt_predicted_maximum_ms=583883/);
   assert.match(model.stdout, /safe_lpt_lane=safe-lpt-1 predicted_ms=575327 files=6/);
-  assert.match(model.stdout, /safe_lpt_lane=safe-lpt-2 predicted_ms=580283 files=5/);
+  assert.match(model.stdout, /safe_lpt_lane=safe-lpt-2 predicted_ms=583883 files=5/);
   assert.match(model.stdout, /safe_lpt_lane=safe-lpt-3 predicted_ms=580361 files=8/);
-  assert.match(model.stdout, /policy=safe-lpt-with-background simulated_schedule_ms=580361 background_work_ms=512842 orchestration_allowance_ms=2000 additional_reserve_ms=0 modeled_root_ms=582361/);
-  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=7639/);
-  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=17639 required_outer_headroom_ms=10000 headroom_margin_ms=7639/);
+  assert.match(model.stdout, /policy=safe-lpt-with-background simulated_schedule_ms=583883 background_work_ms=512842 orchestration_allowance_ms=2000 additional_reserve_ms=0 modeled_root_ms=585883/);
+  assert.match(model.stdout, /root_eligibility_ms=590000 root_margin_ms=4117/);
+  assert.match(model.stdout, /outer_deadline_ms=600000 outer_margin_ms=14117 required_outer_headroom_ms=10000 headroom_margin_ms=4117/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });

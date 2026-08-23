@@ -291,10 +291,10 @@ const nonChildTimeoutDispositions = Object.freeze([
   },
   {
     file: "test/phase-1-hardening-routes.test.ts",
-    search: "runCase(stubbornGroup, 300, 100),",
+    search: "const CLEANUP_PROBE_TIMEOUT_MS = 3_000;\nconst CLEANUP_PROBE_TERMINATION_GRACE_MS = 1_000;\nconst CLEANUP_PROBE_PARTIAL_MARKER = \"partial-before-timeout\";",
     kind: "cleanup-proof-wrapper-deadlines",
-    effectiveTimeout: "300/1,000 ms cases; 100 ms termination grace",
-    disposition: "intentional frontier timeout and cleanup contract exercise; outer spawnSync is unbounded",
+    effectiveTimeout: "3,000 ms cleanup probe with 1,000 ms grace; 1,000 ms subsequent case with 100 ms grace",
+    disposition: "test-owned cleanup contract deadline sized for the measured four-process root cohort; outer spawnSync is unbounded and production deadlines are unchanged",
   },
   {
     file: "test/phase-hardening-domain-contracts.test.ts",
@@ -595,11 +595,12 @@ export function renderRootTestObservationInventory(root = process.cwd()) {
     "- Participation hook: 2 × 4,505 ms strictly rounds to 20,000 ms.",
     "- Evaluate-phase hook: 2 × the 12,520 ms contended file observation strictly rounds to 30,000 ms.",
     "- Scoped-obligation hook: the failed 10,300 ms setup observation remains failure evidence; the central 30,000 ms contended setup limit clears it without treating that wall as a successful timing input.",
+    "- Phase 1 cleanup probe: the authoritative four-process start proved 300 ms plus 100 ms grace could expire before descendant readiness. The test-owned contract now uses a synchronous parent partial marker, a 3,000 ms probe deadline, and bounded 1,000 ms cleanup grace; production deadlines are unchanged.",
     "- Phase 0 hardening hook: the conservative 15,650 ms whole-file setup proxy doubled and strictly rounded gives 40,000 ms.",
     "- Former process/repository 20,000 ms hooks and 5,000/40,000/45,000/70,000/75,000/120,000 ms tests now use the central floors; stronger 360,000 and 510,000 ms process/repository tests remain.",
     "- Canonical/in-process measured 20,000/30,000/40,000 ms hooks and the 420,000 ms proportional test remain unchanged.",
     "- Canonical/in-process tests otherwise retain the authoritative 45,000 ms test and 10,000 ms hook semantics.",
-    "- Internal synchronization, intentional timeout-cleanup proof, domain payload, and the exact 600,000 ms authoritative wrapper deadlines are not child-process options or Vitest observation limits and were not changed.",
+    "- Internal synchronization, the test-owned timeout-cleanup proof, domain payload, and the exact 600,000 ms authoritative wrapper deadlines are not child-process options or Vitest observation limits. Only the test-owned cleanup proof changed.",
     "",
   );
   return lines.join("\n");
