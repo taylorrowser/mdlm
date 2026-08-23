@@ -154,6 +154,7 @@ export const ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION = Object.freeze({
 const ASSIGNMENT_STATE_FILE = "test/mdlm-assignment-state.test.ts";
 const CLEAN_ONBOARDING_FILE = "test/mdlm-clean-onboarding-transaction.test.ts";
 const INITIAL_INTENT_ROUTE_FILE = "test/initial-product-intent-route.test.ts";
+const PHASE_0_CORRECTED_ROUTE_FILE = "test/phase-0-corrected-gate-route.test.ts";
 export const ROOT_RESOURCE_TAIL_COMPATIBILITY = Object.freeze({
   source: "/tmp/issue-203-safe-lpt-partition.log",
   orderedLane: Object.freeze([
@@ -175,25 +176,27 @@ const COMPATIBLE_TAIL_LANES = Object.freeze([
   Object.freeze([
     ASSIGNMENT_STATE_FILE,
     CLEAN_ONBOARDING_FILE,
-    "test/load-scenario-participation.test.ts",
     INITIAL_INTENT_ROUTE_FILE,
   ]),
   Object.freeze([
-    "test/mdlm-repository-inspection.test.ts",
     "test/mdlm-command-application.test.ts",
-    "test/mdlm-init.test.ts",
-    "test/phase-0-intent-candidate-currentness-route.test.ts",
+    PHASE_0_CORRECTED_ROUTE_FILE,
+    "test/mdlm-process-expression.test.ts",
+    "test/load-scenario-participation.test.ts",
   ]),
   Object.freeze([
-    "test/phase-0-corrected-gate-route.test.ts",
+    "test/mdlm-repository-inspection.test.ts",
+    "test/phase-0-intent-candidate-currentness-route.test.ts",
     "test/operator-outcome.test.ts",
-    "test/mdlm-process-expression.test.ts",
+    "test/mdlm-init.test.ts",
   ]),
 ]);
 
 const SAFE_PARTITION_COMMIT = "3e0437b9204229eb94853d90345dc86861cc7a28";
 const CURRENT_PARTITION_COMMIT = "342a8ad35cee17cc6c7f37646f4c96639329d8d5";
 const CURRENT_PARTITION_SOURCE = "/tmp/issue-203-compatibility-production-partition.log";
+const GREEN_PARTITION_COMMIT = "bde441a9fd2b09e3da5ff5c90332c34cd6150546";
+const GREEN_PARTITION_SOURCE = "/tmp/issue-203-production-partition-850.log";
 const CLASS_SOURCE_COMMIT = "e4468ec6a432fdb975df0739a0070c85cbd7b807";
 const HEAVY_PAIR_FOCUSED_COMMIT = "b966de2d422d25c152985c368ec05e95006e388f";
 const HEAVY_CONTRACT_FOCUSED_COMMIT = "a81a9ca51b0458a649eb9539844efa965cf01976";
@@ -202,6 +205,8 @@ const SAFE_PARTITION_SOURCE = "/tmp/issue-203-safe-lpt-partition.log";
 const HEAVY_CLASS_SOURCE = "/tmp/issue-203-split-policy-lane-heavy.log";
 const FRAGILE_CLASS_SOURCE = "/tmp/issue-203-split-policy-lane-fragile.log";
 const FOCUSED_SOURCE = "vitest.suites.mjs";
+const STK_ROUTE_COMMIT = "dc5d3f58136caa972c1ec8030be166f3dfb328e3";
+const STK_ROUTE_SOURCE = "/tmp/issue-203-stk-public-route-dc5d3f5.log";
 const CURRENT_PARTITION_SUCCESSFUL_FILES = new Set([
   "test/evaluate-phase.test.ts",
   "test/initial-product-intent-resolution.test.ts",
@@ -260,7 +265,7 @@ export const ROOT_RESOURCE_RUN_PROVENANCE = Object.freeze({
 const safeRows = [
   ["test/evaluate-phase.test.ts", 17_410],
   ["test/initial-product-intent-resolution.test.ts", 80_450],
-  ["test/initial-product-intent-route.test.ts", 72_040],
+  ["test/initial-product-intent-route.test.ts", 96_972],
   ["test/load-scenario-participation.test.ts", 70_510],
   ["test/mdlm-assignment-state.test.ts", 63_670],
   ["test/mdlm-clean-onboarding-transaction.test.ts", 52_690],
@@ -271,7 +276,7 @@ const safeRows = [
   ["test/mdlm-repository-inspection.test.ts", 76_640],
   ["test/mdlm-schema.test.ts", 82_290],
   ["test/operator-outcome.test.ts", 56_190],
-  ["test/phase-0-corrected-gate-route.test.ts", 151_630],
+  ["test/phase-0-corrected-gate-route.test.ts", 91_090],
   ["test/phase-0-intent-candidate-currentness-route.test.ts", 72_920],
   ["test/phase-1-hardening-routes.test.ts", 143_120],
   ["test/phase-2-hardening-routes.test.ts", 149_840],
@@ -336,16 +341,24 @@ export const rootResourceEvidence = Object.freeze([
     file,
     "safe",
     elapsedMs,
-    CURRENT_PARTITION_SUCCESSFUL_FILES.has(file)
-      ? CURRENT_PARTITION_SOURCE
-      : SAFE_PARTITION_SOURCE,
+    file === INITIAL_INTENT_ROUTE_FILE
+      ? STK_ROUTE_SOURCE
+      : file === PHASE_0_CORRECTED_ROUTE_FILE
+        ? GREEN_PARTITION_SOURCE
+        : CURRENT_PARTITION_SUCCESSFUL_FILES.has(file)
+        ? CURRENT_PARTITION_SOURCE
+        : SAFE_PARTITION_SOURCE,
     file === ASSIGNMENT_STATE_FILE
       ? -ROOT_RESOURCE_ASSIGNMENT_STATE_CONTRACTION.measuredContractionMs
       : 0,
     historicalSafeObservations(file),
-    CURRENT_PARTITION_SUCCESSFUL_FILES.has(file)
-      ? CURRENT_PARTITION_COMMIT
-      : SAFE_PARTITION_COMMIT,
+    file === INITIAL_INTENT_ROUTE_FILE
+      ? STK_ROUTE_COMMIT
+      : file === PHASE_0_CORRECTED_ROUTE_FILE
+        ? GREEN_PARTITION_COMMIT
+        : CURRENT_PARTITION_SUCCESSFUL_FILES.has(file)
+        ? CURRENT_PARTITION_COMMIT
+        : SAFE_PARTITION_COMMIT,
   )),
   ...heavyRows.map(([file, elapsedMs, classElapsedMs]) => evidenceRow(
     file,

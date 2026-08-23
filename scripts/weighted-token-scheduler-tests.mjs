@@ -100,7 +100,7 @@ test("the global resource event table selects only successful evidence for all 2
   );
   assert.equal(rootResourceEvidence
     .filter((entry) => entry.resourceClass === "safe")
-    .reduce((total, entry) => total + entry.selectedEvidence.elapsedMs, 0), 1_346_680);
+    .reduce((total, entry) => total + entry.selectedEvidence.elapsedMs, 0), 1_311_072);
   assert.deepEqual(
     rootResourceEvidence
       .filter((entry) => entry.resourceClass !== "safe")
@@ -275,7 +275,7 @@ test("the phased policy selects schedule-matched focused observations and measur
     "one-fragile-plus-two-safe",
     "three-safe-tail",
   ]);
-  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [230_750, 349_626, 258_280]);
+  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [230_750, 349_626, 261_570]);
   assert.deepEqual(
     rootResourcePhases[0].lanes.find((lane) => lane.role === "safe").tasks.map((entry) => entry.file),
     [
@@ -286,7 +286,7 @@ test("the phased policy selects schedule-matched focused observations and measur
   );
   assert.deepEqual(
     rootResourcePhases[2].lanes.map((lane) => lane.totalMs).sort((left, right) => left - right),
-    [254_480, 257_750, 258_280],
+    [212_702, 260_630, 261_570],
   );
   assert.equal(Number.isInteger(ROOT_RESOURCE_BARRIER_LOWER_BOUND_MS), true);
 });
@@ -656,17 +656,17 @@ test("the compatibility-aware successful-evidence model qualifies the calibrated
   });
   assert.equal(model.status, 0, model.stderr);
   assert.match(model.stdout, /root_files=47 tasks=32 resource_tasks=26 fourth_token_tasks=6 token_capacity=4/);
-  assert.match(model.stdout, /resource_total_work_ms=2146176 resource_lower_bound_ms=715392 barrier_lower_bound_ms=719059 resource_lpt_maximum_ms=838656 resource_compatible_maximum_ms=838656/);
+  assert.match(model.stdout, /resource_total_work_ms=2110568 resource_lower_bound_ms=703523 barrier_lower_bound_ms=707190 resource_lpt_maximum_ms=841946 resource_compatible_maximum_ms=841946/);
   assert.match(model.stdout, /raw_target_ms=848500 minimum_aggregate_contraction_ms=0/);
   assert.match(model.stdout, /resource_phase=two-heavy-plus-one-safe order=0 predicted_ms=230750/);
   assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=178150 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
   assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=349626/);
-  assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=258280/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=838656 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 modeled_root_ms=840156/);
-  assert.match(model.stdout, /root_eligibility_ms=850000 root_margin_ms=9844/);
-  assert.match(model.stdout, /modeled_complete_gate_ms=1095156/);
-  assert.match(model.stdout, /complete_gate_target_ms=1100000 complete_gate_margin_ms=4844/);
-  assert.match(model.stdout, /outer_deadline_ms=1150000 outer_margin_ms=54844 required_outer_headroom_ms=50000 headroom_margin_ms=4844/);
+  assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=261570/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=841946 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 modeled_root_ms=843446/);
+  assert.match(model.stdout, /root_eligibility_ms=850000 root_margin_ms=6554/);
+  assert.match(model.stdout, /modeled_complete_gate_ms=1098446/);
+  assert.match(model.stdout, /complete_gate_target_ms=1100000 complete_gate_margin_ms=1554/);
+  assert.match(model.stdout, /outer_deadline_ms=1150000 outer_margin_ms=51554 required_outer_headroom_ms=50000 headroom_margin_ms=1554/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
