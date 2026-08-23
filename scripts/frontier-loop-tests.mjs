@@ -475,6 +475,14 @@ test("contended representative observation limits stay exact", () => {
     new URL("../test/change-and-pilot-hardening-routes.test.ts", import.meta.url),
     "utf8",
   );
+  const correctedGateSource = readFileSync(
+    new URL("../test/phase-0-corrected-gate-route.test.ts", import.meta.url),
+    "utf8",
+  );
+  const processMigrationSource = readFileSync(
+    new URL("../test/mdlm-process-migration.test.ts", import.meta.url),
+    "utf8",
+  );
   const suiteManifest = readFileSync(
     new URL("../vitest.suites.mjs", import.meta.url),
     "utf8",
@@ -507,6 +515,26 @@ test("contended representative observation limits stay exact", () => {
   assert.match(
     changeAndPilotSource,
     /processPackage = loaded\.package;\n\}, CONTENDED_CHANGE_PILOT_PACKAGE_HOOK_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    correctedGateSource,
+    /Twice the 27,550 ms successful exact max-2 case is 55,100 ms,[\s\S]*?below the 61,111 ms failed observation\.[\s\S]*?Round the larger observation up to the next 10,000 ms boundary\.[\s\S]*?const CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS = 70_000;/,
+  );
+  assert.match(
+    correctedGateSource,
+    /accepts corrected Phase 0 intent from its reviewed checkpoint(?:(?!\n\n  it\()[\s\S])*?CONTENDED_CORRECTED_GATE_ACCEPTANCE_TEST_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    processMigrationSource,
+    /Twice the slower successful exact max-2 case is 2 \* 34,753 = 69,506 ms\.[\s\S]*?Round up to 70,000 ms; this also clears the 30,316 and 30,571 ms failed observations\.[\s\S]*?const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS = 70_000;/,
+  );
+  assert.match(
+    processMigrationSource,
+    /rejects incompatible and byte-changed packages without changing exact contract bytes(?:(?!\n\n  it\()[\s\S])*?CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS\);/,
+  );
+  assert.match(
+    processMigrationSource,
+    /rejects migration from a synthetic package when the target requires a fresh repository(?:(?!\n\n\}\);)[\s\S])*?CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS\);/,
   );
   assert.match(loadSource, /const CONTENDED_SETUP_HOOK_TIMEOUT_MS = 20_000;/);
   assert.match(loadSource, /beforeAll\(async \(\) => \{[\s\S]*?validPackage = result\.package;\n  \}, CONTENDED_SETUP_HOOK_TIMEOUT_MS\);/);

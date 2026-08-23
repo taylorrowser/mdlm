@@ -10,6 +10,10 @@ import {
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
 
+// Twice the slower successful exact max-2 case is 2 * 34,753 = 69,506 ms.
+// Round up to 70,000 ms; this also clears the 30,316 and 30,571 ms failed observations.
+const CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS = 70_000;
+
 async function packageCopy(
   parent: string,
   name: string,
@@ -121,7 +125,7 @@ describe("mdlm Process Package migration integrity", () => {
       ]),
     );
     expect(await contractBytes(changedPackageRepository)).toBe(beforeChanged);
-  }, 30_000);
+  }, CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS);
 
   it("rejects migration from a synthetic package when the target requires a fresh repository", async () => {
     const previousRoot = await packageCopy(
@@ -150,6 +154,6 @@ describe("mdlm Process Package migration integrity", () => {
       expect.objectContaining({ code: "fresh-repository-required" }),
     );
     expect(await contractBytes(repository)).toBe(before);
-  }, 30_000);
+  }, CONTENDED_PROCESS_MIGRATION_TEST_TIMEOUT_MS);
 
 });
