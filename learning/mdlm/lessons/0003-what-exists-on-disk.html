@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What exists on disk?</title>
+  <link rel="stylesheet" href="../assets/course.css">
+  <script src="../assets/quiz.js" defer></script>
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="0002-follow-one-obligation.html">Lesson 2</a> · <a href="../reference/stored-derived-temporary.html">State reference</a></nav>
+  <p class="eyebrow">Lesson 3 · 10 to 15 minutes</p>
+  <h1>What exists on disk?</h1>
+  <p class="deck">Separate package rules, durable Lifecycle Data, computed results, and the temporary Assignment lease.</p>
+
+  <div class="callout"><strong>Goal.</strong> Classify each MDLM concept as stored truth, a computed result, or temporary operator state.</div>
+
+  <h2>Four kinds of state</h2>
+  <dl>
+    <dt><strong>Package declaration</strong></dt><dd>A versioned rule shipped in the selected Process Package.</dd>
+    <dt><strong>Lifecycle Data</strong></dt><dd>Durable Markdown claims and evidence published through validated transactions.</dd>
+    <dt><strong>Derived result</strong></dt><dd>A value MDLM computes from the package and current Lifecycle Data.</dd>
+    <dt><strong>Assignment lease</strong></dt><dd>A temporary file reserving one exact unit of work against the current repository state.</dd>
+  </dl>
+
+  <h2>Phases contain references, not runtime trackers</h2>
+  <p>The live <a href="../../../.lifecycle/process/phases/phase-0-wayfinding.yaml">Phase 0 file</a> lists versioned Obligation and Scenario definitions:</p>
+
+  <pre class="source"><code>scenarios:
+  - establish-initial-wayfinding-map@2
+  - compile-psp@3
+  - review-datum-in-context@2
+  # more Scenario references
+
+obligations:
+  - initial-wayfinding-map-required@2
+  - product-specification-required@2
+  - passing-review-required@2
+  # more Obligation references</code></pre>
+
+  <p>These are general package declarations. An Obligation Instance is different. MDLM computes an instance by applying one Obligation to one selected Subject under one package reference. It does not write an instance file to track progress.</p>
+
+  <div class="flow">
+    <div class="flow-step"><strong>Stored rule</strong><br><code>initial-wayfinding-map-required@2</code></div>
+    <div class="flow-arrow">↓ evaluated for</div>
+    <div class="flow-step"><strong>Exact Subject</strong><br><code>phase-0-wayfinding@5</code> under the selected package</div>
+    <div class="flow-arrow">↓ computes</div>
+    <div class="flow-step"><strong>Obligation Instance</strong><br>Satisfied or unsatisfied, with status, blockers, and a resolver</div>
+  </div>
+
+  <p>Run the same evaluation again against unchanged facts and MDLM computes the same instance. Publish new Lifecycle Data and the result may change.</p>
+
+  <h2>Obligations do not all become Scenario inputs</h2>
+  <p>An Obligation authorizes its Resolver Scenario and binds the Scenario's declared inputs. The Scenario receives those inputs, not the Obligation definition itself.</p>
+
+  <p>For the first map, the binding is empty:</p>
+
+  <pre class="source"><code>resolve_with:
+  scenario: establish-initial-wayfinding-map@2
+  inputs: {}</code></pre>
+
+  <p>Another Obligation might bind a specific Revision as an input. The resulting Assignment records both the authorizing Obligation Instance and the resolved Scenario inputs. Those are different fields with different jobs.</p>
+
+  <h2>Phase progression has its own rule</h2>
+  <p>A Phase lists applicable Obligations, but that list does not by itself define the transition. The Phase also declares a <strong>progression condition</strong>, an expression that says when the next Phase is ready, plus any required authority.</p>
+
+  <pre class="source"><code>progression:
+  next_phase: phase-1-product-assurance
+  readiness: &lt;expression over exact Lifecycle Data&gt;
+  authorization:
+    scenario: record-gate-signoff@3
+    evidence_selector: applicable-gate-signoffs-for@1</code></pre>
+
+  <p>Many Obligations produce evidence used by that expression. Still, "all Obligation Instances are satisfied" and "the progression expression is true" are not interchangeable claims.</p>
+
+  <h2>The one runtime file</h2>
+  <p>When <code>mdlm next</code> allocates work, it writes <code>.lifecycle/work/active-assignment.json</code>. This is the Assignment lease. It records the package, repository fingerprint, Phase, authorizing Obligation Instance, Scenario, input bindings, and response state.</p>
+  <p>The initialized repository ignores <code>.lifecycle/work/</code> in Git. The lease prevents another command from silently allocating incompatible work. It is temporary orchestration state, not Lifecycle Data.</p>
+
+  <h2>A more exact reevaluation answer</h2>
+  <p>After the map publishes, MDLM reloads the selected package and current Lifecycle Data. It derives the Active Phase, evaluates applicable Obligations into instances, removes satisfied instances from the Loose End list, computes blockers and dispatchability, orders the remaining work, and classifies one Operator Outcome. It creates an Assignment only if that outcome is Assignment or Attention Required.</p>
+
+  <h2>Retrieval check</h2>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The YAML is a versioned package declaration." data-wrong-feedback="The Obligation file declares a general rule. Evaluation creates instances later.">
+    <h3>1. What is an Obligation YAML file?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>A stored tracker for unfinished work.</button>
+      <button class="answer" data-answer data-correct="true">A stored versioned Process Package declaration.</button>
+      <button class="answer" data-answer>A temporary lease for one response.</button>
+      <button class="answer" data-answer>A durable record of product evidence.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Evaluation computes it from a rule, Subject, and package reference." data-wrong-feedback="An Obligation Instance is computed. It is not stored as a progress file.">
+    <h3>2. Where does an Obligation Instance live?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>Inside the Scenario's stored prompt asset.</button>
+      <button class="answer" data-answer>Inside the durable Lifecycle Data history.</button>
+      <button class="answer" data-answer>Inside the active Assignment lease file.</button>
+      <button class="answer" data-answer data-correct="true">As part of each evaluation result.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The Scenario receives its declared bound inputs." data-wrong-feedback="The Obligation authorizes work. Its bindings supply the Scenario's declared inputs.">
+    <h3>3. What does a Resolver Scenario receive?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">Its own declared and bound inputs.</button>
+      <button class="answer" data-answer>The entire currently applicable Obligation catalog.</button>
+      <button class="answer" data-answer>Every current Loose End evaluation record.</button>
+      <button class="answer" data-answer>The selected next Phase definition file.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The Phase declares readiness and authorization separately." data-wrong-feedback="The Obligation list scopes work. The progression block controls transition readiness.">
+    <h3>4. What directly controls Phase transition readiness?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>The number of Scenario files present.</button>
+      <button class="answer" data-answer>The currently empty Assignment work directory.</button>
+      <button class="answer" data-answer data-correct="true">The declared Phase progression readiness expression.</button>
+      <button class="answer" data-answer>The absence of every Loose End.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The lease reserves exact work without becoming Lifecycle Data." data-wrong-feedback="The active Assignment file is temporary coordination state ignored by Git.">
+    <h3>5. Why store the active Assignment lease?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>To preserve accepted product intent forever.</button>
+      <button class="answer" data-answer>To replace Git transaction history permanently.</button>
+      <button class="answer" data-answer>To make Obligation Instances durable records.</button>
+      <button class="answer" data-answer data-correct="true">To prevent conflicting work allocation later.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <p class="score" data-score aria-live="polite">0/5 answered.</p>
+
+  <h2>Explain it back</h2>
+  <p>Classify each item as a package declaration, Lifecycle Data, a derived result, or temporary operator state:</p>
+  <ul>
+    <li><code>passing-review-required@2</code></li>
+    <li>a published <code>REV</code> Revision</li>
+    <li>one unsatisfied Obligation Instance</li>
+    <li><code>.lifecycle/work/active-assignment.json</code></li>
+    <li>the Active Phase</li>
+  </ul>
+  <p>Then explain why satisfying every visible Loose End is not, by itself, the formal definition of Phase progression.</p>
+
+  <h2>Primary sources</h2>
+  <ul class="citation">
+    <li><a href="../../../.lifecycle/process/phases/phase-0-wayfinding.yaml">Live Phase 0 definition</a></li>
+    <li><a href="../../../src/evaluator.ts">Evaluation and Loose End derivation</a></li>
+    <li><a href="../../../src/lifecycle-inspection.ts">Next-work selection</a></li>
+    <li><a href="../../../src/assignment.ts">Assignment lease storage</a></li>
+    <li><a href="../../../test/mdlm-assignment.test.ts">Assignment lease behavior tests</a></li>
+  </ul>
+</main></body>
+</html>

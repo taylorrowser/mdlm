@@ -10,3 +10,4 @@
 - Apply the `unslop` writing rules to every lesson and reference document.
 - Shuffle quiz options and keep answer lengths comparable. Never place every correct answer in the same position.
 - A perfect multiple-choice score does not establish fluency when the learner's explanation remains uncertain. Prefer explain-back prompts and source traces as evidence.
+- After Lesson 2, the learner can trace the broad Obligation-to-Assignment path. Next reinforce that Obligation Instances are derived, Resolver Scenarios receive declared inputs rather than Obligation objects, Phase progression has separate conditions, and only the Assignment lease tracks in-flight work.

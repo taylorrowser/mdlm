@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stored, derived, and temporary MDLM state</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="../lessons/0003-what-exists-on-disk.html">Lesson 3</a></nav>
+  <p class="kicker">Quick reference</p>
+  <h1>What MDLM stores and computes</h1>
+
+  <h2>Stored package declarations</h2>
+  <p>These versioned files define how MDLM should interpret repository facts.</p>
+  <ul>
+    <li>Phases</li>
+    <li>Obligations</li>
+    <li>Scenarios and prompts</li>
+    <li>Selectors, Policies, and Computed State definitions</li>
+    <li>Lifecycle Data type definitions</li>
+  </ul>
+
+  <h2>Stored Lifecycle Data</h2>
+  <p>These Markdown records are authoritative product claims, evidence, and history.</p>
+  <ul>
+    <li>Stable Data and immutable Revisions</li>
+    <li>Links and creation provenance</li>
+    <li>Validated Scenario transaction outputs</li>
+  </ul>
+
+  <h2>Derived on evaluation</h2>
+  <p>MDLM computes these from the selected package and current Lifecycle Data. They are not mutable tracking files.</p>
+  <ul>
+    <li>Active Phase</li>
+    <li>Obligation Instances</li>
+    <li>Loose Ends and blocker chains</li>
+    <li>Dispatchability</li>
+    <li>Computed States</li>
+    <li>Operator Outcome</li>
+  </ul>
+
+  <h2>Temporary operator state</h2>
+  <p><code>.lifecycle/work/active-assignment.json</code> records the current Assignment lease. The lease prevents a later command from silently allocating conflicting work against a different repository state. Git ignores this file. It is not Lifecycle Data.</p>
+
+  <div class="callout"><strong>Phase progression is separate.</strong> A Phase lists applicable Obligations and also declares its own readiness and authorization expressions. Do not infer progression merely because an Obligation list looks complete.</div>
+
+  <p class="citation">Primary sources: <a href="../../../.lifecycle/process/phases/phase-0-wayfinding.yaml">Phase 0 definition</a>, <a href="../../../src/evaluator.ts">evaluator</a>, <a href="../../../src/assignment.ts">Assignment lease</a>, and <a href="../../../CONTEXT.md">canonical terminology</a>.</p>
+</main></body>
+</html>
