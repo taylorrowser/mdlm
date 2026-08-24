@@ -319,7 +319,22 @@ describe("Phase 0 intent-candidate currentness public route", () => {
       expect(reviewContextMembers).not.toContain(
         `${unaffectedRequirement.identity.id}-r00002`,
       );
-      await submit(repository, review, passingCandidateReview(review));
+      const packetReviews = exactValues(review, "context_members").filter(
+        (member) => member.identity.type === "REV",
+      );
+      expect(packetReviews).not.toHaveLength(0);
+      expect(packetReviews.every((member) =>
+        member.data.payload.outcome === "pass" &&
+        typeof member.data.payload.title === "string"
+      )).toBe(true);
+      const submittedReviews = await submit(
+        repository,
+        review,
+        passingCandidateReview(review),
+      );
+      expect(submittedReviews).toEqual([
+        expect.objectContaining({ name: "review" }),
+      ]);
 
       const gate = await prepareNextAssignment(
         repository,
