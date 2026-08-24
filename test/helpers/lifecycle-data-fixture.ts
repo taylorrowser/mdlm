@@ -7,7 +7,7 @@ import { gunzipSync } from "node:zlib";
 import type { PreparedAssignment } from "./assignment-submission.js";
 
 const executeFile = promisify(execFile);
-import { processPackageDigest } from "../../src/process-package-digest.js";
+import { ensureFixtureProcessPackage } from "./process-package.js";
 
 const fixtureNames = [
   "candidate-currentness",
@@ -233,25 +233,11 @@ export async function installLifecycleDataFixture(
   }
   validateFixtureTransactions(entries);
 
-  const selection = JSON.parse(await fs.readFile(
-    path.join(repository, ".lifecycle/process-selection.json"),
-    "utf8",
-  )) as { package?: { reference?: string; digest?: string; path?: string } };
-  if (
-    selection.package?.reference !== definition.processPackage.reference ||
-    selection.package.digest !== definition.processPackage.digest ||
-    typeof selection.package.path !== "string"
-  ) {
-    throw new Error(`Selected Process Package mismatch for fixture '${fixture}'`);
-  }
-  const lifecycleRoot = path.resolve(repository, ".lifecycle");
-  const packageRoot = path.resolve(repository, selection.package.path);
-  if (!packageRoot.startsWith(`${lifecycleRoot}${path.sep}`)) {
-    throw new Error(`Selected Process Package path escapes .lifecycle for '${fixture}'`);
-  }
-  if (await processPackageDigest(packageRoot) !== definition.processPackage.digest) {
-    throw new Error(`Installed Process Package digest mismatch for fixture '${fixture}'`);
-  }
+  await ensureFixtureProcessPackage(
+    repository,
+    definition.processPackage,
+    `fixture '${fixture}'`,
+  );
   const processRef =
     `${definition.processPackage.reference}#${definition.processPackage.digest}`;
   for (const entry of entries.filter((candidate) => candidate.path.endsWith(".md"))) {

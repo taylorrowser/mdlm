@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
-import { processPackageDigest } from "../../src/process-package-digest.js";
+import { ensureFixtureProcessPackage } from "./process-package.js";
 
 const fixtureNames = [
   "phase-1-pilot-retry-ready",
@@ -181,7 +181,7 @@ async function manifest(): Promise<FixtureManifest> {
 export async function installCurrentLifecycleDataFixture(
   repository: string,
   fixture: CurrentLifecycleDataFixture,
-): Promise<void> {
+): Promise<string> {
   const definition = (await manifest()).fixtures[fixture];
   if (!definition) throw new Error(`Unknown current Lifecycle Data fixture '${fixture}'`);
 
@@ -207,27 +207,11 @@ export async function installCurrentLifecycleDataFixture(
   }
   validateFixtureTransactions(entries);
 
-  const selection = JSON.parse(await fs.readFile(
-    path.join(repository, ".lifecycle/process-selection.json"),
-    "utf8",
-  )) as {
-    package?: { reference?: string; digest?: string; path?: string };
-  };
-  if (
-    selection.package?.reference !== definition.processPackage.reference ||
-    selection.package.digest !== definition.processPackage.digest ||
-    typeof selection.package.path !== "string"
-  ) {
-    throw new Error(`Selected Process Package mismatch for current fixture '${fixture}'`);
-  }
-  const packageRoot = path.resolve(repository, selection.package.path);
-  const lifecycleRoot = path.resolve(repository, ".lifecycle");
-  if (!packageRoot.startsWith(`${lifecycleRoot}${path.sep}`)) {
-    throw new Error(`Selected Process Package path escapes .lifecycle for '${fixture}'`);
-  }
-  if (await processPackageDigest(packageRoot) !== definition.processPackage.digest) {
-    throw new Error(`Installed Process Package digest mismatch for '${fixture}'`);
-  }
+  const packageRoot = await ensureFixtureProcessPackage(
+    repository,
+    definition.processPackage,
+    `current fixture '${fixture}'`,
+  );
 
   const processRef =
     `${definition.processPackage.reference}#${definition.processPackage.digest}`;
@@ -253,4 +237,5 @@ export async function installCurrentLifecycleDataFixture(
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, entry.source, { flag: "wx" });
   }
+  return packageRoot;
 }

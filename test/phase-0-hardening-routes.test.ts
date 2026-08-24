@@ -412,7 +412,7 @@ describe("Phase 0 missing hardening routes", () => {
     }));
   });
 
-  it("creates only a complete reviewed Phase 0 intent candidate and then yields fresh candidate Review work", () => {
+  it("creates only a complete reviewed Phase 0 intent candidate and then yields fresh candidate Review work", async () => {
     const foundation = phase0Foundation();
     const records = [...foundation.members, ...foundation.reviews];
     expect(obligation(
@@ -445,13 +445,75 @@ describe("Phase 0 missing hardening routes", () => {
         .filter((item) => item.datum.type === "REV")
         .map((item) => item.datum.revision_id),
     });
-    expect(complete.looseEnds.find((item) =>
+    const contextRoute = complete.looseEnds.find((item) =>
       item.obligation === "review-context-required" &&
       item.subject === candidate.datum.revision_id
-    )).toEqual(expect.objectContaining({
+    );
+    expect(contextRoute).toEqual(expect.objectContaining({
       status: "ready",
       actionableResolver: "create-review-context@1",
     }));
+    const expectedContextSupport = foundation.members
+      .map((member) => member.datum.revision_id)
+      .sort();
+    const expectedAssignmentSupport = [
+      ...expectedContextSupport,
+      ...foundation.reviews
+        .filter((item) => item.datum.type === "REV")
+        .map((review) => review.datum.revision_id),
+    ].sort();
+    const preparedContext = await dryRunResolverScenario(
+      processPackage,
+      snapshot([...records, candidate]),
+      "create-review-context@1",
+      contextRoute!.id,
+      [],
+    );
+    expect(preparedContext.ok, JSON.stringify(preparedContext.diagnostics)).toBe(true);
+    if (!preparedContext.ok) return;
+    expect(preparedContext.value.invocations[0]!.inputs
+      .find((input) => input.name === "context_members")!.values
+      .map((value) => value.identity.revision_id)).toEqual(expectedContextSupport);
+
+    const context = record("BSL", "BSL-1030000091", {
+      title: "Evidence-complete candidate Review Context",
+      kind: "review-context",
+      role: "review-context",
+      scope: candidate.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        candidate.datum.revision_id,
+        ...expectedContextSupport,
+      ].sort(),
+      evidence: [],
+    }, { scenario: "create-review-context@1" });
+    const reviewRecords = [...records, candidate, context];
+    const reviewRoute = obligation(
+      processPackage,
+      reviewRecords,
+      "passing-review-required",
+      candidate.datum.revision_id,
+    );
+    const preparedReview = await dryRunResolverScenario(
+      processPackage,
+      snapshot(reviewRecords),
+      "review-datum-in-context@2",
+      reviewRoute!.id,
+      [],
+    );
+    expect(preparedReview.ok, JSON.stringify(preparedReview.diagnostics)).toBe(true);
+    if (!preparedReview.ok) return;
+    expect(preparedReview.value.invocations[0]!.inputs
+      .find((input) => input.name === "context_members")!.values
+      .map((value) => value.identity.revision_id)).toEqual(
+        expectedAssignmentSupport,
+      );
+    const suppliedReviews = preparedReview.value.invocations[0]!.inputs
+      .find((input) => input.name === "context_members")!.values
+      .filter((value) => value.identity.type === "REV");
+    expect(suppliedReviews).toHaveLength(3);
+    expect(suppliedReviews.every((value) => value.data.payload.outcome === "pass"))
+      .toBe(true);
   });
 
   it("supplies complete passing member Reviews when correcting a candidate that omitted them", async () => {
@@ -1103,6 +1165,14 @@ describe("Phase 0 missing hardening routes", () => {
     expect(changedCandidateSupport.map((item) =>
       item.identity.revision_id
     )).not.toContain(unrelatedAuthority.datum.revision_id);
+    const changedCandidateAssignmentSupport = evaluateProcessDefinition(
+      processPackage,
+      snapshot([...records, change, changedCandidate]),
+      "selector",
+      "review-assignment-context-members-for@1",
+      { subject: changedCandidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(changedCandidateAssignmentSupport).toEqual(changedCandidateSupport);
 
     const authoritySupport = evaluateProcessDefinition(
       processPackage,
