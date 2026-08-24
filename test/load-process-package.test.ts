@@ -207,7 +207,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.74.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(381);
+    expect(Object.keys(result.package.selectors)).toHaveLength(382);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
@@ -260,6 +260,7 @@ describe("loadProcessPackage", () => {
         "valid-foundation-correction-decision-replacements-for": expect.any(Object),
         "phase-0-foundation-member-reviews": expect.any(Object),
         "review-context-members-for": expect.any(Object),
+        "review-assignment-context-members-for": expect.any(Object),
         "current-exact-review-contexts-cited-by": expect.any(Object),
         "interaction-free-architectures-for-requirement": expect.any(Object),
         "interacting-architectures-for-requirement": expect.any(Object),
