@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Obligations and Phase progression</title>
+  <link rel="stylesheet" href="../assets/course.css">
+  <script src="../assets/quiz.js" defer></script>
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="0003-what-exists-on-disk.html">Lesson 3</a> · <a href="../reference/core-work-glossary.html">Work glossary</a></nav>
+  <p class="eyebrow">Lesson 4 · 15 to 20 minutes</p>
+  <h1>Obligations and Phase progression</h1>
+  <p class="deck">An Obligation asks whether one requirement is satisfied. Phase progression asks whether MDLM may evaluate the next Phase.</p>
+
+  <div class="callout"><strong>Goal.</strong> Explain why progression does not wait for a general "all Obligations satisfied" check, then trace one bound Scenario input across two YAML definitions.</div>
+
+  <h2>Four checks with different jobs</h2>
+  <dl>
+    <dt><strong>Obligation satisfaction</strong></dt><dd>Whether one requirement has its declared evidence for one Subject.</dd>
+    <dt><strong>Progression readiness</strong></dt><dd>Whether the Phase's declared evidence condition is true.</dd>
+    <dt><strong>Progression authorization</strong></dt><dd>Whether exact evidence records the required human or policy authority.</dd>
+    <dt><strong>Gate completion</strong></dt><dd>Whether each selected gate candidate passes the Phase's declared gate check.</dd>
+  </dl>
+
+  <p>A Phase progression is complete only when its readiness, authorization, and required gate checks pass. There is no additional kernel rule requiring every Obligation Instance to be satisfied first.</p>
+
+  <h2>Answer 1: progression does not wait</h2>
+  <p>During one evaluation, MDLM computes applicable Obligation Instances and evaluates the progression conditions. Progression does not depend on a prior check that the Loose End list is empty.</p>
+
+  <div class="flow">
+    <div class="flow-step"><strong>Current package and Lifecycle Data</strong></div>
+    <div class="flow-arrow">↓ one evaluation derives</div>
+    <div class="flow-step"><strong>Obligation results</strong><br>Satisfaction, status, blockers, resolver, and dispatchability</div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-step"><strong>Progression result</strong><br>Readiness, authorization, gate completion, and next Phase</div>
+  </div>
+
+  <p>The implementation computes Obligations earlier in the function because the gate report can refer to them. That code order is not a rule saying all Obligations must pass before progression is checked.</p>
+
+  <p>If progression is complete, <a href="../../../src/lifecycle-inspection.ts"><code>activeLifecycleEvaluation</code></a> evaluates the declared next Phase. It does this even if the previous evaluation contained an unsatisfied Obligation Instance.</p>
+
+  <h2>A correction about Loose Ends</h2>
+  <p>A Loose End is any unsatisfied Obligation Instance that is not waived. It can be ready, blocked, awaiting review, failed, or stale. It does not need to be dispatchable or have currently usable inputs to remain a Loose End.</p>
+  <p>Therefore, an empty Loose End list means no unsatisfied, non-waived instances remain in that Phase evaluation. It still does not replace the progression expression.</p>
+
+  <h2>Answer 2: when this becomes a package defect</h2>
+  <p>The kernel lets the Process Package define its own evidence semantics. It does not assume that an empty Loose End list is the correct progression rule.</p>
+  <p>If a package describes an Obligation as mandatory before leaving the Phase, but progression can complete while that Obligation remains unsatisfied and unwaived, the package contradicts itself. That is a Process Package design defect.</p>
+  <p>The repair belongs in the package. Its progression expression, authorization condition, gate condition, or Obligation applicability must express the intended rule. Adding an unconditional kernel check would erase the package's ownership of process semantics.</p>
+
+  <div class="callout"><strong>Current Phase 0.</strong> Its progression expression names exact evidence: a candidate baseline, completed reviews, a passing simplification review, no unresolved correction authority, an intent approval, and no blocking questions. Its authorization and gate sections add exact signoff requirements.</div>
+
+  <h2>Answer 3: one bound input</h2>
+  <p>A <strong>Scenario input contract</strong> declares what a Scenario accepts. An <strong>input binding</strong> is the exact value selected for that input in one invocation.</p>
+
+  <p>The live <a href="../../../.lifecycle/process/scenarios/compile-psp.yaml"><code>compile-psp@3</code> Scenario</a> declares this input:</p>
+
+  <pre class="source"><code>inputs:
+  - name: product_intent_authority
+    types: [DEC]
+    cardinality: one
+    identity: revision</code></pre>
+
+  <p>This contract requires exactly one specific Revision of type <code>DEC</code>. The Scenario does not choose that Revision.</p>
+
+  <p>The live <a href="../../../.lifecycle/process/obligations/product-specification-required.yaml"><code>product-specification-required@2</code> Obligation</a> supplies the binding:</p>
+
+  <pre class="source"><code>resolve_with:
+  scenario: compile-psp@3
+  inputs:
+    product_intent_authority: >-
+      first("applicable-initial-product-intent-decisions@1", {})</code></pre>
+
+  <p>The expression calls a Selector, which is a named package query. <code>first</code> takes the first exact result. The selected <code>DEC</code> Revision becomes the value bound to <code>product_intent_authority</code>.</p>
+
+  <ol>
+    <li>The Scenario declares an input name and contract.</li>
+    <li>The Obligation maps that name to an expression.</li>
+    <li>MDLM evaluates the expression against current Lifecycle Data.</li>
+    <li>MDLM checks cardinality, type, identity, and any input condition.</li>
+    <li>If the check passes, the Assignment contains the exact bound Revision.</li>
+    <li>If a required value is absent or invalid, the work is not dispatchable.</li>
+  </ol>
+
+  <p>This is why the agent cannot replace the bound Decision with another convenient record. The Assignment fixes the input identity before the agent starts.</p>
+
+  <h2>How the YAML files interact</h2>
+  <div class="flow">
+    <div class="flow-step"><strong>Phase YAML</strong><br>References applicable Obligation and Scenario versions.</div>
+    <div class="flow-arrow">↓ enables</div>
+    <div class="flow-step"><strong>Obligation YAML</strong><br>Selects Subjects, checks satisfaction, declares blockers, and maps resolver inputs.</div>
+    <div class="flow-arrow">↓ names and binds</div>
+    <div class="flow-step"><strong>Scenario YAML</strong><br>Checks input contracts and declares outputs, prompt, policies, and completion.</div>
+    <div class="flow-arrow">↓ loads</div>
+    <div class="flow-step"><strong>Prompt asset</strong><br>Gives the agent instructions for the bounded transaction.</div>
+  </div>
+
+  <p>Later lessons will trace Selectors, Policies, Computed States, type definitions, and prompt assets with the same method.</p>
+
+  <h2>Retrieval check</h2>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The checks are derived during the same Phase evaluation." data-wrong-feedback="Progression has its own readiness, authorization, and gate checks.">
+    <h3>1. Must every Obligation pass before progression is checked?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>Yes, the kernel always requires complete satisfaction.</button>
+      <button class="answer" data-answer data-correct="true">No, declared progression checks are evaluated independently.</button>
+      <button class="answer" data-answer>Yes, unless every Scenario input remains empty.</button>
+      <button class="answer" data-answer>No, progression ignores current Lifecycle Data completely.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Completed progression causes evaluation of the declared next Phase." data-wrong-feedback="The active Phase follows the package's completed progression result.">
+    <h3>2. What happens when progression is complete?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>The current Phase repeats every unfinished Scenario.</button>
+      <button class="answer" data-answer>The Assignment lease becomes permanent Lifecycle Data.</button>
+      <button class="answer" data-answer data-correct="true">MDLM evaluates the declared next Phase immediately.</button>
+      <button class="answer" data-answer>Every previous Loose End becomes automatically waived.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. A contradictory mandatory requirement is a package defect." data-wrong-feedback="The kernel follows the package. The package must express its intended gates consistently.">
+    <h3>3. When is remaining work a package defect?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>Whenever any Scenario produces multiple output records.</button>
+      <button class="answer" data-answer>Whenever Phase progression includes exact authorization evidence.</button>
+      <button class="answer" data-answer>Whenever a Resolver uses a named Selector.</button>
+      <button class="answer" data-answer data-correct="true">When mandatory work remains unsatisfied and unwaived.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The Obligation expression selects the exact input value." data-wrong-feedback="The Scenario declares the contract. The Obligation supplies the binding expression.">
+    <h3>4. What binds <code>product_intent_authority</code>?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>The agent chooses any convenient Decision Revision.</button>
+      <button class="answer" data-answer data-correct="true">The Obligation's resolver input expression selects it.</button>
+      <button class="answer" data-answer>The Phase order assigns the newest Revision.</button>
+      <button class="answer" data-answer>The prompt text searches repository files directly.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Missing required input prevents safe dispatch." data-wrong-feedback="A required input must satisfy its Scenario contract before dispatch.">
+    <h3>5. What if the required binding is absent?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>The agent supplies an unstated replacement record.</button>
+      <button class="answer" data-answer>The Scenario runs without validating its contract.</button>
+      <button class="answer" data-answer>The current Phase automatically advances past it.</button>
+      <button class="answer" data-answer data-correct="true">The Resolver work remains not safely dispatchable.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <p class="score" data-score aria-live="polite">0/5 answered.</p>
+
+  <h2>Explain it back</h2>
+  <p>Answer these without copying the lesson:</p>
+  <ol>
+    <li>Why can Phase progression be complete while an Obligation Instance is unsatisfied?</li>
+    <li>When would that state reveal a Process Package design defect?</li>
+    <li>In the PSP example, which file declares the input contract, which file selects the input value, and what exact value reaches the Assignment?</li>
+  </ol>
+
+  <h2>Primary sources</h2>
+  <ul class="citation">
+    <li><a href="../../../src/evaluator.ts">Progression and resolver binding evaluation</a></li>
+    <li><a href="../../../src/lifecycle-inspection.ts">Active Phase and next-work selection</a></li>
+    <li><a href="../../../src/scenario-dry-run.ts">Resolver input contract validation</a></li>
+    <li><a href="../../../.lifecycle/process/phases/phase-0-wayfinding.yaml">Live Phase 0 definition</a></li>
+    <li><a href="../../../.lifecycle/process/obligations/product-specification-required.yaml">Live PSP Obligation</a></li>
+    <li><a href="../../../.lifecycle/process/scenarios/compile-psp.yaml">Live PSP Scenario</a></li>
+  </ul>
+</main></body>
+</html>

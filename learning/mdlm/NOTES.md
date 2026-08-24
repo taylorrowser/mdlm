@@ -11,3 +11,5 @@
 - Shuffle quiz options and keep answer lengths comparable. Never place every correct answer in the same position.
 - A perfect multiple-choice score does not establish fluency when the learner's explanation remains uncertain. Prefer explain-back prompts and source traces as evidence.
 - After Lesson 2, the learner can trace the broad Obligation-to-Assignment path. Next reinforce that Obligation Instances are derived, Resolver Scenarios receive declared inputs rather than Obligation objects, Phase progression has separate conditions, and only the Assignment lease tracks in-flight work.
+- After Lesson 3, the learner correctly classified package declarations, Lifecycle Data, derived results, and temporary operator state. They asked whether progression waits for all Obligations and how Resolver Scenario inputs bind.
+- Plan cumulative source traces across Phase, Obligation, Scenario, Selector, Policy, Computed State, type, profile, manifest, prompt, and skill definitions. Keep each lesson centered on one interaction rather than presenting the full catalog at once.
