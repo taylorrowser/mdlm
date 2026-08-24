@@ -1,0 +1,12 @@
+kind: selector-definition
+id: qualification-results-corrected-by-environment
+version: 1
+description: Exact failed qualification results causally addressed by one replacement ENV Revision.
+parameters:
+  - {name: replacement, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: replacement, link: corrects-qualification-result, emit: target, types: [RES]}
+  as: result
+  distinct: true
+  order_by: [identity.revision_id]

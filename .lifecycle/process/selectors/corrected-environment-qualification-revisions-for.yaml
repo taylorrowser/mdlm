@@ -1,0 +1,30 @@
+kind: selector-definition
+id: corrected-environment-qualification-revisions-for
+version: 1
+description: Valid newer ENV Revisions preserving the exact profile boundary, addressing every and only predecessor qualification failures, and carrying fresh assurance.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: environment, emit: entity, types: [ENV]}
+  as: replacement
+  where: >-
+    replacement.identity.revision > environment.identity.revision
+    && state(replacement, "validity") == "valid"
+    && every("failed-qualification-results-for-environment@1",
+      {environment: environment}, result =>
+        exists("matching-corrected-qualification-result@1",
+          {environment: environment, replacement: replacement, result: result}))
+    && none("unexpected-corrected-qualification-results@1",
+      {environment: environment, replacement: replacement})
+    && count("strategies-for-environment@1", {environment: environment}) == 1
+    && count("strategies-for-environment@1", {environment: replacement}) == 1
+    && one("strategies-for-environment@1", {environment: replacement})
+      == one("strategies-for-environment@1", {environment: environment})
+    && replacement.payload.strategy_revision == environment.payload.strategy_revision
+    && replacement.payload.profile_id == environment.payload.profile_id
+    && replacement.payload.capabilities == environment.payload.capabilities
+    && exists("complete-environment-assurance-for-environment@1",
+      {environment: replacement})
+  distinct: true
+  order_by: [identity.revision]

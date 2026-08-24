@@ -1333,6 +1333,76 @@ rows:
         budget: Both autonomous replacement-and-fresh-Review cycles are exhausted.
         disposition: The exhausted VSP lineage yields immediate stakeholder Attention Required and no third autonomous cycle.
         reuse: The exact failed lineage remains immutable for the attended packet.
+      - route: failed ENV qualification correction
+        executable:
+          file: test/phase-1-hardening-routes.test.ts
+          test: routes failed ENV qualification to replacement assurance
+        evidence:
+          facts: One current ENV with one singular completed qualification RUN and its exact valid failing RES.
+          links: The replacement preserves Stable Datum identity, cites every and only failed qualification RES, and atomically publishes fresh qualification VER and VAI outputs.
+        selectors:
+          - failed-current-environment-qualifications@1
+          - corrected-environment-qualification-revisions-for@1
+        obligations:
+          - environment-qualification-correction-required@1
+        participation:
+          mode: autonomous
+          policies:
+            - environment-qualification-correction-participation@1
+          authority: package-evidence
+        resolvers:
+          - revise-environment-after-failed-qualification@1
+        next:
+          - assignment
+        budget: Each exact qualification-failure replacement consumes one of the two shared autonomous ENV assurance-correction slots.
+        disposition: Failed qualification yields replacement assurance instead of a process dead end.
+        reuse: The exact VSP remains reusable; failed ENV, VER, VAI, RUN, and RES Revisions remain immutable and are not reused as replacement qualification evidence.
+      - route: passing replacement ENV qualification
+        executable:
+          file: test/phase-1-hardening-routes.test.ts
+          test: restores ENV Review eligibility only from a fresh passing replacement qualification
+        evidence:
+          facts: One same-lineage replacement ENV with fresh singular qualification VER, VAI, completed RUN, and passing RES.
+          links: Fresh qualification evidence targets only the replacement ENV; the predecessor failed RES is absent from replacement Review Context evidence.
+        selectors:
+          - complete-environment-qualification-for-environment@1
+          - environment-review-evidence-for@1
+        obligations:
+          - review-context-required@2
+        participation:
+          mode: autonomous
+          policies: []
+          authority: kernel-autonomous
+        resolvers:
+          - create-review-context@1
+        next:
+          - assignment
+        budget: Successful fresh qualification consumes no additional correction slot.
+        disposition: Passing replacement qualification restores ENV Review eligibility and normal Phase 1 pilot implementation work after Review passes.
+        reuse: The reviewed VSP remains reusable; only the replacement qualification chain enters its Review Context.
+      - route: exhausted failed ENV qualification correction
+        executable:
+          file: test/phase-1-hardening-routes.test.ts
+          test: escalates failed ENV qualification after two autonomous replacements
+        evidence:
+          facts: An ENV lineage whose initial subject and both autonomous replacements each have a fresh singular failed qualification chain.
+          links: Each replacement cites its immediate predecessor's exact failed RES and retains a separate fresh qualification chain.
+        selectors:
+          - environment-qualification-correction-history-for@1
+        obligations:
+          - environment-qualification-correction-required@1
+        participation:
+          mode: attended
+          policies:
+            - environment-qualification-correction-participation@1
+          authority: stakeholder
+        resolvers:
+          - revise-environment-after-failed-qualification@1
+        next:
+          - attention-required
+        budget: Both shared autonomous ENV assurance-correction slots are exhausted.
+        disposition: The third failed qualification yields immediate stakeholder Attention Required and no third autonomous replacement.
+        reuse: The exact VSP and failed qualification lineage remain immutable for the attended authority packet.
       - route: ordinary ENV correction
         executable:
           file: test/phase-1-hardening-routes.test.ts

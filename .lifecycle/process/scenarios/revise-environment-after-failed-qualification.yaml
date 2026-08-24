@@ -1,0 +1,86 @@
+kind: scenario-definition
+id: revise-environment-after-failed-qualification
+version: 1
+description: Replace one ENV after its singular completed qualification RUN fails, preserving failed evidence and publishing a fresh exact qualification VER and VAI atomically.
+phases: [phase-1-product-assurance]
+inputs:
+  - name: environment
+    types: [ENV]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      exists("failed-qualification-results-for-environment@1",
+        {environment: environment})
+      && none("newer-revisions-for@1", {subject: environment})
+  - name: failed_results
+    types: [RES]
+    cardinality: one-or-more
+    identity: revision
+    conditions: >-
+      !every("failed-qualification-results-for-environment@1",
+        {environment: environment}, result => result != failed_results)
+  - name: strategy
+    types: [VSP]
+    cardinality: one
+    identity: revision
+    conditions: >-
+      count("strategies-for-environment@1", {environment: environment}) == 1
+      && strategy == one("strategies-for-environment@1",
+        {environment: environment})
+outputs:
+  - name: replacement
+    types: [ENV]
+    cardinality: one
+    required_links:
+      - {link: realizes, target: {input: strategy}}
+      - {link: corrects-qualification-result, target: {input: failed_results}}
+  - name: qualification_activity
+    types: [VER]
+    cardinality: one
+    required_links:
+      - {link: governed-by, target: {input: strategy}}
+      - {link: qualifies, target: {output: replacement}}
+  - name: qualification_implementation
+    types: [VAI]
+    cardinality: one
+    required_links:
+      - {link: realizes, target: {output: qualification_activity}}
+      - {link: uses, target: {output: replacement}}
+      - {link: targets, target: {output: replacement}}
+  - name: decision
+    types: [DEC]
+    cardinality: zero-or-one
+    required_links:
+      - {link: justifies, target: {output: replacement}}
+prompt_ref: prompts/revise-environment-after-failed-qualification.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: environment-qualification-correction-participation@1
+  arguments: {subject: environment}
+authority_evidence: {output: decision, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == environment.identity.id
+  && replacement.identity.type == environment.identity.type
+  && replacement.payload.strategy_revision == strategy.identity.revision_id
+  && replacement.payload.profile_id == environment.payload.profile_id
+  && replacement.payload.capabilities == environment.payload.capabilities
+  && qualification_activity.payload.kind == "qualification"
+  && qualification_activity.payload.claim.scope == "environment-capability"
+  && qualification_implementation.payload.kind == "qualification"
+  && qualification_implementation.payload.independence_mode == "environment-capability"
+  && exists("corrected-environment-qualification-revisions-for@1",
+    {environment: environment})
+  && (
+    (policy("environment-qualification-correction-participation@1",
+      {subject: environment}).authority_mode == "autonomous"
+      && none("phase-1-assurance-correction-decisions-for@1",
+        {replacement: replacement}))
+    || (policy("environment-qualification-correction-participation@1",
+      {subject: environment}).authority_mode == "attended"
+      && count("phase-1-assurance-correction-decisions-for@1",
+        {replacement: replacement}) == 1)
+  )
+resolves: [environment-qualification-correction-required]
+prohibited_inputs: [mutation of failed environment or qualification evidence, rerun of prior qualification VAI, borrowed qualification evidence, undeclared environment capability, product requirement acceptance claim]
+batching: single

@@ -43,7 +43,7 @@ compatibility:
 catalog:
   templates: [titled-datum, rationale-bearing, requirement]
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, phase-2-correction-participation, stakeholder-change-correction-participation, pilot-assessment-correction-participation]
+  policies: [dependency-reassessment, review-applicability, waiver-applicability, contextual-review-participation, verification-implementation-participation, question-participation, gate-signoff-participation, consequential-decision-participation, phase-progression-participation, intent-candidate-correction-participation, phase-1-assurance-correction-participation, environment-qualification-correction-participation, phase-2-correction-participation, stakeholder-change-correction-participation, pilot-assessment-correction-participation]
   states: [maturity, disposition, validity, relationship-overlays, decomposition-status, change-status]
   selectors:
     - current-wayfinding-maps
@@ -92,6 +92,14 @@ catalog:
     - requirements-governed-by-strategy
     - failed-current-verification-strategies
     - failed-current-environments
+    - failed-current-environment-qualifications
+    - failed-qualification-results-for-run-and-environment
+    - failed-qualification-results-for-environment
+    - qualification-results-corrected-by-environment
+    - matching-corrected-qualification-result
+    - unexpected-corrected-qualification-results
+    - corrected-environment-qualification-revisions-for
+    - environment-qualification-correction-history-for
     - failed-current-pilot-verification-activities
     - corrected-phase-1-assurance-reviews-for
     - matching-corrected-phase-1-assurance-review
@@ -456,6 +464,7 @@ catalog:
     - verification-run-required
     - verification-strategy-review-correction-required
     - environment-review-correction-required
+    - environment-qualification-correction-required
     - pilot-verification-activity-review-correction-required
     - pilot-vai-review-correction-required
     - system-architecture-required
@@ -524,6 +533,7 @@ catalog:
     - execute-verification-run
     - revise-verification-strategy-after-review
     - revise-environment-assurance-after-review
+    - revise-environment-after-failed-qualification
     - revise-pilot-verification-activity-after-review
     - revise-pilot-vai-after-review
     - define-system-architecture
@@ -592,6 +602,7 @@ assets:
     - prompts/execute-verification-run.md@2
     - prompts/revise-verification-strategy-after-review.md@1
     - prompts/revise-environment-assurance-after-review.md@1
+    - prompts/revise-environment-after-failed-qualification.md@1
     - prompts/revise-pilot-verification-activity-after-review.md@2
     - prompts/revise-pilot-vai-after-review.md@1
     - prompts/define-system-architecture.md@2

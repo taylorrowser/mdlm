@@ -53,6 +53,9 @@ describe("Phase 1 route contracts", () => {
       "first VSP correction",
       "second VSP correction",
       "exhausted VSP correction",
+      "failed ENV qualification correction",
+      "passing replacement ENV qualification",
+      "exhausted failed ENV qualification correction",
       "ordinary ENV correction",
       "exhausted ENV correction",
       "ordinary pilot VER correction",
@@ -92,6 +95,18 @@ describe("Phase 1 route contracts", () => {
     expect(exactDefinition(
       processPackage.policies,
       "phase-1-assurance-correction-participation@1",
+    )).toMatchObject({
+      default: expect.objectContaining({ authority_mode: "attended" }),
+      rules: expect.arrayContaining([
+        expect.objectContaining({
+          result: expect.objectContaining({ authority_mode: "autonomous" }),
+        }),
+      ]),
+    });
+
+    expect(exactDefinition(
+      processPackage.policies,
+      "environment-qualification-correction-participation@1",
     )).toMatchObject({
       default: expect.objectContaining({ authority_mode: "attended" }),
       rules: expect.arrayContaining([
