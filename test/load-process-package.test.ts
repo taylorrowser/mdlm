@@ -207,7 +207,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.manifest.version).toBe("0.74.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(Object.keys(result.package.selectors)).toHaveLength(382);
+    expect(Object.keys(result.package.selectors)).toHaveLength(390);
     expect(result.package.selectors).toEqual(
       expect.objectContaining({
         "accepted-baseline-promotes-candidate": expect.any(Object),
@@ -307,11 +307,28 @@ describe("loadProcessPackage", () => {
         "gate-candidate-reviews-for-decision": expect.any(Object),
         "gate-candidate-authority-support-for-decision": expect.any(Object),
         "phase-1-assurance-correction-decisions-for": expect.any(Object),
+        "failed-current-environment-qualifications": expect.any(Object),
+        "failed-qualification-results-for-run-and-environment": expect.any(Object),
+        "failed-qualification-results-for-environment": expect.any(Object),
+        "qualification-results-corrected-by-environment": expect.any(Object),
+        "matching-corrected-qualification-result": expect.any(Object),
+        "unexpected-corrected-qualification-results": expect.any(Object),
+        "corrected-environment-qualification-revisions-for": expect.any(Object),
+        "environment-qualification-correction-history-for": expect.any(Object),
       }),
     );
-    expect(Object.keys(result.package.policies)).toHaveLength(14);
-    expect(Object.keys(result.package.obligations)).toHaveLength(62);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(64);
+    expect(Object.keys(result.package.policies)).toHaveLength(15);
+    expect(Object.keys(result.package.obligations)).toHaveLength(63);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(65);
+    expect(result.package.policies).toHaveProperty(
+      "environment-qualification-correction-participation",
+    );
+    expect(result.package.obligations).toHaveProperty(
+      "environment-qualification-correction-required",
+    );
+    expect(result.package.scenarios).toHaveProperty(
+      "revise-environment-after-failed-qualification",
+    );
     expect(
       result.package.scenarios["establish-initial-wayfinding-map"]?.outputs,
     ).toEqual(expect.arrayContaining([

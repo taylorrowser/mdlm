@@ -1,0 +1,20 @@
+kind: selector-definition
+id: matching-corrected-qualification-result
+version: 1
+description: One exact failed ENV qualification result addressed by its replacement ENV.
+parameters:
+  - {name: environment, kind: revision, types: [ENV]}
+  - {name: replacement, kind: revision, types: [ENV]}
+  - {name: result, kind: revision, types: [RES]}
+result_kind: revision
+query:
+  from:
+    selector: qualification-results-corrected-by-environment@1
+    arguments: {replacement: replacement}
+  as: corrected_result
+  where: >-
+    corrected_result == result
+    && !every("failed-qualification-results-for-environment@1",
+      {environment: environment}, failed => failed != result)
+  distinct: true
+  order_by: [identity.revision_id]

@@ -1,0 +1,24 @@
+kind: selector-definition
+id: failed-qualification-results-for-run-and-environment
+version: 1
+description: Failed qualification results produced by one exact completed RUN and linked to its exact ENV.
+parameters:
+  - {name: run, kind: revision, types: [RUN]}
+  - {name: environment, kind: revision, types: [ENV]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: run, link: produces, emit: target, types: [RES]}
+  as: result
+  where: >-
+    run.payload.kind == "qualification"
+    && run.payload.execution_state == "completed"
+    && state(run, "validity") == "valid"
+    && result.payload.claim.kind == "qualification"
+    && result.payload.claim.scope == "environment-capability"
+    && result.payload.claim.outcome == "fail"
+    && result.payload.claim.formal_evidence_eligible == false
+    && state(result, "validity") == "valid"
+    && exists("qualified-environment-match-for-result@1",
+      {environment: environment, result: result})
+  distinct: true
+  order_by: [identity.revision_id]

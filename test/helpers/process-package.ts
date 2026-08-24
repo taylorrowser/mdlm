@@ -47,6 +47,74 @@ export async function restoreHistoricalFixtureProcessPackage(
     }
     await fs.writeFile(obligationPath, restoredObligation);
 
+    const issue214Files = [
+      "obligations/environment-qualification-correction-required.yaml",
+      "policies/environment-qualification-correction-participation.yaml",
+      "prompts/revise-environment-after-failed-qualification.md",
+      "scenarios/revise-environment-after-failed-qualification.yaml",
+      "selectors/corrected-environment-qualification-revisions-for.yaml",
+      "selectors/environment-qualification-correction-history-for.yaml",
+      "selectors/failed-current-environment-qualifications.yaml",
+      "selectors/failed-qualification-results-for-environment.yaml",
+      "selectors/failed-qualification-results-for-run-and-environment.yaml",
+      "selectors/matching-corrected-qualification-result.yaml",
+      "selectors/qualification-results-corrected-by-environment.yaml",
+      "selectors/unexpected-corrected-qualification-results.yaml",
+    ];
+    await Promise.all(issue214Files.map((relativePath) =>
+      fs.rm(path.join(stagedPackage, relativePath))
+    ));
+
+    const phasePath = path.join(stagedPackage, "phases/phase-1-product-assurance.yaml");
+    const phase = await fs.readFile(phasePath, "utf8");
+    const restoredPhase = phase
+      .replace("  - revise-environment-after-failed-qualification@1\n", "")
+      .replace("  - environment-qualification-correction-required@1\n", "");
+    await fs.writeFile(phasePath, restoredPhase);
+
+    const environmentTypePath = path.join(stagedPackage, "types/ENV.yaml");
+    const environmentType = await fs.readFile(environmentTypePath, "utf8");
+    const restoredEnvironmentType = environmentType.replace(
+      "  - id: corrects-qualification-result\n" +
+        "    description: Exact failed qualification results causally addressed by this replacement environment Revision.\n" +
+        "    targets:\n" +
+        "      - {kind: datum, types: [RES], identity: revision}\n" +
+        "    cardinality: {minimum: 0, maximum: many}\n" +
+        "    freeze_resolution: already-exact\n" +
+        "    inverse_label: corrected-by-environment-revision\n",
+      "",
+    );
+    if (restoredEnvironmentType === environmentType) {
+      throw new Error("Historical fixture ENV qualification correction link is absent");
+    }
+    await fs.writeFile(environmentTypePath, restoredEnvironmentType);
+
+    const issue214ManifestLines = [
+      "    - failed-current-environment-qualifications\n",
+      "    - failed-qualification-results-for-run-and-environment\n",
+      "    - failed-qualification-results-for-environment\n",
+      "    - qualification-results-corrected-by-environment\n",
+      "    - matching-corrected-qualification-result\n",
+      "    - unexpected-corrected-qualification-results\n",
+      "    - corrected-environment-qualification-revisions-for\n",
+      "    - environment-qualification-correction-history-for\n",
+      "    - environment-qualification-correction-required\n",
+      "    - revise-environment-after-failed-qualification\n",
+      "    - prompts/revise-environment-after-failed-qualification.md@1\n",
+    ];
+    const currentManifest = await fs.readFile(manifestPath, "utf8");
+    const issue214RestoredManifest = issue214ManifestLines.reduce(
+      (source, line) => source.replace(line, ""),
+      currentManifest,
+    ).replace(
+      ", environment-qualification-correction-participation",
+      "",
+    );
+    if (issue214RestoredManifest === currentManifest) {
+      throw new Error("Historical fixture manifest qualification correction entries are absent");
+    }
+    await fs.writeFile(manifestPath, issue214RestoredManifest);
+
     const restoredDigest = await processPackageDigest(stagedPackage);
     if (restoredDigest !== expectedDigest) {
       throw new Error(

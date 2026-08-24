@@ -7,12 +7,14 @@ import formatsPlugin from "ajv-formats";
 import { beforeAll, describe, expect, it } from "vitest";
 import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import {
+  classifyOperatorOutcome,
   evaluateLifecycle,
   loadProcessPackage,
   resolveType,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { operatorWorkProjection } from "../src/assignment.js";
 import {
   evaluateProcessDefinition,
   evaluateScenarioParticipation,
@@ -335,7 +337,11 @@ function foundation(): LifecycleRecord[] {
   return [product, requirement, acceptedIntent];
 }
 
-function environment(number = 1, corrects?: string): LifecycleRecord {
+function environment(
+  number = 1,
+  corrects?: string,
+  correctsQualificationResult?: string,
+): LifecycleRecord {
   return record("ENV", "ENV-0HARDENP10", {
     title: number === 1
       ? "Public verification environment"
@@ -360,10 +366,15 @@ function environment(number = 1, corrects?: string): LifecycleRecord {
     revision: number,
     scenario: number === 1
       ? "realize-verification-environment@1"
-      : "revise-environment-assurance-after-review@2",
+      : correctsQualificationResult
+        ? "revise-environment-after-failed-qualification@1"
+        : "revise-environment-assurance-after-review@2",
     links: [
       { type: "realizes", target: "VSP-0HARDENP10-r00001" },
       ...(corrects ? [{ type: "corrects-review", target: corrects }] : []),
+      ...(correctsQualificationResult
+        ? [{ type: "corrects-qualification-result", target: correctsQualificationResult }]
+        : []),
     ],
   });
 }
@@ -414,8 +425,15 @@ function passingReview(
 function qualificationEvidence(
   currentStrategy: LifecycleRecord,
   currentEnvironment: LifecycleRecord,
+  options: { generation?: number; outcome?: "pass" | "fail" } = {},
 ) {
-  const activity = record("VER", "VER-0HARDQUAL1", {
+  const generation = options.generation ?? 1;
+  const outcome = options.outcome ?? "pass";
+  const assuranceScenario = currentEnvironment.datum.created_by.scenario;
+  if (typeof assuranceScenario !== "string") {
+    throw new Error("Qualification evidence requires an authored ENV Scenario");
+  }
+  const activity = record("VER", `VER-0HARDQUAL${generation}`, {
     title: "Environment capability qualification",
     rationale: "Qualify the exact strategy profile.",
     kind: "qualification",
@@ -431,13 +449,13 @@ function qualificationEvidence(
     expected_success_activity: "Invoke the declared capability.",
     expected_discrimination_activity: "Reject an unavailable capability.",
   }, {
-    scenario: "realize-verification-environment@1",
+    scenario: assuranceScenario,
     links: [
       { type: "governed-by", target: currentStrategy.datum.revision_id },
       { type: "qualifies", target: currentEnvironment.datum.revision_id },
     ],
   });
-  const implementation = record("VAI", "VAI-0HARDQUAL1", {
+  const implementation = record("VAI", `VAI-0HARDQUAL${generation}`, {
     title: "Environment qualification procedure",
     rationale: "Execute the exact profile qualification.",
     kind: "qualification",
@@ -456,26 +474,28 @@ function qualificationEvidence(
       intentionally_unsupported: ["undeclared capability"],
     },
   }, {
-    scenario: "realize-verification-environment@1",
+    scenario: assuranceScenario,
     links: [
       { type: "realizes", target: activity.datum.revision_id },
       { type: "uses", target: currentEnvironment.datum.revision_id },
       { type: "targets", target: currentEnvironment.datum.revision_id },
     ],
   });
-  const result = record("RES", "RES-0HARDQUAL1", {
-    title: "Passing environment qualification",
+  const result = record("RES", `RES-0HARDQUAL${generation}`, {
+    title: `${outcome === "pass" ? "Passing" : "Failed"} environment qualification`,
     claim: {
       kind: "qualification",
       scope: "environment-capability",
-      outcome: "pass",
+      outcome,
       formal_evidence_eligible: false,
     },
-    assessment_state: "accepted",
+    assessment_state: outcome === "pass" ? "accepted" : "rejected",
     observations: {
-      expected_success_observed: true,
+      expected_success_observed: outcome === "pass",
       expected_discrimination_observed: true,
-      details: "The exact profile succeeded and rejected an unavailable capability.",
+      details: outcome === "pass"
+        ? "The exact profile succeeded and rejected an unavailable capability."
+        : "The declared command capability was unavailable in the exact environment.",
     },
     evidence_refs: ["observation:qualification:exact-bytes"],
     assessor_ref: "runner:phase-1-qualification",
@@ -483,7 +503,7 @@ function qualificationEvidence(
     scenario: "execute-verification-run@1",
     links: [{ type: "assessed-in", target: currentEnvironment.datum.revision_id }],
   });
-  const run = record("RUN", "RUN-0HARDQUAL1", {
+  const run = record("RUN", `RUN-0HARDQUAL${generation}`, {
     title: "Environment qualification run",
     kind: "qualification",
     started_at: "2026-01-01T00:00:00.000Z",
@@ -1188,6 +1208,322 @@ describe("Phase 1 hardening route evidence", () => {
     )).toEqual(expect.objectContaining({
       status: "ready",
       actionableResolver: "write-verification-activity@2",
+    }));
+  });
+
+  it("routes failed ENV qualification to replacement assurance", async () => {
+    const currentStrategy = strategy(1);
+    const strategyReview = passingReview(currentStrategy, "REV-0HARDQF00");
+    const currentEnvironment = environment();
+    const qualification = qualificationEvidence(currentStrategy, currentEnvironment, {
+      outcome: "fail",
+    });
+    const acceptedFoundation = foundation();
+    const productReview = passingReview(acceptedFoundation[0]!, "REV-0HARDQF01");
+    const requirementReview = passingReview(acceptedFoundation[1]!, "REV-0HARDQF02", {
+      definitions: [acceptedFoundation[1]!, acceptedFoundation[0]!],
+    });
+    const activity = pilotActivity();
+    const activityReview = passingReview(activity, "REV-0HARDQF03", {
+      definitions: [activity, acceptedFoundation[0]!, acceptedFoundation[1]!, currentStrategy],
+    });
+    const exactTarget = target();
+    const records = [
+      ...productReview,
+      ...requirementReview,
+      currentStrategy,
+      ...strategyReview,
+      currentEnvironment,
+      qualification.activity,
+      qualification.implementation,
+      qualification.run,
+      qualification.result,
+      activity,
+      ...activityReview,
+      exactTarget,
+    ];
+
+    const evaluation = phase1Evaluation(processPackage, records);
+    expect(classifyOperatorOutcome(
+      operatorWorkProjection(evaluation),
+      evaluation.terminalOutcome,
+    ).kind).not.toBe("process-dead-end");
+    const route = evaluation.obligations.find((item) =>
+      item.obligation === "environment-qualification-correction-required" &&
+      item.subject === currentEnvironment.datum.revision_id
+    );
+    expect(route).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-environment-after-failed-qualification@1",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "autonomous",
+          authority: "package-evidence",
+        }),
+      })],
+    }));
+
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...records],
+        dependencyComparisons: [],
+      },
+      "revise-environment-after-failed-qualification@1",
+      route!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs.find((input) =>
+      input.name === "failed_results"
+    )?.values.map((value) => value.identity.revision_id)).toEqual([
+      qualification.result.datum.revision_id,
+    ]);
+    expect(prepared.value.expectedOutputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "replacement",
+        requiredLinks: expect.arrayContaining([
+          {
+            link: "corrects-qualification-result",
+            target: { input: "failed_results" },
+          },
+        ]),
+      }),
+      expect.objectContaining({ name: "qualification_activity", cardinality: "one" }),
+      expect.objectContaining({ name: "qualification_implementation", cardinality: "one" }),
+    ]));
+  });
+
+  it("restores ENV Review eligibility only from a fresh passing replacement qualification", () => {
+    const currentStrategy = strategy(1);
+    const strategyReview = passingReview(currentStrategy, "REV-0HARDQFP0");
+    const firstEnvironment = environment(1);
+    const failedQualification = qualificationEvidence(currentStrategy, firstEnvironment, {
+      generation: 1,
+      outcome: "fail",
+    });
+    const replacement = environment(
+      2,
+      undefined,
+      failedQualification.result.datum.revision_id,
+    );
+    const replacementQualification = qualificationEvidence(currentStrategy, replacement, {
+      generation: 2,
+      outcome: "pass",
+    });
+    expect(replacement.datum.links).toEqual([
+      { type: "realizes", target: currentStrategy.datum.revision_id },
+      {
+        type: "corrects-qualification-result",
+        target: failedQualification.result.datum.revision_id,
+      },
+    ]);
+    expect(replacementQualification.run.datum.links).toContainEqual({
+      type: "executes",
+      target: replacementQualification.implementation.datum.revision_id,
+    });
+    expect(replacementQualification.run.datum.links).not.toContainEqual({
+      type: "executes",
+      target: failedQualification.implementation.datum.revision_id,
+    });
+    const acceptedFoundation = foundation();
+    const activity = pilotActivity();
+    const activityReview = passingReview(activity, "REV-0HARDQFP1", {
+      definitions: [activity, acceptedFoundation[0]!, acceptedFoundation[1]!, currentStrategy],
+    });
+    const records = [
+      currentStrategy,
+      ...strategyReview,
+      firstEnvironment,
+      failedQualification.activity,
+      failedQualification.implementation,
+      failedQualification.run,
+      failedQualification.result,
+      replacement,
+      replacementQualification.activity,
+      replacementQualification.implementation,
+      replacementQualification.run,
+      replacementQualification.result,
+      activity,
+      ...activityReview,
+      target(),
+    ];
+
+    const beforeReview = phase1Evaluation(processPackage, records);
+    expect(evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...records],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "corrected-environment-qualification-revisions-for@1",
+      { environment: firstEnvironment.datum.revision_id },
+    ).result).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({ revision_id: replacement.datum.revision_id }),
+      }),
+    ]);
+    expect(beforeReview.obligations.find((item) =>
+      item.obligation === "review-context-required" &&
+      item.subject === replacement.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "create-review-context@1",
+    }));
+    expect(evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...records],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "environment-review-evidence-for@1",
+      { environment: replacement.datum.revision_id },
+    ).result).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: replacementQualification.result.datum.revision_id,
+        }),
+      }),
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: replacementQualification.run.datum.revision_id,
+        }),
+      }),
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: replacementQualification.implementation.datum.revision_id,
+        }),
+      }),
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: replacementQualification.activity.datum.revision_id,
+        }),
+      }),
+    ]);
+
+    const replacementReview = passingReview(replacement, "REV-0HARDQFP2", {
+      definitions: [replacement, currentStrategy],
+      evidence: [
+        replacementQualification.activity,
+        replacementQualification.implementation,
+        replacementQualification.run,
+        replacementQualification.result,
+      ],
+    });
+    expect(replacementReview[0].datum.payload.evidence).not.toContain(
+      failedQualification.result.datum.revision_id,
+    );
+    const afterReview = phase1Evaluation(processPackage, [...records, ...replacementReview]);
+    expect(afterReview.obligations.find((item) =>
+      item.obligation === "passing-review-required" &&
+      item.subject === replacement.datum.revision_id
+    )).toEqual(expect.objectContaining({ satisfied: true, status: "satisfied" }));
+    expect(afterReview.obligations.find((item) =>
+      item.obligation === "pilot-verification-implementation-required" &&
+      item.subject === activity.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "implement-verification-activity@1",
+    }));
+  });
+
+  it("escalates failed ENV qualification after two autonomous replacements", () => {
+    const currentStrategy = strategy(1);
+    const firstEnvironment = environment(1);
+    const firstQualification = qualificationEvidence(currentStrategy, firstEnvironment, {
+      generation: 1,
+      outcome: "fail",
+    });
+    const firstRecords = [
+      currentStrategy,
+      firstEnvironment,
+      firstQualification.activity,
+      firstQualification.implementation,
+      firstQualification.run,
+      firstQualification.result,
+    ];
+    expect(correction(
+      processPackage,
+      firstRecords,
+      "environment-qualification-correction-required",
+      firstEnvironment.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({ mode: "autonomous" }),
+      })],
+    }));
+
+    const secondEnvironment = environment(
+      2,
+      undefined,
+      firstQualification.result.datum.revision_id,
+    );
+    const secondQualification = qualificationEvidence(currentStrategy, secondEnvironment, {
+      generation: 2,
+      outcome: "fail",
+    });
+    const secondRecords = [
+      ...firstRecords,
+      secondEnvironment,
+      secondQualification.activity,
+      secondQualification.implementation,
+      secondQualification.run,
+      secondQualification.result,
+    ];
+    expect(correction(
+      processPackage,
+      secondRecords,
+      "environment-qualification-correction-required",
+      secondEnvironment.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({ mode: "autonomous" }),
+      })],
+    }));
+
+    const thirdEnvironment = environment(
+      3,
+      undefined,
+      secondQualification.result.datum.revision_id,
+    );
+    const thirdQualification = qualificationEvidence(currentStrategy, thirdEnvironment, {
+      generation: 3,
+      outcome: "fail",
+    });
+    const exhausted = correction(
+      processPackage,
+      [
+        ...secondRecords,
+        thirdEnvironment,
+        thirdQualification.activity,
+        thirdQualification.implementation,
+        thirdQualification.run,
+        thirdQualification.result,
+      ],
+      "environment-qualification-correction-required",
+      thirdEnvironment.datum.revision_id,
+    );
+    expect(exhausted).toEqual(expect.objectContaining({
+      actionableResolver: "revise-environment-after-failed-qualification@1",
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+        attentionSchedule: expect.objectContaining({ timing: "immediate" }),
+      })],
     }));
   });
 
