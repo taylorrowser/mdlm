@@ -256,7 +256,10 @@ export async function installLifecycleDataFixture(
     selection.package?.reference === definition.processPackage.reference &&
     selection.package.digest !== definition.processPackage.digest
   ) {
-    await restoreHistoricalFixtureProcessPackage(packageRoot);
+    await restoreHistoricalFixtureProcessPackage(
+      packageRoot,
+      definition.processPackage.digest,
+    );
     if (await processPackageDigest(packageRoot) === definition.processPackage.digest) {
       selection.package.digest = definition.processPackage.digest;
       await fs.writeFile(selectionPath, `${JSON.stringify(selection, null, 2)}\n`);

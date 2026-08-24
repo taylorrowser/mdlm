@@ -1,41 +1,68 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { processPackageDigest } from "../../src/process-package-digest.js";
 
-/** Restore the exact pre-fix package bytes used by immutable route fixtures. */
+/** Restore and verify the exact pre-fix package bytes used by immutable fixtures. */
 export async function restoreHistoricalFixtureProcessPackage(
   processRoot: string,
+  expectedDigest: string,
 ): Promise<void> {
-  const selectorPath = path.join(
-    processRoot,
-    "selectors/review-assignment-context-members-for.yaml",
+  const stagingRoot = await fs.mkdtemp(
+    path.join(path.dirname(processRoot), ".historical-package-"),
   );
+  const stagedPackage = path.join(stagingRoot, "package");
+  const preservedPackage = path.join(stagingRoot, "preserved");
   try {
-    await fs.access(selectorPath);
-  } catch {
-    return;
-  }
-  await fs.rm(selectorPath);
+    await fs.cp(processRoot, stagedPackage, { recursive: true });
+    const selectorPath = path.join(
+      stagedPackage,
+      "selectors/review-assignment-context-members-for.yaml",
+    );
+    await fs.rm(selectorPath);
 
-  const manifestPath = path.join(processRoot, "manifest.yaml");
-  const manifest = await fs.readFile(manifestPath, "utf8");
-  await fs.writeFile(
-    manifestPath,
-    manifest.replace("    - review-assignment-context-members-for\n", ""),
-  );
+    const manifestPath = path.join(stagedPackage, "manifest.yaml");
+    const manifest = await fs.readFile(manifestPath, "utf8");
+    const restoredManifest = manifest.replace(
+      "    - review-assignment-context-members-for\n",
+      "",
+    );
+    if (restoredManifest === manifest) {
+      throw new Error("Historical fixture manifest selector is absent");
+    }
+    await fs.writeFile(manifestPath, restoredManifest);
 
-  const obligationPath = path.join(
-    processRoot,
-    "obligations/passing-review-required.yaml",
-  );
-  const obligation = await fs.readFile(obligationPath, "utf8");
-  await fs.writeFile(
-    obligationPath,
-    obligation.replace(
+    const obligationPath = path.join(
+      stagedPackage,
+      "obligations/passing-review-required.yaml",
+    );
+    const obligation = await fs.readFile(obligationPath, "utf8");
+    const restoredObligation = obligation.replace(
       "select(\"review-assignment-context-members-for@1\", {subject: subject})",
       "select(\"review-context-members-for@1\", {subject: subject})",
-    ),
-  );
+    );
+    if (restoredObligation === obligation) {
+      throw new Error("Historical fixture Assignment selector is absent");
+    }
+    await fs.writeFile(obligationPath, restoredObligation);
+
+    const restoredDigest = await processPackageDigest(stagedPackage);
+    if (restoredDigest !== expectedDigest) {
+      throw new Error(
+        `Restored Process Package digest '${restoredDigest}' does not match '${expectedDigest}'`,
+      );
+    }
+
+    await fs.rename(processRoot, preservedPackage);
+    try {
+      await fs.rename(stagedPackage, processRoot);
+    } catch (error) {
+      await fs.rename(preservedPackage, processRoot);
+      throw error;
+    }
+  } finally {
+    await fs.rm(stagingRoot, { recursive: true, force: true });
+  }
 }
 
 export async function copiedProcessPackage(
