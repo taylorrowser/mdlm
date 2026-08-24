@@ -7,8 +7,7 @@ import { gunzipSync } from "node:zlib";
 import type { PreparedAssignment } from "./assignment-submission.js";
 
 const executeFile = promisify(execFile);
-import { processPackageDigest } from "../../src/process-package-digest.js";
-import { restoreHistoricalFixtureProcessPackage } from "./process-package.js";
+import { ensureFixtureProcessPackage } from "./process-package.js";
 
 const fixtureNames = [
   "candidate-currentness",
@@ -234,58 +233,11 @@ export async function installLifecycleDataFixture(
   }
   validateFixtureTransactions(entries);
 
-  const selectionPath = path.join(repository, ".lifecycle/process-selection.json");
-  const selection = JSON.parse(await fs.readFile(selectionPath, "utf8")) as {
-    package?: { reference?: string; digest?: string; path?: string };
-  };
-  const lifecycleRoot = path.resolve(repository, ".lifecycle");
-  const packageRoot = typeof selection.package?.path === "string"
-    ? path.resolve(repository, selection.package.path)
-    : undefined;
-  if (packageRoot && !packageRoot.startsWith(`${lifecycleRoot}${path.sep}`)) {
-    throw new Error(`Selected Process Package path escapes .lifecycle for '${fixture}'`);
-  }
-  if (
-    packageRoot &&
-    await processPackageDigest(packageRoot) !== selection.package?.digest
-  ) {
-    throw new Error(`Installed Process Package drift before fixture '${fixture}'`);
-  }
-  if (
-    packageRoot &&
-    selection.package?.reference === definition.processPackage.reference &&
-    selection.package.digest !== definition.processPackage.digest
-  ) {
-    await restoreHistoricalFixtureProcessPackage(
-      packageRoot,
-      definition.processPackage.digest,
-    );
-    if (await processPackageDigest(packageRoot) === definition.processPackage.digest) {
-      selection.package.digest = definition.processPackage.digest;
-      await fs.writeFile(selectionPath, `${JSON.stringify(selection, null, 2)}\n`);
-      const descriptorPath = path.join(repository, ".lifecycle/repository.json");
-      const descriptor = JSON.parse(await fs.readFile(descriptorPath, "utf8")) as {
-        package?: { digest?: string };
-      };
-      if (descriptor.package) {
-        descriptor.package.digest = definition.processPackage.digest;
-        await fs.writeFile(
-          descriptorPath,
-          `${JSON.stringify(descriptor, null, 2)}\n`,
-        );
-      }
-    }
-  }
-  if (
-    selection.package?.reference !== definition.processPackage.reference ||
-    selection.package.digest !== definition.processPackage.digest ||
-    !packageRoot
-  ) {
-    throw new Error(`Selected Process Package mismatch for fixture '${fixture}'`);
-  }
-  if (await processPackageDigest(packageRoot) !== definition.processPackage.digest) {
-    throw new Error(`Installed Process Package digest mismatch for fixture '${fixture}'`);
-  }
+  await ensureFixtureProcessPackage(
+    repository,
+    definition.processPackage,
+    `fixture '${fixture}'`,
+  );
   const processRef =
     `${definition.processPackage.reference}#${definition.processPackage.digest}`;
   for (const entry of entries.filter((candidate) => candidate.path.endsWith(".md"))) {

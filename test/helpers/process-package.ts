@@ -76,6 +76,58 @@ export async function restoreHistoricalFixtureProcessPackage(
   }
 }
 
+export async function ensureFixtureProcessPackage(
+  repository: string,
+  expected: { reference: string; digest: string },
+  fixtureDescription: string,
+): Promise<string> {
+  const selectionPath = path.join(repository, ".lifecycle/process-selection.json");
+  const selection = JSON.parse(await fs.readFile(selectionPath, "utf8")) as {
+    package?: { reference?: string; digest?: string; path?: string };
+  };
+  const lifecycleRoot = path.resolve(repository, ".lifecycle");
+  const packageRoot = typeof selection.package?.path === "string"
+    ? path.resolve(repository, selection.package.path)
+    : undefined;
+  if (packageRoot && !packageRoot.startsWith(`${lifecycleRoot}${path.sep}`)) {
+    throw new Error(`Selected Process Package path escapes .lifecycle for ${fixtureDescription}`);
+  }
+  if (
+    packageRoot &&
+    await processPackageDigest(packageRoot) !== selection.package?.digest
+  ) {
+    throw new Error(`Installed Process Package drift before ${fixtureDescription}`);
+  }
+  if (
+    packageRoot &&
+    selection.package?.reference === expected.reference &&
+    selection.package.digest !== expected.digest
+  ) {
+    await restoreHistoricalFixtureProcessPackage(packageRoot, expected.digest);
+    selection.package.digest = expected.digest;
+    await fs.writeFile(selectionPath, `${JSON.stringify(selection, null, 2)}\n`);
+    const descriptorPath = path.join(repository, ".lifecycle/repository.json");
+    const descriptor = JSON.parse(await fs.readFile(descriptorPath, "utf8")) as {
+      package?: { digest?: string };
+    };
+    if (descriptor.package) {
+      descriptor.package.digest = expected.digest;
+      await fs.writeFile(descriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
+    }
+  }
+  if (
+    selection.package?.reference !== expected.reference ||
+    selection.package.digest !== expected.digest ||
+    !packageRoot
+  ) {
+    throw new Error(`Selected Process Package mismatch for ${fixtureDescription}`);
+  }
+  if (await processPackageDigest(packageRoot) !== expected.digest) {
+    throw new Error(`Installed Process Package digest mismatch for ${fixtureDescription}`);
+  }
+  return packageRoot;
+}
+
 export async function copiedProcessPackage(
   prefix = "mdlm-process-",
 ): Promise<string> {
