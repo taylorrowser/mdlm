@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MDLM operator loop reference</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="../lessons/0001-who-chooses-the-next-work.html">Lesson 1</a></nav>
+  <p class="kicker">Quick reference</p>
+  <h1>The operator loop</h1>
+  <p class="deck">MDLM derives work from repository truth. It does not advance a hidden workflow cursor.</p>
+
+  <div class="flow">
+    <div class="flow-step"><strong>1. Evaluate</strong><br><code>mdlm status --json</code> classifies repository truth. <code>mdlm next --json</code> returns one Operator Outcome and allocates an Assignment only when work can advance.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>2. Prepare</strong><br><code>mdlm scenario prepare &lt;assignment-id&gt; --json</code> binds the exact package, repository state, Scenario, prompt, skills, inputs, participation, outputs, and completion conditions.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>3. Perform</strong><br>The harness or attended authority does the declared work. MDLM itself does not perform agent work.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>4. Submit</strong><br><code>mdlm scenario submit</code> validates a complete Assignment Response. A valid proposal publishes one atomic Scenario transaction as Lifecycle Data.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>5. Verify and commit</strong><br><code>mdlm doctor --json</code>, inspect the exact diff, then commit it with ordinary Git.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>6. Reevaluate</strong><br>Run <code>status</code> and <code>next</code> again. New Lifecycle Data may satisfy old Obligations, create new ones, expose attention, reach a boundary, or reveal a defect.</div>
+  </div>
+
+  <h2>Do not collapse these terms</h2>
+  <dl>
+    <dt><strong>Obligation Instance</strong></dt><dd>One evaluated requirement for one exact subject and process reference.</dd>
+    <dt><strong>Loose End</strong></dt><dd>An unsatisfied Obligation reported with blockers, dispatchability, resolver, outputs, and waiver policy.</dd>
+    <dt><strong>Scenario</strong></dt><dd>A versioned contract for bounded agent work.</dd>
+    <dt><strong>Assignment</strong></dt><dd>An exact state-bound projection of one Scenario transaction for one agent. It is not Lifecycle Data.</dd>
+    <dt><strong>Operator Outcome</strong></dt><dd>The result of reevaluation. It may be Assignment, Attention Required, a successful boundary, Process Dead End, or Invalid.</dd>
+  </dl>
+
+  <p class="citation">Primary sources: <a href="../../../README.md">repository README</a>, <a href="../../../CONTEXT.md">canonical domain language</a>, and <a href="../../../.lifecycle/process/README.md">current Process Package README</a>.</p>
+</main></body>
+</html>

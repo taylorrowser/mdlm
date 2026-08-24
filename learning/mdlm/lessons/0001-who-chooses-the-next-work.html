@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Who chooses the next work?</title>
+  <link rel="stylesheet" href="../assets/course.css">
+  <script src="../assets/quiz.js" defer></script>
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="../reference/operator-loop.html">Operator loop reference</a></nav>
+  <p class="eyebrow">Lesson 1 · 10–15 minutes</p>
+  <h1>Who chooses the next work?</h1>
+  <p class="deck">Replace the idea of a scenario sequence with a more exact model: repository truth is reevaluated, and the resulting obligations expose work.</p>
+
+  <div class="callout"><strong>Your tangible win.</strong> By the end, you should be able to explain why a successful Scenario does not tell MDLM what to run afterward.</div>
+
+  <h2>Start with the correction</h2>
+  <p>Your model was close: the agent repeatedly asks MDLM what to do, performs bounded work, and returns the result. The missing piece is what causes that work to appear.</p>
+  <p>A Scenario is a reusable contract. It does not schedule itself. The Process Package declares Obligations and other conditions. The kernel evaluates those declarations against exact Lifecycle Data. That evaluation produces an Operator Outcome. When work is safe to dispatch, the outcome contains an Assignment bound to one Scenario and exact inputs.</p>
+
+  <div class="flow">
+    <div class="flow-step"><strong>Repository truth</strong><br>Lifecycle Data, exact Revisions, links, package provenance, and transaction evidence.</div>
+    <div class="flow-arrow">↓ evaluated with</div>
+    <div class="flow-step"><strong>Process Package</strong><br>Selectors, Policies, Computed States, Obligations, Scenarios, Phases, and profile conditions.</div>
+    <div class="flow-arrow">↓ produces</div>
+    <div class="flow-step"><strong>Operator Outcome</strong><br>Perhaps an Assignment. Perhaps attention, a successful boundary, a dead end, or an invalid result.</div>
+  </div>
+
+  <p>The Assignment is temporary orchestration context. It freezes the exact state needed for one proposed transaction. If the proposal passes submission checks, MDLM publishes its outputs as Lifecycle Data. Then the operator reevaluates. The new data may satisfy an Obligation or cause different Obligations to exist.</p>
+
+  <h2>A small example</h2>
+  <p>Suppose the package requires a Product Specification. No valid PSP exists.</p>
+  <ol>
+    <li>The applicable Obligation Instance is unsatisfied.</li>
+    <li>Its Loose End identifies a Resolver Scenario and exact bindings.</li>
+    <li>If blockers are clear, <code>mdlm next</code> may allocate an Assignment for that Scenario.</li>
+    <li>The agent proposes a PSP through the Assignment Response.</li>
+    <li>Submission validates and atomically publishes the PSP.</li>
+    <li>Reevaluation checks the obligation again. It does not trust the agent's claim that the work is done.</li>
+  </ol>
+  <p>This is why MDLM has no hidden “advance to the next step” operation. New truth changes evaluation.</p>
+
+  <h2>Retrieval check</h2>
+  <p class="citation">Answer before reopening the <a href="../reference/operator-loop.html">operator loop reference</a>.</p>
+
+  <section class="question" data-quiz-question data-correct-feedback="Right. The obligation derives needed work from repository truth." data-wrong-feedback="Not quite. The package's evaluated obligation exposes the needed work.">
+    <h3>1. What caused this work to become eligible?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">An obligation exposes the needed work.</button>
+      <button class="answer" data-answer>A scenario chooses itself to run.</button>
+      <button class="answer" data-answer>The agent advances a stored cursor.</button>
+      <button class="answer" data-answer>Git history picks the next command.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-correct-feedback="Right. A Scenario declares a bounded work contract." data-wrong-feedback="A Scenario is a contract. Evaluation and orchestration decide whether to use it.">
+    <h3>2. What does a Scenario do?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">Declares one bounded work contract.</button>
+      <button class="answer" data-answer>Stores the repository's current phase.</button>
+      <button class="answer" data-answer>Chooses every loose end globally.</button>
+      <button class="answer" data-answer>Commits generated outputs into Git.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-correct-feedback="Right. The Assignment binds exact state and one Scenario transaction." data-wrong-feedback="The Assignment is temporary orchestration context, not durable Lifecycle Data.">
+    <h3>3. What is an Assignment?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">Exact projection prepared for one agent.</button>
+      <button class="answer" data-answer>Durable task stored as lifecycle data.</button>
+      <button class="answer" data-answer>Mutable pointer to current scenario execution.</button>
+      <button class="answer" data-answer>Prompt selected directly by harness alone.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-correct-feedback="Right. Publication happens only after canonical validation." data-wrong-feedback="Submission validates a complete proposal and publishes an atomic transaction.">
+    <h3>4. What can successful submission do?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">Publishes validated lifecycle data atomically.</button>
+      <button class="answer" data-answer>Marks the assignment complete forever.</button>
+      <button class="answer" data-answer>Moves a mutable phase pointer.</button>
+      <button class="answer" data-answer>Assumes every obligation became satisfied.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-correct-feedback="Right. Only reevaluation can classify what the new repository state means." data-wrong-feedback="A successful transaction is not a terminal signal. Reevaluate repository truth.">
+    <h3>5. What follows a successful transaction?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">Reevaluate and inspect the next outcome.</button>
+      <button class="answer" data-answer>Stop because the scenario succeeded now.</button>
+      <button class="answer" data-answer>Run the same scenario again immediately.</button>
+      <button class="answer" data-answer>Edit generated lifecycle data manually afterward.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <p class="score" data-score aria-live="polite">0/5 answered.</p>
+
+  <h2>Explain it back</h2>
+  <p>Without looking above, complete this sentence in your own words:</p>
+  <blockquote>“After an agent successfully submits a Scenario proposal, MDLM does not simply run the next Scenario because…”</blockquote>
+  <p>Send your answer, quiz score, and the question that felt least certain to your teacher. Ask any follow-up question where the distinction still feels artificial.</p>
+
+  <h2>Primary source</h2>
+  <p>Read the short <a href="../../../README.md#operator-contract">operator contract in the repository README</a>. It is the current supported contract. The <a href="../../../CONTEXT.md#work-and-orchestration">work and orchestration vocabulary in CONTEXT.md</a> gives the exact term definitions used here.</p>
+  <p class="citation">Next lesson after demonstrated understanding: trace one real <code>mdlm next</code> result backward through its Obligation, Selector, and Scenario definition.</p>
+</main></body>
+</html>
