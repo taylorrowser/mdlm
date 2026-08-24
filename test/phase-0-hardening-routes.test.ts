@@ -412,7 +412,7 @@ describe("Phase 0 missing hardening routes", () => {
     }));
   });
 
-  it("creates only a complete reviewed Phase 0 intent candidate and supplies its exact evidence Reviews to fresh candidate Review work", async () => {
+  it("creates only a complete reviewed Phase 0 intent candidate and then yields fresh candidate Review work", async () => {
     const foundation = phase0Foundation();
     const records = [...foundation.members, ...foundation.reviews];
     expect(obligation(
