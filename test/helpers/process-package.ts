@@ -2,6 +2,26 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+const candidateEvidenceReviewSupport = `          || !every("baseline-evidence@1",
+            {baseline: one("intent-candidates-matching-subject@1", {subject: subject})}, evidence => evidence != member)
+`;
+
+/** Restore the exact pre-fix package bytes used by immutable route fixtures. */
+export async function restoreHistoricalFixtureProcessPackage(
+  processRoot: string,
+): Promise<void> {
+  const selectorPath = path.join(
+    processRoot,
+    "selectors/review-context-members-for.yaml",
+  );
+  const source = await fs.readFile(selectorPath, "utf8");
+  if (!source.includes(candidateEvidenceReviewSupport)) return;
+  await fs.writeFile(
+    selectorPath,
+    source.replace(candidateEvidenceReviewSupport, ""),
+  );
+}
+
 export async function copiedProcessPackage(
   prefix = "mdlm-process-",
 ): Promise<string> {
