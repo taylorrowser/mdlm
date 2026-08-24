@@ -1165,6 +1165,14 @@ describe("Phase 0 missing hardening routes", () => {
     expect(changedCandidateSupport.map((item) =>
       item.identity.revision_id
     )).not.toContain(unrelatedAuthority.datum.revision_id);
+    const changedCandidateAssignmentSupport = evaluateProcessDefinition(
+      processPackage,
+      snapshot([...records, change, changedCandidate]),
+      "selector",
+      "review-assignment-context-members-for@1",
+      { subject: changedCandidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(changedCandidateAssignmentSupport).toEqual(changedCandidateSupport);
 
     const authoritySupport = evaluateProcessDefinition(
       processPackage,

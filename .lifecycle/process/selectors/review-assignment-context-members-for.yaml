@@ -12,6 +12,12 @@ query:
     !every("review-context-members-for@1", {subject: subject}, support =>
       support != member)
     || (exists("intent-candidates-matching-subject@1", {subject: subject})
+      && !every("intent-candidates-matching-subject@1", {subject: subject}, candidate =>
+        !(candidate.provenance.scenario in [
+          "create-phase-0-intent-candidate@1",
+          "revise-intent-candidate-after-review@3"
+        ]))
+      && member.identity.type == "REV"
       && !every("baseline-evidence@1",
         {baseline: one("intent-candidates-matching-subject@1", {subject: subject})}, evidence =>
           evidence != member))
