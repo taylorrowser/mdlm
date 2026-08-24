@@ -11,10 +11,10 @@ MDLM has grown beyond the user's current mental model. The goal is to regain con
 - Explain every Scenario supported by the current Example Process Package with a concrete repository state.
 
 ## Constraints
-- Keep each lesson completable in 10–20 minutes.
+- Keep each lesson completable in 10 to 20 minutes.
 - Use current repository code, tests, and package definitions as primary sources.
 - Keep all course material under `learning/mdlm/` and commit it with the repository.
 
 ## Out of scope
 - Historical designs except where they explain a current choice.
-- Deferred Phase 3–6 breadth and claims beyond the implemented bootstrap profile.
+- Deferred Phase 3 to 6 breadth and claims beyond the implemented bootstrap profile.

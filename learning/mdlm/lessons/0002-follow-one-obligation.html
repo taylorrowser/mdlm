@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Follow one obligation</title>
+  <link rel="stylesheet" href="../assets/course.css">
+  <script src="../assets/quiz.js" defer></script>
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="0001-who-chooses-the-next-work.html">Lesson 1</a> · <a href="../reference/core-work-glossary.html">Work glossary</a></nav>
+  <p class="eyebrow">Lesson 2 · 10 to 15 minutes</p>
+  <h1>Follow one Obligation</h1>
+  <p class="deck">Trace the first Phase 0 requirement from a package rule to one exact Assignment.</p>
+
+  <div class="callout"><strong>Goal.</strong> Given an Obligation definition, explain why MDLM reports work and which Scenario may resolve it.</div>
+
+  <p>A <strong>Phase</strong> is a package-declared scope that enables a set of rules and work contracts. A <strong>Subject</strong> is the specific Phase or piece of Lifecycle Data to which a rule applies. This lesson uses the first Phase, named Phase 0.</p>
+
+  <h2>The six forms of work</h2>
+  <p>Read these once. Keep the <a href="../reference/core-work-glossary.html">glossary</a> open if the names blur together.</p>
+  <ol>
+    <li>An <strong>Obligation</strong> is a package rule stating what must be true.</li>
+    <li>An <strong>Obligation Instance</strong> applies that rule to one exact subject.</li>
+    <li>A <strong>Loose End</strong> is an unsatisfied instance that MDLM reports.</li>
+    <li>A <strong>Resolver Scenario</strong> is the declared work contract that may produce the missing evidence.</li>
+    <li><strong>Dispatchable</strong> means the inputs resolve and declared blockers are clear.</li>
+    <li>An <strong>Assignment</strong> is a temporary work packet that binds the Scenario to the current repository state for one response.</li>
+  </ol>
+
+  <h2>A real package rule</h2>
+  <p>Phase 0 begins by requiring one wayfinding map. The live definition is <a href="../../../.lifecycle/process/obligations/initial-wayfinding-map-required.yaml"><code>initial-wayfinding-map-required@2</code></a>.</p>
+
+  <pre class="source"><code>for_each: '[phase]'
+subject_as: required_phase
+satisfied_when: 'exists("current-wayfinding-maps@1", {})'
+
+status_rules:
+  - status: ready
+    when: 'required_phase.id == phase.id'
+
+resolve_with:
+  scenario: establish-initial-wayfinding-map@2
+  inputs: {}</code></pre>
+
+  <h2>Read it one line at a time</h2>
+  <ol>
+    <li><code>for_each: '[phase]'</code> creates one Obligation Instance for the exact active Phase.</li>
+    <li><code>satisfied_when</code> asks a named query whether a current wayfinding map exists.</li>
+    <li>If none exists, the instance is unsatisfied. MDLM reports it as a Loose End.</li>
+    <li>The status rule marks it <code>ready</code> when its subject is the active Phase.</li>
+    <li><code>resolve_with</code> names the Resolver Scenario. This Scenario needs no existing datum as input.</li>
+  </ol>
+
+  <p>The Obligation does not contain instructions for writing a map. It declares the required evidence and points to the contract that can produce it.</p>
+
+  <h2>Now inspect the work contract</h2>
+  <p>The live <a href="../../../.lifecycle/process/scenarios/establish-initial-wayfinding-map.yaml"><code>establish-initial-wayfinding-map@2</code> Scenario</a> declares:</p>
+  <ul>
+    <li>no inputs;</li>
+    <li>exactly one <code>MAP</code> output;</li>
+    <li>exactly one product-intent <code>QST</code> output;</li>
+    <li>zero or more additional <code>QST</code> outputs;</li>
+    <li>required links, payload values, and completion checks.</li>
+  </ul>
+  <p><code>MAP</code> and <code>QST</code> are package-defined Lifecycle Data types. Their full meaning can wait. For this trace, they are the exact evidence shape promised by the Scenario.</p>
+
+  <div class="flow">
+    <div class="flow-step"><strong>No current map</strong><br>The satisfaction expression returns false.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>One Loose End</strong><br>The Phase 0 instance is ready and has a Resolver Scenario.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>Dispatchable work</strong><br>No input binding or blocker prevents this Scenario from running.</div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><strong>One Assignment</strong><br><code>mdlm next</code> leases the exact invocation.</div>
+  </div>
+
+  <h2>Two corrections to your explanation</h2>
+  <p>First, a successful submission means the proposal passed the Scenario contract. The uncertainty comes afterward: satisfying one Scenario contract does not mean every current Obligation is satisfied.</p>
+  <p>Second, MDLM does not pick whichever Scenario "makes most sense." It orders Loose Ends by declared status and identifiers, then selects dispatchable work under fixed attention rules. The same repository and package state produce the same choice.</p>
+
+  <h2>Retrieval check</h2>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. This expression asks whether the required evidence exists now." data-wrong-feedback="Look at the name satisfied_when. It decides whether this requirement already has evidence.">
+    <h3>1. What does <code>satisfied_when</code> decide?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>Which agent receives the assignment.</button>
+      <button class="answer" data-answer data-correct="true">Whether required evidence currently exists.</button>
+      <button class="answer" data-answer>How Git records each transaction.</button>
+      <button class="answer" data-answer>Which phase follows this phase.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The rule applied to Phase 0 becomes one unsatisfied instance." data-wrong-feedback="The Obligation definition remains a rule. Evaluation creates the exact instance.">
+    <h3>2. What exists when no current map exists?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>A completed Scenario transaction becomes available.</button>
+      <button class="answer" data-answer>A mutable workflow cursor advances automatically.</button>
+      <button class="answer" data-answer data-correct="true">One unsatisfied Obligation Instance becomes visible.</button>
+      <button class="answer" data-answer>Every Phase 0 Scenario becomes dispatchable.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. The Obligation names this contract as capable of producing evidence." data-wrong-feedback="A Resolver Scenario is a declared contract, not the evidence or the Assignment itself.">
+    <h3>3. What is the Resolver Scenario here?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>The current missing wayfinding map evidence.</button>
+      <button class="answer" data-answer>The leased Assignment returned by next.</button>
+      <button class="answer" data-answer>The status rule marking work ready.</button>
+      <button class="answer" data-answer data-correct="true">The declared contract for producing evidence.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Submission validates the bounded transaction, not the whole lifecycle." data-wrong-feedback="Successful submission proves the Scenario contract passed. Reevaluation handles lifecycle conclusions.">
+    <h3>4. What does successful submission establish?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">The Scenario contract was validated.</button>
+      <button class="answer" data-answer>Every lifecycle obligation became satisfied.</button>
+      <button class="answer" data-answer>The next Scenario was predetermined.</button>
+      <button class="answer" data-answer>The active phase advanced automatically.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Selection is deterministic for the same package and repository state." data-wrong-feedback="MDLM follows declared ordering and attention rules. It does not make a taste judgment.">
+    <h3>5. Which work does MDLM select?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>Whatever Scenario seems most sensible now.</button>
+      <button class="answer" data-answer>The Scenario nearest its prompt file.</button>
+      <button class="answer" data-answer>Any work the agent prefers today.</button>
+      <button class="answer" data-answer data-correct="true">The first dispatchable item after ordering.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <p class="score" data-score aria-live="polite">0/5 answered.</p>
+
+  <h2>Explain the trace</h2>
+  <p>Without looking back, explain the difference among the Obligation, its Obligation Instance, the Resolver Scenario, and the Assignment in this example. Then answer this:</p>
+  <blockquote>If the new map publishes successfully, what must MDLM do before it can say which work comes next?</blockquote>
+  <p>Send your explanation, score, and the point where the vocabulary still feels slippery. Ask your teacher about any step that seems redundant.</p>
+
+  <h2>Primary sources</h2>
+  <ul class="citation">
+    <li><a href="../../../.lifecycle/process/obligations/initial-wayfinding-map-required.yaml">The live Obligation definition</a></li>
+    <li><a href="../../../.lifecycle/process/scenarios/establish-initial-wayfinding-map.yaml">The live Resolver Scenario</a></li>
+    <li><a href="../../../src/evaluator.ts">Loose End ordering in the evaluator</a></li>
+    <li><a href="../../../src/lifecycle-inspection.ts">First dispatchable work selection</a></li>
+  </ul>
+</main></body>
+</html>

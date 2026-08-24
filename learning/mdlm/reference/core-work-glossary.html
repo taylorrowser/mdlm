@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MDLM work glossary</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="../lessons/0002-follow-one-obligation.html">Lesson 2</a></nav>
+  <p class="kicker">Quick reference</p>
+  <h1>How required work becomes agent work</h1>
+
+  <dl>
+    <dt><strong>Lifecycle Data</strong></dt>
+    <dd>Durable Markdown claims and evidence managed by MDLM.</dd>
+
+    <dt><strong>Process Package</strong></dt>
+    <dd>Versioned declarations that define types, rules, work contracts, and Phase behavior.</dd>
+
+    <dt><strong>Phase</strong></dt>
+    <dd>A package-declared scope that enables applicable Obligations and Scenarios and declares progression conditions.</dd>
+
+    <dt><strong>Subject</strong></dt>
+    <dd>The specific Phase or piece of Lifecycle Data to which a rule applies.</dd>
+
+    <dt><strong>Obligation</strong></dt>
+    <dd>A Process Package rule. It selects Subjects and declares what evidence would satisfy the requirement.</dd>
+
+    <dt><strong>Obligation Instance</strong></dt>
+    <dd>One Obligation evaluated for one exact subject under one exact Process Package reference.</dd>
+
+    <dt><strong>Loose End</strong></dt>
+    <dd>An unsatisfied Obligation Instance reported with its status, blockers, resolver, expected outputs, and waiver rules.</dd>
+
+    <dt><strong>Resolver Scenario</strong></dt>
+    <dd>The Scenario named by the Obligation as capable of producing evidence that may satisfy it.</dd>
+
+    <dt><strong>Dispatchable</strong></dt>
+    <dd>The Resolver Scenario can safely run now. Its inputs resolve and no declared blocker prevents execution.</dd>
+
+    <dt><strong>Assignment</strong></dt>
+    <dd>A temporary work packet reserved against the current repository state. It binds one Scenario, its inputs, its prompt, its output contract, authority needs, and completion checks.</dd>
+
+    <dt><strong>Assignment Response</strong></dt>
+    <dd>The harness return for one Assignment. It contains either a complete Scenario Proposal or a typed inability to complete.</dd>
+
+    <dt><strong>Scenario Proposal</strong></dt>
+    <dd>Candidate publication content. It becomes Lifecycle Data only after submission validates the complete transaction.</dd>
+  </dl>
+
+  <div class="callout"><strong>Keep this distinction.</strong> A successful submission proves the proposal met the Scenario contract. Reevaluation decides which Obligations are now satisfied and which work is now dispatchable.</div>
+
+  <p class="citation">Primary source: <a href="../../../CONTEXT.md#work-and-orchestration">CONTEXT.md, work and orchestration</a>.</p>
+</main></body>
+</html>

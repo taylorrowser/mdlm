@@ -1,4 +1,13 @@
 document.querySelectorAll('[data-quiz-question]').forEach((question) => {
+  const answers = question.querySelector('.answers');
+  if (question.hasAttribute('data-shuffle') && answers) {
+    const buttons = [...answers.children];
+    for (let index = buttons.length - 1; index > 0; index -= 1) {
+      const target = Math.floor(Math.random() * (index + 1));
+      [buttons[index], buttons[target]] = [buttons[target], buttons[index]];
+    }
+    buttons.forEach((button) => answers.appendChild(button));
+  }
   const feedback = question.querySelector('[data-feedback]');
   question.querySelectorAll('[data-answer]').forEach((button) => {
     button.addEventListener('click', () => {

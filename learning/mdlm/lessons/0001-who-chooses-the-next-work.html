@@ -9,42 +9,53 @@
 </head>
 <body><main>
   <nav><a href="../index.html">Course index</a> · <a href="../reference/operator-loop.html">Operator loop reference</a></nav>
-  <p class="eyebrow">Lesson 1 · 10–15 minutes</p>
+  <p class="eyebrow">Lesson 1 · 10 to 15 minutes</p>
   <h1>Who chooses the next work?</h1>
-  <p class="deck">Replace the idea of a scenario sequence with a more exact model: repository truth is reevaluated, and the resulting obligations expose work.</p>
+  <p class="deck">Scenarios do not form a sequence. MDLM reevaluates repository facts against package rules after every transaction.</p>
 
-  <div class="callout"><strong>Your tangible win.</strong> By the end, you should be able to explain why a successful Scenario does not tell MDLM what to run afterward.</div>
+  <div class="callout"><strong>Goal.</strong> Explain why a successful Scenario does not tell MDLM what to run afterward.</div>
 
-  <h2>Start with the correction</h2>
-  <p>Your model was close: the agent repeatedly asks MDLM what to do, performs bounded work, and returns the result. The missing piece is what causes that work to appear.</p>
-  <p>A Scenario is a reusable contract. It does not schedule itself. The Process Package declares Obligations and other conditions. The kernel evaluates those declarations against exact Lifecycle Data. That evaluation produces an Operator Outcome. When work is safe to dispatch, the outcome contains an Assignment bound to one Scenario and exact inputs.</p>
+  <h2>Eight terms first</h2>
+  <dl>
+    <dt><strong>Lifecycle Data</strong></dt><dd>Durable Markdown claims and evidence managed by MDLM.</dd>
+    <dt><strong>Process Package</strong></dt><dd>Versioned declarations that define types, rules, work contracts, and phase behavior.</dd>
+    <dt><strong>Subject</strong></dt><dd>The specific Phase or piece of Lifecycle Data to which a rule applies.</dd>
+    <dt><strong>Obligation</strong></dt><dd>A package rule stating what must be true for a Subject.</dd>
+    <dt><strong>Obligation Instance</strong></dt><dd>One Obligation applied to one specific subject and package version.</dd>
+    <dt><strong>Loose End</strong></dt><dd>An unsatisfied Obligation Instance reported as current work.</dd>
+    <dt><strong>Scenario</strong></dt><dd>A reusable contract for bounded agent work. It declares inputs, outputs, and completion checks.</dd>
+    <dt><strong>Assignment</strong></dt><dd>One Scenario bound to exact repository facts for one agent response.</dd>
+  </dl>
+
+  <h2>What causes work to appear</h2>
+  <p>The agent asks MDLM what to do, performs bounded work, and returns a proposal. The Process Package supplies the rules. MDLM evaluates those rules against Lifecycle Data. If an unsatisfied Obligation is safe to work on, MDLM can return an Assignment for its declared Scenario.</p>
 
   <div class="flow">
-    <div class="flow-step"><strong>Repository truth</strong><br>Lifecycle Data, exact Revisions, links, package provenance, and transaction evidence.</div>
-    <div class="flow-arrow">↓ evaluated with</div>
-    <div class="flow-step"><strong>Process Package</strong><br>Selectors, Policies, Computed States, Obligations, Scenarios, Phases, and profile conditions.</div>
-    <div class="flow-arrow">↓ produces</div>
-    <div class="flow-step"><strong>Operator Outcome</strong><br>Perhaps an Assignment. Perhaps attention, a successful boundary, a dead end, or an invalid result.</div>
+    <div class="flow-step"><strong>Repository facts</strong><br>Lifecycle Data and the selected Process Package.</div>
+    <div class="flow-arrow">↓ MDLM evaluates</div>
+    <div class="flow-step"><strong>Required outcomes</strong><br>Obligations say what is missing and whether work can run now.</div>
+    <div class="flow-arrow">↓ MDLM returns</div>
+    <div class="flow-step"><strong>One outcome</strong><br>An Assignment, required attention, a declared stopping point, a dead end, or an invalid result.</div>
   </div>
 
   <p>The Assignment is temporary orchestration context. It freezes the exact state needed for one proposed transaction. If the proposal passes submission checks, MDLM publishes its outputs as Lifecycle Data. Then the operator reevaluates. The new data may satisfy an Obligation or cause different Obligations to exist.</p>
 
   <h2>A small example</h2>
-  <p>Suppose the package requires a Product Specification. No valid PSP exists.</p>
+  <p>Suppose the package requires a Product Specification, a document describing product intent. No valid Product Specification exists.</p>
   <ol>
     <li>The applicable Obligation Instance is unsatisfied.</li>
     <li>Its Loose End identifies a Resolver Scenario and exact bindings.</li>
     <li>If blockers are clear, <code>mdlm next</code> may allocate an Assignment for that Scenario.</li>
-    <li>The agent proposes a PSP through the Assignment Response.</li>
-    <li>Submission validates and atomically publishes the PSP.</li>
-    <li>Reevaluation checks the obligation again. It does not trust the agent's claim that the work is done.</li>
+    <li>The agent proposes the document in its required response packet.</li>
+    <li>Submission validates the proposal and publishes all transaction outputs together. If validation fails, it publishes none of them.</li>
+    <li>Reevaluation checks what the new repository state means and derives all current work again.</li>
   </ol>
-  <p>This is why MDLM has no hidden “advance to the next step” operation. New truth changes evaluation.</p>
+  <p>A successful submission proves that the proposal met the Scenario contract. It does not prove that every lifecycle requirement is now satisfied. MDLM has no hidden "advance to the next step" operation.</p>
 
   <h2>Retrieval check</h2>
   <p class="citation">Answer before reopening the <a href="../reference/operator-loop.html">operator loop reference</a>.</p>
 
-  <section class="question" data-quiz-question data-correct-feedback="Right. The obligation derives needed work from repository truth." data-wrong-feedback="Not quite. The package's evaluated obligation exposes the needed work.">
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Right. The obligation derives needed work from repository truth." data-wrong-feedback="Not quite. The package's evaluated obligation exposes the needed work.">
     <h3>1. What caused this work to become eligible?</h3>
     <div class="answers">
       <button class="answer" data-answer data-correct="true">An obligation exposes the needed work.</button>
@@ -54,7 +65,7 @@
     </div><p class="feedback" data-feedback aria-live="polite"></p>
   </section>
 
-  <section class="question" data-quiz-question data-correct-feedback="Right. A Scenario declares a bounded work contract." data-wrong-feedback="A Scenario is a contract. Evaluation and orchestration decide whether to use it.">
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Right. A Scenario declares a bounded work contract." data-wrong-feedback="A Scenario is a contract. Evaluation and orchestration decide whether to use it.">
     <h3>2. What does a Scenario do?</h3>
     <div class="answers">
       <button class="answer" data-answer data-correct="true">Declares one bounded work contract.</button>
@@ -64,7 +75,7 @@
     </div><p class="feedback" data-feedback aria-live="polite"></p>
   </section>
 
-  <section class="question" data-quiz-question data-correct-feedback="Right. The Assignment binds exact state and one Scenario transaction." data-wrong-feedback="The Assignment is temporary orchestration context, not durable Lifecycle Data.">
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Right. The Assignment binds exact state and one Scenario transaction." data-wrong-feedback="The Assignment is temporary orchestration context, not durable Lifecycle Data.">
     <h3>3. What is an Assignment?</h3>
     <div class="answers">
       <button class="answer" data-answer data-correct="true">Exact projection prepared for one agent.</button>
@@ -74,7 +85,7 @@
     </div><p class="feedback" data-feedback aria-live="polite"></p>
   </section>
 
-  <section class="question" data-quiz-question data-correct-feedback="Right. Publication happens only after canonical validation." data-wrong-feedback="Submission validates a complete proposal and publishes an atomic transaction.">
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Right. Publication happens only after full response validation." data-wrong-feedback="Submission validates a complete proposal and publishes all outputs together.">
     <h3>4. What can successful submission do?</h3>
     <div class="answers">
       <button class="answer" data-answer data-correct="true">Publishes validated lifecycle data atomically.</button>
@@ -84,7 +95,7 @@
     </div><p class="feedback" data-feedback aria-live="polite"></p>
   </section>
 
-  <section class="question" data-quiz-question data-correct-feedback="Right. Only reevaluation can classify what the new repository state means." data-wrong-feedback="A successful transaction is not a terminal signal. Reevaluate repository truth.">
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Right. Only reevaluation can classify what the new repository state means." data-wrong-feedback="A successful transaction is not a terminal signal. Reevaluate repository truth.">
     <h3>5. What follows a successful transaction?</h3>
     <div class="answers">
       <button class="answer" data-answer data-correct="true">Reevaluate and inspect the next outcome.</button>
@@ -98,11 +109,11 @@
 
   <h2>Explain it back</h2>
   <p>Without looking above, complete this sentence in your own words:</p>
-  <blockquote>“After an agent successfully submits a Scenario proposal, MDLM does not simply run the next Scenario because…”</blockquote>
+  <blockquote>"After an agent successfully submits a Scenario proposal, MDLM does not simply run the next Scenario because..."</blockquote>
   <p>Send your answer, quiz score, and the question that felt least certain to your teacher. Ask any follow-up question where the distinction still feels artificial.</p>
 
   <h2>Primary source</h2>
   <p>Read the short <a href="../../../README.md#operator-contract">operator contract in the repository README</a>. It is the current supported contract. The <a href="../../../CONTEXT.md#work-and-orchestration">work and orchestration vocabulary in CONTEXT.md</a> gives the exact term definitions used here.</p>
-  <p class="citation">Next lesson after demonstrated understanding: trace one real <code>mdlm next</code> result backward through its Obligation, Selector, and Scenario definition.</p>
+  <p class="citation"><a href="0002-follow-one-obligation.html">Next lesson: follow one real Obligation to its Resolver Scenario and Assignment.</a></p>
 </main></body>
 </html>
