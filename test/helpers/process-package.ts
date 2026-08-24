@@ -13,6 +13,7 @@ export async function restoreHistoricalFixtureProcessPackage(
   );
   const stagedPackage = path.join(stagingRoot, "package");
   const preservedPackage = path.join(stagingRoot, "preserved");
+  let retainStagingRoot = false;
   try {
     await fs.cp(processRoot, stagedPackage, { recursive: true });
     const selectorPath = path.join(
@@ -56,12 +57,22 @@ export async function restoreHistoricalFixtureProcessPackage(
     await fs.rename(processRoot, preservedPackage);
     try {
       await fs.rename(stagedPackage, processRoot);
-    } catch (error) {
-      await fs.rename(preservedPackage, processRoot);
-      throw error;
+    } catch (installationError) {
+      try {
+        await fs.rename(preservedPackage, processRoot);
+      } catch (rollbackError) {
+        retainStagingRoot = true;
+        throw new AggregateError(
+          [installationError, rollbackError],
+          `Historical Process Package installation and rollback failed; preserved package retained at '${preservedPackage}'`,
+        );
+      }
+      throw installationError;
     }
   } finally {
-    await fs.rm(stagingRoot, { recursive: true, force: true });
+    if (!retainStagingRoot) {
+      await fs.rm(stagingRoot, { recursive: true, force: true });
+    }
   }
 }
 
