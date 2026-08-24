@@ -17,8 +17,6 @@ query:
         && (
           exists("candidate-members-matching@1",
             {candidate: one("intent-candidates-matching-subject@1", {subject: subject}), required_member: member})
-          || !every("baseline-evidence@1",
-            {baseline: one("intent-candidates-matching-subject@1", {subject: subject})}, evidence => evidence != member)
           || !every("phase-0-candidate-correction-support-for@1",
             {candidate: one("intent-candidates-matching-subject@1", {subject: subject})}, support => support != member)
           || !every("candidate-product-answer-review-support@1",

@@ -2388,10 +2388,13 @@ describe("Phase 1 hardening route evidence", () => {
     const processRoot = await phase1RunProcessPackage();
     try {
       await initializeProcessPackageFixture(repository, processRoot);
-      const loadedFixture = await loadProcessPackage(processRoot);
+      const installedProcessRoot = await installCurrentLifecycleDataFixture(
+        repository,
+        "phase-1-run-ready",
+      );
+      const loadedFixture = await loadProcessPackage(installedProcessRoot);
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
       const fixturePackage = loadedFixture.package;
-      await installCurrentLifecycleDataFixture(repository, "phase-1-run-ready");
       const fixtureProcessRef =
         "mdlm-bootstrap@0.74.0#sha256:fe4b03737ad107e325e14ce24d53389ae1fa0636222297d83ccdfe4901bf6784";
       const readyInspection = await loadRepositoryInspection(
@@ -2818,9 +2821,12 @@ describe("Phase 1 hardening route evidence", () => {
     );
     try {
       await initializeProcessPackageFixture(repository, processRoot);
-      const loaded = await loadProcessPackage(processRoot);
+      const installedProcessRoot = await installCurrentLifecycleDataFixture(
+        repository,
+        "phase-1-vai-review-ready",
+      );
+      const loaded = await loadProcessPackage(installedProcessRoot);
       if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-      await installCurrentLifecycleDataFixture(repository, "phase-1-vai-review-ready");
       const fixtureProcessRef =
         "mdlm-bootstrap@0.74.0#sha256:9599fa8cd7d2557c24e62da6ce4b44324dd26e01a810272820051067fc54eca4";
       const inspected = await loadRepositoryInspection(
@@ -2960,9 +2966,12 @@ describe("Phase 1 hardening route evidence", () => {
     const processRoot = await phase1PilotRetryProcessPackage();
     try {
       await initializeProcessPackageFixture(repository, processRoot);
-      const loadedFixture = await loadProcessPackage(processRoot);
+      const installedProcessRoot = await installCurrentLifecycleDataFixture(
+        repository,
+        "phase-1-pilot-retry-ready",
+      );
+      const loadedFixture = await loadProcessPackage(installedProcessRoot);
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
-      await installCurrentLifecycleDataFixture(repository, "phase-1-pilot-retry-ready");
       const fixtureProcessRef =
         "mdlm-bootstrap@0.74.0#sha256:e5e1533167c2d71be979d29e3f5898c16c47aa1d98e7d9c57de77d3b4d57da1b";
       const retry = await prepareNextAssignment(

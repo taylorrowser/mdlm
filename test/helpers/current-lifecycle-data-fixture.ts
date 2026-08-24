@@ -182,7 +182,7 @@ async function manifest(): Promise<FixtureManifest> {
 export async function installCurrentLifecycleDataFixture(
   repository: string,
   fixture: CurrentLifecycleDataFixture,
-): Promise<void> {
+): Promise<string> {
   const definition = (await manifest()).fixtures[fixture];
   if (!definition) throw new Error(`Unknown current Lifecycle Data fixture '${fixture}'`);
 
@@ -218,6 +218,12 @@ export async function installCurrentLifecycleDataFixture(
     : undefined;
   if (packageRoot && !packageRoot.startsWith(`${lifecycleRoot}${path.sep}`)) {
     throw new Error(`Selected Process Package path escapes .lifecycle for '${fixture}'`);
+  }
+  if (
+    packageRoot &&
+    await processPackageDigest(packageRoot) !== selection.package?.digest
+  ) {
+    throw new Error(`Installed Process Package drift before current fixture '${fixture}'`);
   }
   if (
     packageRoot &&
@@ -276,4 +282,5 @@ export async function installCurrentLifecycleDataFixture(
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, entry.source, { flag: "wx" });
   }
+  return packageRoot;
 }

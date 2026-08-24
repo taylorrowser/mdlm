@@ -453,8 +453,11 @@ describe("Phase 0 missing hardening routes", () => {
       status: "ready",
       actionableResolver: "create-review-context@1",
     }));
-    const expectedSupport = [
-      ...foundation.members.map((member) => member.datum.revision_id),
+    const expectedContextSupport = foundation.members
+      .map((member) => member.datum.revision_id)
+      .sort();
+    const expectedAssignmentSupport = [
+      ...expectedContextSupport,
       ...foundation.reviews
         .filter((item) => item.datum.type === "REV")
         .map((review) => review.datum.revision_id),
@@ -470,7 +473,7 @@ describe("Phase 0 missing hardening routes", () => {
     if (!preparedContext.ok) return;
     expect(preparedContext.value.invocations[0]!.inputs
       .find((input) => input.name === "context_members")!.values
-      .map((value) => value.identity.revision_id)).toEqual(expectedSupport);
+      .map((value) => value.identity.revision_id)).toEqual(expectedContextSupport);
 
     const context = record("BSL", "BSL-1030000091", {
       title: "Evidence-complete candidate Review Context",
@@ -478,7 +481,10 @@ describe("Phase 0 missing hardening routes", () => {
       role: "review-context",
       scope: candidate.datum.revision_id,
       group: "DEFAULT",
-      definition_members: [candidate.datum.revision_id, ...expectedSupport].sort(),
+      definition_members: [
+        candidate.datum.revision_id,
+        ...expectedContextSupport,
+      ].sort(),
       evidence: [],
     }, { scenario: "create-review-context@1" });
     const reviewRecords = [...records, candidate, context];
@@ -499,7 +505,9 @@ describe("Phase 0 missing hardening routes", () => {
     if (!preparedReview.ok) return;
     expect(preparedReview.value.invocations[0]!.inputs
       .find((input) => input.name === "context_members")!.values
-      .map((value) => value.identity.revision_id)).toEqual(expectedSupport);
+      .map((value) => value.identity.revision_id)).toEqual(
+        expectedAssignmentSupport,
+      );
     const suppliedReviews = preparedReview.value.invocations[0]!.inputs
       .find((input) => input.name === "context_members")!.values
       .filter((value) => value.identity.type === "REV");

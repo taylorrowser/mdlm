@@ -247,6 +247,12 @@ export async function installLifecycleDataFixture(
   }
   if (
     packageRoot &&
+    await processPackageDigest(packageRoot) !== selection.package?.digest
+  ) {
+    throw new Error(`Installed Process Package drift before fixture '${fixture}'`);
+  }
+  if (
+    packageRoot &&
     selection.package?.reference === definition.processPackage.reference &&
     selection.package.digest !== definition.processPackage.digest
   ) {

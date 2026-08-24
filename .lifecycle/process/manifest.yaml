@@ -127,6 +127,7 @@ catalog:
     - latest-question-dependencies-for-candidate
     - candidate-question-resolution-support-for
     - review-context-members-for
+    - review-assignment-context-members-for
     - review-context-members
     - review-context-evidence
     - review-context-contains-member
