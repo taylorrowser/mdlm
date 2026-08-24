@@ -1,7 +1,7 @@
 kind: policy-definition
 id: phase-1-assurance-correction-participation
 version: 1
-description: Keep two Phase 1 assurance Review-correction cycles autonomous, then require immediate stakeholder escalation through the same exact Scenario.
+description: Keep two Phase 1 assurance correction cycles autonomous, sharing qualification- and Review-driven ENV replacements, then require immediate stakeholder escalation through the same exact Scenario.
 parameters:
   - {name: subject, kind: revision, types: [VSP, ENV, VER, VAI]}
 result_schema:
@@ -24,9 +24,24 @@ default:
   attention_checkpoint: null
   consolidation_group: null
 rules:
+  - priority: 110
+    when: >-
+      subject.identity.type == "ENV"
+      && count("environment-qualification-correction-history-for@1",
+        {subject: subject}) < 2
+      && every("failing-reviews-for@1", {subject: subject}, review =>
+        review.payload.correction_authority == "package-evidence")
+    result:
+      authority_mode: autonomous
+      authority: package-evidence
+      delegation_allowed: false
+      attention_timing: none
+      attention_checkpoint: null
+      consolidation_group: null
   - priority: 100
     when: >-
-      count("review-correction-history-for@1",
+      subject.identity.type != "ENV"
+      && count("review-correction-history-for@1",
         {subject: subject, view: "autonomous-corrections"}) < 2
       && every("failing-reviews-for@1", {subject: subject}, review =>
         review.payload.correction_authority == "package-evidence")

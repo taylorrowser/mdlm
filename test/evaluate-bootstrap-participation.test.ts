@@ -204,6 +204,10 @@ describe("bootstrap Scenario participation Policies", () => {
         output: "replacement",
         type: "DEC",
       },
+      "revise-environment-after-failed-qualification": {
+        output: "decision",
+        type: "DEC",
+      },
       "revise-environment-assurance-after-review": {
         output: "decision",
         type: "DEC",

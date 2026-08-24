@@ -15,6 +15,7 @@ import {
   type ProcessPackage,
 } from "../src/index.js";
 import { operatorWorkProjection } from "../src/assignment.js";
+import { executeCommandApplication } from "../src/command-application.js";
 import {
   evaluateProcessDefinition,
   evaluateScenarioParticipation,
@@ -42,7 +43,11 @@ import {
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { installCurrentLifecycleDataFixture } from "./helpers/current-lifecycle-data-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
-import { initializeProcessPackageFixture } from "./helpers/mdlm.js";import { copiedProcessPackage } from "./helpers/process-package.js";
+import { initializeProcessPackageFixture } from "./helpers/mdlm.js";
+import {
+  copiedProcessPackage,
+  restoreHistoricalFixtureProcessPackage,
+} from "./helpers/process-package.js";
 
 const processRef = "mdlm-bootstrap@0.71.0#sha256:phase-1-route-evidence";
 // This test-owned deadline covers a Node parent and descendant starting under
@@ -52,6 +57,78 @@ const CLEANUP_PROBE_TERMINATION_GRACE_MS = 1_000;
 const CLEANUP_PROBE_PARTIAL_MARKER = "partial-before-timeout";
 const revision = (id: string, number = 1) =>
   `${id}-r${String(number).padStart(5, "0")}`;
+
+async function attendedQualificationCorrectionProcessPackage(): Promise<string> {
+  const processRoot = await copiedProcessPackage("mdlm-phase1-attended-env-correction-");
+  const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+  const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
+  await fs.writeFile(
+    phase0Path,
+    (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
+  );
+  await fs.writeFile(
+    phase1Path,
+    (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
+      /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+      "scenarios:\n  - revise-environment-after-failed-qualification@1\n  - execute-verification-run@1\nobligations:\n  - environment-qualification-correction-required@1\noutputs:",
+    ),
+  );
+  const obligationsRoot = path.join(processRoot, "obligations");
+  for (const entry of await fs.readdir(obligationsRoot)) {
+    if (
+      entry === "environment-qualification-correction-required.yaml" ||
+      !entry.endsWith(".yaml")
+    ) continue;
+    const obligationPath = path.join(obligationsRoot, entry);
+    await fs.writeFile(
+      obligationPath,
+      (await fs.readFile(obligationPath, "utf8"))
+        .replace("phases: [phase-1-product-assurance]", "phases: [phase-7-change-control]")
+        .replace("phase-1-product-assurance, ", ""),
+    );
+  }
+  return processRoot;
+}
+
+async function replacementEnvironmentReviewContextProcessPackage(): Promise<string> {
+  const processRoot = await copiedProcessPackage("mdlm-phase1-env-review-context-");
+  const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
+  const phase1Path = path.join(processRoot, "phases/phase-1-product-assurance.yaml");
+  await fs.writeFile(
+    phase0Path,
+    (await fs.readFile(phase0Path, "utf8")).replace("order: 0", "order: 10"),
+  );
+  await fs.writeFile(
+    phase1Path,
+    (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
+      /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+      "scenarios:\n  - create-review-context@1\n  - execute-verification-run@1\nobligations:\n  - review-context-required@2\noutputs:",
+    ),
+  );
+  const obligationsRoot = path.join(processRoot, "obligations");
+  for (const entry of await fs.readdir(obligationsRoot)) {
+    if (entry === "review-context-required.yaml" || !entry.endsWith(".yaml")) continue;
+    const obligationPath = path.join(obligationsRoot, entry);
+    await fs.writeFile(
+      obligationPath,
+      (await fs.readFile(obligationPath, "utf8"))
+        .replace("phases: [phase-1-product-assurance]", "phases: [phase-7-change-control]")
+        .replace("phase-1-product-assurance, ", ""),
+    );
+  }
+  const reviewContextPath = path.join(
+    processRoot,
+    "obligations/review-context-required.yaml",
+  );
+  await fs.writeFile(
+    reviewContextPath,
+    (await fs.readFile(reviewContextPath, "utf8")).replace(
+      "for_each: 'select(\"review-required-revisions@1\", {})'",
+      "for_each: 'select(\"environments-for-strategy@1\", {strategy: one(\"current-phase-1-verification-strategies@1\", {})})'",
+    ),
+  );
+  return processRoot;
+}
 
 async function phase1RunProcessPackage(): Promise<string> {
   const processRoot = await copiedProcessPackage("mdlm-phase1-run-process-");
@@ -896,6 +973,143 @@ function correction(
   );
 }
 
+function repositoryFoundation(): LifecycleRecord[] {
+  const product = record("PSP", "PSP-0HARDENP10", {
+    title: "Two-argument temperature converter",
+    rationale: "Define the closed public command boundary.",
+    problem: "Convert between an exact supported unit pair.",
+    users: ["operator"],
+    goals: ["accept exactly two arguments", "support only Celsius and Fahrenheit"],
+    non_goals: ["other units", "additional arguments"],
+    success_measures: [
+      "supported conversions succeed and all other unit/count cases reject",
+    ],
+  }, { scenario: "compile-psp@2" });
+  const requirement = record("STK", "STK-0HARDENP10", {
+    title: "Reject unsupported command forms",
+    rationale: "Discriminate the closed public boundary.",
+    statement: "The command shall reject wrong argument counts and unsupported units.",
+    verification_intent:
+      "Observe exact rejection for values outside the parent PSP boundary.",
+    stakeholder: "operator",
+    priority: "must",
+    system_context: "product",
+  }, {
+    scenario: "draft-stakeholder-requirements@2",
+    links: [{ type: "derived-from", target: product.datum.id }],
+  });
+  return [product, requirement];
+}
+
+async function publishFixtureHistory(
+  repository: string,
+  processPackage: ProcessPackage,
+  records: LifecycleRecord[],
+): Promise<void> {
+  const published: Array<LifecycleRecord["datum"]> = [];
+  let groupIndex = 0;
+  for (let offset = 0; offset < records.length;) {
+    const scenario = records[offset]!.datum.created_by.scenario;
+    let end = offset + 1;
+    while (
+      end < records.length &&
+      records[end]!.datum.created_by.scenario === scenario &&
+      !records.slice(offset, end).some((item) =>
+        item.datum.id === records[end]!.datum.id
+      )
+    ) end += 1;
+    const group = records.slice(offset, end);
+    for (const item of group) {
+      const prior = published.findLast((candidate) =>
+        candidate.id === item.datum.id
+      );
+      if (!prior) continue;
+      const baseline = record("BSL", `BSL-${String(9000000000 + groupIndex).padStart(10, "0")}`, {
+        title: `Freeze ${prior.revision_id} before replacement`,
+        kind: "intent-approved",
+        role: "accepted",
+        scope: "phase-1-product-assurance",
+        group: "DEFAULT",
+        definition_members: [prior.revision_id],
+        evidence: [],
+      }, { scenario: "accept-phase-0-intent@1" });
+      baseline.datum.created_by = {
+        ...prior.created_by,
+        scenario: "accept-phase-0-intent@1",
+      };
+      const finalized = await finalizeExactBaselineScenarioOutput(
+        repository,
+        processPackage,
+        prior.created_by.process_ref,
+        baseline.datum,
+      );
+      if (!finalized.ok) throw new Error(JSON.stringify(finalized.diagnostics));
+      const frozen = await publishScenarioMutation(
+        repository,
+        processPackage,
+        published,
+        [finalized.value.output.datum],
+        `phase-1-route-freeze-${String(groupIndex).padStart(3, "0")}`,
+        { contract: "phase-1-route-freeze@1" },
+        [finalized.value.output],
+      );
+      if (!frozen.ok) throw new Error(JSON.stringify(frozen.diagnostics));
+      published.push(finalized.value.output.datum);
+    }
+    const result = await publishScenarioMutation(
+      repository,
+      processPackage,
+      published,
+      group.map((item) => item.datum),
+      `phase-1-route-fixture-${String(groupIndex).padStart(3, "0")}`,
+      { contract: "phase-1-route-fixture@1", scenario },
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    published.push(...group.map((item) => item.datum));
+    offset = end;
+    groupIndex += 1;
+  }
+  const latestEnvironments = published.filter((item) =>
+    item.type === "ENV" &&
+    !published.some((candidate) =>
+      candidate.id === item.id && candidate.revision > item.revision
+    )
+  );
+  for (const [index, environment] of latestEnvironments.entries()) {
+    const baseline = record("BSL", `BSL-${String(9900000000 + index).padStart(10, "0")}`, {
+      title: `Freeze ${environment.revision_id} for the public route`,
+      kind: "intent-approved",
+      role: "accepted",
+      scope: "phase-1-product-assurance",
+      group: "DEFAULT",
+      definition_members: [environment.revision_id],
+      evidence: [],
+    }, { scenario: "accept-phase-0-intent@1" });
+    baseline.datum.created_by = {
+      ...environment.created_by,
+      scenario: "accept-phase-0-intent@1",
+    };
+    const finalized = await finalizeExactBaselineScenarioOutput(
+      repository,
+      processPackage,
+      environment.created_by.process_ref,
+      baseline.datum,
+    );
+    if (!finalized.ok) throw new Error(JSON.stringify(finalized.diagnostics));
+    const frozen = await publishScenarioMutation(
+      repository,
+      processPackage,
+      published,
+      [finalized.value.output.datum],
+      `phase-1-route-final-freeze-${String(index).padStart(3, "0")}`,
+      { contract: "phase-1-route-final-freeze@1" },
+      [finalized.value.output],
+    );
+    if (!frozen.ok) throw new Error(JSON.stringify(frozen.diagnostics));
+    published.push(finalized.value.output.datum);
+  }
+}
+
 function repositorySafeRecords(records: LifecycleRecord[]): LifecycleRecord[] {
   const stableIds = [...new Set(records.map((item) => item.datum.id))];
   const replacements = new Map(stableIds.map((id, index) => {
@@ -946,9 +1160,13 @@ function repositorySafeRecords(records: LifecycleRecord[]): LifecycleRecord[] {
 
 describe("Phase 1 hardening route evidence", () => {
   let processPackage: ProcessPackage;
+  let recoveryPackage: ProcessPackage;
 
   beforeAll(async () => {
     processPackage = await canonicalProcessPackage();
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+    recoveryPackage = loaded.package;
   });
 
   it("proves Phase 1 VSP creation and exposes its fresh independent Review route", () => {
@@ -1228,6 +1446,13 @@ describe("Phase 1 hardening route evidence", () => {
       definitions: [activity, acceptedFoundation[0]!, acceptedFoundation[1]!, currentStrategy],
     });
     const exactTarget = target();
+    const implementation = pilotImplementation();
+    const implementationAuthority = implementationAuthorization(
+      implementation,
+      "DEC-0HARDQF04",
+    );
+    const implementationReview = passingReview(implementation, "REV-0HARDQF04");
+    const exercisedPilot = pilotRun(implementation, { idSuffix: "QFEND0" });
     const records = [
       ...productReview,
       ...requirementReview,
@@ -1241,13 +1466,37 @@ describe("Phase 1 hardening route evidence", () => {
       activity,
       ...activityReview,
       exactTarget,
+      implementation,
+      implementationAuthority,
+      ...implementationReview,
+      exercisedPilot.run,
+      exercisedPilot.result,
     ];
 
-    const evaluation = phase1Evaluation(processPackage, records);
+    const historicalRoot = await copiedProcessPackage(
+      "mdlm-pre-issue-214-package-",
+    );
+    try {
+      await restoreHistoricalFixtureProcessPackage(
+        historicalRoot,
+        "sha256:deb27430c4d239eb67a1c19025d77dd6623813f83b0588681eebfc07bdfa8a0d",
+      );
+      const historical = await loadProcessPackage(historicalRoot);
+      if (!historical.ok) throw new Error(JSON.stringify(historical.diagnostics));
+      const historicalEvaluation = phase1Evaluation(historical.package, records);
+      expect(classifyOperatorOutcome(
+        operatorWorkProjection(historicalEvaluation),
+        historicalEvaluation.terminalOutcome,
+      )).toEqual(expect.objectContaining({ kind: "process-dead-end" }));
+    } finally {
+      await fs.rm(path.dirname(historicalRoot), { recursive: true, force: true });
+    }
+
+    const evaluation = phase1Evaluation(recoveryPackage, records);
     expect(classifyOperatorOutcome(
       operatorWorkProjection(evaluation),
       evaluation.terminalOutcome,
-    ).kind).not.toBe("process-dead-end");
+    ).kind).toBe("assignment");
     const route = evaluation.obligations.find((item) =>
       item.obligation === "environment-qualification-correction-required" &&
       item.subject === currentEnvironment.datum.revision_id
@@ -1265,7 +1514,7 @@ describe("Phase 1 hardening route evidence", () => {
     }));
 
     const prepared = await dryRunResolverScenario(
-      processPackage,
+      recoveryPackage,
       {
         processRef,
         phaseId: "phase-1-product-assurance",
@@ -1297,6 +1546,80 @@ describe("Phase 1 hardening route evidence", () => {
       expect.objectContaining({ name: "qualification_implementation", cardinality: "one" }),
     ]));
   });
+
+  it("materializes replacement ENV Review Context with only fresh qualification evidence", async () => {
+    const repository = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-phase1-env-review-context-"),
+    );
+    const processRoot = await replacementEnvironmentReviewContextProcessPackage();
+    try {
+      await initializeProcessPackageFixture(repository, processRoot);
+      const loaded = await loadProcessPackage(processRoot);
+      if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+      const currentStrategy = strategy(1);
+      const firstEnvironment = environment(1);
+      const failedQualification = qualificationEvidence(
+        currentStrategy,
+        firstEnvironment,
+        { generation: 1, outcome: "fail" },
+      );
+      const replacement = environment(
+        2,
+        undefined,
+        failedQualification.result.datum.revision_id,
+      );
+      const freshQualification = qualificationEvidence(
+        currentStrategy,
+        replacement,
+        { generation: 2, outcome: "pass" },
+      );
+      const fixtureRecords = repositorySafeRecords([
+        ...repositoryFoundation(),
+        currentStrategy,
+        firstEnvironment,
+        ...Object.values(failedQualification),
+        replacement,
+        ...Object.values(freshQualification),
+      ]);
+      const safeStrategy = fixtureRecords[2]!;
+      const safeFailedQualification = fixtureRecords.slice(4, 8);
+      const safeReplacement = fixtureRecords[8]!;
+      const safeFreshQualification = fixtureRecords.slice(9, 13);
+      const fixtureProcessRef =
+        `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+      for (const item of fixtureRecords) {
+        item.datum.created_by.process_ref = fixtureProcessRef;
+      }
+      await publishFixtureHistory(repository, loaded.package, fixtureRecords);
+
+      const next = await executeCommandApplication(["next"], repository);
+      expect(next.exitCode, next.output).toBe(0);
+      expect(JSON.parse(next.output).materializedExecutions).toEqual([
+        expect.objectContaining({ scenario: "create-review-context@1" }),
+      ]);
+      const stored = await readRepositoryData(repository, loaded.package);
+      if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
+      const context = stored.value.map((item) => item.lifecycleDatum).find((item) =>
+        item.datum.type === "BSL" &&
+        item.datum.payload.scope === safeReplacement.datum.revision_id
+      );
+      expect(context?.datum.payload).toEqual(expect.objectContaining({
+        definition_members: [
+          safeReplacement.datum.revision_id,
+          safeStrategy.datum.revision_id,
+        ].sort(),
+        evidence: safeFreshQualification.map((item) =>
+          item.datum.revision_id
+        ).sort(),
+      }));
+      expect(context?.datum.payload.evidence).not.toEqual(expect.arrayContaining(
+        safeFailedQualification.map((item) => item.datum.revision_id),
+      ));
+    } finally {
+      await fs.rm(repository, { recursive: true, force: true });
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 
   it("restores ENV Review eligibility only from a fresh passing replacement qualification", () => {
     const currentStrategy = strategy(1);
@@ -1525,6 +1848,309 @@ describe("Phase 1 hardening route evidence", () => {
         attentionSchedule: expect.objectContaining({ timing: "immediate" }),
       })],
     }));
+  });
+
+  it("submits attended qualification correction with exact DEC authority evidence", async () => {
+    const repository = await fs.mkdtemp(
+      path.join(os.tmpdir(), "mdlm-phase1-attended-env-correction-"),
+    );
+    const processRoot = await attendedQualificationCorrectionProcessPackage();
+    try {
+      await initializeProcessPackageFixture(repository, processRoot);
+      const loaded = await loadProcessPackage(processRoot);
+      if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+      const currentStrategy = strategy(1);
+      const firstEnvironment = environment(1);
+      const firstQualification = qualificationEvidence(
+        currentStrategy,
+        firstEnvironment,
+        { generation: 1, outcome: "fail" },
+      );
+      const secondEnvironment = environment(
+        2,
+        undefined,
+        firstQualification.result.datum.revision_id,
+      );
+      const secondQualification = qualificationEvidence(
+        currentStrategy,
+        secondEnvironment,
+        { generation: 2, outcome: "fail" },
+      );
+      const thirdEnvironment = environment(
+        3,
+        undefined,
+        secondQualification.result.datum.revision_id,
+      );
+      const thirdQualification = qualificationEvidence(
+        currentStrategy,
+        thirdEnvironment,
+        { generation: 3, outcome: "fail" },
+      );
+      const fixtureRecords = repositorySafeRecords([
+        ...repositoryFoundation(),
+        currentStrategy,
+        firstEnvironment,
+        ...Object.values(firstQualification),
+        secondEnvironment,
+        ...Object.values(secondQualification),
+        thirdEnvironment,
+        ...Object.values(thirdQualification),
+      ]);
+      const safeStrategy = fixtureRecords[2]!;
+      const safeThirdEnvironment = fixtureRecords[13]!;
+      const safeThirdQualification = fixtureRecords.slice(14, 18);
+      const safeThirdResult = safeThirdQualification.find((item) =>
+        item.datum.type === "RES"
+      )!;
+      const fixtureProcessRef =
+        `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+      for (const item of fixtureRecords) {
+        item.datum.created_by.process_ref = fixtureProcessRef;
+      }
+      await publishFixtureHistory(repository, loaded.package, fixtureRecords);
+
+      const prepared = await prepareNextAssignment(
+        repository,
+        "revise-environment-after-failed-qualification@1",
+      );
+      expect(prepared.outcome).toEqual(expect.objectContaining({
+        outcome: "attention-required",
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+      }));
+      expect(inputRevision(prepared, "environment")).toBe(
+        safeThirdEnvironment.datum.revision_id,
+      );
+      expect(inputRevisions(prepared, "failed_results")).toEqual([
+        safeThirdResult.datum.revision_id,
+      ]);
+
+      const replacementPayload = structuredClone(safeThirdEnvironment.datum.payload);
+      const activityPayload = structuredClone(thirdQualification.activity.datum.payload);
+      const implementationPayload = structuredClone(
+        thirdQualification.implementation.datum.payload,
+      );
+      const submitted = await submitAssignment(repository, prepared, [{
+        localId: "replacement",
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: safeThirdEnvironment.datum.id,
+          type: "ENV",
+          payload: replacementPayload,
+          links: [
+            { type: "realizes", target: safeStrategy.datum.revision_id },
+            {
+              type: "corrects-qualification-result",
+              target: safeThirdResult.datum.revision_id,
+            },
+          ],
+          body: "Attended correction preserves the profile while addressing the exact failed result.\n",
+        },
+      }, {
+        localId: "qualification_activity",
+        name: "qualification_activity",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "VER",
+          payload: activityPayload,
+          links: [
+            { type: "governed-by", target: safeStrategy.datum.revision_id },
+            { type: "qualifies", target: "$proposal.replacement.revision_id" },
+          ],
+          body: "Fresh qualification activity for the attended replacement.\n",
+        },
+      }, {
+        localId: "qualification_implementation",
+        name: "qualification_implementation",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "VAI",
+          payload: implementationPayload,
+          links: [
+            { type: "realizes", target: "$proposal.qualification_activity.revision_id" },
+            { type: "uses", target: "$proposal.replacement.revision_id" },
+            { type: "targets", target: "$proposal.replacement.revision_id" },
+          ],
+          body: "Fresh implementation for the attended replacement.\n",
+        },
+      }, {
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Authorize attended environment correction",
+            rationale: "The shared autonomous correction budget is exhausted.",
+            kind: "scope",
+            decision: "Authorize this exact environment replacement.",
+            alternatives: ["Leave the failed environment unresolved."],
+            effective_scope: "$proposal.replacement.revision_id",
+          },
+          links: [{
+            type: "justifies",
+            target: "$proposal.replacement.revision_id",
+          }],
+          body: "Stakeholder authority for the exact attended correction.\n",
+        },
+      }]);
+      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      const stored = await readRepositoryData(repository, loaded.package);
+      if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
+      const records = stored.value.map((item) => item.lifecycleDatum);
+      const replacement = records.find((item) =>
+        item.datum.id === safeThirdEnvironment.datum.id && item.datum.revision === 4
+      )!;
+      const decision = records.find((item) =>
+        item.datum.type === "DEC" && item.datum.created_by.scenario ===
+          "revise-environment-after-failed-qualification@1"
+      )!;
+      expect(replacement.datum.links).toContainEqual({
+        type: "corrects-qualification-result",
+        target: safeThirdResult.datum.revision_id,
+      });
+      expect(decision.datum.payload.effective_scope).toBe(
+        replacement.datum.revision_id,
+      );
+      expect(decision.datum.links).toEqual([{
+        type: "justifies",
+        target: replacement.datum.revision_id,
+      }]);
+    } finally {
+      await fs.rm(repository, { recursive: true, force: true });
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
+
+  it("shares the ENV correction budget when qualification recovery precedes Review failure", () => {
+    const currentStrategy = strategy(1);
+    const firstEnvironment = environment(1);
+    const firstQualification = qualificationEvidence(currentStrategy, firstEnvironment, {
+      generation: 1,
+      outcome: "fail",
+    });
+    const secondEnvironment = environment(
+      2,
+      undefined,
+      firstQualification.result.datum.revision_id,
+    );
+    const secondQualification = qualificationEvidence(currentStrategy, secondEnvironment, {
+      generation: 2,
+      outcome: "pass",
+    });
+    const secondReview = failedReview(secondEnvironment, "REV-0HARDMXQ10");
+    const throughFirstReviewFailure = [
+      currentStrategy,
+      firstEnvironment,
+      ...Object.values(firstQualification),
+      secondEnvironment,
+      ...Object.values(secondQualification),
+      ...secondReview,
+    ];
+    expect(correction(
+      recoveryPackage,
+      throughFirstReviewFailure,
+      "environment-review-correction-required",
+      secondEnvironment.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({ mode: "autonomous" }),
+      })],
+    }));
+
+    const thirdEnvironment = environment(3, secondReview[1].datum.revision_id);
+    const thirdQualification = qualificationEvidence(currentStrategy, thirdEnvironment, {
+      generation: 3,
+      outcome: "pass",
+    });
+    const thirdReview = failedReview(thirdEnvironment, "REV-0HARDMXQ20");
+    const exhaustedEvaluation = phase1Evaluation(recoveryPackage, [
+      ...throughFirstReviewFailure,
+      thirdEnvironment,
+      ...Object.values(thirdQualification),
+      ...thirdReview,
+    ]);
+    expect(exhaustedEvaluation.obligations.find((item) =>
+      item.obligation === "environment-review-correction-required" &&
+      item.subject === thirdEnvironment.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+      })],
+    }));
+    expect(classifyOperatorOutcome(
+      operatorWorkProjection(exhaustedEvaluation),
+      exhaustedEvaluation.terminalOutcome,
+    ).kind).toBe("attention-required");
+  });
+
+  it("shares the ENV correction budget when Review recovery precedes qualification failure", () => {
+    const currentStrategy = strategy(1);
+    const firstEnvironment = environment(1);
+    const firstQualification = qualificationEvidence(currentStrategy, firstEnvironment, {
+      generation: 1,
+      outcome: "pass",
+    });
+    const firstReview = failedReview(firstEnvironment, "REV-0HARDMXR10");
+    const secondEnvironment = environment(2, firstReview[1].datum.revision_id);
+    const secondQualification = qualificationEvidence(currentStrategy, secondEnvironment, {
+      generation: 2,
+      outcome: "fail",
+    });
+    const throughFirstQualificationFailure = [
+      currentStrategy,
+      firstEnvironment,
+      ...Object.values(firstQualification),
+      ...firstReview,
+      secondEnvironment,
+      ...Object.values(secondQualification),
+    ];
+    expect(correction(
+      recoveryPackage,
+      throughFirstQualificationFailure,
+      "environment-qualification-correction-required",
+      secondEnvironment.datum.revision_id,
+    )).toEqual(expect.objectContaining({
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({ mode: "autonomous" }),
+      })],
+    }));
+
+    const thirdEnvironment = environment(
+      3,
+      undefined,
+      secondQualification.result.datum.revision_id,
+    );
+    const thirdQualification = qualificationEvidence(currentStrategy, thirdEnvironment, {
+      generation: 3,
+      outcome: "fail",
+    });
+    const exhaustedEvaluation = phase1Evaluation(recoveryPackage, [
+      ...throughFirstQualificationFailure,
+      thirdEnvironment,
+      ...Object.values(thirdQualification),
+    ]);
+    expect(exhaustedEvaluation.obligations.find((item) =>
+      item.obligation === "environment-qualification-correction-required" &&
+      item.subject === thirdEnvironment.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      participation: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+        }),
+      })],
+    }));
+    expect(classifyOperatorOutcome(
+      operatorWorkProjection(exhaustedEvaluation),
+      exhaustedEvaluation.terminalOutcome,
+    ).kind).toBe("attention-required");
   });
 
   it("supplies the exact parent PSP to pilot activity authoring", async () => {

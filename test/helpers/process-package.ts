@@ -47,6 +47,44 @@ export async function restoreHistoricalFixtureProcessPackage(
     }
     await fs.writeFile(obligationPath, restoredObligation);
 
+    const assurancePolicyPath = path.join(
+      stagedPackage,
+      "policies/phase-1-assurance-correction-participation.yaml",
+    );
+    const assurancePolicy = await fs.readFile(assurancePolicyPath, "utf8");
+    const restoredAssurancePolicy = assurancePolicy
+      .replace(
+        "description: Keep two Phase 1 assurance correction cycles autonomous, sharing qualification- and Review-driven ENV replacements, then require immediate stakeholder escalation through the same exact Scenario.",
+        "description: Keep two Phase 1 assurance Review-correction cycles autonomous, then require immediate stakeholder escalation through the same exact Scenario.",
+      )
+      .replace(
+        "  - priority: 110\n" +
+          "    when: >-\n" +
+          "      subject.identity.type == \"ENV\"\n" +
+          "      && count(\"environment-qualification-correction-history-for@1\",\n" +
+          "        {subject: subject}) < 2\n" +
+          "      && every(\"failing-reviews-for@1\", {subject: subject}, review =>\n" +
+          "        review.payload.correction_authority == \"package-evidence\")\n" +
+          "    result:\n" +
+          "      authority_mode: autonomous\n" +
+          "      authority: package-evidence\n" +
+          "      delegation_allowed: false\n" +
+          "      attention_timing: none\n" +
+          "      attention_checkpoint: null\n" +
+          "      consolidation_group: null\n" +
+          "  - priority: 100\n" +
+          "    when: >-\n" +
+          "      subject.identity.type != \"ENV\"\n" +
+          "      && count(\"review-correction-history-for@1\",",
+        "  - priority: 100\n" +
+          "    when: >-\n" +
+          "      count(\"review-correction-history-for@1\",",
+      );
+    if (restoredAssurancePolicy === assurancePolicy) {
+      throw new Error("Historical fixture shared ENV correction policy is absent");
+    }
+    await fs.writeFile(assurancePolicyPath, restoredAssurancePolicy);
+
     const issue214Files = [
       "obligations/environment-qualification-correction-required.yaml",
       "policies/environment-qualification-correction-participation.yaml",
