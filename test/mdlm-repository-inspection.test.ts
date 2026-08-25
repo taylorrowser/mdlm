@@ -19,6 +19,7 @@ import {
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { executeCommandApplication } from "../src/command-application.js";
 import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
+import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 
 async function mdlm(repository: string, ...arguments_: string[]) {
@@ -300,6 +301,53 @@ describe("MDLM repository inspection", () => {
   afterAll(async () => {
     await templateFixture;
     await fs.rm(templateParent, { recursive: true, force: true });
+  });
+
+  it("compiles validation schemas once per distinct schema during inspection", async () => {
+    await fs.cp(templateRepository, repository, {
+      recursive: true,
+      mode: fsConstants.COPYFILE_FICLONE,
+    });
+    for (const [id, title] of [
+      ["QST-1040000401", "First repeated type"],
+      ["QST-1040000402", "Second repeated type"],
+      ["QST-1040000403", "Third repeated type"],
+    ] as const) {
+      await writeDatum(repository, {
+        id,
+        revision: 1,
+        revision_id: `${id}-r00001`,
+        type: "QST",
+        payload: {
+          title,
+          kind: "preferential",
+          intent_scope: "product",
+          question: "How many times should one unchanged schema compile?",
+          state: "open",
+          blocking_impact: "Repeated compilation delays repository inspection.",
+        },
+        links: [],
+        created_by: {
+          scenario: "capture-product-intent@1",
+          prompt_ref: "prompts/capture-product-intent.md@1",
+          process_ref: processRef,
+          loaded_skill_refs: [],
+          policy_refs: [],
+        },
+        body: "A repeated payload schema must reuse its validator.\n",
+      });
+    }
+
+    const result = await collectPerformanceDiagnostics(() =>
+      readRepositoryData(repository, processPackage)
+    );
+    expect(result.value.ok).toBe(true);
+    if (!result.value.ok) return;
+    const records = result.value.value.map((item) => item.lifecycleDatum.datum);
+    const distinctPayloadSchemas = new Set(records.map((datum) => datum.type)).size;
+    expect(records.length).toBeGreaterThan(distinctPayloadSchemas);
+    expect(result.diagnostics.work["repository.validation.schema-compilations"])
+      .toBe(1 + distinctPayloadSchemas);
   });
 
   it("reloads repository data when execution provenance changes", async () => {
