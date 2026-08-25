@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Build a Resolver pair</title>
+  <link rel="stylesheet" href="../assets/course.css">
+  <script src="../assets/quiz.js" defer></script>
+</head>
+<body><main>
+  <nav><a href="../index.html">Course index</a> · <a href="0004-obligations-and-phase-progression.html">Lesson 4</a> · <a href="../reference/core-work-glossary.html">Work glossary</a></nav>
+  <p class="eyebrow">Lesson 5 · 15 to 20 minutes</p>
+  <h1>Build a Resolver pair</h1>
+  <p class="deck">Read an Obligation and its Scenario as two sides of one package-designed contract.</p>
+
+  <div class="callout"><strong>Goal.</strong> Explain every major field in one live Obligation and Scenario pair, including a Scenario with multiple inputs.</div>
+
+  <h2>Terms for this lesson</h2>
+  <dl>
+    <dt><strong>Resolver pair</strong></dt><dd>An Obligation and the Scenario it names in <code>resolve_with</code>.</dd>
+    <dt><strong>Input contract</strong></dt><dd>A Scenario declaration specifying an input's name, accepted types, number of values, identity kind, and conditions.</dd>
+    <dt><strong>Input binding</strong></dt><dd>An Obligation expression that selects the exact value for one Scenario input.</dd>
+    <dt><strong>Invocation</strong></dt><dd>One execution of a Scenario with one complete set of bound inputs.</dd>
+    <dt><strong>Package validation</strong></dt><dd>Kernel checks that reject malformed or internally inconsistent Process Package definitions before work runs.</dd>
+  </dl>
+
+  <h2>First correction: there are no input Obligations</h2>
+  <p>A Scenario can declare multiple Lifecycle Data inputs. It does not receive multiple Obligations as inputs.</p>
+  <p>One Resolver Assignment is authorized by one Obligation Instance. That Obligation's <code>resolve_with.inputs</code> section must bind every input declared by the Scenario.</p>
+  <p>The Scenario does not search for matching Obligations. The Obligation names an exact Scenario version. The Scenario's <code>resolves</code> list identifies the Obligation definitions it is designed to satisfy, and the Phase must enable both definitions.</p>
+
+  <div class="flow">
+    <div class="flow-step"><strong>One Obligation Instance</strong><br>Authorizes the resolver work</div>
+    <div class="flow-arrow">↓ evaluates several binding expressions</div>
+    <div class="flow-step"><strong>Several exact Lifecycle Data values</strong><br>One set for each Scenario input name</div>
+    <div class="flow-arrow">↓ becomes</div>
+    <div class="flow-step"><strong>One Scenario invocation</strong><br>Recorded in one Assignment</div>
+  </div>
+
+  <h2>Read the Obligation from top to bottom</h2>
+  <p>The live <a href="../../../.lifecycle/process/obligations/intent-candidate-required.yaml"><code>intent-candidate-required@3</code> Obligation</a> requires a reviewed Phase 0 foundation to become a frozen candidate.</p>
+
+  <pre class="source"><code>kind: obligation-definition
+id: intent-candidate-required
+version: 3
+phases: [phase-0-wayfinding]
+
+for_each: '[phase]'
+subject_as: required_phase
+satisfied_when: 'exists("complete-phase-0-intent-candidates@1", {})'
+
+status_rules:
+  - status: blocked
+    priority: 200
+    when: &lt;foundation evidence is incomplete&gt;
+    blocked_by:
+      - obligation: product-specification-required@2
+        subjects: '[required_phase]'
+      # more blockers
+  - status: ready
+    priority: 100
+    when: &lt;foundation evidence is complete&gt;
+
+default_status: blocked
+resolve_with:
+  scenario: create-phase-0-intent-candidate@1
+  inputs:
+    definition_members: 'select("phase-0-foundation-members@1", {})'
+    member_reviews: 'select("phase-0-foundation-member-reviews@1", {})'
+waiver_policy_ref: waiver-applicability@1</code></pre>
+
+  <ol>
+    <li><code>kind</code>, <code>id</code>, and <code>version</code> give the definition an exact identity.</li>
+    <li><code>phases</code> limits where the definition may apply.</li>
+    <li><code>for_each</code> selects Subjects. Here it selects the Active Phase.</li>
+    <li><code>subject_as</code> names that Subject for later expressions.</li>
+    <li><code>satisfied_when</code> states what evidence satisfies each instance.</li>
+    <li><code>status_rules</code> explain whether unsatisfied work is blocked, ready, failed, stale, or awaiting review.</li>
+    <li><code>blocked_by</code> identifies earlier Obligation Instances that explain a blocked result.</li>
+    <li><code>resolve_with</code> names one Scenario and binds both of its inputs.</li>
+    <li><code>waiver_policy_ref</code> delegates waiver rules to a Policy.</li>
+  </ol>
+
+  <h2>Read the Scenario from top to bottom</h2>
+  <p>The live <a href="../../../.lifecycle/process/scenarios/create-phase-0-intent-candidate.yaml"><code>create-phase-0-intent-candidate@1</code> Scenario</a> receives two groups of exact Revisions.</p>
+
+  <pre class="source"><code>kind: scenario-definition
+id: create-phase-0-intent-candidate
+version: 1
+phases: [phase-0-wayfinding]
+
+inputs:
+  - name: definition_members
+    types: [MAP, PSP, STK]
+    cardinality: one-or-more
+    identity: revision
+    conditions: &lt;each member has valid review evidence&gt;
+  - name: member_reviews
+    types: [REV]
+    cardinality: one-or-more
+    identity: revision
+    conditions: &lt;the exact required Review set is supplied&gt;
+
+outputs:
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    required_links: []
+
+prompt_ref: prompts/create-phase-0-intent-candidate.md@1
+review_policy_ref: review-applicability@1
+completion: &lt;contract, membership, evidence, and frozen checks&gt;
+resolves: [intent-candidate-required]
+prohibited_inputs: [&lt;four forbidden input classes&gt;]
+batching: single</code></pre>
+
+  <ol>
+    <li><code>inputs</code> declares two independent input contracts.</li>
+    <li><code>outputs</code> requires one new <code>BSL</code> candidate.</li>
+    <li><code>prompt_ref</code> points to the exact agent instructions.</li>
+    <li><code>review_policy_ref</code> determines review participation for produced data.</li>
+    <li><code>completion</code> validates the proposed transaction as a whole.</li>
+    <li><code>resolves</code> declares Resolver semantics for the named Obligation kind.</li>
+    <li><code>prohibited_inputs</code> states information the agent must not use.</li>
+    <li><code>batching</code> limits how invocations are grouped.</li>
+  </ol>
+
+  <h2>How the two inputs bind</h2>
+  <p>The Obligation and Scenario join by input name:</p>
+
+  <table>
+    <thead><tr><th>Scenario input contract</th><th>Obligation binding expression</th></tr></thead>
+    <tbody>
+      <tr><td><code>definition_members</code><br><code>MAP | PSP | STK</code>, one or more exact Revisions</td><td><code>select("phase-0-foundation-members@1", {})</code></td></tr>
+      <tr><td><code>member_reviews</code><br><code>REV</code>, one or more exact Revisions</td><td><code>select("phase-0-foundation-member-reviews@1", {})</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>The Obligation Instance identifies the exact Subject and Resolver. During Assignment preparation, MDLM reevaluates these binding expressions for that Subject. The resulting Revision identities are stored in the Assignment's invocation bindings.</p>
+  <p>This corrects one detail from your answer: the exact values are not durable fields stored inside the Obligation Instance.</p>
+
+  <h2>Can one Scenario resolve several Obligations?</h2>
+  <p>Yes. The live <code>review-datum-in-context@2</code> Scenario declares that it resolves two Obligation definitions:</p>
+  <ul>
+    <li><code>passing-review-required@2</code></li>
+    <li><code>candidate-members-reviewed@2</code></li>
+  </ul>
+  <p>Each authorizing Obligation binds that Scenario's <code>subject</code>, <code>review_context</code>, and <code>context_members</code> inputs using its own expressions. The Scenario remains one reusable contract.</p>
+
+  <h2>What the kernel checks</h2>
+  <p>At package load time, generic kernel validation checks:</p>
+  <ul>
+    <li>referenced Phase, Scenario, Obligation, Policy, and type identities exist;</li>
+    <li>the Resolver Scenario is enabled wherever its Obligation is enabled;</li>
+    <li>every declared Scenario input has one Obligation binding;</li>
+    <li>bindings use declared input names;</li>
+    <li>binding expression shapes match input identity, cardinality, and type contracts;</li>
+    <li>output links can be produced by their declared Lifecycle Data types.</li>
+  </ul>
+  <p>At Assignment preparation time, the kernel evaluates the bindings against current Lifecycle Data and checks the exact resulting values. Static package validation checks what the expressions can return. Runtime validation checks what they returned this time.</p>
+
+  <h2>A small design exercise</h2>
+  <p>Suppose a Scenario declares these required inputs:</p>
+
+  <pre class="source"><code>inputs:
+  - {name: subject, types: [PSP], cardinality: one, identity: revision}
+  - {name: reviews, types: [REV], cardinality: one-or-more, identity: revision}</code></pre>
+
+  <p>An Obligation binds only <code>subject</code>. Predict whether the package loads, and name the missing declaration. Then decide what should happen if <code>reviews</code> is bound correctly but its Selector returns an empty list during evaluation.</p>
+
+  <h2>Retrieval check</h2>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Scenarios accept Lifecycle Data, not Obligation objects." data-wrong-feedback="The authorizing Obligation binds each declared Scenario input.">
+    <h3>1. Can a Scenario declare several data inputs?</h3>
+    <div class="answers">
+      <button class="answer" data-answer data-correct="true">Yes, each input has an independent contract.</button>
+      <button class="answer" data-answer>No, each Scenario accepts one Obligation only.</button>
+      <button class="answer" data-answer>Yes, but only temporary Assignment lease values.</button>
+      <button class="answer" data-answer>No, input multiplicity belongs only to Phases.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. One Obligation Instance authorizes the Resolver invocation." data-wrong-feedback="Do not treat each Scenario input as a separate Obligation.">
+    <h3>2. How many Obligations authorize one Resolver Assignment?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>One separate Obligation for every declared Scenario input.</button>
+      <button class="answer" data-answer>Every Loose End currently derived within that Phase.</button>
+      <button class="answer" data-answer data-correct="true">One exact authorizing Obligation Instance for that work.</button>
+      <button class="answer" data-answer>No Obligation because Scenarios always initiate themselves explicitly.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Missing a required binding makes the pair invalid." data-wrong-feedback="Every required Scenario input needs a binding from the Obligation.">
+    <h3>3. What if one required input binding is omitted?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>The agent chooses a replacement after receiving work.</button>
+      <button class="answer" data-answer>The missing input silently becomes optional zero-or-one cardinality.</button>
+      <button class="answer" data-answer>The Scenario prompt supplies the missing Revision identity.</button>
+      <button class="answer" data-answer data-correct="true">Generic package validation rejects the incomplete Resolver pair.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Reusable Scenarios can serve several declared requirements." data-wrong-feedback="The authorizing Obligation determines which binding expressions apply.">
+    <h3>4. Can one Scenario serve multiple Obligation definitions?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>The kernel prohibits every shared Resolver Scenario contract.</button>
+      <button class="answer" data-answer data-correct="true">Yes, each Obligation supplies its own input bindings.</button>
+      <button class="answer" data-answer>Only when every Obligation has an identical Subject.</button>
+      <button class="answer" data-answer>No, Scenario identities include one Obligation identity permanently.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <section class="question" data-quiz-question data-shuffle data-correct-feedback="Correct. Assignment preparation resolves exact current values." data-wrong-feedback="The Obligation Instance supplies the Subject, but the binding expressions produce the values.">
+    <h3>5. When are exact bound values selected?</h3>
+    <div class="answers">
+      <button class="answer" data-answer>When the Obligation YAML file is first written.</button>
+      <button class="answer" data-answer>When the Process Package manifest receives its version.</button>
+      <button class="answer" data-answer data-correct="true">When MDLM prepares work from current Lifecycle Data.</button>
+      <button class="answer" data-answer>When the agent invents missing context during execution.</button>
+    </div><p class="feedback" data-feedback aria-live="polite"></p>
+  </section>
+
+  <p class="score" data-score aria-live="polite">0/5 answered.</p>
+
+  <h2>Explain it back</h2>
+  <ol>
+    <li>Why is <code>create-phase-0-intent-candidate@1</code> one invocation even though it has two inputs?</li>
+    <li>What does the Scenario declare, and what does the Obligation declare?</li>
+    <li>What is checked at package load time versus Assignment preparation time?</li>
+    <li>Answer the small design exercise above.</li>
+  </ol>
+
+  <h2>What comes next</h2>
+  <p>The next source dives will explain how the kernel parses and evaluates MDLM expressions, then separate generic kernel mechanisms from package-owned identifiers and semantics.</p>
+
+  <h2>Primary sources</h2>
+  <ul class="citation">
+    <li><a href="../../../.lifecycle/process/obligations/intent-candidate-required.yaml">Live intent candidate Obligation</a></li>
+    <li><a href="../../../.lifecycle/process/scenarios/create-phase-0-intent-candidate.yaml">Live intent candidate Scenario</a></li>
+    <li><a href="../../../src/scenario-contract.ts">Generic Resolver pair validation</a></li>
+    <li><a href="../../../src/evaluator.ts">Resolver input expression evaluation</a></li>
+    <li><a href="../../../src/scenario-dry-run.ts">Exact runtime input checks</a></li>
+  </ul>
+</main></body>
+</html>
