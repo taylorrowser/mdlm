@@ -139,12 +139,22 @@ const stableIdentity = /^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$/;
 const revisionIdentity = /^([A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12})-r([0-9]{5})$/;
 
 function validator(schema: Record<string, unknown>): ValidateFunction {
+  recordWork("repository.validation.schema-compilations");
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   const addFormats = formatsPlugin as unknown as (
     instance: Ajv2020,
   ) => Ajv2020;
   addFormats(ajv);
   return ajv.compile(schema);
+}
+
+interface DatumValidatorCache {
+  envelope?: ValidateFunction;
+  payloads: Map<string, ValidateFunction>;
+}
+
+function createDatumValidatorCache(): DatumValidatorCache {
+  return { payloads: new Map() };
 }
 
 function schemaDiagnostics(
@@ -580,11 +590,17 @@ function validateDatum(
   processPackage: ProcessPackage,
   datum: DatumEnvelope,
   lifecycleData: LifecycleRecord[],
+  validators: DatumValidatorCache,
 ): ProcessDiagnostic[] {
   const resolved = resolveType(processPackage, datum.type);
   if (!resolved.ok) return resolved.diagnostics;
-  const envelopeValidator = validator(processPackage.envelopeSchema);
-  const payloadValidator = validator(resolved.type.payloadSchema);
+  const envelopeValidator = validators.envelope ??=
+    validator(processPackage.envelopeSchema);
+  let payloadValidator = validators.payloads.get(resolved.type.id);
+  if (!payloadValidator) {
+    payloadValidator = validator(resolved.type.payloadSchema);
+    validators.payloads.set(resolved.type.id, payloadValidator);
+  }
   const diagnostics = [
     ...(envelopeValidator(datum)
       ? []
@@ -977,11 +993,13 @@ export async function readRepositoryData(
   const lifecycleData = parsed.map((item) => item.lifecycleDatum);
   recordWork("repository.validation.records", parsed.length);
   await measureAsync("repository.validation", async () => {
+    const validators = createDatumValidatorCache();
     for (const item of parsed) {
       diagnostics.push(...validateDatum(
         processPackage,
         item.lifecycleDatum.datum,
         lifecycleData,
+        validators,
       ).map(
         (diagnostic) => ({
           ...diagnostic,
@@ -1166,8 +1184,14 @@ export async function publishScenarioMutationData(
     ...existing.map((item) => item.lifecycleDatum),
     ...data.map(provisionalLifecycleRecord),
   ]);
+  const validators = createDatumValidatorCache();
   for (const datum of data) {
-    diagnostics.push(...validateDatum(processPackage, datum, lifecycleData));
+    diagnostics.push(...validateDatum(
+      processPackage,
+      datum,
+      lifecycleData,
+      validators,
+    ));
   }
   if (diagnostics.length > 0) return { ok: false, diagnostics };
 
