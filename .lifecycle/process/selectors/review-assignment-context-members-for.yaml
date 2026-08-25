@@ -1,7 +1,7 @@
 kind: selector-definition
 id: review-assignment-context-members-for
 version: 1
-description: Exact frozen-context support plus packet-only evidence required to review one substantive Revision.
+description: Exact frozen-context support plus packet-only evidence and linked VAI inputs required to review one substantive Revision.
 parameters:
   - {name: subject, kind: revision}
 result_kind: revision
@@ -21,5 +21,14 @@ query:
       && !every("baseline-evidence@1",
         {baseline: one("intent-candidates-matching-subject@1", {subject: subject})}, evidence =>
           evidence != member))
+    || (subject.identity.type == "VAI"
+      && (
+        !every("verification-activities-for-implementation@1",
+          {implementation: subject}, activity => activity != member)
+        || !every("environments-for-implementation@1",
+          {implementation: subject}, environment => environment != member)
+        || !every("execution-targets-for-implementation@1",
+          {implementation: subject}, target => target != member)
+      ))
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]
