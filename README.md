@@ -6,6 +6,13 @@ Package. The kernel remains process-neutral; the bundled Example Process Package
 provides a bounded software V-model profile without making its types, phases, or
 Policies core semantics.
 
+## Current expansion goal
+
+The current goal is to establish reliable public operation through Phase 2, then
+expand the Example Process Package through Phases 3–6 using that operational
+evidence and the accepted v0.8 design baseline. See
+[`docs/phase-2-reliability-and-expansion-roadmap.md`](docs/phase-2-reliability-and-expansion-roadmap.md).
+
 ## Operator contract
 
 The supported product surface is the `mdlm` executable. A normal repository uses
