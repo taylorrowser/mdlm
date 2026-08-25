@@ -3100,6 +3100,73 @@ describe("Phase 1 hardening route evidence", () => {
     }));
   });
 
+  it("supplies exact linked revisions in a pilot VAI Review packet", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const packageUnderTest = loaded.package;
+    const exactEnvironment = environment();
+    exactEnvironment.datum.id = "ENV-RZSV8N3HSC";
+    exactEnvironment.datum.revision_id = "ENV-RZSV8N3HSC-r00001";
+    const exactActivity = pilotActivity();
+    exactActivity.datum.id = "VER-3XJBWSKDJN";
+    exactActivity.datum.revision_id = "VER-3XJBWSKDJN-r00001";
+    const exactTarget = target();
+    exactTarget.datum.id = "ART-2YHW87RF68";
+    exactTarget.datum.revision_id = "ART-2YHW87RF68-r00001";
+    const implementation = pilotImplementation();
+    implementation.datum.id = "VAI-HKGY742WF5";
+    implementation.datum.revision_id = "VAI-HKGY742WF5-r00001";
+    implementation.datum.links = [
+      { type: "realizes", target: exactActivity.datum.revision_id },
+      { type: "uses", target: exactEnvironment.datum.revision_id },
+      { type: "targets", target: exactTarget.datum.revision_id },
+    ];
+    const context = passingReview(implementation, "REV-W1T1E07MNY")[0];
+    const snapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: [
+        ...foundation(),
+        strategy(1),
+        exactEnvironment,
+        exactActivity,
+        exactTarget,
+        implementation,
+        context,
+      ],
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(packageUnderTest, snapshot);
+    const review = evaluation.obligations.find((item) =>
+      item.obligation === "passing-review-required" &&
+      item.subject === implementation.datum.revision_id
+    );
+    expect(review).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: true,
+      actionableResolver: "review-datum-in-context@2",
+    }));
+
+    const prepared = await dryRunResolverScenario(
+      packageUnderTest,
+      snapshot,
+      "review-datum-in-context@2",
+      review!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    const contextMembers = prepared.value.invocations[0]!.inputs.find(
+      (input) => input.name === "context_members",
+    )!;
+    expect(contextMembers.values.map((value) => value.identity.revision_id)).toEqual([
+      "ART-2YHW87RF68-r00001",
+      "ENV-RZSV8N3HSC-r00001",
+      "VER-3XJBWSKDJN-r00001",
+    ]);
+  });
+
   it("proves Phase 1 malformed command matrix rejection for every required coverage class atomically", async () => {
     const repository = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-malformed-target-"));
     try {

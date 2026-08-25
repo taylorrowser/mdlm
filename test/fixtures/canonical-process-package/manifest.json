@@ -4,14 +4,14 @@
   "artifact": {
     "archive": "process-package.json.gz",
     "compression": "gzip -n -9",
-    "compressedSha256": "06f6f65b0729bbe91b1ed317d7ed31fbc259ea9b75163f6a6f56046521cec365",
-    "contentSha256": "53c1939bb91d7c69867932c11c323313e2a205a26e676d553b8dbc01fecfdccb",
+    "compressedSha256": "7617a1a95df5aaf7fbc7bac8f45eb6e7533330ef63c39d2ce43d57a7d1bbeeef",
+    "contentSha256": "a5fb9c8ed2d8b35ed88537ab1cae60a99e1853a8d0940f8b0eb381597b0d8d40",
     "gzipHeaderMtime": 0
   },
   "processPackage": {
     "root": ".lifecycle/process",
     "reference": "mdlm-bootstrap@0.74.0",
-    "digest": "sha256:ee99e698d36e406a836a796a36fc1db2d2451072ad662c0e06805ab5c20fe5ac",
+    "digest": "sha256:e11a4b1abe016371ade450982ef1c5d510ad1260be284d9b6e03a461571a1950",
     "definitionCount": 571
   },
   "provenance": {
