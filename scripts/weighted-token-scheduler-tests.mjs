@@ -23,6 +23,7 @@ import {
   createRootTestAdmissionPolicy,
   createRootTestTasks,
   createRootTestTasksForClass,
+  createRootTestTasksForGate,
   rootTestManifest,
   rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
@@ -425,6 +426,41 @@ test("Assignment publication receives three tokens and no heavy release peer", (
     taskById.get(launch.taskId).resourceClass !== "heavy"), true);
 });
 
+test("release qualification gives baseline inspection at most one peer", () => {
+  const tasks = createRootTestTasksForGate("release");
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const simulation = simulateWeightedSchedule(tasks, {
+    capacity: ROOT_TEST_TOKEN_CAPACITY,
+    canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
+    canOverlap: rootTestTasksCanOverlap,
+    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+  });
+  const baselineId = "test/mdlm-baseline-inspection.test.ts";
+  const baselineTask = taskById.get(baselineId);
+  const baselineLaunch = simulation.launches.find((launch) => launch.taskId === baselineId);
+  const baselineEndMs = baselineLaunch.atMs + baselineTask.estimatedDurationMs;
+  const overlappingTasks = simulation.launches
+    .filter((launch) => launch.taskId !== baselineId
+      && launch.atMs < baselineEndMs
+      && baselineLaunch.atMs < launch.atMs + taskById.get(launch.taskId).estimatedDurationMs)
+    .map((launch) => ({
+      endMs: launch.atMs + taskById.get(launch.taskId).estimatedDurationMs,
+      startMs: launch.atMs,
+      weight: taskById.get(launch.taskId).weight,
+    }));
+  const peerEventTimes = [
+    baselineLaunch.atMs,
+    ...overlappingTasks.map((task) => task.startMs),
+  ].filter((atMs) => baselineLaunch.atMs <= atMs && atMs < baselineEndMs);
+  const maximumPeerWeight = Math.max(0, ...peerEventTimes.map((atMs) =>
+    overlappingTasks
+      .filter((task) => task.startMs <= atMs && atMs < task.endMs)
+      .reduce((total, task) => total + task.weight, 0)));
+
+  assert.equal(baselineTask.weight, ROOT_TEST_TOKEN_CAPACITY - 1);
+  assert.equal(maximumPeerWeight <= 1, true);
+});
+
 test("production construction admits no fourth resource owner", () => {
   const tasks = createRootTestTasks();
   const resourceTasks = tasks.filter((task) => task.resourceOwner === true);
@@ -497,6 +533,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
     "process-package-heavy": 1,
     "assignment-publication-heavy": 1,
+    "baseline-integrity-heavy": 1,
     "process-repository-heavy": 2,
     "repository-public-fragile": 1,
     "process-repository-safe": 3,
@@ -510,7 +547,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   for (const entry of rootTestManifest) {
     assert.equal(Number.isInteger(entry.weight) && entry.weight > 0 && entry.weight <= ROOT_TEST_TOKEN_CAPACITY, true);
     assert.equal(Number.isInteger(entry.measuredDurationMs) && entry.measuredDurationMs > 0, true);
-    assert.match(entry.runtimeClass, /^(process-package-heavy|assignment-publication-heavy|process-repository-heavy|repository-public-fragile|process-repository-safe|canonical-evaluator-safe|canonical-fixture-filler|cheap-in-process)$/);
+    assert.match(entry.runtimeClass, /^(process-package-heavy|assignment-publication-heavy|baseline-integrity-heavy|process-repository-heavy|repository-public-fragile|process-repository-safe|canonical-evaluator-safe|canonical-fixture-filler|cheap-in-process)$/);
   }
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(rootTestManifest, (entry) => entry.runtimeClass))
@@ -518,7 +555,8 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
     {
       "process-package-heavy": "1@3",
       "assignment-publication-heavy": "1@3",
-      "process-repository-heavy": "2@1",
+      "baseline-integrity-heavy": "1@3",
+      "process-repository-heavy": "1@1",
       "repository-public-fragile": "4@1",
       "process-repository-safe": "16@1",
       "canonical-evaluator-safe": "3@1",
@@ -749,11 +787,11 @@ test("the compatibility-aware successful-evidence model qualifies the calibrated
   assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=178150 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
   assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=349626/);
   assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=261570/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=886614 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2088114/);
-  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=11886/);
-  assert.match(model.stdout, /modeled_complete_gate_ms=2343114/);
-  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=6886/);
-  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=56886 required_outer_headroom_ms=50000 headroom_margin_ms=6886/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=856571 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2058071/);
+  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=41929/);
+  assert.match(model.stdout, /modeled_complete_gate_ms=2313071/);
+  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=36929/);
+  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=86929 required_outer_headroom_ms=50000 headroom_margin_ms=36929/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });

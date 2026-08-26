@@ -11,6 +11,7 @@ export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
   "process-package-heavy": 1,
   "assignment-publication-heavy": 1,
+  "baseline-integrity-heavy": 1,
   "process-repository-heavy": 2,
   "repository-public-fragile": 1,
   "process-repository-safe": 3,
