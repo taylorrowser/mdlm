@@ -81,6 +81,46 @@ export function publishQuarantineCommentOnce({ commandOutput, issueNumber, comme
   return "published";
 }
 
+const WAITING_TRIAGE_LABELS = ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human"];
+
+function issueLabelNames(issue) {
+  return new Set((issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name));
+}
+
+export function claimIssueEdit(issue, login, { continuing = false } = {}) {
+  if (issue.state !== "OPEN") throw new Error("Cannot claim a closed issue");
+  const labels = issueLabelNames(issue);
+  const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
+  const ownedByViewer = owners.includes(login);
+  if (labels.has("agent:in-progress")) {
+    if (ownedByViewer && !labels.has("ready-for-agent")) return null;
+    throw new Error("Issue already has an active agent claim");
+  }
+  if (owners.some((owner) => owner !== login)) throw new Error("Issue already has another owner");
+  if (!labels.has("ready-for-agent") && !(continuing && ownedByViewer)) {
+    throw new Error("Issue is not ready-for-agent");
+  }
+  return [
+    "--add-label", "agent:in-progress",
+    ...(labels.has("ready-for-agent") ? ["--remove-label", "ready-for-agent"] : []),
+    ...(!ownedByViewer ? ["--add-assignee", "@me"] : []),
+  ];
+}
+
+export function releaseIssueEdit(issue, login, nextTriage = null) {
+  const labels = issueLabelNames(issue);
+  const args = [];
+  if (labels.has("agent:in-progress")) args.push("--remove-label", "agent:in-progress");
+  if ((issue.assignees ?? []).some((assignee) => assignee.login === login)) {
+    args.push("--remove-assignee", login);
+  }
+  for (const label of WAITING_TRIAGE_LABELS) {
+    if (labels.has(label) && label !== nextTriage) args.push("--remove-label", label);
+  }
+  if (nextTriage && !labels.has(nextTriage)) args.push("--add-label", nextTriage);
+  return args;
+}
+
 export function betweenTicketsPatch() {
   return {
     phase: "between-tickets",
@@ -300,6 +340,37 @@ export function createTicketRunner({
     return records.find((candidate) => candidate.issue === record.issue) ?? record;
   }
 
+  function liveIssue(issueNumber, cwd = repositoryRoot) {
+    return commandJson("gh", ["issue", "view", String(issueNumber), "--json", "state,labels,assignees"], { cwd });
+  }
+
+  function claimIssue(issue, continuing) {
+    const login = viewerLogin();
+    let live = liveIssue(issue.number);
+    const edit = claimIssueEdit(live, login, { continuing });
+    if (edit) commandOutput("gh", ["issue", "edit", String(issue.number), ...edit]);
+    live = liveIssue(issue.number);
+    const labels = issueLabelNames(live);
+    if (!labels.has("agent:in-progress") || labels.has("ready-for-agent")
+      || !(live.assignees ?? []).some((assignee) => assignee.login === login)) {
+      fail(`Issue #${issue.number} claim was not durably observed`);
+    }
+  }
+
+  function releaseIssueClaim(issueNumber, nextTriage = null, cwd = repositoryRoot) {
+    const login = viewerLogin();
+    const live = liveIssue(issueNumber, cwd);
+    const edit = releaseIssueEdit(live, login, nextTriage);
+    if (edit.length > 0) commandOutput("gh", ["issue", "edit", String(issueNumber), ...edit], { cwd });
+    const released = liveIssue(issueNumber, cwd);
+    const labels = issueLabelNames(released);
+    if (labels.has("agent:in-progress")
+      || (released.assignees ?? []).some((assignee) => assignee.login === login)
+      || (nextTriage && !labels.has(nextTriage))) {
+      fail(`Issue #${issueNumber} claim release was not durably observed`);
+    }
+  }
+
   function quarantineIssue(issue, paths, state) {
     const marker = `<!-- mdlm-frontier-quarantine:${state.parentIssue}:${issue.number} -->`;
     const record = quarantineIssueRecord(issue, state);
@@ -319,10 +390,7 @@ export function createTicketRunner({
     if (commentStatus === "published") {
       throw publicationRetry(`Published quarantine comment for #${issue.number}; waiting to observe its durable marker before continuing`);
     }
-    const login = viewerLogin();
-    if (live.assignees?.some((assignee) => assignee.login === login)) {
-      commandOutput("gh", ["issue", "edit", String(issue.number), "--remove-assignee", login]);
-    }
+    releaseIssueClaim(issue.number, "needs-info");
     const durableRecord = appendQuarantineRecord(paths, record);
     const quarantines = [...(state.quarantines ?? []).filter((candidate) => candidate.issue !== issue.number), durableRecord]
       .sort((left, right) => left.issue - right.issue);
@@ -555,6 +623,7 @@ export function createTicketRunner({
     if (issueOpen(issue.number)) {
       commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`]);
     }
+    releaseIssueClaim(issue.number, null, worktree);
     return prNumber;
   }
 
@@ -616,6 +685,7 @@ export function createTicketRunner({
     if (current?.state === "OPEN") {
       commandOutput("gh", ["issue", "close", String(state.currentIssue), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`], { cwd });
     }
+    releaseIssueClaim(state.currentIssue, null, cwd);
     if (state.worktree && existsSync(state.worktree)) {
       const dirty = commandOutput("git", ["status", "--porcelain"], { cwd: state.worktree });
       if (dirty) fail(`Merged issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
@@ -628,6 +698,7 @@ export function createTicketRunner({
 
   function processIssue(issue, paths, state) {
     const continuingIssue = state?.currentIssue === issue.number;
+    claimIssue(issue, continuingIssue);
     const prepared = prepareWorktree(issue, paths, state);
     const issueLog = join(paths.root, `issue-${issue.number}.log`);
     const currentHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
@@ -685,10 +756,6 @@ export function createTicketRunner({
       lastError: null,
     });
     if (pendingAction?.kind === "quarantine") return quarantineIssue(issue, paths, state);
-    const login = viewerLogin();
-    if (!issue.assignees.some((assignee) => assignee.login === login)) {
-      commandOutput("gh", ["issue", "edit", String(issue.number), "--add-assignee", "@me"]);
-    }
     log(state.message);
     if (resumeValidated) return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
     if (resumesAtValidation(pendingAction)) {

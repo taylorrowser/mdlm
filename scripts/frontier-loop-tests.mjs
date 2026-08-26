@@ -62,9 +62,11 @@ import { createMaintenanceController, maintenanceBoundaryIsSafe } from "./fronti
 import { runInProcessGroup } from "./frontier-process-group.mjs";
 import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompts.mjs";
 import {
+  claimIssueEdit,
   createTicketRunner,
   publishQuarantineCommentOnce,
   reconcileMergedIssueState,
+  releaseIssueEdit,
   quarantineIssueComment,
   quarantineIssueRecord,
 } from "./frontier-ticket-runner.mjs";
@@ -73,6 +75,43 @@ import { sleep } from "./frontier-time.mjs";
 function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
   return { number, title: `Issue ${number}`, state, assignees, blockedBy };
 }
+
+test("agent claim is visible before work and excludes ready state", () => {
+  const edit = claimIssueEdit({
+    state: "OPEN",
+    labels: [{ name: "ready-for-agent" }],
+    assignees: [],
+  }, "agent");
+  assert.deepEqual(edit, [
+    "--add-label", "agent:in-progress",
+    "--remove-label", "ready-for-agent",
+    "--add-assignee", "@me",
+  ]);
+  assert.throws(
+    () => claimIssueEdit({ state: "OPEN", labels: [], assignees: [] }, "agent"),
+    /not ready-for-agent/,
+  );
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
+      labels: [{ name: "agent:in-progress" }],
+      assignees: [{ login: "other" }],
+    }, "agent"),
+    /active agent claim/,
+  );
+});
+
+test("claim release clears ownership and chooses one waiting role", () => {
+  assert.deepEqual(releaseIssueEdit({
+    labels: [{ name: "agent:in-progress" }, { name: "ready-for-agent" }],
+    assignees: [{ login: "agent" }],
+  }, "agent", "needs-info"), [
+    "--remove-label", "agent:in-progress",
+    "--remove-assignee", "agent",
+    "--remove-label", "ready-for-agent",
+    "--add-label", "needs-info",
+  ]);
+});
 
 test("frontier selects the first open unassigned issue whose blockers are closed", () => {
   const issues = [
