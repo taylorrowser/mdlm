@@ -135,7 +135,7 @@ function log(message) {
 
 function issueDetails(summary, issueStates) {
   const detail = ghJson(["issue", "view", String(summary.number)], {
-    fields: "number,title,state,url,assignees,blockedBy,labels,body",
+    fields: "number,title,state,url,assignees,blockedBy,labels,body,comments",
   });
   const nativeBlockers = normalizeNativeBlockers(detail.blockedBy);
   const blockedBy = nativeBlockers.length > 0
@@ -150,6 +150,7 @@ function issueDetails(summary, issueStates) {
     blockedBy,
     labels: detail.labels ?? [],
     body: detail.body ?? "",
+    comments: detail.comments ?? [],
   };
 }
 

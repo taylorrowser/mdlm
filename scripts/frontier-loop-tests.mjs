@@ -89,7 +89,7 @@ test("agent claim is visible before work and excludes ready state", () => {
   ]);
   assert.throws(
     () => claimIssueEdit({ state: "OPEN", labels: [], assignees: [] }, "agent"),
-    /not ready-for-agent/,
+    /not exclusively ready-for-agent/,
   );
   assert.throws(
     () => claimIssueEdit({
@@ -99,16 +99,38 @@ test("agent claim is visible before work and excludes ready state", () => {
     }, "agent"),
     /active agent claim/,
   );
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
+      labels: [{ name: "ready-for-agent" }],
+      assignees: [],
+      blockedBy: [{ number: 9, state: "OPEN" }],
+    }, "agent"),
+    /open blocker/,
+  );
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
+      labels: [{ name: "agent:in-progress" }],
+      assignees: [{ login: "agent" }, { login: "other" }],
+    }, "agent"),
+    /active agent claim/,
+  );
 });
 
 test("claim release clears ownership and chooses one waiting role", () => {
   assert.deepEqual(releaseIssueEdit({
-    labels: [{ name: "agent:in-progress" }, { name: "ready-for-agent" }],
+    labels: [
+      { name: "agent:in-progress" },
+      { name: "ready-for-agent" },
+      { name: "wontfix" },
+    ],
     assignees: [{ login: "agent" }],
   }, "agent", "needs-info"), [
     "--remove-label", "agent:in-progress",
     "--remove-assignee", "agent",
     "--remove-label", "ready-for-agent",
+    "--remove-label", "wontfix",
     "--add-label", "needs-info",
   ]);
 });

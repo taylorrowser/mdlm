@@ -18,7 +18,11 @@ import {
   scheduleFailureAction,
   validatedHeadMatches,
 } from "./frontier-loop-core.mjs";
-import { referencedParentNumber } from "./frontier-issue-contract.mjs";
+import {
+  bodyBlockedByNumbers,
+  normalizeNativeBlockers,
+  referencedParentNumber,
+} from "./frontier-issue-contract.mjs";
 import { editingAgentPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
 
@@ -81,7 +85,7 @@ export function publishQuarantineCommentOnce({ commandOutput, issueNumber, comme
   return "published";
 }
 
-const WAITING_TRIAGE_LABELS = ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human"];
+const WAITING_TRIAGE_LABELS = ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix"];
 
 function issueLabelNames(issue) {
   return new Set((issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name));
@@ -91,19 +95,26 @@ export function claimIssueEdit(issue, login, { continuing = false } = {}) {
   if (issue.state !== "OPEN") throw new Error("Cannot claim a closed issue");
   const labels = issueLabelNames(issue);
   const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
-  const ownedByViewer = owners.includes(login);
+  const ownedSolelyByViewer = owners.length === 1 && owners[0] === login;
+  const waitingRoles = WAITING_TRIAGE_LABELS.filter((label) => labels.has(label));
+  if ((issue.blockedBy ?? []).some((blocker) => blocker.state !== "CLOSED")) {
+    throw new Error("Issue has an open blocker");
+  }
   if (labels.has("agent:in-progress")) {
-    if (ownedByViewer && !labels.has("ready-for-agent")) return null;
+    if (ownedSolelyByViewer && waitingRoles.length === 0) return null;
     throw new Error("Issue already has an active agent claim");
   }
-  if (owners.some((owner) => owner !== login)) throw new Error("Issue already has another owner");
-  if (!labels.has("ready-for-agent") && !(continuing && ownedByViewer)) {
-    throw new Error("Issue is not ready-for-agent");
+  if (owners.some((owner) => owner !== login) || owners.length > 1) {
+    throw new Error("Issue already has another owner");
+  }
+  if (!(waitingRoles.length === 1 && waitingRoles[0] === "ready-for-agent")
+    && !(continuing && ownedSolelyByViewer && waitingRoles.length === 0)) {
+    throw new Error("Issue is not exclusively ready-for-agent");
   }
   return [
     "--add-label", "agent:in-progress",
     ...(labels.has("ready-for-agent") ? ["--remove-label", "ready-for-agent"] : []),
-    ...(!ownedByViewer ? ["--add-assignee", "@me"] : []),
+    ...(!ownedSolelyByViewer ? ["--add-assignee", "@me"] : []),
   ];
 }
 
@@ -341,7 +352,19 @@ export function createTicketRunner({
   }
 
   function liveIssue(issueNumber, cwd = repositoryRoot) {
-    return commandJson("gh", ["issue", "view", String(issueNumber), "--json", "state,labels,assignees"], { cwd });
+    const issue = commandJson(
+      "gh",
+      ["issue", "view", String(issueNumber), "--json", "state,labels,assignees,comments,blockedBy,body"],
+      { cwd },
+    );
+    const nativeBlockers = normalizeNativeBlockers(issue.blockedBy);
+    issue.blockedBy = nativeBlockers.length > 0
+      ? nativeBlockers
+      : bodyBlockedByNumbers(issue.body ?? "").map((number) => ({
+        number,
+        state: issueOpen(number) ? "OPEN" : "CLOSED",
+      }));
+    return issue;
   }
 
   function claimIssue(issue, continuing) {
@@ -351,8 +374,11 @@ export function createTicketRunner({
     if (edit) commandOutput("gh", ["issue", "edit", String(issue.number), ...edit]);
     live = liveIssue(issue.number);
     const labels = issueLabelNames(live);
-    if (!labels.has("agent:in-progress") || labels.has("ready-for-agent")
-      || !(live.assignees ?? []).some((assignee) => assignee.login === login)) {
+    const owners = (live.assignees ?? []).map((assignee) => assignee.login);
+    if (!labels.has("agent:in-progress")
+      || WAITING_TRIAGE_LABELS.some((label) => labels.has(label))
+      || owners.length !== 1 || owners[0] !== login
+      || (live.blockedBy ?? []).some((blocker) => blocker.state !== "CLOSED")) {
       fail(`Issue #${issue.number} claim was not durably observed`);
     }
   }
@@ -364,9 +390,10 @@ export function createTicketRunner({
     if (edit.length > 0) commandOutput("gh", ["issue", "edit", String(issueNumber), ...edit], { cwd });
     const released = liveIssue(issueNumber, cwd);
     const labels = issueLabelNames(released);
+    const waitingRoles = WAITING_TRIAGE_LABELS.filter((label) => labels.has(label));
     if (labels.has("agent:in-progress")
       || (released.assignees ?? []).some((assignee) => assignee.login === login)
-      || (nextTriage && !labels.has(nextTriage))) {
+      || (nextTriage ? waitingRoles.length !== 1 || waitingRoles[0] !== nextTriage : waitingRoles.length !== 0)) {
       fail(`Issue #${issueNumber} claim release was not durably observed`);
     }
   }
@@ -698,6 +725,9 @@ export function createTicketRunner({
 
   function processIssue(issue, paths, state) {
     const continuingIssue = state?.currentIssue === issue.number;
+    if (continuingIssue && state.pendingAction?.kind === "quarantine") {
+      return quarantineIssue(issue, paths, state);
+    }
     claimIssue(issue, continuingIssue);
     const prepared = prepareWorktree(issue, paths, state);
     const issueLog = join(paths.root, `issue-${issue.number}.log`);
