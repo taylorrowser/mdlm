@@ -371,6 +371,30 @@ test("the safe-LPT tail contract orders and overlaps the intent route compatibly
   }
 });
 
+test("package loading starts first with one release peer", () => {
+  const tasks = createRootTestTasks();
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const simulation = simulateWeightedSchedule(tasks, {
+    capacity: ROOT_TEST_TOKEN_CAPACITY,
+    canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
+    canOverlap: rootTestTasksCanOverlap,
+    classConcurrencyLimits: ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
+  });
+  const packageId = "test/load-process-package.test.ts";
+  const packageLaunch = simulation.launches.find((launch) => launch.taskId === packageId);
+  const packageEndMs = packageLaunch.atMs + taskById.get(packageId).estimatedDurationMs;
+  const overlappingTasks = simulation.launches
+    .filter((launch) => launch.taskId !== packageId
+      && launch.atMs < packageEndMs
+      && packageLaunch.atMs < launch.atMs + taskById.get(launch.taskId).estimatedDurationMs)
+    .map((launch) => taskById.get(launch.taskId));
+
+  assert.equal(packageLaunch.atMs, 0);
+  assert.deepEqual(overlappingTasks.map((task) => task.id), [
+    "test/mdlm-assignment.test.ts",
+  ]);
+});
+
 test("production construction admits no fourth resource owner", () => {
   const tasks = createRootTestTasks();
   const resourceTasks = tasks.filter((task) => task.resourceOwner === true);
@@ -441,6 +465,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
 
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
+    "process-package-heavy": 1,
     "process-repository-heavy": 2,
     "repository-public-fragile": 1,
     "process-repository-safe": 3,
@@ -454,13 +479,14 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   for (const entry of rootTestManifest) {
     assert.equal(Number.isInteger(entry.weight) && entry.weight > 0 && entry.weight <= ROOT_TEST_TOKEN_CAPACITY, true);
     assert.equal(Number.isInteger(entry.measuredDurationMs) && entry.measuredDurationMs > 0, true);
-    assert.match(entry.runtimeClass, /^(process-repository-heavy|repository-public-fragile|process-repository-safe|canonical-evaluator-safe|canonical-fixture-filler|cheap-in-process)$/);
+    assert.match(entry.runtimeClass, /^(process-package-heavy|process-repository-heavy|repository-public-fragile|process-repository-safe|canonical-evaluator-safe|canonical-fixture-filler|cheap-in-process)$/);
   }
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(rootTestManifest, (entry) => entry.runtimeClass))
       .map(([runtimeClass, entries]) => [runtimeClass, `${entries.length}@${entries[0].weight}`])),
     {
-      "process-repository-heavy": "4@1",
+      "process-package-heavy": "1@3",
+      "process-repository-heavy": "3@1",
       "repository-public-fragile": "4@1",
       "process-repository-safe": "16@1",
       "canonical-evaluator-safe": "3@1",
@@ -691,11 +717,11 @@ test("the compatibility-aware successful-evidence model qualifies the calibrated
   assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=178150 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
   assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=349626/);
   assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=261570/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=841946 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2043446/);
-  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=56554/);
-  assert.match(model.stdout, /modeled_complete_gate_ms=2298446/);
-  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=51554/);
-  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=101554 required_outer_headroom_ms=50000 headroom_margin_ms=51554/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=855483 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2056983/);
+  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=43017/);
+  assert.match(model.stdout, /modeled_complete_gate_ms=2311983/);
+  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=38017/);
+  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=88017 required_outer_headroom_ms=50000 headroom_margin_ms=38017/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
