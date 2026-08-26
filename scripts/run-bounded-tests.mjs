@@ -2,8 +2,16 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runInProcessGroup } from "./frontier-process-group.mjs";
+import {
+  parseQualificationArguments,
+  qualificationBudgetMs,
+} from "./qualification-gates.mjs";
 
-const budgetMs = Number(process.env.MDLM_TEST_BUDGET_MS ?? 2_400_000);
+const qualificationArguments = process.argv.slice(2);
+const qualification = parseQualificationArguments(qualificationArguments);
+const budgetMs = Number(
+  process.env.MDLM_TEST_BUDGET_MS ?? qualificationBudgetMs(qualification.gate),
+);
 const temporaryParent = mkdtempSync(path.join(os.tmpdir(), "mdlm-authoritative-"));
 const temporaryRoot = path.join(temporaryParent, "tests.noindex");
 mkdirSync(temporaryRoot);
@@ -12,7 +20,7 @@ let result;
 try {
   result = runInProcessGroup(
     process.execPath,
-    ["scripts/authoritative-tests.mjs"],
+    ["scripts/authoritative-tests.mjs", ...qualificationArguments],
     {
       cwd: process.cwd(),
       environment: {
@@ -33,7 +41,7 @@ try {
 
 if (result.timedOut) {
   process.stderr.write(
-    `Authoritative test budget exceeded ${budgetMs}ms; terminate redundant reconstruction or move route permutations to package/evaluator seams.\n`,
+    `${qualification.gate} qualification budget exceeded ${budgetMs}ms; terminate redundant reconstruction or move route permutations to package/evaluator seams.\n`,
   );
 }
 process.exitCode = result.status ?? 1;

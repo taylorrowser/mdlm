@@ -11,6 +11,11 @@ import {
   rootTestManifest,
 } from "./root-test-schedule.mjs";
 import { verifyRootTestObservationPolicy } from "./root-test-observation-policy.mjs";
+import {
+  QUALIFICATION_GATES,
+  qualificationManifestErrors,
+  rootTestFilesForGate,
+} from "./qualification-gates.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -48,7 +53,7 @@ const rootDiscovered = collectTestFiles("test");
 const classified = rootVitestSuites.flatMap((suite) => suite.files);
 const suiteIds = rootVitestSuites.map((suite) => suite.id);
 const mdlmPiDiscovered = collectTestFiles("packages/mdlm-pi/test");
-const errors = [];
+const errors = qualificationManifestErrors(rootDiscovered, rootTestManifest);
 
 if (rootDiscovered.length !== 47) {
   errors.push(`Expected exactly 47 root Vitest files, found ${rootDiscovered.length}`);
@@ -107,6 +112,8 @@ if (errors.length > 0) {
 const classSummary = rootVitestSuites
   .map((suite) => `${suite.id}=${suite.files.length}@weight${suite.weight}`)
   .join(", ");
+const prCount = rootTestFilesForGate(QUALIFICATION_GATES.PR).length;
+const releaseCount = rootTestFilesForGate(QUALIFICATION_GATES.RELEASE).length;
 console.log(
-  `Verified ${rootDiscovered.length + mdlmPiDiscovered.length} Vitest files; root classes: ${classSummary}.`,
+  `Verified ${rootDiscovered.length + mdlmPiDiscovered.length} Vitest files; root gates: pr=${prCount}, release=${releaseCount}; root classes: ${classSummary}.`,
 );

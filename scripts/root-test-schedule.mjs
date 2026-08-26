@@ -1,4 +1,5 @@
 import { rootTestManifest } from "../vitest.suites.mjs";
+import { rootTestFilesForGate } from "./qualification-gates.mjs";
 import {
   createRootResourceAdmissionPolicy,
   rootResourceAssignment,
@@ -98,6 +99,17 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
     rootTestManifest.filter((entry) => entry.runtimeClass === "cheap-in-process"),
   );
   return [...focused, ...cheap];
+}
+
+export function createRootTestTasksForGate(
+  gate,
+  additionalRootTestFiles = [],
+  policy = ROOT_TEST_SCHEDULING_POLICY,
+) {
+  const selected = new Set(rootTestFilesForGate(gate, additionalRootTestFiles));
+  return createRootTestTasks(policy)
+    .map((task) => ({ ...task, files: task.files.filter((file) => selected.has(file)) }))
+    .filter((task) => task.files.length > 0);
 }
 
 export function createRootTestTasksForClass(

@@ -9,9 +9,37 @@ export const mdlmPiTestFiles = [
   "packages/mdlm-pi/test/run-lock.test.ts",
 ];
 
+// Files marked release are still part of release authority, while PR files run
+// in both gates. Keep this list explicit so moving a compiled-public or complete
+// lifecycle route requires a reviewed manifest change.
+const releaseOnlyRootTestFiles = new Set([
+  "test/initial-product-intent-resolution.test.ts",
+  "test/initial-product-intent-route.test.ts",
+  "test/mdlm-assignment-state.test.ts",
+  "test/mdlm-assignment.test.ts",
+  "test/mdlm-baseline-inspection.test.ts",
+  "test/mdlm-clean-onboarding-transaction.test.ts",
+  "test/mdlm-clean-pilot-contract.test.ts",
+  "test/mdlm-init.test.ts",
+  "test/mdlm-lifecycle.test.ts",
+  "test/mdlm-pilot-assessment.test.ts",
+  "test/mdlm-process-expression.test.ts",
+  "test/mdlm-process-migration.test.ts",
+  "test/mdlm-repository-inspection.test.ts",
+  "test/mdlm-review-assignment.test.ts",
+  "test/mdlm-schema.test.ts",
+  "test/operator-outcome.test.ts",
+  "test/phase-0-corrected-gate-route.test.ts",
+  "test/phase-0-intent-candidate-currentness-route.test.ts",
+  "test/phase-1-hardening-routes.test.ts",
+  "test/phase-2-hardening-routes.test.ts",
+  "test/proportional-distinct-context-phase-2-public.test.ts",
+  "test/selected-package-cache.test.ts",
+]);
+
 // Durations are the latest selected successful focused observations. They
 // include focused Vitest startup and remain estimates, not p95s.
-export const rootTestManifest = [
+const rootTestRuntimeManifest = [
   { file: "test/load-process-package.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 66_137 },
   { file: "test/mdlm-baseline-inspection.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 62_087 },
   { file: "test/mdlm-assignment.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 117_151 },
@@ -63,6 +91,11 @@ export const rootTestManifest = [
   { file: "test/selector-memoization.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 2_427 },
   { file: "test/textual-expression.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 2_441 },
 ];
+
+export const rootTestManifest = Object.freeze(rootTestRuntimeManifest.map((entry) => Object.freeze({
+  ...entry,
+  qualificationGate: releaseOnlyRootTestFiles.has(entry.file) ? "release" : "pr",
+})));
 
 export const rootVitestSuites = [
   "process-repository-heavy",

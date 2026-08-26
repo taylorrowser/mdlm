@@ -615,20 +615,21 @@ test("contended representative observation limits stay exact", () => {
   assert.match(vitestConfig, /maxWorkers: 4/);
 });
 
-test("authoritative product tests default to the evidence-backed process budget", () => {
+test("authoritative product tests apply separate bounded PR and release budgets", () => {
   const source = readFileSync(new URL("./run-bounded-tests.mjs", import.meta.url), "utf8");
-  assert.match(
-    source,
-    /process\.env\.MDLM_TEST_BUDGET_MS \?\? 2_400_000/,
-  );
+  const gates = readFileSync(new URL("./qualification-gates.mjs", import.meta.url), "utf8");
+  assert.match(source, /process\.env\.MDLM_TEST_BUDGET_MS \?\? qualificationBudgetMs/);
+  assert.match(gates, /PR_QUALIFICATION_BUDGET_MS = 600_000/);
+  assert.match(gates, /RELEASE_QUALIFICATION_BUDGET_MS = 2_400_000/);
   assert.match(source, /runInProcessGroup/);
   assert.match(source, /scripts\/authoritative-tests\.mjs/);
+  assert.match(source, /\.\.\.qualificationArguments/);
   assert.match(source, /terminationGrace: 2_000/);
   assert.match(source, /tests\.noindex/);
   assert.match(source, /\.metadata_never_index/);
   assert.match(source, /TMPDIR: temporaryRoot/);
   assert.match(source, /!result\.timedOut/);
-  assert.match(source, /Authoritative test budget exceeded/);
+  assert.match(source, /qualification budget exceeded/);
   const authoritative = readFileSync(
     new URL("./authoritative-tests.mjs", import.meta.url),
     "utf8",
@@ -641,6 +642,7 @@ test("authoritative product tests default to the evidence-backed process budget"
   assert.match(authoritative, /"--testTimeout=180000"/);
   assert.match(authoritative, /frontier-loop-tests\.mjs/);
   assert.match(authoritative, /weighted-token-scheduler-tests\.mjs/);
+  assert.match(authoritative, /qualification-gate-tests\.mjs/);
 });
 
 test("child commands have a finite timeout", () => {

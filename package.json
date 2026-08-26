@@ -17,9 +17,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:mdlm-pi": "npm run build --workspace=mdlm-pi",
-    "test": "node scripts/run-bounded-tests.mjs",
+    "test": "node scripts/run-bounded-tests.mjs --gate=pr",
+    "test:pr": "npm test",
+    "test:release": "node scripts/run-bounded-tests.mjs --gate=release",
     "test:mdlm-pi": "npm test --workspace=mdlm-pi",
-    "test:all": "npm test",
+    "test:all": "npm run test:release",
     "test:watch": "vitest --config vitest.fast.config.ts",
     "typecheck": "tsc --noEmit",
     "typecheck:mdlm-pi": "npm run typecheck --workspace=mdlm-pi",
