@@ -11,6 +11,10 @@ query:
   where: >-
     !every("assignment-review-context-members-for-subject@1", {subject: subject}, support =>
       support != member)
+    || (exists("assignment-review-contexts-for-subject@1", {subject: subject})
+      && !every("review-context-evidence@1",
+        {context: one("assignment-review-contexts-for-subject@1", {subject: subject})}, evidence =>
+          evidence != member))
     || (none("assignment-review-contexts-for-subject@1", {subject: subject})
       && !every("review-context-members-for@1", {subject: subject}, support =>
         support != member))
