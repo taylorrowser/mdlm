@@ -724,8 +724,9 @@ function target(id = "ART-0HARDENP10"): LifecycleRecord {
 function pilotImplementation(
   number = 1,
   corrects: string[] = [],
+  id = "VAI-0HARDPILOT",
 ): LifecycleRecord {
-  return record("VAI", "VAI-0HARDPILOT", {
+  return record("VAI", id, {
     title: `Source-blind pilot procedure ${number}`,
     rationale: "Execute every exact public command case without product source.",
     kind: "pilot",
@@ -848,7 +849,12 @@ function correctedPilotImplementationFixture() {
 
 function pilotRun(
   implementation: LifecycleRecord,
-  options: { timeout?: boolean; noProductExercise?: boolean; idSuffix?: string } = {},
+  options: {
+    timeout?: boolean;
+    noProductExercise?: boolean;
+    idSuffix?: string;
+    assessmentState?: "accepted" | "recorded";
+  } = {},
 ): { run: LifecycleRecord; result: LifecycleRecord } {
   const suffix = options.idSuffix ?? "PILOT1";
   const evidence = options.noProductExercise
@@ -872,7 +878,9 @@ function pilotRun(
       outcome: inconclusive ? "inconclusive" : "suitable",
       formal_evidence_eligible: false,
     },
-    assessment_state: inconclusive ? "assessment-required" : "accepted",
+    assessment_state: inconclusive
+      ? "assessment-required"
+      : options.assessmentState ?? "accepted",
     observations: {
       expected_success_observed: !options.noProductExercise,
       expected_discrimination_observed: !inconclusive,
@@ -4158,6 +4166,72 @@ describe("Phase 1 hardening route evidence", () => {
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
   }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
+
+  it("satisfies only the pilot obligation with exact suitable recorded result evidence", () => {
+    const currentStrategy = strategy(1);
+    const currentEnvironment = environment();
+    const qualification = qualificationEvidence(currentStrategy, currentEnvironment);
+    const activity = pilotActivity();
+    const completedImplementation = pilotImplementation();
+    const unmetImplementation = pilotImplementation(1, [], "VAI-0HARDUNMET1");
+    const completedPilot = pilotRun(completedImplementation, {
+      idSuffix: "RECORDED",
+      assessmentState: "recorded",
+    });
+    const records = [
+      ...foundation(),
+      currentStrategy,
+      ...passingReview(currentStrategy, "REV-0HARDREC00"),
+      currentEnvironment,
+      qualification.activity,
+      qualification.implementation,
+      qualification.run,
+      qualification.result,
+      ...passingReview(currentEnvironment, "REV-0HARDREC01", {
+        definitions: [currentEnvironment, currentStrategy],
+        evidence: [
+          qualification.activity,
+          qualification.implementation,
+          qualification.run,
+          qualification.result,
+        ],
+      }),
+      activity,
+      ...passingReview(activity, "REV-0HARDREC02", {
+        definitions: [activity, foundation()[0]!, foundation()[1]!, currentStrategy],
+      }),
+      target(),
+      completedImplementation,
+      implementationAuthorization(completedImplementation, "DEC-0HARDREC01"),
+      ...passingReview(completedImplementation, "REV-0HARDREC03"),
+      unmetImplementation,
+      implementationAuthorization(unmetImplementation, "DEC-0HARDREC02"),
+      ...passingReview(unmetImplementation, "REV-0HARDREC04"),
+      completedPilot.run,
+      completedPilot.result,
+    ];
+
+    expect(validatePayload(recoveryPackage, "RUN", completedPilot.run.datum.payload)).toBe(true);
+    expect(validatePayload(recoveryPackage, "RES", completedPilot.result.datum.payload)).toBe(true);
+    const evaluation = phase1Evaluation(recoveryPackage, records);
+    expect(evaluation.diagnostics).toEqual([]);
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "verification-run-required" &&
+      item.subject === completedImplementation.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "satisfied",
+      satisfied: true,
+    }));
+    expect(evaluation.obligations.find((item) =>
+      item.obligation === "verification-run-required" &&
+      item.subject === unmetImplementation.datum.revision_id
+    )).toEqual(expect.objectContaining({
+      status: "ready",
+      satisfied: false,
+      actionableResolver: "execute-verification-run@1",
+      dispatchable: true,
+    }));
+  });
 
   it("keeps a completed setup-failure run without treating it as exercised pilot evidence", async () => {
     expect(processPackage.scenarios["execute-verification-run"]?.prompt_ref).toBe(
