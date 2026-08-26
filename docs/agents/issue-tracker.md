@@ -13,6 +13,32 @@ Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all op
 
 Infer the repository from `git remote -v`; `gh` does this automatically inside the clone.
 
+## Open with the problem
+
+After optional `## Parent` metadata, open every issue with a short `## Plain-language problem` section. In two to four sentences, say what someone observed, what should happen instead, and why the difference matters. A reader should understand the problem without knowing MDLM's internal types or source layout.
+
+Put exact commits, logs, timings, diagnostics, and implementation constraints in later sections. The opening explains the problem. It does not replace evidence.
+
+## Agent claim
+
+`agent:in-progress` is the tracker lock. An agent claims an issue before creating a worktree, reproducing the defect, editing files, or running implementation checks:
+
+1. Read the current issue, assignees, labels, comments, and blocking edges.
+2. Confirm the issue is open, unblocked, and has neither `agent:in-progress` nor another active owner.
+3. Add `agent:in-progress`, remove `ready-for-agent`, and assign `@me`.
+4. Re-read the issue. Begin work only when the claim is visible.
+
+Read-only triage needed to decide whether an issue is claimable may happen before the claim. All implementation work starts after it. If another agent owns the issue, choose different work.
+
+Release the claim when ownership ends:
+
+- merged or closed: remove `agent:in-progress`;
+- fully specified handoff: remove the claim, unassign the owner, and add `ready-for-agent`;
+- blocked on a decision or missing evidence: remove the claim, unassign the owner, and add `needs-info`;
+- human implementation required: remove the claim, unassign the owner, and add `ready-for-human`.
+
+A stopped process does not make a claim stale. Verify the owner, worktree, and recorded evidence before clearing someone else's claim.
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.**
