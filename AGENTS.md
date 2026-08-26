@@ -8,11 +8,11 @@ Before any work in this repository, read `docs/agents/mdlm-development.md`.
 
 ### Issue tracker
 
-Issues and specifications are tracked in the private GitHub repository. See `docs/agents/issue-tracker.md`.
+Before creating, claiming, implementing, or closing an issue, follow `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Use the default five-role triage vocabulary. See `docs/agents/triage-labels.md`.
+Before triaging or implementing a defect, apply the ownership, triage, and defect-origin rules in `docs/agents/triage-labels.md`.
 
 ### Domain docs
 

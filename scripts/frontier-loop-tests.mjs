@@ -51,6 +51,8 @@ import {
   findFrontier,
   findReadyItem,
   fixedIdentitiesAreClosed,
+  ISSUE_DETAIL_FIELDS,
+  nativeBlockerApiArguments,
   normalizeNativeBlockers,
   priorityIssueSnapshot,
   referencedParentNumber,
@@ -62,17 +64,204 @@ import { createMaintenanceController, maintenanceBoundaryIsSafe } from "./fronti
 import { runInProcessGroup } from "./frontier-process-group.mjs";
 import { editingAgentPrompt, independentReviewerPrompt } from "./frontier-prompts.mjs";
 import {
+  claimIssueEdit,
+  claimReleaseDisposition,
+  claimReleaseIntent,
   createTicketRunner,
+  durablePublicationClaimMatches,
   publishQuarantineCommentOnce,
+  publishWithClaimRevalidation,
   reconcileMergedIssueState,
+  releaseClaimAfterPersistence,
+  releaseIssueEdit,
   quarantineIssueComment,
   quarantineIssueRecord,
 } from "./frontier-ticket-runner.mjs";
 import { sleep } from "./frontier-time.mjs";
 
-function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
-  return { number, title: `Issue ${number}`, state, assignees, blockedBy };
+function issue(number, {
+  state = "OPEN",
+  assignees = [],
+  blockedBy = [],
+  labels = [{ name: "ready-for-agent" }],
+} = {}) {
+  return { number, title: `Issue ${number}`, state, assignees, blockedBy, labels };
 }
+
+test("gh 2.45 issue reads keep comments and load native blockers through the dependency API", () => {
+  assert.equal(ISSUE_DETAIL_FIELDS.split(",").includes("comments"), true);
+  assert.equal(ISSUE_DETAIL_FIELDS.split(",").includes("blockedBy"), false);
+  assert.deepEqual(nativeBlockerApiArguments(246), [
+    "api",
+    "-X",
+    "GET",
+    "repos/{owner}/{repo}/issues/246/dependencies/blocked_by?per_page=100",
+  ]);
+  assert.deepEqual(normalizeNativeBlockers([{ number: 245, state: "closed" }]), [
+    { number: 245, state: "CLOSED" },
+  ]);
+});
+
+test("agent claim is visible before work and excludes ready state", () => {
+  const edit = claimIssueEdit({
+    state: "OPEN",
+    labels: [{ name: "ready-for-agent" }],
+    assignees: [],
+  }, "agent");
+  assert.deepEqual(edit, [
+    "--add-label", "agent:in-progress",
+    "--remove-label", "ready-for-agent",
+    "--add-assignee", "@me",
+  ]);
+  assert.throws(
+    () => claimIssueEdit({ state: "OPEN", labels: [], assignees: [] }, "agent"),
+    /not exclusively ready-for-agent/,
+  );
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
+      labels: [{ name: "agent:in-progress" }],
+      assignees: [{ login: "other" }],
+    }, "agent"),
+    /active agent claim/,
+  );
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
+      labels: [{ name: "agent:in-progress" }],
+      assignees: [{ login: "agent" }],
+    }, "agent"),
+    /active agent claim/,
+  );
+  assert.equal(claimIssueEdit({
+    state: "OPEN",
+    labels: [{ name: "agent:in-progress" }],
+    assignees: [{ login: "agent" }],
+  }, "agent", { continuingClaimAuthorized: true }), null);
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
+      labels: [{ name: "ready-for-agent" }],
+      assignees: [],
+      blockedBy: [{ number: 9, state: "OPEN" }],
+    }, "agent"),
+    /open blocker/,
+  );
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
+      labels: [{ name: "agent:in-progress" }],
+      assignees: [{ login: "agent" }, { login: "other" }],
+    }, "agent"),
+    /active agent claim/,
+  );
+});
+
+test("claim release clears ownership and chooses one waiting role", () => {
+  assert.deepEqual(releaseIssueEdit({
+    labels: [
+      { name: "agent:in-progress" },
+      { name: "ready-for-agent" },
+      { name: "wontfix" },
+    ],
+    assignees: [{ login: "agent" }],
+  }, "agent", "needs-info"), [
+    "--remove-label", "agent:in-progress",
+    "--remove-assignee", "agent",
+    "--remove-label", "ready-for-agent",
+    "--remove-label", "wontfix",
+    "--add-label", "needs-info",
+  ]);
+  assert.throws(() => releaseIssueEdit({
+    labels: [{ name: "agent:in-progress" }],
+    assignees: [{ login: "other" }],
+  }, "agent"), /another owner's issue/);
+});
+
+test("durable release intent resumes across the quarantine and merge remote-release gap", () => {
+  const quarantine = claimReleaseIntent(246, "needs-info", "quarantine");
+  const quarantineState = { claimRelease: quarantine };
+  assert.equal(claimReleaseDisposition({
+    state: "OPEN",
+    labels: [{ name: "agent:in-progress" }],
+    assignees: [{ login: "agent" }],
+  }, quarantineState, "agent", quarantine), "release");
+  assert.equal(claimReleaseDisposition({
+    state: "OPEN",
+    labels: [{ name: "needs-info" }],
+    assignees: [],
+  }, quarantineState, "agent", quarantine), "released");
+
+  const merged = claimReleaseIntent(246, null, "merged", 300);
+  assert.equal(claimReleaseDisposition({
+    state: "CLOSED",
+    labels: [],
+    assignees: [],
+  }, { claimRelease: merged }, "agent", merged), "released");
+  assert.throws(
+    () => claimReleaseDisposition({ state: "CLOSED", labels: [], assignees: [] }, {}, "agent", merged),
+    /no matching durable intent/,
+  );
+});
+
+test("quarantine and merge release helpers persist intent before remote release", () => {
+  const events = [];
+  const state = releaseClaimAfterPersistence(
+    () => {
+      events.push("persist");
+      return { claimRelease: claimReleaseIntent(246, "needs-info", "quarantine") };
+    },
+    (durable) => events.push(durable.claimRelease.reason),
+  );
+  assert.deepEqual(events, ["persist", "quarantine"]);
+  assert.equal(state.claimRelease.issue, 246);
+});
+
+test("every publication helper call revalidates the exact durable claim first", () => {
+  const durable = {
+    currentIssue: 246,
+    claimedIssue: 246,
+    claimedBy: "agent",
+    branch: "agent/issue-246",
+    worktree: "/tmp/issue-246",
+    validatedHead: "abc123",
+  };
+  assert.equal(durablePublicationClaimMatches(durable, {
+    issue: 246,
+    login: "agent",
+    branch: "agent/issue-246",
+    worktree: "/tmp/issue-246",
+    validatedHead: "abc123",
+  }), true);
+  assert.equal(durablePublicationClaimMatches({ ...durable, validatedHead: "changed" }, {
+    issue: 246,
+    login: "agent",
+    branch: "agent/issue-246",
+    worktree: "/tmp/issue-246",
+    validatedHead: "abc123",
+  }), false);
+
+  const events = [];
+  assert.equal(publishWithClaimRevalidation(
+    () => events.push("claim"),
+    () => {
+      events.push("publish");
+      return "published";
+    },
+  ), "published");
+  assert.deepEqual(events, ["claim", "publish"]);
+  assert.throws(() => publishWithClaimRevalidation(
+    () => { throw new Error("claim changed"); },
+    () => events.push("must not publish"),
+  ), /claim changed/);
+  assert.deepEqual(events, ["claim", "publish"]);
+
+  const source = readFileSync(new URL("./frontier-ticket-runner.mjs", import.meta.url), "utf8");
+  assert.match(source, /publishWithClaimRevalidation\(\s*revalidateClaim,\s*\(\) => commandOutput\("git", \["push"/);
+  for (const command of ["reopen", "create", "merge"]) {
+    assert.match(source, new RegExp(`publishWithClaimRevalidation\\(\\s*revalidateClaim,\\s*\\(\\) => commandOutput\\("gh", \\["pr", "${command}"`));
+  }
+});
 
 test("frontier selects the first open unassigned issue whose blockers are closed", () => {
   const issues = [
@@ -83,6 +272,15 @@ test("frontier selects the first open unassigned issue whose blockers are closed
   ];
 
   assert.equal(findFrontier(issues)?.number, 42);
+});
+
+test("frontier skips claimed and non-ready issues", () => {
+  const selected = findFrontier([
+    issue(40, { labels: [{ name: "agent:in-progress" }] }),
+    issue(41, { labels: [{ name: "needs-info" }] }),
+    issue(42),
+  ]);
+  assert.equal(selected.number, 42);
 });
 
 test("frontier is absent when every remaining issue is assigned or blocked", () => {

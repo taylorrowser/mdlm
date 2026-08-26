@@ -18,7 +18,15 @@ import {
   scheduleFailureAction,
   validatedHeadMatches,
 } from "./frontier-loop-core.mjs";
-import { referencedParentNumber } from "./frontier-issue-contract.mjs";
+import {
+  bodyBlockedByNumbers,
+  ISSUE_DETAIL_FIELDS,
+  issueLabelNames,
+  nativeBlockerApiArguments,
+  normalizeNativeBlockers,
+  referencedParentNumber,
+  WAITING_TRIAGE_LABELS,
+} from "./frontier-issue-contract.mjs";
 import { editingAgentPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
 
@@ -81,11 +89,108 @@ export function publishQuarantineCommentOnce({ commandOutput, issueNumber, comme
   return "published";
 }
 
+export function claimIssueEdit(issue, login, { continuingClaimAuthorized = false } = {}) {
+  if (issue.state !== "OPEN") throw new Error("Cannot claim a closed issue");
+  const labels = issueLabelNames(issue);
+  const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
+  const ownedSolelyByViewer = owners.length === 1 && owners[0] === login;
+  const waitingRoles = WAITING_TRIAGE_LABELS.filter((label) => labels.has(label));
+  if ((issue.blockedBy ?? []).some((blocker) => blocker.state !== "CLOSED")) {
+    throw new Error("Issue has an open blocker");
+  }
+  if (labels.has("agent:in-progress")) {
+    if (continuingClaimAuthorized && ownedSolelyByViewer && waitingRoles.length === 0) return null;
+    throw new Error("Issue already has an active agent claim");
+  }
+  if (owners.length > 0) throw new Error("Issue already has another owner");
+  if (!(waitingRoles.length === 1 && waitingRoles[0] === "ready-for-agent")) {
+    throw new Error("Issue is not exclusively ready-for-agent");
+  }
+  return [
+    "--add-label", "agent:in-progress",
+    ...(labels.has("ready-for-agent") ? ["--remove-label", "ready-for-agent"] : []),
+    ...(!ownedSolelyByViewer ? ["--add-assignee", "@me"] : []),
+  ];
+}
+
+export function releaseIssueEdit(issue, login, nextTriage = null) {
+  const labels = issueLabelNames(issue);
+  const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
+  if (owners.length > 0 && !(owners.length === 1 && owners[0] === login)) {
+    throw new Error("Cannot release another owner's issue");
+  }
+  const args = [];
+  if (labels.has("agent:in-progress")) args.push("--remove-label", "agent:in-progress");
+  if ((issue.assignees ?? []).some((assignee) => assignee.login === login)) {
+    args.push("--remove-assignee", login);
+  }
+  for (const label of WAITING_TRIAGE_LABELS) {
+    if (labels.has(label) && label !== nextTriage) args.push("--remove-label", label);
+  }
+  if (nextTriage && !labels.has(nextTriage)) args.push("--add-label", nextTriage);
+  return args;
+}
+
+export function claimReleaseIntent(issueNumber, nextTriage, reason, pullRequest = null) {
+  return { issue: issueNumber, nextTriage, reason, pullRequest };
+}
+
+function releaseIntentsMatch(actual, expected) {
+  return actual?.issue === expected.issue
+    && actual?.nextTriage === expected.nextTriage
+    && actual?.reason === expected.reason
+    && actual?.pullRequest === expected.pullRequest;
+}
+
+export function claimReleaseDisposition(issue, state, login, expectedIntent) {
+  if (!releaseIntentsMatch(state.claimRelease, expectedIntent)) {
+    throw new Error(`Issue #${expectedIntent.issue} claim release has no matching durable intent`);
+  }
+  const labels = issueLabelNames(issue);
+  const waitingRoles = WAITING_TRIAGE_LABELS.filter((label) => labels.has(label));
+  const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
+  const activelyClaimed = (expectedIntent.reason === "merged" || issue.state === "OPEN")
+    && labels.has("agent:in-progress")
+    && waitingRoles.length === 0
+    && owners.length === 1
+    && owners[0] === login;
+  if (activelyClaimed) return "release";
+
+  const exactReleasedState = expectedIntent.nextTriage
+    ? issue.state === "OPEN" && waitingRoles.length === 1 && waitingRoles[0] === expectedIntent.nextTriage
+    : issue.state === "CLOSED" && waitingRoles.length === 0;
+  if (!labels.has("agent:in-progress") && owners.length === 0 && exactReleasedState) return "released";
+  throw new Error(`Issue #${expectedIntent.issue} does not match its active or released claim state`);
+}
+
+export function durablePublicationClaimMatches(state, expected) {
+  return state.currentIssue === expected.issue
+    && state.claimedIssue === expected.issue
+    && state.claimedBy === expected.login
+    && state.branch === expected.branch
+    && state.worktree === expected.worktree
+    && state.validatedHead === expected.validatedHead;
+}
+
+export function publishWithClaimRevalidation(revalidateClaim, publish) {
+  revalidateClaim();
+  return publish();
+}
+
+export function releaseClaimAfterPersistence(persistIntent, releaseClaim) {
+  const state = persistIntent();
+  releaseClaim(state);
+  return state;
+}
+
 export function betweenTicketsPatch() {
   return {
     phase: "between-tickets",
     currentIssue: null,
     currentIssueTitle: null,
+    claimedIssue: null,
+    claimedBy: null,
+    claimRelease: null,
     branch: null,
     worktree: null,
     issueLog: null,
@@ -300,7 +405,75 @@ export function createTicketRunner({
     return records.find((candidate) => candidate.issue === record.issue) ?? record;
   }
 
+  function liveIssue(issueNumber, cwd = repositoryRoot) {
+    const issue = commandJson(
+      "gh",
+      ["issue", "view", String(issueNumber), "--json", ISSUE_DETAIL_FIELDS],
+      { cwd },
+    );
+    const nativeBlockers = normalizeNativeBlockers(
+      commandJson("gh", nativeBlockerApiArguments(issueNumber), { cwd }),
+    );
+    issue.blockedBy = nativeBlockers.length > 0
+      ? nativeBlockers
+      : bodyBlockedByNumbers(issue.body ?? "").map((number) => ({
+        number,
+        state: commandJson("gh", ["issue", "view", String(number), "--json", "state"], { cwd }).state,
+      }));
+    return issue;
+  }
+
+  function claimIssue(issue, continuingClaimAuthorized) {
+    const login = viewerLogin();
+    let live = liveIssue(issue.number);
+    const edit = claimIssueEdit(live, login, { continuingClaimAuthorized });
+    if (edit) commandOutput("gh", ["issue", "edit", String(issue.number), ...edit]);
+    live = liveIssue(issue.number);
+    const labels = issueLabelNames(live);
+    const owners = (live.assignees ?? []).map((assignee) => assignee.login);
+    if (live.state !== "OPEN" || !labels.has("agent:in-progress")
+      || WAITING_TRIAGE_LABELS.some((label) => labels.has(label))
+      || owners.length !== 1 || owners[0] !== login
+      || (live.blockedBy ?? []).some((blocker) => blocker.state !== "CLOSED")) {
+      fail(`Issue #${issue.number} claim was not durably observed`);
+    }
+  }
+
+  function assertLocalClaim(issueNumber, state, cwd = repositoryRoot) {
+    const login = viewerLogin();
+    if (state.claimedIssue !== issueNumber || state.claimedBy !== login) {
+      fail(`Issue #${issueNumber} is not bound to this controller's durable claim`);
+    }
+    const live = liveIssue(issueNumber, cwd);
+    const labels = issueLabelNames(live);
+    const owners = (live.assignees ?? []).map((assignee) => assignee.login);
+    if (live.state !== "OPEN"
+      || !labels.has("agent:in-progress")
+      || WAITING_TRIAGE_LABELS.some((label) => labels.has(label))
+      || owners.length !== 1 || owners[0] !== login
+      || (live.blockedBy ?? []).some((blocker) => blocker.state !== "CLOSED")) {
+      fail(`Issue #${issueNumber} no longer matches this controller's durable claim`);
+    }
+    return live;
+  }
+
+  function releaseIssueClaim(issueNumber, state, expectedIntent, cwd = repositoryRoot) {
+    const login = viewerLogin();
+    let live = liveIssue(issueNumber, cwd);
+    const disposition = claimReleaseDisposition(live, state, login, expectedIntent);
+    if (disposition === "release") {
+      const edit = releaseIssueEdit(live, login, expectedIntent.nextTriage);
+      if (edit.length > 0) commandOutput("gh", ["issue", "edit", String(issueNumber), ...edit], { cwd });
+      live = liveIssue(issueNumber, cwd);
+    }
+    if (claimReleaseDisposition(live, state, login, expectedIntent) !== "released") {
+      fail(`Issue #${issueNumber} claim release was not durably observed`);
+    }
+  }
+
   function quarantineIssue(issue, paths, state) {
+    const intent = claimReleaseIntent(issue.number, "needs-info", "quarantine");
+    if (!state.claimRelease) assertLocalClaim(issue.number, state);
     const marker = `<!-- mdlm-frontier-quarantine:${state.parentIssue}:${issue.number} -->`;
     const record = quarantineIssueRecord(issue, state);
     state = writeState(paths, state, {
@@ -319,13 +492,17 @@ export function createTicketRunner({
     if (commentStatus === "published") {
       throw publicationRetry(`Published quarantine comment for #${issue.number}; waiting to observe its durable marker before continuing`);
     }
-    const login = viewerLogin();
-    if (live.assignees?.some((assignee) => assignee.login === login)) {
-      commandOutput("gh", ["issue", "edit", String(issue.number), "--remove-assignee", login]);
-    }
     const durableRecord = appendQuarantineRecord(paths, record);
     const quarantines = [...(state.quarantines ?? []).filter((candidate) => candidate.issue !== issue.number), durableRecord]
       .sort((left, right) => left.issue - right.issue);
+    state = releaseClaimAfterPersistence(
+      () => writeState(paths, state, {
+        claimRelease: intent,
+        quarantines,
+        message: `Recorded quarantine for #${issue.number}; releasing its claim`,
+      }),
+      (durableState) => releaseIssueClaim(issue.number, durableState, intent),
+    );
     log(`Quarantined #${issue.number} as ${record.class}; preserved ${record.branch} at ${record.worktree}`);
     return writeState(paths, state, {
       ...betweenTicketsPatch(),
@@ -511,7 +688,7 @@ export function createTicketRunner({
     throw publicationRetry(`PR #${prNumber} did not reach confirmed MERGED state; publication will resume without closing the issue`);
   }
 
-  function publishAndMerge(issue, worktree, branch, logPath, validatedHead, preferredPullRequest, onPullRequest) {
+  function publishAndMerge(issue, worktree, branch, logPath, validatedHead, preferredPullRequest, onPullRequest, revalidateClaim) {
     const base = defaultBranch();
     const localHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: worktree });
     if (localHead !== validatedHead) fail(`Local head changed after validation for #${issue.number}`);
@@ -525,14 +702,23 @@ export function createTicketRunner({
     }
 
     if (pullRequest?.state !== "MERGED") {
-      commandOutput("git", ["push", "--set-upstream", "origin", branch], { cwd: worktree });
+      publishWithClaimRevalidation(
+        revalidateClaim,
+        () => commandOutput("git", ["push", "--set-upstream", "origin", branch], { cwd: worktree }),
+      );
       if (pullRequest?.state === "CLOSED") {
-        commandOutput("gh", ["pr", "reopen", String(pullRequest.number)], { cwd: worktree });
+        publishWithClaimRevalidation(
+          revalidateClaim,
+          () => commandOutput("gh", ["pr", "reopen", String(pullRequest.number)], { cwd: worktree }),
+        );
         pullRequest = { ...pullRequest, state: "OPEN" };
       }
       if (!pullRequest) {
         const body = `Closes #${issue.number}\n\nImplemented and independently validated by the MDLM frontier loop.`;
-        const url = commandOutput("gh", ["pr", "create", "--base", base, "--head", branch, "--title", issue.title, "--body", body], { cwd: worktree });
+        const url = publishWithClaimRevalidation(
+          revalidateClaim,
+          () => commandOutput("gh", ["pr", "create", "--base", base, "--head", branch, "--title", issue.title, "--body", body], { cwd: worktree }),
+        );
         pullRequest = { number: parsePullRequestNumber(url), url, state: "OPEN" };
       }
     }
@@ -547,15 +733,46 @@ export function createTicketRunner({
       if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} does not point at validated commit ${validatedHead}`);
       waitForPullRequestChecks(prNumber, worktree, logPath);
       if (pullRequestHead(prNumber, worktree) !== validatedHead) fail(`Remote PR #${prNumber} changed after validation`);
-      commandOutput("gh", ["pr", "merge", String(prNumber), "--merge", "--match-head-commit", validatedHead], { cwd: worktree });
+      publishWithClaimRevalidation(
+        revalidateClaim,
+        () => commandOutput("gh", ["pr", "merge", String(prNumber), "--merge", "--match-head-commit", validatedHead], { cwd: worktree }),
+      );
     }
     waitForMergedPullRequest(prNumber, worktree, logPath);
     deleteRemoteBranch(worktree, branch);
-    for (let attempt = 0; attempt < 15 && issueOpen(issue.number); attempt += 1) sleep(2_000);
-    if (issueOpen(issue.number)) {
-      commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`]);
-    }
     return prNumber;
+  }
+
+  function durablePublicationClaim(paths, expected, cwd) {
+    if (!existsSync(paths.state)) fail(`Missing durable frontier state before publishing #${expected.issue}`);
+    const durable = JSON.parse(readFileSync(paths.state, "utf8"));
+    if (!durablePublicationClaimMatches(durable, expected)) {
+      fail(`Issue #${expected.issue} no longer matches the exact durable local publication claim`);
+    }
+    return assertLocalClaim(expected.issue, durable, cwd);
+  }
+
+  function completeMergedClaimRelease(issueNumber, prNumber, paths, state, cwd) {
+    const intent = claimReleaseIntent(issueNumber, null, "merged", prNumber);
+    if (state.claimRelease && !releaseIntentsMatch(state.claimRelease, intent)) {
+      fail(`Issue #${issueNumber} has a conflicting durable claim release intent`);
+    }
+    return releaseClaimAfterPersistence(
+      () => writeState(paths, state, {
+        phase: "releasing-claim",
+        pullRequest: prNumber,
+        claimRelease: intent,
+        message: `Confirmed merge for #${issueNumber}; releasing its claim`,
+      }),
+      (durableState) => {
+        const live = liveIssue(issueNumber, cwd);
+        const disposition = claimReleaseDisposition(live, durableState, viewerLogin(), intent);
+        if (disposition === "release" && live.state === "OPEN") {
+          commandOutput("gh", ["issue", "close", String(issueNumber), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`], { cwd });
+        }
+        releaseIssueClaim(issueNumber, durableState, intent, cwd);
+      },
+    );
   }
 
   function mergeValidatedIssue(issue, paths, state, prepared, issueLog) {
@@ -563,6 +780,13 @@ export function createTicketRunner({
     if (!validatedHeadMatches(state, head)) fail(`Validated branch changed before publication for #${issue.number}`);
     state = writeState(paths, state, { phase: "merging", message: `Publishing and merging #${issue.number}` });
     log(state.message);
+    const publicationClaim = {
+      issue: issue.number,
+      login: viewerLogin(),
+      branch: prepared.branch,
+      worktree: prepared.worktree,
+      validatedHead: head,
+    };
     let prNumber;
     try {
       prNumber = publishAndMerge(
@@ -575,6 +799,7 @@ export function createTicketRunner({
         (pullRequest) => {
           state = writeState(paths, state, { pullRequest });
         },
+        () => durablePublicationClaim(paths, publicationClaim, prepared.worktree),
       );
     } catch (error) {
       if (isRemoteValidationFailure(error)) {
@@ -585,7 +810,8 @@ export function createTicketRunner({
       }
       throw error;
     }
-    state = writeState(paths, state, { pullRequest: prNumber, message: `Merged #${issue.number} in PR #${prNumber}` });
+    state = completeMergedClaimRelease(issue.number, prNumber, paths, state, prepared.worktree);
+    state = writeState(paths, state, { message: `Merged #${issue.number} in PR #${prNumber}` });
     log(state.message);
     removeWorktree(prepared.worktree, prepared.branch);
     return writeState(paths, state, betweenTicketsPatch());
@@ -613,9 +839,7 @@ export function createTicketRunner({
       fail(error instanceof Error ? error.message : String(error));
     }
     const prNumber = merged[0].number;
-    if (current?.state === "OPEN") {
-      commandOutput("gh", ["issue", "close", String(state.currentIssue), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`], { cwd });
-    }
+    state = completeMergedClaimRelease(state.currentIssue, prNumber, paths, state, cwd);
     if (state.worktree && existsSync(state.worktree)) {
       const dirty = commandOutput("git", ["status", "--porcelain"], { cwd: state.worktree });
       if (dirty) fail(`Merged issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
@@ -628,6 +852,17 @@ export function createTicketRunner({
 
   function processIssue(issue, paths, state) {
     const continuingIssue = state?.currentIssue === issue.number;
+    if (continuingIssue && state.pendingAction?.kind === "quarantine") {
+      return quarantineIssue(issue, paths, state);
+    }
+    const login = viewerLogin();
+    const continuingClaimAuthorized = continuingIssue
+      && state.claimedIssue === issue.number
+      && state.claimedBy === login;
+    claimIssue(issue, continuingClaimAuthorized);
+    if (!continuingClaimAuthorized) {
+      state = writeState(paths, state, { claimedIssue: issue.number, claimedBy: login });
+    }
     const prepared = prepareWorktree(issue, paths, state);
     const issueLog = join(paths.root, `issue-${issue.number}.log`);
     const currentHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });
@@ -685,10 +920,6 @@ export function createTicketRunner({
       lastError: null,
     });
     if (pendingAction?.kind === "quarantine") return quarantineIssue(issue, paths, state);
-    const login = viewerLogin();
-    if (!issue.assignees.some((assignee) => assignee.login === login)) {
-      commandOutput("gh", ["issue", "edit", String(issue.number), "--add-assignee", "@me"]);
-    }
     log(state.message);
     if (resumeValidated) return mergeValidatedIssue(issue, paths, state, prepared, issueLog);
     if (resumesAtValidation(pendingAction)) {
