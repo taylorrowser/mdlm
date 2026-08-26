@@ -4,9 +4,10 @@ import {
   ROOT_TEST_SCHEDULING_POLICY,
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestAdmissionPolicy,
-  createRootTestTasks,
+  createRootTestTasksForGate,
   rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
+import { parseQualificationArguments } from "./qualification-gates.mjs";
 import {
   WeightedScheduleTaskError,
   launchProcessGroupTask,
@@ -30,7 +31,7 @@ function runAll(commands) {
   return 0;
 }
 
-async function runRootTests() {
+async function runRootTests({ gate, additionalRootTestFiles }) {
   const cancellation = new AbortController();
   const cancel = (signal) => cancellation.abort(new Error(`Authoritative runner received ${signal}`));
   const onTerm = () => cancel("SIGTERM");
@@ -39,7 +40,7 @@ async function runRootTests() {
   process.once("SIGINT", onInterrupt);
 
   try {
-    const tasks = createRootTestTasks();
+    const tasks = createRootTestTasksForGate(gate, additionalRootTestFiles);
     await runWeightedSchedule(tasks, {
       capacity: ROOT_TEST_TOKEN_CAPACITY,
       canAdmit: createRootTestAdmissionPolicy(ROOT_TEST_SCHEDULING_POLICY),
@@ -80,13 +81,18 @@ async function runRootTests() {
   }
 }
 
+const qualification = parseQualificationArguments(process.argv.slice(2));
+process.stdout.write(
+  `QUALIFICATION_GATE gate=${qualification.gate} additional_root_tests=${qualification.additionalRootTestFiles.length}\n`,
+);
+
 let status = runAll([
   ["./node_modules/typescript/bin/tsc", "-p", "tsconfig.build.json"],
   ["./node_modules/typescript/bin/tsc", "-p", "packages/mdlm-pi/tsconfig.build.json"],
   ["scripts/verify-test-suites.mjs"],
 ]);
 
-if (status === 0) status = await runRootTests();
+if (status === 0) status = await runRootTests(qualification);
 
 if (status === 0) {
   status = runAll([
@@ -99,6 +105,7 @@ if (status === 0) {
     ],
     ["--test", "scripts/frontier-loop-tests.mjs"],
     ["--test", "scripts/weighted-token-scheduler-tests.mjs"],
+    ["--test", "scripts/qualification-gate-tests.mjs"],
   ]);
 }
 

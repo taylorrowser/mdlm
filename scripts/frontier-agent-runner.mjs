@@ -11,6 +11,7 @@ import {
 } from "./frontier-loop-core.mjs";
 import { referencedParentNumber } from "./frontier-issue-contract.mjs";
 import { runInProcessGroup } from "./frontier-process-group.mjs";
+import { additionalRootTestFilesForChangedPaths } from "./qualification-gates.mjs";
 import { independentReviewerPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
 
@@ -64,12 +65,14 @@ export function validationCommandWasInterrupted(result) {
   return result.status === null || Boolean(result.signal);
 }
 
-export function validationCommands(baseBranch) {
+export function validationCommands(baseBranch, changedPaths = []) {
+  const focusedRootTests = additionalRootTestFilesForChangedPaths(changedPaths)
+    .map((file) => `--root-test=${file}`);
   return [
     ["npm", ["ci", "--ignore-scripts"]],
     ["git", ["diff", "--check", `origin/${baseBranch}...HEAD`]],
     ["npm", ["run", "typecheck"]],
-    ["npm", ["test"]],
+    ["npm", ["test", ...(focusedRootTests.length > 0 ? ["--", ...focusedRootTests] : [])]],
   ];
 }
 
@@ -120,7 +123,12 @@ export function createAgentRunner({
 
   function validate(worktree, logPath, baseBranch) {
     appendAgentLog(logPath, "independent command validation");
-    for (const [command, args] of validationCommands(baseBranch)) {
+    const changedPaths = baseCommandOutput(
+      "git",
+      ["diff", "--name-only", "-z", `origin/${baseBranch}...HEAD`],
+      { cwd: worktree },
+    ).split("\0").filter(Boolean);
+    for (const [command, args] of validationCommands(baseBranch, changedPaths)) {
       const commandIdentity = [command, ...args].map((part) => JSON.stringify(part)).join(" ");
       const result = spawnSync(command, args, {
         cwd: worktree,

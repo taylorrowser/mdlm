@@ -86,6 +86,6 @@ a commit's own identity inside that commit.
 | Package validation | `node dist/mdlm.js process validate --ref .lifecycle/process --json` passes |
 | Package fixtures | `node dist/mdlm.js process test --ref .lifecycle/process --json` reports zero failures |
 | Build and type-check | `npm run build && npm run typecheck` pass |
-| Authoritative bounded gate | `npm test` passes package/evaluator contracts and representative compiled-public transactions within the exact 2,400,000 ms deadline |
+| Authoritative bounded gates | `npm test` passes PR qualification within 600,000 ms; the final integrated candidate passes `npm run test:release`, including every compiled-public and complete-lifecycle route, within 2,400,000 ms |
 | Contracted executable | Package metadata exposes only `mdlm`, and removed prototype entry files are absent from `dist/` |
 | Post-gate cleanliness | Exact head remains unchanged and `git status --porcelain` remains empty |

@@ -9,9 +9,65 @@ export const mdlmPiTestFiles = [
   "packages/mdlm-pi/test/run-lock.test.ts",
 ];
 
+// PR files run in both gates; release files run only in release qualification
+// unless the PR gate names one as a diff-focused regression. This source list is
+// exhaustive so verification can detect missing, duplicate, and stale entries.
+export const rootTestQualificationManifest = Object.freeze([
+  { file: "test/load-process-package.test.ts", qualificationGate: "pr" },
+  { file: "test/mdlm-baseline-inspection.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-assignment.test.ts", qualificationGate: "release" },
+  { file: "test/proportional-distinct-context-phase-2-public.test.ts", qualificationGate: "release" },
+  { file: "test/dependency-changes.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-phase.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-scoped-obligation.test.ts", qualificationGate: "pr" },
+  { file: "test/initial-product-intent-resolution.test.ts", qualificationGate: "release" },
+  { file: "test/initial-product-intent-route.test.ts", qualificationGate: "release" },
+  { file: "test/load-scenario-participation.test.ts", qualificationGate: "pr" },
+  { file: "test/mdlm-assignment-state.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-clean-onboarding-transaction.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-clean-pilot-contract.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-command-application.test.ts", qualificationGate: "pr" },
+  { file: "test/mdlm-init.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-lifecycle.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-pilot-assessment.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-process-expression.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-process-migration.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-repository-inspection.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-review-assignment.test.ts", qualificationGate: "release" },
+  { file: "test/mdlm-schema.test.ts", qualificationGate: "release" },
+  { file: "test/operator-outcome.test.ts", qualificationGate: "release" },
+  { file: "test/phase-0-corrected-gate-route.test.ts", qualificationGate: "release" },
+  { file: "test/phase-0-hardening-routes.test.ts", qualificationGate: "pr" },
+  { file: "test/phase-0-intent-candidate-currentness-route.test.ts", qualificationGate: "release" },
+  { file: "test/phase-1-hardening-routes.test.ts", qualificationGate: "release" },
+  { file: "test/phase-2-hardening-routes.test.ts", qualificationGate: "release" },
+  { file: "test/proportional-phase-2-public.test.ts", qualificationGate: "pr" },
+  { file: "test/selected-package-cache.test.ts", qualificationGate: "release" },
+  { file: "test/change-and-pilot-hardening-routes.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-bootstrap-participation.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-lifecycle.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-obligation-history.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-review-flow.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-shared-system-change.test.ts", qualificationGate: "pr" },
+  { file: "test/evaluate-system-decomposition.test.ts", qualificationGate: "pr" },
+  { file: "test/initial-product-intent-selectors.test.ts", qualificationGate: "pr" },
+  { file: "test/kernel-capability.test.ts", qualificationGate: "pr" },
+  { file: "test/phase-1-route-contracts.test.ts", qualificationGate: "pr" },
+  { file: "test/phase-hardening-domain-contracts.test.ts", qualificationGate: "pr" },
+  { file: "test/phase-hardening-matrix.test.ts", qualificationGate: "pr" },
+  { file: "test/pi-operator-instructions.test.ts", qualificationGate: "pr" },
+  { file: "test/resolve-type.test.ts", qualificationGate: "pr" },
+  { file: "test/scenario-policy-assets.test.ts", qualificationGate: "pr" },
+  { file: "test/selector-memoization.test.ts", qualificationGate: "pr" },
+  { file: "test/textual-expression.test.ts", qualificationGate: "pr" },
+].map((entry) => Object.freeze(entry)));
+const qualificationGateByFile = new Map(
+  rootTestQualificationManifest.map((entry) => [entry.file, entry.qualificationGate]),
+);
+
 // Durations are the latest selected successful focused observations. They
 // include focused Vitest startup and remain estimates, not p95s.
-export const rootTestManifest = [
+const rootTestRuntimeManifest = [
   { file: "test/load-process-package.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 66_137 },
   { file: "test/mdlm-baseline-inspection.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 62_087 },
   { file: "test/mdlm-assignment.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 117_151 },
@@ -63,6 +119,11 @@ export const rootTestManifest = [
   { file: "test/selector-memoization.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 2_427 },
   { file: "test/textual-expression.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 2_441 },
 ];
+
+export const rootTestManifest = Object.freeze(rootTestRuntimeManifest.map((entry) => Object.freeze({
+  ...entry,
+  qualificationGate: qualificationGateByFile.get(entry.file),
+})));
 
 export const rootVitestSuites = [
   "process-repository-heavy",

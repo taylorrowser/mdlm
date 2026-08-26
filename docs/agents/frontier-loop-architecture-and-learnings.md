@@ -232,9 +232,9 @@ For each changed committed tip, the runner—not the editor—runs:
 1. `npm ci --ignore-scripts`;
 2. `git diff --check origin/<base>...HEAD`;
 3. `npm run typecheck`; and
-4. `npm test` (the classified fast evaluator/package and representative compiled-CLI suite plus controller tests).
+4. `npm test`, the PR-authority gate for classified package/evaluator, static contract, representative public-boundary, `mdlm-pi`, and controller tests.
 
-Representative multi-transaction lifecycle contracts run inside the single bounded `npm test` gate. Repeated repository reconstructions are replaced by package/evaluator contracts instead of being retained as a separate exhaustive suite.
+The PR gate has a 600,000 ms bound. When a diff changes a release-only public boundary, validation names that manifest file with `npm test -- --root-test=test/<file>.test.ts`. The rolling integration lane runs `npm run test:release` once on the final integrated candidate. That 2,400,000 ms release and demo gate includes every PR file plus all retained compiled-public and complete-lifecycle routes.
 
 Validation is accepted only when:
 
