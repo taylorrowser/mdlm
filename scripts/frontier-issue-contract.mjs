@@ -1,4 +1,14 @@
 export const WAITING_TRIAGE_LABELS = ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix"];
+export const ISSUE_DETAIL_FIELDS = "number,title,state,url,assignees,labels,body,comments";
+
+export function nativeBlockerApiArguments(issueNumber) {
+  return [
+    "api",
+    "-X",
+    "GET",
+    `repos/{owner}/{repo}/issues/${issueNumber}/dependencies/blocked_by?per_page=100`,
+  ];
+}
 
 export function issueLabelNames(issue) {
   return new Set((issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name));
@@ -37,8 +47,11 @@ export function fixedIdentitiesAreClosed(issueNumbers, issues) {
 }
 
 export function normalizeNativeBlockers(value) {
-  if (Array.isArray(value)) return value;
-  return Array.isArray(value?.nodes) ? value.nodes : [];
+  const blockers = Array.isArray(value) ? value : Array.isArray(value?.nodes) ? value.nodes : [];
+  return blockers.map((blocker) => ({
+    ...blocker,
+    state: String(blocker.state ?? "UNKNOWN").toUpperCase(),
+  }));
 }
 
 function section(body, heading) {

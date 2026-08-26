@@ -27,6 +27,8 @@ import {
   bodyBlockedByNumbers,
   bodyReferencesParent,
   fixedIdentitiesAreClosed,
+  ISSUE_DETAIL_FIELDS,
+  nativeBlockerApiArguments,
   normalizeNativeBlockers,
   priorityIssueSnapshot,
   selectFixedScopeCandidate,
@@ -135,9 +137,9 @@ function log(message) {
 
 function issueDetails(summary, issueStates) {
   const detail = ghJson(["issue", "view", String(summary.number)], {
-    fields: "number,title,state,url,assignees,blockedBy,labels,body,comments",
+    fields: ISSUE_DETAIL_FIELDS,
   });
-  const nativeBlockers = normalizeNativeBlockers(detail.blockedBy);
+  const nativeBlockers = normalizeNativeBlockers(commandJson("gh", nativeBlockerApiArguments(summary.number)));
   const blockedBy = nativeBlockers.length > 0
     ? nativeBlockers
     : bodyBlockedByNumbers(detail.body).map((number) => ({ number, state: issueStates.get(number) ?? "UNKNOWN" }));
