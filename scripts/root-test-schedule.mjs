@@ -9,6 +9,7 @@ import {
 export { rootTestManifest };
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
+  "process-package-heavy": 1,
   "process-repository-heavy": 2,
   "repository-public-fragile": 1,
   "process-repository-safe": 3,
@@ -27,6 +28,7 @@ export const FOCUSED_VITEST_STARTUP_MS = 1_250;
 const FOURTH_TOKEN_EVALUATOR_FILES = new Set([
   "test/evaluate-scoped-obligation.test.ts",
 ]);
+const PROCESS_PACKAGE_LOAD_TEST = "test/load-process-package.test.ts";
 
 export function rootTestTasksCanOverlap(left, right) {
   return rootResourceTaskCanOverlap(left, right);
@@ -73,6 +75,7 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
     .filter((entry) => entry.runtimeClass !== "cheap-in-process")
     .map((entry) => {
       const assignment = rootResourceAssignment(entry.file);
+      const usesFocusedEstimate = entry.weight > 1;
       const expectedResourceOwner = entry.runtimeClass !== "canonical-fixture-filler"
         && !FOURTH_TOKEN_EVALUATOR_FILES.has(entry.file);
       if (expectedResourceOwner !== (assignment != null)) {
@@ -83,8 +86,12 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
         runtimeClass: entry.runtimeClass,
         weight: entry.weight,
         files: [entry.file],
-        estimatedDurationMs: assignment?.estimatedDurationMs ?? entry.measuredDurationMs,
-        estimateKind: assignment ? "selected-successful-resource-observation" : "exact-head-focused-model",
+        estimatedDurationMs: usesFocusedEstimate
+          ? entry.measuredDurationMs
+          : assignment?.estimatedDurationMs ?? entry.measuredDurationMs,
+        estimateKind: assignment && !usesFocusedEstimate
+          ? "selected-successful-resource-observation"
+          : "exact-head-focused-model",
         laneOrder: assignment?.laneOrder,
         scheduleLaneId: assignment?.scheduleLaneId ?? "fourth-token",
         schedulePhaseId: assignment?.schedulePhaseId,
@@ -94,7 +101,9 @@ export function createRootTestTasks(policy = ROOT_TEST_SCHEDULING_POLICY) {
       };
     })
     .sort((left, right) =>
-      right.estimatedDurationMs - left.estimatedDurationMs || left.id.localeCompare(right.id));
+      Number(right.id === PROCESS_PACKAGE_LOAD_TEST) - Number(left.id === PROCESS_PACKAGE_LOAD_TEST)
+        || right.estimatedDurationMs - left.estimatedDurationMs
+        || left.id.localeCompare(right.id));
   const cheap = createCheapBatches(
     rootTestManifest.filter((entry) => entry.runtimeClass === "cheap-in-process"),
   );
