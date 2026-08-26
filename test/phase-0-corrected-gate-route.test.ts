@@ -1,20 +1,34 @@
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { executeCommandApplication } from "../src/command-application.js";
-import { readScenarioExecution } from "../src/scenario-execution.js";
+import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
+import { evaluateLifecycle, type LifecycleRecord } from "../src/index.js";
+import {
+  publishScenarioMutation,
+  repositoryLifecycleSnapshot,
+} from "../src/lifecycle-repository.js";
+import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
+import {
+  readScenarioExecution,
+  submitPreparedResolverScenario,
+} from "../src/scenario-execution.js";
+import { selectedRepositoryPackage } from "../src/selected-package.js";
 import {
   directoryDigest,
   inputRevision,
   inputRevisions,
+  prepareNextAssignment,
   submitAssignment,
   type PreparedAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
 import { installPreparedLifecycleDataFixture } from
   "./helpers/lifecycle-data-fixture.js";
+import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 type ExactInput = {
   identity: { id: string; revision_id: string; type: string };
@@ -124,6 +138,291 @@ function expectExecutionContract(
 }
 
 describe("Phase 0 corrected-gate public route", () => {
+  it("projects a proposal-local replacement Revision into durable escalation Markdown", async () => {
+    const { parent, repository } = await initializedRepository(
+      "mdlm-foundation-escalation-body-",
+    );
+    try {
+      const selected = await selectedRepositoryPackage(repository);
+      if (!selected.ok) throw new Error(JSON.stringify(selected.diagnostics));
+      const processPackage = selected.processPackage;
+      const exactProcessRef =
+        `${selected.summary.reference}#${selected.summary.digest}`;
+      const fixtureRecord = (
+        type: string,
+        id: string,
+        payload: Record<string, unknown>,
+        options: {
+          links?: Array<{ type: string; target: string }>;
+          scenario: string;
+        },
+      ): LifecycleRecord => {
+        const item = frozenLifecycleRecord(
+          exactProcessRef,
+          type,
+          id,
+          payload,
+          { links: options.links ?? [], scenario: options.scenario },
+        );
+        item.datum.created_by = {
+          ...item.datum.created_by,
+          prompt_ref: "prompts/phase-0-route-test.md@1",
+          loaded_skill_refs: [],
+          policy_refs: [],
+        };
+        return item;
+      };
+      const product = fixtureRecord("PSP", "PSP-7KHMRCDNH0", {
+        title: "Bounded replacement projection",
+        rationale: "Define one exact product boundary for the public regression.",
+        problem: "The durable correction authority must name its replacement Revision.",
+        users: ["operator"],
+        goals: ["project the exact replacement Revision"],
+        non_goals: ["general-purpose Markdown templating"],
+        success_measures: ["the correction authority contains no proposal-local token"],
+      }, { scenario: "compile-psp@3" });
+      const subject = fixtureRecord("STK", "STK-7KHMRCDNH0", {
+        title: "Durable replacement scope",
+        rationale: "Keep correction authority exact after publication.",
+        statement: "The correction Decision shall name the exact replacement Revision.",
+        verification_intent: "Inspect the durable Decision Markdown.",
+        stakeholder: "operator",
+        priority: "must",
+        system_context: "product",
+      }, {
+        scenario: "draft-stakeholder-requirements@2",
+        links: [{ type: "derived-from", target: product.datum.id }],
+      });
+      const reviewContext = fixtureRecord("BSL", "BSL-7KHMRCDNH0", {
+        title: `Exact Review Context for ${subject.datum.revision_id}`,
+        kind: "review-context",
+        role: "review-context",
+        scope: subject.datum.revision_id,
+        group: "DEFAULT",
+        definition_members: [
+          product.datum.revision_id,
+          subject.datum.revision_id,
+        ].sort(),
+        evidence: [],
+      }, { scenario: "create-review-context@1" });
+      const foundation = await publishScenarioMutation(
+        repository,
+        processPackage,
+        [],
+        [product.datum, subject.datum],
+        "issue-240-foundation-fixture",
+        { contract: "issue-240-foundation-fixture@1" },
+      );
+      expect(
+        foundation.ok,
+        foundation.ok ? "" : JSON.stringify(foundation.diagnostics),
+      ).toBe(true);
+      const finalizedContext = await finalizeExactBaselineScenarioOutput(
+        repository,
+        processPackage,
+        exactProcessRef,
+        reviewContext.datum,
+      );
+      expect(
+        finalizedContext.ok,
+        finalizedContext.ok ? "" : JSON.stringify(finalizedContext.diagnostics),
+      ).toBe(true);
+      if (!finalizedContext.ok) return;
+      const contextPublication = await publishScenarioMutation(
+        repository,
+        processPackage,
+        [product.datum, subject.datum],
+        [finalizedContext.value.output.datum],
+        "issue-240-review-context-fixture",
+        { contract: "issue-240-review-context-fixture@1" },
+        [finalizedContext.value.output],
+      );
+      expect(
+        contextPublication.ok,
+        contextPublication.ok ? "" : JSON.stringify(contextPublication.diagnostics),
+      ).toBe(true);
+      const snapshotResult = await repositoryLifecycleSnapshot(
+        repository,
+        processPackage,
+        exactProcessRef,
+        "phase-0-wayfinding",
+      );
+      expect(
+        snapshotResult.ok,
+        snapshotResult.ok ? "" : JSON.stringify(snapshotResult.diagnostics),
+      ).toBe(true);
+      if (!snapshotResult.ok) return;
+      const snapshot = snapshotResult.value;
+      const evaluation = evaluateLifecycle(processPackage, snapshot);
+      const reviewObligation = evaluation.obligations.find((item) =>
+        item.obligation === "passing-review-required" &&
+        item.subject === subject.datum.revision_id
+      );
+      expect(reviewObligation).toEqual(expect.objectContaining({
+        dispatchable: true,
+        actionableResolver: "review-datum-in-context@2",
+      }));
+      if (!reviewObligation) return;
+      const preparedReview = await dryRunResolverScenario(
+        processPackage,
+        snapshot,
+        "review-datum-in-context@2",
+        reviewObligation.id,
+        [],
+        evaluation,
+      );
+      expect(
+        preparedReview.ok,
+        preparedReview.ok ? "" : JSON.stringify(preparedReview.diagnostics),
+      ).toBe(true);
+      if (!preparedReview.ok) return;
+      const reviewScenario = processPackage.scenarios["review-datum-in-context"];
+      expect(reviewScenario).toBeDefined();
+      if (!reviewScenario) return;
+      const reviewAssignment = randomUUID();
+      const reviewSubmission = await submitPreparedResolverScenario(
+        repository,
+        processPackage,
+        {
+          reference: selected.summary.reference,
+          digest: selected.summary.digest,
+          language: selected.summary.language,
+        },
+        {
+          scenarioReference: "review-datum-in-context@2",
+          obligationInstance: reviewObligation.id,
+          proposal: {
+            outputs: [{
+              localId: "review",
+              name: "review",
+              invocation: 0,
+              lifecycleDatum: {
+                type: "REV",
+                payload: {
+                  title: `Failed Review of ${subject.datum.revision_id}`,
+                  review_kind: "contextual",
+                  rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+                  findings: [{
+                    id: "F-001",
+                    target: subject.datum.revision_id,
+                    relationship: "primary",
+                    severity: "blocking",
+                    criterion: "Durable correction authority must identify its exact scope.",
+                    evidence: "The reviewed requirement needs attended correction.",
+                    material_consequence: "The rejected Revision cannot remain current.",
+                    summary: "Correct the exact reviewed Revision.",
+                  }],
+                  correction_authority: "stakeholder",
+                  outcome: "fail",
+                },
+                links: [
+                  { type: "reviews", target: subject.datum.revision_id },
+                  {
+                    type: "contextualizes",
+                    target: finalizedContext.value.output.datum.revision_id,
+                  },
+                ],
+                body: "The exact reviewed Revision requires attended correction.\n",
+              },
+            }],
+            completionEvidence: { summary: "Recorded the failed Review." },
+          },
+          assignment: reviewAssignment,
+          responseDigest: `sha256:${createHash("sha256")
+            .update(reviewAssignment)
+            .digest("hex")}`,
+          suppliedAuthorities: ["independent-reviewer"],
+          suppliedDelegations: [],
+          loadedSkillRefs: preparedReview.value.prompt.skills.map(
+            (skill) => skill.reference,
+          ),
+        },
+        {
+          dryRun: preparedReview.value,
+          evaluation,
+          scenario: reviewScenario,
+          snapshot,
+        },
+      );
+      expect(
+        reviewSubmission.ok,
+        reviewSubmission.ok ? "" : JSON.stringify(reviewSubmission.diagnostics),
+      ).toBe(true);
+      if (!reviewSubmission.ok) return;
+      const failedReview = reviewSubmission.value.outputs[0]!.data;
+
+      const prepared = await prepareNextAssignment(
+        repository,
+        "escalate-foundation-review-correction@3",
+      );
+      const outputs: ProposedOutput[] = [{
+        localId: "replacement",
+        name: "replacement",
+        invocation: 0,
+        lifecycleDatum: {
+          id: subject.datum.id,
+          type: "STK",
+          payload: {
+            ...subject.datum.payload,
+            title: "Corrected durable replacement scope",
+          },
+          links: [
+            ...subject.datum.links,
+            { type: "corrects-review", target: failedReview.revision_id },
+          ],
+          body: "The stakeholder bounded the exact correction.\n",
+        },
+      }, {
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Authorize the exact replacement scope",
+            rationale: "The attended correction keeps durable scope authority exact.",
+            kind: "scope",
+            decision: "Bound the correction to the replacement Revision.",
+            alternatives: ["Defer the correction", "Retain the rejected scope"],
+            effective_scope: "$proposal.replacement.revision_id",
+            scope_correction: {
+              disposition: "bound",
+              options: {
+                bounded: "Correct only the rejected requirement.",
+                defer_or_remove: "Remove the requirement until later authority exists.",
+                retain: "Retain the rejected requirement with explicit necessity.",
+              },
+              necessity: "The bounded requirement is sufficient for the product goal.",
+            },
+          },
+          links: [{
+            type: "justifies",
+            target: "$proposal.replacement.revision_id",
+          }],
+          body: "## Effective scope\n\n`$proposal.replacement.revision_id`\n",
+        },
+      }];
+      const submitted = await submitAssignment(repository, prepared, outputs);
+      expect(submitted.status, submitted.stdout).toBe(0);
+      const execution = JSON.parse(submitted.stdout).execution as {
+        outputs: Array<{
+          name: string;
+          lifecycleDatum: { path: string };
+        }>;
+      };
+      const decision = execution.outputs.find((output) => output.name === "decision");
+      expect(decision).toBeDefined();
+      const durableMarkdown = await fs.readFile(
+        path.join(repository, decision!.lifecycleDatum.path),
+        "utf8",
+      );
+      expect(durableMarkdown).toContain("`STK-7KHMRCDNH0-r00002`");
+      expect(durableMarkdown).not.toContain("$proposal.");
+    } finally {
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
+
   it("rejects a candidate without exact member evidence without publishing partial data", async () => {
     const { parent, repository } = await initializedRepository(
       "mdlm-phase0-candidate-publication-",

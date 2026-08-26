@@ -794,6 +794,23 @@ async function submitScenario(
     return { ok: false, diagnostics: localIdentityDiagnostics };
   }
   const proposalReferenceDiagnostics: ProcessDiagnostic[] = [];
+  function resolveProposalBodyReferences(value: string, pathValue: string): string {
+    return value.replace(
+      /\$proposal\.([A-Za-z][A-Za-z0-9_-]*)\.(id|revision_id)\b/g,
+      (reference, localId: string, field: "id" | "revision_id") => {
+        const identity = localIdentities.get(localId);
+        if (!identity) {
+          proposalReferenceDiagnostics.push({
+            code: "scenario-output-local-reference-unknown",
+            path: pathValue,
+            message: `Scenario Proposal references unknown local output '${localId}'`,
+          });
+          return reference;
+        }
+        return field === "id" ? identity.id : identity.revisionId;
+      },
+    );
+  }
   function resolveProposalReferences(value: unknown, pathValue: string): unknown {
     if (typeof value === "string") {
       const match = /^\$proposal\.([A-Za-z][A-Za-z0-9_-]*)\.(id|revision_id)$/.exec(value);
@@ -847,7 +864,10 @@ async function submitScenario(
         loaded_skill_refs: loadedSkillRefs,
         policy_refs: policies,
       },
-      body: proposal.lifecycleDatum.body,
+      body: resolveProposalBodyReferences(
+        proposal.lifecycleDatum.body,
+        `proposal.outputs[${index}].lifecycleDatum.body`,
+      ),
     };
     return { proposal, datum };
   });
