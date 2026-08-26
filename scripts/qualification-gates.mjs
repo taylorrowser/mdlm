@@ -1,4 +1,7 @@
-import { rootTestManifest } from "../vitest.suites.mjs";
+import {
+  rootTestManifest,
+  rootTestQualificationManifest,
+} from "../vitest.suites.mjs";
 
 export const QUALIFICATION_GATES = Object.freeze({
   PR: "pr",
@@ -25,7 +28,10 @@ function difference(left, right) {
   return left.filter((value) => !rightSet.has(value));
 }
 
-export function qualificationManifestErrors(discoveredFiles, manifest = rootTestManifest) {
+export function qualificationManifestErrors(
+  discoveredFiles,
+  manifest = rootTestQualificationManifest,
+) {
   const classifiedFiles = manifest.map((entry) => entry.file);
   const errors = [];
   for (const file of duplicates(classifiedFiles)) {
@@ -43,6 +49,15 @@ export function qualificationManifestErrors(discoveredFiles, manifest = rootTest
     }
   }
   return errors;
+}
+
+export function additionalRootTestFilesForChangedPaths(changedPaths) {
+  const gateByFile = new Map(
+    rootTestQualificationManifest.map((entry) => [entry.file, entry.qualificationGate]),
+  );
+  return [...new Set(changedPaths.filter(
+    (file) => gateByFile.get(file) === QUALIFICATION_GATES.RELEASE,
+  ))].sort();
 }
 
 export function rootTestFilesForGate(gate, additionalRootTestFiles = []) {

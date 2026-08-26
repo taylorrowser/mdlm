@@ -1,6 +1,6 @@
 // Successful and unsuccessful observations stay in separate collections. The
-// content tree identifies the exact staged product tree that npm test exercised;
-// this evidence record itself is the only later addition to that tree.
+// content tree identifies the exact staged product tree that npm test exercised.
+// Later corrections do not rewrite that measured identity.
 export const QUALIFICATION_GATE_TIMING_EVIDENCE = Object.freeze({
   successful: Object.freeze([
     Object.freeze({

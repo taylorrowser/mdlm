@@ -10,7 +10,10 @@ import {
 } from "./qualification-gates.mjs";
 import { createRootTestTasksForGate } from "./root-test-schedule.mjs";
 import { QUALIFICATION_GATE_TIMING_EVIDENCE } from "./qualification-gate-evidence.mjs";
-import { rootTestManifest } from "../vitest.suites.mjs";
+import {
+  rootTestManifest,
+  rootTestQualificationManifest,
+} from "../vitest.suites.mjs";
 
 const releaseOnlyRootFiles = [
   "test/initial-product-intent-resolution.test.ts",
@@ -74,6 +77,15 @@ test("successful PR timing is immutable evidence and does not absorb censored ru
       status: 0,
       wallMs: 492_870,
     }],
+  );
+});
+
+test("the source qualification manifest classifies every runtime file exactly once", () => {
+  const discovered = rootTestManifest.map((entry) => entry.file);
+  assert.equal(rootTestQualificationManifest.length, 47);
+  assert.deepEqual(
+    qualificationManifestErrors(discovered, rootTestQualificationManifest),
+    [],
   );
 });
 

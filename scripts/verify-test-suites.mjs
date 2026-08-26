@@ -10,6 +10,7 @@ import {
   ROOT_TEST_TOKEN_CAPACITY,
   rootTestManifest,
 } from "./root-test-schedule.mjs";
+import { rootTestQualificationManifest } from "../vitest.suites.mjs";
 import { verifyRootTestObservationPolicy } from "./root-test-observation-policy.mjs";
 import {
   QUALIFICATION_GATES,
@@ -53,7 +54,7 @@ const rootDiscovered = collectTestFiles("test");
 const classified = rootVitestSuites.flatMap((suite) => suite.files);
 const suiteIds = rootVitestSuites.map((suite) => suite.id);
 const mdlmPiDiscovered = collectTestFiles("packages/mdlm-pi/test");
-const errors = qualificationManifestErrors(rootDiscovered, rootTestManifest);
+const errors = qualificationManifestErrors(rootDiscovered, rootTestQualificationManifest);
 
 if (rootDiscovered.length !== 47) {
   errors.push(`Expected exactly 47 root Vitest files, found ${rootDiscovered.length}`);

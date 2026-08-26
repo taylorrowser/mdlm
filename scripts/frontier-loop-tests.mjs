@@ -1044,8 +1044,15 @@ test("state migration never infers a missing validated head from review or publi
   assert.equal(migrated.validatedHead, undefined);
 });
 
-test("independent validation checks the committed ticket range", () => {
+test("independent validation checks the committed ticket range and its changed root regressions", () => {
   assert.deepEqual(validationCommands("main")[1], ["git", ["diff", "--check", "origin/main...HEAD"]]);
+  assert.deepEqual(
+    validationCommands("main", [
+      "src/mdlm.ts",
+      "test/phase-1-hardening-routes.test.ts",
+    ])[3],
+    ["npm", ["test", "--", "--root-test=test/phase-1-hardening-routes.test.ts"]],
+  );
 });
 
 test("validation and complexity require final explicit reviewer verdicts", () => {
