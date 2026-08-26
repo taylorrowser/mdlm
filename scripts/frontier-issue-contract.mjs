@@ -1,7 +1,18 @@
-function readyForSerialWork(issue) {
+export const WAITING_TRIAGE_LABELS = ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix"];
+
+export function issueLabelNames(issue) {
+  return new Set((issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name));
+}
+
+export function readyForSerialWork(issue) {
+  const labels = issueLabelNames(issue);
+  const waitingRoles = WAITING_TRIAGE_LABELS.filter((label) => labels.has(label));
   return issue.state === "OPEN"
     && issue.assignees.length === 0
-    && issue.blockedBy.every((blocker) => blocker.state === "CLOSED");
+    && issue.blockedBy.every((blocker) => blocker.state === "CLOSED")
+    && !labels.has("agent:in-progress")
+    && waitingRoles.length === 1
+    && waitingRoles[0] === "ready-for-agent";
 }
 
 export function findReadyItem(issues, { excludedIssueNumbers = [] } = {}) {

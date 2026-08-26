@@ -72,8 +72,13 @@ import {
 } from "./frontier-ticket-runner.mjs";
 import { sleep } from "./frontier-time.mjs";
 
-function issue(number, { state = "OPEN", assignees = [], blockedBy = [] } = {}) {
-  return { number, title: `Issue ${number}`, state, assignees, blockedBy };
+function issue(number, {
+  state = "OPEN",
+  assignees = [],
+  blockedBy = [],
+  labels = [{ name: "ready-for-agent" }],
+} = {}) {
+  return { number, title: `Issue ${number}`, state, assignees, blockedBy, labels };
 }
 
 test("agent claim is visible before work and excludes ready state", () => {
@@ -149,7 +154,7 @@ test("claim release clears ownership and chooses one waiting role", () => {
   assert.throws(() => releaseIssueEdit({
     labels: [{ name: "agent:in-progress" }],
     assignees: [{ login: "other" }],
-  }, "agent"), /another owner's agent claim/);
+  }, "agent"), /another owner's issue/);
 });
 
 test("frontier selects the first open unassigned issue whose blockers are closed", () => {
@@ -161,6 +166,15 @@ test("frontier selects the first open unassigned issue whose blockers are closed
   ];
 
   assert.equal(findFrontier(issues)?.number, 42);
+});
+
+test("frontier skips claimed and non-ready issues", () => {
+  const selected = findFrontier([
+    issue(40, { labels: [{ name: "agent:in-progress" }] }),
+    issue(41, { labels: [{ name: "needs-info" }] }),
+    issue(42),
+  ]);
+  assert.equal(selected.number, 42);
 });
 
 test("frontier is absent when every remaining issue is assigned or blocked", () => {

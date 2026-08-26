@@ -20,8 +20,10 @@ import {
 } from "./frontier-loop-core.mjs";
 import {
   bodyBlockedByNumbers,
+  issueLabelNames,
   normalizeNativeBlockers,
   referencedParentNumber,
+  WAITING_TRIAGE_LABELS,
 } from "./frontier-issue-contract.mjs";
 import { editingAgentPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
@@ -85,12 +87,6 @@ export function publishQuarantineCommentOnce({ commandOutput, issueNumber, comme
   return "published";
 }
 
-const WAITING_TRIAGE_LABELS = ["needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix"];
-
-function issueLabelNames(issue) {
-  return new Set((issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name));
-}
-
 export function claimIssueEdit(issue, login, { continuingClaimAuthorized = false } = {}) {
   if (issue.state !== "OPEN") throw new Error("Cannot claim a closed issue");
   const labels = issueLabelNames(issue);
@@ -104,9 +100,7 @@ export function claimIssueEdit(issue, login, { continuingClaimAuthorized = false
     if (continuingClaimAuthorized && ownedSolelyByViewer && waitingRoles.length === 0) return null;
     throw new Error("Issue already has an active agent claim");
   }
-  if (owners.some((owner) => owner !== login) || owners.length > 1) {
-    throw new Error("Issue already has another owner");
-  }
+  if (owners.length > 0) throw new Error("Issue already has another owner");
   if (!(waitingRoles.length === 1 && waitingRoles[0] === "ready-for-agent")) {
     throw new Error("Issue is not exclusively ready-for-agent");
   }
@@ -120,8 +114,8 @@ export function claimIssueEdit(issue, login, { continuingClaimAuthorized = false
 export function releaseIssueEdit(issue, login, nextTriage = null) {
   const labels = issueLabelNames(issue);
   const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
-  if (labels.has("agent:in-progress") && !(owners.length === 1 && owners[0] === login)) {
-    throw new Error("Cannot release another owner's agent claim");
+  if (owners.length > 0 && !(owners.length === 1 && owners[0] === login)) {
+    throw new Error("Cannot release another owner's issue");
   }
   const args = [];
   if (labels.has("agent:in-progress")) args.push("--remove-label", "agent:in-progress");
@@ -380,7 +374,7 @@ export function createTicketRunner({
     live = liveIssue(issue.number);
     const labels = issueLabelNames(live);
     const owners = (live.assignees ?? []).map((assignee) => assignee.login);
-    if (!labels.has("agent:in-progress")
+    if (live.state !== "OPEN" || !labels.has("agent:in-progress")
       || WAITING_TRIAGE_LABELS.some((label) => labels.has(label))
       || owners.length !== 1 || owners[0] !== login
       || (live.blockedBy ?? []).some((blocker) => blocker.state !== "CLOSED")) {
@@ -388,9 +382,25 @@ export function createTicketRunner({
     }
   }
 
-  function releaseIssueClaim(issueNumber, nextTriage = null, cwd = repositoryRoot) {
+  function assertLocalClaim(issueNumber, state, cwd = repositoryRoot) {
     const login = viewerLogin();
+    if (state.claimedIssue !== issueNumber || state.claimedBy !== login) {
+      fail(`Issue #${issueNumber} is not bound to this controller's durable claim`);
+    }
     const live = liveIssue(issueNumber, cwd);
+    const labels = issueLabelNames(live);
+    const owners = (live.assignees ?? []).map((assignee) => assignee.login);
+    if (!labels.has("agent:in-progress")
+      || WAITING_TRIAGE_LABELS.some((label) => labels.has(label))
+      || owners.length !== 1 || owners[0] !== login) {
+      fail(`Issue #${issueNumber} no longer matches this controller's durable claim`);
+    }
+    return live;
+  }
+
+  function releaseIssueClaim(issueNumber, state, nextTriage = null, cwd = repositoryRoot) {
+    const login = viewerLogin();
+    const live = assertLocalClaim(issueNumber, state, cwd);
     const edit = releaseIssueEdit(live, login, nextTriage);
     if (edit.length > 0) commandOutput("gh", ["issue", "edit", String(issueNumber), ...edit], { cwd });
     const released = liveIssue(issueNumber, cwd);
@@ -405,6 +415,7 @@ export function createTicketRunner({
   }
 
   function quarantineIssue(issue, paths, state) {
+    assertLocalClaim(issue.number, state);
     const marker = `<!-- mdlm-frontier-quarantine:${state.parentIssue}:${issue.number} -->`;
     const record = quarantineIssueRecord(issue, state);
     state = writeState(paths, state, {
@@ -423,7 +434,7 @@ export function createTicketRunner({
     if (commentStatus === "published") {
       throw publicationRetry(`Published quarantine comment for #${issue.number}; waiting to observe its durable marker before continuing`);
     }
-    releaseIssueClaim(issue.number, "needs-info");
+    releaseIssueClaim(issue.number, state, "needs-info");
     const durableRecord = appendQuarantineRecord(paths, record);
     const quarantines = [...(state.quarantines ?? []).filter((candidate) => candidate.issue !== issue.number), durableRecord]
       .sort((left, right) => left.issue - right.issue);
@@ -652,11 +663,6 @@ export function createTicketRunner({
     }
     waitForMergedPullRequest(prNumber, worktree, logPath);
     deleteRemoteBranch(worktree, branch);
-    for (let attempt = 0; attempt < 15 && issueOpen(issue.number); attempt += 1) sleep(2_000);
-    if (issueOpen(issue.number)) {
-      commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`]);
-    }
-    releaseIssueClaim(issue.number, null, worktree);
     return prNumber;
   }
 
@@ -687,6 +693,12 @@ export function createTicketRunner({
       }
       throw error;
     }
+    assertLocalClaim(issue.number, state, prepared.worktree);
+    for (let attempt = 0; attempt < 15 && issueOpen(issue.number); attempt += 1) sleep(2_000);
+    if (issueOpen(issue.number)) {
+      commandOutput("gh", ["issue", "close", String(issue.number), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`], { cwd: prepared.worktree });
+    }
+    releaseIssueClaim(issue.number, state, null, prepared.worktree);
     state = writeState(paths, state, { pullRequest: prNumber, message: `Merged #${issue.number} in PR #${prNumber}` });
     log(state.message);
     removeWorktree(prepared.worktree, prepared.branch);
@@ -715,10 +727,11 @@ export function createTicketRunner({
       fail(error instanceof Error ? error.message : String(error));
     }
     const prNumber = merged[0].number;
-    if (current?.state === "OPEN") {
+    const claimed = assertLocalClaim(state.currentIssue, state, cwd);
+    if (claimed.state === "OPEN") {
       commandOutput("gh", ["issue", "close", String(state.currentIssue), "--comment", `Implemented and confirmed merged in PR #${prNumber}.`], { cwd });
     }
-    releaseIssueClaim(state.currentIssue, null, cwd);
+    releaseIssueClaim(state.currentIssue, state, null, cwd);
     if (state.worktree && existsSync(state.worktree)) {
       const dirty = commandOutput("git", ["status", "--porcelain"], { cwd: state.worktree });
       if (dirty) fail(`Merged issue #${state.currentIssue} has a dirty preserved worktree: ${state.worktree}`);
@@ -732,6 +745,7 @@ export function createTicketRunner({
   function processIssue(issue, paths, state) {
     const continuingIssue = state?.currentIssue === issue.number;
     if (continuingIssue && state.pendingAction?.kind === "quarantine") {
+      assertLocalClaim(issue.number, state);
       return quarantineIssue(issue, paths, state);
     }
     const login = viewerLogin();
