@@ -28,7 +28,7 @@ Put exact commits, logs, timings, diagnostics, and implementation constraints in
 3. Add `agent:in-progress`, remove `ready-for-agent`, and assign `@me`.
 4. Re-read the issue. Begin work only when the claim is visible.
 
-Read-only triage needed to decide whether an issue is claimable may happen before the claim. All implementation work starts after it. If another agent owns the issue, choose different work.
+Read-only triage needed to decide whether an issue is claimable may happen before the claim. All implementation work starts after it. Treat any existing `agent:in-progress` label as another claim even when every agent shares one GitHub login. Only durable local controller state may resume the exact claim it created. Otherwise choose different work.
 
 Release the claim when ownership ends. Remove `agent:in-progress` and unassign the owner in every case. Closed work gets no waiting triage role. For open work, remove any old triage role before adding exactly one next role:
 

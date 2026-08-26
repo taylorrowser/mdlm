@@ -91,7 +91,7 @@ function issueLabelNames(issue) {
   return new Set((issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name));
 }
 
-export function claimIssueEdit(issue, login, { continuing = false } = {}) {
+export function claimIssueEdit(issue, login, { continuingClaimAuthorized = false } = {}) {
   if (issue.state !== "OPEN") throw new Error("Cannot claim a closed issue");
   const labels = issueLabelNames(issue);
   const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
@@ -101,14 +101,13 @@ export function claimIssueEdit(issue, login, { continuing = false } = {}) {
     throw new Error("Issue has an open blocker");
   }
   if (labels.has("agent:in-progress")) {
-    if (ownedSolelyByViewer && waitingRoles.length === 0) return null;
+    if (continuingClaimAuthorized && ownedSolelyByViewer && waitingRoles.length === 0) return null;
     throw new Error("Issue already has an active agent claim");
   }
   if (owners.some((owner) => owner !== login) || owners.length > 1) {
     throw new Error("Issue already has another owner");
   }
-  if (!(waitingRoles.length === 1 && waitingRoles[0] === "ready-for-agent")
-    && !(continuing && ownedSolelyByViewer && waitingRoles.length === 0)) {
+  if (!(waitingRoles.length === 1 && waitingRoles[0] === "ready-for-agent")) {
     throw new Error("Issue is not exclusively ready-for-agent");
   }
   return [
@@ -120,6 +119,10 @@ export function claimIssueEdit(issue, login, { continuing = false } = {}) {
 
 export function releaseIssueEdit(issue, login, nextTriage = null) {
   const labels = issueLabelNames(issue);
+  const owners = (issue.assignees ?? []).map((assignee) => assignee.login);
+  if (labels.has("agent:in-progress") && !(owners.length === 1 && owners[0] === login)) {
+    throw new Error("Cannot release another owner's agent claim");
+  }
   const args = [];
   if (labels.has("agent:in-progress")) args.push("--remove-label", "agent:in-progress");
   if ((issue.assignees ?? []).some((assignee) => assignee.login === login)) {
@@ -137,6 +140,8 @@ export function betweenTicketsPatch() {
     phase: "between-tickets",
     currentIssue: null,
     currentIssueTitle: null,
+    claimedIssue: null,
+    claimedBy: null,
     branch: null,
     worktree: null,
     issueLog: null,
@@ -367,10 +372,10 @@ export function createTicketRunner({
     return issue;
   }
 
-  function claimIssue(issue, continuing) {
+  function claimIssue(issue, continuingClaimAuthorized) {
     const login = viewerLogin();
     let live = liveIssue(issue.number);
-    const edit = claimIssueEdit(live, login, { continuing });
+    const edit = claimIssueEdit(live, login, { continuingClaimAuthorized });
     if (edit) commandOutput("gh", ["issue", "edit", String(issue.number), ...edit]);
     live = liveIssue(issue.number);
     const labels = issueLabelNames(live);
@@ -391,8 +396,9 @@ export function createTicketRunner({
     const released = liveIssue(issueNumber, cwd);
     const labels = issueLabelNames(released);
     const waitingRoles = WAITING_TRIAGE_LABELS.filter((label) => labels.has(label));
-    if (labels.has("agent:in-progress")
-      || (released.assignees ?? []).some((assignee) => assignee.login === login)
+    const owners = released.assignees ?? [];
+    const wrongState = nextTriage ? released.state !== "OPEN" : released.state !== "CLOSED";
+    if (labels.has("agent:in-progress") || owners.length !== 0 || wrongState
       || (nextTriage ? waitingRoles.length !== 1 || waitingRoles[0] !== nextTriage : waitingRoles.length !== 0)) {
       fail(`Issue #${issueNumber} claim release was not durably observed`);
     }
@@ -728,7 +734,14 @@ export function createTicketRunner({
     if (continuingIssue && state.pendingAction?.kind === "quarantine") {
       return quarantineIssue(issue, paths, state);
     }
-    claimIssue(issue, continuingIssue);
+    const login = viewerLogin();
+    const continuingClaimAuthorized = continuingIssue
+      && state.claimedIssue === issue.number
+      && state.claimedBy === login;
+    claimIssue(issue, continuingClaimAuthorized);
+    if (!continuingClaimAuthorized) {
+      state = writeState(paths, state, { claimedIssue: issue.number, claimedBy: login });
+    }
     const prepared = prepareWorktree(issue, paths, state);
     const issueLog = join(paths.root, `issue-${issue.number}.log`);
     const currentHead = commandOutput("git", ["rev-parse", "HEAD"], { cwd: prepared.worktree });

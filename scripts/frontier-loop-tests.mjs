@@ -102,6 +102,19 @@ test("agent claim is visible before work and excludes ready state", () => {
   assert.throws(
     () => claimIssueEdit({
       state: "OPEN",
+      labels: [{ name: "agent:in-progress" }],
+      assignees: [{ login: "agent" }],
+    }, "agent"),
+    /active agent claim/,
+  );
+  assert.equal(claimIssueEdit({
+    state: "OPEN",
+    labels: [{ name: "agent:in-progress" }],
+    assignees: [{ login: "agent" }],
+  }, "agent", { continuingClaimAuthorized: true }), null);
+  assert.throws(
+    () => claimIssueEdit({
+      state: "OPEN",
       labels: [{ name: "ready-for-agent" }],
       assignees: [],
       blockedBy: [{ number: 9, state: "OPEN" }],
@@ -133,6 +146,10 @@ test("claim release clears ownership and chooses one waiting role", () => {
     "--remove-label", "wontfix",
     "--add-label", "needs-info",
   ]);
+  assert.throws(() => releaseIssueEdit({
+    labels: [{ name: "agent:in-progress" }],
+    assignees: [{ login: "other" }],
+  }, "agent"), /another owner's agent claim/);
 });
 
 test("frontier selects the first open unassigned issue whose blockers are closed", () => {
