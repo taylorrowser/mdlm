@@ -16,6 +16,17 @@ export async function restoreHistoricalFixtureProcessPackage(
   let retainStagingRoot = false;
   try {
     await fs.cp(processRoot, stagedPackage, { recursive: true });
+    const issue229Selectors = [
+      "assignment-review-contexts-for-subject",
+      "assignment-review-context-members-for-subject",
+      "corrections-for-review",
+      "superseded-baselines-for-subject",
+    ];
+    await Promise.all(issue229Selectors.map((selector) =>
+      fs.rm(path.join(stagedPackage, `selectors/${selector}.yaml`))
+    ));
+
+    // This older package also predates the selector changed by #229 and #234.
     const selectorPath = path.join(
       stagedPackage,
       "selectors/review-assignment-context-members-for.yaml",
@@ -24,11 +35,18 @@ export async function restoreHistoricalFixtureProcessPackage(
 
     const manifestPath = path.join(stagedPackage, "manifest.yaml");
     const manifest = await fs.readFile(manifestPath, "utf8");
-    const restoredManifest = manifest.replace(
+    const preIssue229Manifest = issue229Selectors.reduce(
+      (source, selector) => source.replace(`    - ${selector}\n`, ""),
+      manifest,
+    );
+    if (preIssue229Manifest === manifest) {
+      throw new Error("Historical fixture correction-lineage selectors are absent");
+    }
+    const restoredManifest = preIssue229Manifest.replace(
       "    - review-assignment-context-members-for\n",
       "",
     );
-    if (restoredManifest === manifest) {
+    if (restoredManifest === preIssue229Manifest) {
       throw new Error("Historical fixture manifest selector is absent");
     }
     await fs.writeFile(manifestPath, restoredManifest);
