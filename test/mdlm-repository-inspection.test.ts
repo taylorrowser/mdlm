@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -573,7 +574,7 @@ describe("MDLM repository inspection", () => {
   });
 
   it("rebuilds disposable index and report projections from Markdown truth", async () => {
-    const { map, secondMap } = await installArrangedTemplate();
+    const { map, question, baseline, secondMap } = await installArrangedTemplate();
     const loadedInspection = await loadRepositoryInspection(
       repository,
       processPackage,
@@ -582,6 +583,26 @@ describe("MDLM repository inspection", () => {
     expect(loadedInspection.ok).toBe(true);
     if (!loadedInspection.ok) return;
     const inspection = loadedInspection.value;
+    const exactRevisions = [
+      map.lifecycleDatum.revisionId,
+      question.lifecycleDatum.revisionId,
+    ];
+    const exactDigests = inspection.exactLifecycleDataDigests(exactRevisions);
+    for (const output of [map, question]) {
+      const bytes = await fs.readFile(path.join(
+        repository,
+        output.lifecycleDatum.path,
+      ));
+      expect(exactDigests[output.lifecycleDatum.revisionId]).toBe(
+        `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+      );
+    }
+    const frozenHashes = (baseline.payload.snapshot as {
+      member_hashes: Record<string, string>;
+    }).member_hashes;
+    for (const revisionId of exactRevisions) {
+      expect(frozenHashes[revisionId]).toBe(exactDigests[revisionId]);
+    }
     const baselineVerification = await inspection.verifyBaselines();
     expect(baselineVerification.ok).toBe(true);
     if (!baselineVerification.ok) return;

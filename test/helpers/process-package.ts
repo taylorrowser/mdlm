@@ -16,6 +16,78 @@ export async function restoreHistoricalFixtureProcessPackage(
   let retainStagingRoot = false;
   try {
     await fs.cp(processRoot, stagedPackage, { recursive: true });
+
+    await fs.rm(path.join(
+      stagedPackage,
+      "selectors/phase-0-foundation-stable-link-targets.yaml",
+    ));
+    const issue252ManifestPath = path.join(stagedPackage, "manifest.yaml");
+    const issue252Manifest = await fs.readFile(issue252ManifestPath, "utf8");
+    await fs.writeFile(
+      issue252ManifestPath,
+      issue252Manifest.replace(
+        "    - phase-0-foundation-stable-link-targets\n",
+        "",
+      ),
+    );
+    const issue252ObligationPath = path.join(
+      stagedPackage,
+      "obligations/intent-candidate-required.yaml",
+    );
+    const issue252Obligation = await fs.readFile(issue252ObligationPath, "utf8");
+    await fs.writeFile(
+      issue252ObligationPath,
+      issue252Obligation.replace(
+        "    stable_link_targets: 'select(\"phase-0-foundation-stable-link-targets@1\", {})'\n",
+        "",
+      ),
+    );
+    const issue252ScenarioPath = path.join(
+      stagedPackage,
+      "scenarios/create-phase-0-intent-candidate.yaml",
+    );
+    const issue252Scenario = await fs.readFile(issue252ScenarioPath, "utf8");
+    await fs.writeFile(
+      issue252ScenarioPath,
+      issue252Scenario.replace(
+        "  - name: stable_link_targets\n" +
+          "    types: [QST]\n" +
+          "    cardinality: zero-or-more\n" +
+          "    identity: revision\n" +
+          "    conditions: >-\n" +
+          "      !every(\"phase-0-foundation-stable-link-targets@1\", {}, target =>\n" +
+          "        target != stable_link_targets)\n",
+        "",
+      ),
+    );
+    const issue252PromptPath = path.join(
+      stagedPackage,
+      "prompts/create-phase-0-intent-candidate.md",
+    );
+    const issue252Prompt = await fs.readFile(issue252PromptPath, "utf8");
+    await fs.writeFile(
+      issue252PromptPath,
+      issue252Prompt.replace(
+        "Copy every and only supplied `member_reviews` Revision into `evidence`; keep that\n" +
+          "Review evidence out of `definition_members`. Use supplied `stable_link_targets`\n" +
+          "only to confirm the exact Revisions resolved from Stable foundation links; do not\n" +
+          "place them in `definition_members` or `evidence`. Do not substitute a Review or\n" +
+          "link target, or rely on repository knowledge absent from the Assignment.\n" +
+          "\n" +
+          "The kernel owns source-byte hashing, Stable-link resolution, exact Process Package\n" +
+          "provenance, atomic freeze, and verification. The packet's exact Lifecycle Data\n" +
+          "digests expose the bytes the kernel will hash; do not author the kernel-managed\n" +
+          "`snapshot`. The candidate itself requires a fresh contextual Review before gate\n" +
+          "authorization.\n",
+        "Copy every and only supplied `member_reviews` Revision into `evidence`; keep that\n" +
+          "Review evidence out of `definition_members`. Do not substitute a Review of another\n" +
+          "Revision or rely on repository knowledge absent from the Assignment. Resolve Stable\n" +
+          "links, capture hashes and exact Process Package provenance, freeze atomically, and\n" +
+          "verify. The candidate itself requires a fresh contextual Review before gate\n" +
+          "authorization.\n",
+      ),
+    );
+
     const issue229Selectors = [
       "assignment-review-contexts-for-subject",
       "assignment-review-context-members-for-subject",
