@@ -2285,6 +2285,13 @@ function expressionReferencesBinding(
   }
 }
 
+export function compiledExpressionReferencesBinding(
+  expression: CompiledTextExpression,
+  binding: string,
+): boolean {
+  return expressionReferencesBinding(expression.root, binding);
+}
+
 function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
   switch (node.kind) {
     case "literal":

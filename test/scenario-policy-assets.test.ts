@@ -8,6 +8,7 @@ import {
   markdownAssetFrontmatter,
   promptSkillReferences,
 } from "../src/markdown-asset.js";
+import { collectPerformanceDiagnostics } from "../src/performance-diagnostics.js";
 import {
   dryRunExplicitScenario,
   dryRunResolverScenario,
@@ -20,6 +21,109 @@ async function writeYaml(root: string, relativePath: string, value: unknown) {
   const target = path.join(root, relativePath);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, stringify(value));
+}
+
+async function scenarioInputConditionFixture(
+  parent: string,
+  conditions: { left?: string; right?: string },
+  cardinalities: { left: number; right: number },
+) {
+  const root = await terminalProcessPackage(parent);
+  for (const relativePath of [
+    "templates/terminal-datum.yaml",
+    "types/ITM.yaml",
+  ]) {
+    const definitionPath = path.join(root, relativePath);
+    const definition = parse(await fs.readFile(definitionPath, "utf8"));
+    definition.payload_schema = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
+      additionalProperties: false,
+      required: ["group"],
+      properties: { group: { type: "string" } },
+    };
+    await fs.writeFile(definitionPath, stringify(definition));
+  }
+  const manifestPath = path.join(root, "manifest.yaml");
+  const manifest = parse(await fs.readFile(manifestPath, "utf8"));
+  manifest.catalog.scenarios.push("check-inputs");
+  manifest.assets.prompts.push("prompts/check-inputs.md@1");
+  await fs.writeFile(manifestPath, stringify(manifest));
+  await writeYaml(root, "scenarios/check-inputs.yaml", {
+    kind: "scenario-definition",
+    id: "check-inputs",
+    version: 1,
+    description: "Check plural fixture inputs.",
+    initiation: "explicit",
+    phases: ["phase-0-terminal"],
+    inputs: ["left", "right"].map((name) => ({
+      name,
+      types: ["ITM"],
+      cardinality: "one-or-more",
+      identity: "revision",
+      ...(conditions[name as "left" | "right"]
+        ? { conditions: conditions[name as "left" | "right"] }
+        : {}),
+    })),
+    outputs: [{
+      name: "item",
+      types: ["ITM"],
+      cardinality: "one",
+      required_links: [],
+    }],
+    prompt_ref: "prompts/check-inputs.md@1",
+    review_policy_ref: "no-waiver@1",
+    completion: "execution.integrity.contract_valid == true",
+    resolves: [],
+    prohibited_inputs: [],
+    batching: "single",
+  });
+  await fs.writeFile(
+    path.join(root, "prompts/check-inputs.md"),
+    "---\nid: check-inputs\nversion: 1\nscenario: check-inputs\n---\n\n# Check inputs\n",
+  );
+  const phasePath = path.join(root, "phases/phase-0-terminal.yaml");
+  const phase = parse(await fs.readFile(phasePath, "utf8"));
+  phase.scenarios.push("check-inputs@1");
+  await fs.writeFile(phasePath, stringify(phase));
+
+  const loaded = await loadProcessPackage(root);
+  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  const left = Array.from({ length: cardinalities.left }, (_, index) =>
+    lifecycleRecord("ITM", `ITM-L${String(index).padStart(9, "0")}`, {
+      group: "same",
+    }, {
+      createdBy: { process_ref: "fixture@1#sha256:test" },
+      storage: { editable: false, frozen: true },
+    })
+  );
+  const right = Array.from({ length: cardinalities.right }, (_, index) =>
+    lifecycleRecord("ITM", `ITM-R${String(index).padStart(9, "0")}`, {
+      group: "same",
+    }, {
+      createdBy: { process_ref: "fixture@1#sha256:test" },
+      storage: { editable: false, frozen: true },
+    })
+  );
+  return {
+    processPackage: loaded.package,
+    snapshot: {
+      processRef: "fixture@1#sha256:test",
+      phaseId: "phase-0-terminal",
+      records: [...left, ...right],
+      dependencyComparisons: [],
+    },
+    requestedInputs: [
+      {
+        name: "left",
+        value: left.map((record) => record.datum.revision_id).join(","),
+      },
+      {
+        name: "right",
+        value: right.map((record) => record.datum.revision_id).join(","),
+      },
+    ],
+  };
 }
 
 describe("package-authored review Policy evidence", () => {
@@ -42,6 +146,72 @@ describe("package-authored review Policy evidence", () => {
     await Promise.all(temporaryRoots.splice(0).map((root) =>
       fs.rm(root, { recursive: true, force: true })
     ));
+  });
+
+  it("does not multiply plural input conditions by unrelated inputs", async () => {
+    const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-input-conditions-"));
+    temporaryRoots.push(parent);
+    const fixture = await scenarioInputConditionFixture(
+      parent,
+      {
+        left: 'left.payload.group == "same"',
+        right: 'right.payload.group == "same"',
+      },
+      { left: 3, right: 4 },
+    );
+
+    const observed = await collectPerformanceDiagnostics(() =>
+      dryRunExplicitScenario(
+        fixture.processPackage,
+        fixture.snapshot,
+        "check-inputs@1",
+        fixture.requestedInputs,
+      )
+    );
+
+    expect(observed.value.ok, observed.value.ok
+      ? ""
+      : JSON.stringify(observed.value.diagnostics)).toBe(true);
+    expect(observed.diagnostics.work["scenario.input-condition-evaluations"])
+      .toBe(7);
+  });
+
+  it("retains the Cartesian product for conditions that reference two inputs", async () => {
+    const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-cross-input-condition-"));
+    temporaryRoots.push(parent);
+    const fixture = await scenarioInputConditionFixture(
+      parent,
+      { right: "left.payload.group == right.payload.group" },
+      { left: 2, right: 3 },
+    );
+
+    const observed = await collectPerformanceDiagnostics(() =>
+      dryRunExplicitScenario(
+        fixture.processPackage,
+        fixture.snapshot,
+        "check-inputs@1",
+        fixture.requestedInputs,
+      )
+    );
+    expect(observed.value.ok, observed.value.ok
+      ? ""
+      : JSON.stringify(observed.value.diagnostics)).toBe(true);
+    expect(observed.diagnostics.work["scenario.input-condition-evaluations"])
+      .toBe(6);
+
+    const failingSnapshot = structuredClone(fixture.snapshot);
+    failingSnapshot.records[1]!.datum.payload.group = "different";
+    const rejected = await dryRunExplicitScenario(
+      fixture.processPackage,
+      failingSnapshot,
+      "check-inputs@1",
+      fixture.requestedInputs,
+    );
+    expect(rejected.ok).toBe(false);
+    expect(rejected.diagnostics).toContainEqual(expect.objectContaining({
+      code: "scenario-input-condition-failed",
+      path: "scenarios.check-inputs.inputs.right.conditions",
+    }));
   });
 
   it("keeps topology preflight mandatory, ephemeral, and outside reviewer input", async () => {
