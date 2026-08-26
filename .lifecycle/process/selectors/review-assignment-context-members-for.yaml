@@ -9,14 +9,28 @@ query:
   from: {collection: revisions, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
   as: member
   where: >-
-    !every("review-context-members-for@1", {subject: subject}, support =>
+    !every("assignment-review-context-members-for-subject@1", {subject: subject}, support =>
       support != member)
-    || (exists("intent-candidates-matching-subject@1", {subject: subject})
-      && !every("intent-candidates-matching-subject@1", {subject: subject}, candidate =>
-        !(candidate.provenance.scenario in [
-          "create-phase-0-intent-candidate@1",
-          "revise-intent-candidate-after-review@3"
-        ]))
+    || (none("assignment-review-contexts-for-subject@1", {subject: subject})
+      && !every("review-context-members-for@1", {subject: subject}, support =>
+        support != member))
+    || (subject.identity.type == "BSL"
+      && subject.payload.kind == "intent-level-candidate"
+      && member.identity.type == "BSL"
+      && member.identity.id == subject.identity.id
+      && member.identity.revision < subject.identity.revision)
+    || (subject.identity.type == "BSL"
+      && subject.payload.kind == "intent-level-candidate"
+      && member.identity.type == "REV"
+      && !every("corrections-for-review@1", {review: member}, correction =>
+        every("assignment-review-context-members-for-subject@1", {subject: subject}, support =>
+          support != correction)))
+    || (subject.identity.type == "BSL"
+      && subject.payload.kind == "intent-level-candidate"
+      && subject.provenance.scenario in [
+        "create-phase-0-intent-candidate@1",
+        "revise-intent-candidate-after-review@3"
+      ]
       && member.identity.type == "REV"
       && !every("baseline-evidence@1",
         {baseline: one("intent-candidates-matching-subject@1", {subject: subject})}, evidence =>

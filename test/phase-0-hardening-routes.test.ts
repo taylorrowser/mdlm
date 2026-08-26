@@ -329,6 +329,93 @@ describe("Phase 0 missing hardening routes", () => {
     processPackage = loaded.package;
   });
 
+  it("binds the superseded candidate and causal failed Review into its replacement Review packet", () => {
+    const foundation = phase0Foundation();
+    const originalCandidate = intentCandidate(foundation);
+    const originalDecision = record("DEC", "DEC-1030000091", {
+      title: "Original product boundary",
+      rationale: "The first boundary was independently rejected.",
+      kind: "scope",
+      decision: "Retain the original product boundary.",
+      alternatives: ["Use the corrected boundary"],
+      effective_scope: foundation.product.datum.revision_id,
+    }, { scenario: "resolve-question@2" });
+    const [originalDecisionContext, failedReview] = reviewFor(
+      originalDecision,
+      "REV-1030000091",
+      "fail",
+      { contextId: "BSL-1030000091" },
+    );
+    const correctedDecision = record("DEC", originalDecision.datum.id, {
+      ...originalDecision.datum.payload,
+      title: "Corrected product boundary",
+    }, {
+      revision: 2,
+      scenario: "revise-question-decision-after-review@1",
+      links: [{ type: "corrects-review", target: failedReview.datum.revision_id }],
+    });
+    const [correctedDecisionContext, correctedDecisionReview] = reviewFor(
+      correctedDecision,
+      "REV-1030000092",
+      "pass",
+      { contextId: "BSL-1030000092" },
+    );
+    const correctedProduct = record(
+      "PSP",
+      foundation.product.datum.id,
+      { ...foundation.product.datum.payload },
+      {
+        revision: 2,
+        scenario: "revise-foundation-after-review@5",
+        links: [{
+          type: "incorporates-answer",
+          target: correctedDecision.datum.revision_id,
+        }],
+      },
+    );
+    const replacementCandidate = intentCandidate({
+      ...foundation,
+      product: correctedProduct,
+      members: foundation.members.map((member) =>
+        member.datum.id === correctedProduct.datum.id ? correctedProduct : member
+      ),
+    }, {
+      revision: 2,
+      links: [{ type: "supersedes", target: originalCandidate.datum.revision_id }],
+    });
+    const replacementContext = contextFor(replacementCandidate, "BSL-1030000093");
+    replacementContext.datum.payload.definition_members = [
+      ...(replacementContext.datum.payload.definition_members as string[]),
+      correctedDecision.datum.revision_id,
+    ].sort();
+    const packetMembers = evaluateProcessDefinition(
+      processPackage,
+      snapshot([
+        ...foundation.members,
+        ...foundation.reviews,
+        originalDecision,
+        originalDecisionContext,
+        failedReview,
+        correctedDecision,
+        correctedDecisionContext,
+        correctedDecisionReview,
+        correctedProduct,
+        originalCandidate,
+        replacementCandidate,
+        replacementContext,
+      ]),
+      "selector",
+      "review-assignment-context-members-for@1",
+      { subject: replacementCandidate.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+
+    const packetMemberIds = packetMembers.map((member) => member.identity.revision_id);
+    expect(packetMemberIds).toEqual(expect.arrayContaining([
+      originalCandidate.datum.revision_id,
+      failedReview.datum.revision_id,
+    ]));
+    expect(packetMemberIds).not.toContain(correctedDecisionReview.datum.revision_id);
+  });
 
 
   it("prepares the exact PSP parent in both STK Review context Assignments", async () => {
