@@ -145,6 +145,10 @@ catalog:
     - complete-superseding-intent-candidates-for
     - failed-phase-0-foundation-revisions
     - all-cited-reviews-by-correction
+    - assignment-review-contexts-for-subject
+    - assignment-review-context-members-for-subject
+    - corrections-for-review
+    - superseded-baselines-for-subject
     - all-cited-gate-rejections-by-correction
     - cited-failing-reviews-by-correction
     - cited-reviews-by-correction
