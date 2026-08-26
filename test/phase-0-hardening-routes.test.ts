@@ -417,6 +417,39 @@ describe("Phase 0 missing hardening routes", () => {
     expect(packetMemberIds).not.toContain(correctedDecisionReview.datum.revision_id);
   });
 
+  it("binds only the exact superseded candidate to a third-revision Review packet", () => {
+    const foundation = phase0Foundation();
+    const originalCandidate = intentCandidate(foundation);
+    const secondCandidate = intentCandidate(foundation, {
+      revision: 2,
+      links: [{ type: "supersedes", target: originalCandidate.datum.revision_id }],
+    });
+    const thirdCandidate = intentCandidate(foundation, {
+      revision: 3,
+      links: [{ type: "supersedes", target: secondCandidate.datum.revision_id }],
+    });
+    const thirdContext = contextFor(thirdCandidate, "BSL-1030000094");
+    const packetMembers = evaluateProcessDefinition(
+      processPackage,
+      snapshot([
+        ...foundation.members,
+        ...foundation.reviews,
+        originalCandidate,
+        secondCandidate,
+        thirdCandidate,
+        thirdContext,
+      ]),
+      "selector",
+      "review-assignment-context-members-for@1",
+      { subject: thirdCandidate.datum.revision_id },
+    ).result as Array<{ identity: { id: string; revision_id: string } }>;
+
+    expect(packetMembers
+      .filter((member) => member.identity.id === thirdCandidate.datum.id)
+      .map((member) => member.identity.revision_id)).toEqual([
+        secondCandidate.datum.revision_id,
+      ]);
+  });
 
   it("prepares the exact PSP parent in both STK Review context Assignments", async () => {
     const foundation = phase0Foundation();

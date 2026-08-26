@@ -16,9 +16,8 @@ query:
         support != member))
     || (subject.identity.type == "BSL"
       && subject.payload.kind == "intent-level-candidate"
-      && member.identity.type == "BSL"
-      && member.identity.id == subject.identity.id
-      && member.identity.revision < subject.identity.revision)
+      && !every("superseded-baselines-for-subject@1", {subject: subject}, superseded =>
+        superseded != member))
     || (subject.identity.type == "BSL"
       && subject.payload.kind == "intent-level-candidate"
       && member.identity.type == "REV"

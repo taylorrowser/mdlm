@@ -148,6 +148,7 @@ catalog:
     - assignment-review-contexts-for-subject
     - assignment-review-context-members-for-subject
     - corrections-for-review
+    - superseded-baselines-for-subject
     - all-cited-gate-rejections-by-correction
     - cited-failing-reviews-by-correction
     - cited-reviews-by-correction

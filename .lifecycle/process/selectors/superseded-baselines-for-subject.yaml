@@ -1,0 +1,13 @@
+kind: selector-definition
+id: superseded-baselines-for-subject
+version: 1
+description: Exact baseline Revisions named by one subject's supersedes links.
+parameters:
+  - {name: subject, kind: revision, types: [BSL]}
+result_kind: baseline
+query:
+  from: {relation: outgoing-links, of: subject, link: supersedes, emit: target, types: [BSL]}
+  as: superseded
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]
