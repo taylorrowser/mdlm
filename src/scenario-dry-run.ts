@@ -14,7 +14,10 @@ import {
   type ObligationEvaluation,
   type ScenarioOutputExplanation,
 } from "./evaluator.js";
-import { isCompiledTextExpression } from "./expression.js";
+import {
+  compiledExpressionReferencesBinding,
+  isCompiledTextExpression,
+} from "./expression.js";
 import {
   markdownAssetFrontmatter,
   promptSkillReferences,
@@ -839,13 +842,20 @@ async function dryRunScenario(
     inputIndex += 1
   ) {
     const input = scenarioInputs[inputIndex]!;
-    if (!isCompiledTextExpression(input.conditions)) continue;
+    const conditions = input.conditions;
+    if (!isCompiledTextExpression(conditions)) continue;
     const name = string(input.name) ?? "";
     for (const invocation of invocations) {
       const valuesByName = Object.fromEntries(
-        invocation.inputs.map((item) => [item.name, item.values]),
+        invocation.inputs.map((item) => [
+          item.name,
+          compiledExpressionReferencesBinding(conditions, item.name)
+            ? item.values
+            : item.values.slice(0, 1),
+        ]),
       );
       for (const context of bindingCombinations(valuesByName)) {
+        recordWork("scenario.input-condition-evaluations");
         const conditionBindings = Object.fromEntries(
           Object.entries(context).map(([bindingName, value]) => [
             bindingName,
@@ -891,7 +901,7 @@ async function dryRunScenario(
         ?.checks.push({
           check: "condition",
           passed: true,
-          expected: input.conditions.source,
+          expected: conditions.source,
           actual: true,
         });
     }
