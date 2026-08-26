@@ -1,5 +1,9 @@
 # Agent instructions
 
+## MDLM development
+
+Before any work in this repository, read `docs/agents/mdlm-development.md`.
+
 ## Agent skills
 
 ### Issue tracker
