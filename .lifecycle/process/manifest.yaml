@@ -109,6 +109,7 @@ catalog:
     - corrected-environment-revisions-for
     - corrected-pilot-verification-activity-revisions-for
     - phase-0-foundation-members
+    - phase-0-foundation-stable-link-targets
     - phase-0-foundation-members-missing-review
     - phase-0-foundation-member-reviews
     - product-simplification-reviews-for

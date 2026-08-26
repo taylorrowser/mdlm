@@ -532,6 +532,62 @@ describe("Phase 0 missing hardening routes", () => {
     }));
   });
 
+  it("supplies only latest exact Stable-linked Questions to Phase 0 candidate authoring", async () => {
+    const foundation = phase0Foundation();
+    foundation.map.datum.links = [{
+      type: "indexes",
+      target: "QST-1030000010",
+    }];
+    const linked = record("QST", "QST-1030000010", {
+      title: "Resolved product intent",
+      kind: "intent",
+      question: "What exact product intent governs this foundation?",
+      state: "answered",
+      blocking_impact: "The product intent would otherwise remain ambiguous.",
+    }, { scenario: "resolve-question@2" });
+    const latestLinked = record("QST", linked.datum.id, {
+      ...linked.datum.payload,
+      title: "Latest resolved product intent",
+    }, { revision: 2, scenario: "resolve-question@2" });
+    const unrelated = record("QST", "QST-1030000011", {
+      title: "Unrelated resolved question",
+      kind: "intent",
+      question: "What unrelated intent is out of scope?",
+      state: "answered",
+      blocking_impact: "No impact on this foundation.",
+    }, { scenario: "resolve-question@2" });
+    const records = [
+      ...foundation.members,
+      ...foundation.reviews,
+      linked,
+      latestLinked,
+      unrelated,
+    ];
+    const route = obligation(
+      processPackage,
+      records,
+      "intent-candidate-required",
+    );
+    expect(route).toEqual(expect.objectContaining({
+      status: "ready",
+      actionableResolver: "create-phase-0-intent-candidate@1",
+    }));
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot(records),
+      "create-phase-0-intent-candidate@1",
+      route!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs
+      .find((input) => input.name === "stable_link_targets")!.values
+      .map((value) => value.identity.revision_id)).toEqual([
+        latestLinked.datum.revision_id,
+      ]);
+  });
+
   it("creates only a complete reviewed Phase 0 intent candidate and then yields fresh candidate Review work", async () => {
     const foundation = phase0Foundation();
     const records = [...foundation.members, ...foundation.reviews];

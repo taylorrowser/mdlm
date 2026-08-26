@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,6 +7,8 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observation-policy.mjs";
 import { parse } from "yaml";
 import { executeCommandApplication } from "../src/command-application.js";
+import { readRepositoryData } from "../src/lifecycle-repository.js";
+import { selectedRepositoryPackage } from "../src/selected-package.js";
 import {
   mdlmWithEnvironment as processMdlmWithEnvironment,
   mdlmWithInputAndEnvironment as processMdlmWithInputAndEnvironment,
@@ -48,6 +51,10 @@ type Packet = {
       }[];
     }[];
   }[];
+  allowedProjections: {
+    exactLifecycleData: string[];
+    exactLifecycleDataDigests: Record<string, string>;
+  };
   policies: {
     role: string;
     reference: string;
@@ -267,6 +274,36 @@ describe("delegated Review Assignment packets", () => {
       expect(exactInput(reviewPacket, "review_context")).toMatch(
         /^BSL-[0-9A-HJKMNP-TV-Z]{10,12}-r00001$/,
       );
+      const exactInputIds = reviewPacket.exactInputs.flatMap((invocation) =>
+        invocation.inputs.flatMap((input) =>
+          input.values.map((value) => value.identity.revision_id!)
+        )
+      ).sort();
+      expect(reviewPacket.allowedProjections.exactLifecycleData.sort()).toEqual(
+        exactInputIds,
+      );
+      expect(Object.keys(
+        reviewPacket.allowedProjections.exactLifecycleDataDigests,
+      ).sort()).toEqual(exactInputIds);
+      const selected = await selectedRepositoryPackage(repository);
+      expect(selected.ok).toBe(true);
+      if (!selected.ok) return;
+      const parsed = await readRepositoryData(repository, selected.processPackage);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      for (const revisionId of exactInputIds) {
+        const item = parsed.value.find((candidate) =>
+          candidate.lifecycleDatum.datum.revision_id === revisionId
+        );
+        expect(item).toBeDefined();
+        const bytes = await fs.readFile(path.join(
+          repository,
+          item!.relativePath,
+        ));
+        expect(
+          reviewPacket.allowedProjections.exactLifecycleDataDigests[revisionId],
+        ).toBe(`sha256:${createHash("sha256").update(bytes).digest("hex")}`);
+      }
 
       const reviewPolicy = reviewPacket.policies.find((policy) =>
         policy.role === "review"

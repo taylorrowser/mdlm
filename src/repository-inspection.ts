@@ -68,6 +68,7 @@ export interface RepositoryTransaction {
  */
 export interface RepositoryInspection {
   lifecycleSnapshot(phaseId: string): LifecycleSnapshot;
+  exactLifecycleDataDigests(revisionIds: readonly string[]): Record<string, string>;
   beginTransaction(): RepositoryTransaction;
   verifyExactBaseline(
     baselineIdentity: string,
@@ -106,6 +107,18 @@ export async function loadRepositoryInspection(
         if (!snapshot.ok)
           throw new Error("Verified repository snapshot unavailable");
         return snapshot.value;
+      },
+      exactLifecycleDataDigests(revisionIds) {
+        const requested = new Set(revisionIds);
+        const entries: Array<[string, string]> = [];
+        for (const item of parsed) {
+          const revisionId = item.lifecycleDatum.datum.revision_id;
+          if (requested.has(revisionId)) {
+            entries.push([revisionId, item.sourceDigest]);
+          }
+        }
+        entries.sort(([left], [right]) => left.localeCompare(right));
+        return Object.fromEntries(entries);
       },
       beginTransaction() {
         const published: ParsedDatum[] = [];

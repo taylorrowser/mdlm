@@ -334,6 +334,7 @@ export interface AssignmentPacket {
   exactInputs: ScenarioDryRunInvocation[];
   allowedProjections: {
     exactLifecycleData: string[];
+    exactLifecycleDataDigests: Record<string, string>;
     inputSchemas: {
       type: string;
       envelope: Record<string, unknown>;
@@ -2135,6 +2136,7 @@ function packet(
   const assets = [...new Map(
     packetAssets.map((asset) => [asset.reference, asset]),
   ).values()];
+  const exactData = exactLifecycleData(exact.dryRun);
   return {
     contract: "mdlm-assignment-packet@2",
     assignment: { id: lease.id },
@@ -2153,7 +2155,9 @@ function packet(
     assets,
     exactInputs: exact.dryRun.invocations,
     allowedProjections: {
-      exactLifecycleData: exactLifecycleData(exact.dryRun),
+      exactLifecycleData: exactData,
+      exactLifecycleDataDigests:
+        exact.inspection.exactLifecycleDataDigests(exactData),
       inputSchemas: inputSchemas(exact.processPackage, exact.dryRun),
       outputSchemas: outputSchemas(exact.processPackage, exact.dryRun),
     },

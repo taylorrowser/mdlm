@@ -16,10 +16,15 @@ Read, in order:
 Create one `intent-level-candidate` BSL from the supplied exact reviewed MAP, PSP,
 and STK Revisions. Include only artifacts necessary to define the product intent.
 Copy every and only supplied `member_reviews` Revision into `evidence`; keep that
-Review evidence out of `definition_members`. Do not substitute a Review of another
-Revision or rely on repository knowledge absent from the Assignment. Resolve Stable
-links, capture hashes and exact Process Package provenance, freeze atomically, and
-verify. The candidate itself requires a fresh contextual Review before gate
+Review evidence out of `definition_members`. Use supplied `stable_link_targets`
+only to confirm the exact Revisions resolved from Stable foundation links; do not
+place them in `definition_members` or `evidence`. Do not substitute a Review or
+link target, or rely on repository knowledge absent from the Assignment.
+
+The kernel owns source-byte hashing, Stable-link resolution, exact Process Package
+provenance, atomic freeze, and verification. The packet's exact Lifecycle Data
+digests expose the bytes the kernel will hash; do not author the kernel-managed
+`snapshot`. The candidate itself requires a fresh contextual Review before gate
 authorization.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
