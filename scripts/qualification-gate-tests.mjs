@@ -118,6 +118,10 @@ test("the PR gate can add diff-focused public-boundary files without weakening r
   });
   assert.ok(rootTestFilesForGate(parsed.gate, parsed.additionalRootTestFiles).includes(focused));
   assert.throws(
+    () => parseQualificationArguments(["--gate=release", "--gate=pr"]),
+    /Qualification gate may be specified only once/,
+  );
+  assert.throws(
     () => parseQualificationArguments(["--gate=release", `--root-test=${focused}`]),
     /Diff-focused root tests are valid only for the PR gate/,
   );

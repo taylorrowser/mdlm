@@ -74,10 +74,15 @@ export function rootTestFilesForGate(gate, additionalRootTestFiles = []) {
 
 export function parseQualificationArguments(arguments_) {
   let gate = QUALIFICATION_GATES.PR;
+  let gateWasSpecified = false;
   const additionalRootTestFiles = [];
   for (const argument of arguments_) {
     if (argument.startsWith("--gate=")) {
+      if (gateWasSpecified) {
+        throw new TypeError("Qualification gate may be specified only once");
+      }
       gate = argument.slice("--gate=".length);
+      gateWasSpecified = true;
     } else if (argument.startsWith("--root-test=")) {
       additionalRootTestFiles.push(argument.slice("--root-test=".length));
     } else {
