@@ -4,7 +4,7 @@
   "artifact": {
     "archive": "process-package.json.gz",
     "compression": "gzip -n -9",
-    "compressedSha256": "a297c5864832cf05e5074b7f703c6ad6c46d6323980c2cb71d8017c692a527ff",
+    "compressedSha256": "11742dd1c3f89fd385a598e1b2fd34b7402a6a5ccf7189c4e267a4c97308c756",
     "contentSha256": "ef4df1f5ca914f94362ac4cbdf3f77e813b2573d1898751a9916cdcd033a9dc9",
     "gzipHeaderMtime": 0
   },
