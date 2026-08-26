@@ -4,7 +4,7 @@
   "artifact": {
     "archive": "process-package.json.gz",
     "compression": "gzip -n -9",
-    "compressedSha256": "a2587746e7dab9c002ab75a4e8c112e9d5e369c826208c7b249da98fe11e42d0",
+    "compressedSha256": "b5890ce7a1b2f7a9ec275c543ce1606fd216763f11b6f7cc03e9903774fb310a",
     "contentSha256": "a12bd389e9a2b3dfb240859e26363b9703418b5e75a7c6f54de9fc41b84e09cc",
     "gzipHeaderMtime": 0
   },
@@ -15,8 +15,8 @@
     "definitionCount": 576
   },
   "provenance": {
-    "sourceCommit": "c52676398bfd9d6c34a9082548c9df4a184ce57f",
-    "sourceTree": "3e1a56bae092479e163ca9cdba4b9cbf4eb5648b",
-    "captureCommand": "loadProcessPackage('.lifecycle/process') + JSON.stringify + gzip -n -9"
+    "sourceCommit": "5fbbd3e05f6c09cbaaf0c596dd877fa57efcd764",
+    "sourceTree": "799263bde778fc0ae26c98830dd99c9847deaa2b",
+    "captureCommand": "set -o pipefail; test \"$(git rev-parse HEAD)\" = \"5fbbd3e05f6c09cbaaf0c596dd877fa57efcd764\" && npm run build && node --input-type=module --eval 'import { loadProcessPackage } from \"./dist/index.js\"; const result = await loadProcessPackage(\".lifecycle/process\"); if (!result.ok) throw new Error(result.diagnostics.map(({ message }) => message).join(\"\\n\")); process.stdout.write(JSON.stringify(result.package));' | gzip -n -9 > test/fixtures/canonical-process-package/process-package.json.gz"
   }
 }
