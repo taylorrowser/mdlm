@@ -10,6 +10,7 @@ export { rootTestManifest };
 export const ROOT_TEST_TOKEN_CAPACITY = 4;
 export const ROOT_TEST_CLASS_CONCURRENCY_LIMITS = Object.freeze({
   "process-package-heavy": 1,
+  "assignment-publication-heavy": 1,
   "process-repository-heavy": 2,
   "repository-public-fragile": 1,
   "process-repository-safe": 3,
@@ -29,8 +30,17 @@ const FOURTH_TOKEN_EVALUATOR_FILES = new Set([
   "test/evaluate-scoped-obligation.test.ts",
 ]);
 const PROCESS_PACKAGE_LOAD_TEST = "test/load-process-package.test.ts";
+const ASSIGNMENT_PUBLICATION_CLASS = "assignment-publication-heavy";
 
 export function rootTestTasksCanOverlap(left, right) {
+  if (left.runtimeClass === ASSIGNMENT_PUBLICATION_CLASS) {
+    return right.resourceClass !== "heavy"
+      && rootResourceTaskCanOverlap(left, right);
+  }
+  if (right.runtimeClass === ASSIGNMENT_PUBLICATION_CLASS) {
+    return left.resourceClass !== "heavy"
+      && rootResourceTaskCanOverlap(left, right);
+  }
   return rootResourceTaskCanOverlap(left, right);
 }
 
