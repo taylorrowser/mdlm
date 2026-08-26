@@ -35,11 +35,11 @@ const ASSIGNMENT_PUBLICATION_CLASS = "assignment-publication-heavy";
 
 export function rootTestTasksCanOverlap(left, right) {
   if (left.runtimeClass === ASSIGNMENT_PUBLICATION_CLASS) {
-    return right.resourceClass !== "heavy"
+    return right.resourceOwner === false
       && rootResourceTaskCanOverlap(left, right);
   }
   if (right.runtimeClass === ASSIGNMENT_PUBLICATION_CLASS) {
-    return left.resourceClass !== "heavy"
+    return left.resourceOwner === false
       && rootResourceTaskCanOverlap(left, right);
   }
   return rootResourceTaskCanOverlap(left, right);

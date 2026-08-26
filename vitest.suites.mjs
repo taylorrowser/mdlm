@@ -70,7 +70,7 @@ const qualificationGateByFile = new Map(
 const rootTestRuntimeManifest = [
   { file: "test/load-process-package.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 66_137 },
   { file: "test/mdlm-baseline-inspection.test.ts", runtimeClass: "baseline-integrity-heavy", weight: 3, measuredDurationMs: 62_087 },
-  { file: "test/mdlm-assignment.test.ts", runtimeClass: "assignment-publication-heavy", weight: 3, measuredDurationMs: 117_151 },
+  { file: "test/mdlm-assignment.test.ts", runtimeClass: "assignment-publication-heavy", weight: 3, measuredDurationMs: 53_780 },
   { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 27_558 },
 
   { file: "test/dependency-changes.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 9_352 },

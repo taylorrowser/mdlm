@@ -396,7 +396,7 @@ test("package loading starts first with one release peer", () => {
   ]);
 });
 
-test("Assignment publication receives three tokens and no heavy release peer", () => {
+test("Assignment publication does not overlap the active Phase 1 repository route", () => {
   const assignmentId = "test/mdlm-assignment.test.ts";
   const tasks = createRootTestTasks();
   const taskById = new Map(tasks.map((task) => [task.id, task]));
@@ -416,14 +416,11 @@ test("Assignment publication receives three tokens and no heavy release peer", (
         < launch.atMs + taskById.get(launch.taskId).estimatedDurationMs);
 
   assert.equal(assignment.weight, 3);
-  assert.deepEqual(overlappingTasks.map((launch) => launch.taskId), [
-    "test/phase-1-hardening-routes.test.ts",
-    "test/mdlm-pilot-assessment.test.ts",
-    "test/evaluate-phase.test.ts",
-    "test/dependency-changes.test.ts",
-  ]);
+  assert.equal(assignment.estimatedDurationMs, 53_780);
+  assert.equal(overlappingTasks.some((launch) =>
+    launch.taskId === "test/phase-1-hardening-routes.test.ts"), false);
   assert.equal(overlappingTasks.every((launch) =>
-    taskById.get(launch.taskId).resourceClass !== "heavy"), true);
+    taskById.get(launch.taskId).resourceOwner === false), true);
 });
 
 test("release qualification gives baseline inspection at most one peer", () => {
@@ -508,7 +505,7 @@ test("production construction admits no fourth resource owner", () => {
       .includes(task.schedulePhaseId)), true);
   assert.equal(resourceTasks.every((task) => Number.isInteger(task.schedulePhaseOrder)), true);
   assert.equal(maximumActiveResources, 3);
-  assert.equal(activeClassMaximum("heavy"), 2);
+  assert.equal(activeClassMaximum("heavy"), 1);
   assert.equal(activeClassMaximum("fragile"), 1);
   assert.equal(activeClassMaximum("safe"), 3);
   assert.equal(incompatibleOverlap, false);
@@ -787,11 +784,11 @@ test("the compatibility-aware successful-evidence model qualifies the calibrated
   assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=178150 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
   assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=349626/);
   assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=261570/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=856571 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2058071/);
-  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=41929/);
-  assert.match(model.stdout, /modeled_complete_gate_ms=2313071/);
-  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=36929/);
-  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=86929 required_outer_headroom_ms=50000 headroom_margin_ms=36929/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=851446 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2052946/);
+  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=47054/);
+  assert.match(model.stdout, /modeled_complete_gate_ms=2307946/);
+  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=42054/);
+  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=92054 required_outer_headroom_ms=50000 headroom_margin_ms=42054/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });
