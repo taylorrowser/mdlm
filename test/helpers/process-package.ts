@@ -17,6 +17,20 @@ export async function restoreHistoricalFixtureProcessPackage(
   try {
     await fs.cp(processRoot, stagedPackage, { recursive: true });
 
+    const issue256SelectorPath = path.join(
+      stagedPackage,
+      "selectors/pilot-results-completing-run.yaml",
+    );
+    const issue256Selector = await fs.readFile(issue256SelectorPath, "utf8");
+    const preIssue256Selector = issue256Selector.replace(
+      'result.payload.assessment_state in ["recorded", "accepted"]',
+      'result.payload.assessment_state == "accepted"',
+    );
+    if (preIssue256Selector === issue256Selector) {
+      throw new Error("Historical fixture pilot result assessment selector is absent");
+    }
+    await fs.writeFile(issue256SelectorPath, preIssue256Selector);
+
     await fs.rm(path.join(
       stagedPackage,
       "selectors/phase-0-foundation-stable-link-targets.yaml",
