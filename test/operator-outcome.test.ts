@@ -811,7 +811,7 @@ gate:
     );
     const mapRevision = foundation.outputs[0]!.lifecycleDatum.revisionId;
 
-    const next = await applicationMdlm(repository, "next");
+    const next = mdlm(repository, "next", "--json");
 
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
