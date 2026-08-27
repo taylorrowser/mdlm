@@ -74,4 +74,7 @@ If native dependencies are unavailable, include a `## Blocked by` section contai
 
 ## Frontier
 
-The frontier consists of open child tickets whose blockers are all closed and which are not already assigned. Work one frontier ticket at a time.
+The frontier consists of open child tickets whose blockers are all closed and
+which are not already assigned. Independent frontier tickets may proceed in
+parallel. Give each ticket its own claim, isolated worktree, and sole writer, and
+serialize updates to any shared evidence record.

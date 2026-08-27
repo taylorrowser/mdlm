@@ -1,10 +1,13 @@
 # Markdown Lifecycle Manager
 
-MDLM models durable product intent, engineering definition, review, evidence, and
-work obligations as versioned Lifecycle Data evaluated by a declarative Process
-Package. The kernel remains process-neutral; the bundled Example Process Package
-provides a bounded software V-model profile without making its types, phases, or
-Policies core semantics.
+MDLM's product boundary is the `mdlm` CLI operating on Markdown Lifecycle Data
+and a declarative YAML Process Package. Any agent or harness can drive that
+contract. Pi, Codex, and other runners are adapters and sources of operational
+evidence, not part of the product boundary.
+
+The kernel remains process-neutral. The bundled Example Process Package provides
+a bounded software V-model profile without making its types, phases, or Policies
+core semantics.
 
 ## Current expansion goal
 
@@ -15,7 +18,7 @@ evidence and the accepted v0.8 design baseline. See
 
 ## Operator contract
 
-The supported product surface is the `mdlm` executable. A normal repository uses
+The `mdlm` executable exposes the supported contract. A normal repository uses
 one loop:
 
 1. initialize once with `mdlm init <destination>`;
@@ -98,6 +101,17 @@ mdlm process capabilities --json
 Relation, Selector, Policy, Computed State, Obligation, definition, and expression
 evaluation remain inspection surfaces.
 
+## Authority in demonstrations and attended work
+
+An explicitly recorded demonstration may delegate stakeholder authority to its
+operating agent so the lane can exercise consequential decisions without a
+person waiting. Record that delegation in the demo evidence and limit it to that
+lane.
+
+In real attended work, the actual stakeholder supplies every required
+stakeholder decision. Stop on `Attention Required` when that authority is not
+available. A runner must not turn its own judgment into stakeholder authority.
+
 ## Explicit stop behavior
 
 Handle every Operator Outcome explicitly:
@@ -122,8 +136,8 @@ change is not itself a stop: reevaluation determines the next Operator Outcome.
 ## References
 
 - Canonical domain language: [`CONTEXT.md`](CONTEXT.md)
-- Foreground pi SDK operator: [`packages/mdlm-pi/README.md`](packages/mdlm-pi/README.md)
-- Generic pi prompt harness: [`docs/mdlm-pi-operator.md`](docs/mdlm-pi-operator.md)
+- Pi SDK adapter: [`packages/mdlm-pi/README.md`](packages/mdlm-pi/README.md)
+- Pi prompt adapter: [`docs/mdlm-pi-operator.md`](docs/mdlm-pi-operator.md)
 - Current conformance report: [`docs/mdlm-v0.8-implementation-conformance.md`](docs/mdlm-v0.8-implementation-conformance.md)
 - Phase-hardening proof: [`docs/clean-pilot-103.md`](docs/clean-pilot-103.md)
 - Zero-to-assessment evidence: [`docs/zero-to-assessment-pilot.md`](docs/zero-to-assessment-pilot.md)

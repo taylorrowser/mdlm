@@ -4,6 +4,9 @@
 
 Before any work in this repository, read `docs/agents/mdlm-development.md`.
 
+Use subagents for independent research, diagnosis, implementation, and review.
+Keep one writer per issue worktree, lifecycle lane, and shared evidence record.
+
 ## Agent skills
 
 ### Issue tracker

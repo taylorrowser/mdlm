@@ -1,6 +1,14 @@
 # Frontier implementation loop: architecture and operating lessons
 
-This document explains the repository-local system that keeps implementation agents moving through the MDLM issue frontier. It covers the current architecture, the delivery and recovery policies encoded in it, the failures observed while implementing issues #84–#89, and the practices that keep the loop moving without trading away correctness.
+> **Historical document.** This describes the retired Pi-specific serial frontier
+> controller and remains as operational evidence. It is not the current MDLM
+> product or repository operating contract. Start with `README.md` and
+> `docs/agents/mdlm-development.md`.
+
+This document explains the repository-local system that kept implementation
+agents moving through the MDLM issue frontier. It covers that architecture, its
+delivery and recovery policies, the failures observed while implementing issues
+#84–#89, and the practices learned from the run.
 
 For command-level operating instructions, see [frontier-loop.md](frontier-loop.md).
 

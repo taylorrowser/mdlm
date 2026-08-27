@@ -4,13 +4,26 @@ Operational data is the main development signal. Lifecycle completion and safe P
 
 ## Read this first
 
-Read `CONTEXT.md`, relevant ADRs, and `docs/mdlm-process-overview-v0.8.md`.
+Start from the supported operator contract in `README.md`. Read `CONTEXT.md` and
+the ADRs relevant to the change.
+
+Treat the CLI over Markdown Lifecycle Data and a declarative YAML Process Package
+as the product boundary. Pi, Codex, and other runners are adapters and sources of
+operational evidence. Runner-specific behavior does not define the kernel or
+Process Package contract.
+
+An explicitly recorded demo may delegate stakeholder authority to its operating
+agent and must preserve that delegation in the lane evidence. Real attended work
+gets stakeholder decisions from the actual stakeholder. Stop when the required
+authority is unavailable.
 
 The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/OPERATING-POLICY.md` owns portfolio slot composition, nonlearning controls, defect lead-time tracking, resource scheduling, and pointers to the exact evidence, recovery, and one-shot release runbooks. Follow both documents. If they conflict, preserve evidence and stop for a policy decision.
 
 ## Keep four kinds of work moving
 
-Run these lanes independently. A blocked lane must not idle the others.
+Run these lanes independently. Independent issue work may proceed in parallel
+with demos. Give each issue, lifecycle lane, and shared evidence record one
+writer. A blocked lane must not idle the others.
 
 ### Full demos
 
