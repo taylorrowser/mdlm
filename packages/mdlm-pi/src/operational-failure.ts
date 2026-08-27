@@ -103,6 +103,10 @@ function escapedOpeningQuoteBefore(value: string, end: number): (EscapedQuote & 
   return quote === null || quote.end !== end ? null : { ...quote, start };
 }
 
+function isCredentialNameCharacter(character: string | undefined): boolean {
+  return character !== undefined && /[A-Za-z0-9_-]/u.test(character);
+}
+
 function redactEscapedSerializedCredentials(value: string): string {
   const ranges: Array<{ start: number; end: number }> = [];
   let skipBefore = 0;
@@ -112,18 +116,32 @@ function redactEscapedSerializedCredentials(value: string): string {
     const nameEnd = nameStart + match[0].length;
     const openingNameQuote = escapedOpeningQuoteBefore(value, nameStart);
     const closingNameQuote = escapedQuoteAt(value, nameEnd);
-    if (openingNameQuote === null || closingNameQuote === null ||
-      openingNameQuote.width !== closingNameQuote.width ||
-      openingNameQuote.quote !== closingNameQuote.quote) continue;
 
-    let cursor = closingNameQuote.end;
+    let credentialStart: number;
+    let cursor: number;
+    let requiredValueQuoteWidth: number | null;
+    if (openingNameQuote !== null && closingNameQuote !== null &&
+      openingNameQuote.width === closingNameQuote.width &&
+      openingNameQuote.quote === closingNameQuote.quote) {
+      credentialStart = openingNameQuote.start;
+      cursor = closingNameQuote.end;
+      requiredValueQuoteWidth = openingNameQuote.width;
+    } else {
+      if (openingNameQuote !== null || closingNameQuote !== null ||
+        isCredentialNameCharacter(value[nameStart - 1])) continue;
+      credentialStart = nameStart;
+      cursor = nameEnd;
+      requiredValueQuoteWidth = null;
+    }
+
     while (/\s/u.test(value[cursor] ?? "")) cursor += 1;
     if (value[cursor] !== ":" && value[cursor] !== "=") continue;
     cursor += 1;
     while (/\s/u.test(value[cursor] ?? "")) cursor += 1;
 
     const openingValueQuote = escapedQuoteAt(value, cursor);
-    if (openingValueQuote === null || openingValueQuote.width !== openingNameQuote.width) continue;
+    if (openingValueQuote === null ||
+      (requiredValueQuoteWidth !== null && openingValueQuote.width !== requiredValueQuoteWidth)) continue;
     cursor = openingValueQuote.end;
     let closingValueQuote: EscapedQuote | null = null;
     while (cursor < value.length) {
@@ -140,10 +158,10 @@ function redactEscapedSerializedCredentials(value: string): string {
       cursor += 1;
     }
     if (closingValueQuote === null) {
-      ranges.push({ start: openingNameQuote.start, end: value.length });
+      ranges.push({ start: credentialStart, end: value.length });
       break;
     }
-    ranges.push({ start: openingNameQuote.start, end: closingValueQuote.end });
+    ranges.push({ start: credentialStart, end: closingValueQuote.end });
     skipBefore = closingValueQuote.end;
   }
 

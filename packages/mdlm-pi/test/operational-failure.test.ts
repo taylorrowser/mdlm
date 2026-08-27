@@ -113,6 +113,49 @@ describe("MDLM-Pi operational failure contract", () => {
     expect(telemetry.error.message.length).toBeLessThanOrEqual(256);
   });
 
+  it("consumes an escaped quoted secret assigned to an unquoted shell key", () => {
+    const source = String.raw`provider rejected apiKey=\"opaque-value\" unrelated=true`;
+
+    expect(redactProviderError(source)).toEqual({
+      message: "provider rejected [REDACTED] unrelated=true",
+      truncated: false,
+    });
+  });
+
+  const shellCredentialCases = [1, 3, 7, 15, 31, 63].flatMap((quoteWidth) =>
+    ["apiKey", "accessToken", "x-api-key", "clientSecret", "password", "authorization"].flatMap((credentialName) =>
+      [
+        { context: "direct", format: (assignment: string) => `provider command ${assignment}` },
+        { context: "nested", format: (assignment: string) => `provider credentials.${assignment}` },
+        { context: "header", format: (assignment: string) => `provider --header ${assignment}` },
+      ].map(({ context, format }) => {
+        const escapedQuote = `${"\\".repeat(quoteWidth)}\"`;
+        const secret = `opaque-${credentialName}-${quoteWidth}-value`;
+        const source = `${format(`${credentialName}=${escapedQuote}${secret}${escapedQuote}`)} unrelated=true retry=false fallback=null`;
+        const expected = `${format("[REDACTED]")} unrelated=true retry=false fallback=null`;
+        return { context, credentialName, expected, quoteWidth, secret, source };
+      }),
+    ),
+  );
+
+  it.each(shellCredentialCases)(
+    "redacts $context shell credential $credentialName at escaped quote width $quoteWidth",
+    ({ credentialName, expected, secret, source }) => {
+      const result = redactProviderError(source);
+      expect(result).toEqual({ message: expected, truncated: false });
+      expect(result.message).not.toContain(credentialName);
+      expect(result.message).not.toContain(secret);
+      expect(result.message).toContain("unrelated=true");
+      expect(result.message).toContain("retry=false");
+      expect(result.message).toContain("fallback=null");
+      expect(result.message.length).toBeLessThanOrEqual(512);
+
+      const document = operationalFailureDocument({ code: "PI_PROVIDER_FAILED", message: source });
+      expect(document.error.message).toBe(expected);
+      expect(document.error.message.length).toBeLessThanOrEqual(256);
+    },
+  );
+
   it("redacts and bounds the top-level operational error message", () => {
     const document = operationalFailureDocument({
       code: "MDLM_PI_OPERATION_FAILED",
