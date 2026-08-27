@@ -35,6 +35,35 @@ response bytes are also durable. For an active Consolidation Group, only the fin
 normalized conclusions are retained and reused across serial reevaluation; raw attended
 conversation is not.
 
+## Attended input
+
+At a terminal, enter any number of lines and finish with `.mdlm-submit` on its
+own line. MDLM-Pi removes the newline before that delimiter and preserves all
+other UTF-8 content and line endings.
+
+Non-terminal input defaults to the current runner's legacy transport: one answer,
+one framing LF, and EOF. MDLM-Pi removes only the final LF, so a legitimate CR
+immediately before it remains part of the answer. Answer bytes never select the
+transport mode; wording that begins with `MDLM-ATTENDED/1` remains legacy wording.
+
+A future writer can explicitly select length-framed input by setting
+`MDLM_PI_ATTENDED_INPUT_MODE=framed-v1` before starting MDLM-Pi, then send adjacent
+frames:
+
+```text
+MDLM-ATTENDED/1 <payload-byte-count>\n<payload bytes>
+```
+
+The byte count covers the payload only. MDLM-Pi reads exactly that many bytes,
+decodes them as strict UTF-8, and retains later bytes for the next attended
+answer. Explicit `legacy-eof` and `terminal-delimiter` values are also accepted.
+The writer and MDLM-Pi process must agree on the mode out of band.
+
+An answer may contain at most 65,536 UTF-8 bytes. Empty answers, invalid UTF-8,
+oversized input, malformed or incomplete frames, cancellation, terminal EOF
+before `.mdlm-submit`, and input stream failures stop the command as operational
+failures. MDLM-Pi never returns a partial attended conclusion.
+
 ## Model and credentials
 
 By default pi selects the first available authenticated model using its normal
