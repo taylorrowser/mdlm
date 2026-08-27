@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import "./helpers/mdlm-self-guiding-cases.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -51,6 +52,11 @@ async function copyDistribution(distribution: string): Promise<void> {
     fs.cp(
       path.join(projectRoot, ".lifecycle/process"),
       path.join(distribution, ".lifecycle/process"),
+      { recursive: true },
+    ),
+    fs.cp(
+      path.join(projectRoot, "operator"),
+      path.join(distribution, "operator"),
       { recursive: true },
     ),
     fs.writeFile(

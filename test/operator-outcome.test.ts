@@ -50,8 +50,9 @@ import {
 } from "../src/scenario-execution.js";
 import { selectedRepositoryPackage } from "../src/selected-package.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
-import { mdlmWithInputAndEnvironment } from "./helpers/mdlm.js";
+import { mdlm, mdlmWithInputAndEnvironment } from "./helpers/mdlm.js";
 import { operatorTerminalProcessPackageFixture } from "./helpers/terminal-process-package-fixture.js";
+import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
 
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
@@ -810,7 +811,7 @@ gate:
     );
     const mapRevision = foundation.outputs[0]!.lifecycleDatum.revisionId;
 
-    const next = await applicationMdlm(repository, "next");
+    const next = mdlm(repository, "next", "--json");
 
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
@@ -824,6 +825,14 @@ gate:
         authority: "stakeholder",
         delegationAllowed: false,
       },
+      operatorInstructions: expect.objectContaining({
+        contract: "mdlm-operator-instructions@1",
+        action: "obtain-attention",
+        disposition: "continuation",
+        commands: expect.arrayContaining([
+          `mdlm scenario prepare ${outcome.assignment.id} --json`,
+        ]),
+      }),
     }));
     const progressionPacket = await applicationMdlm(
       repository,
@@ -960,6 +969,29 @@ gate:
     expect(readableStatus).toContain("Terminal Evidence: terminal@1");
   });
 
+  it("returns stop-success through compiled next for a declared terminal outcome", async () => {
+    const terminalRepository = await terminalProcessRepository(parent, {
+      profile_boundary: {
+        condition: 'none("terminal-evidence@1", {}) && phase.id == "phase-0-terminal"',
+        explanation: "This exact profile intentionally omits external breadth.",
+      },
+    });
+
+    const next = mdlm(terminalRepository, "next", "--json");
+
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
+      contract: "mdlm-next@1",
+      outcome: "profile-boundary-reached",
+      operatorInstructions: expect.objectContaining({
+        contract: "mdlm-operator-instructions@1",
+        action: "stop-success",
+        disposition: "successful-stop",
+        commands: [],
+      }),
+    }));
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
+
   it("returns Lifecycle Complete only from its explicit package condition", () => {
     const evaluation = terminalEvaluation("lifecycle-complete");
     expect(evaluation.diagnostics).toEqual([]);
@@ -1021,6 +1053,10 @@ gate:
       contract: "mdlm-next@1",
       outcome: "invalid",
       integrity: { status: "invalid" },
+      operatorInstructions: expect.objectContaining({
+        action: "stop-failure",
+        disposition: "unsuccessful-stop",
+      }),
       diagnostics: [expect.objectContaining({
         code: "process-package-selection-invalid",
       })],
@@ -1046,6 +1082,10 @@ gate:
       contract: "mdlm-next@1",
       outcome: "invalid",
       integrity: { status: "invalid" },
+      operatorInstructions: expect.objectContaining({
+        action: "stop-failure",
+        disposition: "unsuccessful-stop",
+      }),
       diagnostics: [expect.objectContaining({
         code: "process-package-selection-mismatch",
       })],

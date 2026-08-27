@@ -70,7 +70,7 @@ const unableReasonCategories = [
 ] as const;
 type UnableReason = typeof unableReasonCategories[number];
 
-interface RepositoryFingerprint {
+export interface RepositoryFingerprint {
   head: string;
   trackedState: string;
 }
@@ -430,7 +430,7 @@ async function git(repositoryRoot: string, arguments_: string[]): Promise<string
   const result = await executeFile("git", arguments_, {
     cwd: repositoryRoot,
     encoding: "utf8",
-    env: repositoryGitEnvironment(),
+    env: { ...repositoryGitEnvironment(), GIT_OPTIONAL_LOCKS: "0" },
     maxBuffer: 20 * 1024 * 1024,
   });
   return result.stdout;
@@ -440,7 +440,7 @@ function sha256(value: string): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
-async function repositoryFingerprint(
+export async function repositoryFingerprint(
   repositoryRoot: string,
 ): Promise<AssignmentResult<RepositoryFingerprint>> {
   try {
