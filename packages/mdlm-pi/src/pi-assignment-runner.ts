@@ -9,6 +9,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { AssignmentPacket, JsonObject, JsonValue } from "./mdlm-client.js";
+import {
+  isPiStopReason,
+  observedPiIdentity,
+  redactProviderError,
+  type PiTerminalTelemetry,
+} from "./operational-failure.js";
 
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -70,9 +76,17 @@ export interface PiAssignmentRunnerOptions {
 }
 
 export class PiAssignmentRunnerError extends Error {
-  constructor(message: string) {
+  readonly code: string;
+  readonly telemetry: PiTerminalTelemetry | undefined;
+
+  constructor(
+    message: string,
+    options: { code?: string; telemetry?: PiTerminalTelemetry } = {},
+  ) {
     super(message);
     this.name = "PiAssignmentRunnerError";
+    this.code = options.code ?? "PI_ASSIGNMENT_RUNNER_ERROR";
+    this.telemetry = options.telemetry;
   }
 }
 
@@ -80,8 +94,19 @@ interface ActiveSession {
   session: PiAssignmentSession;
   unsubscribe: () => void;
   acceptingResponse: boolean;
+  completeAssignmentObserved: boolean | null;
+  completeAssignmentPendingIds: Set<string>;
+  terminal: MutableTerminalTelemetry;
   response?: JsonObject;
   completionError?: PiAssignmentRunnerError;
+}
+
+interface MutableTerminalTelemetry {
+  stopReason: PiTerminalTelemetry["stopReason"];
+  providerError: PiTerminalTelemetry["providerError"];
+  retriesConsumed: number | null;
+  provider: string | null;
+  model: string | null;
 }
 
 /** One isolated probabilistic worker behind one structured Assignment seam. */
@@ -142,6 +167,8 @@ export class PiAssignmentRunner {
     delete active.response;
     delete active.completionError;
     active.acceptingResponse = true;
+    active.completeAssignmentObserved = null;
+    active.completeAssignmentPendingIds.clear();
 
     try {
       await Promise.race([
@@ -150,7 +177,13 @@ export class PiAssignmentRunner {
       ]);
       if (active.completionError !== undefined) throw active.completionError;
       if (active.response === undefined) {
-        throw new PiAssignmentRunnerError("Pi settled without calling complete_assignment");
+        throw new PiAssignmentRunnerError(
+          "Pi settled without calling complete_assignment",
+          {
+            code: "PI_SETTLED_WITHOUT_COMPLETION",
+            telemetry: terminalTelemetry(active),
+          },
+        );
       }
       const response = correctMissingUnattendedAuthority(packet, options.correction) ??
         active.response;
@@ -185,6 +218,7 @@ export class PiAssignmentRunner {
   async #createActiveSession(packet: AssignmentPacket): Promise<ActiveSession> {
     let active: ActiveSession | undefined;
     const capture = (response: JsonObject) => {
+      if (active !== undefined) active.completeAssignmentObserved = true;
       if (active === undefined || !active.acceptingResponse) {
         throw new PiAssignmentRunnerError(
           `Assignment '${packet.assignment.id}' completed outside its response window`,
@@ -201,13 +235,24 @@ export class PiAssignmentRunner {
     const session = this.#sessionFactory === undefined
       ? await this.#createDefaultSession(packet, capture)
       : await this.#sessionFactory(packet, capture);
-    const unsubscribe = this.#onText === undefined
-      ? () => {}
-      : session.subscribe((event) => {
-          if (!isTextDeltaEvent(event)) return;
-          this.#onText?.(event.assistantMessageEvent.delta);
-        });
-    active = { session, unsubscribe, acceptingResponse: false };
+    active = {
+      session,
+      unsubscribe: () => {},
+      acceptingResponse: false,
+      completeAssignmentObserved: null,
+      completeAssignmentPendingIds: new Set(),
+      terminal: {
+        stopReason: null,
+        providerError: null,
+        retriesConsumed: null,
+        provider: null,
+        model: null,
+      },
+    };
+    active.unsubscribe = session.subscribe((event) => {
+      observeTerminalEvent(active!, event);
+      if (isTextDeltaEvent(event)) this.#onText?.(event.assistantMessageEvent.delta);
+    });
     this.#sessions.set(packet.assignment.id, active);
     return active;
   }
@@ -257,6 +302,69 @@ export class PiAssignmentRunner {
       subscribe: (listener) => session.subscribe((event) => listener(event)),
     };
   }
+}
+
+function terminalTelemetry(active: ActiveSession): PiTerminalTelemetry {
+  return {
+    ...active.terminal,
+    completeAssignmentObserved: active.completeAssignmentPendingIds.size > 0 && active.completeAssignmentObserved !== true
+      ? null
+      : active.completeAssignmentObserved,
+  };
+}
+
+function observeTerminalEvent(active: ActiveSession, event: unknown): void {
+  if (!isRecord(event) || typeof event.type !== "string") return;
+  if (event.type === "agent_start") {
+    if (active.terminal.retriesConsumed === null) active.terminal.retriesConsumed = 0;
+    if (active.completeAssignmentObserved === null) active.completeAssignmentObserved = false;
+  }
+  if (event.type === "tool_execution_start" && event.toolName === "complete_assignment" &&
+      typeof event.toolCallId === "string") {
+    active.completeAssignmentPendingIds.add(event.toolCallId);
+  }
+  if (event.type === "tool_execution_end" && event.toolName === "complete_assignment") {
+    if (typeof event.toolCallId === "string") active.completeAssignmentPendingIds.delete(event.toolCallId);
+    // Only the local tool callback proves execution. Pi also emits end events for
+    // calls rejected before execution, so an event pair alone remains unavailable.
+    if (active.completeAssignmentObserved !== true) active.completeAssignmentObserved = null;
+  }
+  const retryAttempt = event.attempt;
+  if (event.type === "auto_retry_start" && Number.isSafeInteger(retryAttempt) && (retryAttempt as number) > 0) {
+    active.terminal.retriesConsumed = Math.max(
+      active.terminal.retriesConsumed ?? 0,
+      retryAttempt as number,
+    );
+    if (typeof event.errorMessage === "string") {
+      active.terminal.providerError = redactProviderError(event.errorMessage);
+    }
+  }
+  if (event.type === "auto_retry_end" && typeof event.finalError === "string") {
+    active.terminal.providerError = redactProviderError(event.finalError);
+  }
+  if ((event.type === "message_end" || event.type === "turn_end") && isRecord(event.message)) {
+    observeAssistantMessage(active.terminal, event.message);
+  }
+  if (event.type === "agent_end" && Array.isArray(event.messages)) {
+    const terminalMessage = event.messages.findLast((message) =>
+      isRecord(message) && message.role === "assistant"
+    );
+    if (terminalMessage !== undefined) observeAssistantMessage(active.terminal, terminalMessage);
+  }
+}
+
+function observeAssistantMessage(terminal: MutableTerminalTelemetry, message: Record<string, unknown>): void {
+  if (message.role !== "assistant") return;
+  if (isPiStopReason(message.stopReason)) terminal.stopReason = message.stopReason;
+  terminal.provider = observedPiIdentity(message.provider);
+  terminal.model = observedPiIdentity(message.model);
+  if (typeof message.errorMessage === "string") {
+    terminal.providerError = redactProviderError(message.errorMessage);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function controlledResources(): ResourceLoader {

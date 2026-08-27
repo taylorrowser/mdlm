@@ -15,6 +15,7 @@ import type {
 } from "../src/mdlm-client.js";
 import {
   PiAssignmentRunner,
+  PiAssignmentRunnerError,
   type PiAssignmentSession,
 } from "../src/pi-assignment-runner.js";
 import { RunController } from "../src/run-controller.js";
@@ -151,6 +152,72 @@ describe("RunController", () => {
       "lifecycle-complete",
       expect.objectContaining({ outcome: "lifecycle-complete" }),
     );
+  });
+
+  it("creates no submission, publication, disposition advance, or journal before response capture", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pi-no-response-"));
+    roots.push(root);
+    const journal = new RunJournal(path.join(root, "state"));
+    const session: PiAssignmentSession = {
+      get isIdle() { return true; },
+      prompt: vi.fn(async () => undefined),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn(() => () => {}),
+    };
+    const assignments = new PiAssignmentRunner({
+      repository: root,
+      assignmentTimeoutMs: 1_000,
+      sessionFactory: vi.fn(async () => session),
+    });
+    const mdlm = {
+      status: vi.fn(async () => assignmentStatus(true)),
+      next: vi.fn(),
+      assignment: vi.fn(async () => ({
+        contract: "mdlm-assignment-state@1" as const,
+        ok: true,
+        command: "assignment.show" as const,
+        assignment: { id: assignmentId },
+        selected: true as const,
+        package: packageIdentity,
+        repository: repositoryFingerprint,
+        scenarioReference: scenario,
+        disposition: "active" as const,
+        retryAvailability: { malformedResponseCorrection: 1 },
+        malformedResponses: [],
+      })),
+      prepare: vi.fn(async () => packet()),
+      prepareSubmission: vi.fn(),
+      submit: vi.fn(),
+      execution: vi.fn(),
+      doctor: vi.fn(),
+    };
+    const git = {
+      assertClean: vi.fn(async () => undefined),
+      head: vi.fn(async () => "base-commit"),
+      repositoryFingerprint: baseAdvancementRepository,
+      capturePublication: vi.fn(),
+      publicationCommitState: vi.fn(),
+      pendingTransactionIds: vi.fn(async () => []),
+      commit: vi.fn(),
+    };
+    const controller = new RunController({
+      mdlm,
+      git,
+      assignments,
+      journal,
+      io: { progress: vi.fn(), attention: vi.fn(), stopped: vi.fn() },
+    });
+
+    const error = await controller.run().catch((failure: unknown) => failure);
+
+    expect(error).toBeInstanceOf(PiAssignmentRunnerError);
+    expect(error).toMatchObject({ code: "PI_SETTLED_WITHOUT_COMPLETION" });
+    expect(mdlm.prepareSubmission).not.toHaveBeenCalled();
+    expect(mdlm.submit).not.toHaveBeenCalled();
+    expect(git.capturePublication).not.toHaveBeenCalled();
+    expect(git.commit).not.toHaveBeenCalled();
+    expect(await journal.load()).toBeNull();
   });
 
   it("carries attended authority omitted by the worker into submission", async () => {

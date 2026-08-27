@@ -4,6 +4,7 @@ export const mdlmPiTestFiles = [
   "packages/mdlm-pi/test/live-integration.test.ts",
   "packages/mdlm-pi/test/mdlm-client.test.ts",
   "packages/mdlm-pi/test/operator-io.test.ts",
+  "packages/mdlm-pi/test/operational-failure.test.ts",
   "packages/mdlm-pi/test/pi-assignment-runner.test.ts",
   "packages/mdlm-pi/test/run-controller.test.ts",
   "packages/mdlm-pi/test/run-journal.test.ts",

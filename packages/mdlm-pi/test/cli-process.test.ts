@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 import { GitPublisher } from "../src/git-publisher.js";
 import { MdlmClient } from "../src/mdlm-client.js";
+import { operationalFailureDocument } from "../src/operational-failure.js";
 import { RunJournal } from "../src/run-journal.js";
 
 const executeFile = promisify(execFile);
@@ -107,7 +108,7 @@ describe("mdlm-pi run process boundary", () => {
     expect(await journal.load()).toEqual(expectedJournal);
   });
 
-  it("retains exact MDLM diagnostics when Assignment preparation fails", async () => {
+  it("emits the canonical operational-failure contract when Assignment preparation fails", async () => {
     const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
     const prepareFailure = {
       contract: "mdlm-scenario-prepare-failure@1",
@@ -141,11 +142,10 @@ describe("mdlm-pi run process boundary", () => {
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe("");
-    expect(JSON.parse(result.stderr)).toEqual({
-      status: "operational-failure",
-      error: "MDLM could not prepare the Assignment",
-      details: prepareFailure,
-    });
+    expect(JSON.parse(result.stderr)).toEqual(operationalFailureDocument({
+      code: "MDLM_CLIENT_ERROR",
+      message: "MDLM could not prepare the Assignment",
+    }));
   });
 
   it("stops foreground progress and its MDLM child when the terminal sends SIGHUP", async () => {
