@@ -146,6 +146,7 @@ interface StartBriefing {
   readyToContinue: boolean;
   nextCommand: "mdlm next --json";
   repository: AssignmentPacket["repository"];
+  guidance: string;
 }
 
 interface CommandResultBase {
@@ -196,6 +197,7 @@ interface CommandResultBase {
   git?: StartBriefing["git"];
   readyToContinue?: StartBriefing["readyToContinue"];
   nextCommand?: StartBriefing["nextCommand"];
+  guidance?: StartBriefing["guidance"];
   operatorInstructions?: OperatorInstructions;
   help?: string;
   migration?: ProcessMigration;
@@ -1205,6 +1207,9 @@ async function startBriefing(repositoryRoot: string): Promise<CommandResult> {
       git: { clean, trackedPaths, untrackedPaths },
       readyToContinue: clean,
       nextCommand: "mdlm next --json",
+      guidance: clean
+        ? "Run mdlm next --json to obtain current work."
+        : "Preserve and resolve this exact Git state before invoking next.",
       diagnostics: [],
     };
   } catch (error) {
@@ -1614,16 +1619,14 @@ function renderCommandResult(result: CommandResult): string {
     result.contract === "mdlm-start@1" && result.package && result.repository &&
     "head" in result.repository &&
     result.operatorGuide && result.git && result.readyToContinue !== undefined &&
-    result.nextCommand
+    result.nextCommand && result.guidance
   ) {
     const state = [
       `Git: ${result.git.clean ? "clean" : "dirty"}`,
       `Tracked paths: ${result.git.trackedPaths.join(", ") || "none"}`,
       `Untracked paths: ${result.git.untrackedPaths.join(", ") || "none"}`,
       `Ready to continue: ${result.git.clean ? "yes" : "no"}`,
-      ...(result.git.clean
-        ? []
-        : ["Preserve and resolve this exact Git state before invoking next."]),
+      ...(!result.git.clean ? [result.guidance] : []),
     ];
     return [
       `Process Package: ${result.package.reference}#${result.package.digest}`,

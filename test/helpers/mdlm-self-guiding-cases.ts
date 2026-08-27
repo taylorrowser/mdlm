@@ -4,7 +4,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { operatorInstructions } from "../src/operator-instructions.js";
+import { operatorInstructions } from "../../src/operator-instructions.js";
 
 const projectRoot = process.cwd();
 const mdlmExecutable = path.join(projectRoot, "dist/mdlm.js");
@@ -93,6 +93,18 @@ describe("self-guiding public CLI", () => {
       path.join(repository, ".claude/skills/mdlm/SKILL.md"),
       "utf8",
     ));
+    for (const skillPath of [
+      ".agents/skills/mdlm/SKILL.md",
+      ".claude/skills/mdlm/SKILL.md",
+    ]) {
+      const guideFromSkill = path.resolve(
+        path.dirname(path.join(repository, skillPath)),
+        "../../../MDLM.md",
+      );
+      expect(await fs.readFile(guideFromSkill, "utf8")).toBe(
+        await fs.readFile(path.join(repository, "MDLM.md"), "utf8"),
+      );
+    }
     expect(git(repository, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
   });
@@ -133,6 +145,7 @@ describe("self-guiding public CLI", () => {
       git: { clean: true, trackedPaths: [], untrackedPaths: [] },
       readyToContinue: true,
       nextCommand: "mdlm next --json",
+      guidance: "Run mdlm next --json to obtain current work.",
     }));
     expect(second.stdout).toBe(first.stdout);
     expect(await fs.readFile(leasePath)).toEqual(leaseBefore);
@@ -153,6 +166,7 @@ describe("self-guiding public CLI", () => {
         untrackedPaths: ["untracked.txt"],
       },
       readyToContinue: false,
+      guidance: "Preserve and resolve this exact Git state before invoking next.",
     }));
     const dirtyPlain = execute(repository, ["start"]);
     expect(dirtyPlain.status, dirtyPlain.stderr).toBe(0);
