@@ -71,6 +71,48 @@ describe("MDLM-Pi operational failure contract", () => {
     expect(result.message.length).toBeLessThanOrEqual(512);
   });
 
+  it.each([
+    [
+      "one escaped serialization layer",
+      String.raw`provider rejected {\"credentials\":{\"apiKey\":\"nested-api-secret\",\"accessToken\":\"nested-access-secret\",\"clientSecret\":\"nested-client-secret\",\"password\":\"nested-password-secret\"},\"headers\":{\"x-api-key\":\"nested-header-secret\",\"authorization\":\"Bearer nested-authorization-secret\"},\"enabled\":true,\"retry\":false,\"fallback\":null}`,
+      [
+        "nested-api-secret",
+        "nested-access-secret",
+        "nested-client-secret",
+        "nested-password-secret",
+        "nested-header-secret",
+        "nested-authorization-secret",
+      ],
+    ],
+    [
+      "multiple escaped serialization layers",
+      String.raw`provider rejected {\\\"credentials\\\":{\\\"apiKey\\\":\\\"deep-api-secret\\\",\\\"clientSecret\\\":\\\"deep-client-secret\\\"},\\\"headers\\\":{\\\"accessToken\\\":\\\"deep-access-secret\\\",\\\"x-api-key\\\":\\\"deep-header-secret\\\",\\\"password\\\":\\\"deep-password-secret\\\",\\\"authorization\\\":\\\"Basic deep-authorization-secret\\\"},\\\"enabled\\\":true,\\\"retry\\\":false,\\\"fallback\\\":null}`,
+      [
+        "deep-api-secret",
+        "deep-client-secret",
+        "deep-access-secret",
+        "deep-header-secret",
+        "deep-password-secret",
+        "deep-authorization-secret",
+      ],
+    ],
+  ])("redacts nested credentials through %s", (_name, source, secrets) => {
+    const result = redactProviderError(source);
+    for (const secret of secrets) expect(result.message).not.toContain(secret);
+    expect(result.message).not.toMatch(/apiKey|accessToken|x-api-key|clientSecret|password|authorization/iu);
+    expect(result.message).toContain("true");
+    expect(result.message).toContain("false");
+    expect(result.message).toContain("null");
+    expect(result.message.length).toBeLessThanOrEqual(512);
+
+    const telemetry = operationalFailureDocument({
+      code: "PI_PROVIDER_FAILED",
+      message: source,
+    });
+    expect(JSON.parse(JSON.stringify(telemetry))).toEqual(telemetry);
+    expect(telemetry.error.message.length).toBeLessThanOrEqual(256);
+  });
+
   it("redacts and bounds the top-level operational error message", () => {
     const document = operationalFailureDocument({
       code: "MDLM_PI_OPERATION_FAILED",

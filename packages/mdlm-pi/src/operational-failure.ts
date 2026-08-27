@@ -33,6 +33,11 @@ export interface PiOperationalFailureDocument {
 }
 
 const maximumProviderErrorLength = 512;
+const maximumProviderErrorInspectionLength = 4096;
+const maximumEscapedSerializationQuoteWidth = 63;
+// Each JSON serialization changes a delimiter's slash width from 0 to 1, 3, 7, and so on.
+const escapedSerializationQuoteWidths = new Set([1, 3, 7, 15, 31, 63]);
+const serializedCredentialNamePattern = /(?:x[-_ ]?api[-_ ]?key|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|client[-_ ]?secret|authorization|token|secret|password)/giu;
 const secretPatterns = [
   /["']?(?:x[-_ ]?api[-_ ]?key|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|client[-_ ]?secret|authorization|token|secret|password)["']?\s*[:=]\s*"(?:\\.|[^"\\\r\n])*"/giu,
   /["']?(?:x[-_ ]?api[-_ ]?key|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|client[-_ ]?secret|authorization|token|secret|password)["']?\s*[:=]\s*'(?:\\.|[^'\\\r\n])*'/giu,
@@ -73,9 +78,89 @@ export function unavailableTerminalTelemetry(
   };
 }
 
+interface EscapedQuote {
+  end: number;
+  quote: "\"" | "'";
+  width: number;
+}
+
+function escapedQuoteAt(value: string, start: number): EscapedQuote | null {
+  if (start > 0 && value[start - 1] === "\\") return null;
+  let cursor = start;
+  while (value[cursor] === "\\" && cursor - start <= maximumEscapedSerializationQuoteWidth) cursor += 1;
+  const width = cursor - start;
+  const quote = value[cursor];
+  return escapedSerializationQuoteWidths.has(width) && (quote === "\"" || quote === "'")
+    ? { end: cursor + 1, quote, width }
+    : null;
+}
+
+function escapedOpeningQuoteBefore(value: string, end: number): (EscapedQuote & { start: number }) | null {
+  if (value[end - 1] !== "\"" && value[end - 1] !== "'") return null;
+  let start = end - 1;
+  while (start > 0 && value[start - 1] === "\\" && end - start <= maximumEscapedSerializationQuoteWidth) start -= 1;
+  const quote = escapedQuoteAt(value, start);
+  return quote === null || quote.end !== end ? null : { ...quote, start };
+}
+
+function redactEscapedSerializedCredentials(value: string): string {
+  const ranges: Array<{ start: number; end: number }> = [];
+  let skipBefore = 0;
+  for (const match of value.matchAll(serializedCredentialNamePattern)) {
+    const nameStart = match.index;
+    if (nameStart < skipBefore) continue;
+    const nameEnd = nameStart + match[0].length;
+    const openingNameQuote = escapedOpeningQuoteBefore(value, nameStart);
+    const closingNameQuote = escapedQuoteAt(value, nameEnd);
+    if (openingNameQuote === null || closingNameQuote === null ||
+      openingNameQuote.width !== closingNameQuote.width ||
+      openingNameQuote.quote !== closingNameQuote.quote) continue;
+
+    let cursor = closingNameQuote.end;
+    while (/\s/u.test(value[cursor] ?? "")) cursor += 1;
+    if (value[cursor] !== ":" && value[cursor] !== "=") continue;
+    cursor += 1;
+    while (/\s/u.test(value[cursor] ?? "")) cursor += 1;
+
+    const openingValueQuote = escapedQuoteAt(value, cursor);
+    if (openingValueQuote === null || openingValueQuote.width !== openingNameQuote.width) continue;
+    cursor = openingValueQuote.end;
+    let closingValueQuote: EscapedQuote | null = null;
+    while (cursor < value.length) {
+      if (value[cursor] !== "\\") {
+        cursor += 1;
+        continue;
+      }
+      const candidate = escapedQuoteAt(value, cursor);
+      if (candidate !== null && candidate.width === openingValueQuote.width &&
+        candidate.quote === openingValueQuote.quote) {
+        closingValueQuote = candidate;
+        break;
+      }
+      cursor += 1;
+    }
+    if (closingValueQuote === null) {
+      ranges.push({ start: openingNameQuote.start, end: value.length });
+      break;
+    }
+    ranges.push({ start: openingNameQuote.start, end: closingValueQuote.end });
+    skipBefore = closingValueQuote.end;
+  }
+
+  if (ranges.length === 0) return value;
+  let redacted = "";
+  let cursor = 0;
+  for (const range of ranges) {
+    if (range.start < cursor) continue;
+    redacted += `${value.slice(cursor, range.start)}[REDACTED]`;
+    cursor = range.end;
+  }
+  return redacted + value.slice(cursor);
+}
+
 export function redactProviderError(value: string): RedactedProviderError {
   const sourceExceededBound = value.length > maximumProviderErrorLength;
-  let message = value
+  let message = redactEscapedSerializedCredentials(value.slice(0, maximumProviderErrorInspectionLength))
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, " ")
     .replace(/\b[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s]+/gu, "[REDACTED_URL]");
   for (const pattern of secretPatterns) message = message.replace(pattern, "[REDACTED]");
