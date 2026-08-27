@@ -1,12 +1,12 @@
 # MDLM development operations
 
-Operational data is the main development signal. A lifecycle run to a controller or package endpoint tells us more than another round of isolated hardening. Keep demos moving, preserve failures, fix what operation exposes, and release the smallest set of changes that unlocks more operation.
+Operational data is the main development signal. Lifecycle completion and safe Phase transitions are the primary outcomes. Accepted publications are secondary and matter when they advance a lane or close a learning loop. Keep demos moving, preserve failures, fix what operation exposes, and release the smallest set of changes that unlocks more operation.
 
 ## Read this first
 
 Read `CONTEXT.md`, relevant ADRs, and `docs/mdlm-process-overview-v0.8.md`.
 
-The orchestration policy at `/home/ubuntu/git/mdlm-orchestration/AGENTS.md` owns host-specific paths, evidence rules, recovery rules, and safety limits. Follow both documents. If they conflict, preserve evidence and stop for a policy decision.
+The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/OPERATING-POLICY.md` owns portfolio slot composition, nonlearning controls, defect lead-time tracking, resource scheduling, and pointers to the exact evidence, recovery, and one-shot release runbooks. Follow both documents. If they conflict, preserve evidence and stop for a policy decision.
 
 ## Keep four kinds of work moving
 
@@ -16,11 +16,9 @@ Run these lanes independently. A blocked lane must not idle the others.
 
 An eligible demo lane is initialized under the exact identity required by [Portfolio discipline](#portfolio-discipline), has clean Git state and valid integrity, has no uncertain-publication or provenance stop, and has one sole owner.
 
-Keep at least two eligible full-profile lanes. On the current four-core host, target three concurrent lifecycle operators and keep the cap of three. If fewer than two lanes are eligible, record the exact capacity blocker for each missing slot and initialize replacements until two lanes are eligible.
+When no exact quiet-window reservation is active under the host operating policy, keep a floor of two eligible lifecycle operators when two eligible lanes exist, target three, and cap them at three. Floor zero applies only while the host policy's exact reservation is authenticated as active. Follow that policy for slot selection, clearance, restoration, and restoration-breach reporting.
 
-A known downstream blocker does not consume an empty slot when a fresh lane can collect upstream evidence. Record the expected blocker and prefer different products, authority paths, external evidence, and lifecycle phases.
-
-Continue each lane through accepted Reviews, publications, qualification, and phase entry. Its operational endpoint is the controller result `Lifecycle Complete` or `Profile Boundary Reached`, or a package-declared terminal outcome. The exact stop conditions in the orchestration policy mark the lane stopped or blocked, not complete.
+Continue each lane through accepted Reviews, publications, qualification, and Phase entry. Its operational endpoint is the controller result `Lifecycle Complete` or `Profile Boundary Reached`, or a package-declared terminal outcome. The exact stop conditions in the host policy's linked recovery runbook mark the lane stopped or blocked, not complete.
 
 ### Focused fixes
 
@@ -33,7 +31,7 @@ Rank fixes by operational effect:
 3. defects blocking one demo;
 4. findings with no current operational effect.
 
-Reproduce the observed failure once, add the smallest regression that fails for that reason, make the narrow fix, run focused checks to green, and obtain one fresh-context review PASS. Return to a demo after review. Broader hardening belongs in a separate nonblocking issue.
+Reproduce the observed failure once, add the smallest regression that fails for that reason, make the narrow fix, run focused tests and checks to green outside an active exact quiet-window reservation, and obtain one fresh-context review PASS. Return to a demo after review. Broader hardening belongs in a separate nonblocking issue.
 
 ### Integration qualification
 
@@ -41,7 +39,7 @@ Keep one rolling integration lane separate from feature and fix writers. It test
 
 The integration lane owns expensive checks:
 
-- run the complete test suite serially under the host safety limits;
+- run the complete test suite under the host policy's serialized resource reservation;
 - record total time, failures, and the slowest tests or files;
 - distinguish product failures from flaky, redundant, or obsolete tests;
 - optimize or remove slow tests that do not uniquely protect a current requirement, demonstrated defect, or trust boundary;
@@ -49,9 +47,11 @@ The integration lane owns expensive checks:
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
 
+The host operating policy alone owns lifecycle pauses and every reservation and restoration rule, including breach reporting. Follow its `RELEASE-QUALIFICATION.md` pointer for gate preparation, execution, one-shot treatment, outcome classification, and manifest requirements inside an active reservation.
+
 ### Release assembly
 
-Build releases around changes that unblock demonstrations. Do not wait for unrelated cleanup.
+Build releases around changes that unblock demonstrations. Batch related reviewed component fixes into one candidate unless useful operation requires an earlier release. Do not wait for unrelated cleanup.
 
 Every included change must have focused green evidence and a fresh-context review PASS. Merge eligible changes, fetch `origin/main`, and record its exact commit and tree in `/home/ubuntu/git/mdlm-successor-demos/operations/releases.json`. The candidate record also names included commits, pull requests, and issues, Process Package identity and digest, artifacts and digests, runner commit, model, harness, public targets, expected demo unblocks, integration status, and carried blockers.
 
