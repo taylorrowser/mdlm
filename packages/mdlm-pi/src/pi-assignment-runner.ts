@@ -170,6 +170,7 @@ export class PiAssignmentRunner {
     active.acceptingResponse = true;
     active.completeAssignmentObserved = null;
     active.completeAssignmentPendingIds.clear();
+    active.terminal = unavailableTerminalTelemetry();
 
     try {
       await Promise.race([
@@ -242,13 +243,7 @@ export class PiAssignmentRunner {
       acceptingResponse: false,
       completeAssignmentObserved: null,
       completeAssignmentPendingIds: new Set(),
-      terminal: {
-        stopReason: null,
-        providerError: null,
-        retriesConsumed: null,
-        provider: null,
-        model: null,
-      },
+      terminal: unavailableTerminalTelemetry(),
     };
     active.unsubscribe = session.subscribe((event) => {
       observeTerminalEvent(active!, event);
@@ -352,6 +347,16 @@ function observeTerminalEvent(active: ActiveSession, event: unknown): void {
     );
     if (terminalMessage !== undefined) observeAssistantMessage(active.terminal, terminalMessage);
   }
+}
+
+function unavailableTerminalTelemetry(): MutableTerminalTelemetry {
+  return {
+    stopReason: null,
+    providerError: null,
+    retriesConsumed: null,
+    provider: null,
+    model: null,
+  };
 }
 
 function observeAssistantMessage(terminal: MutableTerminalTelemetry, message: Record<string, unknown>): void {

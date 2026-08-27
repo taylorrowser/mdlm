@@ -1,6 +1,7 @@
 import { Check } from "typebox/value";
 import { describe, expect, it, vi } from "vitest";
 import type { AssignmentPacket, JsonObject } from "../src/mdlm-client.js";
+import { operationalFailureDocument } from "../src/operational-failure.js";
 import {
   assignmentCompletionParameters,
   assignmentRetryPolicy,
@@ -25,6 +26,82 @@ function packet(
     scenario: { reference: scenario },
     responseSchema: { type: "object" },
   };
+}
+
+interface AttemptScript {
+  response?: JsonObject;
+  stopReason?: string;
+  providerError?: string;
+  retriesConsumed?: number;
+  provider?: string;
+  model?: string;
+  hang?: boolean;
+}
+
+async function correctionFailure(
+  scripts: AttemptScript[],
+  assignmentTimeoutMs = 1_000,
+): Promise<PiAssignmentRunnerError> {
+  let listener: (event: unknown) => void = () => {};
+  let idle = true;
+  let captureResponse: (response: JsonObject) => void = () => {};
+  const session: PiAssignmentSession = {
+    get isIdle() { return idle; },
+    prompt: vi.fn(async () => {
+      const script = scripts.shift()!;
+      idle = !script.hang;
+      listener({ type: "agent_start" });
+      if (script.providerError !== undefined) {
+        listener({
+          type: "auto_retry_start",
+          attempt: script.retriesConsumed,
+          errorMessage: script.providerError,
+        });
+      }
+      if (script.stopReason !== undefined) {
+        listener({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            stopReason: script.stopReason,
+            provider: script.provider,
+            model: script.model,
+          },
+        });
+      }
+      if (script.response !== undefined) captureResponse(script.response);
+      if (script.hang) await new Promise<void>(() => {});
+    }),
+    abort: vi.fn(async () => undefined),
+    dispose: vi.fn(),
+    subscribe: vi.fn((next) => {
+      listener = next;
+      return () => {};
+    }),
+  };
+  const runner = new PiAssignmentRunner({
+    repository: ".",
+    assignmentTimeoutMs,
+    sessionFactory: vi.fn(async (_packet, capture) => {
+      captureResponse = capture;
+      return session;
+    }),
+  });
+  const previousResponse = scripts[0]!.response!;
+
+  await runner.run(packet());
+  try {
+    await runner.run(packet(), {
+      correction: {
+        previousResponse,
+        diagnostics: [{ code: "FIX", message: "Correct it" }],
+      },
+    });
+  } catch (error) {
+    if (error instanceof PiAssignmentRunnerError) return error;
+    throw error;
+  }
+  throw new Error("Expected correction attempt to fail");
 }
 
 describe("PiAssignmentRunner", () => {
@@ -897,6 +974,83 @@ describe("PiAssignmentRunner", () => {
     expect((error as PiAssignmentRunnerError).telemetry?.providerError?.message.length)
       .toBeLessThanOrEqual(512);
     expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not publish prior terminal evidence when a correction settles without it", async () => {
+    const error = await correctionFailure([{
+      response: { assignment: assignmentId, malformed: true },
+      stopReason: "error",
+      providerError: "prior provider failure",
+      retriesConsumed: 2,
+      provider: "prior-provider",
+      model: "prior-model",
+    }, {}]);
+
+    expect(operationalFailureDocument(error)).toMatchObject({
+      error: { code: "PI_SETTLED_WITHOUT_COMPLETION" },
+      telemetry: {
+        stopReason: null,
+        providerError: null,
+        retriesConsumed: 0,
+        provider: null,
+        model: null,
+        completeAssignmentObserved: false,
+      },
+    });
+  });
+
+  it("replaces prior terminal evidence with observed correction evidence", async () => {
+    const error = await correctionFailure([{
+      response: { assignment: assignmentId, malformed: true },
+      stopReason: "error",
+      providerError: "prior provider failure",
+      retriesConsumed: 2,
+      provider: "prior-provider",
+      model: "prior-model",
+    }, {
+      stopReason: "length",
+      providerError: "current provider failure",
+      retriesConsumed: 1,
+      provider: "current-provider",
+      model: "current-model",
+    }]);
+
+    expect(operationalFailureDocument(error).telemetry).toEqual({
+      stopReason: "length",
+      providerError: { message: "current provider failure", truncated: false },
+      retriesConsumed: 1,
+      provider: "current-provider",
+      model: "current-model",
+      completeAssignmentObserved: false,
+    });
+  });
+
+  it("preserves only current correction evidence when the correction times out", async () => {
+    const error = await correctionFailure([{
+      response: { assignment: assignmentId, malformed: true },
+      stopReason: "error",
+      providerError: "prior provider failure",
+      retriesConsumed: 2,
+      provider: "prior-provider",
+      model: "prior-model",
+    }, {
+      stopReason: "aborted",
+      providerError: "current timeout failure",
+      retriesConsumed: 1,
+      provider: "current-provider",
+      model: "current-model",
+      hang: true,
+    }], 30);
+
+    expect(error).toMatchObject({ message: "Pi Assignment exceeded 30ms" });
+    expect(operationalFailureDocument(error).telemetry).toEqual({
+      stopReason: "aborted",
+      providerError: { message: "current timeout failure", truncated: false },
+      retriesConsumed: 1,
+      provider: "current-provider",
+      model: "current-model",
+      completeAssignmentObserved: false,
+    });
   });
 
   it("does not report nonterminal stop reasons or unbounded provider identities", async () => {
