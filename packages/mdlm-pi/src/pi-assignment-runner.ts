@@ -151,6 +151,7 @@ export class PiAssignmentRunner {
       timeout.addEventListener("abort", () => {
         reject(new PiAssignmentRunnerError(
           `Pi Assignment exceeded ${this.#assignmentTimeoutMs}ms`,
+          active === undefined ? {} : { telemetry: terminalTelemetry(active) },
         ));
       }, { once: true });
     });

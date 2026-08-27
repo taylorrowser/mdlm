@@ -34,8 +34,10 @@ export interface PiOperationalFailureDocument {
 
 const maximumProviderErrorLength = 512;
 const secretPatterns = [
+  /["']?(?:x[-_ ]?api[-_ ]?key|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|client[-_ ]?secret|authorization|token|secret|password)["']?\s*[:=]\s*"(?:\\.|[^"\\\r\n])*"/giu,
+  /["']?(?:x[-_ ]?api[-_ ]?key|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|client[-_ ]?secret|authorization|token|secret|password)["']?\s*[:=]\s*'(?:\\.|[^'\\\r\n])*'/giu,
   /\bBearer\s+[^\s,;]+/giu,
-  /(?:api[-_ ]?key|authorization|token|secret|password)\s*[:=]\s*["']?[^\s,"';}]+/giu,
+  /(?:x[-_ ]?api[-_ ]?key|api[-_ ]?key|access[-_ ]?token|refresh[-_ ]?token|client[-_ ]?secret|authorization|token|secret|password)\s*[:=]\s*[^\s,"';}]+/giu,
   /\b(?:sk|rk|pk|ghp|github_pat|xox[baprs])[-_][A-Za-z0-9_-]{8,}/gu,
   /\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|A3T)[A-Z0-9]{16}\b/gu,
   /\b(?:glpat-|npm_|AIza)[A-Za-z0-9_-]{16,}/gu,

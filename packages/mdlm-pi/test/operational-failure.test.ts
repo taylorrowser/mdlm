@@ -53,6 +53,24 @@ describe("MDLM-Pi operational failure contract", () => {
     expect(result.message.length).toBeLessThanOrEqual(512);
   });
 
+  it.each([
+    ['nested JSON apiKey', '{"provider":{"credentials":{"apiKey":"nested-api-secret"}}}', 'nested-api-secret'],
+    ['nested JSON accessToken', '{"auth":{"accessToken":"nested-access-secret"}}', 'nested-access-secret'],
+    ['nested JSON clientSecret', '{"oauth":{"clientSecret":"nested-client-secret"}}', 'nested-client-secret'],
+    ['nested JSON password', '{"connection":{"password":"nested-password-secret"}}', 'nested-password-secret'],
+    ['nested JSON authorization', '{"headers":{"authorization":"Basic c2hvcnQtc2VjcmV0"}}', 'c2hvcnQtc2VjcmV0'],
+    ['nested JSON x-api-key', '{"headers":{"x-api-key":"nested-header-secret"}}', 'nested-header-secret'],
+    ['snake case', '{"access_token":"snake-access-secret"}', 'snake-access-secret'],
+    ['kebab case', '{"client-secret":"kebab-client-secret"}', 'kebab-client-secret'],
+    ['environment prefix', '{"OPENAI_API_KEY":"environment-secret"}', 'environment-secret'],
+    ['single quoted camel case', "{'refreshToken':'refresh-secret'}", 'refresh-secret'],
+  ])("redacts quoted credential values in %s", (_name, source, secret) => {
+    const result = redactProviderError(`provider rejected ${source}`);
+    expect(result.message).not.toContain(secret);
+    expect(result.message).toContain("[REDACTED]");
+    expect(result.message.length).toBeLessThanOrEqual(512);
+  });
+
   it("redacts and bounds the top-level operational error message", () => {
     const document = operationalFailureDocument({
       code: "MDLM_PI_OPERATION_FAILED",

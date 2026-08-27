@@ -776,6 +776,59 @@ describe("PiAssignmentRunner", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves observed terminal telemetry when the Assignment timeout expires", async () => {
+    let listener: (event: unknown) => void = () => {};
+    const secret = `sk-${"t".repeat(40)}`;
+    const session: PiAssignmentSession = {
+      get isIdle() { return false; },
+      prompt: vi.fn(async () => {
+        listener({ type: "agent_start" });
+        listener({
+          type: "auto_retry_start",
+          attempt: 1,
+          errorMessage: `authorization=Bearer ${secret}`,
+        });
+        listener({
+          type: "message_end",
+          message: {
+            role: "assistant",
+            stopReason: "error",
+            provider: "provider-id",
+            model: "model-id",
+          },
+        });
+        await new Promise<void>(() => {});
+      }),
+      abort: vi.fn(async () => undefined),
+      dispose: vi.fn(),
+      subscribe: vi.fn((next) => {
+        listener = next;
+        return () => {};
+      }),
+    };
+    const runner = new PiAssignmentRunner({
+      repository: ".",
+      assignmentTimeoutMs: 20,
+      sessionFactory: vi.fn(async () => session),
+    });
+
+    const error = await runner.run(packet()).catch((failure: unknown) => failure);
+
+    expect(error).toMatchObject({
+      message: "Pi Assignment exceeded 20ms",
+      telemetry: {
+        stopReason: "error",
+        retriesConsumed: 1,
+        provider: "provider-id",
+        model: "model-id",
+        completeAssignmentObserved: false,
+        providerError: { truncated: false },
+      },
+    });
+    expect((error as PiAssignmentRunnerError).telemetry?.providerError?.message)
+      .not.toContain(secret);
+  });
+
   it("bounds session creation as part of the Assignment timeout", async () => {
     const runner = new PiAssignmentRunner({
       repository: ".",
