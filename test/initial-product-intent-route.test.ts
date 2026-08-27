@@ -6,6 +6,7 @@ import { PROCESS_REPOSITORY_TEST_TIMEOUT_MS } from "../scripts/root-test-observa
 import { executeCommandApplication } from "../src/command-application.js";
 import { initializeRepositoryFromLoadedProcessPackage } from "../src/repository-initialization.js";
 import {
+  assignmentResponse,
   directoryDigest,
   inputRevision,
   inputRevisions,
@@ -270,6 +271,60 @@ describe("initial product-intent authority", () => {
           body: "The PSP retains the formulas, destination units, formatting, invalid cases, exclusions, and simplicity constraints.\n",
         },
       };
+      const invocationQuestion: ProposedOutput = {
+        localId: "lineNumberQuestion",
+        name: "questions",
+        invocation: 1,
+        lifecycleDatum: {
+          type: "QST",
+          payload: {
+            title: "Define line numbering for conversion errors",
+            kind: "preferential",
+            intent_scope: "product",
+            question: "Should a future line-specific conversion error use zero-based or one-based numbering?",
+            state: "open",
+            blocking_impact: "The product contract cannot assign an exact line number without this choice.",
+            attention_checkpoint: "phase-0-gate",
+            consolidation_group: "phase-0-stakeholder-questions",
+          },
+          links: [{ type: "blocks", target: "$proposal.product.id" }],
+          body: "The product authority does not select a line-numbering base.\n",
+        },
+      };
+      const malformedCompileResponse = assignmentResponse(
+        compile!,
+        [productOutput, invocationQuestion],
+      );
+      const malformedCompileProposal = malformedCompileResponse.proposal as {
+        authoritySupplies: string[];
+      };
+      malformedCompileProposal.authoritySupplies = [correctedDecision.revisionId];
+      const malformedCompile = await executeCommandApplication(
+        ["scenario", "submit"],
+        repository,
+        `${JSON.stringify(malformedCompileResponse)}\n`,
+      );
+      expect(malformedCompile.exitCode).toBe(1);
+      expect(JSON.parse(malformedCompile.output).malformedResponse).toEqual({
+        attempt: 1,
+        correctionsRemaining: 1,
+        diagnostics: [{
+          code: "scenario-authority-unexpected",
+          path: "compile-psp@3#authority",
+          message: `Scenario 'compile-psp@3' received authority not required by its exact participation: ${correctedDecision.revisionId}`,
+        }, {
+          code: "scenario-output-invocation-invalid",
+          path: "proposal.outputs[1].invocation",
+          message: "Scenario Proposal output 'questions' names unknown invocation 1",
+        }],
+      });
+      const proposalSchema = compile!.packet.responseSchema.oneOf.find(
+        (candidate: { properties: { kind: { const: string } } }) =>
+          candidate.properties.kind.const === "proposal",
+      );
+      expect(proposalSchema.properties.proposal.properties.outputs.items.properties.invocation)
+        .toEqual({ type: "integer", enum: [0] });
+
       const product = await submitAssignment(repository, compile!, [productOutput]);
       expect(product.status, `${product.stderr}${product.stdout}`).toBe(0);
       const publishedProduct = JSON.parse(product.stdout).execution.outputs[0]

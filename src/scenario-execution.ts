@@ -632,19 +632,6 @@ async function submitScenario(
     });
     return false;
   });
-  if (unsatisfiedRequirements.length > 0) {
-    const missingAuthorities = [...new Set(
-      unsatisfiedRequirements.map((requirement) => requirement.authority),
-    )].sort();
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "scenario-authority-required",
-        path: `${scenarioReference}#authority`,
-        message: `Scenario '${scenarioReference}' requires explicit authority from: ${missingAuthorities.join(", ")}`,
-      }],
-    };
-  }
   const requiredAuthorities = [...new Set(
     authorityRequirements.map((requirement) => requirement.authority),
   )].sort();
@@ -654,32 +641,26 @@ async function submitScenario(
   const unexpectedDelegations = delegations.filter((delegation) =>
     !usedDelegations.has(delegation)
   );
-  if (unexpectedAuthorities.length > 0 || unexpectedDelegations.length > 0) {
-    return {
-      ok: false,
-      diagnostics: [{
+  const authorityDiagnostics: ProcessDiagnostic[] = unsatisfiedRequirements.length > 0
+    ? [{
+        code: "scenario-authority-required",
+        path: `${scenarioReference}#authority`,
+        message: `Scenario '${scenarioReference}' requires explicit authority from: ${[
+          ...new Set(
+            unsatisfiedRequirements.map((requirement) => requirement.authority),
+          ),
+        ].sort().join(", ")}`,
+      }]
+    : unexpectedAuthorities.length > 0 || unexpectedDelegations.length > 0
+    ? [{
         code: "scenario-authority-unexpected",
         path: `${scenarioReference}#authority`,
         message: `Scenario '${scenarioReference}' received authority not required by its exact participation: ${[
           ...unexpectedAuthorities,
           ...unexpectedDelegations,
         ].join(", ")}`,
-      }],
-    };
-  }
-  const executionAuthority: ScenarioExecutionAuthority | undefined =
-    authorityRequirements.length > 0
-      ? {
-          supplied,
-          delegations: [...usedDelegations].sort(),
-          requirements: authorityRequirements.map((requirement) => ({
-            ...requirement,
-            authorization: requirementAuthorizations.get(
-              requirement.invocation,
-            )!,
-          })),
-        }
-      : undefined;
+      }]
+    : [];
   const participationPolicyReferences = [...new Set(
     (dryRun.participation ?? []).map((participation) => participation.policy),
   )].sort();
@@ -696,13 +677,38 @@ async function submitScenario(
     declaredSkillRefs,
     loadedSkillRefs,
   );
-  if (skillDiagnostics.length > 0) {
-    return { ok: false, diagnostics: skillDiagnostics };
+  const proposal = submittedResponse.proposal;
+  const scenario = selectedScenario;
+  const contractDiagnostics = scenarioOutputContractDiagnostics(
+    scenario,
+    dryRun.invocations,
+    proposal.outputs,
+  );
+  // Report packet-local faults together before dependent evidence and publication checks.
+  const independentDiagnostics = [
+    ...authorityDiagnostics,
+    ...skillDiagnostics,
+    ...contractDiagnostics,
+  ];
+  if (independentDiagnostics.length > 0) {
+    return { ok: false, diagnostics: independentDiagnostics };
   }
+  const executionAuthority: ScenarioExecutionAuthority | undefined =
+    authorityRequirements.length > 0
+      ? {
+          supplied,
+          delegations: [...usedDelegations].sort(),
+          requirements: authorityRequirements.map((requirement) => ({
+            ...requirement,
+            authorization: requirementAuthorizations.get(
+              requirement.invocation,
+            )!,
+          })),
+        }
+      : undefined;
   const loadedSkills = loadedSkillRefs.map((reference) =>
     dryRun.prompt.skills.find((skill) => skill.reference === reference)!
   );
-  const proposal = submittedResponse.proposal;
   if (executionAuthority && authorityEvidence) {
     const requiredInvocations = [...new Set(
       executionAuthority.requirements.map((requirement) => requirement.invocation),
@@ -724,15 +730,6 @@ async function submitScenario(
         }],
       };
     }
-  }
-  const scenario = selectedScenario;
-  const contractDiagnostics = scenarioOutputContractDiagnostics(
-    scenario,
-    dryRun.invocations,
-    proposal.outputs,
-  );
-  if (contractDiagnostics.length > 0) {
-    return { ok: false, diagnostics: contractDiagnostics };
   }
 
   const existingById = new Map<string, LifecycleRecord[]>();

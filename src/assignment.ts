@@ -1879,8 +1879,10 @@ export async function inspectOperatorStatus(
   };
 }
 
-/** Return the exact response contract embedded in every Assignment packet. */
-export function assignmentResponseSchema(): Record<string, unknown> {
+/** Return the Assignment response contract, optionally bound to exact invocation groups. */
+export function assignmentResponseSchema(
+  invocations?: readonly number[],
+): Record<string, unknown> {
   const diagnostic = {
     type: "object",
     additionalProperties: false,
@@ -1957,7 +1959,9 @@ export function assignmentResponseSchema(): Record<string, unknown> {
                       description: "Proposal-local identity used by $proposal.<localId>.id and $proposal.<localId>.revision_id references",
                     },
                     name: { type: "string" },
-                    invocation: { type: "integer", minimum: 0 },
+                    invocation: invocations
+                      ? { type: "integer", enum: [...invocations] }
+                      : { type: "integer", minimum: 0 },
                     lifecycleDatum,
                   },
                 },
@@ -2184,7 +2188,9 @@ function packet(
       requiredLinks: output.requiredLinks,
     })),
     completion: exact.dryRun.completion,
-    responseSchema: assignmentResponseSchema(),
+    responseSchema: assignmentResponseSchema(
+      exact.dryRun.invocations.map((_, invocation) => invocation),
+    ),
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation
       ? {
