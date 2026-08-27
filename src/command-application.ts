@@ -1,6 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { promisify, TextDecoder } from "node:util";
 import { parse } from "yaml";
 import {
   evaluateLifecycle,
@@ -68,11 +70,17 @@ import {
   type FixtureTestSummary,
 } from "./process-package-fixtures.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
+import { repositoryGitEnvironment } from "./git-environment.js";
+import {
+  operatorInstructions,
+  type OperatorInstructions,
+} from "./operator-instructions.js";
 import {
   inspectAssignmentState,
   inspectOperatorStatus,
   leaseNextAssignment,
   prepareAssignment,
+  repositoryFingerprint,
   submitAssignmentResponse,
   type AssignmentDisposition,
   type AssignmentOutcome,
@@ -123,10 +131,27 @@ interface TypeSchemaInspection {
   }[];
 }
 
+interface StartBriefing {
+  contract: "mdlm-start@1";
+  operatorGuide: {
+    path: "MDLM.md";
+    content: string;
+    digest: string;
+  };
+  git: {
+    clean: boolean;
+    trackedPaths: string[];
+    untrackedPaths: string[];
+  };
+  readyToContinue: boolean;
+  nextCommand: "mdlm next --json";
+  repository: AssignmentPacket["repository"];
+}
+
 interface CommandResultBase {
   ok: boolean;
   command?: string;
-  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"];
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"];
   outcome?: AssignmentOutcome["outcome"] | "invalid";
   materializedExecutions?: AssignmentOutcome["materializedExecutions"];
   assignment?: { id: string };
@@ -167,6 +192,12 @@ interface CommandResultBase {
   looseEnds?: LooseEndsProjection;
   tests?: FixtureTestSummary;
   repository?: RepositorySummary | AssignmentPacket["repository"];
+  operatorGuide?: StartBriefing["operatorGuide"];
+  git?: StartBriefing["git"];
+  readyToContinue?: StartBriefing["readyToContinue"];
+  nextCommand?: StartBriefing["nextCommand"];
+  operatorInstructions?: OperatorInstructions;
+  help?: string;
   migration?: ProcessMigration;
   schema?: TypeSchemaInspection;
   lifecycleDatum?: StoredDatum["lifecycleDatum"];
@@ -191,6 +222,19 @@ type PreparedAssignmentCommandResult = CommandResultBase & AssignmentPacket & {
 };
 
 type CommandResult = CommandResultBase | PreparedAssignmentCommandResult;
+
+const executeFile = promisify(execFile);
+const operatorGuidePath = "MDLM.md";
+
+const help = `Usage: mdlm <command> [--json]
+
+Agent-guided lifecycle commands:
+  mdlm init <destination>
+  mdlm start [--json]
+  mdlm next [--json]
+  mdlm scenario prepare <assignment-id> [--json]
+  mdlm scenario submit [response-file|-] [--json]
+  mdlm doctor [--json]`;
 
 function failure(
   code: string,
@@ -1084,6 +1128,97 @@ async function showLooseEnds(
   };
 }
 
+function nulPaths(output: string): string[] {
+  return [...new Set(output.split("\0").filter(Boolean))].sort((left, right) =>
+    left.localeCompare(right)
+  );
+}
+
+async function startBriefing(repositoryRoot: string): Promise<CommandResult> {
+  const selected = await selectedRepositoryPackage(repositoryRoot);
+  if (!selected.ok) {
+    return {
+      ok: false,
+      command: "start",
+      selected: selected.selected,
+      diagnostics: selected.diagnostics,
+    };
+  }
+  const guidePath = path.join(repositoryRoot, operatorGuidePath);
+  let content: string;
+  let guideBytes: Buffer;
+  try {
+    guideBytes = await fs.readFile(guidePath);
+    content = new TextDecoder("utf-8", { fatal: true }).decode(guideBytes);
+  } catch (error) {
+    return {
+      ...failure(
+        "operator-guide-read-failed",
+        `Could not read '${operatorGuidePath}': ${error instanceof Error ? error.message : String(error)}`,
+        guidePath,
+      ),
+      command: "start",
+    };
+  }
+
+  let trackedPaths: string[];
+  let untrackedPaths: string[];
+  try {
+    const environment = {
+      ...repositoryGitEnvironment(),
+      GIT_OPTIONAL_LOCKS: "0",
+    };
+    const [tracked, untracked, fingerprint] = await Promise.all([
+      executeFile("git", ["diff", "--name-only", "-z", "HEAD"], {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+        env: environment,
+      }),
+      executeFile("git", ["ls-files", "--others", "--exclude-standard", "-z"], {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+        env: environment,
+      }),
+      repositoryFingerprint(repositoryRoot),
+    ]);
+    if (!fingerprint.ok) {
+      return {
+        ok: false,
+        command: "start",
+        diagnostics: fingerprint.diagnostics,
+      };
+    }
+    trackedPaths = nulPaths(tracked.stdout);
+    untrackedPaths = nulPaths(untracked.stdout);
+    const clean = trackedPaths.length === 0 && untrackedPaths.length === 0;
+    return {
+      ok: true,
+      command: "start",
+      contract: "mdlm-start@1",
+      package: selected.summary,
+      repository: fingerprint.value,
+      operatorGuide: {
+        path: operatorGuidePath,
+        content,
+        digest: `sha256:${createHash("sha256").update(guideBytes).digest("hex")}`,
+      },
+      git: { clean, trackedPaths, untrackedPaths },
+      readyToContinue: clean,
+      nextCommand: "mdlm next --json",
+      diagnostics: [],
+    };
+  } catch (error) {
+    return {
+      ...failure(
+        "git-cleanliness-inspection-failed",
+        `Could not inspect ordinary Git cleanliness: ${error instanceof Error ? error.message : String(error)}`,
+        repositoryRoot,
+      ),
+      command: "start",
+    };
+  }
+}
+
 async function showNextAssignment(
   repositoryRoot: string,
 ): Promise<CommandResult> {
@@ -1458,6 +1593,7 @@ export function renderOperatorStatus(status: OperatorStatus): string {
 }
 
 function renderCommandResult(result: CommandResult): string {
+  if (result.help) return result.help;
   if (!result.ok && result.validation) {
     return [
       `Compilation: ${result.validation.compilation}`,
@@ -1473,6 +1609,33 @@ function renderCommandResult(result: CommandResult): string {
     return result.diagnostics
       .map((diagnostic) => `Error [${diagnostic.code}]: ${diagnostic.message}`)
       .join("\n");
+  }
+  if (
+    result.contract === "mdlm-start@1" && result.package && result.repository &&
+    "head" in result.repository &&
+    result.operatorGuide && result.git && result.readyToContinue !== undefined &&
+    result.nextCommand
+  ) {
+    const state = [
+      `Git: ${result.git.clean ? "clean" : "dirty"}`,
+      `Tracked paths: ${result.git.trackedPaths.join(", ") || "none"}`,
+      `Untracked paths: ${result.git.untrackedPaths.join(", ") || "none"}`,
+      `Ready to continue: ${result.git.clean ? "yes" : "no"}`,
+      ...(result.git.clean
+        ? []
+        : ["Preserve and resolve this exact Git state before invoking next."]),
+    ];
+    return [
+      `Process Package: ${result.package.reference}#${result.package.digest}`,
+      `Repository HEAD: ${result.repository.head}`,
+      `Repository Tracked State: ${result.repository.trackedState}`,
+      ...state,
+      `Operator Guide: ${result.operatorGuide.path}#${result.operatorGuide.digest}`,
+      "",
+      result.operatorGuide.content.trimEnd(),
+      "",
+      `Next command: ${result.nextCommand}`,
+    ].join("\n");
   }
   if (result.schema && result.package) {
     const schema = result.schema;
@@ -1801,6 +1964,12 @@ async function dispatchCommand(
   standardInput?: string,
 ): Promise<CommandResult> {
   const operands = commandOperands(arguments_);
+  if (
+    (arguments_.length === 1 && arguments_[0] === "--help") ||
+    (operands.length === 1 && operands[0] === "help")
+  ) {
+    return { ok: true, command: "help", help, diagnostics: [] };
+  }
   if (operands[0] === "init") {
     if (arguments_.includes("--process")) {
       return failure(
@@ -1819,6 +1988,18 @@ async function dispatchCommand(
       path.resolve(repositoryRoot, initArguments[1]!),
     );
     return { ...initialized, command: "init" };
+  }
+  if (operands[0] === "start") {
+    const startArguments = arguments_.filter((argument) => argument !== "--json");
+    return startArguments.length === 1
+      ? startBriefing(repositoryRoot)
+      : {
+          ...failure(
+            "start-arguments-unsupported",
+            "Expected 'mdlm start' without operands",
+          ),
+          command: "start",
+        };
   }
   if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
   if (operands[0] === "status") {
@@ -2020,10 +2201,27 @@ async function executeCommand(
         }
       : failed;
   }
+  if (arguments_[0] === "next") {
+    if (!result.ok) {
+      result = {
+        ...result,
+        command: "next",
+        contract: "mdlm-next@1",
+        outcome: "invalid",
+        integrity: { status: "invalid" },
+        materializedExecutions: result.materializedExecutions ?? [],
+      };
+    }
+    result = {
+      ...result,
+      operatorInstructions: operatorInstructions(result),
+    };
+  }
   return {
     exitCode: result.ok ? 0 : 1,
     output: `${arguments_.includes("--json") ||
-        (result.contract && arguments_[0] !== "status") ||
+        (result.contract && arguments_[0] !== "status" &&
+          arguments_[0] !== "start") ||
         arguments_[0] === "next" ||
         (arguments_[0] === "scenario" &&
           (arguments_[1] === "prepare" || arguments_[1] === "submit"))

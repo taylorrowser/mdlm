@@ -215,11 +215,21 @@ describe("delegated Review Assignment packets", () => {
       const nextReviewOutput = JSON.parse(nextReview.stdout) as {
         assignment: { id: string };
         materializedExecutions: { id: string; scenario: string; status: string }[];
+        operatorInstructions: {
+          action: string;
+          commands: string[];
+          materializedExecutions: { id: string; scenario: string }[];
+        };
       };
       const preCommitReviewAssignment = nextReviewOutput.assignment.id;
       expect(nextReviewOutput.materializedExecutions).toEqual([
         expect.objectContaining({ scenario: "create-review-context@1", status: "completed" }),
       ]);
+      expect(nextReviewOutput.operatorInstructions).toEqual(expect.objectContaining({
+        action: "publish-materialized-executions",
+        commands: ["mdlm doctor --json", "mdlm next --json"],
+        materializedExecutions: nextReviewOutput.materializedExecutions,
+      }));
       const transactionRoot = path.join(repository, ".lifecycle/data/.transactions");
       const executionFiles = (await fs.readdir(transactionRoot)).map((id) =>
         path.join(transactionRoot, id, "execution.json")

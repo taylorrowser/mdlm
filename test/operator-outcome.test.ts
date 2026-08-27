@@ -824,6 +824,14 @@ gate:
         authority: "stakeholder",
         delegationAllowed: false,
       },
+      operatorInstructions: expect.objectContaining({
+        contract: "mdlm-operator-instructions@1",
+        action: "obtain-attention",
+        disposition: "continuation",
+        commands: expect.arrayContaining([
+          `mdlm scenario prepare ${outcome.assignment.id} --json`,
+        ]),
+      }),
     }));
     const progressionPacket = await applicationMdlm(
       repository,
@@ -1021,6 +1029,10 @@ gate:
       contract: "mdlm-next@1",
       outcome: "invalid",
       integrity: { status: "invalid" },
+      operatorInstructions: expect.objectContaining({
+        action: "stop-failure",
+        disposition: "unsuccessful-stop",
+      }),
       diagnostics: [expect.objectContaining({
         code: "process-package-selection-invalid",
       })],
@@ -1046,6 +1058,10 @@ gate:
       contract: "mdlm-next@1",
       outcome: "invalid",
       integrity: { status: "invalid" },
+      operatorInstructions: expect.objectContaining({
+        action: "stop-failure",
+        disposition: "unsuccessful-stop",
+      }),
       diagnostics: [expect.objectContaining({
         code: "process-package-selection-mismatch",
       })],

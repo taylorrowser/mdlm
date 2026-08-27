@@ -53,6 +53,11 @@ async function copyDistribution(distribution: string): Promise<void> {
       path.join(distribution, ".lifecycle/process"),
       { recursive: true },
     ),
+    fs.cp(
+      path.join(projectRoot, "operator"),
+      path.join(distribution, "operator"),
+      { recursive: true },
+    ),
     fs.writeFile(
       path.join(distribution, "package.json"),
       '{"type":"module"}\n',
