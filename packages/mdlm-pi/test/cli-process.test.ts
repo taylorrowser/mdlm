@@ -169,6 +169,59 @@ describe("mdlm-pi run process boundary", () => {
     expect(stopped.stdout).toContain('"status": "interrupted"');
   });
 
+  it("settles blocked attended input on SIGINT and releases run ownership", async () => {
+    const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
+    const fixture = await processFixture({
+      currentOutcome: {
+        outcome: "attention-required",
+        assignment: { allocation: "active", id: assignmentId },
+        authorityRequirement: {
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        },
+      },
+      prepareAssignmentId: assignmentId,
+    });
+    const arguments_ = [
+      cli,
+      "run",
+      fixture.repository,
+      "--mdlm",
+      fixture.mdlm,
+    ];
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const operator = spawn(process.execPath, arguments_, {
+        cwd: fixture.invocationDirectory,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      const stopped = collect(operator);
+      await waitForOutput(
+        operator,
+        "Explicit conclusion from the named authority holder",
+      );
+
+      operator.kill("SIGINT");
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        operator.kill("SIGKILL");
+      }, 2_000);
+      const result = await stopped;
+      clearTimeout(timeout);
+      if (timedOut) {
+        throw new Error(
+          `SIGINT attempt ${attempt + 1} did not settle: ${JSON.stringify(result)}`,
+        );
+      }
+
+      expect(result.status).toBe(130);
+      expect(result.stdout).toContain('"status": "interrupted"');
+      expect(result.stderr).toBe("");
+    }
+  });
+
   it("recovers a killed controller while mdlm next is materializing one transaction", async () => {
     if (!["darwin", "linux"].includes(process.platform)) return;
     const root = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-next-recovery-"));
@@ -615,6 +668,7 @@ async function processFixture(options: {
   blockStatus?: boolean;
   currentOutcome?: Record<string, unknown>;
   prepareFailure?: Record<string, unknown>;
+  prepareAssignmentId?: string;
 } = {}): Promise<{
   repository: string;
   invocationDirectory: string;
@@ -639,6 +693,12 @@ async function processFixture(options: {
   await writeFile(path.join(repository, "README.md"), "fixture\n");
   await executeFile("git", ["add", "README.md"], { cwd: repository });
   await executeFile("git", ["commit", "--quiet", "-m", "fixture"], { cwd: repository });
+  const repositoryFingerprint = await new GitPublisher({ repository }).repositoryFingerprint();
+  const packageIdentity = {
+    reference: "package-neutral@1",
+    digest: `sha256:${"a".repeat(64)}`,
+    language: "mdlm-expression@1",
+  };
   await writeFile(mdlm, `#!/usr/bin/env node
 import { appendFile, access, writeFile } from "node:fs/promises";
 const log = ${JSON.stringify(log)};
@@ -653,9 +713,22 @@ if (${JSON.stringify(options.blockStatus === true)}) {
   }
 }
 const prepareFailure = ${JSON.stringify(options.prepareFailure ?? null)};
+const prepareAssignmentId = ${JSON.stringify(options.prepareAssignmentId ?? null)};
 if (args[0] === "scenario" && args[1] === "prepare" && prepareFailure !== null) {
   process.stdout.write(JSON.stringify(prepareFailure));
   process.exitCode = 1;
+} else if (args[0] === "scenario" && args[1] === "prepare" && prepareAssignmentId !== null) {
+  process.stdout.write(JSON.stringify({
+    contract: "mdlm-assignment-packet@2",
+    command: "scenario.prepare",
+    ok: true,
+    assignment: { id: prepareAssignmentId },
+    package: ${JSON.stringify(packageIdentity)},
+    repository: ${JSON.stringify(repositoryFingerprint)},
+    scenario: { reference: "resolve-question@2" },
+    prompt: { exact: "resolve it", skills: [] },
+    responseSchema: { type: "object" }
+  }));
 } else {
   process.stdout.write(JSON.stringify({
     contract: "mdlm-status@1",
@@ -670,6 +743,36 @@ if (args[0] === "scenario" && args[1] === "prepare" && prepareFailure !== null) 
 `);
   await chmod(mdlm, 0o755);
   return { repository, invocationDirectory, mdlm, log, ready, release };
+}
+
+async function waitForOutput(
+  child: ChildProcess,
+  expected: string,
+): Promise<void> {
+  const output = child.stdout;
+  if (output === null) throw new Error("Child stdout is unavailable");
+  output.setEncoding("utf8");
+  await new Promise<void>((resolve, reject) => {
+    let source = "";
+    const timeout = setTimeout(() => finish(() => reject(
+      new Error(`Timed out waiting for child output: ${expected}`),
+    )), ownerProcessReadyTimeoutMs);
+    const finish = (callback: () => void) => {
+      clearTimeout(timeout);
+      output.removeListener("data", onData);
+      child.removeListener("close", onClose);
+      callback();
+    };
+    const onData = (chunk: string) => {
+      source += chunk;
+      if (source.includes(expected)) finish(resolve);
+    };
+    const onClose = (status: number | null) => finish(() => reject(
+      new Error(`Child exited with ${status} before writing: ${expected}`),
+    ));
+    output.on("data", onData);
+    child.on("close", onClose);
+  });
 }
 
 async function commandLog(log: string): Promise<unknown[]> {

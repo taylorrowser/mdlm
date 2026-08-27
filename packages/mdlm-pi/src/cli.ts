@@ -2,7 +2,10 @@
 import path from "node:path";
 import { GitPublisher } from "./git-publisher.js";
 import { MdlmClient, MdlmClientError } from "./mdlm-client.js";
-import { TerminalOperatorIO } from "./operator-io.js";
+import {
+  TerminalOperatorIO,
+  type AttendedInputMode,
+} from "./operator-io.js";
 import { PiAssignmentRunner, type ThinkingLevel } from "./pi-assignment-runner.js";
 import { RunController } from "./run-controller.js";
 import { RunJournal } from "./run-journal.js";
@@ -29,7 +32,12 @@ async function main(arguments_: string[]): Promise<number> {
   const ownerDirectory = path.join(await git.commonGitDirectory(), "mdlm-pi-owner");
   const lock = await RunLock.acquire(ownerDirectory);
   try {
-    const io = new TerminalOperatorIO();
+    const interruption = new AbortController();
+    const inputMode = attendedInputMode(process.env.MDLM_PI_ATTENDED_INPUT_MODE);
+    const io = new TerminalOperatorIO({
+      ...(inputMode === undefined ? {} : { mode: inputMode }),
+      signal: interruption.signal,
+    });
     const assignments = new PiAssignmentRunner({
       repository,
       assignmentTimeoutMs: environmentInteger(
@@ -48,7 +56,6 @@ async function main(arguments_: string[]): Promise<number> {
       timeoutMs: environmentInteger("MDLM_PI_COMMAND_TIMEOUT_MS", 30_000),
       attemptDirectory: path.join(stateDirectory, "attempts"),
     });
-    const interruption = new AbortController();
     let interruptedBy: NodeJS.Signals | undefined;
     const handlers = new Map<NodeJS.Signals, () => void>();
     for (const signal of ["SIGHUP", "SIGINT", "SIGTERM"] as const) {
@@ -127,6 +134,20 @@ function signalExitStatus(signal: NodeJS.Signals): number {
   if (signal === "SIGHUP") return 129;
   if (signal === "SIGINT") return 130;
   return 143;
+}
+
+function attendedInputMode(value: string | undefined): AttendedInputMode | undefined {
+  if (value === undefined || value === "") return undefined;
+  if (
+    value === "legacy-eof"
+    || value === "framed-v1"
+    || value === "terminal-delimiter"
+  ) {
+    return value;
+  }
+  throw new Error(
+    "MDLM_PI_ATTENDED_INPUT_MODE must be legacy-eof, framed-v1, or terminal-delimiter",
+  );
 }
 
 function environmentInteger(name: string, fallback: number): number {
