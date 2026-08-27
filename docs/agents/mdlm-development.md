@@ -16,7 +16,7 @@ Run these lanes independently. A blocked lane must not idle the others.
 
 An eligible demo lane is initialized under the exact identity required by [Portfolio discipline](#portfolio-discipline), has clean Git state and valid integrity, has no uncertain-publication or provenance stop, and has one sole owner.
 
-Outside the serialized quiet-window exception under [Integration qualification](#integration-qualification), keep a floor of two eligible lifecycle operators, target three, and cap them at three. Select and account for the slots under the host operating policy.
+When no exact quiet-window reservation is active under the host operating policy, keep a floor of two eligible lifecycle operators when two eligible lanes exist, target three, and cap them at three. Floor zero applies only while the host policy's exact reservation is authenticated as active. Follow that policy for slot selection, clearance, restoration, and restoration-breach reporting.
 
 Continue each lane through accepted Reviews, publications, qualification, and Phase entry. Its operational endpoint is the controller result `Lifecycle Complete` or `Profile Boundary Reached`, or a package-declared terminal outcome. The exact stop conditions in the host policy's linked recovery runbook mark the lane stopped or blocked, not complete.
 
@@ -31,7 +31,7 @@ Rank fixes by operational effect:
 3. defects blocking one demo;
 4. findings with no current operational effect.
 
-Reproduce the observed failure once, add the smallest regression that fails for that reason, make the narrow fix, run focused tests and checks to green outside release-qualification quiet windows, and obtain one fresh-context review PASS. Return to a demo after review. Broader hardening belongs in a separate nonblocking issue.
+Reproduce the observed failure once, add the smallest regression that fails for that reason, make the narrow fix, run focused tests and checks to green outside an active exact quiet-window reservation, and obtain one fresh-context review PASS. Return to a demo after review. Broader hardening belongs in a separate nonblocking issue.
 
 ### Integration qualification
 
@@ -47,7 +47,7 @@ The integration lane owns expensive checks:
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
 
-One-shot release qualification is the only time the lifecycle-operator floor may fall to zero. The exact release runbook owns the authenticated start and terminal boundaries of that quiet window and the no-replay rule for a combined identity. Set the floor to zero only within those boundaries. Restore the normal slots immediately after the terminal boundary.
+The host operating policy alone owns lifecycle pauses and every reservation and restoration rule, including breach reporting. Follow its `RELEASE-QUALIFICATION.md` pointer for gate preparation, execution, one-shot treatment, outcome classification, and manifest requirements inside an active reservation.
 
 ### Release assembly
 
