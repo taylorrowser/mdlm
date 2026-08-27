@@ -6,7 +6,12 @@ import {
   TerminalOperatorIO,
   type AttendedInputMode,
 } from "./operator-io.js";
-import { PiAssignmentRunner, type ThinkingLevel } from "./pi-assignment-runner.js";
+import {
+  PiAssignmentRunner,
+  PiAssignmentRunnerError,
+  type ThinkingLevel,
+} from "./pi-assignment-runner.js";
+import { operationalFailureDocument } from "./operational-failure.js";
 import { RunController } from "./run-controller.js";
 import { RunJournal } from "./run-journal.js";
 import { RunLock } from "./run-lock.js";
@@ -22,8 +27,9 @@ const exitStatus = {
 async function main(arguments_: string[]): Promise<number> {
   const parsed = parseArguments(arguments_);
   if (parsed === null) {
-    process.stderr.write("Usage: mdlm-pi run <repository> [--mdlm <executable>] [--provider <provider>] [--model <model>] [--thinking <level>]\n");
-    return exitStatus.operationalFailure;
+    throw new CliUsageError(
+      "Usage: mdlm-pi run <repository> [--mdlm <executable>] [--provider <provider>] [--model <model>] [--thinking <level>]",
+    );
   }
 
   const repository = path.resolve(parsed.repository);
@@ -160,17 +166,34 @@ function environmentInteger(name: string, fallback: number): number {
   return value;
 }
 
+class CliUsageError extends Error {
+  readonly code = "CLI_USAGE_INVALID";
+}
+
 try {
   process.exitCode = await main(process.argv.slice(2));
 } catch (error) {
   const lockConflict = error instanceof Error && error.name === "RunLockError";
-  process.stderr.write(`${JSON.stringify({
-    status: lockConflict ? "lock-conflict" : "operational-failure",
-    error: error instanceof Error ? error.message : String(error),
-    ...(error instanceof MdlmClientError && error.details !== undefined
-      ? { details: error.details }
-      : {}),
-  }, null, 2)}\n`);
+  const code = error instanceof PiAssignmentRunnerError
+    ? error.code
+    : error instanceof CliUsageError
+      ? error.code
+      : error instanceof MdlmClientError
+        ? "MDLM_CLIENT_ERROR"
+        : "MDLM_PI_OPERATION_FAILED";
+  const document = lockConflict
+    ? {
+        status: "lock-conflict",
+        error: error instanceof Error ? error.message : String(error),
+      }
+    : operationalFailureDocument({
+        code,
+        message: error instanceof Error ? error.message : String(error),
+        ...(error instanceof PiAssignmentRunnerError && error.telemetry !== undefined
+          ? { telemetry: error.telemetry }
+          : {}),
+      });
+  process.stderr.write(`${JSON.stringify(document, null, 2)}\n`);
   process.exitCode = lockConflict
     ? exitStatus.lockConflict
     : exitStatus.operationalFailure;
