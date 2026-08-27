@@ -1,5 +1,10 @@
 # Autonomous frontier loop
 
+> **Historical document.** This describes the retired Pi-specific serial frontier
+> controller and remains as operational evidence. It is not the current MDLM
+> product or repository operating contract. Start with `README.md` and
+> `docs/agents/mdlm-development.md`.
+
 For the system architecture, delivery rationale, observed failure modes, and operating lessons, see [Frontier implementation loop: architecture and operating lessons](frontier-loop-architecture-and-learnings.md).
 
 The frontier loop snapshots the issue identities of both the tracer-bullet children of specification issue #83 and the older open `ready-for-agent` backlog at first start. It prefers dependency-safe tickets from the fixed priority identity set and chooses the lowest issue number when several are ready. If that map has no runnable ticket, it may select the lowest independently ready identity from the already-snapshotted backlog; it never absorbs later work. Quarantined identities are excluded from reservation but remain open blockers. Blocker state, issue contracts, and comments remain live deliberately. Each implementation receives a fresh Pi process and an isolated Git worktree.

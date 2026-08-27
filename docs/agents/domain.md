@@ -1,4 +1,4 @@
-# Domain Docs
+# Domain docs
 
 This is a single-context repository. Engineering skills consume its domain documentation as follows.
 
@@ -8,7 +8,7 @@ Read:
 
 - `CONTEXT.md` at the repository root;
 - relevant ADRs under `docs/adr/`;
-- the accepted process overview when work touches the package, evaluator, CLI, kernel, or bundled example.
+- the supported operator contract in `README.md` when work touches the Process Package, evaluator, CLI, kernel, or bundled example.
 
 Proceed silently if a referenced domain document does not exist.
 
