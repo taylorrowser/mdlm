@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import {
   evaluateLifecycle,
   evaluateProcessDefinition,
-  evaluateProcessExpression,
+  evaluateProcessExpressionResult,
   evaluateResolverInputs,
   evaluateScenarioParticipation,
   evaluateScenarioReviewPolicy,
@@ -333,8 +333,12 @@ function expressionValue(
   target: string,
   bindings: Record<string, unknown>,
 ): unknown {
-  return evaluateProcessExpression(processPackage, snapshot, target, bindings)
-    .result;
+  return evaluateProcessExpressionResult(
+    processPackage,
+    snapshot,
+    target,
+    bindings,
+  );
 }
 
 function cardinalityRange(cardinality: string): {

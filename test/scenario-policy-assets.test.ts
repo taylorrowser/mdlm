@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -175,6 +176,32 @@ describe("package-authored review Policy evidence", () => {
     expect(observed.diagnostics.work["scenario.input-condition-evaluations"])
       .toBe(7);
   });
+
+  it("prepares the 58-record status Assignment under Node's default heap", () => {
+    const environment = { ...process.env };
+    delete environment.NODE_OPTIONS;
+    const observed = spawnSync(
+      process.execPath,
+      ["test/fixtures/status-scale/probe.mjs"],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: environment,
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 90_000,
+      },
+    );
+
+    expect(
+      observed.status,
+      `${observed.error?.message ?? ""}\n${observed.stderr}`,
+    ).toBe(0);
+    expect(JSON.parse(observed.stdout)).toEqual({
+      records: 58,
+      scenario: "create-phase-0-intent-candidate@1",
+      invocations: 1,
+    });
+  }, 100_000);
 
   it("retains the Cartesian product for conditions that reference two inputs", async () => {
     const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-cross-input-condition-"));
