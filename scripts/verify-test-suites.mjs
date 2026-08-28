@@ -56,8 +56,8 @@ const suiteIds = rootVitestSuites.map((suite) => suite.id);
 const mdlmPiDiscovered = collectTestFiles("packages/mdlm-pi/test");
 const errors = qualificationManifestErrors(rootDiscovered, rootTestQualificationManifest);
 
-if (rootDiscovered.length !== 47) {
-  errors.push(`Expected exactly 47 root Vitest files, found ${rootDiscovered.length}`);
+if (rootDiscovered.length !== 46) {
+  errors.push(`Expected exactly 46 root Vitest files, found ${rootDiscovered.length}`);
 }
 if (rootVitestSuites.length === 0) {
   errors.push("No root Vitest resource classes are declared");
@@ -85,8 +85,8 @@ for (const file of difference(rootDiscovered, classified)) {
 for (const file of difference(classified, rootDiscovered)) {
   errors.push(`Stale root Vitest classification: ${file}`);
 }
-if (classified.length !== 47) {
-  errors.push(`Expected exactly 47 classified root Vitest entries, found ${classified.length}`);
+if (classified.length !== 46) {
+  errors.push(`Expected exactly 46 classified root Vitest entries, found ${classified.length}`);
 }
 if (JSON.stringify([...testFiles].sort()) !== JSON.stringify([...classified].sort())) {
   errors.push("The complete testFiles export differs from resource-class membership");

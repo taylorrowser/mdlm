@@ -9,7 +9,7 @@ product interface.
 
 ## Fresh-repository transaction
 
-`test/mdlm-clean-pilot-contract.test.ts` starts with `mdlm init` in an absent
+The retired `test/mdlm-clean-pilot-contract.test.ts` started with `mdlm init` in an absent
 destination and performs this public sequence:
 
 ```text

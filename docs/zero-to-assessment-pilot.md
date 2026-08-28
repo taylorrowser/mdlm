@@ -29,7 +29,7 @@ than by migrating or hand-editing that historical repository:
   makes an ordinary Git commit, and receives the next exact Assignment. A tracked
   change then proves that the allocated Assignment cannot cross the committed
   state boundary.
-- `test/mdlm-clean-pilot-contract.test.ts` retains the representative compiled
+- `test/mdlm-clean-onboarding-transaction.test.ts` retains the representative compiled
   `mdlm` transaction; `test/evaluate-bootstrap-participation.test.ts`,
   `test/evaluate-review-flow.test.ts`, and `test/evaluate-phase.test.ts` cover
   independent Review, Correction, gate rejection, same-gate return, exact

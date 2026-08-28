@@ -22,7 +22,6 @@ const releaseOnlyRootFiles = [
   "test/mdlm-assignment.test.ts",
   "test/mdlm-baseline-inspection.test.ts",
   "test/mdlm-clean-onboarding-transaction.test.ts",
-  "test/mdlm-clean-pilot-contract.test.ts",
   "test/mdlm-init.test.ts",
   "test/mdlm-lifecycle.test.ts",
   "test/mdlm-pilot-assessment.test.ts",
@@ -82,7 +81,7 @@ test("successful PR timing is immutable evidence and does not absorb censored ru
 
 test("the source qualification manifest classifies every runtime file exactly once", () => {
   const discovered = rootTestManifest.map((entry) => entry.file);
-  assert.equal(rootTestQualificationManifest.length, 47);
+  assert.equal(rootTestQualificationManifest.length, 46);
   assert.deepEqual(
     qualificationManifestErrors(discovered, rootTestQualificationManifest),
     [],

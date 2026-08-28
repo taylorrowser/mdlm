@@ -48,7 +48,6 @@ const classification = Object.freeze({
   "test/mdlm-baseline-inspection.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, compiled child process, watcher, and publication lock"],
   "test/mdlm-assignment.test.ts": [PROCESS_REPOSITORY_KIND, "repository, compiled CLI, Git, lease lock, and publication lock"],
   "test/proportional-distinct-context-phase-2-public.test.ts": [PROCESS_REPOSITORY_KIND, "captured repository, Git, compiled CLI, and public assignment route"],
-  "test/mdlm-clean-pilot-contract.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, compiled CLI, and public command application"],
   "test/mdlm-lifecycle.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process projections and repository/public command application"],
   "test/mdlm-process-migration.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, Git-backed repository, and Process Package migration"],
   "test/mdlm-review-assignment.test.ts": [PROCESS_REPOSITORY_KIND, "repository fork, Git, compiled CLI, and public command application"],
@@ -175,8 +174,8 @@ function boundaryTitle(call, name) {
 export function verifyRootTestObservationPolicy(root = process.cwd()) {
   const manifestFiles = rootTestManifest.map((entry) => entry.file).sort();
   const policyFiles = rootTestObservationPolicy.map((entry) => entry.file).sort();
-  if (new Set(policyFiles).size !== 47
-    || policyFiles.length !== 47
+  if (new Set(policyFiles).size !== 46
+    || policyFiles.length !== 46
     || JSON.stringify(policyFiles) !== JSON.stringify(manifestFiles)) {
     throw new Error("Root observation policy must classify every manifest file exactly once");
   }

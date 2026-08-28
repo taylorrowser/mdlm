@@ -533,8 +533,8 @@ test("root Vitest files have one weighted runtime class", async () => {
     "canonical-fixture-filler",
     "cheap-in-process",
   ]);
-  assert.equal(discovered.length, 47);
-  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [1, 1, 1, 1, 4, 16, 3, 3, 17]);
+  assert.equal(discovered.length, 46);
+  assert.deepEqual(rootVitestSuites.map((suite) => suite.files.length), [1, 1, 1, 1, 3, 16, 3, 3, 17]);
   assert.deepEqual(rootVitestSuites.map((suite) => suite.weight), [3, 3, 3, 1, 1, 1, 1, 1, 1]);
   assert.equal(ROOT_TEST_TOKEN_CAPACITY, 4);
   assert.deepEqual(ROOT_TEST_CLASS_CONCURRENCY_LIMITS, {
