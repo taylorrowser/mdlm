@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { currentProcessPackageIdentity } from "./helpers/current-process-package-identity.js";
 import "./helpers/mdlm-self-guiding-cases.js";
 
 const projectRoot = process.cwd();
@@ -83,6 +84,9 @@ describe("mdlm init", () => {
 
   it("initializes an absent destination with the bundled package and one clean setup commit", async () => {
     const destination = path.join(parent, "product");
+    const { reference } = await currentProcessPackageIdentity(
+      path.join(projectRoot, ".lifecycle/process"),
+    );
     const initialized = execute(parent, ["init", destination, "--json"]);
 
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
@@ -91,7 +95,7 @@ describe("mdlm init", () => {
         ok: true,
         command: "init",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.76.0",
+          reference,
         }),
         repository: expect.objectContaining({
         contract: "mdlm-repository@1",
@@ -103,7 +107,7 @@ describe("mdlm init", () => {
       path.join(destination, ".lifecycle/process-selection.json"),
       "utf8",
     ));
-    expect(selection.package.reference).toBe("mdlm-bootstrap@0.76.0");
+    expect(selection.package.reference).toBe(reference);
     await expect(fs.stat(path.join(destination, ".lifecycle/data")))
       .resolves.toMatchObject({});
     await expect(fs.stat(path.join(destination, ".lifecycle/work")))
