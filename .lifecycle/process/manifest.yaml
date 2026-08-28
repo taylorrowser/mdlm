@@ -205,6 +205,7 @@ catalog:
     - unresolved-question-dependencies-for-candidate
     - failed-intent-candidates-depending-on-question
     - applicable-question-decisions-for-candidate
+    - resolved-question-revisions-for-decision
     - question-targets-for-decision
     - question-blocked-targets-for-decision
     - failed-question-decisions

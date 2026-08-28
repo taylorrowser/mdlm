@@ -1,0 +1,12 @@
+kind: selector-definition
+id: resolved-question-revisions-for-decision
+version: 1
+description: Every exact Question Revision named by a Decision resolves link.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: decision, link: resolves, emit: target, types: [QST]}
+  as: question
+  distinct: true
+  order_by: [identity.revision_id]
