@@ -42,6 +42,8 @@ A stopped process does not make a claim stale. Verify the owner, worktree, and r
 
 **PRs as a request surface: no.**
 
+An implementation PR body records the fresh-context review result and exact reviewed commit and tree, or the scoped reason no review was required.
+
 ## When a skill says “publish to the issue tracker”
 
 Create a GitHub issue.
