@@ -39,7 +39,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
   it("is exact, recursively frozen, and isolated from mutable clones", async () => {
     const fixturePackage = await canonicalProcessPackage();
     await expect(verifyCanonicalProcessPackageFixture(livePackage)).resolves.toEqual({
-      processPackage: "mdlm-bootstrap@0.74.0",
+      processPackage: "mdlm-bootstrap@0.75.0",
       verified: true,
     });
     expect(fixturePackage).toStrictEqual(livePackage);
@@ -53,7 +53,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
 
     const mutable = structuredClone(fixturePackage);
     mutable.manifest.version = "mutated-test-clone";
-    expect(fixturePackage.manifest.version).toBe("0.74.0");
+    expect(fixturePackage.manifest.version).toBe("0.75.0");
   });
 
   it("rejects artifact hash and package-digest drift", async () => {

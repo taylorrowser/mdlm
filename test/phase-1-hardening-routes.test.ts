@@ -90,6 +90,27 @@ async function attendedQualificationCorrectionProcessPackage(): Promise<string> 
   return processRoot;
 }
 
+async function historicalPilotTargetProcessPackage(): Promise<ProcessPackage> {
+  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-historical-"));
+  const processRoot = path.join(temporaryRoot, "process");
+  await fs.mkdir(processRoot);
+  const archive = spawnSync(
+    "git",
+    ["archive", "--format=tar", "0da438107372fe0d3d19becc152cac1f264c3b5b:.lifecycle/process"],
+    {cwd: process.cwd(), maxBuffer: 64 * 1024 * 1024},
+  );
+  if (archive.status !== 0) throw new Error(archive.stderr.toString());
+  const extracted = spawnSync("tar", ["-x", "-C", processRoot], {
+    input: archive.stdout,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (extracted.status !== 0) throw new Error(extracted.stderr.toString());
+  const loaded = await loadProcessPackage(processRoot);
+  await fs.rm(temporaryRoot, {recursive: true, force: true});
+  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  return loaded.package;
+}
+
 async function replacementEnvironmentReviewContextProcessPackage(): Promise<string> {
   const processRoot = await copiedProcessPackage("mdlm-phase1-env-review-context-");
   const phase0Path = path.join(processRoot, "phases/phase-0-wayfinding.yaml");
@@ -1169,12 +1190,14 @@ function repositorySafeRecords(records: LifecycleRecord[]): LifecycleRecord[] {
 describe("Phase 1 hardening route evidence", () => {
   let processPackage: ProcessPackage;
   let recoveryPackage: ProcessPackage;
+  let historicalPilotPackage: ProcessPackage;
 
   beforeAll(async () => {
     processPackage = await canonicalProcessPackage();
     const loaded = await loadProcessPackage(".lifecycle/process");
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
     recoveryPackage = loaded.package;
+    historicalPilotPackage = await historicalPilotTargetProcessPackage();
   });
 
   it("proves Phase 1 VSP creation and exposes its fresh independent Review route", () => {
@@ -2505,7 +2528,17 @@ describe("Phase 1 hardening route evidence", () => {
       item.obligation === "pilot-verification-implementation-required" &&
       item.subject === activity.datum.revision_id
     )).toEqual(expect.objectContaining({ status: "awaiting-review" }));
-    expect(evaluation.obligations.find((item) =>
+    const historicalEvaluation = phase1Evaluation(historicalPilotPackage, [
+      currentStrategy,
+      ...strategyReview,
+      currentEnvironment,
+      qualification.activity,
+      qualification.implementation,
+      qualification.run,
+      qualification.result,
+      activity,
+    ]);
+    expect(historicalEvaluation.obligations.find((item) =>
       item.obligation === "pilot-target-required"
     )).toEqual(expect.objectContaining({
       status: "ready",
@@ -3042,7 +3075,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@38",
+          profile: "bootstrap@39",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
@@ -3076,7 +3109,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@38",
+          profile: "bootstrap@39",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
