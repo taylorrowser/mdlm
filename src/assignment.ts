@@ -1944,6 +1944,11 @@ export function assignmentResponseSchema(
     contract: { const: "mdlm-assignment-response@1" },
     assignment: { type: "string", minLength: 1 },
   };
+  const authoritySuppliesSchema = authoritySupplies
+    ? authoritySupplies.length > 0
+      ? { items: { enum: [...authoritySupplies] } }
+      : { items: { type: "string" }, maxItems: 0 }
+    : { items: { type: "string" } };
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: "https://mdlm.dev/contracts/mdlm-assignment-response@1",
@@ -1995,9 +2000,7 @@ export function assignmentResponseSchema(
               },
               authoritySupplies: {
                 type: "array",
-                items: authoritySupplies
-                  ? { enum: [...authoritySupplies] }
-                  : { type: "string" },
+                ...authoritySuppliesSchema,
                 uniqueItems: true,
               },
               standingDelegations: {
