@@ -34,7 +34,15 @@ export async function restoreHistoricalFixtureProcessPackage(
         "prompts/establish-initial-wayfinding-map.md",
         "prompts/implement-verification-activity.md",
         "prompts/write-verification-activity.md",
+        "prompts/approve-change-request.md",
+        "prompts/decide-pilot-expansion.md",
+        "prompts/record-consequential-decision.md",
+        "prompts/record-gate-signoff.md",
         "scenarios/implement-verification-activity.yaml",
+        "scenarios/approve-change-request.yaml",
+        "scenarios/decide-pilot-expansion.yaml",
+        "scenarios/record-consequential-decision.yaml",
+        "scenarios/record-gate-signoff.yaml",
         "scenarios/register-pilot-target.yaml",
         "selectors/current-pilot-targets-for-requirement.yaml",
         "selectors/eligible-pilot-targets-for-activity.yaml",
@@ -68,6 +76,10 @@ export async function restoreHistoricalFixtureProcessPackage(
         pilotManifest
           .replace("version: 0.76.0", "version: 0.74.0")
           .replace("    - build-pilot-control-prototype\n", "")
+          .replace("    - prompts/record-gate-signoff.md@4\n", "    - prompts/record-gate-signoff.md@3\n")
+          .replace("    - prompts/record-consequential-decision.md@2\n", "    - prompts/record-consequential-decision.md@1\n")
+          .replace("    - prompts/approve-change-request.md@4\n", "    - prompts/approve-change-request.md@3\n")
+          .replace("    - prompts/decide-pilot-expansion.md@3\n", "    - prompts/decide-pilot-expansion.md@2\n")
           .replace("    - prompts/build-pilot-control-prototype.md@1\n", "")
           .replace("    - skills/pilot-control-prototype.md@1\n", "")
           .replace("bootstrap@39", "bootstrap@38")
@@ -386,7 +398,7 @@ export async function ensureFixtureProcessPackage(
   if (
     packageRoot &&
     (selection.package?.reference === expected.reference ||
-      (selection.package?.reference === "mdlm-bootstrap@0.75.0" &&
+      (selection.package?.reference === "mdlm-bootstrap@0.76.0" &&
         expected.reference === "mdlm-bootstrap@0.74.0")) &&
     (selection.package.reference !== expected.reference ||
       selection.package.digest !== expected.digest)
