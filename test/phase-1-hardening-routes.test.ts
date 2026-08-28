@@ -3735,6 +3735,30 @@ describe("Phase 1 hardening route evidence", () => {
         JSON.stringify(acceptedIntentPublished.diagnostics),
       ).toBe(true);
 
+      const materialized = await executeCommandApplication(["next"], repository);
+      expect(materialized.exitCode, materialized.output).toBe(0);
+      const materializedOutcome = JSON.parse(materialized.output);
+      expect(materializedOutcome).toEqual(expect.objectContaining({
+        outcome: "publication-required",
+        materializedExecutions: [expect.objectContaining({
+          scenario: "create-review-context@1",
+          status: "completed",
+        })],
+      }));
+      expect(materializedOutcome.assignment).toBeUndefined();
+      const staged = spawnSync("git", ["-C", repository, "add", ".lifecycle/data"], {
+        encoding: "utf8",
+      });
+      expect(staged.status, staged.stderr).toBe(0);
+      const committed = spawnSync("git", [
+        "-C", repository,
+        "-c", "user.name=MDLM Test",
+        "-c", "user.email=mdlm-test@localhost",
+        "-c", "commit.gpgSign=false",
+        "commit", "--quiet", "--no-verify", "-m", "Publish Review Context",
+      ], { encoding: "utf8" });
+      expect(committed.status, committed.stderr).toBe(0);
+
       const prepared = await prepareNextAssignment(
         repository,
         "write-verification-activity@2",
