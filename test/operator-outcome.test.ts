@@ -605,13 +605,13 @@ describe("public mdlm outcome and status seam", () => {
       id: "alternate",
     };
     processPackage.manifest.profiles = {
-      default: "alternate@39",
-      available: ["profiles/bootstrap.yaml@39", "profiles/alternate.yaml@39"],
+      default: "alternate@40",
+      available: ["profiles/bootstrap.yaml@40", "profiles/alternate.yaml@40"],
     };
 
     expect(selectedImplementationProfile(processPackage)).toEqual({
-      reference: "alternate@39",
-      definition: expect.objectContaining({ id: "alternate", version: 39 }),
+      reference: "alternate@40",
+      definition: expect.objectContaining({ id: "alternate", version: 40 }),
     });
   });
 
