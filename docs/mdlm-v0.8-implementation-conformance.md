@@ -68,8 +68,9 @@ assertions and is not runtime process state.
 ## Operator and publication invariants
 
 - `mdlm status` observes current truth without allocating work.
-- `mdlm next` returns exactly one versioned Operator Outcome and leases only an
-  exact Assignment that can advance.
+- `mdlm next` returns either a transient `publication-required` kernel boundary
+  or exactly one versioned Operator Outcome, and leases only an exact Assignment
+  that can advance.
 - `scenario prepare` binds the Assignment to exact Git, repository, package,
   prompt, skill, input, participation, output, and completion evidence without
   publishing Lifecycle Data.

@@ -24,8 +24,9 @@ one loop:
 1. initialize once with `mdlm init <destination>`;
 2. enter the repository and run `mdlm start --json` to read its portable
    `MDLM.md` guide, exact repository identity, and Git cleanliness;
-3. require a clean ordinary Git boundary, then allocate work with
-   `mdlm next --json`;
+3. require a clean ordinary Git boundary, then run `mdlm next --json`; if it
+   reports `publication-required`, validate and commit those exact materialized
+   transactions before running `next` again;
 4. prepare the returned exact Assignment with
    `mdlm scenario prepare <assignment-id> --json`;
 5. let the harness perform the declared agent work or attended conversation;
@@ -36,8 +37,9 @@ one loop:
 9. reevaluate explicitly with `mdlm next --json`.
 
 `mdlm status` classifies current repository truth without allocating an
-Assignment. `mdlm next` returns one versioned Operator Outcome and leases an exact
-Assignment only when work can advance. Preparation is side-effect-free and binds
+Assignment. `mdlm next` returns either a transient `publication-required` kernel
+boundary or one versioned Operator Outcome, and leases an exact Assignment only
+when work can advance. Preparation is side-effect-free and binds
 the Assignment to the exact selected Process Package, repository state, prompt,
 skills, inputs, participation, output contracts, and completion conditions.
 
@@ -140,10 +142,10 @@ Also stop on a dirty starting tree, failed doctor check, stale or exhausted
 Assignment, unexpected diff, or command failure. A Review, gate, commit, or phase
 change is not itself a stop: reevaluation determines the next Operator Outcome.
 
-When `next` reports materialized executions, publish them first. Inspect every
-named execution, run doctor, commit only that transaction, discard any
-Assignment returned by the same invocation, and run `mdlm next --json` again
-against the new repository identity.
+When `next` reports `publication-required`, inspect every named materialized
+execution, run doctor, commit only that transaction, and run `mdlm next --json`
+again against the new repository identity. This transient kernel boundary does
+not lease or return an Assignment.
 
 Run `mdlm --help` to discover the agent-guided `init`, `start`, `next`, Scenario
 prepare and submit, and doctor commands.

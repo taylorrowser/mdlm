@@ -39,7 +39,7 @@ export type MdlmNext = AssignmentOutcome | ({
   contract: "mdlm-next@1";
   ok: boolean;
   command: "next";
-  outcome: "attention-required" | "profile-boundary-reached" | "lifecycle-complete" | "process-dead-end" | "invalid";
+  outcome: "publication-required" | "attention-required" | "profile-boundary-reached" | "lifecycle-complete" | "process-dead-end" | "invalid";
   materializedExecutions: MaterializedExecution[];
 } & JsonObject);
 
@@ -475,7 +475,7 @@ function parseNext(output: JsonObject): MdlmNext {
   expectLiteral(output, "contract", "mdlm-next@1");
   expectBoolean(output, "ok");
   const outcome = expectString(output, "outcome");
-  assertOperatorOutcome(outcome, output);
+  assertNextOutcome(outcome, output);
   if (outcome === "assignment" || outcome === "attention-required") {
     expectString(expectObject(output, "assignment"), "id");
   }
@@ -561,6 +561,10 @@ function assertOperatorOutcome(outcome: string, output: JsonObject): void {
   ].includes(outcome)) {
     throw contractError(`Unsupported MDLM outcome '${outcome}'`, output);
   }
+}
+
+function assertNextOutcome(outcome: string, output: JsonObject): void {
+  if (outcome !== "publication-required") assertOperatorOutcome(outcome, output);
 }
 
 function isObject(value: unknown): value is JsonObject {

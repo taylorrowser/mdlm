@@ -157,6 +157,9 @@ export interface AttentionContext {
 
 export type OperatorOutcome =
   | OperatorOutcomeBase & {
+      outcome: "publication-required";
+    }
+  | OperatorOutcomeBase & {
       outcome: "assignment";
       assignment: { id: string };
     }
@@ -1586,6 +1589,24 @@ async function leaseNextAssignmentLocked(
       fingerprint.value,
     );
     if (!state.ok) return state;
+  }
+
+  if (materializedExecutions.length > 0) {
+    if (activeLease) {
+      await renewLeaseLock();
+      await fs.rm(leasePath(repositoryRoot), { force: true });
+    }
+    return {
+      ok: true,
+      value: {
+        package: state.value.summary,
+        contract: "mdlm-next@1",
+        phase: phaseReference(state.value.evaluation),
+        outcome: "publication-required",
+        materializedExecutions,
+      },
+      diagnostics: [],
+    };
   }
 
   if (

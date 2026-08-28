@@ -259,7 +259,7 @@ describe("mdlm-next@1 operator instruction contract", () => {
     );
   });
 
-  it("names every materialized execution and overrides a returned Assignment", () => {
+  it("names every materialized execution at the publication boundary", () => {
     const materializedExecutions = [
       { id: "execution-2", scenario: "freeze-baseline@1" },
       { id: "execution-1", scenario: "freeze-context@2" },
@@ -278,7 +278,7 @@ describe("mdlm-next@1 operator instruction contract", () => {
     }));
     expect(instructions.text).toContain("execution-2 (freeze-baseline@1)");
     expect(instructions.text).toContain("execution-1 (freeze-context@2)");
-    expect(instructions.text).toContain("discard any Assignment");
+    expect(instructions.text).toContain("No Assignment is leased");
     expect(instructions.commands.join(" ")).not.toContain("scenario prepare");
   });
 });

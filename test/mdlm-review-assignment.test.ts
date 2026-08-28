@@ -213,7 +213,8 @@ describe("delegated Review Assignment packets", () => {
         repository: expect.objectContaining({ loads: 1 }),
       }));
       const nextReviewOutput = JSON.parse(nextReview.stdout) as {
-        assignment: { id: string };
+        outcome: string;
+        assignment?: { id: string };
         materializedExecutions: { id: string; scenario: string; status: string }[];
         operatorInstructions: {
           action: string;
@@ -221,7 +222,12 @@ describe("delegated Review Assignment packets", () => {
           materializedExecutions: { id: string; scenario: string }[];
         };
       };
-      const preCommitReviewAssignment = nextReviewOutput.assignment.id;
+      expect(nextReviewOutput.outcome).toBe("publication-required");
+      expect(nextReviewOutput.assignment).toBeUndefined();
+      await expect(fs.access(path.join(
+        repository,
+        ".lifecycle/work/active-assignment.json",
+      ))).rejects.toMatchObject({ code: "ENOENT" });
       expect(nextReviewOutput.materializedExecutions).toEqual([
         expect.objectContaining({ scenario: "create-review-context@1", status: "completed" }),
       ]);
@@ -249,9 +255,6 @@ describe("delegated Review Assignment packets", () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
       );
       expect(materializationExecution?.response?.assignment).not.toMatch(/^kernel-/);
-      expect(materializationExecution?.response?.assignment).not.toBe(
-        preCommitReviewAssignment,
-      );
       expect(nextReviewOutput.materializedExecutions[0]?.id).toBe(
         materializationExecution?.id,
       );
@@ -260,6 +263,9 @@ describe("delegated Review Assignment packets", () => {
         recursive: true,
         mode: fsConstants.COPYFILE_FICLONE,
       });
+      const correctionNext = await mdlm(correctionRepository, "next", "--json");
+      expectSuccess(correctionNext, "mdlm next from materialized Review Context");
+      const preCommitReviewAssignment = JSON.parse(correctionNext.stdout).assignment.id;
 
       commitLifecycleData(repository, "Publish automatic Review Context");
       const freshReview = await mdlm(repository, "next", "--json");
@@ -269,7 +275,6 @@ describe("delegated Review Assignment packets", () => {
         materializedExecutions: unknown[];
       };
       expect(freshReviewOutput.materializedExecutions).toEqual([]);
-      expect(freshReviewOutput.assignment.id).not.toBe(preCommitReviewAssignment);
       const preparedReview = await mdlm(
         repository,
         "scenario", "prepare", freshReviewOutput.assignment.id, "--json",

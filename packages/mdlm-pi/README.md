@@ -24,16 +24,17 @@ Restarting the same command recovers a captured response, journaled `mdlm next`
 kernel materialization, submission, publication, doctor result, or Git commit.
 Every deterministic execution reported by `mdlm-next@1.materializedExecutions` is
 doctor-checked and committed at its own transaction boundary. MDLM does not rebase
-an Assignment returned before that commit. The controller finishes the journaled
-transactions, reevaluates the repository, and allocates fresh work against the new
-commit when needed. Recovery is limited to the same selected Process Package and
-repository state. A package or repository fingerprint mismatch stops the run;
-`mdlm-pi` does not migrate package versions or recover an Assignment across
-versions. Before worker execution, an attended Assignment's normalized conclusion,
-authority, package identity, and repository identity are durable. The final Assignment
-response bytes are also durable. For an active Consolidation Group, only the final
-normalized conclusions are retained and reused across serial reevaluation; raw attended
-conversation is not.
+an Assignment across that commit: `next` returns `publication-required` without
+leasing one. The controller finishes the journaled transactions, reevaluates the
+repository, and allocates fresh work against the new commit when needed. Recovery
+is limited to the same selected Process Package and repository state. A package
+or repository fingerprint mismatch stops the run; `mdlm-pi` does not migrate
+package versions or recover an Assignment across versions. Before worker
+execution, an attended Assignment's normalized conclusion, authority, package
+identity, and repository identity are durable. The final Assignment response
+bytes are also durable. For an active Consolidation Group, only the final
+normalized conclusions are retained and reused across serial reevaluation; raw
+attended conversation is not.
 
 ## Attended input
 

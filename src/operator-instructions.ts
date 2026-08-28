@@ -17,6 +17,7 @@ export interface OperatorInstructions {
 
 export interface OperatorInstructionSource {
   outcome?:
+    | "publication-required"
     | "assignment"
     | "attention-required"
     | "profile-boundary-reached"
@@ -45,7 +46,7 @@ export function operatorInstructions(
       disposition: "continuation",
       commands: ["mdlm doctor --json", "mdlm next --json"],
       materializedExecutions: materialized,
-      text: `Inspect these materialized executions: ${names.join(", ")}. Run doctor, inspect and commit only their exact transaction data, discard any Assignment returned by this invocation, then run mdlm next --json for a fresh outcome.`,
+      text: `Inspect these materialized executions: ${names.join(", ")}. Run doctor, inspect and commit only their exact transaction data, then run mdlm next --json for a fresh outcome. No Assignment is leased at this publication boundary.`,
     };
   }
 
