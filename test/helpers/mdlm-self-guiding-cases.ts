@@ -105,6 +105,10 @@ describe("self-guiding public CLI", () => {
         await fs.readFile(path.join(repository, "MDLM.md"), "utf8"),
       );
     }
+    const guide = await fs.readFile(path.join(repository, "MDLM.md"), "utf8");
+    expect(guide).toContain("do not rely on a console or\ntool rendering");
+    expect(guide).toContain("`allowedProjections.outputSchemas`");
+    expect(guide).toContain("checklist of every\nrequired payload property");
     expect(git(repository, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
   });
