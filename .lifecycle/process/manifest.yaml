@@ -80,6 +80,7 @@ catalog:
     - pilot-implementation-authorizations-for
     - complete-pilot-implementations-for-activity
     - pilot-results-completing-run
+    - pilot-control-results-completing-run
     - exercised-pilot-runs-for-implementation
     - failed-current-pilot-verification-implementations
     - corrected-pilot-verification-implementation-revisions-for

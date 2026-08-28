@@ -13,7 +13,7 @@ query:
     && run.payload.kind == "pilot"
     && run.payload.execution_state == "completed"
     && state(run, "validity") == "valid"
-    && exists("pilot-results-completing-run@2", {run: run})
+    && exists("pilot-results-completing-run@1", {run: run})
     && (!present(implementation.payload.prototype_control_bindings)
       || (run.payload.activities_expected == ["known_good", "known_bad"]
       && run.payload.activities_invoked == ["known_good", "known_bad"]
@@ -26,6 +26,7 @@ query:
       && run.payload.control_observations.known_good.timed_out == false
       && run.payload.control_observations.known_bad.timed_out == false
       && run.payload.control_observations.known_good.truncated == false
-      && run.payload.control_observations.known_bad.truncated == false))
+      && run.payload.control_observations.known_bad.truncated == false
+      && exists("pilot-control-results-completing-run@1", {run: run})))
   distinct: true
   order_by: [identity.revision_id]
