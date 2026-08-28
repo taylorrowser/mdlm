@@ -87,7 +87,7 @@ test("every process/repository boundary obeys the central observation floors", a
   assert.equal(PROCESS_REPOSITORY_TEST_TIMEOUT_MS, 360_000);
 });
 
-test("all 47 root tests have complete child-process observation policy", async () => {
+test("all 46 root tests have complete child-process observation policy", async () => {
   const {
     PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
     verifyRootTestChildProcessPolicy,
@@ -95,10 +95,10 @@ test("all 47 root tests have complete child-process observation policy", async (
 
   const inventory = verifyRootTestChildProcessPolicy();
   assert.equal(PROCESS_REPOSITORY_CHILD_TIMEOUT_MS, PROCESS_REPOSITORY_CHILD_FLOOR_MS);
-  assert.equal(inventory.manifests.length, 47);
-  assert.equal(new Set(inventory.manifests.map((entry) => entry.file)).size, 47);
-  assert.equal(inventory.launches.length, 29);
-  assert.equal(new Set(inventory.launches.map((entry) => entry.key)).size, 29);
+  assert.equal(inventory.manifests.length, 46);
+  assert.equal(new Set(inventory.manifests.map((entry) => entry.file)).size, 46);
+  assert.equal(inventory.launches.length, 28);
+  assert.equal(new Set(inventory.launches.map((entry) => entry.key)).size, 28);
   assert.deepEqual(
     [...new Set(inventory.launches.map((entry) => entry.file))].sort(),
     [
@@ -110,7 +110,6 @@ test("all 47 root tests have complete child-process observation policy", async (
       "test/mdlm-assignment.test.ts",
       "test/mdlm-baseline-inspection.test.ts",
       "test/mdlm-clean-onboarding-transaction.test.ts",
-      "test/mdlm-clean-pilot-contract.test.ts",
       "test/mdlm-init.test.ts",
       "test/mdlm-review-assignment.test.ts",
       "test/phase-1-hardening-routes.test.ts",
@@ -177,7 +176,7 @@ test("all 47 root tests have complete child-process observation policy", async (
   );
 });
 
-test("all 47 root tests have complete executable observation-limit policy", async () => {
+test("all 46 root tests have complete executable observation-limit policy", async () => {
   const {
     CONTENDED_IN_PROCESS_SETUP_LIMITS,
     PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
@@ -189,8 +188,8 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
   } = await import("./root-test-observation-policy.mjs");
   const { rootTestManifest } = await import("../vitest.suites.mjs");
 
-  assert.equal(rootTestObservationPolicy.length, 47);
-  assert.equal(new Set(rootTestObservationPolicy.map((entry) => entry.file)).size, 47);
+  assert.equal(rootTestObservationPolicy.length, 46);
+  assert.equal(new Set(rootTestObservationPolicy.map((entry) => entry.file)).size, 46);
   assert.deepEqual(
     rootTestObservationPolicy.map((entry) => entry.file).sort(),
     rootTestManifest.map((entry) => entry.file).sort(),
@@ -207,7 +206,7 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
   });
   const verifiedFiles = verifyRootTestObservationPolicy();
   const verifiedByFile = new Map(verifiedFiles.map((file) => [file.file, file]));
-  assert.equal(verifiedFiles.length, 47);
+  assert.equal(verifiedFiles.length, 46);
   const scopedObligation = verifiedByFile.get("test/evaluate-scoped-obligation.test.ts");
   assert.equal(scopedObligation.effectiveDefaultHookTimeoutMs, 30_000);
   assert.equal(
@@ -310,7 +309,7 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
       `${policy.file} policy verification did not cover every parsed boundary exactly once`,
     );
   }
-  assert.equal(totalBoundaryCount, 484);
+  assert.equal(totalBoundaryCount, 483);
 });
 
 test("the verifier rejects every former below-floor boundary and unresolved explicit values", async () => {
@@ -329,9 +328,9 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
   try {
     copy("vitest.fast.config.ts");
     cpSync(new URL("../test/", import.meta.url), join(root, "test"), { recursive: true });
-    assert.equal(rootTestManifest.length, 47);
-    assert.equal(verifyRootTestObservationPolicy(root).length, 47);
-    assert.equal(verifyRootTestChildProcessPolicy(root).launches.length, 29);
+    assert.equal(rootTestManifest.length, 46);
+    assert.equal(verifyRootTestObservationPolicy(root).length, 46);
+    assert.equal(verifyRootTestChildProcessPolicy(root).launches.length, 28);
 
     const cases = [
       {
