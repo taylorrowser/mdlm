@@ -1594,7 +1594,7 @@ describe("Phase 1 hardening route evidence", () => {
       const safeReplacement = fixtureRecords[8]!;
       const safeFreshQualification = fixtureRecords.slice(9, 13);
       const fixtureProcessRef =
-        `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+        `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -1911,7 +1911,7 @@ describe("Phase 1 hardening route evidence", () => {
         item.datum.type === "RES"
       )!;
       const fixtureProcessRef =
-        `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+        `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -2311,6 +2311,43 @@ describe("Phase 1 hardening route evidence", () => {
       supported_behavior: inline.supported_behavior,
       unsupported_behavior: inline.unsupported_behavior,
     })).toBe(false);
+
+    const inlineTarget = record("ART", "ART-0HARDENP10", {
+      ...inline,
+      prototype_controls: {
+        ...inline.prototype_controls,
+        activity_ref: activity.datum.revision_id,
+      },
+    }, {
+      scenario: "build-pilot-control-prototype@1",
+      links: [{type: "derived-from", target: "STK-0HARDENP10-r00001"}],
+    });
+    const targetRecords = [...records, inlineTarget];
+    expect(phase1Evaluation(recoveryPackage, targetRecords).obligations.find(
+      (item) => item.obligation === "pilot-target-required",
+    )).toEqual(expect.objectContaining({satisfied: true, status: "satisfied"}));
+
+    const replacementActivity = pilotActivity(2);
+    const replacementReview = passingReview(replacementActivity, "REV-0PILOTCTL2", {
+      definitions: [
+        replacementActivity,
+        foundation()[0]!,
+        foundation()[1]!,
+        currentStrategy,
+      ],
+    });
+    expect(phase1Evaluation(recoveryPackage, [
+      ...targetRecords,
+      replacementActivity,
+      ...replacementReview,
+    ]).obligations.find(
+      (item) => item.obligation === "pilot-target-required",
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      actionableResolver: "build-pilot-control-prototype@1",
+    }));
+
   });
 
   it("proves Phase 1 pilot VER publication with exact Stable Datum, Revision, strategy links, and Review support", () => {
@@ -2471,8 +2508,8 @@ describe("Phase 1 hardening route evidence", () => {
     expect(evaluation.obligations.find((item) =>
       item.obligation === "pilot-target-required"
     )).toEqual(expect.objectContaining({
-      status: "awaiting-review",
-      dispatchable: false,
+      status: "ready",
+      actionableResolver: "register-pilot-target@1",
     }));
 
     const reviewMembers = evaluateProcessDefinition(
@@ -3792,7 +3829,7 @@ describe("Phase 1 hardening route evidence", () => {
         currentStrategy,
         acceptedIntent,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
