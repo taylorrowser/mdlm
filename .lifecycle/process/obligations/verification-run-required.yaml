@@ -1,6 +1,6 @@
 kind: obligation-definition
 id: verification-run-required
-version: 1
+version: 2
 description: Every qualification implementation requires a completed exact run, while every pilot implementation requires a completed run with exercised success and discrimination evidence.
 phases: [phase-1-product-assurance]
 for_each: 'select("verification-implementations-requiring-run@1", {})'
@@ -9,7 +9,7 @@ satisfied_when: >-
   (implementation.payload.kind == "qualification"
     && exists("completed-runs-for-implementation@1", {implementation: implementation}))
   || (implementation.payload.kind == "pilot"
-    && exists("exercised-pilot-runs-for-implementation@1", {implementation: implementation}))
+    && exists("exercised-pilot-runs-for-implementation@2", {implementation: implementation}))
 status_rules:
   - status: blocked
     priority: 400
@@ -19,7 +19,7 @@ status_rules:
         {environment: one("environments-for-implementation@1", {implementation: implementation})})
     reason: Pilot execution is blocked until an exact passing environment-capability qualification result exists.
     blocked_by:
-      - obligation: verification-run-required@1
+      - obligation: verification-run-required@2
         subjects: >-
           select("qualification-implementations-for-environment@1",
             {environment: one("environments-for-implementation@1", {implementation: implementation})})
@@ -52,7 +52,7 @@ status_rules:
     reason: Exact activity, environment, target, and independence provenance permit a bounded execution; completed inconclusive pilot attempts remain durable evidence but do not prevent a fresh attempt.
 default_status: blocked
 resolve_with:
-  scenario: execute-verification-run@1
+  scenario: execute-verification-run@2
   inputs:
     implementation: implementation
     activity: 'one("verification-activities-for-implementation@1", {implementation: implementation})'

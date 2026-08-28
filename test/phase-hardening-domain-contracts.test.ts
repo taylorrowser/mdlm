@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
@@ -7,6 +8,7 @@ import { evaluateLifecycle, resolveType, type ProcessPackage } from "../src/inde
 import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
+import { mdlm } from "./helpers/mdlm.js";
 
 const processRef = "mdlm-bootstrap@0.71.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
@@ -129,7 +131,7 @@ describe("Phase-hardening domain route contracts", () => {
     }));
   });
 
-  it("derives Phase 1 work, delegated VAI execution, correction, and multiplicity boundaries", () => {
+  it("derives Phase 1 work, delegated VAI execution, correction, and multiplicity boundaries", async () => {
     const psp = record("PSP", "PSP-HARDENP100", {
       title: "Phase 1 product", rationale: "Exercise package assurance.", problem: "Malformed input must be rejected.",
       users: ["operator"], goals: ["exact assurance"], non_goals: [], success_measures: ["discriminating evidence"],
@@ -259,7 +261,7 @@ describe("Phase-hardening domain route contracts", () => {
     const runWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation] });
     expect(runWork.looseEnds.find((item) =>
       item.obligation === "verification-run-required" && item.subject === implementation.datum.revision_id
-    )).toEqual(expect.objectContaining({ eventualResolver: "execute-verification-run@1" }));
+    )).toEqual(expect.objectContaining({ eventualResolver: "execute-verification-run@2" }));
 
     const ajv = new Ajv2020({ allErrors: true, strict: false });
     formatsPlugin.default(ajv);
@@ -276,6 +278,248 @@ describe("Phase-hardening domain route contracts", () => {
       timeout: { termination: "process-group-sigterm-then-sigkill", reaping: "all-descendants", capture_partial_raw_observation: true },
       cleanup: "guaranteed", aggregation: "continue-through-all-cases",
     });
+
+    const prototypeControls = {
+      activity_ref: activity.datum.revision_id,
+      working_directory: "fresh-temporary-directory",
+      known_good: {
+        argv: ["node", "-e", "process.stdout.write('ok\\n')"],
+        expected_observation: {
+          exit_status: 0,
+          stdout: { encoding: "base64", bytes: "b2sK" },
+          stderr: { encoding: "base64", bytes: "" },
+        },
+        expected_verification_outcome: "pass",
+      },
+      known_bad: {
+        argv: ["node", "-e", "process.stdout.write('wrong\\n')"],
+        expected_observation: {
+          exit_status: 0,
+          stdout: { encoding: "base64", bytes: "d3JvbmcK" },
+          stderr: { encoding: "base64", bytes: "" },
+        },
+        expected_verification_outcome: "fail",
+        fault: "Return one wrong observable result.",
+      },
+    };
+    const controlTarget = record("ART", "ART-HARDENP101", {
+      title: "Disposable control pair",
+      kind: "prototype",
+      supported_behavior: ["valid input"],
+      unsupported_behavior: ["malformed input"],
+      prototype_controls: prototypeControls,
+    }, [{ type: "derived-from", target: stk.datum.revision_id }], "build-pilot-control-prototype@1");
+    const controlImplementation = record("VAI", "VAI-HARDENP101", {
+      ...implementation.datum.payload,
+      authoring_input_refs: [activity.datum.revision_id, controlTarget.datum.revision_id],
+      prototype_control_bindings: {
+        activity_ref: activity.datum.revision_id,
+        known_good: {
+          argv: prototypeControls.known_good.argv,
+          expected_verification_outcome: "pass",
+        },
+        known_bad: {
+          argv: prototypeControls.known_bad.argv,
+          expected_verification_outcome: "fail",
+        },
+      },
+    }, [
+      { type: "realizes", target: activity.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: controlTarget.datum.revision_id },
+    ], "implement-verification-activity@1");
+    expect(art.ok && ajv.compile(art.type.payloadSchema)(controlTarget.datum.payload)).toBe(true);
+    expect(vai.ok && ajv.compile(vai.type.payloadSchema)(controlImplementation.datum.payload)).toBe(true);
+    const observation = (control: "known_good" | "known_bad") => ({
+      artifact_ref: controlTarget.datum.revision_id,
+      control,
+      activity_ref: activity.datum.revision_id,
+      argv: prototypeControls[control].argv,
+      working_directory: "fresh-temporary-directory",
+      stdin: { encoding: "base64", bytes: "" },
+      stdout: prototypeControls[control].expected_observation.stdout,
+      stderr: prototypeControls[control].expected_observation.stderr,
+      exit_status: prototypeControls[control].expected_observation.exit_status,
+      timed_out: false,
+      truncated: false,
+    });
+    const pilotResult = (
+      id: string,
+      outcome: "suitable" | "inconclusive",
+      exercised: boolean,
+    ) => record("RES", id, {
+      title: `${outcome} executable-observation result`,
+      claim: { kind: "pilot", scope: "verification-design", outcome, formal_evidence_eligible: false },
+      assessment_state: exercised ? "accepted" : "inconclusive",
+      observations: {
+        expected_success_observed: exercised,
+        expected_discrimination_observed: exercised,
+        details: exercised ? "Both controls were observed." : "Only a partial control observation is available.",
+      },
+      ...(exercised ? { control_judgments: {
+        known_good: { observation_ref: "known_good", outcome: "pass" },
+        known_bad: { observation_ref: "known_bad", outcome: "fail" },
+      } } : {}),
+      evidence_refs: ["observation:exact-bytes"],
+      assessor_ref: "runner:compiled-route",
+    }, [{ type: "assessed-in", target: environment.datum.revision_id }], "execute-verification-run@2");
+    const pilotRun = (
+      id: string,
+      result: ReturnType<typeof record>,
+      invoked: string[],
+      controlObservations?: Record<string, unknown>,
+    ) => record("RUN", id, {
+      title: "Executable-observation run",
+      kind: "pilot",
+      started_at: "2026-01-01T00:00:00.000Z",
+      completed_at: "2026-01-01T00:00:01.000Z",
+      execution_state: "completed",
+      execution_target: { kind: "prototype", ref: controlTarget.datum.revision_id },
+      runner_ref: "runner:compiled-route",
+      configuration_refs: [environment.datum.revision_id],
+      activities_expected: ["known_good", "known_bad"],
+      activities_invoked: invoked,
+      evidence_locations: ["observation:exact-bytes"],
+      ...(controlObservations ? { control_observations: controlObservations } : {}),
+    }, [
+      { type: "executes", target: controlImplementation.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: controlTarget.datum.revision_id },
+      { type: "produces", target: result.datum.revision_id },
+    ], "execute-verification-run@2");
+    const opaqueResult = pilotResult("RES-HARDRAW001", "suitable", true);
+    const opaqueRun = pilotRun("RUN-HARDRAW001", opaqueResult, ["known_good", "known_bad"]);
+    const partialResult = pilotResult("RES-HARDPART01", "inconclusive", false);
+    partialResult.datum.payload.control_judgments = {
+      known_good: { observation_ref: "known_good", outcome: "fail" },
+    };
+    const partialRun = pilotRun("RUN-HARDPART01", partialResult, ["known_good"], {
+      known_good: {
+        ...observation("known_good"),
+        artifact_ref: "ART-WR0NGREF01-r00001",
+        argv: ["node", "wrong-observation.mjs"],
+      },
+    });
+    const completeResult = pilotResult("RES-HARDCMPT01", "suitable", true);
+    const completeRun = pilotRun("RUN-HARDCMPT01", completeResult, ["known_good", "known_bad"], {
+      known_good: observation("known_good"),
+      known_bad: observation("known_bad"),
+    });
+    const publicResult = pilotResult("RES-HARDPBK001", "suitable", true);
+    delete publicResult.datum.payload.control_judgments;
+    const publicRun = record("RUN", "RUN-HARDPBK001", {
+      title: "Registered public-interface run",
+      kind: "pilot",
+      started_at: "2026-01-01T00:00:00.000Z",
+      completed_at: "2026-01-01T00:00:01.000Z",
+      execution_state: "completed",
+      execution_target: { kind: "prototype", ref: target.datum.revision_id },
+      runner_ref: "runner:compiled-route",
+      configuration_refs: [environment.datum.revision_id],
+      activities_expected: [activity.datum.revision_id],
+      activities_invoked: [activity.datum.revision_id],
+      evidence_locations: ["observation:registered-public-interface"],
+    }, [
+      { type: "executes", target: implementation.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: target.datum.revision_id },
+      { type: "produces", target: publicResult.datum.revision_id },
+    ], "execute-verification-run@2");
+    const routeRecords = [
+      psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review,
+      activity, environment, target, implementation, controlTarget, controlImplementation,
+    ];
+    const cliRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-executable-observations-"));
+    const initialized = mdlm(cliRoot, "init", ".", "--json");
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    const snapshotFor = async (
+      name: string,
+      run: ReturnType<typeof record>,
+      result: ReturnType<typeof record>,
+    ) => {
+      const snapshotPath = path.join(cliRoot, `${name}.json`);
+      await fs.writeFile(snapshotPath, JSON.stringify({
+        ...baseSnapshot,
+        records: [...routeRecords, run, result],
+        execution: { integrity: { contract_valid: true } },
+      }));
+      return snapshotPath;
+    };
+    const completion = async (
+      name: string,
+      run: ReturnType<typeof record>,
+      result: ReturnType<typeof record>,
+    ) => {
+      const snapshotPath = await snapshotFor(name, run, result);
+      const evaluated = mdlm(
+        cliRoot,
+        "process", "expression", "evaluate", "execute-verification-run@2#completion",
+        "--snapshot", snapshotPath,
+        "--bindings", JSON.stringify({
+        implementation: controlImplementation.datum.revision_id,
+        activity: activity.datum.revision_id,
+        environment: environment.datum.revision_id,
+        execution_target: controlTarget.datum.revision_id,
+        run: run.datum.revision_id,
+        result: result.datum.revision_id,
+        }),
+        "--json",
+      );
+      expect(evaluated.status, `${evaluated.stderr}${evaluated.stdout}`).toBe(0);
+      return JSON.parse(evaluated.stdout).evaluation.result as boolean;
+    };
+    const runType = resolveType(processPackage, "RUN");
+    const resultType = resolveType(processPackage, "RES");
+    if (!runType.ok || !resultType.ok) throw new Error("Missing RUN/RES types");
+    const validRun = ajv.compile(runType.type.payloadSchema);
+    const validResult = ajv.compile(resultType.type.payloadSchema);
+    expect(
+      validRun(opaqueRun.datum.payload),
+      JSON.stringify(validRun.errors),
+    ).toBe(true);
+    expect(validResult(opaqueResult.datum.payload)).toBe(true);
+    expect(await completion("opaque", opaqueRun, opaqueResult)).toBe(false);
+    expect(validRun(partialRun.datum.payload)).toBe(true);
+    expect(validResult(partialResult.datum.payload)).toBe(true);
+    expect(await completion("partial", partialRun, partialResult)).toBe(true);
+    expect(await completion("complete", completeRun, completeResult)).toBe(true);
+    const signalRun = structuredClone(completeRun.datum.payload) as Record<string, any>;
+    delete signalRun.control_observations.known_bad.exit_status;
+    signalRun.control_observations.known_bad.signal = "SIGTERM";
+    expect(validRun(signalRun)).toBe(true);
+    signalRun.control_observations.known_bad.exit_status = 143;
+    expect(validRun(signalRun)).toBe(false);
+    const selected = async (
+      name: string,
+      run: ReturnType<typeof record>,
+      result: ReturnType<typeof record>,
+      implementationRevision = controlImplementation.datum.revision_id,
+    ) => {
+      const snapshotPath = await snapshotFor(name, run, result);
+      const evaluated = mdlm(
+        cliRoot,
+        "selector", "evaluate", "exercised-pilot-runs-for-implementation@2",
+        "--snapshot", snapshotPath,
+        "--arg", `implementation=${implementationRevision}`,
+        "--json",
+      );
+      expect(evaluated.status, `${evaluated.stderr}${evaluated.stdout}`).toBe(0);
+      return JSON.parse(evaluated.stdout).evaluation.result;
+    };
+    expect(await selected("opaque-selector", opaqueRun, opaqueResult)).toEqual([]);
+    expect(await selected("partial-selector", partialRun, partialResult)).toEqual([]);
+    expect(await selected("complete-selector", completeRun, completeResult)).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({ revision_id: completeRun.datum.revision_id }) }),
+    ]);
+    expect(await selected(
+      "public-interface-selector",
+      publicRun,
+      publicResult,
+      implementation.datum.revision_id,
+    )).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({ revision_id: publicRun.datum.revision_id }) }),
+    ]);
+    await fs.rm(cliRoot, { recursive: true, force: true });
 
     const failedImplementationReview = record(
       "REV",

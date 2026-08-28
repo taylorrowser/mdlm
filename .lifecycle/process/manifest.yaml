@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.76.0
+version: 0.77.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -80,6 +80,7 @@ catalog:
     - pilot-implementation-authorizations-for
     - complete-pilot-implementations-for-activity
     - pilot-results-completing-run
+    - pilot-control-results-completing-run
     - exercised-pilot-runs-for-implementation
     - failed-current-pilot-verification-implementations
     - corrected-pilot-verification-implementation-revisions-for
@@ -606,7 +607,7 @@ assets:
     - prompts/build-pilot-control-prototype.md@1
     - prompts/register-pilot-target.md@1
     - prompts/implement-verification-activity.md@1
-    - prompts/execute-verification-run.md@2
+    - prompts/execute-verification-run.md@3
     - prompts/revise-verification-strategy-after-review.md@1
     - prompts/revise-environment-assurance-after-review.md@1
     - prompts/revise-environment-after-failed-qualification.md@1

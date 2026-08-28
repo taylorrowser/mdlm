@@ -27,7 +27,7 @@ status_rules:
       || none("complete-environment-qualification-for-environment@1", {environment: subject}))
     reason: Environment Review context waits for one exact profile realization and its passing qualification VER, VAI, RUN, and RES evidence.
     blocked_by:
-      - obligation: verification-run-required@1
+      - obligation: verification-run-required@2
         subjects: 'select("qualification-implementations-for-environment@1", {environment: subject})'
   - status: stale
     priority: 200

@@ -28,7 +28,7 @@ status_rules:
       && none("eligible-pilot-environments-for-activity@1", {activity: activity})
     reason: Pilot implementation waits for passing qualification evidence and independent Review of its exact environment.
     blocked_by:
-      - obligation: verification-run-required@1
+      - obligation: verification-run-required@2
         subjects: >-
           select("qualification-implementations-for-environment@1",
             {environment: one("pilot-environments-for-activity@1", {activity: activity})})

@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: execute-verification-run
-version: 1
+version: 2
 description: Execute one exact qualification or pilot implementation and atomically record its immutable run and scoped result.
 phases: [phase-1-product-assurance]
 inputs:
@@ -22,7 +22,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: assessed-in, target: {input: environment}}
-prompt_ref: prompts/execute-verification-run.md@2
+prompt_ref: prompts/execute-verification-run.md@3
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
@@ -39,6 +39,51 @@ completion: >-
     && result.payload.claim.kind == "pilot"
     && result.payload.claim.scope == "verification-design"
     && result.payload.claim.outcome in ["suitable", "unsuitable", "inconclusive"]))
+  && (!present(implementation.payload.prototype_control_bindings)
+    || ((run.payload.activities_expected == ["known_good", "known_bad"]
+    && run.payload.activities_invoked == ["known_good", "known_bad"]
+    && run.payload.execution_target.ref == execution_target.identity.revision_id
+    && run.payload.control_observations.known_good.artifact_ref == run.payload.execution_target.ref
+    && run.payload.control_observations.known_bad.artifact_ref == run.payload.execution_target.ref
+    && run.payload.control_observations.known_good.activity_ref == activity.identity.revision_id
+    && run.payload.control_observations.known_bad.activity_ref == activity.identity.revision_id
+    && run.payload.control_observations.known_good.argv == implementation.payload.prototype_control_bindings.known_good.argv
+    && run.payload.control_observations.known_bad.argv == implementation.payload.prototype_control_bindings.known_bad.argv
+    && run.payload.control_observations.known_good.timed_out == false
+    && run.payload.control_observations.known_bad.timed_out == false
+    && run.payload.control_observations.known_good.truncated == false
+    && run.payload.control_observations.known_bad.truncated == false
+    && result.payload.claim.outcome == "suitable"
+    && result.payload.observations.expected_success_observed == true
+    && result.payload.observations.expected_discrimination_observed == true
+    && result.payload.control_judgments.known_good.observation_ref == "known_good"
+    && result.payload.control_judgments.known_good.outcome == "pass"
+    && result.payload.control_judgments.known_bad.observation_ref == "known_bad"
+    && result.payload.control_judgments.known_bad.outcome == "fail")
+    || (result.payload.claim.outcome in ["unsuitable", "inconclusive"]
+    && run.payload.activities_expected == ["known_good", "known_bad"]
+    && ((run.payload.activities_invoked == []
+      && !present(run.payload.control_observations.known_good)
+      && !present(run.payload.control_observations.known_bad)
+      && !present(result.payload.control_judgments.known_good)
+      && !present(result.payload.control_judgments.known_bad))
+    || (run.payload.activities_invoked == ["known_good"]
+      && present(run.payload.control_observations.known_good)
+      && !present(run.payload.control_observations.known_bad)
+      && present(result.payload.control_judgments.known_good)
+      && !present(result.payload.control_judgments.known_bad))
+    || (run.payload.activities_invoked == ["known_bad"]
+      && !present(run.payload.control_observations.known_good)
+      && present(run.payload.control_observations.known_bad)
+      && !present(result.payload.control_judgments.known_good)
+      && present(result.payload.control_judgments.known_bad))
+    || (run.payload.activities_invoked == ["known_good", "known_bad"]
+      && present(run.payload.control_observations.known_good)
+      && present(run.payload.control_observations.known_bad)
+      && present(result.payload.control_judgments.known_good)
+      && present(result.payload.control_judgments.known_bad)))
+    && result.payload.observations.expected_success_observed == false
+    && result.payload.observations.expected_discrimination_observed == false)))
 resolves: [verification-run-required]
 prohibited_inputs: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts, mutable latest aliases]
 batching: single
