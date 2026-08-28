@@ -67,6 +67,12 @@ The integration lane owns expensive checks:
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
 
+In repository tests, drive the normal successful transaction through
+`LifecycleTransactionDriver.assignment()`, `commit()`, and explicit
+`materialize()`. Keep direct compiled-CLI coverage for transport trust and use
+the lower-level command helpers only when a test must inspect malformed, stale,
+replay, authority, provenance, or other failure behavior.
+
 Before qualification, exercise the complete supported suite and every required
 compiled, packaged, and installed public path. Source-level tests do not prove a
 public CLI or installed artifact. Keep intentionally failing historical red
