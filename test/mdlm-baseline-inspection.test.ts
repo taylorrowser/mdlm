@@ -1257,7 +1257,7 @@ describe("mdlm baseline inspection", () => {
       "status",
     );
     expectSuccess(status, "current-package baseline mdlm status");
-    expect(status.stdout).toContain("Process Package: mdlm-bootstrap@0.74.0");
+    expect(status.stdout).toContain("Process Package: mdlm-bootstrap@0.75.0");
     expect(status.stdout).toContain("Current Operator Outcome:");
     expect(JSON.parse(status.stderr)).toMatchObject({
       contract: "mdlm-performance@1",
