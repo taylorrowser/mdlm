@@ -1,5 +1,14 @@
 # Agent instructions
 
+## Every root turn
+
+At root-thread start and after compaction, read
+`/home/ubuntu/git/mdlm-orchestration/AGENTS.md#every-turn`. Before implementation,
+inspect and report the live one-Codex/five-Pi roster and its manager mapping,
+assign an owner to restore every missing slot or manager, and delegate each
+independent work stream. If the root takes an implementation-like action, state
+why no subagent can own it.
+
 ## MDLM development
 
 Before any work in this repository, read `docs/agents/mdlm-development.md`.
