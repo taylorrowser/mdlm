@@ -15,6 +15,10 @@ import {
   evaluateScenarioParticipation,
 } from "../src/evaluator.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
+import {
+  submitPreparedResolverScenario,
+  type ScenarioProposal,
+} from "../src/scenario-execution.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 
 const bootstrapPackage = path.join(process.cwd(), ".lifecycle/process");
@@ -2080,6 +2084,140 @@ describe("Phase 0 missing hardening routes", () => {
     expect([source, boundary, answered].some((item) =>
       item.datum.type === "DEC"
     )).toBe(false);
+  });
+
+  it("rejects a Question Decision that also resolves the historical QST Revision", async () => {
+    const question = record("QST", "QST-1030000098", {
+      title: "Available empirical answer",
+      kind: "empirical",
+      question: "Does the bounded evidence support the current answer?",
+      state: "open",
+      blocking_impact: "The bounded result remains unknown.",
+      evidence_available: true,
+    });
+    const boundary = record("BSL", "BSL-1030000098", {
+      title: "Empirical answer source boundary",
+      kind: "source-boundary",
+      role: "source-boundary",
+      scope: question.datum.revision_id,
+      group: "SAME-LINEAGE",
+      definition_members: [question.datum.revision_id],
+      evidence: [],
+    }, { scenario: "freeze-source-boundary@1" });
+    boundary.integrity.scenario_execution_valid = true;
+    const records = [question, boundary];
+    const evaluation = evaluateLifecycle(processPackage, snapshot(records));
+    const resolution = evaluation.obligations.find((item) =>
+      item.obligation === "open-question-resolution" &&
+      item.subject === question.datum.revision_id
+    );
+    expect(resolution).toEqual(expect.objectContaining({
+      dispatchable: true,
+      actionableResolver: "resolve-question@2",
+    }));
+    if (!resolution) return;
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot(records),
+      "resolve-question@2",
+      resolution.id,
+      [],
+      evaluation,
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    const proposal: ScenarioProposal = {
+      outputs: [{
+        localId: "decision",
+        name: "decision",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "DEC",
+          payload: {
+            title: "Bounded empirical answer",
+            rationale: "The supplied evidence supports the current answer.",
+            kind: "scope",
+            decision: "The bounded evidence supports the current answer.",
+            alternatives: ["Defer the answer"],
+            effective_scope: "$proposal.answered.revision_id",
+          },
+          links: [
+            { type: "resolves", target: question.datum.revision_id },
+            { type: "resolves", target: "$proposal.answered.revision_id" },
+          ],
+          body: "The current answered Question carries the exact evidence.\n",
+        },
+      }, {
+        localId: "answered",
+        name: "updated_question",
+        invocation: 0,
+        lifecycleDatum: {
+          id: question.datum.id,
+          type: "QST",
+          payload: { ...question.datum.payload, state: "answered" },
+          links: [],
+          body: "The bounded empirical Question is answered.\n",
+        },
+      }],
+      completionEvidence: { summary: "Resolved the bounded empirical Question." },
+    };
+    let publicationCalls = 0;
+    const submit = (candidate: ScenarioProposal, digestCharacter: string) =>
+      submitPreparedResolverScenario(
+        "/unused",
+        processPackage,
+        {
+          reference: "mdlm-bootstrap@0.78.0",
+          digest: "sha256:test",
+          language: "mdlm-expression@1",
+        },
+        {
+        scenarioReference: "resolve-question@2",
+        obligationInstance: resolution.id,
+        proposal: candidate,
+        assignment: "33000000-0000-4000-8000-000000000330",
+        responseDigest: `sha256:${digestCharacter.repeat(64)}`,
+        suppliedAuthorities: [],
+        suppliedDelegations: [],
+        loadedSkillRefs: prepared.value.prompt.skills.map((skill) => skill.reference),
+        },
+        {
+          dryRun: prepared.value,
+          evaluation,
+          scenario: processPackage.scenarios["resolve-question"]!,
+          snapshot: snapshot(records),
+          publishMutation: async (_root, _package, _expected, data) => {
+            publicationCalls += 1;
+            return {
+              ok: true as const,
+              value: {
+                executionPath: ".lifecycle/data/.transactions/test/execution.json",
+                created: data.map((datum) => ({
+                  id: datum.id,
+                  revisionId: datum.revision_id,
+                  type: datum.type,
+                  path: `.lifecycle/data/${datum.type}/${datum.id}/r00001.md`,
+                })),
+              },
+              diagnostics: [],
+            };
+          },
+        },
+      );
+    const submitted = await submit(proposal, "3");
+    expect(submitted).toEqual({
+      ok: false,
+      diagnostics: [expect.objectContaining({ code: "scenario-completion-failed" })],
+    });
+    expect(publicationCalls).toBe(0);
+
+    const currentOnly = structuredClone(proposal);
+    currentOnly.outputs[0]!.lifecycleDatum.links = [
+      { type: "resolves", target: "$proposal.answered.revision_id" },
+    ];
+    const accepted = await submit(currentOnly, "4");
+    expect(accepted.ok, accepted.ok ? "" : JSON.stringify(accepted.diagnostics)).toBe(true);
+    expect(publicationCalls).toBe(1);
   });
 
   it("resolves a source-bounded prototype Question only with the exact ART bounded DEC and same-lineage answer", async () => {

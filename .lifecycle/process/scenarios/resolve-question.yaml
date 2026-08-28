@@ -14,7 +14,6 @@ outputs:
     types: [DEC]
     cardinality: zero-or-one
     required_links:
-      - {link: resolves, target: {input: question}}
       - {link: resolves, target: {output: updated_question}}
   - {name: updated_question, types: [QST], cardinality: one, required_links: []}
 prompt_ref: prompts/resolve-question.md@2
@@ -79,6 +78,14 @@ completion: >-
     (question.payload.kind == "empirical"
     && updated_question.payload.state == "answered")
     || decision != null
+  )
+  && (
+    decision == null
+    || (
+      count("resolved-question-revisions-for-decision@1", {decision: decision}) == 1
+      && every("resolved-question-revisions-for-decision@1", {decision: decision},
+        resolved => resolved == updated_question)
+    )
   )
   && (
     updated_question.payload.state != "deferred"

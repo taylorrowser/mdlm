@@ -19,8 +19,11 @@ reactivation condition and blocking impact. Cancellation must be intentional and
 reasoned.
 
 For a consequential answer, any deferral, or any cancellation, create one DEC
-with a `resolves` link to the exact input QST revision. Normalize an attended
-product answer into one self-contained `attended_answer` on the answered QST.
+with one `resolves` link to the emitted current QST revision. Do not link or
+claim to resolve the historical input QST; it is supplied only to author the
+next Revision and may be absent from the DEC's frozen Review Context. Normalize
+an attended product answer into one self-contained `attended_answer` on the
+answered QST.
 Keep the supplied behavior, boundaries, and constraints. Do not store a chat
 transcript. Copy that normalized answer exactly into the initial DEC `decision`.
 A routine autonomous empirical answer may publish only the next QST Revision and its cited evidence;
