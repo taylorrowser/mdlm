@@ -18,7 +18,6 @@ import {
   publishScenarioMutation,
   readRepositoryData,
 } from "../src/lifecycle-repository.js";
-import { processPackageDigest } from "../src/process-package-digest.js";
 import {
   inputRevision,
   inputRevisions,
@@ -26,6 +25,7 @@ import {
   submitAssignment,
 } from "./helpers/assignment-submission.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
+import { currentProcessPackageIdentity } from "./helpers/current-process-package-identity.js";
 import { mdlm, selectProcessPackageFixture } from "./helpers/mdlm.js";
 import { copiedProcessPackage } from "./helpers/process-package.js";
 
@@ -606,7 +606,8 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
       await selectProcessPackageFixture(repository, processRoot);
       const loaded = await loadProcessPackage(processRoot);
       if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-      const fixtureProcessRef = `mdlm-bootstrap@0.76.0#${await processPackageDigest(processRoot)}`;
+      const { processRef: fixtureProcessRef } =
+        await currentProcessPackageIdentity(processRoot);
 
       const wanted = new Set([plan, "SYS-0EXPRTREQ0-r00001"]);
       let changed = true;
