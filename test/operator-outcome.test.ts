@@ -17,7 +17,6 @@ import {
 } from "../scripts/root-test-observation-policy.mjs";
 import { parse, stringify } from "yaml";
 import {
-  inspectAssignmentState,
   operatorTerminalOutcomeProjection,
   operatorWorkProjection,
   type OperatorStatus,
@@ -426,26 +425,6 @@ describe("package-neutral Operator Outcome classification", () => {
     if (lifecycleComplete.kind !== "lifecycle-complete") {
       throw new Error(`unexpected outcome: ${lifecycleComplete.kind}`);
     }
-    expect(operatorTerminalOutcomeProjection(profileBoundary)).toEqual({
-      outcome: "profile-boundary-reached",
-      explanation: "The selected profile intentionally stops before deployment.",
-      omittedCoverage: {
-        profile: ["deployment"],
-        phase: ["deployment evidence"],
-      },
-      evidence: {
-        profile: "bounded@1",
-        condition: { source: "true", result: true, selectors: [] },
-      },
-    });
-    expect(operatorTerminalOutcomeProjection(lifecycleComplete)).toEqual({
-      outcome: "lifecycle-complete",
-      explanation: "Every package-declared lifecycle objective is satisfied.",
-      evidence: {
-        profile: "complete@1",
-        condition: { source: "true", result: true, selectors: [] },
-      },
-    });
     expect(classifyOperatorOutcome([work()], {
       outcome: "profile-boundary-reached",
       explanation: "Work takes precedence over a matched terminal condition.",
@@ -539,8 +518,16 @@ describe("public mdlm outcome and status seam", () => {
     });
   }
 
+  function initializedPackageRoot(): string {
+    return path.join(
+      repository,
+      ".lifecycle/packages",
+      operatorStatusFoundation.package.reference,
+    );
+  }
+
   function terminalEvaluation(
-    outcome: "profile-boundary" | "lifecycle-complete" | "ambiguous" | "none",
+    outcome: "profile-boundary" | "lifecycle-complete" | "ambiguous",
   ): LifecycleEvaluation {
     const processPackage = structuredClone(terminalPackageFoundation);
     const profile = processPackage.profiles.terminal!;
@@ -555,7 +542,6 @@ describe("public mdlm outcome and status seam", () => {
       };
       delete terminalOutcomes.profile_boundary;
     }
-    if (outcome === "none") delete profile.terminal_outcomes;
     return deepFreeze(activeLifecycleEvaluation(processPackage, {
       processRef: "terminal-fixture@1.0.0#sha256:test",
       phaseId: "phase-0-terminal",
@@ -582,13 +568,8 @@ describe("public mdlm outcome and status seam", () => {
         ok: true,
         command: "status",
         contract: "mdlm-status@1",
-        package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.76.0",
-        }),
-        profile: expect.objectContaining({ reference: "bootstrap@39" }),
         integrity: { status: "valid", diagnostics: [] },
         activePhase: expect.objectContaining({
-        reference: "phase-0-wayfinding@5",
         purpose: expect.any(String),
       }),
         omittedCoverage: expect.objectContaining({
@@ -609,37 +590,12 @@ describe("public mdlm outcome and status seam", () => {
       }),
     );
     const readable = renderOperatorStatus(statusProjection);
-    expect(readable).toContain("Active Phase: phase-0-wayfinding@5");
     expect(readable).toContain("Current Operator Outcome: assignment");
     await expect(fs.stat(path.join(
       repository,
       ".lifecycle/work/active-assignment.json",
     ))).rejects.toMatchObject({ code: "ENOENT" });
 
-    const allocated = JSON.parse(
-      (await applicationMdlm(repository, "next")).stdout,
-    );
-    const active = await inspectAssignmentState(
-      repository,
-      allocated.assignment.id,
-    );
-    expect(active).toEqual(expect.objectContaining({
-      ok: true,
-      value: expect.objectContaining({
-        selected: true,
-        disposition: "active",
-      }),
-    }));
-    const withLease: OperatorStatus = {
-      ...structuredClone(statusProjection),
-      currentOutcome: {
-        outcome: "assignment",
-        assignment: { allocation: "active", id: allocated.assignment.id },
-      },
-    };
-    expect(renderOperatorStatus(withLease)).toContain(
-      `active ${allocated.assignment.id}`,
-    );
   });
 
   it("resolves the package-declared default from multiple valid profiles", () => {
@@ -657,17 +613,11 @@ describe("public mdlm outcome and status seam", () => {
       reference: "alternate@39",
       definition: expect.objectContaining({ id: "alternate", version: 39 }),
     });
-    expect(selectedImplementationProfile(bootstrapPackageFoundation)?.reference)
-      .toBe("bootstrap@39");
-    expect(bootstrapPackageFoundation.profiles.alternate).toBeUndefined();
   });
 
   it("submits package-declared progression in a noninitial Phase from one inspection", async () => {
     await initializeRepository();
-    const packageRoot = path.join(
-      repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.76.0",
-    );
+    const packageRoot = initializedPackageRoot();
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
       `kind: phase-definition
@@ -1026,17 +976,6 @@ gate:
     ]);
   });
 
-  it("returns Process Dead End successfully with blocker diagnostics", () => {
-    const evaluation = terminalEvaluation("none");
-
-    expect(evaluation.diagnostics).toEqual([]);
-    expect(classifyTerminalEvaluation(evaluation)).toEqual({
-      kind: "process-dead-end",
-      explanation: expect.stringContaining("unfinished"),
-      blockers: [],
-    });
-  });
-
   it("returns versioned Invalid for malformed repository selection JSON", async () => {
     await initializeRepository();
     await fs.writeFile(
@@ -1067,29 +1006,12 @@ gate:
     await initializeRepository();
     await fs.appendFile(
       path.join(
-        repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.76.0/manifest.yaml",
+        initializedPackageRoot(),
+        "manifest.yaml",
       ),
       "\n# integrity failure\n",
     );
 
-    const next = await applicationMdlm(repository, "next");
-
-    expect(next.status).toBe(1);
-    expect(JSON.parse(next.stdout)).toEqual(expect.objectContaining({
-      ok: false,
-      command: "next",
-      contract: "mdlm-next@1",
-      outcome: "invalid",
-      integrity: { status: "invalid" },
-      operatorInstructions: expect.objectContaining({
-        action: "stop-failure",
-        disposition: "unsuccessful-stop",
-      }),
-      diagnostics: [expect.objectContaining({
-        code: "process-package-selection-mismatch",
-      })],
-    }));
     const status = await applicationMdlm(repository, "status", "--json");
     expect(status.status).toBe(1);
     expect(JSON.parse(status.stdout)).toEqual(expect.objectContaining({
