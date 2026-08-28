@@ -84,8 +84,8 @@ describe("mdlm schema", () => {
       command: "schema",
       package: {
         id: "mdlm-bootstrap",
-        version: "0.75.0",
-        reference: "mdlm-bootstrap@0.75.0",
+        version: "0.76.0",
+        reference: "mdlm-bootstrap@0.76.0",
         language: "mdlm-expression@1",
         digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
       },
@@ -271,7 +271,7 @@ describe("mdlm schema", () => {
       ok: false,
       command: "schema",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.75.0",
+        reference: "mdlm-bootstrap@0.76.0",
       }),
       selected: true,
       diagnostics: [{
@@ -308,7 +308,7 @@ describe("mdlm schema", () => {
     );
     const selectedType = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.75.0/types/STK.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.76.0/types/STK.yaml",
     );
     await fs.appendFile(selectedType, "unexpected_private_field: true\n");
 
@@ -335,7 +335,7 @@ describe("mdlm schema", () => {
     );
     const selectedType = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.75.0/types/STK.yaml",
+      ".lifecycle/packages/mdlm-bootstrap@0.76.0/types/STK.yaml",
     );
     await fs.writeFile(
       selectedType,
@@ -355,7 +355,7 @@ describe("mdlm schema", () => {
       diagnostics: [expect.objectContaining({
         code: "process-package-selection-mismatch",
         path: expect.stringContaining(
-          ".lifecycle/packages/mdlm-bootstrap@0.75.0",
+          ".lifecycle/packages/mdlm-bootstrap@0.76.0",
         ),
         message: expect.stringContaining(
           "no longer matches its exact recorded version, language, and digest",

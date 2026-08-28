@@ -1617,7 +1617,7 @@ describe("Phase 1 hardening route evidence", () => {
       const safeReplacement = fixtureRecords[8]!;
       const safeFreshQualification = fixtureRecords.slice(9, 13);
       const fixtureProcessRef =
-        `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
+        `mdlm-bootstrap@0.76.0#${await processPackageDigest(processRoot)}`;
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -1934,7 +1934,7 @@ describe("Phase 1 hardening route evidence", () => {
         item.datum.type === "RES"
       )!;
       const fixtureProcessRef =
-        `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
+        `mdlm-bootstrap@0.76.0#${await processPackageDigest(processRoot)}`;
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -3862,7 +3862,7 @@ describe("Phase 1 hardening route evidence", () => {
         currentStrategy,
         acceptedIntent,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.76.0#${await processPackageDigest(processRoot)}`;
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }

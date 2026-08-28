@@ -20,7 +20,7 @@ export async function restoreHistoricalFixtureProcessPackage(
 
     const currentManifestPath = path.join(stagedPackage, "manifest.yaml");
     const pilotManifest = await fs.readFile(currentManifestPath, "utf8");
-    if (pilotManifest.includes("version: 0.75.0")) {
+    if (pilotManifest.includes("version: 0.76.0")) {
       const prePilotControlCommit = "d3939eb42ba4b57fe14419d4fbebf3cc207fcd17";
       const pilotTargetPath = path.join(
         stagedPackage,
@@ -66,7 +66,7 @@ export async function restoreHistoricalFixtureProcessPackage(
       await fs.writeFile(
         currentManifestPath,
         pilotManifest
-          .replace("version: 0.75.0", "version: 0.74.0")
+          .replace("version: 0.76.0", "version: 0.74.0")
           .replace("    - build-pilot-control-prototype\n", "")
           .replace("    - prompts/build-pilot-control-prototype.md@1\n", "")
           .replace("    - skills/pilot-control-prototype.md@1\n", "")
