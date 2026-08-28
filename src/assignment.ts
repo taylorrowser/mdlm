@@ -157,6 +157,9 @@ export interface AttentionContext {
 
 export type OperatorOutcome =
   | OperatorOutcomeBase & {
+      outcome: "publication-required";
+    }
+  | OperatorOutcomeBase & {
       outcome: "assignment";
       assignment: { id: string };
     }
@@ -318,7 +321,7 @@ export type AssignmentDisposition =
     };
 
 export interface AssignmentPacket {
-  contract: "mdlm-assignment-packet@2";
+  contract: "mdlm-assignment-packet@3";
   assignment: { id: string };
   package: PackageExecutionIdentity;
   repository: RepositoryFingerprint;
@@ -330,7 +333,6 @@ export interface AssignmentPacket {
     definition: { id: string; version: number };
   };
   prompt: ScenarioDryRun["prompt"];
-  assets: Array<Omit<ScenarioDryRun["prompt"], "skills">>;
   exactInputs: ScenarioDryRunInvocation[];
   allowedProjections: {
     exactLifecycleData: string[];
@@ -1588,6 +1590,24 @@ async function leaseNextAssignmentLocked(
     if (!state.ok) return state;
   }
 
+  if (materializedExecutions.length > 0) {
+    if (activeLease) {
+      await renewLeaseLock();
+      await fs.rm(leasePath(repositoryRoot), { force: true });
+    }
+    return {
+      ok: true,
+      value: {
+        package: state.value.summary,
+        contract: "mdlm-next@1",
+        phase: phaseReference(state.value.evaluation),
+        outcome: "publication-required",
+        materializedExecutions,
+      },
+      diagnostics: [],
+    };
+  }
+
   if (
     state.value.classification.kind !== "assignment" &&
     state.value.classification.kind !== "attention-required"
@@ -1882,6 +1902,7 @@ export async function inspectOperatorStatus(
 /** Return the Assignment response contract, optionally bound to exact invocation groups. */
 export function assignmentResponseSchema(
   invocations?: readonly number[],
+  authoritySupplies?: readonly string[],
 ): Record<string, unknown> {
   const diagnostic = {
     type: "object",
@@ -1923,6 +1944,11 @@ export function assignmentResponseSchema(
     contract: { const: "mdlm-assignment-response@1" },
     assignment: { type: "string", minLength: 1 },
   };
+  const authoritySuppliesSchema = authoritySupplies
+    ? authoritySupplies.length > 0
+      ? { items: { enum: [...authoritySupplies] } }
+      : { items: { type: "string" }, maxItems: 0 }
+    : { items: { type: "string" } };
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: "https://mdlm.dev/contracts/mdlm-assignment-response@1",
@@ -1974,7 +2000,7 @@ export function assignmentResponseSchema(
               },
               authoritySupplies: {
                 type: "array",
-                items: { type: "string" },
+                ...authoritySuppliesSchema,
                 uniqueItems: true,
               },
               standingDelegations: {
@@ -2125,24 +2151,9 @@ function packet(
   lease: AssignmentLease,
 ): AssignmentPacket {
   const participation = exact.dryRun.participation ?? [];
-  const packetAssets = [
-    {
-      reference: exact.dryRun.prompt.reference,
-      path: exact.dryRun.prompt.path,
-      digest: exact.dryRun.prompt.digest,
-      content: exact.dryRun.prompt.content,
-    },
-    ...exact.dryRun.prompt.skills,
-    ...exact.dryRun.policies.flatMap((policy) =>
-      policy.evaluations?.flatMap((evaluation) => evaluation.assets) ?? []
-    ),
-  ];
-  const assets = [...new Map(
-    packetAssets.map((asset) => [asset.reference, asset]),
-  ).values()];
   const exactData = exactLifecycleData(exact.dryRun);
   return {
-    contract: "mdlm-assignment-packet@2",
+    contract: "mdlm-assignment-packet@3",
     assignment: { id: lease.id },
     package: exact.lease.package,
     repository: exact.lease.repository,
@@ -2156,7 +2167,6 @@ function packet(
       definition: { id: exact.scenario.id, version: exact.scenario.version },
     },
     prompt: exact.dryRun.prompt,
-    assets,
     exactInputs: exact.dryRun.invocations,
     allowedProjections: {
       exactLifecycleData: exactData,
@@ -2190,6 +2200,11 @@ function packet(
     completion: exact.dryRun.completion,
     responseSchema: assignmentResponseSchema(
       exact.dryRun.invocations.map((_, invocation) => invocation),
+      [...new Set(participation.flatMap((value) =>
+        value.authorityRequirement.mode === "autonomous"
+          ? []
+          : [value.authorityRequirement.authority]
+      ))].sort(),
     ),
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation

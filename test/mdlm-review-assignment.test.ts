@@ -70,12 +70,6 @@ type Packet = {
       }[];
     }[];
   }[];
-  assets: {
-    reference: string;
-    path: string;
-    digest: string;
-    content: string;
-  }[];
 };
 
 function git(repository: string, ...arguments_: string[]) {
@@ -213,7 +207,8 @@ describe("delegated Review Assignment packets", () => {
         repository: expect.objectContaining({ loads: 1 }),
       }));
       const nextReviewOutput = JSON.parse(nextReview.stdout) as {
-        assignment: { id: string };
+        outcome: string;
+        assignment?: { id: string };
         materializedExecutions: { id: string; scenario: string; status: string }[];
         operatorInstructions: {
           action: string;
@@ -221,7 +216,12 @@ describe("delegated Review Assignment packets", () => {
           materializedExecutions: { id: string; scenario: string }[];
         };
       };
-      const preCommitReviewAssignment = nextReviewOutput.assignment.id;
+      expect(nextReviewOutput.outcome).toBe("publication-required");
+      expect(nextReviewOutput.assignment).toBeUndefined();
+      await expect(fs.access(path.join(
+        repository,
+        ".lifecycle/work/active-assignment.json",
+      ))).rejects.toMatchObject({ code: "ENOENT" });
       expect(nextReviewOutput.materializedExecutions).toEqual([
         expect.objectContaining({ scenario: "create-review-context@1", status: "completed" }),
       ]);
@@ -249,9 +249,6 @@ describe("delegated Review Assignment packets", () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
       );
       expect(materializationExecution?.response?.assignment).not.toMatch(/^kernel-/);
-      expect(materializationExecution?.response?.assignment).not.toBe(
-        preCommitReviewAssignment,
-      );
       expect(nextReviewOutput.materializedExecutions[0]?.id).toBe(
         materializationExecution?.id,
       );
@@ -260,6 +257,9 @@ describe("delegated Review Assignment packets", () => {
         recursive: true,
         mode: fsConstants.COPYFILE_FICLONE,
       });
+      const correctionNext = await mdlm(correctionRepository, "next", "--json");
+      expectSuccess(correctionNext, "mdlm next from materialized Review Context");
+      const preCommitReviewAssignment = JSON.parse(correctionNext.stdout).assignment.id;
 
       commitLifecycleData(repository, "Publish automatic Review Context");
       const freshReview = await mdlm(repository, "next", "--json");
@@ -269,14 +269,13 @@ describe("delegated Review Assignment packets", () => {
         materializedExecutions: unknown[];
       };
       expect(freshReviewOutput.materializedExecutions).toEqual([]);
-      expect(freshReviewOutput.assignment.id).not.toBe(preCommitReviewAssignment);
       const preparedReview = await mdlm(
         repository,
         "scenario", "prepare", freshReviewOutput.assignment.id, "--json",
       );
       expectSuccess(preparedReview, "mdlm scenario prepare fresh Review");
       const reviewPacket = JSON.parse(preparedReview.stdout) as Packet;
-      expect(reviewPacket.contract).toBe("mdlm-assignment-packet@2");
+      expect(reviewPacket.contract).toBe("mdlm-assignment-packet@3");
       expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
       expect(reviewPacket.prompt.skills.map((skill) => skill.reference))
         .toContain("skills/review-correction-authority.md@1");
@@ -343,11 +342,12 @@ describe("delegated Review Assignment packets", () => {
           ],
         }),
       );
-      expect(reviewPacket.assets).toContainEqual(
+      expect(reviewPacket).not.toHaveProperty("assets");
+      expect(reviewPolicy?.evaluations?.[0]?.assets[0]).toEqual(
         expect.objectContaining({
           reference: "policies/rubrics/bootstrap-review.md@3",
-          digest: reviewPolicy?.evaluations?.[0]?.assets[0]?.digest,
-          content: reviewPolicy?.evaluations?.[0]?.assets[0]?.content,
+          digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+          content: expect.stringContaining("correction_authority: package-evidence"),
         }),
       );
 
@@ -359,7 +359,7 @@ describe("delegated Review Assignment packets", () => {
       const correctionReviewPacket = JSON.parse(
         preparedCorrectionReview.stdout,
       ) as Packet;
-      expect(correctionReviewPacket.contract).toBe("mdlm-assignment-packet@2");
+      expect(correctionReviewPacket.contract).toBe("mdlm-assignment-packet@3");
       expect(correctionReviewPacket.assignment.id).toBe(preCommitReviewAssignment);
       expect(correctionReviewPacket.scenario.reference).toBe(
         "review-datum-in-context@2",

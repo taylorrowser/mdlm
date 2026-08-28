@@ -29,6 +29,7 @@ completion: >-
   && target.payload.public_interface.working_directory == "fresh-temporary-directory"
   && count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1
   && one("current-pilot-targets-for-requirement@1", {requirement: requirement}) == target
-resolves: [pilot-target-required]
+resolves: []
+initiation: explicit
 prohibited_inputs: [mutable repository reference, product source as verification evidence, product unit tests, private implementation detail, requirement acceptance claim, verification result claim, authority claim, unbounded supported behavior, omitted unsupported boundary, incomplete public execution interface]
 batching: single

@@ -116,6 +116,24 @@ function cloneHistoricalRepository(parent: string): string {
 async function nextDuringTrackedChanges(
   repository: string,
 ): Promise<{ exit: number | null; stderr: string; stdout: string }> {
+  const mutator = spawn(process.execPath, [
+    "-e",
+    `const fs = require("node:fs");
+const file = process.argv[1];
+let revision = 0;
+function mutate() {
+  revision += 1;
+  fs.appendFileSync(file, \`# concurrent tracked change \${revision}\\n\`);
+  if (revision === 1) process.stdout.write("ready\\n");
+  setTimeout(mutate, 10);
+}
+mutate();`,
+    path.join(repository, ".gitignore"),
+  ]);
+  await new Promise<void>((resolve, reject) => {
+    mutator.once("error", reject);
+    mutator.stdout.once("data", () => resolve());
+  });
   const child = spawn(
     process.execPath,
     [path.resolve("dist/mdlm.js"), "next", "--json"],
@@ -127,23 +145,11 @@ async function nextDuringTrackedChanges(
   child.stderr.setEncoding("utf8");
   child.stdout.on("data", (chunk: string) => stdout += chunk);
   child.stderr.on("data", (chunk: string) => stderr += chunk);
-  let keepMutating = true;
-  const mutations = (async () => {
-    let revision = 0;
-    while (keepMutating) {
-      revision += 1;
-      await fs.appendFile(
-        path.join(repository, ".gitignore"),
-        `# concurrent tracked change ${revision}\n`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  })();
   const exit = await new Promise<number | null>((resolve) =>
     child.on("close", resolve)
   );
-  keepMutating = false;
-  await mutations;
+  mutator.kill();
+  await new Promise<void>((resolve) => mutator.once("close", () => resolve()));
   return { exit, stderr, stdout };
 }
 
@@ -1251,7 +1257,7 @@ describe("mdlm baseline inspection", () => {
       "status",
     );
     expectSuccess(status, "current-package baseline mdlm status");
-    expect(status.stdout).toContain("Process Package: mdlm-bootstrap@0.74.0");
+    expect(status.stdout).toContain("Process Package: mdlm-bootstrap@0.76.0");
     expect(status.stdout).toContain("Current Operator Outcome:");
     expect(JSON.parse(status.stderr)).toMatchObject({
       contract: "mdlm-performance@1",

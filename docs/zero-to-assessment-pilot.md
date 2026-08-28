@@ -29,7 +29,7 @@ than by migrating or hand-editing that historical repository:
   makes an ordinary Git commit, and receives the next exact Assignment. A tracked
   change then proves that the allocated Assignment cannot cross the committed
   state boundary.
-- `test/mdlm-clean-pilot-contract.test.ts` retains the representative compiled
+- `test/mdlm-clean-onboarding-transaction.test.ts` retains the representative compiled
   `mdlm` transaction; `test/evaluate-bootstrap-participation.test.ts`,
   `test/evaluate-review-flow.test.ts`, and `test/evaluate-phase.test.ts` cover
   independent Review, Correction, gate rejection, same-gate return, exact
@@ -62,7 +62,7 @@ documentation references to `mdlm`.
 
 | Issue #70 criterion | Evidence |
 | --- | --- |
-| Fresh initialization and exact selection | `mdlm init` records `mdlm-bootstrap@0.74.0` without a package flag or descriptor edit; the onboarding test asserts the exact clean-break package and clean setup commit. |
+| Fresh initialization and exact selection | `mdlm init` records `mdlm-bootstrap@0.76.0` without a package flag or descriptor edit; the onboarding test asserts the exact clean-break package and clean setup commit. |
 | Work discovery through assessment | `mdlm next` selects the initial Product Wayfinding Assignment in the fresh transaction repository. The compiled public Phase 0, Phase 1, Phase 2, and pilot-assessment routes listed above derive every continuation from reevaluation rather than a runbook. |
 | Public operation only | Normal progress uses only `mdlm init`, `status`, `next`, `scenario prepare`, `scenario submit`, `doctor`, read-only inspection and diff, and ordinary Git. Scenario Proposals, not Markdown edits, cross the publication seam. |
 | Exact same-lineage source boundary | The package-discovered source-boundary Assignment freezes the exact source Revision before a same-lineage Question replacement. |

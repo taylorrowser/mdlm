@@ -583,9 +583,9 @@ describe("public mdlm outcome and status seam", () => {
         command: "status",
         contract: "mdlm-status@1",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.74.0",
+          reference: "mdlm-bootstrap@0.76.0",
         }),
-        profile: expect.objectContaining({ reference: "bootstrap@38" }),
+        profile: expect.objectContaining({ reference: "bootstrap@39" }),
         integrity: { status: "valid", diagnostics: [] },
         activePhase: expect.objectContaining({
         reference: "phase-0-wayfinding@5",
@@ -649,16 +649,16 @@ describe("public mdlm outcome and status seam", () => {
       id: "alternate",
     };
     processPackage.manifest.profiles = {
-      default: "alternate@38",
-      available: ["profiles/bootstrap.yaml@38", "profiles/alternate.yaml@38"],
+      default: "alternate@39",
+      available: ["profiles/bootstrap.yaml@39", "profiles/alternate.yaml@39"],
     };
 
     expect(selectedImplementationProfile(processPackage)).toEqual({
-      reference: "alternate@38",
-      definition: expect.objectContaining({ id: "alternate", version: 38 }),
+      reference: "alternate@39",
+      definition: expect.objectContaining({ id: "alternate", version: 39 }),
     });
     expect(selectedImplementationProfile(bootstrapPackageFoundation)?.reference)
-      .toBe("bootstrap@38");
+      .toBe("bootstrap@39");
     expect(bootstrapPackageFoundation.profiles.alternate).toBeUndefined();
   });
 
@@ -666,7 +666,7 @@ describe("public mdlm outcome and status seam", () => {
     await initializeRepository();
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.74.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.76.0",
     );
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
@@ -1068,7 +1068,7 @@ gate:
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.74.0/manifest.yaml",
+        ".lifecycle/packages/mdlm-bootstrap@0.76.0/manifest.yaml",
       ),
       "\n# integrity failure\n",
     );

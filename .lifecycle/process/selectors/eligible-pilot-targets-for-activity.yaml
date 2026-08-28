@@ -14,5 +14,7 @@ query:
       {requirement: one("requirements-for-pilot-activity@1", {activity: activity})}) == 1
     && one("current-pilot-targets-for-requirement@1",
       {requirement: one("requirements-for-pilot-activity@1", {activity: activity})}) == target
+    && (!present(target.payload.prototype_controls)
+      || target.payload.prototype_controls.activity_ref == activity.identity.revision_id)
   distinct: true
   order_by: [identity.revision_id]

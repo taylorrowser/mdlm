@@ -51,14 +51,14 @@ deferred by the reviewed Pilot Assessment.
 | Bundled initialization, exact package selection, inspection, validation, and compatible migration | #32–#35, #54, #84, #104 | `test/mdlm-init.test.ts`, `test/mdlm-command-application.test.ts`, `test/mdlm-process-migration.test.ts`, `test/mdlm-schema.test.ts` |
 | Markdown-authoritative repository, lineage, links, exact baselines, diff, and rebuild | #36–#40, #104 | `test/mdlm-assignment.test.ts`, `test/dependency-changes.test.ts` |
 | Exact Assignment preparation, typed inability, bounded malformed-response correction, atomic submission, provenance, and protected Authority Evidence | #41–#43, #71, #87, #90, #104 | `test/mdlm-assignment.test.ts`, `test/operator-outcome.test.ts` |
-| Operator Outcome classification and explicit stop behavior | #89–#90, #100 | `test/operator-outcome.test.ts`, `test/mdlm-clean-pilot-contract.test.ts` |
+| Operator Outcome classification and explicit stop behavior | #89–#90, #100 | `test/operator-outcome.test.ts`, `test/mdlm-clean-onboarding-transaction.test.ts` |
 | Phase 0 wayfinding, Correction, reviewed intent, gate rejection, and same-gate return | #44, #64, #92–#95 | `test/phase-0-hardening-routes.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
 | Phase 1 assurance, exact target evidence, bounded Correction, fresh pilot evidence, and ambiguity boundaries | #45, #65–#66, #74–#76, #97 | `test/phase-1-hardening-routes.test.ts`, `test/phase-1-route-contracts.test.ts` |
 | Phase 2 decomposition, exact-set simplification, Correction, candidates, acceptance, and progression | #46, #98–#99 | `test/phase-2-hardening-routes.test.ts`, `test/phase-hardening-domain-contracts.test.ts` |
 | Accepted STK/shared-SYS change, serial consumer replacement, selective reuse, and closure | #47, #101–#102 | `test/change-and-pilot-hardening-routes.test.ts`, `test/evaluate-shared-system-change.test.ts` |
 | Durable PAS, bounded Correction, reviewed Expansion Decision, and explicit terminal outcomes | #48, #68, #100 | `test/mdlm-pilot-assessment.test.ts`, `test/change-and-pilot-hardening-routes.test.ts`, `test/operator-outcome.test.ts` |
 | Continuous package-neutral pi operation and harness-owned authority handling | #69, #72, #104 | `test/pi-operator-instructions.test.ts`, `test/mdlm-assignment.test.ts`, `test/operator-outcome.test.ts` |
-| Fresh public transaction and compositional hardening proof | #70, #103–#104 | `test/mdlm-clean-onboarding-transaction.test.ts`, `test/mdlm-clean-pilot-contract.test.ts`, `test/phase-hardening-matrix.test.ts` |
+| Fresh public transaction and compositional hardening proof | #70, #103–#104 | `test/mdlm-clean-onboarding-transaction.test.ts`, `test/phase-hardening-matrix.test.ts` |
 
 The suite supplies overlapping evidence rather than treating this table as one
 test per requirement. The route registry in
@@ -68,8 +68,9 @@ assertions and is not runtime process state.
 ## Operator and publication invariants
 
 - `mdlm status` observes current truth without allocating work.
-- `mdlm next` returns exactly one versioned Operator Outcome and leases only an
-  exact Assignment that can advance.
+- `mdlm next` returns either a transient `publication-required` kernel boundary
+  or exactly one versioned Operator Outcome, and leases only an exact Assignment
+  that can advance.
 - `scenario prepare` binds the Assignment to exact Git, repository, package,
   prompt, skill, input, participation, output, and completion evidence without
   publishing Lifecycle Data.

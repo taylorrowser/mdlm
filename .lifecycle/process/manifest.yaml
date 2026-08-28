@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.74.0
+version: 0.76.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -533,6 +533,7 @@ catalog:
     - define-verification-strategy
     - realize-verification-environment
     - write-verification-activity
+    - build-pilot-control-prototype
     - register-pilot-target
     - implement-verification-activity
     - execute-verification-run
@@ -589,8 +590,8 @@ assets:
     - prompts/resolve-question-with-prototype.md@2
     - prompts/create-candidate-baseline.md@1
     - prompts/create-phase-0-intent-candidate.md@1
-    - prompts/record-gate-signoff.md@3
-    - prompts/record-consequential-decision.md@1
+    - prompts/record-gate-signoff.md@4
+    - prompts/record-consequential-decision.md@2
     - prompts/revise-foundation-after-review.md@5
     - prompts/escalate-foundation-review-correction.md@3
     - prompts/revise-intent-candidate-after-review.md@4
@@ -602,6 +603,7 @@ assets:
     - prompts/define-verification-strategy.md@1
     - prompts/realize-verification-environment.md@1
     - prompts/write-verification-activity.md@2
+    - prompts/build-pilot-control-prototype.md@1
     - prompts/register-pilot-target.md@1
     - prompts/implement-verification-activity.md@1
     - prompts/execute-verification-run.md@2
@@ -627,7 +629,7 @@ assets:
     - prompts/accept-phase-2-system.md@1
     - prompts/report-problem.md@1
     - prompts/analyze-change-impact.md@2
-    - prompts/approve-change-request.md@3
+    - prompts/approve-change-request.md@4
     - prompts/revise-requirement-under-change.md@3
     - prompts/reevaluate-shared-system-consumer.md@1
     - prompts/create-stakeholder-change-candidate.md@1
@@ -638,12 +640,13 @@ assets:
     - prompts/prepare-pilot-assessment-context.md@1
     - prompts/assess-phase-0-2-pilot.md@1
     - prompts/revise-pilot-assessment-after-review.md@2
-    - prompts/decide-pilot-expansion.md@2
+    - prompts/decide-pilot-expansion.md@3
     - prompts/revise-pilot-expansion-decision-after-review.md@1
   skills:
     - skills/lifecycle-data.md@1
     - skills/wayfinding-map.md@1
     - skills/prototyping.md@1
+    - skills/pilot-control-prototype.md@1
     - skills/product-specification.md@1
     - skills/information-allocation.md@1
     - skills/author-preflight.md@2
@@ -676,9 +679,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@3
 profiles:
-  default: bootstrap@38
+  default: bootstrap@39
   available:
-    - profiles/bootstrap.yaml@38
+    - profiles/bootstrap.yaml@39
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

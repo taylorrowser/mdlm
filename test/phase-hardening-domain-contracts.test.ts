@@ -219,7 +219,10 @@ describe("Phase-hardening domain route contracts", () => {
     const target = record("ART", "ART-HARDENP100", targetPayload, [{ type: "derived-from", target: stk.datum.revision_id }], "register-pilot-target@1");
     const targetWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity] });
     expect(targetWork.looseEnds.find((item) => item.obligation === "pilot-target-required")).toEqual(expect.objectContaining({
-      status: "ready", actionableResolver: "register-pilot-target@1",
+      status: "awaiting-review",
+      dispatchable: false,
+      actionableResolver: "create-review-context@1",
+      eventualResolver: "build-pilot-control-prototype@1",
     }));
 
     const environment = record("ENV", "ENV-HARDENP100", {

@@ -22,7 +22,6 @@ import {
 } from "../src/evaluator.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
-import { processPackageDigest } from "../src/process-package-digest.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import {
   scenarioOutputContractDiagnostics,
@@ -36,12 +35,14 @@ import {
   directoryDigest,
   inputRevision,
   inputRevisions,
+  LifecycleTransactionDriver,
   prepareNextAssignment,
   submitAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { installCurrentLifecycleDataFixture } from "./helpers/current-lifecycle-data-fixture.js";
+import { currentProcessPackageIdentity } from "./helpers/current-process-package-identity.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { initializeProcessPackageFixture } from "./helpers/mdlm.js";
 import {
@@ -88,6 +89,27 @@ async function attendedQualificationCorrectionProcessPackage(): Promise<string> 
     );
   }
   return processRoot;
+}
+
+async function historicalPilotTargetProcessPackage(): Promise<ProcessPackage> {
+  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase1-historical-"));
+  const processRoot = path.join(temporaryRoot, "process");
+  await fs.mkdir(processRoot);
+  const archive = spawnSync(
+    "git",
+    ["archive", "--format=tar", "0da438107372fe0d3d19becc152cac1f264c3b5b:.lifecycle/process"],
+    {cwd: process.cwd(), maxBuffer: 64 * 1024 * 1024},
+  );
+  if (archive.status !== 0) throw new Error(archive.stderr.toString());
+  const extracted = spawnSync("tar", ["-x", "-C", processRoot], {
+    input: archive.stdout,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (extracted.status !== 0) throw new Error(extracted.stderr.toString());
+  const loaded = await loadProcessPackage(processRoot);
+  await fs.rm(temporaryRoot, {recursive: true, force: true});
+  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  return loaded.package;
 }
 
 async function replacementEnvironmentReviewContextProcessPackage(): Promise<string> {
@@ -1169,12 +1191,14 @@ function repositorySafeRecords(records: LifecycleRecord[]): LifecycleRecord[] {
 describe("Phase 1 hardening route evidence", () => {
   let processPackage: ProcessPackage;
   let recoveryPackage: ProcessPackage;
+  let historicalPilotPackage: ProcessPackage;
 
   beforeAll(async () => {
     processPackage = await canonicalProcessPackage();
     const loaded = await loadProcessPackage(".lifecycle/process");
     if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
     recoveryPackage = loaded.package;
+    historicalPilotPackage = await historicalPilotTargetProcessPackage();
   });
 
   it("proves Phase 1 VSP creation and exposes its fresh independent Review route", () => {
@@ -1593,8 +1617,8 @@ describe("Phase 1 hardening route evidence", () => {
       const safeFailedQualification = fixtureRecords.slice(4, 8);
       const safeReplacement = fixtureRecords[8]!;
       const safeFreshQualification = fixtureRecords.slice(9, 13);
-      const fixtureProcessRef =
-        `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+      const { processRef: fixtureProcessRef } =
+        await currentProcessPackageIdentity(processRoot);
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -1910,15 +1934,15 @@ describe("Phase 1 hardening route evidence", () => {
       const safeThirdResult = safeThirdQualification.find((item) =>
         item.datum.type === "RES"
       )!;
-      const fixtureProcessRef =
-        `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+      const { processRef: fixtureProcessRef } =
+        await currentProcessPackageIdentity(processRoot);
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
       await publishFixtureHistory(repository, loaded.package, fixtureRecords);
 
-      const prepared = await prepareNextAssignment(
-        repository,
+      const driver = new LifecycleTransactionDriver(repository);
+      const prepared = await driver.assignment(
         "revise-environment-after-failed-qualification@1",
       );
       expect(prepared.outcome).toEqual(expect.objectContaining({
@@ -1940,7 +1964,7 @@ describe("Phase 1 hardening route evidence", () => {
       const implementationPayload = structuredClone(
         thirdQualification.implementation.datum.payload,
       );
-      const submitted = await submitAssignment(repository, prepared, [{
+      await driver.commit(prepared, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
@@ -2004,8 +2028,7 @@ describe("Phase 1 hardening route evidence", () => {
           }],
           body: "Stakeholder authority for the exact attended correction.\n",
         },
-      }]);
-      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      }], { commitMessage: "Publish attended ENV correction" });
       const stored = await readRepositoryData(repository, loaded.package);
       if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
       const records = stored.value.map((item) => item.lifecycleDatum);
@@ -2216,6 +2239,140 @@ describe("Phase 1 hardening route evidence", () => {
     ]);
   });
 
+  it("prepares one inline good/bad control pair for the reviewed pilot VER", async () => {
+    const currentStrategy = strategy(1);
+    const strategyReview = passingReview(currentStrategy, "REV-0PILOTCTL0");
+    const activity = pilotActivity();
+    const activityReview = passingReview(activity, "REV-0PILOTCTL1", {
+      definitions: [activity, foundation()[0]!, foundation()[1]!, currentStrategy],
+    });
+    const records = [
+      currentStrategy,
+      ...strategyReview,
+      activity,
+      ...activityReview,
+    ];
+    const route = phase1Evaluation(recoveryPackage, records).obligations.find(
+      (item) => item.obligation === "pilot-target-required",
+    );
+    expect(route).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "build-pilot-control-prototype@1",
+    }));
+
+    const prepared = await dryRunResolverScenario(
+      recoveryPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...records],
+        dependencyComparisons: [],
+      },
+      "build-pilot-control-prototype@1",
+      route!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value).toEqual(expect.objectContaining({
+      executable: true,
+      sideEffectFree: true,
+      definition: expect.objectContaining({
+        scenario: "build-pilot-control-prototype@1",
+      }),
+      prompt: expect.objectContaining({
+        reference: "prompts/build-pilot-control-prototype.md@1",
+        content: expect.stringContaining("Do not build the product"),
+      }),
+    }));
+    expect(prepared.value.invocations[0]!.inputs.map((input) => ({
+      name: input.name,
+      revisions: input.values.map((value) => value.identity.revision_id),
+    }))).toEqual([
+      {name: "requirement", revisions: ["STK-0HARDENP10-r00001"]},
+      {name: "activity", revisions: [activity.datum.revision_id]},
+    ]);
+
+    const inline = {
+      title: "Disposable controls for the exact pilot activity",
+      kind: "prototype",
+      supported_behavior: [activity.datum.payload.expected_success_activity],
+      unsupported_behavior: [activity.datum.payload.expected_discrimination_activity],
+      prototype_controls: {
+        activity_ref: "VER-0HARDP1A0T-r00001",
+        working_directory: "fresh-temporary-directory",
+        known_good: {
+          argv: ["node", "-e", "process.stdout.write('ok\\n')"],
+          expected_observation: {
+            exit_status: 0,
+            stdout: {encoding: "base64", bytes: "b2sK"},
+            stderr: {encoding: "base64", bytes: ""},
+          },
+          expected_verification_outcome: "pass",
+        },
+        known_bad: {
+          argv: ["node", "-e", "process.stdout.write('wrong\\n')"],
+          expected_observation: {
+            exit_status: 0,
+            stdout: {encoding: "base64", bytes: "d3JvbmcK"},
+            stderr: {encoding: "base64", bytes: ""},
+          },
+          expected_verification_outcome: "fail",
+          fault: "Return one wrong observable result.",
+        },
+      },
+    };
+    expect(validatePayload(recoveryPackage, "ART", inline)).toBe(true);
+    expect(validatePayload(recoveryPackage, "ART", {
+      ...inline,
+      repository_ref: `git:${"a".repeat(40)}`,
+    })).toBe(false);
+    expect(validatePayload(recoveryPackage, "ART", {
+      title: inline.title,
+      kind: "prototype",
+      supported_behavior: inline.supported_behavior,
+      unsupported_behavior: inline.unsupported_behavior,
+    })).toBe(false);
+
+    const inlineTarget = record("ART", "ART-0HARDENP10", {
+      ...inline,
+      prototype_controls: {
+        ...inline.prototype_controls,
+        activity_ref: activity.datum.revision_id,
+      },
+    }, {
+      scenario: "build-pilot-control-prototype@1",
+      links: [{type: "derived-from", target: "STK-0HARDENP10-r00001"}],
+    });
+    const targetRecords = [...records, inlineTarget];
+    expect(phase1Evaluation(recoveryPackage, targetRecords).obligations.find(
+      (item) => item.obligation === "pilot-target-required",
+    )).toEqual(expect.objectContaining({satisfied: true, status: "satisfied"}));
+
+    const replacementActivity = pilotActivity(2);
+    const replacementReview = passingReview(replacementActivity, "REV-0PILOTCTL2", {
+      definitions: [
+        replacementActivity,
+        foundation()[0]!,
+        foundation()[1]!,
+        currentStrategy,
+      ],
+    });
+    expect(phase1Evaluation(recoveryPackage, [
+      ...targetRecords,
+      replacementActivity,
+      ...replacementReview,
+    ]).obligations.find(
+      (item) => item.obligation === "pilot-target-required",
+    )).toEqual(expect.objectContaining({
+      satisfied: false,
+      status: "ready",
+      actionableResolver: "build-pilot-control-prototype@1",
+    }));
+
+  });
+
   it("proves Phase 1 pilot VER publication with exact Stable Datum, Revision, strategy links, and Review support", () => {
     const acceptedFoundation = foundation();
     const currentStrategy = strategy(1);
@@ -2371,7 +2528,17 @@ describe("Phase 1 hardening route evidence", () => {
       item.obligation === "pilot-verification-implementation-required" &&
       item.subject === activity.datum.revision_id
     )).toEqual(expect.objectContaining({ status: "awaiting-review" }));
-    expect(evaluation.obligations.find((item) =>
+    const historicalEvaluation = phase1Evaluation(historicalPilotPackage, [
+      currentStrategy,
+      ...strategyReview,
+      currentEnvironment,
+      qualification.activity,
+      qualification.implementation,
+      qualification.run,
+      qualification.result,
+      activity,
+    ]);
+    expect(historicalEvaluation.obligations.find((item) =>
       item.obligation === "pilot-target-required"
     )).toEqual(expect.objectContaining({
       status: "ready",
@@ -2908,7 +3075,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@38",
+          profile: "bootstrap@39",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
@@ -2942,7 +3109,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@38",
+          profile: "bootstrap@39",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
@@ -3652,6 +3819,7 @@ describe("Phase 1 hardening route evidence", () => {
         ),
       );
       await initializeProcessPackageFixture(repository, processRoot);
+      const driver = new LifecycleTransactionDriver(repository);
       const loadedFixture = await loadProcessPackage(processRoot);
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
 
@@ -3695,7 +3863,8 @@ describe("Phase 1 hardening route evidence", () => {
         currentStrategy,
         acceptedIntent,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+      const { processRef: fixtureProcessRef } =
+        await currentProcessPackageIdentity(processRoot);
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -3735,8 +3904,17 @@ describe("Phase 1 hardening route evidence", () => {
         JSON.stringify(acceptedIntentPublished.diagnostics),
       ).toBe(true);
 
-      const prepared = await prepareNextAssignment(
-        repository,
+      const materializedOutcome = await driver.materialize("Publish Review Context");
+      expect(materializedOutcome).toEqual(expect.objectContaining({
+        outcome: "publication-required",
+        materializedExecutions: [expect.objectContaining({
+          scenario: "create-review-context@1",
+          status: "completed",
+        })],
+      }));
+      expect(materializedOutcome.assignment).toBeUndefined();
+
+      const prepared = await driver.assignment(
         "write-verification-activity@2",
       );
       expect(inputRevisions(prepared, "intent_support")).toEqual([
@@ -3746,7 +3924,7 @@ describe("Phase 1 hardening route evidence", () => {
         (input: { name: string }) => input.name === "requirement",
       )!.values[0]!.identity;
       const strategyRevision = inputRevision(prepared, "strategy");
-      const submitted = await submitAssignment(repository, prepared, [{
+      await driver.commit(prepared, [{
         localId: "activity",
         name: "activity",
         invocation: 0,
@@ -3776,8 +3954,7 @@ describe("Phase 1 hardening route evidence", () => {
           ],
           body: "Exercise only behavior stated by the exact STK and parent PSP.\n",
         },
-      }]);
-      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      }], { commitMessage: "Publish pilot verification activity" });
       const stored = await readRepositoryData(repository, loadedFixture.package);
       if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
       const activity = stored.value.map((item) => item.lifecycleDatum).find(
@@ -4003,6 +4180,7 @@ describe("Phase 1 hardening route evidence", () => {
     const processRoot = await phase1PilotRetryProcessPackage();
     try {
       await initializeProcessPackageFixture(repository, processRoot);
+      const driver = new LifecycleTransactionDriver(repository);
       const installedProcessRoot = await installCurrentLifecycleDataFixture(
         repository,
         "phase-1-pilot-retry-ready",
@@ -4011,8 +4189,7 @@ describe("Phase 1 hardening route evidence", () => {
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
       const fixtureProcessRef =
         "mdlm-bootstrap@0.74.0#sha256:e5e1533167c2d71be979d29e3f5898c16c47aa1d98e7d9c57de77d3b4d57da1b";
-      const retry = await prepareNextAssignment(
-        repository,
+      const retry = await driver.assignment(
         "execute-verification-run@1",
       );
       const implementation = inputRevision(retry, "implementation");
@@ -4036,7 +4213,7 @@ describe("Phase 1 hardening route evidence", () => {
         "case:supported:exit-0",
         "case:unsupported:exit-2",
       ];
-      const exercised = await submitAssignment(repository, retry, [{
+      await driver.commit(retry, [{
         localId: "run",
         name: "run",
         invocation: 0,
@@ -4089,8 +4266,7 @@ describe("Phase 1 hardening route evidence", () => {
           links: [{ type: "assessed-in", target: environmentRevision }],
           body: "Both declared behavior classes were observed.\n",
         },
-      }]);
-      expect(exercised.status, `${exercised.stderr}${exercised.stdout}`).toBe(0);
+      }], { commitMessage: "Publish exercised pilot run" });
       const afterInspection = await loadRepositoryInspection(
         repository,
         loadedFixture.package,

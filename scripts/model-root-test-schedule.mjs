@@ -78,8 +78,8 @@ if (scheduledFiles.length !== rootTestManifest.length
   || new Set(scheduledFiles).size !== rootTestManifest.length) {
   throw new Error("Modeled schedule must cover every root file exactly once");
 }
-if (resourceTasks.length !== 26 || new Set(resourceTasks.flatMap((task) => task.files)).size !== 26) {
-  throw new Error("Modeled schedule must cover all 26 resource files exactly once");
+if (resourceTasks.length !== 25 || new Set(resourceTasks.flatMap((task) => task.files)).size !== 25) {
+  throw new Error("Modeled schedule must cover all 25 resource files exactly once");
 }
 const phaseIds = rootResourcePhases.map((phase) => phase.id);
 if (resourceTasks.some((task) =>

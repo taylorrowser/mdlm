@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
@@ -550,8 +551,7 @@ describe("Phase 0 corrected-gate public route", () => {
       }));
       expect(outcome).toEqual(expect.objectContaining({
         phase: "phase-0-wayfinding@5",
-        outcome: "assignment",
-        assignment: { id: expect.any(String) },
+        outcome: "publication-required",
       }));
       const contextResult = await readScenarioExecution(repository, materialized.id);
       expect(contextResult.ok).toBe(true);
@@ -584,6 +584,39 @@ describe("Phase 0 corrected-gate public route", () => {
           "prompts/create-review-context.md@2",
           "skills/baseline-model.md@1",
         ]),
+      }));
+
+      const published = spawnSync(
+        "git",
+        [
+          "-C", repository,
+          "-c", "user.name=MDLM Test",
+          "-c", "user.email=mdlm-test@localhost",
+          "-c", "commit.gpgSign=false",
+          "add", ".lifecycle/data",
+        ],
+        { encoding: "utf8" },
+      );
+      expect(published.status, published.stderr).toBe(0);
+      const committed = spawnSync(
+        "git",
+        [
+          "-C", repository,
+          "-c", "user.name=MDLM Test",
+          "-c", "user.email=mdlm-test@localhost",
+          "-c", "commit.gpgSign=false",
+          "commit", "--quiet", "--no-verify", "-m", "Publish Review Context",
+        ],
+        { encoding: "utf8" },
+      );
+      expect(committed.status, committed.stderr).toBe(0);
+
+      const afterPublication = await executeCommandApplication(["next"], repository);
+      expect(afterPublication.exitCode, afterPublication.output).toBe(0);
+      expect(JSON.parse(afterPublication.output)).toEqual(expect.objectContaining({
+        phase: "phase-0-wayfinding@5",
+        outcome: "assignment",
+        assignment: { id: expect.any(String) },
       }));
       expect(context.created_by).toEqual(expect.objectContaining({
         scenario: "create-review-context@1",

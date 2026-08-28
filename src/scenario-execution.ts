@@ -649,7 +649,7 @@ async function submitScenario(
           ...new Set(
             unsatisfiedRequirements.map((requirement) => requirement.authority),
           ),
-        ].sort().join(", ")}`,
+        ].sort().join(", ")}; received: ${supplied.join(", ") || "none"}`,
       }]
     : unexpectedAuthorities.length > 0 || unexpectedDelegations.length > 0
     ? [{

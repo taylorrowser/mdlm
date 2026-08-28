@@ -45,9 +45,9 @@ describe("clean onboarding transaction contract", () => {
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
     expect(JSON.parse(initialized.stdout)).toMatchObject({
       package: {
-        reference: "mdlm-bootstrap@0.74.0",
+        reference: "mdlm-bootstrap@0.76.0",
         digest:
-          "sha256:e77a022a2cb2d6e7d78bccba753b5d117d4384dce5621d31a397a861edf8878f",
+          "sha256:8f2f25ec2776aa187e7fba0ebb0c64912dfced6e9d2397d8300ab89fc3ce8f1f",
       },
       repository: { contract: "mdlm-repository@1" },
     });
@@ -70,11 +70,11 @@ describe("clean onboarding transaction contract", () => {
     expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
     const packet = JSON.parse(prepared.stdout);
     expect(packet).toMatchObject({
-      contract: "mdlm-assignment-packet@2",
+      contract: "mdlm-assignment-packet@3",
       package: {
-        reference: "mdlm-bootstrap@0.74.0",
+        reference: "mdlm-bootstrap@0.76.0",
         digest:
-          "sha256:e77a022a2cb2d6e7d78bccba753b5d117d4384dce5621d31a397a861edf8878f",
+          "sha256:8f2f25ec2776aa187e7fba0ebb0c64912dfced6e9d2397d8300ab89fc3ce8f1f",
       },
       scenario: { reference: "establish-initial-wayfinding-map@2" },
     });
@@ -149,11 +149,29 @@ describe("clean onboarding transaction contract", () => {
     const subsequent = mdlm(repository, ["next"]);
     expect(subsequent.status, `${subsequent.stderr}${subsequent.stdout}`).toBe(0);
     const subsequentOutcome = JSON.parse(subsequent.stdout);
-    expect(subsequentOutcome.outcome).toBe("assignment");
+    expect(subsequentOutcome.outcome).toBe("publication-required");
+    expect(subsequentOutcome.materializedExecutions).toHaveLength(1);
+    expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
+    const materialized = git(
+      repository,
+      "-c", "user.name=MDLM Pilot",
+      "-c", "user.email=mdlm-pilot@example.invalid",
+      "-c", "commit.gpgSign=false",
+      "commit", "--quiet", "--no-verify", "-m", "Publish source boundary",
+    );
+    expect(materialized.status, `${materialized.stderr}${materialized.stdout}`).toBe(0);
+
+    const afterMaterialization = mdlm(repository, ["next"]);
+    expect(
+      afterMaterialization.status,
+      `${afterMaterialization.stderr}${afterMaterialization.stdout}`,
+    ).toBe(0);
+    const afterMaterializationOutcome = JSON.parse(afterMaterialization.stdout);
+    expect(afterMaterializationOutcome.outcome).toBe("assignment");
     const subsequentPacket = mdlm(repository, [
       "scenario",
       "prepare",
-      subsequentOutcome.assignment.id,
+      afterMaterializationOutcome.assignment.id,
     ]);
     expect(
       subsequentPacket.status,
@@ -166,7 +184,7 @@ describe("clean onboarding transaction contract", () => {
     const stale = mdlm(repository, [
       "scenario",
       "prepare",
-      subsequentOutcome.assignment.id,
+      afterMaterializationOutcome.assignment.id,
     ]);
     expect(stale.status).toBe(1);
     expect(JSON.parse(stale.stdout).diagnostics).toEqual([

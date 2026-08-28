@@ -340,7 +340,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.74.0/prompts/establish-initial-wayfinding-map.md",
+        ".lifecycle/packages/mdlm-bootstrap@0.76.0/prompts/establish-initial-wayfinding-map.md",
       ),
       "\nPackage change.\n",
     );
@@ -356,7 +356,7 @@ describe("MDLM Assignment leasing and preparation", () => {
   it("invalidates the active lease when next observes a package change", async () => {
     const first = { assignment: { id: templateAssignment } };
     const promptRelative =
-      ".lifecycle/packages/mdlm-bootstrap@0.74.0/prompts/establish-initial-wayfinding-map.md";
+      ".lifecycle/packages/mdlm-bootstrap@0.76.0/prompts/establish-initial-wayfinding-map.md";
     await fs.appendFile(path.join(repository, promptRelative), "\nPackage change.\n");
 
     const changed = await mdlm(repository, "next");

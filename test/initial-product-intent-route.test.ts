@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -43,6 +44,61 @@ function reviewOutput(prepared: PreparedAssignment): ProposedOutput[] {
   }];
 }
 
+function commitLifecycleData(repository: string): void {
+  const add = spawnSync("git", ["-C", repository, "add", ".lifecycle/data"], {
+    encoding: "utf8",
+  });
+  expect(add.status, `${add.stderr}${add.stdout}`).toBe(0);
+  const commit = spawnSync(
+    "git",
+    [
+      "-C",
+      repository,
+      "-c",
+      "user.name=MDLM Test",
+      "-c",
+      "user.email=mdlm-test@localhost",
+      "-c",
+      "commit.gpgSign=false",
+      "commit",
+      "--quiet",
+      "--no-verify",
+      "-m",
+      "Publish materialized Review Context",
+    ],
+    { encoding: "utf8" },
+  );
+  expect(commit.status, `${commit.stderr}${commit.stdout}`).toBe(0);
+}
+
+async function prepareNextThroughReviewContextPublication(
+  repository: string,
+): Promise<PreparedAssignment> {
+  const next = await executeCommandApplication(["next", "--json"], repository);
+  expect(next.exitCode, next.output).toBe(0);
+  const outcome = JSON.parse(next.output);
+  if (outcome.outcome === "publication-required") {
+    expect(outcome).toMatchObject({
+      materializedExecutions: [{
+        scenario: "create-review-context@1",
+        status: "completed",
+      }],
+    });
+    commitLifecycleData(repository);
+    return prepareNextAssignment(repository);
+  }
+  expect(outcome).toMatchObject({
+    outcome: expect.stringMatching(/^(assignment|attention-required)$/),
+    assignment: { id: expect.any(String) },
+  });
+  const prepared = await executeCommandApplication(
+    ["scenario", "prepare", outcome.assignment.id, "--json"],
+    repository,
+  );
+  expect(prepared.exitCode, prepared.output).toBe(0);
+  return { outcome, packet: JSON.parse(prepared.output) };
+}
+
 describe("initial product-intent authority", () => {
   it("resolves attended product intent before compiling a PSP from exact authority", async () => {
     const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-product-intent-"));
@@ -80,7 +136,7 @@ describe("initial product-intent authority", () => {
 
       let failedReviewRevision: string | undefined;
       for (let step = 0; step < 6; step += 1) {
-        const prepared = await prepareNextAssignment(repository);
+        const prepared = await prepareNextThroughReviewContextPublication(repository);
         expect(prepared.packet.scenario.reference).toBe("review-datum-in-context@2");
         if (inputRevision(prepared, "subject") !== decision.revisionId) {
           const reviewed = await submitAssignment(repository, prepared, reviewOutput(prepared));
@@ -202,7 +258,7 @@ describe("initial product-intent authority", () => {
       let compile: PreparedAssignment | undefined;
       let reviewedCorrection = false;
       for (let step = 0; step < 6; step += 1) {
-        const prepared = await prepareNextAssignment(repository);
+        const prepared = await prepareNextThroughReviewContextPublication(repository);
         const scenario = prepared.packet.scenario.reference as string;
         if (scenario === "compile-psp@3") {
           compile = prepared;
@@ -332,7 +388,7 @@ describe("initial product-intent authority", () => {
 
       let stakeholderDraft: PreparedAssignment | undefined;
       for (let step = 0; step < 3; step += 1) {
-        const prepared = await prepareNextAssignment(repository);
+        const prepared = await prepareNextThroughReviewContextPublication(repository);
         if (prepared.packet.scenario.reference === "draft-stakeholder-requirements@2") {
           stakeholderDraft = prepared;
           break;
@@ -402,7 +458,7 @@ describe("initial product-intent authority", () => {
         target: publishedProduct.id,
       });
 
-      const nextReview = await prepareNextAssignment(repository);
+      const nextReview = await prepareNextThroughReviewContextPublication(repository);
       expect(nextReview.packet.scenario.reference).not.toBe(
         "create-review-context@1",
       );

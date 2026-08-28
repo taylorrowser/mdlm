@@ -232,7 +232,6 @@ const GREEN_PARTITION_SOURCE = "/tmp/issue-203-production-partition-850.log";
 const CLASS_SOURCE_COMMIT = "e4468ec6a432fdb975df0739a0070c85cbd7b807";
 const HEAVY_PAIR_FOCUSED_COMMIT = "b966de2d422d25c152985c368ec05e95006e388f";
 const HEAVY_CONTRACT_FOCUSED_COMMIT = "a81a9ca51b0458a649eb9539844efa965cf01976";
-const FRAGILE_FOCUSED_COMMIT = "af632593793368513247aed19b3f34996919340a";
 const SAFE_PARTITION_SOURCE = "/tmp/issue-203-safe-lpt-partition.log";
 const HEAVY_CLASS_SOURCE = "/tmp/issue-203-split-policy-lane-heavy.log";
 const FRAGILE_CLASS_SOURCE = "/tmp/issue-203-split-policy-lane-fragile.log";
@@ -254,7 +253,6 @@ export const ROOT_RESOURCE_RUN_PROVENANCE = Object.freeze({
     { commit: SAFE_PARTITION_COMMIT, disposition: "pass", source: SAFE_PARTITION_SOURCE, status: 0, selected: true },
     { commit: HEAVY_PAIR_FOCUSED_COMMIT, disposition: "pass", source: FOCUSED_SOURCE, status: 0, selected: true, resourceClass: "heavy" },
     { commit: HEAVY_CONTRACT_FOCUSED_COMMIT, disposition: "pass", source: FOCUSED_SOURCE, status: 0, selected: true, resourceClass: "heavy" },
-    { commit: FRAGILE_FOCUSED_COMMIT, disposition: "pass", source: FOCUSED_SOURCE, status: 0, selected: true, resourceClass: "fragile" },
     { commit: CLASS_SOURCE_COMMIT, disposition: "pass", source: HEAVY_CLASS_SOURCE, status: 0, selected: false, reason: "unfavorable same-class contention observation" },
     { commit: CLASS_SOURCE_COMMIT, disposition: "pass", source: FRAGILE_CLASS_SOURCE, status: 0, selected: false, reason: "unfavorable same-class contention observation" },
   ],
@@ -323,10 +321,9 @@ const heavyRows = [
 ];
 
 const fragileRows = [
-  ["test/mdlm-clean-pilot-contract.test.ts", 28_026, 78_310, FRAGILE_FOCUSED_COMMIT],
-  ["test/mdlm-lifecycle.test.ts", 51_180, 86_570, FRAGILE_FOCUSED_COMMIT],
-  ["test/mdlm-process-migration.test.ts", 176_100, 176_580, FRAGILE_FOCUSED_COMMIT],
-  ["test/mdlm-review-assignment.test.ts", 94_320, 179_040, FRAGILE_FOCUSED_COMMIT],
+  ["test/mdlm-lifecycle.test.ts", 51_180, 86_570],
+  ["test/mdlm-process-migration.test.ts", 176_100, 176_580],
+  ["test/mdlm-review-assignment.test.ts", 94_320, 179_040],
 ];
 
 function successfulObservation(commit, source, elapsedMs, selected = true) {
@@ -401,18 +398,14 @@ export const rootResourceEvidence = Object.freeze([
     [successfulObservation(CLASS_SOURCE_COMMIT, HEAVY_CLASS_SOURCE, classElapsedMs, false)],
     CURRENT_PARTITION_COMMIT,
   )),
-  ...fragileRows.map(([file, elapsedMs, classElapsedMs, focusedCommit]) => evidenceRow(
+  ...fragileRows.map(([file, elapsedMs, classElapsedMs]) => evidenceRow(
     file,
     "fragile",
     elapsedMs,
-    file === "test/mdlm-clean-pilot-contract.test.ts"
-      ? FOCUSED_SOURCE
-      : CURRENT_PARTITION_SOURCE,
+    CURRENT_PARTITION_SOURCE,
     0,
     [successfulObservation(CLASS_SOURCE_COMMIT, FRAGILE_CLASS_SOURCE, classElapsedMs, false)],
-    file === "test/mdlm-clean-pilot-contract.test.ts"
-      ? focusedCommit
-      : CURRENT_PARTITION_COMMIT,
+    CURRENT_PARTITION_COMMIT,
   )),
 ]);
 

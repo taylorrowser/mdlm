@@ -39,7 +39,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
   it("is exact, recursively frozen, and isolated from mutable clones", async () => {
     const fixturePackage = await canonicalProcessPackage();
     await expect(verifyCanonicalProcessPackageFixture(livePackage)).resolves.toEqual({
-      processPackage: "mdlm-bootstrap@0.74.0",
+      processPackage: "mdlm-bootstrap@0.76.0",
       verified: true,
     });
     expect(fixturePackage).toStrictEqual(livePackage);
@@ -53,7 +53,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
 
     const mutable = structuredClone(fixturePackage);
     mutable.manifest.version = "mutated-test-clone";
-    expect(fixturePackage.manifest.version).toBe("0.74.0");
+    expect(fixturePackage.manifest.version).toBe("0.76.0");
   });
 
   it("rejects artifact hash and package-digest drift", async () => {
@@ -250,7 +250,7 @@ describe("loadProcessPackage", () => {
       const second = await loadProcessPackage(processRoot);
       expect(second.ok).toBe(true);
       if (!second.ok) return;
-      expect(second.package.manifest.version).toBe("0.74.0");
+      expect(second.package.manifest.version).toBe("0.76.0");
 
       const manifestSchemaPath = path.join(
         processRoot,
@@ -285,7 +285,7 @@ describe("loadProcessPackage", () => {
       diagnostics: [] as const,
     };
 
-    expect(result.package.manifest.version).toBe("0.74.0");
+    expect(result.package.manifest.version).toBe("0.76.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(395);
@@ -400,7 +400,7 @@ describe("loadProcessPackage", () => {
     );
     expect(Object.keys(result.package.policies)).toHaveLength(15);
     expect(Object.keys(result.package.obligations)).toHaveLength(63);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(65);
+    expect(Object.keys(result.package.scenarios)).toHaveLength(66);
     expect(result.package.policies).toHaveProperty(
       "environment-qualification-correction-participation",
     );
@@ -506,7 +506,7 @@ describe("loadProcessPackage", () => {
     expect(result.package.obligations["pilot-target-required"])
       .toEqual(expect.objectContaining({
         resolve_with: expect.objectContaining({
-          scenario: "register-pilot-target@1",
+          scenario: "build-pilot-control-prototype@1",
         }),
       }));
     expect(result.package.scenarios["review-datum-in-context"])
@@ -526,6 +526,14 @@ describe("loadProcessPackage", () => {
       }));
     expect(result.package.scenarios["register-pilot-target"]?.participation)
       .toBeUndefined();
+    expect(result.package.scenarios["register-pilot-target"]?.initiation)
+      .toBe("explicit");
+    expect(result.package.scenarios["build-pilot-control-prototype"])
+      .toEqual(expect.objectContaining({
+        version: 1,
+        prompt_ref: "prompts/build-pilot-control-prototype.md@1",
+        resolves: ["pilot-target-required"],
+      }));
     for (const scenario of [
       "revise-verification-strategy-after-review",
       "revise-environment-assurance-after-review",

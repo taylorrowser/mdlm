@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,6 +17,92 @@ export async function restoreHistoricalFixtureProcessPackage(
   let retainStagingRoot = false;
   try {
     await fs.cp(processRoot, stagedPackage, { recursive: true });
+
+    const currentManifestPath = path.join(stagedPackage, "manifest.yaml");
+    const pilotManifest = await fs.readFile(currentManifestPath, "utf8");
+    if (pilotManifest.includes("version: 0.76.0")) {
+      const prePilotControlCommit = "d3939eb42ba4b57fe14419d4fbebf3cc207fcd17";
+      const pilotTargetPath = path.join(
+        stagedPackage,
+        "obligations/pilot-target-required.yaml",
+      );
+      const pilotTargetPhase = /^phases: .+$/m.exec(
+        await fs.readFile(pilotTargetPath, "utf8"),
+      )?.[0];
+      const restoredFiles = [
+        "obligations/pilot-target-required.yaml",
+        "prompts/establish-initial-wayfinding-map.md",
+        "prompts/implement-verification-activity.md",
+        "prompts/write-verification-activity.md",
+        "prompts/approve-change-request.md",
+        "prompts/decide-pilot-expansion.md",
+        "prompts/record-consequential-decision.md",
+        "prompts/record-gate-signoff.md",
+        "scenarios/implement-verification-activity.yaml",
+        "scenarios/approve-change-request.yaml",
+        "scenarios/decide-pilot-expansion.yaml",
+        "scenarios/record-consequential-decision.yaml",
+        "scenarios/record-gate-signoff.yaml",
+        "scenarios/register-pilot-target.yaml",
+        "selectors/current-pilot-targets-for-requirement.yaml",
+        "selectors/eligible-pilot-targets-for-activity.yaml",
+        "types/ART.yaml",
+        "types/VAI.yaml",
+      ];
+      await Promise.all(restoredFiles.map(async (relativePath) => {
+        const source = execFileSync(
+          "git",
+          ["show", `${prePilotControlCommit}:.lifecycle/process/${relativePath}`],
+          {cwd: process.cwd(), encoding: "utf8"},
+        );
+        await fs.writeFile(path.join(stagedPackage, relativePath), source);
+      }));
+      if (pilotTargetPhase) {
+        await fs.writeFile(
+          pilotTargetPath,
+          (await fs.readFile(pilotTargetPath, "utf8")).replace(
+            /^phases: .+$/m,
+            pilotTargetPhase,
+          ),
+        );
+      }
+      await Promise.all([
+        "prompts/build-pilot-control-prototype.md",
+        "scenarios/build-pilot-control-prototype.yaml",
+        "skills/pilot-control-prototype.md",
+      ].map((relativePath) => fs.rm(path.join(stagedPackage, relativePath))));
+      await fs.writeFile(
+        currentManifestPath,
+        pilotManifest
+          .replace("version: 0.76.0", "version: 0.74.0")
+          .replace("    - build-pilot-control-prototype\n", "")
+          .replace("    - prompts/record-gate-signoff.md@4\n", "    - prompts/record-gate-signoff.md@3\n")
+          .replace("    - prompts/record-consequential-decision.md@2\n", "    - prompts/record-consequential-decision.md@1\n")
+          .replace("    - prompts/approve-change-request.md@4\n", "    - prompts/approve-change-request.md@3\n")
+          .replace("    - prompts/decide-pilot-expansion.md@3\n", "    - prompts/decide-pilot-expansion.md@2\n")
+          .replace("    - prompts/build-pilot-control-prototype.md@1\n", "")
+          .replace("    - skills/pilot-control-prototype.md@1\n", "")
+          .replace("bootstrap@39", "bootstrap@38")
+          .replace("profiles/bootstrap.yaml@39", "profiles/bootstrap.yaml@38"),
+      );
+      const phasePath = path.join(stagedPackage, "phases/phase-1-product-assurance.yaml");
+      await fs.writeFile(
+        phasePath,
+        (await fs.readFile(phasePath, "utf8"))
+          .replace("version: 6", "version: 5")
+          .replace("  - build-pilot-control-prototype@1\n", ""),
+      );
+      const profilePath = path.join(stagedPackage, "profiles/bootstrap.yaml");
+      await fs.writeFile(
+        profilePath,
+        (await fs.readFile(profilePath, "utf8"))
+          .replace("version: 39", "version: 38")
+          .replace(
+            "  - every current pilot activity requirement discovers one exact ART target, either a disposable inline good/bad control pair bound to its reviewed VER or an immutable bounded repository registration with deterministic exact-byte command observations",
+            "  - every current pilot activity requirement discovers one exact immutable bounded ART registration whose typed normal, raw-malformed, omitted-argument, and extra-argument cases carry deterministic exact-byte observations before implementation",
+          ),
+      );
+    }
 
     const issue256SelectorPath = path.join(
       stagedPackage,
@@ -310,17 +397,22 @@ export async function ensureFixtureProcessPackage(
   }
   if (
     packageRoot &&
-    selection.package?.reference === expected.reference &&
-    selection.package.digest !== expected.digest
+    (selection.package?.reference === expected.reference ||
+      (selection.package?.reference === "mdlm-bootstrap@0.76.0" &&
+        expected.reference === "mdlm-bootstrap@0.74.0")) &&
+    (selection.package.reference !== expected.reference ||
+      selection.package.digest !== expected.digest)
   ) {
     await restoreHistoricalFixtureProcessPackage(packageRoot, expected.digest);
+    selection.package.reference = expected.reference;
     selection.package.digest = expected.digest;
     await fs.writeFile(selectionPath, `${JSON.stringify(selection, null, 2)}\n`);
     const descriptorPath = path.join(repository, ".lifecycle/repository.json");
     const descriptor = JSON.parse(await fs.readFile(descriptorPath, "utf8")) as {
-      package?: { digest?: string };
+      package?: { reference?: string; digest?: string };
     };
     if (descriptor.package) {
+      descriptor.package.reference = expected.reference;
       descriptor.package.digest = expected.digest;
       await fs.writeFile(descriptorPath, `${JSON.stringify(descriptor, null, 2)}\n`);
     }

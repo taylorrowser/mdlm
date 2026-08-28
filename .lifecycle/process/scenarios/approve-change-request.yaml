@@ -11,7 +11,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: justifies, target: {input: change}}
-prompt_ref: prompts/approve-change-request.md@3
+prompt_ref: prompts/approve-change-request.md@4
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: consequential-decision-participation@1

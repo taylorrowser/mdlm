@@ -105,6 +105,10 @@ describe("self-guiding public CLI", () => {
         await fs.readFile(path.join(repository, "MDLM.md"), "utf8"),
       );
     }
+    const guide = await fs.readFile(path.join(repository, "MDLM.md"), "utf8");
+    expect(guide).toContain("do not rely on a console or\ntool rendering");
+    expect(guide).toContain("`allowedProjections.outputSchemas`");
+    expect(guide).toContain("checklist of every\nrequired payload property");
     expect(git(repository, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
   });
@@ -130,7 +134,7 @@ describe("self-guiding public CLI", () => {
       command: "start",
       contract: "mdlm-start@1",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.74.0",
+        reference: "mdlm-bootstrap@0.76.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       repository: {
@@ -241,6 +245,23 @@ describe("self-guiding public CLI", () => {
 describe("mdlm-next@1 operator instruction contract", () => {
   const assignment = { id: "assignment-1" };
 
+  it("keeps a persistent coordinator moving through fresh Assignments", () => {
+    const instructions = operatorInstructions({
+      outcome: "assignment",
+      assignment,
+    });
+
+    expect(instructions.text).toContain("Begin this Assignment now");
+    expect(instructions.text).toContain(
+      "Do not stop merely to report a fresh Assignment",
+    );
+    expect(instructions.text).toContain("one-Assignment loop");
+    expect(instructions.text).toContain("attended authority is unavailable");
+    expect(instructions.text).toContain("integrity failure");
+    expect(instructions.text).toContain("Profile Boundary Reached");
+    expect(instructions.text).toContain("Lifecycle Complete");
+  });
+
   it.each([
     ["assignment", "prepare-assignment", "continuation"],
     ["attention-required", "obtain-attention", "continuation"],
@@ -259,7 +280,7 @@ describe("mdlm-next@1 operator instruction contract", () => {
     );
   });
 
-  it("names every materialized execution and overrides a returned Assignment", () => {
+  it("names every materialized execution at the publication boundary", () => {
     const materializedExecutions = [
       { id: "execution-2", scenario: "freeze-baseline@1" },
       { id: "execution-1", scenario: "freeze-context@2" },
@@ -278,7 +299,7 @@ describe("mdlm-next@1 operator instruction contract", () => {
     }));
     expect(instructions.text).toContain("execution-2 (freeze-baseline@1)");
     expect(instructions.text).toContain("execution-1 (freeze-context@2)");
-    expect(instructions.text).toContain("discard any Assignment");
+    expect(instructions.text).toContain("No Assignment is leased");
     expect(instructions.commands.join(" ")).not.toContain("scenario prepare");
   });
 });

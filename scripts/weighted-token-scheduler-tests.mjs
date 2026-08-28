@@ -67,7 +67,7 @@ function controlledLauncher() {
   return { controls, events, launch };
 }
 
-test("the global resource event table selects only successful evidence for all 26 owners", async () => {
+test("the global resource event table selects only successful evidence for all 25 owners", async () => {
   const {
     ROOT_RESOURCE_LANE_COUNT,
     ROOT_RESOURCE_MIXED_ALLOWANCE_MS,
@@ -83,9 +83,9 @@ test("the global resource event table selects only successful evidence for all 2
 
   assert.equal(ROOT_RESOURCE_LANE_COUNT, 3);
   assert.equal(ROOT_RESOURCE_MIXED_ALLOWANCE_MS, 0);
-  assert.equal(rootResourceEvidence.length, 26);
+  assert.equal(rootResourceEvidence.length, 25);
   assert.deepEqual(rootResourceEvidence.map((entry) => entry.file).sort(), resourceFiles);
-  assert.equal(new Set(rootResourceEvidence.map((entry) => entry.file)).size, 26);
+  assert.equal(new Set(rootResourceEvidence.map((entry) => entry.file)).size, 25);
   assert.equal(rootResourceEvidence.every((entry) =>
     entry.selectedEvidence.disposition === "pass"
       && Number.isInteger(entry.selectedEvidence.elapsedMs)
@@ -97,7 +97,7 @@ test("the global resource event table selects only successful evidence for all 2
   assert.deepEqual(
     Object.fromEntries(Object.entries(Object.groupBy(rootResourceEvidence, (entry) => entry.resourceClass))
       .map(([resourceClass, entries]) => [resourceClass, entries.length])),
-    { safe: 18, heavy: 4, fragile: 4 },
+    { safe: 18, heavy: 4, fragile: 3 },
   );
   assert.equal(rootResourceEvidence
     .filter((entry) => entry.resourceClass === "safe")
@@ -111,7 +111,6 @@ test("the global resource event table selects only successful evidence for all 2
       ["test/mdlm-baseline-inspection.test.ts", 92_130, "/tmp/issue-203-compatibility-production-partition.log"],
       ["test/mdlm-assignment.test.ts", 205_020, "/tmp/issue-203-compatibility-production-partition.log"],
       ["test/proportional-distinct-context-phase-2-public.test.ts", 25_730, "/tmp/issue-203-compatibility-production-partition.log"],
-      ["test/mdlm-clean-pilot-contract.test.ts", 28_026, "vitest.suites.mjs"],
       ["test/mdlm-lifecycle.test.ts", 51_180, "/tmp/issue-203-compatibility-production-partition.log"],
       ["test/mdlm-process-migration.test.ts", 176_100, "/tmp/issue-203-compatibility-production-partition.log"],
       ["test/mdlm-review-assignment.test.ts", 94_320, "/tmp/issue-203-compatibility-production-partition.log"],
@@ -127,7 +126,7 @@ test("the global resource event table selects only successful evidence for all 2
   );
   assert.equal(rootResourcePhases.length, 3);
   assert.equal(rootResourcePlan.length, 9);
-  assert.equal(rootResourcePlan.flatMap((lane) => lane.tasks).length, 26);
+  assert.equal(rootResourcePlan.flatMap((lane) => lane.tasks).length, 25);
   assert.equal(rootResourceEvidence
     .filter((entry) => entry.resourceClass !== "safe")
     .every((entry) => entry.observations.some((observation) =>
@@ -294,7 +293,6 @@ test("the phased policy selects schedule-matched focused observations and measur
       .filter((entry) => entry.resourceClass === "fragile")
       .map((entry) => [entry.file, entry.selectedEstimateMs, entry.selectedEvidence.commit]),
     [
-      ["test/mdlm-clean-pilot-contract.test.ts", 28_026, "af632593793368513247aed19b3f34996919340a"],
       ["test/mdlm-lifecycle.test.ts", 51_180, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
       ["test/mdlm-process-migration.test.ts", 176_100, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
       ["test/mdlm-review-assignment.test.ts", 94_320, "342a8ad35cee17cc6c7f37646f4c96639329d8d5"],
@@ -305,7 +303,7 @@ test("the phased policy selects schedule-matched focused observations and measur
     "one-fragile-plus-two-safe",
     "three-safe-tail",
   ]);
-  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [230_750, 349_626, 261_570]);
+  assert.deepEqual(rootResourcePhases.map((phase) => phase.totalMs), [230_750, 321_600, 261_570]);
   assert.deepEqual(
     rootResourcePhases[0].lanes.find((lane) => lane.role === "safe").tasks.map((entry) => entry.file),
     [
@@ -499,7 +497,7 @@ test("production construction admits no fourth resource owner", () => {
       launch.atMs + taskById.get(launch.taskId).estimatedDurationMs)),
   })).sort((left, right) => left.order - right.order);
 
-  assert.equal(resourceTasks.length, 26);
+  assert.equal(resourceTasks.length, 25);
   assert.equal(resourceTasks.every((task) =>
     ["two-heavy-plus-one-safe", "one-fragile-plus-two-safe", "three-safe-tail"]
       .includes(task.schedulePhaseId)), true);
@@ -519,7 +517,7 @@ test("production construction admits no fourth resource owner", () => {
   assert.equal(simulation.maximumActiveWeight <= 4, true);
 });
 
-test("the root manifest classifies all 47 files once with bounded weights and cheap batches", async () => {
+test("the root manifest classifies all 46 files once with bounded weights and cheap batches", async () => {
   const discovered = (await readdir(new URL("../test", import.meta.url), { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith(".test.ts"))
     .map((entry) => `test/${entry.name}`)
@@ -538,8 +536,8 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
     "canonical-fixture-filler": 1,
     "cheap-in-process": 1,
   });
-  assert.equal(rootTestManifest.length, 47);
-  assert.equal(new Set(declared).size, 47);
+  assert.equal(rootTestManifest.length, 46);
+  assert.equal(new Set(declared).size, 46);
   assert.deepEqual([...declared].sort(), discovered);
   for (const entry of rootTestManifest) {
     assert.equal(Number.isInteger(entry.weight) && entry.weight > 0 && entry.weight <= ROOT_TEST_TOKEN_CAPACITY, true);
@@ -554,7 +552,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
       "assignment-publication-heavy": "1@3",
       "baseline-integrity-heavy": "1@3",
       "process-repository-heavy": "1@1",
-      "repository-public-fragile": "4@1",
+      "repository-public-fragile": "3@1",
       "process-repository-safe": "16@1",
       "canonical-evaluator-safe": "3@1",
       "canonical-fixture-filler": "3@1",
@@ -597,7 +595,7 @@ test("the root manifest classifies all 47 files once with bounded weights and ch
   assert.equal(cheapBatches.every((task) => task.files.length <= MAX_CHEAP_FILES_PER_BATCH), true);
   assert.equal(tasks.filter((task) => task.runtimeClass !== "cheap-in-process").every((task) => task.files.length === 1), true);
   assert.deepEqual([...scheduledFiles].sort(), discovered);
-  assert.equal(new Set(scheduledFiles).size, 47);
+  assert.equal(new Set(scheduledFiles).size, 46);
 });
 
 test("canonical filler aliases resolve through the production task path", () => {
@@ -655,7 +653,6 @@ test("exact-current safe ownership retains focused fallbacks without using faile
       .filter((entry) => entry.runtimeClass === "repository-public-fragile")
       .map(({ file, measuredDurationMs }) => [file, measuredDurationMs]),
     [
-      ["test/mdlm-clean-pilot-contract.test.ts", 28_026],
       ["test/mdlm-lifecycle.test.ts", 30_161],
       ["test/mdlm-process-migration.test.ts", 47_070],
       ["test/mdlm-review-assignment.test.ts", 43_815],
@@ -777,18 +774,18 @@ test("the compatibility-aware successful-evidence model qualifies the calibrated
     encoding: "utf8",
   });
   assert.equal(model.status, 0, model.stderr);
-  assert.match(model.stdout, /root_files=47 tasks=32 resource_tasks=26 fourth_token_tasks=6 token_capacity=4/);
-  assert.match(model.stdout, /resource_total_work_ms=2110568 resource_lower_bound_ms=703523 barrier_lower_bound_ms=707190 resource_lpt_maximum_ms=841946 resource_compatible_maximum_ms=841946/);
+  assert.match(model.stdout, /root_files=46 tasks=31 resource_tasks=25 fourth_token_tasks=6 token_capacity=4/);
+  assert.match(model.stdout, /resource_total_work_ms=2082542 resource_lower_bound_ms=694181 barrier_lower_bound_ms=697848 resource_lpt_maximum_ms=813920 resource_compatible_maximum_ms=813920/);
   assert.match(model.stdout, /raw_target_ms=898500 minimum_aggregate_contraction_ms=0/);
   assert.match(model.stdout, /resource_phase=two-heavy-plus-one-safe order=0 predicted_ms=230750/);
   assert.match(model.stdout, /resource_phase_lane=two-heavy-plus-one-safe\/heavy-safe-1 role=safe predicted_ms=178150 files=3 tasks=test\/phase-1-hardening-routes.test.ts,test\/mdlm-pilot-assessment.test.ts,test\/evaluate-phase.test.ts/);
-  assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=349626/);
+  assert.match(model.stdout, /resource_phase=one-fragile-plus-two-safe order=1 predicted_ms=321600/);
   assert.match(model.stdout, /resource_phase=three-safe-tail order=2 predicted_ms=261570/);
-  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=851446 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2052946/);
-  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=47054/);
-  assert.match(model.stdout, /modeled_complete_gate_ms=2307946/);
-  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=42054/);
-  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=92054 required_outer_headroom_ms=50000 headroom_margin_ms=42054/);
+  assert.match(model.stdout, /policy=global-resource-lpt simulated_schedule_ms=823420 fourth_token_work_ms=98856 heavy_allowance_ms=0 fragile_allowance_ms=0 mixed_allowance_ms=0 orchestration_allowance_ms=1500 current_host_variance_allowance_ms=1200000 modeled_root_ms=2024920/);
+  assert.match(model.stdout, /root_eligibility_ms=2100000 root_margin_ms=75080/);
+  assert.match(model.stdout, /modeled_complete_gate_ms=2279920/);
+  assert.match(model.stdout, /complete_gate_target_ms=2350000 complete_gate_margin_ms=70080/);
+  assert.match(model.stdout, /outer_deadline_ms=2400000 outer_margin_ms=120080 required_outer_headroom_ms=50000 headroom_margin_ms=70080/);
   assert.match(model.stdout, /maximum_active_weight=4/);
   assert.match(model.stdout, /claim=GO_MODEL_QUALIFIED/);
 });

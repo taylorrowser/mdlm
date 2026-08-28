@@ -144,7 +144,7 @@ describe("Phase-hardening matrix", () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     const phases = [
       "phase-0-wayfinding@5",
-      "phase-1-product-assurance@5",
+      "phase-1-product-assurance@6",
       "phase-2-system-definition@9",
     ];
     const common = {
@@ -235,7 +235,7 @@ describe("Phase-hardening matrix", () => {
     const row = matrix.rows.find((candidate) => candidate.id === "assignment-response-transport");
     const phases = [
       "phase-0-wayfinding@5",
-      "phase-1-product-assurance@5",
+      "phase-1-product-assurance@6",
       "phase-2-system-definition@9",
       "phase-2-pilot-assessment@3",
     ];

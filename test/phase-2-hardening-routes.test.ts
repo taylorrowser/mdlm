@@ -606,7 +606,7 @@ describe("Phase 2 hardening routes from synthetic evaluator snapshots", () => {
       await selectProcessPackageFixture(repository, processRoot);
       const loaded = await loadProcessPackage(processRoot);
       if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-      const fixtureProcessRef = `mdlm-bootstrap@0.74.0#${await processPackageDigest(processRoot)}`;
+      const fixtureProcessRef = `mdlm-bootstrap@0.76.0#${await processPackageDigest(processRoot)}`;
 
       const wanted = new Set([plan, "SYS-0EXPRTREQ0-r00001"]);
       let changed = true;

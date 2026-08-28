@@ -14,9 +14,9 @@ work, participation, authority, output, and completion semantics.
 For each transaction, the harness:
 
 1. requires `git status --porcelain` to be empty;
-2. runs `mdlm status --json` for orientation and `mdlm next --json` for one exact
-   Operator Outcome, and accounts for every deterministic kernel execution listed
-   in `materializedExecutions`;
+2. runs `mdlm status --json` for orientation and `mdlm next --json` for either a
+   transient publication boundary or one exact Operator Outcome, and accounts for
+   every deterministic kernel execution listed in `materializedExecutions`;
 3. prepares an Assignment with
    `mdlm scenario prepare <assignment-id> --json`;
 4. follows only the prepared packet's prompt, skills, exact inputs, resolved
@@ -37,12 +37,12 @@ reason to pause.
 ## Harness-owned work and authority
 
 Preparation is side-effect-free. It is the complete harness-neutral instruction
-packet for the exact leased Assignment. `mdlm-assignment-packet@2` includes each
+packet for the exact leased Assignment. `mdlm-assignment-packet@3` includes each
 package-authored review Policy evaluation with its exact invocation arguments and
 result. When that result references a versioned asset declared by the selected
-package, the packet includes the asset's exact reference, path, digest, and
-content in both the evaluation and the packet asset list. Its allowed projections
-also include resolved envelope, payload, and outgoing-link schemas for every exact
+package, the Policy evaluation includes the asset's exact reference, path,
+digest, and content. The packet's allowed projections also include resolved
+envelope, payload, and outgoing-link schemas for every exact
 input and expected output Lifecycle type, so packet-only work can interpret the
 supplied data without raw Process Package inspection. For a current planning-DWP
 Review, the packet supplies the exact allocated ASP, governing ICSP Revisions, and
@@ -83,18 +83,18 @@ invent missing inputs.
 The clean starting tree separates the pending transaction from unrelated work.
 `mdlm next` may deterministically fulfill package-selected kernel materialization
 before returning the next Operator Outcome. Its `mdlm-next@1`
-`materializedExecutions` list identifies every such completed execution. A durable
-operator journals advancement before invoking `next`, checks and commits each exact
-transaction directory after doctor, and can recover interrupted advancement from
-those canonical directories plus `mdlm scenario execution show`.
+`materializedExecutions` list identifies every such completed execution. `next`
+returns `publication-required` without leasing an Assignment at this boundary. A
+durable operator journals advancement before invoking `next`, checks and commits
+each exact transaction directory after doctor, and can recover interrupted
+advancement from those canonical directories plus
+`mdlm scenario execution show`.
 
-That commit changes the repository state and makes any Assignment returned by the
-same `next` stale. MDLM does not rebase the Assignment. After the controller commits
-all journaled materialization transactions, it reevaluates the repository and, when
-work remains, allocates a fresh Assignment against the new commit. Recovery is
-limited to the same selected Process Package and repository state. A package or
-repository fingerprint mismatch stops the run; MDLM does not migrate package
-versions or recover an Assignment across versions.
+After the controller commits all journaled materialization transactions, it
+reevaluates the repository and, when work remains, allocates a fresh Assignment
+against the new commit. Recovery is limited to the same selected Process Package
+and repository state. A package or repository fingerprint mismatch stops the run;
+MDLM does not migrate package versions or recover an Assignment across versions.
 
 After successful submission and doctor:
 
@@ -147,7 +147,7 @@ invent Lifecycle Data or an undeclared Scenario to escape a stop.
 
 ## Proportional package behavior
 
-Fresh repositories select `mdlm-bootstrap@0.74.0`; do not migrate or resume
+Fresh repositories select `mdlm-bootstrap@0.76.0`; do not migrate or resume
 0.73.0 or earlier Lifecycle Data or Assignments. Treat `system_context` as a
 solution-independent responsibility/trust grouping key, not a component name.
 One Assignment may therefore bind several STKs to one shared ASP by default, or

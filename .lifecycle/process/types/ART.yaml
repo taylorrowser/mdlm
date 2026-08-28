@@ -1,8 +1,8 @@
 kind: type-definition
 id: ART
-version: 1
+version: 2
 name: Code Pointer or Prototype Artifact
-description: Exact repository pointer to implementation or exploratory prototype code and its declared behavioral boundary.
+description: Exact repository pointer or inline disposable pilot-control pair with its declared behavioral boundary.
 extends: titled-datum@1
 lifecycle:
   authorship: authored
@@ -10,7 +10,16 @@ lifecycle:
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  required: [kind, repository_ref, supported_behavior, unsupported_behavior]
+  required: [kind, supported_behavior, unsupported_behavior]
+  allOf:
+    - if: {required: [prototype_controls]}
+      then:
+        properties: {kind: {const: prototype}}
+        not:
+          anyOf:
+            - {required: [repository_ref]}
+            - {required: [public_interface]}
+      else: {required: [repository_ref]}
   properties:
     kind: {enum: [implementation, prototype]}
     repository_ref: {type: string, pattern: '^git:[0-9a-f]{40}$'}
@@ -27,6 +36,46 @@ payload_schema:
       type: array
       uniqueItems: true
       items: {type: string, minLength: 1}
+    prototype_controls:
+      type: object
+      additionalProperties: false
+      required: [activity_ref, working_directory, known_good, known_bad]
+      $defs:
+        exact_bytes:
+          type: object
+          additionalProperties: false
+          required: [encoding, bytes]
+          properties:
+            encoding: {const: base64}
+            bytes: {type: string, pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}
+        exact_observation:
+          type: object
+          additionalProperties: false
+          required: [exit_status, stdout, stderr]
+          properties:
+            exit_status: {type: integer}
+            stdout: {$ref: '#/properties/prototype_controls/$defs/exact_bytes'}
+            stderr: {$ref: '#/properties/prototype_controls/$defs/exact_bytes'}
+      properties:
+        activity_ref: {type: string, pattern: '^VER-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+        working_directory: {const: fresh-temporary-directory}
+        known_good:
+          type: object
+          additionalProperties: false
+          required: [argv, expected_observation, expected_verification_outcome]
+          properties:
+            argv: {type: array, minItems: 1, items: {type: string, minLength: 1}}
+            expected_observation: {$ref: '#/properties/prototype_controls/$defs/exact_observation'}
+            expected_verification_outcome: {const: pass}
+        known_bad:
+          type: object
+          additionalProperties: false
+          required: [argv, expected_observation, expected_verification_outcome, fault]
+          properties:
+            argv: {type: array, minItems: 1, items: {type: string, minLength: 1}}
+            expected_observation: {$ref: '#/properties/prototype_controls/$defs/exact_observation'}
+            expected_verification_outcome: {const: fail}
+            fault: {type: string, minLength: 1}
     public_interface:
       type: object
       additionalProperties: false
