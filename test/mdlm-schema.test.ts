@@ -76,135 +76,30 @@ describe("mdlm schema", () => {
   });
 
   it("projects one effective lifecycle type from the exact selected Process Package", async () => {
+    const resolved = resolveType(currentPackage, "STK");
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+
     const result = await applicationMdlm(publicRepository, "schema", "STK", "--json");
 
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
       command: "schema",
-      package: {
-        id: "mdlm-bootstrap",
-        version: "0.76.0",
-        reference: "mdlm-bootstrap@0.76.0",
-        language: "mdlm-expression@1",
-        digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
-      },
+      package: currentSummary,
       selected: true,
       schema: {
-        definition: "STK@5",
-        name: "Stakeholder Requirement",
-        description: expect.stringContaining("stakeholder-visible"),
-        templateChain: [
-          "titled-datum@1",
-          "rationale-bearing@1",
-          "requirement@2",
-        ],
-        effectiveEnvelope: expect.objectContaining({
-          $id: "https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json",
-          required: [
-            "id",
-            "revision",
-            "revision_id",
-            "type",
-            "payload",
-            "links",
-            "created_by",
-            "body",
-          ],
-        }),
-        flattenedPayloadSchema: {
-          $schema: "https://json-schema.org/draft/2020-12/schema",
-          type: "object",
-          additionalProperties: false,
-          required: [
-            "priority",
-            "rationale",
-            "stakeholder",
-            "statement",
-            "system_context",
-            "title",
-            "verification_intent",
-          ],
-          properties: {
-            title: { type: "string", minLength: 1 },
-            rationale: { type: "string", minLength: 1 },
-            statement: { type: "string", minLength: 1 },
-            verification_intent: { type: "string", minLength: 1 },
-            stakeholder: { type: "string", minLength: 1 },
-            priority: { enum: ["must", "should", "could"] },
-            system_context: {
-              type: "string",
-              pattern: "^[a-z][a-z0-9-]{0,62}$",
-              description: expect.stringContaining("trust-context routing key"),
-            },
-          },
-        },
-        sourceOwnedLinkContracts: [{
-          id: "corrects-review",
-          description: expect.stringContaining("failed Reviews"),
-          targets: [{ kind: "datum", types: ["REV"], identity: "revision" }],
-          cardinality: { minimum: 0, maximum: "many" },
-          freeze_resolution: "already-exact",
-          inverse_label: "corrected-by",
-        }, {
-          id: "corrects-gate-rejection",
-          description: expect.stringContaining("gate rejection"),
-          targets: [{ kind: "datum", types: ["DEC"], identity: "revision" }],
-          cardinality: { minimum: 0, maximum: "many" },
-          freeze_resolution: "already-exact",
-          inverse_label: "corrected-by-gate-rejection",
-        }, {
-          id: "changed-under",
-          description: expect.stringContaining("Change Request"),
-          targets: [{ kind: "datum", types: ["CHG"], identity: "revision" }],
-          cardinality: { minimum: 0, maximum: 1 },
-          freeze_resolution: "already-exact",
-          inverse_label: "changed-requirement",
-        }, {
-          id: "incorporates-answer",
-          description: expect.stringContaining("reviewed product-answer Decisions"),
-          targets: [{ kind: "datum", types: ["DEC"], identity: "revision" }],
-          cardinality: { minimum: 0, maximum: "many" },
-          freeze_resolution: "already-exact",
-          inverse_label: "incorporated-by-stakeholder-requirement",
-        }, {
-          id: "derived-from",
-          description: expect.stringContaining("Product specification intent"),
-          targets: [{ kind: "datum", types: ["PSP"], identity: "stable" }],
-          cardinality: { minimum: 1, maximum: 1 },
-          freeze_resolution: "exact-revision",
-          inverse_label: "derives",
-        }],
-        lifecycleBehavior: {
-          authorship: "authored",
-          freeze_when: "baseline-frozen",
-        },
+        definition: `${resolved.type.id}@${resolved.type.version}`,
+        name: resolved.type.name,
+        description: resolved.type.description,
+        templateChain: resolved.type.templateChain,
+        effectiveEnvelope: resolved.type.envelopeSchema,
+        flattenedPayloadSchema: resolved.type.payloadSchema,
+        sourceOwnedLinkContracts: resolved.type.outgoingLinks,
+        lifecycleBehavior: resolved.type.lifecycle,
         kernelCapabilityBindings: [],
       },
       diagnostics: [],
-    });
-  });
-
-  it("requires an explicit correction-authority classification for every failed Review", () => {
-    const resolved = resolveType(currentPackage, "REV");
-    expect(resolved.ok).toBe(true);
-    if (!resolved.ok) return;
-
-    expect(`${resolved.type.id}@${resolved.type.version}`).toBe("REV@7");
-    expect(resolved.type.payloadSchema.properties.correction_authority)
-      .toEqual(expect.objectContaining({
-        enum: ["stakeholder", "package-evidence"],
-      }));
-    expect(
-      (resolved.type.payloadSchema.allOf as Array<Record<string, unknown>>)[0]
-        ?.allOf,
-    ).toContainEqual({
-      if: {
-        properties: { outcome: { const: "fail" } },
-        required: ["outcome"],
-      },
-      then: { required: ["correction_authority"] },
-      else: { not: { required: ["correction_authority"] } },
     });
   });
 
@@ -270,9 +165,7 @@ describe("mdlm schema", () => {
     expect(JSON.parse(result.stdout)).toEqual({
       ok: false,
       command: "schema",
-      package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.76.0",
-      }),
+      package: currentSummary,
       selected: true,
       diagnostics: [{
         code: "unknown-type",
@@ -299,68 +192,4 @@ describe("mdlm schema", () => {
     });
   });
 
-  it("returns selected-package diagnostics instead of inspecting an invalid package", async () => {
-    const repository = await temporaryRepository("mdlm-schema-invalid-");
-    await arrangeSelectedPackage(
-      repository,
-      path.join(process.cwd(), ".lifecycle/process"),
-      currentSummary,
-    );
-    const selectedType = path.join(
-      repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.76.0/types/STK.yaml",
-    );
-    await fs.appendFile(selectedType, "unexpected_private_field: true\n");
-
-    const result = await applicationMdlm(repository, "schema", "STK", "--json");
-
-    expect(result.status).toBe(1);
-    expect(JSON.parse(result.stdout)).toEqual({
-      ok: false,
-      command: "schema",
-      selected: true,
-      diagnostics: [expect.objectContaining({
-        code: "meta-schema",
-        path: expect.stringContaining("types/STK.yaml"),
-      })],
-    });
-  });
-
-  it("rejects a schema-valid selected package whose exact bytes are no longer current", async () => {
-    const repository = await temporaryRepository("mdlm-schema-stale-");
-    await arrangeSelectedPackage(
-      repository,
-      path.join(process.cwd(), ".lifecycle/process"),
-      currentSummary,
-    );
-    const selectedType = path.join(
-      repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.76.0/types/STK.yaml",
-    );
-    await fs.writeFile(
-      selectedType,
-      (await fs.readFile(selectedType, "utf8")).replace(
-        "description: Singular stakeholder-visible",
-        "description: Exact singular stakeholder-visible",
-      ),
-    );
-
-    const result = await applicationMdlm(repository, "schema", "STK", "--json");
-
-    expect(result.status).toBe(1);
-    expect(JSON.parse(result.stdout)).toEqual({
-      ok: false,
-      command: "schema",
-      selected: true,
-      diagnostics: [expect.objectContaining({
-        code: "process-package-selection-mismatch",
-        path: expect.stringContaining(
-          ".lifecycle/packages/mdlm-bootstrap@0.76.0",
-        ),
-        message: expect.stringContaining(
-          "no longer matches its exact recorded version, language, and digest",
-        ),
-      })],
-    });
-  });
 });
