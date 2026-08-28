@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -69,28 +70,31 @@ async function submit(
   return JSON.parse(submitted.stdout).execution.outputs as ExecutionOutput[];
 }
 
-function reviewContextOutput(prepared: PreparedAssignment): ProposedOutput[] {
-  const subject = inputRevision(prepared, "subject");
-  const members = [subject, ...inputRevisions(prepared, "context_members")];
-  return [{
-    localId: "context",
-    name: "context",
-    invocation: 0,
-    lifecycleDatum: {
-      type: "BSL",
-      payload: {
-        title: `Review Context for ${subject}`,
-        kind: "review-context",
-        role: "review-context",
-        scope: subject,
-        group: "phase-0-currentness-route",
-        definition_members: [...new Set(members)],
-        evidence: [],
-      },
-      links: [],
-      body: "This context freezes the exact public Assignment inputs.\n",
-    },
-  }];
+function commitLifecycleData(repository: string, message: string): void {
+  const add = spawnSync("git", ["-C", repository, "add", ".lifecycle/data"], {
+    encoding: "utf8",
+  });
+  expect(add.status, `${add.stderr}${add.stdout}`).toBe(0);
+  const commit = spawnSync(
+    "git",
+    [
+      "-C",
+      repository,
+      "-c",
+      "user.name=MDLM Test",
+      "-c",
+      "user.email=mdlm-test@localhost",
+      "-c",
+      "commit.gpgSign=false",
+      "commit",
+      "--quiet",
+      "--no-verify",
+      "-m",
+      message,
+    ],
+    { encoding: "utf8" },
+  );
+  expect(commit.status, `${commit.stderr}${commit.stdout}`).toBe(0);
 }
 
 function passingCandidateReview(prepared: PreparedAssignment): ProposedOutput[] {
@@ -294,15 +298,20 @@ describe("Phase 0 intent-candidate currentness public route", () => {
         ]),
       }));
 
-      let review = await prepareNextAssignment(repository);
-      if (review.packet.scenario.reference === "create-review-context@1") {
-        expect(inputRevision(review, "subject")).toBe(replacementRevision);
-        await submit(repository, review, reviewContextOutput(review));
-        review = await prepareNextAssignment(
-          repository,
-          "review-datum-in-context@2",
-        );
-      }
+      const publication = await executeCommandApplication(["next", "--json"], repository);
+      expect(publication.exitCode, publication.output).toBe(0);
+      expect(JSON.parse(publication.output)).toMatchObject({
+        outcome: "publication-required",
+        materializedExecutions: [{
+          scenario: "create-review-context@1",
+          status: "completed",
+        }],
+      });
+      commitLifecycleData(repository, "Publish current intent candidate Review Context");
+      const review = await prepareNextAssignment(
+        repository,
+        "review-datum-in-context@2",
+      );
       expect(review.packet.scenario.reference).toBe("review-datum-in-context@2");
       expect(inputRevision(review, "subject")).toBe(replacementRevision);
       const reviewContextMembers = exactValue(
