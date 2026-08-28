@@ -1,6 +1,6 @@
 kind: type-definition
 id: RUN
-version: 1
+version: 2
 name: Verification Run
 description: Immutable generated manifest for one coordinated qualification, pilot, or formal execution event.
 extends: titled-datum@1
@@ -30,6 +30,45 @@ payload_schema:
     activities_expected: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
     activities_invoked: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
     evidence_locations: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+    control_observations:
+      type: object
+      additionalProperties: false
+      required: [known_good, known_bad]
+      properties:
+        known_good:
+          type: object
+          additionalProperties: false
+          required: [artifact_ref, control, activity_ref, argv, working_directory, stdin, stdout, stderr, timed_out, truncated, exit_status]
+          properties:
+            artifact_ref: {type: string, pattern: '^ART-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+            control: {const: known_good}
+            activity_ref: {type: string, pattern: '^VER-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+            argv: {type: array, minItems: 1, items: {type: string, minLength: 1}}
+            working_directory: {const: fresh-temporary-directory}
+            stdin: {type: object, additionalProperties: false, required: [encoding, bytes], properties: {encoding: {const: base64}, bytes: {type: string, pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}}}
+            stdout: {type: object, additionalProperties: false, required: [encoding, bytes], properties: {encoding: {const: base64}, bytes: {type: string, pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}}}
+            stderr: {type: object, additionalProperties: false, required: [encoding, bytes], properties: {encoding: {const: base64}, bytes: {type: string, pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}}}
+            exit_status: {type: integer}
+            signal: {type: string, minLength: 1}
+            timed_out: {type: boolean}
+            truncated: {type: boolean}
+        known_bad:
+          type: object
+          additionalProperties: false
+          required: [artifact_ref, control, activity_ref, argv, working_directory, stdin, stdout, stderr, timed_out, truncated, exit_status]
+          properties:
+            artifact_ref: {type: string, pattern: '^ART-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+            control: {const: known_bad}
+            activity_ref: {type: string, pattern: '^VER-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+            argv: {type: array, minItems: 1, items: {type: string, minLength: 1}}
+            working_directory: {const: fresh-temporary-directory}
+            stdin: {type: object, additionalProperties: false, required: [encoding, bytes], properties: {encoding: {const: base64}, bytes: {type: string, pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}}}
+            stdout: {type: object, additionalProperties: false, required: [encoding, bytes], properties: {encoding: {const: base64}, bytes: {type: string, pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}}}
+            stderr: {type: object, additionalProperties: false, required: [encoding, bytes], properties: {encoding: {const: base64}, bytes: {type: string, pattern: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'}}}
+            exit_status: {type: integer}
+            signal: {type: string, minLength: 1}
+            timed_out: {type: boolean}
+            truncated: {type: boolean}
 outgoing_links:
   - id: executes
     description: Exact verification implementation executed by this run.

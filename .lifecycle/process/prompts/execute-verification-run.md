@@ -1,6 +1,6 @@
 ---
 id: execute-verification-run
-version: 2
+version: 3
 scenario: execute-verification-run
 ---
 
@@ -17,6 +17,15 @@ declared activities when setup and the target boundary permit them, and retain
 structured evidence for every attempted, refused, skipped, or not-launched case.
 A completed RUN means the bounded runner procedure completed. It does not by
 itself mean product behavior was exercised.
+
+When the target supplies inline disposable controls, invoke the exact known-good
+and known-bad argv in a fresh temporary directory. For each, retain base64 stdin,
+stdout, and stderr bytes, exit status or signal, timeout and truncation state,
+the exact ART Revision and control name, and the exact VER Revision in
+`RUN.control_observations`. Record both control names in `activities_expected`
+and `activities_invoked`; link the RES pass/fail judgments to those observations.
+Missing, truncated, timed-out, or mismatched observations remain durable only as
+an inconclusive or unsuitable result, never a suitable pilot result.
 
 Distinguish execution failure from infrastructure error. If mandatory setup fails,
 the target safely refuses execution, or every product case is not launched, retain

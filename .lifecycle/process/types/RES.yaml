@@ -1,6 +1,6 @@
 kind: type-definition
 id: RES
-version: 1
+version: 2
 name: Verification Result
 description: Immutable generated outcome and evidence for one scoped qualification, pilot, or formal verification claim.
 extends: titled-datum@1
@@ -49,6 +49,25 @@ payload_schema:
         expected_success_observed: {type: boolean}
         expected_discrimination_observed: {type: boolean}
         details: {type: string, minLength: 1}
+    control_judgments:
+      type: object
+      additionalProperties: false
+      required: [known_good, known_bad]
+      properties:
+        known_good:
+          type: object
+          additionalProperties: false
+          required: [observation_ref, outcome]
+          properties:
+            observation_ref: {const: known_good}
+            outcome: {const: pass}
+        known_bad:
+          type: object
+          additionalProperties: false
+          required: [observation_ref, outcome]
+          properties:
+            observation_ref: {const: known_bad}
+            outcome: {const: fail}
     evidence_refs: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
     assessor_ref: {type: string, minLength: 1}
 outgoing_links:

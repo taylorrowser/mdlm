@@ -39,7 +39,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
   it("is exact, recursively frozen, and isolated from mutable clones", async () => {
     const fixturePackage = await canonicalProcessPackage();
     await expect(verifyCanonicalProcessPackageFixture(livePackage)).resolves.toEqual({
-      processPackage: "mdlm-bootstrap@0.76.0",
+      processPackage: "mdlm-bootstrap@0.77.0",
       verified: true,
     });
     expect(fixturePackage).toStrictEqual(livePackage);
@@ -53,7 +53,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
 
     const mutable = structuredClone(fixturePackage);
     mutable.manifest.version = "mutated-test-clone";
-    expect(fixturePackage.manifest.version).toBe("0.76.0");
+    expect(fixturePackage.manifest.version).toBe("0.77.0");
   });
 
   it("rejects artifact hash and package-digest drift", async () => {
@@ -250,7 +250,7 @@ describe("loadProcessPackage", () => {
       const second = await loadProcessPackage(processRoot);
       expect(second.ok).toBe(true);
       if (!second.ok) return;
-      expect(second.package.manifest.version).toBe("0.76.0");
+      expect(second.package.manifest.version).toBe("0.77.0");
 
       const manifestSchemaPath = path.join(
         processRoot,
@@ -285,7 +285,7 @@ describe("loadProcessPackage", () => {
       diagnostics: [] as const,
     };
 
-    expect(result.package.manifest.version).toBe("0.76.0");
+    expect(result.package.manifest.version).toBe("0.77.0");
     expect(Object.keys(result.package.types)).toHaveLength(21);
     expect(Object.keys(result.package.templates)).toHaveLength(3);
     expect(Object.keys(result.package.selectors)).toHaveLength(395);
