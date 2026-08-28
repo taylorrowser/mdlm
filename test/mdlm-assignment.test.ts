@@ -9,7 +9,10 @@ import {
 } from "../scripts/root-test-observation-policy.mjs";
 import { assignmentResponseSchema } from "../src/assignment.js";
 import { executeCommandApplication } from "../src/command-application.js";
-import { validateScenarioSkillProvenance } from "../src/scenario-execution.js";
+import {
+  type ScenarioOutputProposal,
+  validateScenarioSkillProvenance,
+} from "../src/scenario-execution.js";
 
 const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
@@ -1296,15 +1299,16 @@ process.exit(result.status ?? 1);
   it("qualifies repeated payload schema failures with the proposal output", async () => {
     await useRepositoryTemplate("active");
     const invalid = structuredClone(templateState.validResponse);
-    invalid.proposal.outputs[0]!.lifecycleDatum.payload.frontier.push(
+    const outputs = invalid.proposal.outputs as ScenarioOutputProposal[];
+    (outputs[0]!.lifecycleDatum.payload.frontier as string[]).push(
       "$proposal.runtime-question.revision_id",
     );
-    invalid.proposal.outputs[0]!.lifecycleDatum.links.push({
+    outputs[0]!.lifecycleDatum.links.push({
       type: "indexes",
       target: "$proposal.runtime-question.id",
     });
-    invalid.proposal.outputs[1]!.lifecycleDatum.payload.evidence_available = true;
-    invalid.proposal.outputs.push({
+    outputs[1]!.lifecycleDatum.payload.evidence_available = true;
+    outputs.push({
       localId: "runtime-question",
       name: "questions",
       invocation: 0,
