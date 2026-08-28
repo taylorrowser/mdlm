@@ -1046,6 +1046,22 @@ process.exit(result.status ?? 1);
         "repository.validation.records": 0,
       }));
 
+      const publication = JSON.parse((await mdlm(repository, "next")).stdout);
+      expect(publication.outcome).toBe("publication-required");
+      expect(publication.materializedExecutions).toHaveLength(1);
+      expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
+      const materializedCommit = git(
+        repository,
+        "-c", "user.name=MDLM Test",
+        "-c", "user.email=mdlm-test@localhost",
+        "-c", "commit.gpgSign=false",
+        "commit", "--quiet", "--no-verify", "-m", "Publish source boundary",
+      );
+      expect(
+        materializedCommit.status,
+        `${materializedCommit.stderr}${materializedCommit.stdout}`,
+      ).toBe(0);
+
       const fresh = JSON.parse((await mdlm(repository, "next")).stdout);
       expect(fresh.assignment.id).not.toBe(assignment);
       const activeLeasePath = path.join(
