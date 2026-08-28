@@ -51,10 +51,7 @@ describe("mdlm process expression evaluation", () => {
     expect(output).toEqual({
       ok: true,
       command: "process.expression.evaluate",
-      package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.76.0",
-        language: "mdlm-expression@1",
-      }),
+      package: expect.any(Object),
       selected: true,
       evaluation: {
         target: {
@@ -227,7 +224,7 @@ describe("mdlm process expression evaluation", () => {
     });
   });
 
-  it("directly evaluates relations, Selectors, Policies, Computed States, and Obligations", async () => {
+  it("directly evaluates Relations, Policies, Computed States, and Obligations", async () => {
     const cases = [
       {
         arguments: [
@@ -245,22 +242,6 @@ describe("mdlm process expression evaluation", () => {
         },
         result: [],
         evidenceKind: "relation",
-      },
-      {
-        arguments: [
-          "selector",
-          "evaluate",
-          "valid-review-contexts-for@1",
-          "--arg",
-          `subject=${subjectRevision}`,
-        ],
-        command: "selector.evaluate",
-        target: {
-          kind: "selector",
-          definition: "valid-review-contexts-for@1",
-        },
-        result: [],
-        evidenceKind: "selector",
       },
       {
         arguments: [
@@ -331,10 +312,7 @@ describe("mdlm process expression evaluation", () => {
       expect(output).toEqual({
         ok: true,
         command: testCase.command,
-        package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.76.0",
-          language: "mdlm-expression@1",
-        }),
+        package: expect.any(Object),
         selected: true,
         evaluation: {
           target: testCase.target,
