@@ -19,6 +19,7 @@
     "build:mdlm-pi": "npm run build --workspace=mdlm-pi",
     "test": "node scripts/run-bounded-tests.mjs --gate=pr",
     "test:pr": "npm test",
+    "test:release:fast": "npm run build && vitest run --config vitest.fast.config.ts --maxWorkers=1 test/load-process-package.test.ts test/phase-1-hardening-routes.test.ts test/phase-1-route-contracts.test.ts",
     "test:release": "node scripts/run-bounded-tests.mjs --gate=release",
     "test:mdlm-pi": "npm test --workspace=mdlm-pi",
     "test:all": "npm run test:release",

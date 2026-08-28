@@ -146,6 +146,11 @@ node scripts/frontier-loop.mjs status --parent 123
 
 ## Test tiers
 
+`npm run test:release:fast` is the ordinary Process Package release check. It
+builds MDLM, loads the current package, and exercises the Phase 1 hardening and
+route contracts. Run it after a current-package or Phase 1 route change and use
+its result to return to demo operation. It is not artifact qualification.
+
 `npm test` is PR authority. It has a 600,000 ms bound and runs both builds, exact suite classification, 25 root package/evaluator/static/public-boundary files, all `mdlm-pi` tests, and the controller policy tests. A PR that changes a release-only public boundary adds its focused manifest file with `npm test -- --root-test=test/<file>.test.ts`.
 
 `npm run test:release` is release and demo authority. It retains all 47 root files, including every release-only compiled-public and complete-lifecycle route, then runs the same package and controller checks. `npm run test:all` aliases this release gate. Run it once on the final integrated main candidate before artifact publication or a demonstration, not after every narrow correction.
