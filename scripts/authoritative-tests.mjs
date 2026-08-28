@@ -1,10 +1,14 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   ROOT_TEST_CLASS_CONCURRENCY_LIMITS,
   ROOT_TEST_SCHEDULING_POLICY,
   ROOT_TEST_TOKEN_CAPACITY,
   createRootTestAdmissionPolicy,
   createRootTestTasksForGate,
+  rootTestManifest,
   rootTestTasksCanOverlap,
 } from "./root-test-schedule.mjs";
 import { parseQualificationArguments } from "./qualification-gates.mjs";
@@ -13,6 +17,11 @@ import {
   launchProcessGroupTask,
   runWeightedSchedule,
 } from "./weighted-token-scheduler.mjs";
+import {
+  formatTestCostReport,
+  readTestCostFragments,
+  writeTestCostReport,
+} from "./test-cost-report.mjs";
 
 function run(arguments_) {
   const result = spawnSync(process.execPath, arguments_, {
@@ -32,6 +41,13 @@ function runAll(commands) {
 }
 
 async function runRootTests({ gate, additionalRootTestFiles }) {
+  const startedAt = new Date().toISOString();
+  const startedAtMs = Date.now();
+  const costRoot = mkdtempSync(path.join(os.tmpdir(), "mdlm-test-cost-"));
+  const reportPath = path.resolve(
+    process.env.MDLM_TEST_COST_REPORT
+      ?? `artifacts/test-cost/${gate}-${startedAt.replaceAll(":", "-")}-${process.pid}.md`,
+  );
   const cancellation = new AbortController();
   const cancel = (signal) => cancellation.abort(new Error(`Authoritative runner received ${signal}`));
   const onTerm = () => cancel("SIGTERM");
@@ -49,6 +65,10 @@ async function runRootTests({ gate, additionalRootTestFiles }) {
       signal: cancellation.signal,
       launch: (task) => launchProcessGroupTask({
         ...task,
+        environment: {
+          ...task.environment,
+          MDLM_TEST_COST_FRAGMENT_ROOT: costRoot,
+        },
         command: process.execPath,
         args: [
           "./node_modules/vitest/vitest.mjs",
@@ -56,6 +76,8 @@ async function runRootTests({ gate, additionalRootTestFiles }) {
           "--config",
           "vitest.fast.config.ts",
           "--maxWorkers=1",
+          "--reporter=default",
+          "--reporter=./scripts/root-test-cost-reporter.mjs",
           ...task.files,
         ],
       }, {
@@ -78,6 +100,26 @@ async function runRootTests({ gate, additionalRootTestFiles }) {
   } finally {
     process.removeListener("SIGTERM", onTerm);
     process.removeListener("SIGINT", onInterrupt);
+    const selectedFileCount = createRootTestTasksForGate(gate, additionalRootTestFiles)
+      .flatMap((task) => task.files).length;
+    const fragmentPaths = readdirSync(costRoot)
+      .filter((entry) => entry.endsWith(".json"))
+      .map((entry) => path.join(costRoot, entry));
+    try {
+      const entries = readTestCostFragments(fragmentPaths, rootTestManifest);
+      writeTestCostReport(reportPath, formatTestCostReport({
+        gate,
+        startedAt,
+        elapsedMs: Date.now() - startedAtMs,
+        entries,
+        selectedFileCount,
+      }));
+      process.stdout.write(`ROOT_TEST_COST_REPORT path=${reportPath} files=${entries.length}/${selectedFileCount}\n`);
+    } catch (error) {
+      process.stderr.write(`ROOT_TEST_COST_REPORT_FAILED: ${error instanceof Error ? error.message : String(error)}\n`);
+    } finally {
+      rmSync(costRoot, { recursive: true, force: true });
+    }
   }
 }
 
