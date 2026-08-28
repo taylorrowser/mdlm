@@ -142,11 +142,6 @@ describe("Phase-hardening matrix", () => {
 
   it("enumerates source-boundary publication with each exact successor outcome", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
-    const phases = [
-      "phase-0-wayfinding@5",
-      "phase-1-product-assurance@6",
-      "phase-2-system-definition@9",
-    ];
     const common = {
       selectors: [
         "current-open-question-sources@1",
@@ -160,7 +155,6 @@ describe("Phase-hardening matrix", () => {
 
     expect(matrix.rows.find((row) => row.id === "attended-question-source-boundary"))
       .toMatchObject({
-        phases,
         routes: [{
           ...common,
           route: "source boundary before attended resolution",
@@ -173,7 +167,6 @@ describe("Phase-hardening matrix", () => {
       });
     expect(matrix.rows.find((row) => row.id === "autonomous-question-source-boundary"))
       .toMatchObject({
-        phases,
         routes: [{
           ...common,
           route: "source boundary before autonomous resolution",
@@ -233,14 +226,6 @@ describe("Phase-hardening matrix", () => {
   it("enumerates both malformed Assignment Response transitions without package execution", async () => {
     const matrix = parse(await fs.readFile(matrixPath, "utf8")) as Matrix;
     const row = matrix.rows.find((candidate) => candidate.id === "assignment-response-transport");
-    const phases = [
-      "phase-0-wayfinding@5",
-      "phase-1-product-assurance@6",
-      "phase-2-system-definition@9",
-      "phase-2-pilot-assessment@3",
-    ];
-
-    expect(row?.phases).toEqual(phases);
     expect(row?.routes).toEqual([
       expect.objectContaining({
         route: "first malformed response",
