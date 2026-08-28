@@ -67,6 +67,20 @@ The integration lane owns expensive checks:
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
 
+The root runner writes a Markdown cost report under `artifacts/test-cost/` after
+each qualification. Set `MDLM_TEST_COST_REPORT` when the integration record
+needs an exact destination. Read the file table and runtime-class totals after
+an integration run. These numbers are observations, not limits, and never fail
+a gate.
+
+Keep reconstructed public-workflow tests out of the PR inner loop when they are
+in the slowest fifth of the report and do not uniquely protect a changed trust,
+publication, authority, or integrity seam. Move those files to release
+qualification, keep one direct public test for each real seam, and cover route
+permutations through the package or evaluator interface. When a slow file does
+protect a changed seam, run that one file as the diff-focused regression instead
+of repeating the release suite.
+
 Before qualification, exercise the complete supported suite and every required
 compiled, packaged, and installed public path. Source-level tests do not prove a
 public CLI or installed artifact. Keep intentionally failing historical red
