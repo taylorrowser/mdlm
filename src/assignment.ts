@@ -370,7 +370,31 @@ export interface AssignmentPacket {
   }[];
   completion: ScenarioDryRun["completion"];
   responseSchema: Record<string, unknown>;
+  responseSkeleton?: AssignmentResponseSkeleton;
   checkpointConversation?: CheckpointConversation;
+}
+
+export interface AssignmentResponseSkeleton {
+  contract: "mdlm-assignment-response@1";
+  assignment: string;
+  kind: "proposal";
+  proposal: {
+    outputs: {
+      localId: string;
+      name: string;
+      invocation: 0;
+      lifecycleDatum: {
+        type: string;
+        payload: null;
+        links: { type: string; target: string }[];
+        body: null;
+      };
+    }[];
+    completionEvidence: null;
+    loadedSkillRefs: null;
+    authoritySupplies: null;
+    standingDelegations: null;
+  };
 }
 
 type AssignmentResult<T> =
@@ -2146,12 +2170,158 @@ function exactLifecycleData(dryRun: ScenarioDryRun): string[] {
   ))].sort();
 }
 
+function requiredLinkIdentity(
+  processPackage: ProcessPackage,
+  sourceType: string,
+  linkId: string,
+  targetType: string,
+): "id" | "revision_id" | undefined {
+  const source = resolveType(processPackage, sourceType);
+  if (!source.ok) return undefined;
+  const link = source.type.outgoingLinks
+    .map(object)
+    .find((candidate) => candidate?.id === linkId);
+  const targets = Array.isArray(link?.targets)
+    ? link.targets.map(object).filter((candidate) =>
+      candidate?.kind === "datum" &&
+      Array.isArray(candidate.types) &&
+      candidate.types.includes(targetType)
+    )
+    : [];
+  if (targets.length !== 1) return undefined;
+  return targets[0]?.identity === "stable"
+    ? "id"
+    : targets[0]?.identity === "revision"
+    ? "revision_id"
+    : undefined;
+}
+
+function assignmentResponseSkeleton(
+  exact: ExactAssignment,
+  lease: AssignmentLease,
+): AssignmentResponseSkeleton | undefined {
+  const { dryRun, processPackage, scenario } = exact;
+  if (
+    dryRun.invocations.length !== 1 ||
+    (dryRun.participation ?? []).some((item) =>
+      item.authorityRequirement.mode !== "autonomous"
+    ) ||
+    dryRun.expectedOutputs.some((output) =>
+      output.cardinality !== "one" || output.types.length !== 1
+    )
+  ) return undefined;
+
+  const invocation = dryRun.invocations[0]!;
+  const outputByName = new Map(dryRun.expectedOutputs.map((output) => [
+    output.name,
+    output,
+  ]));
+  if (outputByName.size !== dryRun.expectedOutputs.length) return undefined;
+
+  const outputDefinitions = Array.isArray(scenario.outputs)
+    ? scenario.outputs.map(object)
+    : [];
+  if (
+    outputDefinitions.some((output) => !output) ||
+    outputDefinitions.length !== dryRun.expectedOutputs.length
+  ) return undefined;
+
+  const outputs: AssignmentResponseSkeleton["proposal"]["outputs"] = [];
+  for (const expected of dryRun.expectedOutputs) {
+    const sourceType = expected.types[0]!;
+    const definition = outputDefinitions.find((output) =>
+      output?.name === expected.name
+    );
+    const requiredLinks = Array.isArray(definition?.required_links)
+      ? definition.required_links.map(object)
+      : [];
+    if (
+      !definition ||
+      requiredLinks.some((link) => !link) ||
+      requiredLinks.length !== expected.requiredLinks.length
+    ) return undefined;
+
+    const links: { type: string; target: string }[] = [];
+    for (const required of requiredLinks) {
+      const linkId = typeof required?.link === "string" ? required.link : undefined;
+      const target = object(required?.target);
+      if (!linkId || ["partition", "cover"].includes(String(required?.distribution))) {
+        return undefined;
+      }
+      if (typeof target?.input === "string") {
+        const input = invocation.inputs.find((candidate) =>
+          candidate.name === target.input
+        );
+        if (!input || input.values.length !== 1) return undefined;
+        const value = input.values[0]!;
+        const identity = requiredLinkIdentity(
+          processPackage,
+          sourceType,
+          linkId,
+          value.identity.type,
+        );
+        const exactTarget = identity === "id"
+          ? value.identity.id
+          : identity === "revision_id"
+          ? value.identity.revision_id
+          : undefined;
+        if (!exactTarget) return undefined;
+        links.push({ type: linkId, target: exactTarget });
+        continue;
+      }
+      if (typeof target?.output === "string") {
+        const targetOutput = outputByName.get(target.output);
+        const targetType = targetOutput?.types[0];
+        if (!targetOutput || !targetType) return undefined;
+        const identity = requiredLinkIdentity(
+          processPackage,
+          sourceType,
+          linkId,
+          targetType,
+        );
+        if (!identity) return undefined;
+        links.push({
+          type: linkId,
+          target: `$proposal.${targetOutput.name}.${identity}`,
+        });
+        continue;
+      }
+      return undefined;
+    }
+    outputs.push({
+      localId: expected.name,
+      name: expected.name,
+      invocation: 0,
+      lifecycleDatum: {
+        type: sourceType,
+        payload: null,
+        links,
+        body: null,
+      },
+    });
+  }
+
+  return {
+    contract: "mdlm-assignment-response@1",
+    assignment: lease.id,
+    kind: "proposal",
+    proposal: {
+      outputs,
+      completionEvidence: null,
+      loadedSkillRefs: null,
+      authoritySupplies: null,
+      standingDelegations: null,
+    },
+  };
+}
+
 function packet(
   exact: ExactAssignment,
   lease: AssignmentLease,
 ): AssignmentPacket {
   const participation = exact.dryRun.participation ?? [];
   const exactData = exactLifecycleData(exact.dryRun);
+  const responseSkeleton = assignmentResponseSkeleton(exact, lease);
   return {
     contract: "mdlm-assignment-packet@3",
     assignment: { id: lease.id },
@@ -2206,6 +2376,7 @@ function packet(
           : [value.authorityRequirement.authority]
       ))].sort(),
     ),
+    ...(responseSkeleton ? { responseSkeleton } : {}),
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation
       ? {
