@@ -1995,7 +1995,7 @@ export function assignmentResponseSchema(
               },
               authoritySupplies: {
                 type: "array",
-                items: authoritySupplies && authoritySupplies.length > 0
+                items: authoritySupplies
                   ? { enum: [...authoritySupplies] }
                   : { type: "string" },
                 uniqueItems: true,

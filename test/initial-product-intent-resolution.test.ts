@@ -14,7 +14,6 @@ import {
   directoryDigest,
   inputRevision,
   prepareNextAssignment,
-  submitAssignment,
   type ProposedOutput,
 } from "./helpers/assignment-submission.js";
 import { installLifecycleDataFixture } from "./helpers/lifecycle-data-fixture.js";
@@ -91,7 +90,7 @@ function resolutionOutputs(answeredQuestion: string): ProposedOutput[] {
 }
 
 describe("initial product-intent resolution authority", () => {
-  it("rejects an incomplete answer and publishes exact attended authority", async () => {
+  it("rejects descriptive authority and publishes exact attended authority", async () => {
     const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-intent-resolution-"));
     const repository = path.join(parent, "calculator");
     try {
@@ -147,14 +146,28 @@ describe("initial product-intent resolution authority", () => {
         }));
       const answeredQuestion = `${openQuestion.id}-r00002`;
       const outputs = resolutionOutputs(answeredQuestion);
-      const incomplete = structuredClone(outputs);
-      delete incomplete[1]!.lifecycleDatum.payload.intent_scope;
       const before = await directoryDigest(path.join(repository, ".lifecycle", "data"));
-      const rejected = await submitAssignment(repository, resolution, incomplete);
+      const descriptive = assignmentResponse(
+        resolution,
+        outputs,
+        undefined,
+        ["stakeholder attended-authority-holder invocation 0"],
+      );
+      const rejected = await mdlmWithInput(
+        repository,
+        `${JSON.stringify(descriptive)}\n`,
+        "scenario",
+        "submit",
+      );
       expect(rejected.status).toBe(1);
       expect(JSON.parse(rejected.stdout).diagnostics).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: "scenario-completion-failed" }),
+        expect.objectContaining({
+          code: "scenario-authority-required",
+          message: expect.stringContaining("stakeholder"),
+        }),
       ]));
+      expect(JSON.parse(rejected.stdout).diagnostics[0].message)
+        .toContain("stakeholder attended-authority-holder invocation 0");
       expect(await directoryDigest(path.join(repository, ".lifecycle", "data"))).toBe(before);
 
       const workerResponse = assignmentResponse(resolution, outputs) as JsonObject;
