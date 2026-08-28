@@ -629,7 +629,7 @@ Aliases are human-facing and may change. Stable element IDs are used by allocati
 | `MAP` | Wayfinding Map | Index of decision areas, questions, prototypes, and deeper artifacts. It links; it does not restate. |
 | `QST` | Question | A blocked or deferred decision awaiting empirical or preferential resolution. |
 | `DEC` | Decision Record | Records consequential decisions, assumptions, waivers, scope outcomes, prototype findings, deferrals, and gate sign-offs with rationale. |
-| `ART` | Code Pointer or Prototype Artifact | Points to product code, generated assets, or prototype code at an exact repository reference. `kind` is `implementation` or `prototype`. |
+| `ART` | Code Pointer or Prototype Artifact | Points to product code, generated assets, or prototype code at an exact repository reference, or carries a disposable inline pilot-control pair. `kind` is `implementation` or `prototype`. |
 | `PRB` | Problem Report | Captures a defect, failure, or unexpected condition and its evidence. |
 | `CHG` | Change Request | Defines an approved change and traceability-based impact analysis. May originate from PRB, MAP, QST, or DEC. |
 
@@ -985,6 +985,8 @@ Every prototype declares:
 
 - the empirical question or nominated claim it addresses;
 - the evidence boundary and what the prototype cannot establish;
+- either an exact repository reference or, for a disposable verification pilot,
+  one inline known-good and one one-fault known-bad runnable control;
 - supported behaviors or claims;
 - intentionally unsupported behaviors when used for verification discrimination;
 - retention or disposal policy;
@@ -1015,7 +1017,7 @@ An architecture prototype may later serve as the execution target for a pilot ve
 
 ### 13.4 Verification pilot target
 
-A prototype, harness, component build, or early product build may serve as a pilot target. A useful pilot deliberately includes:
+A prototype, harness, component build, or early product build may serve as a pilot target. Before product code exists, the package may create a disposable inline prototype bound to one reviewed VER. It contains one known-good control expected to pass and one one-fault known-bad control expected to fail that same verification. A useful pilot deliberately includes:
 
 - at least one activity expected to succeed against supported behavior; and
 - at least one activity expected to expose intentionally unsupported or incorrect behavior.

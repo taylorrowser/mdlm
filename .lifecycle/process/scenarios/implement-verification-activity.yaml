@@ -50,6 +50,15 @@ completion: >-
   && implementation.payload.independence_mode == "source-blind"
   && implementation.payload.target_behavior.supported == execution_target.payload.supported_behavior
   && implementation.payload.target_behavior.intentionally_unsupported == execution_target.payload.unsupported_behavior
+  && (!present(execution_target.payload.prototype_controls)
+    || (implementation.payload.prototype_control_bindings.activity_ref
+      == execution_target.payload.prototype_controls.activity_ref
+    && implementation.payload.prototype_control_bindings.known_good.argv
+      == execution_target.payload.prototype_controls.known_good.argv
+    && implementation.payload.prototype_control_bindings.known_good.expected_verification_outcome == "pass"
+    && implementation.payload.prototype_control_bindings.known_bad.argv
+      == execution_target.payload.prototype_controls.known_bad.argv
+    && implementation.payload.prototype_control_bindings.known_bad.expected_verification_outcome == "fail"))
   && authorization.payload.kind == "decision"
   && authorization.payload.effective_scope == implementation.identity.revision_id
 resolves: [pilot-verification-implementation-required]

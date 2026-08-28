@@ -19,6 +19,12 @@ supported argument count, accepted units, or closed value set. Do not add behavi
 that the requirement and its parent intent do not state. Link `derived-from` to
 that exact supplied PSP Revision so later Review uses the same accepted intent.
 
+Supply every required VER payload field: `title`, `rationale`, `kind`, `method`,
+`assessment_mode`, `claim`, `acceptance_criteria`, `evidence_requirements`,
+`expected_success_activity`, and `expected_discrimination_activity`. For this
+pilot set `kind: pilot` and set `claim` exactly to `kind: pilot`,
+`scope: verification-design`, and `formal_evidence_eligible: false`.
+
 Define one activity expected to succeed for a declared supported behavior and one
 expected to expose intentionally unsupported or incorrect behavior. Make both
 activities concrete enough to execute from the supplied definitions. The activity

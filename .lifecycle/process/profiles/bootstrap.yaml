@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 38
+version: 39
 status: experimental
 description: Complete bootstrap profile with proportional grouped system definition, reviewed intent, qualification/pilot, exact accepted-STK and shared-SYS change control, and a reviewed expansion Decision.
 enabled:
@@ -78,7 +78,7 @@ success_criteria:
   - reviewed approving gate evidence mechanically publishes one exact accepted-intent baseline before declarative entry to Phase 1 without redundant authority
   - failed Reviews of current VSP, ENV, pilot VER, and source-blind pilot VAI Revisions derive exact same-lineage correction with every applicable Review and Finding, fresh context and Review, two autonomous cycles before attended escalation, and a fresh exact qualification chain for corrected ENV assurance
   - corrected pilot VAI procedures preserve exact VER, ENV, ART, claim-class, declared-case, and behavior bindings while allowing procedure and activity-binding text to address Review findings; they require bounded checkout, environment-check, and product-case deadlines, forced termination and reaping, partial raw observation, guaranteed cleanup, continue-through-all-cases aggregation, and fresh run evidence
-  - every current pilot activity requirement discovers one exact immutable bounded ART registration whose typed normal, raw-malformed, omitted-argument, and extra-argument cases carry deterministic exact-byte observations before implementation
+  - every current pilot activity requirement discovers one exact ART target, either a disposable inline good/bad control pair bound to its reviewed VER or an immutable bounded repository registration with deterministic exact-byte command observations
   - one qualified ENV and source-independent pilot distinguish supported from intentionally unsupported behavior without formal evidence
   - accepted exact intent derives ASP, ICSP, and one unambiguous DWP planning Obligation before reviewed-plan execution
   - one planning DWP receives independent product-definition Review with every and only exact allocated ASP, governing ICSP, and applicable current SYS support before deriving coverage, output-review, simplification, completion, question, and blocker Obligations; superseded exact support removes the old DWP from Review dispatch, requires one explicit same-lineage replacement against current definition support, and gives active valid consumed-parent SYS rebinding priority over that correction

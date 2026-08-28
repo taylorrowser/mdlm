@@ -1984,3 +1984,21 @@ next`, dry-run, and execution preserve the exact Obligation Instance. Once the
 - **Reason:** Fresh 0.73 demonstrations stopped when VAI correction invented undeclared authority and when SYS Review packets omitted the frozen context contents needed for independent judgment.
 - **Compatibility:** No migration or recovery from 0.73.0. Published 0.73 repositories, Assignments, journals, and demonstration evidence remain immutable. New work starts in fresh 0.74.0 repositories.
 - **Evidence/observations:** Focused regressions and fresh public routes cover exact autonomous correction, VAI publication, journal clearing, next-work allocation, exact SYS Review Context membership, and packet-bounded Review.
+
+## 2026-08-28 — Build disposable Phase 1 controls as Lifecycle Data
+
+- **Decision:** Publish `mdlm-bootstrap@0.75.0` with an autonomous Phase 1 route
+  that creates one inline prototype ART. It contains one known-good command and
+  one one-fault known-bad command bound to the same reviewed pilot VER. The VAI
+  applies that VER to both controls. Repository-backed ART registration remains
+  an explicit brownfield route.
+- **Reason:** Fresh json-count and ini-get demos reached Phase 1 without product
+  executables and stopped at target registration. The pilot needs to prove the
+  verification can pass good behavior and reject bad behavior. It does not need
+  the product implementation.
+- **Compatibility:** The ART schema keeps repository-backed records valid and
+  adds a disjoint inline-control form. New demos start with 0.75.0. Historical
+  repositories retain their recorded package identity.
+- **Evidence/observations:** Issue #281 records the two Phase 1 stops. Focused
+  package and Assignment coverage checks the autonomous route and exact control
+  inputs before fresh demo qualification.

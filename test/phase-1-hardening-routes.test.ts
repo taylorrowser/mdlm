@@ -2216,6 +2216,103 @@ describe("Phase 1 hardening route evidence", () => {
     ]);
   });
 
+  it("prepares one inline good/bad control pair for the reviewed pilot VER", async () => {
+    const currentStrategy = strategy(1);
+    const strategyReview = passingReview(currentStrategy, "REV-0PILOTCTL0");
+    const activity = pilotActivity();
+    const activityReview = passingReview(activity, "REV-0PILOTCTL1", {
+      definitions: [activity, foundation()[0]!, foundation()[1]!, currentStrategy],
+    });
+    const records = [
+      currentStrategy,
+      ...strategyReview,
+      activity,
+      ...activityReview,
+    ];
+    const route = phase1Evaluation(recoveryPackage, records).obligations.find(
+      (item) => item.obligation === "pilot-target-required",
+    );
+    expect(route).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "build-pilot-control-prototype@1",
+    }));
+
+    const prepared = await dryRunResolverScenario(
+      recoveryPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records: [...foundation(), ...records],
+        dependencyComparisons: [],
+      },
+      "build-pilot-control-prototype@1",
+      route!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value).toEqual(expect.objectContaining({
+      executable: true,
+      sideEffectFree: true,
+      definition: expect.objectContaining({
+        scenario: "build-pilot-control-prototype@1",
+      }),
+      prompt: expect.objectContaining({
+        reference: "prompts/build-pilot-control-prototype.md@1",
+        content: expect.stringContaining("Do not build the product"),
+      }),
+    }));
+    expect(prepared.value.invocations[0]!.inputs.map((input) => ({
+      name: input.name,
+      revisions: input.values.map((value) => value.identity.revision_id),
+    }))).toEqual([
+      {name: "requirement", revisions: ["STK-0HARDENP10-r00001"]},
+      {name: "activity", revisions: [activity.datum.revision_id]},
+    ]);
+
+    const inline = {
+      title: "Disposable controls for the exact pilot activity",
+      kind: "prototype",
+      supported_behavior: [activity.datum.payload.expected_success_activity],
+      unsupported_behavior: [activity.datum.payload.expected_discrimination_activity],
+      prototype_controls: {
+        activity_ref: "VER-0HARDP1A0T-r00001",
+        working_directory: "fresh-temporary-directory",
+        known_good: {
+          argv: ["node", "-e", "process.stdout.write('ok\\n')"],
+          expected_observation: {
+            exit_status: 0,
+            stdout: {encoding: "base64", bytes: "b2sK"},
+            stderr: {encoding: "base64", bytes: ""},
+          },
+          expected_verification_outcome: "pass",
+        },
+        known_bad: {
+          argv: ["node", "-e", "process.stdout.write('wrong\\n')"],
+          expected_observation: {
+            exit_status: 0,
+            stdout: {encoding: "base64", bytes: "d3JvbmcK"},
+            stderr: {encoding: "base64", bytes: ""},
+          },
+          expected_verification_outcome: "fail",
+          fault: "Return one wrong observable result.",
+        },
+      },
+    };
+    expect(validatePayload(recoveryPackage, "ART", inline)).toBe(true);
+    expect(validatePayload(recoveryPackage, "ART", {
+      ...inline,
+      repository_ref: `git:${"a".repeat(40)}`,
+    })).toBe(false);
+    expect(validatePayload(recoveryPackage, "ART", {
+      title: inline.title,
+      kind: "prototype",
+      supported_behavior: inline.supported_behavior,
+      unsupported_behavior: inline.unsupported_behavior,
+    })).toBe(false);
+  });
+
   it("proves Phase 1 pilot VER publication with exact Stable Datum, Revision, strategy links, and Review support", () => {
     const acceptedFoundation = foundation();
     const currentStrategy = strategy(1);
@@ -2374,8 +2471,8 @@ describe("Phase 1 hardening route evidence", () => {
     expect(evaluation.obligations.find((item) =>
       item.obligation === "pilot-target-required"
     )).toEqual(expect.objectContaining({
-      status: "ready",
-      actionableResolver: "register-pilot-target@1",
+      status: "awaiting-review",
+      dispatchable: false,
     }));
 
     const reviewMembers = evaluateProcessDefinition(

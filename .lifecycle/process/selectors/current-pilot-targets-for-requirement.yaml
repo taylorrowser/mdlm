@@ -1,7 +1,7 @@
 kind: selector-definition
 id: current-pilot-targets-for-requirement
 version: 1
-description: Current valid exact controlled artifacts derived from one Phase 1 requirement Revision and declaring both pilot behavior boundaries.
+description: Current valid exact repository-backed or inline control artifacts derived from one Phase 1 requirement Revision.
 parameters:
   - {name: requirement, kind: revision, types: [STK]}
 result_kind: revision
@@ -10,8 +10,9 @@ query:
   as: target
   where: >-
     target.payload.kind in ["implementation", "prototype"]
-    && present(target.payload.public_interface)
-    && target.payload.public_interface.working_directory == "fresh-temporary-directory"
+    && ((present(target.payload.public_interface)
+        && target.payload.public_interface.working_directory == "fresh-temporary-directory")
+      || present(target.payload.prototype_controls))
     && state(target, "disposition") == "active"
     && state(target, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: target})

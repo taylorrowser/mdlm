@@ -16,10 +16,16 @@ Read, in order:
 Implement only the reviewed exact VER Revision against the controlled public
 boundary of the package-resolved ART Revision and qualified ENV Revision. Record the activity
 bindings, exact implementation reference, authoring inputs, and distinct supported
-and intentionally unsupported target behavior. Bind every exact normal, raw-
-malformed, omitted-argument, and extra-argument case from the ART, instantiating
-its ordered command matrix without collapsing an omitted marker into a supplied
-empty token or dropping repeated command tokens.
+and intentionally unsupported target behavior. For a repository-backed ART,
+bind every exact normal, raw-malformed, omitted-argument, and extra-argument case,
+instantiating its ordered command matrix without collapsing an omitted marker
+into a supplied empty token or dropping repeated command tokens.
+
+When the ART supplies `prototype_controls`, bind the exact known-good and
+known-bad argv without rewriting either command. Apply the same reviewed VER to
+both. The known-good control must be expected to pass, and the one-fault
+known-bad control must be expected to fail. Record both exact bindings in
+`prototype_control_bindings`.
 
 Define bounded checkout, environment-check, and per-product-case deadlines as
 infrastructure-safety limits rather than product timing claims. On timeout,
