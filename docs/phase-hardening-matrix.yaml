@@ -6,7 +6,7 @@ rows:
   - id: assignment-response-transport
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
       - phase-2-pilot-assessment@3
     routes:
@@ -187,7 +187,7 @@ rows:
   - id: contextual-review
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
       - phase-2-pilot-assessment@3
       - phase-7-change-control@4
@@ -584,7 +584,7 @@ rows:
   - id: attended-question-source-boundary
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: source boundary before attended resolution
@@ -619,7 +619,7 @@ rows:
   - id: autonomous-question-source-boundary
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: source boundary before autonomous resolution
@@ -654,7 +654,7 @@ rows:
   - id: question-immediate-attention
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: immediate blocking
@@ -720,7 +720,7 @@ rows:
   - id: empirical-question-answer
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: empirical answer
@@ -754,7 +754,7 @@ rows:
   - id: prototype-question-answer
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: prototype answer
@@ -787,7 +787,7 @@ rows:
   - id: question-inability
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: unavailable evidence
@@ -822,7 +822,7 @@ rows:
   - id: question-deferral
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: defer
@@ -856,7 +856,7 @@ rows:
   - id: question-cancellation
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: cancel
@@ -889,7 +889,7 @@ rows:
   - id: preferential-question-answer
     phases:
       - phase-0-wayfinding@5
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
       - phase-2-system-definition@9
     routes:
       - route: preferential answer
@@ -1170,7 +1170,7 @@ rows:
           and rereviewed."
   - id: phase-1-assurance
     phases:
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
     routes:
       - route: VSP creation
         executable:
@@ -1610,7 +1610,7 @@ rows:
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - register-pilot-target@1
+          - build-pilot-control-prototype@1
         next:
           - profile-boundary-reached
         budget: No lifecycle Correction cycle is consumed.
@@ -1619,7 +1619,7 @@ rows:
         reuse: All competing exact evidence remains immutable; no unsupported selection or replacement is fabricated.
   - id: phase-1-public-command-evidence
     phases:
-      - phase-1-product-assurance@5
+      - phase-1-product-assurance@6
     routes:
       - route: target registration
         executable:
@@ -1639,7 +1639,7 @@ rows:
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - register-pilot-target@1
+          - build-pilot-control-prototype@1
         next:
           - assignment
         budget: No lifecycle Correction cycle is consumed.
@@ -1713,7 +1713,7 @@ rows:
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - register-pilot-target@1
+          - build-pilot-control-prototype@1
         next:
           - assignment
         budget: Malformed command variants consume no lifecycle Correction cycle.
