@@ -20,6 +20,80 @@ export async function restoreHistoricalFixtureProcessPackage(
 
     const currentManifestPath = path.join(stagedPackage, "manifest.yaml");
     let pilotManifest = await fs.readFile(currentManifestPath, "utf8");
+    if (pilotManifest.includes("version: 0.78.0")) {
+      const preVaiBoundaryReconciliationCommit =
+        "c2db77b40762454497b5d28df764c68fe78811f9";
+      const correctionObligationPath = path.join(
+        stagedPackage,
+        "obligations/pilot-vai-review-correction-required.yaml",
+      );
+      const correctionObligationPhases = /^phases: .+$/m.exec(
+        await fs.readFile(correctionObligationPath, "utf8"),
+      )?.[0];
+      const restoredFiles = [
+        "obligations/pilot-vai-review-correction-required.yaml",
+        "prompts/revise-pilot-vai-after-review.md",
+        "scenarios/revise-pilot-vai-after-review.yaml",
+        "selectors/corrected-pilot-verification-implementation-revisions-for.yaml",
+      ];
+      await Promise.all(restoredFiles.map(async (relativePath) => {
+        const source = execFileSync(
+          "git",
+          ["show", `${preVaiBoundaryReconciliationCommit}:.lifecycle/process/${relativePath}`],
+          { cwd: process.cwd(), encoding: "utf8" },
+        );
+        await fs.writeFile(path.join(stagedPackage, relativePath), source);
+      }));
+      if (correctionObligationPhases) {
+        await fs.writeFile(
+          correctionObligationPath,
+          (await fs.readFile(correctionObligationPath, "utf8")).replace(
+            /^phases: .+$/m,
+            correctionObligationPhases,
+          ),
+        );
+      }
+      await Promise.all([
+        "selectors/valid-pilot-vai-environment-reconciliations.yaml",
+        "selectors/valid-pilot-vai-target-reconciliations.yaml",
+      ].map((relativePath) => fs.rm(path.join(stagedPackage, relativePath))));
+
+      const phasePath = path.join(
+        stagedPackage,
+        "phases/phase-1-product-assurance.yaml",
+      );
+      await fs.writeFile(
+        phasePath,
+        (await fs.readFile(phasePath, "utf8"))
+          .replace("version: 8", "version: 7")
+          .replace("revise-pilot-vai-after-review@2", "revise-pilot-vai-after-review@1")
+          .replace("pilot-vai-review-correction-required@2", "pilot-vai-review-correction-required@1"),
+      );
+      const profilePath = path.join(stagedPackage, "profiles/bootstrap.yaml");
+      await fs.writeFile(
+        profilePath,
+        (await fs.readFile(profilePath, "utf8"))
+          .replace("version: 40", "version: 39")
+          .replace(
+            "  - corrected pilot VAI procedures preserve exact VER, claim-class, declared-case, and behavior scope while binding either the reviewed ENV/ART Revisions or one exact same-lineage reconciliation from the same atomic transaction; an ENV reconciliation requires a fresh qualification chain, and every correction requires bounded checkout, environment-check, and product-case deadlines, forced termination and reaping, partial raw observation, guaranteed cleanup, continue-through-all-cases aggregation, fresh Review, and fresh run evidence",
+            "  - corrected pilot VAI procedures preserve exact VER, ENV, ART, claim-class, declared-case, and behavior bindings while allowing procedure and activity-binding text to address Review findings; they require bounded checkout, environment-check, and product-case deadlines, forced termination and reaping, partial raw observation, guaranteed cleanup, continue-through-all-cases aggregation, and fresh run evidence",
+          ),
+      );
+      await fs.writeFile(
+        currentManifestPath,
+        pilotManifest
+          .replace("version: 0.78.0", "version: 0.77.0")
+          .replace("    - valid-pilot-vai-environment-reconciliations\n", "")
+          .replace("    - valid-pilot-vai-target-reconciliations\n", "")
+          .replace(
+            "    - prompts/revise-pilot-vai-after-review.md@2\n",
+            "    - prompts/revise-pilot-vai-after-review.md@1\n",
+          )
+          .replace("bootstrap@40", "bootstrap@39")
+          .replace("profiles/bootstrap.yaml@40", "profiles/bootstrap.yaml@39"),
+      );
+      pilotManifest = await fs.readFile(currentManifestPath, "utf8");
+    }
     if (pilotManifest.includes("version: 0.77.0")) {
       const preExecutableObservationsCommit =
         "aa3243f87d83ff4b199c91535f0930bf822afedf";
@@ -180,8 +254,8 @@ export async function restoreHistoricalFixtureProcessPackage(
           .replace("    - prompts/decide-pilot-expansion.md@3\n", "    - prompts/decide-pilot-expansion.md@2\n")
           .replace("    - prompts/build-pilot-control-prototype.md@1\n", "")
           .replace("    - skills/pilot-control-prototype.md@1\n", "")
-          .replace("bootstrap@40", "bootstrap@38")
-          .replace("profiles/bootstrap.yaml@40", "profiles/bootstrap.yaml@38"),
+          .replace("bootstrap@39", "bootstrap@38")
+          .replace("profiles/bootstrap.yaml@39", "profiles/bootstrap.yaml@38"),
       );
       const phasePath = path.join(stagedPackage, "phases/phase-1-product-assurance.yaml");
       await fs.writeFile(
@@ -194,7 +268,7 @@ export async function restoreHistoricalFixtureProcessPackage(
       await fs.writeFile(
         profilePath,
         (await fs.readFile(profilePath, "utf8"))
-          .replace("version: 40", "version: 38")
+          .replace("version: 39", "version: 38")
           .replace(
             "  - every current pilot activity requirement discovers one exact ART target, either a disposable inline good/bad control pair bound to its reviewed VER or an immutable bounded repository registration with deterministic exact-byte command observations",
             "  - every current pilot activity requirement discovers one exact immutable bounded ART registration whose typed normal, raw-malformed, omitted-argument, and extra-argument cases carry deterministic exact-byte observations before implementation",
