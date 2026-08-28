@@ -97,15 +97,23 @@ test("all 47 root tests have complete child-process observation policy", async (
   assert.equal(PROCESS_REPOSITORY_CHILD_TIMEOUT_MS, PROCESS_REPOSITORY_CHILD_FLOOR_MS);
   assert.equal(inventory.manifests.length, 47);
   assert.equal(new Set(inventory.manifests.map((entry) => entry.file)).size, 47);
-  assert.equal(inventory.launches.length, 29);
-  assert.equal(new Set(inventory.launches.map((entry) => entry.key)).size, 29);
+  // The inventory counts each physical child launch site once across the
+  // reachable test import graph. `reachableFrom` separately records every root
+  // manifest that can invoke a shared site.
+  assert.equal(inventory.launches.length, 47);
+  assert.equal(new Set(inventory.launches.map((entry) => entry.key)).size, 47);
   assert.deepEqual(
     [...new Set(inventory.launches.map((entry) => entry.file))].sort(),
     [
+      "test/helpers/assignment-submission.ts",
+      "test/helpers/canonical-process-package-fixture.ts",
       "test/helpers/lifecycle-data-fixture.ts",
+      "test/helpers/mdlm-self-guiding-cases.ts",
       "test/helpers/mdlm.ts",
+      "test/helpers/process-package.ts",
       "test/helpers/proportional-phase-2-ready-fixture.ts",
       "test/helpers/proportional-phase-2-routes.ts",
+      "test/initial-product-intent-route.test.ts",
       "test/mdlm-assignment-state.test.ts",
       "test/mdlm-assignment.test.ts",
       "test/mdlm-baseline-inspection.test.ts",
@@ -113,7 +121,10 @@ test("all 47 root tests have complete child-process observation policy", async (
       "test/mdlm-clean-pilot-contract.test.ts",
       "test/mdlm-init.test.ts",
       "test/mdlm-review-assignment.test.ts",
+      "test/phase-0-corrected-gate-route.test.ts",
+      "test/phase-0-intent-candidate-currentness-route.test.ts",
       "test/phase-1-hardening-routes.test.ts",
+      "test/scenario-policy-assets.test.ts",
     ],
   );
 
@@ -141,11 +152,18 @@ test("all 47 root tests have complete child-process observation policy", async (
         effectiveTimeoutMs: 60_000,
         disposition: "central process/repository child observation deadline",
       },
+      {
+        file: "test/scenario-policy-assets.test.ts",
+        api: "spawnSync",
+        declaredTimeout: "90_000",
+        effectiveTimeoutMs: 90_000,
+        disposition: "finite child observation deadline at or above central floor",
+      },
     ],
   );
   assert.equal(
     inventory.launches.filter((entry) => entry.effectiveTimeoutMs === null).length,
-    27,
+    44,
   );
   assert.equal(
     inventory.launches.every((entry) =>
@@ -169,7 +187,7 @@ test("all 47 root tests have complete child-process observation policy", async (
       entry.kind === "cleanup-proof-wrapper-deadlines"),
     {
       file: "test/phase-1-hardening-routes.test.ts",
-      line: 48,
+      line: 56,
       kind: "cleanup-proof-wrapper-deadlines",
       effectiveTimeout: "3,000 ms cleanup probe with 1,000 ms grace; 1,000 ms subsequent case with 100 ms grace",
       disposition: "test-owned cleanup contract deadline sized for the measured four-process root cohort; outer spawnSync is unbounded and production deadlines are unchanged",
@@ -310,7 +328,10 @@ test("all 47 root tests have complete executable observation-limit policy", asyn
       `${policy.file} policy verification did not cover every parsed boundary exactly once`,
     );
   }
-  assert.equal(totalBoundaryCount, 484);
+  // Vitest observation boundaries are the it/test/hook calls declared directly
+  // in each root manifest file. Imported helpers are not independent Vitest
+  // boundaries and are deliberately excluded from this count.
+  assert.equal(totalBoundaryCount, 506);
 });
 
 test("the verifier rejects every former below-floor boundary and unresolved explicit values", async () => {
@@ -331,7 +352,7 @@ test("the verifier rejects every former below-floor boundary and unresolved expl
     cpSync(new URL("../test/", import.meta.url), join(root, "test"), { recursive: true });
     assert.equal(rootTestManifest.length, 47);
     assert.equal(verifyRootTestObservationPolicy(root).length, 47);
-    assert.equal(verifyRootTestChildProcessPolicy(root).launches.length, 29);
+    assert.equal(verifyRootTestChildProcessPolicy(root).launches.length, 47);
 
     const cases = [
       {
