@@ -37,11 +37,15 @@ gate is pending, change its runbook or design only to close an observed blocker.
 An eligible demo lane is initialized under the exact identity required by [Portfolio discipline](#portfolio-discipline), has clean Git state and valid integrity, has no uncertain-publication or provenance stop, and has one sole owner.
 
 When no exact quiet-window reservation is active under the host operating policy,
-keep exactly six eligible lifecycle operators: one persistent Codex reference
-lane and five ordinary Pi agent sessions using the current evaluation model.
-Treat every missing slot or manager as an operating incident. Follow the host
-policy for slot selection, clearance, restoration, and restoration-breach
-reporting.
+keep exactly three eligible lifecycle operators: one persistent Codex reference
+lane and two ordinary Pi agent sessions using the current evaluation model.
+Treat every missing retained slot or manager as an operating incident. Follow
+the host policy for slot selection, clearance, restoration, and
+restoration-breach reporting.
+
+A host-policy fleet transition may keep extra lanes running through their
+truthful boundaries. Those draining lanes retire without replacement and do not
+create slot incidents.
 
 Keep old-qualified demos running while newer source is edited, merged, reviewed,
 preflighted, or qualified. Each running lane stays bound to its exact
