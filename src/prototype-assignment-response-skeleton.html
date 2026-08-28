@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Throwaway prototype: Assignment response skeleton</title>
+  <style>
+    :root { color-scheme: light; --ink:#19231f; --muted:#65706b; --line:#d8ded9; --paper:#f7f8f5; --card:#fff; --accent:#176b54; --soft:#e5f2ed; --warn:#9b5b11; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { width:min(1180px,calc(100% - 32px)); margin:32px auto 64px; }
+    h1,h2,h3 { line-height:1.15; margin:0 0 10px; }
+    h1 { font-size:clamp(26px,4vw,42px); letter-spacing:-.035em; }
+    h2 { font-size:20px; }
+    p { margin:0 0 12px; }
+    .eyebrow { color:var(--accent); font-weight:750; text-transform:uppercase; letter-spacing:.08em; font-size:12px; }
+    .lede { max-width:900px; font-size:17px; color:#39443f; }
+    .notice { margin:20px 0; padding:14px 16px; border:1px solid #e8c99d; background:#fff7e9; border-radius:10px; }
+    .tabs,.actions { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+    button { border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); padding:9px 12px; font:inherit; font-weight:650; cursor:pointer; }
+    button:hover { border-color:var(--accent); }
+    button.active,button.primary { color:white; background:var(--accent); border-color:var(--accent); }
+    button:disabled { cursor:not-allowed; opacity:.42; }
+    .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; min-width:0; }
+    .wide { grid-column:1/-1; }
+    .status { display:inline-flex; align-items:center; gap:7px; padding:5px 9px; border-radius:999px; background:var(--soft); color:var(--accent); font-weight:750; font-size:13px; }
+    .status.blocked { background:#fff1dd; color:var(--warn); }
+    dl { display:grid; grid-template-columns:150px 1fr; gap:7px 12px; margin:14px 0 0; }
+    dt { color:var(--muted); }
+    dd { margin:0; font-weight:620; overflow-wrap:anywhere; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th,td { text-align:left; vertical-align:top; padding:8px 7px; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+    code,pre { font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    code { overflow-wrap:anywhere; }
+    pre { margin:10px 0 0; padding:14px; border-radius:9px; background:#101713; color:#dce8df; max-height:520px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
+    .tag { display:inline-block; border-radius:999px; padding:2px 7px; font-weight:750; font-size:11px; }
+    .mechanical { background:#e7edf8; color:#294f83; }
+    .semantic { background:#f1e8f8; color:#70418c; }
+    .channel { background:#fff0d8; color:#8a540f; }
+    .locked { background:#e7f2e8; color:#35613c; }
+    .step { display:grid; grid-template-columns:28px 1fr auto; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+    .step:last-child { border:0; }
+    .step-number { width:25px; height:25px; border-radius:50%; display:grid; place-items:center; background:#edf0ed; font-size:12px; font-weight:750; }
+    .step.done .step-number { background:var(--accent); color:white; }
+    .check { color:var(--muted); }
+    .check.ok { color:var(--accent); font-weight:750; }
+    .check.no { color:var(--warn); font-weight:750; }
+    .small { color:var(--muted); font-size:13px; }
+    @media (max-width:800px) { .grid { grid-template-columns:1fr; } .wide { grid-column:auto; } dl { grid-template-columns:120px 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Throwaway logic prototype · issue #323</div>
+  <h1>Can the CLI build the response around the agent?</h1>
+  <p class="lede">Question: can <code>mdlm next</code> or <code>mdlm scenario prepare</code> generate a complete Assignment-specific response skeleton, so an agent supplies only semantic judgment while MDLM supplies deterministic routing, identity, links, and transport fields—without weakening authority, correction, publication, or replay boundaries?</p>
+  <div class="notice"><strong>Prototype boundary.</strong> This file changes no MDLM behavior. It models four awkward cases in memory and always shows the exact final response text and byte count.</div>
+
+  <h2>Choose a case</h2>
+  <div class="tabs" id="tabs"></div>
+
+  <div class="grid">
+    <section class="card wide">
+      <div id="scenarioIntro"></div>
+      <div class="actions" id="freeActions"></div>
+    </section>
+
+    <section class="card">
+      <h2>Current state</h2>
+      <div id="state"></div>
+    </section>
+
+    <section class="card">
+      <h2>Integrity checks</h2>
+      <div id="checks"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Who supplies each field?</h2>
+      <p class="small">Generated fields remain visible and are still submitted. “Execution channel” means the CLI may copy an authenticated fact, but may not invent it from the packet.</p>
+      <div id="fieldTable"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Guided walkthrough</h2>
+      <p class="small" id="walkthroughText"></p>
+      <div id="walkthrough"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Final Assignment Response bytes</h2>
+      <p class="small" id="bytesMeta"></p>
+      <pre id="responseBytes"></pre>
+    </section>
+  </div>
+</main>
+
+<script>
+// Pure prototype module. It has no DOM access and can be lifted out independently.
+const ResponseSkeletonModel = (() => {
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const textBytes = value => new TextEncoder().encode(value).length;
+
+  const cases = {
+    multi: {
+      label: "Ordinary multi-output",
+      explanation: "One invocation creates a product specification and a linked behavior question. Watch local identity, routing, and required links appear without agent authoring.",
+      assignment: "asmt-multi-001",
+      authority: null,
+      outputs: [
+        { localId:"productSpec", name:"product_specification", invocation:0, type:"PSP", links:[{type:"derives-from",target:"PI-EXACT-r00001"}], semantic:{payload:{purpose:"Count ASCII digits",behavioral_contract:"One argument; decimal count and newline"},body:"A tiny command-line product specification."} },
+        { localId:"behaviorQuestion", name:"behavior_question", invocation:0, type:"QST", links:[{type:"clarifies",target:"$proposal.productSpec.revision_id"}], semantic:{payload:{kind:"empirical",question:"Does the command count only ASCII 0-9?",status:"open"},body:"Resolve the character-class boundary."} }
+      ],
+      completionEvidence:{summary:"Both declared outputs answer the exact product-intent input."},
+      skills:["mdlm-authoring@1"],
+      steps:["generate","fill","finalize"]
+    },
+    review: {
+      label: "Independent Review authority",
+      explanation: "The packet declares an independent reviewer, but that declaration is not authority supply. Finalization stays blocked until a separate reviewer channel authenticates the judgment.",
+      assignment: "asmt-review-001",
+      authority:{mode:"delegated",authority:"independent-reviewer",source:"separate-reviewer-session"},
+      outputs:[
+        { localId:"review",name:"review",invocation:0,type:"REV",links:[{type:"reviews",target:"DEC-EXACT-r00001"},{type:"context",target:"BSL-EXACT-r00001"}],semantic:{payload:{verdict:"pass",findings:[]},body:"The decision matches its frozen review context."} }
+      ],
+      completionEvidence:{judgmentRendered:true},
+      skills:["independent-review@1"],
+      steps:["generate","fill","authority","finalize"]
+    },
+    correction: {
+      label: "Correction preserves valid fields",
+      explanation: "A diagnostic identifies one bad semantic field. The corrected skeleton retains every unrelated byte-bearing value, the Assignment, and proposal-local identities; only the diagnosed value is editable.",
+      assignment:"asmt-correction-001",
+      authority:null,
+      correction:{path:"proposal.outputs[1](behaviorQuestion).lifecycleDatum.payload.kind",from:"preferential",to:"empirical"},
+      outputs:[
+        { localId:"productSpec",name:"product_specification",invocation:0,type:"PSP",links:[{type:"derives-from",target:"PI-EXACT-r00001"}],semantic:{payload:{purpose:"Count ASCII digits",behavioral_contract:"One argument; decimal count and newline"},body:"This already-valid output must not change."} },
+        { localId:"behaviorQuestion",name:"behavior_question",invocation:0,type:"QST",links:[{type:"clarifies",target:"$proposal.productSpec.revision_id"}],semantic:{payload:{kind:"preferential",question:"Does the command count only ASCII 0-9?",status:"open"},body:"Only kind is diagnosed."} }
+      ],
+      completionEvidence:{summary:"The two declared outputs cover product behavior."},
+      skills:["mdlm-authoring@1"],
+      steps:["generate","fill","correct","finalize"]
+    },
+    attended: {
+      label: "Attended stakeholder authority",
+      explanation: "The packet can reserve the stakeholder slot, but only an attended authority channel can populate it. The corrected verification claim and exact scope Decision remain semantic work.",
+      assignment:"asmt-attended-001",
+      authority:{mode:"attended",authority:"stakeholder",source:"attended-authority-holder"},
+      outputs:[
+        { localId:"correctedVerification",name:"corrected_verification",invocation:0,type:"VER",id:"VER-EXACT",links:[{type:"verifies",target:"REQ-EXACT-r00001"}],semantic:{payload:{criterion:"Lower ASCII A-Z only; preserve non-ASCII bytes",expected:"üA becomes üa"},body:"Correct the exact reviewed verification claim."} },
+        { localId:"scopeDecision",name:"scope_decision",invocation:0,type:"DEC",links:[{type:"authorizes",target:"$proposal.correctedVerification.revision_id"}],semantic:{payload:{decision:"approve-bounded-correction",rationale:"Restrict the change to the reviewed ASCII boundary"},body:"Stakeholder authorization for this exact correction only."} }
+      ],
+      completionEvidence:{boundedCorrection:true},
+      skills:["verification-authoring@1"],
+      steps:["generate","fill","authority","finalize"]
+    }
+  };
+
+  function initial(caseId) {
+    const spec = cases[caseId];
+    return { caseId, stage:"empty", skeleton:null, response:null, semanticsFilled:false, authoritySupplied:false, corrected:false, finalized:false, history:[], previousResponse: caseId === "correction" ? buildResponse(spec, true, false) : null };
+  }
+
+  function mechanicalOutput(output, includeSemantic) {
+    return {
+      localId:output.localId,
+      name:output.name,
+      invocation:output.invocation,
+      lifecycleDatum:{
+        ...(output.id ? {id:output.id} : {}),
+        type:output.type,
+        payload:includeSemantic ? clone(output.semantic.payload) : {},
+        links:clone(output.links),
+        body:includeSemantic ? output.semantic.body : ""
+      }
+    };
+  }
+
+  function buildResponse(spec, includeSemantic, authoritySupplied) {
+    return {
+      contract:"mdlm-assignment-response@1",
+      assignment:spec.assignment,
+      kind:"proposal",
+      proposal:{
+        outputs:spec.outputs.map(output => mechanicalOutput(output, includeSemantic)),
+        completionEvidence:includeSemantic ? clone(spec.completionEvidence) : null,
+        loadedSkillRefs:clone(spec.skills),
+        authoritySupplies:authoritySupplied && spec.authority ? [spec.authority.authority] : [],
+        standingDelegations:[]
+      }
+    };
+  }
+
+  function reduce(state, action) {
+    const spec = cases[state.caseId];
+    if (action === "reset") return initial(state.caseId);
+    if (action === "generate") {
+      const skeleton = buildResponse(spec, false, false);
+      return {...state,stage:"skeleton-generated",skeleton,response:skeleton,history:[...state.history,"CLI generated and locked deterministic fields"]};
+    }
+    if (!state.response) return {...state,history:[...state.history,"Generate the skeleton first"]};
+    if (action === "fill") {
+      const response = buildResponse(spec, true, state.authoritySupplied);
+      return {...state,stage:"semantics-filled",response,semanticsFilled:true,history:[...state.history,"Agent supplied payload, body, and completion judgment"]};
+    }
+    if (action === "authority") {
+      if (!spec.authority) return {...state,history:[...state.history,"This case requires no authority channel"]};
+      const response=clone(state.response);
+      response.proposal.authoritySupplies=[spec.authority.authority];
+      return {...state,stage:"authority-authenticated",response,authoritySupplied:true,history:[...state.history,`Execution channel authenticated ${spec.authority.authority}`]};
+    }
+    if (action === "correct") {
+      if (!spec.correction || !state.semanticsFilled) return {...state,history:[...state.history,"Fill the previous response before applying its diagnosed correction"]};
+      const response=clone(state.response);
+      response.proposal.outputs[1].lifecycleDatum.payload.kind=spec.correction.to;
+      return {...state,stage:"diagnosed-field-corrected",response,corrected:true,history:[...state.history,`Agent changed only ${spec.correction.path}`]};
+    }
+    if (action === "finalize") {
+      const semanticOK=state.semanticsFilled;
+      const authorityOK=!spec.authority || state.authoritySupplied;
+      const correctionOK=!spec.correction || state.corrected;
+      if (!semanticOK || !authorityOK || !correctionOK) return {...state,history:[...state.history,"Finalization blocked: a semantic, authority, or correction requirement is unresolved"]};
+      return {...state,stage:"ready-to-submit-once",finalized:true,history:[...state.history,"Canonical response bytes frozen; submit is permitted once"]};
+    }
+    return state;
+  }
+
+  function inspect(state) {
+    const spec=cases[state.caseId];
+    const text=state.response ? JSON.stringify(state.response,null,2) : "No response bytes yet. Generate the skeleton.";
+    const preserved=spec.correction && state.response && state.previousResponse ? [
+      JSON.stringify(state.response.proposal.outputs[0]) === JSON.stringify(state.previousResponse.proposal.outputs[0]),
+      state.response.assignment === state.previousResponse.assignment,
+      state.response.proposal.outputs.map(x=>x.localId).join("|") === state.previousResponse.proposal.outputs.map(x=>x.localId).join("|")
+    ].every(Boolean) : true;
+    return {
+      spec,
+      text,
+      bytes:textBytes(text),
+      checks:[
+        ["Exact Assignment binding",!!state.response && state.response.assignment===spec.assignment],
+        ["Generated routing and links locked",!!state.skeleton],
+        ["Semantic judgment supplied",state.semanticsFilled],
+        ["Required authority authenticated",!spec.authority || state.authoritySupplied],
+        ["Unrelated correction fields preserved",preserved],
+        ["Ready for one submit",state.finalized]
+      ]
+    };
+  }
+
+  return {cases,initial,reduce,inspect};
+})();
+
+// Thin throwaway page shell.
+let state=ResponseSkeletonModel.initial("multi");
+let walkthroughProgress=0;
+const actionLabels={generate:"Generate skeleton",fill:"Supply semantic judgment",authority:"Authenticate authority channel",correct:"Apply diagnosed correction only",finalize:"Freeze response bytes",reset:"Reset"};
+
+function dispatch(action) {
+  state=ResponseSkeletonModel.reduce(state,action);
+  const spec=ResponseSkeletonModel.cases[state.caseId];
+  if (spec.steps[walkthroughProgress]===action) walkthroughProgress++;
+  render();
+}
+
+function choose(caseId) {
+  state=ResponseSkeletonModel.initial(caseId);
+  walkthroughProgress=0;
+  render();
+}
+
+function render() {
+  const view=ResponseSkeletonModel.inspect(state);
+  const spec=view.spec;
+  document.getElementById("tabs").innerHTML=Object.entries(ResponseSkeletonModel.cases).map(([id,item])=>`<button class="${id===state.caseId?"active":""}" onclick="choose('${id}')">${item.label}</button>`).join("");
+  document.getElementById("scenarioIntro").innerHTML=`<h2>${spec.label}</h2><p>${spec.explanation}</p>`;
+  const actions=["generate","fill",...(spec.authority?["authority"]:[]),...(spec.correction?["correct"]:[]),"finalize","reset"];
+  document.getElementById("freeActions").innerHTML=actions.map(a=>`<button class="${a==="generate"?"primary":""}" onclick="dispatch('${a}')">${actionLabels[a]}</button>`).join("");
+  const ready=state.finalized;
+  document.getElementById("state").innerHTML=`<span class="status ${ready?"":"blocked"}">${ready?"Ready for one submit":"Not submittable"}</span><dl><dt>Assignment</dt><dd><code>${spec.assignment}</code></dd><dt>Stage</dt><dd>${state.stage}</dd><dt>Authority route</dt><dd>${spec.authority?`${spec.authority.mode}: ${spec.authority.authority}`:"autonomous"}</dd><dt>Outputs</dt><dd>${spec.outputs.map(o=>`${o.localId} (${o.type})`).join(", ")}</dd><dt>Last event</dt><dd>${state.history.at(-1)||"None"}</dd></dl>`;
+  document.getElementById("checks").innerHTML=view.checks.map(([name,ok])=>`<div class="step"><span class="check ${ok?"ok":"no"}">${ok?"✓":"○"}</span><span>${name}</span></div>`).join("");
+  const rows=[
+    ["contract, Assignment ID, response kind","Generated by CLI","mechanical"],
+    ["output localId, name, invocation; datum type when exactly one is allowed","Generated from exact one-cardinality Assignment output slots","mechanical"],
+    ["required links with one exact input or proposal-output target","Generated from bindings and required-link contracts","mechanical"],
+    ["optional/many output count, multi-type choice, ambiguous link target","Left as a semantic placeholder; the CLI cannot invent it","semantic"],
+    ["payload values, body, findings, rationale","Entered by the assigned agent or authority holder","semantic"],
+    ["completion evidence values","Entered by agent against package contract","semantic"],
+    ["loaded skill references","Copied from authenticated execution context","channel"],
+    ["authority supplies / applicable delegation","Copied only from authenticated authority context","channel"],
+    ["previous valid fields during correction","Copied byte-for-byte and locked","locked"]
+  ];
+  document.getElementById("fieldTable").innerHTML=`<table><thead><tr><th>Fields</th><th>Source</th><th>Class</th></tr></thead><tbody>${rows.map(r=>`<tr><td><code>${r[0]}</code></td><td>${r[1]}</td><td><span class="tag ${r[2]}">${r[2]}</span></td></tr>`).join("")}</tbody></table>`;
+  document.getElementById("walkthroughText").textContent="Start this case from a known empty response, then press each step. Trying Freeze early demonstrates the required block.";
+  document.getElementById("walkthrough").innerHTML=spec.steps.map((a,i)=>`<div class="step ${i<walkthroughProgress?"done":""}"><span class="step-number">${i+1}</span><span>${actionLabels[a]}</span><button onclick="dispatch('${a}')" ${i!==walkthroughProgress?"disabled":""}>Run step</button></div>`).join("");
+  const preservedNote=spec.correction ? ` Previous response: ${new TextEncoder().encode(JSON.stringify(state.previousResponse,null,2)).length} bytes. Valid output, Assignment ID, and local IDs remain identical.` : "";
+  document.getElementById("bytesMeta").textContent=`${view.bytes} UTF-8 bytes shown. Generated fields are not deleted or implicit; they remain in the submitted response.${preservedNote}`;
+  document.getElementById("responseBytes").textContent=view.text;
+}
+
+render();
+</script>
+</body>
+</html>
