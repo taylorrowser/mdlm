@@ -20,7 +20,7 @@ outputs:
     required_links:
       - {link: justifies, target: {input: assessment}}
       - {link: relies-on-review, target: {input: assessment_review}}
-prompt_ref: prompts/decide-pilot-expansion.md@2
+prompt_ref: prompts/decide-pilot-expansion.md@3
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: consequential-decision-participation@1

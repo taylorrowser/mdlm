@@ -1,6 +1,6 @@
 ---
 id: approve-change-request
-version: 3
+version: 4
 scenario: approve-change-request
 skills: [skills/lifecycle-data.md@1, skills/change-control.md@1, skills/gate-protocol.md@1, skills/author-preflight.md@2]
 ---

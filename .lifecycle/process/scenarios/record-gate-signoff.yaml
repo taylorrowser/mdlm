@@ -18,7 +18,7 @@ outputs:
     required_links:
       - {link: justifies, target: {input: candidate}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/record-gate-signoff.md@3
+prompt_ref: prompts/record-gate-signoff.md@4
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: gate-signoff-participation@1

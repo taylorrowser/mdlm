@@ -13,7 +13,7 @@ outputs:
     required_links:
       - {link: justifies, target: {input: subject}}
       - {link: waives, target: {payload: {output: decision, path: waiver.instance}}}
-prompt_ref: prompts/record-consequential-decision.md@1
+prompt_ref: prompts/record-consequential-decision.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: consequential-decision-participation@1

@@ -1,6 +1,6 @@
 ---
 id: decide-pilot-expansion
-version: 2
+version: 3
 scenario: decide-pilot-expansion
 skills: [skills/lifecycle-data.md@1, skills/pilot-assessment.md@1, skills/author-preflight.md@2]
 ---

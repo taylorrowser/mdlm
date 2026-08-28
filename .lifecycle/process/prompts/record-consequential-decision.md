@@ -1,6 +1,6 @@
 ---
 id: record-consequential-decision
-version: 1
+version: 2
 scenario: record-consequential-decision
 skills: [skills/lifecycle-data.md@1, skills/clarification-protocol.md@1, skills/gate-protocol.md@1, skills/author-preflight.md@2]
 ---
