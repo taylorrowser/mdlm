@@ -114,6 +114,10 @@ describe("self-guiding public CLI", () => {
   });
 
   it("briefs clean and dirty repositories without changing bytes, refs, or an active lease", async () => {
+    const selection = JSON.parse(await fs.readFile(
+      path.join(repository, ".lifecycle/process-selection.json"),
+      "utf8",
+    ));
     const firstNext = execute(repository, ["next", "--json"]);
     expect(firstNext.status, firstNext.stderr).toBe(0);
     const leasePath = path.join(repository, ".lifecycle/work/active-assignment.json");
@@ -134,7 +138,7 @@ describe("self-guiding public CLI", () => {
       command: "start",
       contract: "mdlm-start@1",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.76.0",
+        reference: selection.package.reference,
         digest: expect.stringMatching(/^sha256:/),
       }),
       repository: {

@@ -37,6 +37,14 @@ function git(repository: string, ...arguments_: string[]) {
   });
 }
 
+async function selectedProcessPackagePath(repository: string): Promise<string> {
+  const selection = JSON.parse(await fs.readFile(
+    path.join(repository, ".lifecycle/process-selection.json"),
+    "utf8",
+  )) as { package: { path: string } };
+  return selection.package.path;
+}
+
 async function directoryBytes(root: string): Promise<string> {
   const files: string[] = [];
   async function visit(directory: string): Promise<void> {
@@ -337,10 +345,12 @@ describe("MDLM Assignment leasing and preparation", () => {
 
   it("rejects preparation after the selected Process Package changes", async () => {
     const assignment = templateAssignment;
+    const packagePath = await selectedProcessPackagePath(repository);
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.76.0/prompts/establish-initial-wayfinding-map.md",
+        packagePath,
+        "prompts/establish-initial-wayfinding-map.md",
       ),
       "\nPackage change.\n",
     );
@@ -355,8 +365,10 @@ describe("MDLM Assignment leasing and preparation", () => {
 
   it("invalidates the active lease when next observes a package change", async () => {
     const first = { assignment: { id: templateAssignment } };
-    const promptRelative =
-      ".lifecycle/packages/mdlm-bootstrap@0.76.0/prompts/establish-initial-wayfinding-map.md";
+    const promptRelative = path.join(
+      await selectedProcessPackagePath(repository),
+      "prompts/establish-initial-wayfinding-map.md",
+    );
     await fs.appendFile(path.join(repository, promptRelative), "\nPackage change.\n");
 
     const changed = await mdlm(repository, "next");
