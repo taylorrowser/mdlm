@@ -33,7 +33,6 @@ payload_schema:
     control_observations:
       type: object
       additionalProperties: false
-      required: [known_good, known_bad]
       properties:
         known_good:
           type: object
