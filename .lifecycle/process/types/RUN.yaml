@@ -37,7 +37,11 @@ payload_schema:
         known_good:
           type: object
           additionalProperties: false
-          required: [artifact_ref, control, activity_ref, argv, working_directory, stdin, stdout, stderr, timed_out, truncated, exit_status]
+          required: [artifact_ref, control, activity_ref, argv, working_directory, stdin, stdout, stderr, timed_out, truncated]
+          allOf:
+            - oneOf:
+                - {required: [exit_status], not: {required: [signal]}}
+                - {required: [signal], not: {required: [exit_status]}}
           properties:
             artifact_ref: {type: string, pattern: '^ART-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
             control: {const: known_good}
@@ -54,7 +58,11 @@ payload_schema:
         known_bad:
           type: object
           additionalProperties: false
-          required: [artifact_ref, control, activity_ref, argv, working_directory, stdin, stdout, stderr, timed_out, truncated, exit_status]
+          required: [artifact_ref, control, activity_ref, argv, working_directory, stdin, stdout, stderr, timed_out, truncated]
+          allOf:
+            - oneOf:
+                - {required: [exit_status], not: {required: [signal]}}
+                - {required: [signal], not: {required: [exit_status]}}
           properties:
             artifact_ref: {type: string, pattern: '^ART-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
             control: {const: known_bad}

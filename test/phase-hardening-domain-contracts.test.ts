@@ -1,16 +1,14 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { beforeAll, describe, expect, it } from "vitest";
 import { evaluateLifecycle, resolveType, type ProcessPackage } from "../src/index.js";
-import {
-  evaluateProcessDefinition,
-  evaluateProcessExpressionResult,
-  evaluateScenarioParticipation,
-} from "../src/evaluator.js";
+import { evaluateScenarioParticipation } from "../src/evaluator.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
+import { mdlm } from "./helpers/mdlm.js";
 
 const processRef = "mdlm-bootstrap@0.71.0#sha256:hardening-contracts";
 const rev = (id: string, revision = 1) => `${id}-r${String(revision).padStart(5, "0")}`;
@@ -133,7 +131,7 @@ describe("Phase-hardening domain route contracts", () => {
     }));
   });
 
-  it("derives Phase 1 work, delegated VAI execution, correction, and multiplicity boundaries", () => {
+  it("derives Phase 1 work, delegated VAI execution, correction, and multiplicity boundaries", async () => {
     const psp = record("PSP", "PSP-HARDENP100", {
       title: "Phase 1 product", rationale: "Exercise package assurance.", problem: "Malformed input must be rejected.",
       users: ["operator"], goals: ["exact assurance"], non_goals: [], success_measures: ["discriminating evidence"],
@@ -392,8 +390,15 @@ describe("Phase-hardening domain route contracts", () => {
     const opaqueResult = pilotResult("RES-HARDRAW001", "suitable", true);
     const opaqueRun = pilotRun("RUN-HARDRAW001", opaqueResult, ["known_good", "known_bad"]);
     const partialResult = pilotResult("RES-HARDPART01", "inconclusive", false);
+    partialResult.datum.payload.control_judgments = {
+      known_good: { observation_ref: "known_good", outcome: "fail" },
+    };
     const partialRun = pilotRun("RUN-HARDPART01", partialResult, ["known_good"], {
-      known_good: observation("known_good"),
+      known_good: {
+        ...observation("known_good"),
+        artifact_ref: "ART-WR0NGREF01-r00001",
+        argv: ["node", "wrong-observation.mjs"],
+      },
     });
     const completeResult = pilotResult("RES-HARDCMPT01", "suitable", true);
     const completeRun = pilotRun("RUN-HARDCMPT01", completeResult, ["known_good", "known_bad"], {
@@ -404,19 +409,45 @@ describe("Phase-hardening domain route contracts", () => {
       psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review,
       activity, environment, target, implementation, controlTarget, controlImplementation,
     ];
-    const completion = (run: ReturnType<typeof record>, result: ReturnType<typeof record>) =>
-      evaluateProcessExpressionResult(processPackage, {
+    const cliRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-executable-observations-"));
+    const initialized = mdlm(cliRoot, "init", ".", "--json");
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    const snapshotFor = async (
+      name: string,
+      run: ReturnType<typeof record>,
+      result: ReturnType<typeof record>,
+    ) => {
+      const snapshotPath = path.join(cliRoot, `${name}.json`);
+      await fs.writeFile(snapshotPath, JSON.stringify({
         ...baseSnapshot,
         records: [...routeRecords, run, result],
         execution: { integrity: { contract_valid: true } },
-      }, "execute-verification-run@2#completion", {
+      }));
+      return snapshotPath;
+    };
+    const completion = async (
+      name: string,
+      run: ReturnType<typeof record>,
+      result: ReturnType<typeof record>,
+    ) => {
+      const snapshotPath = await snapshotFor(name, run, result);
+      const evaluated = mdlm(
+        cliRoot,
+        "process", "expression", "evaluate", "execute-verification-run@2#completion",
+        "--snapshot", snapshotPath,
+        "--bindings", JSON.stringify({
         implementation: controlImplementation.datum.revision_id,
         activity: activity.datum.revision_id,
         environment: environment.datum.revision_id,
         execution_target: controlTarget.datum.revision_id,
         run: run.datum.revision_id,
         result: result.datum.revision_id,
-      });
+        }),
+        "--json",
+      );
+      expect(evaluated.status, `${evaluated.stderr}${evaluated.stdout}`).toBe(0);
+      return JSON.parse(evaluated.stdout).evaluation.result as boolean;
+    };
     const runType = resolveType(processPackage, "RUN");
     const resultType = resolveType(processPackage, "RES");
     if (!runType.ok || !resultType.ok) throw new Error("Missing RUN/RES types");
@@ -427,23 +458,39 @@ describe("Phase-hardening domain route contracts", () => {
       JSON.stringify(validRun.errors),
     ).toBe(true);
     expect(validResult(opaqueResult.datum.payload)).toBe(true);
-    expect(completion(opaqueRun, opaqueResult)).toBe(false);
+    expect(await completion("opaque", opaqueRun, opaqueResult)).toBe(false);
     expect(validRun(partialRun.datum.payload)).toBe(true);
     expect(validResult(partialResult.datum.payload)).toBe(true);
-    expect(completion(partialRun, partialResult)).toBe(true);
-    expect(completion(completeRun, completeResult)).toBe(true);
-    const selected = (run: ReturnType<typeof record>, result: ReturnType<typeof record>) =>
-      evaluateProcessDefinition(processPackage, {
-        ...baseSnapshot,
-        records: [...routeRecords, run, result],
-      }, "selector", "exercised-pilot-runs-for-implementation@2", {
-        implementation: controlImplementation.datum.revision_id,
-      }).result;
-    expect(selected(opaqueRun, opaqueResult)).toEqual([]);
-    expect(selected(partialRun, partialResult)).toEqual([]);
-    expect(selected(completeRun, completeResult)).toEqual([
+    expect(await completion("partial", partialRun, partialResult)).toBe(true);
+    expect(await completion("complete", completeRun, completeResult)).toBe(true);
+    const signalRun = structuredClone(completeRun.datum.payload) as Record<string, any>;
+    delete signalRun.control_observations.known_bad.exit_status;
+    signalRun.control_observations.known_bad.signal = "SIGTERM";
+    expect(validRun(signalRun)).toBe(true);
+    signalRun.control_observations.known_bad.exit_status = 143;
+    expect(validRun(signalRun)).toBe(false);
+    const selected = async (
+      name: string,
+      run: ReturnType<typeof record>,
+      result: ReturnType<typeof record>,
+    ) => {
+      const snapshotPath = await snapshotFor(name, run, result);
+      const evaluated = mdlm(
+        cliRoot,
+        "selector", "evaluate", "exercised-pilot-runs-for-implementation@2",
+        "--snapshot", snapshotPath,
+        "--arg", `implementation=${controlImplementation.datum.revision_id}`,
+        "--json",
+      );
+      expect(evaluated.status, `${evaluated.stderr}${evaluated.stdout}`).toBe(0);
+      return JSON.parse(evaluated.stdout).evaluation.result;
+    };
+    expect(await selected("opaque-selector", opaqueRun, opaqueResult)).toEqual([]);
+    expect(await selected("partial-selector", partialRun, partialResult)).toEqual([]);
+    expect(await selected("complete-selector", completeRun, completeResult)).toEqual([
       expect.objectContaining({ identity: expect.objectContaining({ revision_id: completeRun.datum.revision_id }) }),
     ]);
+    await fs.rm(cliRoot, { recursive: true, force: true });
 
     const failedImplementationReview = record(
       "REV",

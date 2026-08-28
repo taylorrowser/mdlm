@@ -1,6 +1,6 @@
 kind: selector-definition
 id: pilot-results-completing-run
-version: 1
+version: 2
 description: Valid pilot results from one exact run that establish exercised success and discrimination for verification-design suitability.
 parameters:
   - {name: run, kind: revision, types: [RUN]}
@@ -16,6 +16,10 @@ query:
     && result.payload.assessment_state in ["recorded", "accepted"]
     && result.payload.observations.expected_success_observed == true
     && result.payload.observations.expected_discrimination_observed == true
+    && result.payload.control_judgments.known_good.observation_ref == "known_good"
+    && result.payload.control_judgments.known_good.outcome == "pass"
+    && result.payload.control_judgments.known_bad.observation_ref == "known_bad"
+    && result.payload.control_judgments.known_bad.outcome == "fail"
     && state(result, "validity") == "valid"
   distinct: true
   order_by: [identity.revision_id]

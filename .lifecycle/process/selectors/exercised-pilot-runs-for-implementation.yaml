@@ -13,7 +13,7 @@ query:
     && run.payload.kind == "pilot"
     && run.payload.execution_state == "completed"
     && state(run, "validity") == "valid"
-    && exists("pilot-results-completing-run@1", {run: run})
+    && exists("pilot-results-completing-run@2", {run: run})
     && (!present(implementation.payload.prototype_control_bindings)
       || (run.payload.activities_expected == ["known_good", "known_bad"]
       && run.payload.activities_invoked == ["known_good", "known_bad"]

@@ -42,6 +42,7 @@ completion: >-
   && (!present(implementation.payload.prototype_control_bindings)
     || ((run.payload.activities_expected == ["known_good", "known_bad"]
     && run.payload.activities_invoked == ["known_good", "known_bad"]
+    && run.payload.execution_target.ref == execution_target.identity.revision_id
     && run.payload.control_observations.known_good.artifact_ref == run.payload.execution_target.ref
     && run.payload.control_observations.known_bad.artifact_ref == run.payload.execution_target.ref
     && run.payload.control_observations.known_good.activity_ref == activity.identity.revision_id
@@ -63,28 +64,24 @@ completion: >-
     && run.payload.activities_expected == ["known_good", "known_bad"]
     && ((run.payload.activities_invoked == []
       && !present(run.payload.control_observations.known_good)
-      && !present(run.payload.control_observations.known_bad))
+      && !present(run.payload.control_observations.known_bad)
+      && !present(result.payload.control_judgments.known_good)
+      && !present(result.payload.control_judgments.known_bad))
     || (run.payload.activities_invoked == ["known_good"]
       && present(run.payload.control_observations.known_good)
       && !present(run.payload.control_observations.known_bad)
-      && run.payload.control_observations.known_good.artifact_ref == run.payload.execution_target.ref
-      && run.payload.control_observations.known_good.activity_ref == activity.identity.revision_id
-      && run.payload.control_observations.known_good.argv == implementation.payload.prototype_control_bindings.known_good.argv)
+      && present(result.payload.control_judgments.known_good)
+      && !present(result.payload.control_judgments.known_bad))
     || (run.payload.activities_invoked == ["known_bad"]
       && !present(run.payload.control_observations.known_good)
       && present(run.payload.control_observations.known_bad)
-      && run.payload.control_observations.known_bad.artifact_ref == run.payload.execution_target.ref
-      && run.payload.control_observations.known_bad.activity_ref == activity.identity.revision_id
-      && run.payload.control_observations.known_bad.argv == implementation.payload.prototype_control_bindings.known_bad.argv)
+      && !present(result.payload.control_judgments.known_good)
+      && present(result.payload.control_judgments.known_bad))
     || (run.payload.activities_invoked == ["known_good", "known_bad"]
       && present(run.payload.control_observations.known_good)
       && present(run.payload.control_observations.known_bad)
-      && run.payload.control_observations.known_good.artifact_ref == run.payload.execution_target.ref
-      && run.payload.control_observations.known_bad.artifact_ref == run.payload.execution_target.ref
-      && run.payload.control_observations.known_good.activity_ref == activity.identity.revision_id
-      && run.payload.control_observations.known_bad.activity_ref == activity.identity.revision_id
-      && run.payload.control_observations.known_good.argv == implementation.payload.prototype_control_bindings.known_good.argv
-      && run.payload.control_observations.known_bad.argv == implementation.payload.prototype_control_bindings.known_bad.argv))
+      && present(result.payload.control_judgments.known_good)
+      && present(result.payload.control_judgments.known_bad)))
     && result.payload.observations.expected_success_observed == false
     && result.payload.observations.expected_discrimination_observed == false)))
 resolves: [verification-run-required]
