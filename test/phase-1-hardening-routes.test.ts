@@ -25,6 +25,7 @@ import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repos
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import {
   scenarioOutputContractDiagnostics,
+  submitPreparedResolverScenario,
   type ScenarioExecution,
 } from "../src/scenario-execution.js";
 import {
@@ -1459,6 +1460,153 @@ describe("Phase 1 hardening route evidence", () => {
       status: "ready",
       actionableResolver: "write-verification-activity@2",
     }));
+  });
+
+  it("keeps generated ENV, VER, and VAI identities stable across one Assignment correction", async () => {
+    const currentStrategy = strategy(1);
+    const strategyReview = passingReview(currentStrategy, "REV-0HARDENV2");
+    const snapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: [...foundation(), currentStrategy, ...strategyReview],
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const obligation = evaluation.obligations.find((item) =>
+      item.obligation === "environment-assurance-required" && item.dispatchable
+    )!;
+    const prepared = await dryRunResolverScenario(
+      processPackage,
+      snapshot,
+      "realize-verification-environment@1",
+      obligation.id,
+      [],
+      evaluation,
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+
+    const environmentOutput = environment();
+    const qualification = qualificationEvidence(currentStrategy, environmentOutput);
+    const outputs: ProposedOutput[] = [
+      {
+        localId: "environment",
+        name: "environment",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "ENV",
+          payload: environmentOutput.datum.payload,
+          links: environmentOutput.datum.links,
+          body: environmentOutput.datum.body,
+        },
+      },
+      {
+        localId: "qualification_activity",
+        name: "qualification_activity",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "VER",
+          payload: qualification.activity.datum.payload,
+          links: qualification.activity.datum.links.map((link) =>
+            link.type === "qualifies"
+              ? { ...link, target: "$proposal.environment.id" }
+              : link
+          ),
+          body: qualification.activity.datum.body,
+        },
+      },
+      {
+        localId: "qualification_implementation",
+        name: "qualification_implementation",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "VAI",
+          payload: qualification.implementation.datum.payload,
+          links: qualification.implementation.datum.links.map((link) => ({
+            ...link,
+            target: link.type === "realizes"
+              ? "$proposal.qualification_activity.id"
+              : "$proposal.environment.id",
+          })),
+          body: qualification.implementation.datum.body,
+        },
+      },
+    ];
+    const assignment = "30500000-0000-4000-8000-000000000305";
+    const scenario = processPackage.scenarios["realize-verification-environment"]!;
+    const submit = (proposalOutputs: ProposedOutput[], responseDigest: string) =>
+      submitPreparedResolverScenario(
+        "/unused",
+        processPackage,
+        { reference: "mdlm-bootstrap@0.75.0", digest: "sha256:test", language: "mdlm-expr@1" },
+        {
+          scenarioReference: "realize-verification-environment@1",
+          obligationInstance: obligation.id,
+          proposal: {
+            outputs: proposalOutputs,
+            completionEvidence: { summary: "Realized the exact qualification environment." },
+          },
+          assignment,
+          responseDigest,
+          suppliedAuthorities: [],
+          suppliedDelegations: [],
+          loadedSkillRefs: prepared.value.prompt.skills.map((skill) => skill.reference),
+        },
+        {
+          dryRun: prepared.value,
+          evaluation,
+          scenario,
+          snapshot,
+          publishMutation: async (_root, _package, _expected, data) => ({
+            ok: true,
+            value: {
+              executionPath: ".lifecycle/data/.transactions/test/execution.json",
+              created: data.map((datum) => ({
+                id: datum.id,
+                revisionId: datum.revision_id,
+                type: datum.type,
+                path: `.lifecycle/data/${datum.type}/${datum.id}/r00001.md`,
+              })),
+            },
+            diagnostics: [],
+          }),
+        },
+      );
+
+    const first = await submit(outputs, `sha256:${"1".repeat(64)}`);
+    expect(first.ok).toBe(false);
+    if (first.ok) return;
+    const requiredRevision = (link: string): string => {
+      const diagnostic = first.diagnostics.find((item) =>
+        item.code === "scenario-output-required-link-missing" &&
+        item.path?.endsWith(`.${link}`)
+      );
+      const revisionId = diagnostic?.message.match(/'([A-Z]+-[A-Z0-9]+-r\d+)'$/)?.[1];
+      if (!revisionId) throw new Error(`Missing generated Revision for '${link}'`);
+      return revisionId;
+    };
+    const environmentRevision = requiredRevision("qualifies");
+    const activityRevision = requiredRevision("realizes");
+    const corrected = structuredClone(outputs);
+    corrected[1]!.lifecycleDatum.links[1]!.target = environmentRevision;
+    corrected[2]!.lifecycleDatum.links = corrected[2]!.lifecycleDatum.links.map((link) => ({
+      ...link,
+      target: link.type === "realizes" ? activityRevision : environmentRevision,
+    }));
+
+    const second = await submit(corrected, `sha256:${"2".repeat(64)}`);
+    expect(second.ok, JSON.stringify(second.diagnostics)).toBe(true);
+    if (!second.ok) return;
+    expect(second.value.response).toEqual({
+      contract: "mdlm-assignment-response@1",
+      assignment,
+      digest: `sha256:${"2".repeat(64)}`,
+    });
+    expect(second.value.outputs.map((output) => output.lifecycleDatum.revisionId)).toEqual([
+      environmentRevision,
+      activityRevision,
+      expect.stringMatching(/^VAI-[A-Z0-9]+-r00001$/),
+    ]);
   });
 
   it("routes failed ENV qualification to replacement assurance", async () => {

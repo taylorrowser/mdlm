@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -153,8 +153,9 @@ function versionedDefinition(
   return definition?.version === Number(match?.[2]) ? definition : undefined;
 }
 
-function stableId(type: string): string {
-  return `${type}-${[...randomBytes(10)].map((byte) => base32[byte & 31]).join("")}`;
+function stableProposalOutputId(type: string, assignment: string, slot: string): string {
+  const digest = createHash("sha256").update(`${assignment}\0${slot}`).digest();
+  return `${type}-${[...digest.subarray(0, 10)].map((byte) => base32[byte & 31]).join("")}`;
 }
 
 function cardinalityRange(cardinality: string): { minimum: number; maximum: number } {
@@ -756,11 +757,24 @@ async function submitScenario(
     ...dryRun.policies.map((policy) => policy.reference),
     ...participationPolicyReferences,
   ])].sort();
+  const outputOccurrences = new Map<string, number>();
   const outputIdentities = proposal.outputs.map((proposal) => {
     const requestedId = proposal.lifecycleDatum.id;
     let id = requestedId;
     if (!id) {
-      do id = stableId(proposal.lifecycleDatum.type); while (usedIds.has(id));
+      const occurrenceKey = `${proposal.invocation}\0${proposal.name}`;
+      const occurrence = outputOccurrences.get(occurrenceKey) ?? 0;
+      outputOccurrences.set(occurrenceKey, occurrence + 1);
+      const slot = proposal.localId ?? `${occurrenceKey}\0${occurrence}`;
+      let collision = 0;
+      do {
+        id = stableProposalOutputId(
+          proposal.lifecycleDatum.type,
+          submittedResponse.assignment,
+          `${slot}\0${collision}`,
+        );
+        collision += 1;
+      } while (usedIds.has(id));
       usedIds.add(id);
     }
     const lineage = existingById.get(id) ?? [];
