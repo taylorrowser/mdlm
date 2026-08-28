@@ -1,6 +1,6 @@
 ---
 id: record-gate-signoff
-version: 3
+version: 4
 scenario: record-gate-signoff
 ---
 
