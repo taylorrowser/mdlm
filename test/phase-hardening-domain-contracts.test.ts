@@ -551,7 +551,7 @@ describe("Phase-hardening domain route contracts", () => {
     expect(evaluateLifecycle(processPackage, correctionSnapshot).looseEnds.find((item) =>
       item.obligation === "pilot-vai-review-correction-required" && item.subject === implementation.datum.revision_id
     )).toEqual(expect.objectContaining({
-      eventualResolver: "revise-pilot-vai-after-review@1",
+      eventualResolver: "revise-pilot-vai-after-review@2",
       participation: [expect.objectContaining({
         authorityRequirement: expect.objectContaining({ mode: "autonomous", authority: "package-evidence" }),
       })],
