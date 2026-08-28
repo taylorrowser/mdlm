@@ -4,19 +4,19 @@
   "artifact": {
     "archive": "process-package.json.gz",
     "compression": "gzip -n -9",
-    "compressedSha256": "65e2f7719f8ee2dd946177dc264f6c433d062340a2164dce3d52543be2130d8e",
-    "contentSha256": "54b06234f630a4c0201ab25316ef10aeb303a4d0a96ced3761fb347be0004ffe",
+    "compressedSha256": "54fc9f859ff94854ae866a3a078a1d0797a8b6325b1377b75fffefc5d0fc8515",
+    "contentSha256": "4521533899cf1f5cbcf97405edf08e0ffc42fa1378a31b9ba3f70b5a9052c043",
     "gzipHeaderMtime": 0
   },
   "processPackage": {
     "root": ".lifecycle/process",
-    "reference": "mdlm-bootstrap@0.77.0",
-    "digest": "sha256:733ebda04693f6a4befe9bd2aab9bd23d4c6dc9c59acde02b274289fc67bb61b",
-    "definitionCount": 578
+    "reference": "mdlm-bootstrap@0.78.0",
+    "digest": "sha256:a4508387d57c3dd7090e6756e6ce27972937324115ab50cfef7f5510a9f9990c",
+    "definitionCount": 580
   },
   "provenance": {
-    "sourceCommit": "e3aecf2dc2058cf8c2fa8984c38107eda85f47e7",
-    "sourceTree": "d8b4d53290c6c803cdc512affa0aedce20ac8cba",
-    "captureCommand": "set -o pipefail; test \"$(git rev-parse HEAD)\" = \"e3aecf2dc2058cf8c2fa8984c38107eda85f47e7\" && npm run build && node --input-type=module --eval 'import { loadProcessPackage } from \"./dist/index.js\"; const result = await loadProcessPackage(\".lifecycle/process\"); if (!result.ok) throw new Error(result.diagnostics.map(({ message }) => message).join(\"\\n\")); process.stdout.write(JSON.stringify(result.package));' | gzip -n -9 > test/fixtures/canonical-process-package/process-package.json.gz"
+    "sourceCommit": "4df60b99399041c9f82b66ff66ce68160f2b06f4",
+    "sourceTree": "53505a0f03039b336316ae2b013b9e571014e437",
+    "captureCommand": "set -o pipefail; test \"$(git rev-parse HEAD)\" = \"4df60b99399041c9f82b66ff66ce68160f2b06f4\" && npm run build && node --input-type=module --eval 'import { loadProcessPackage } from \"./dist/index.js\"; const result = await loadProcessPackage(\".lifecycle/process\"); if (!result.ok) throw new Error(result.diagnostics.map(({ message }) => message).join(\"\\n\")); process.stdout.write(JSON.stringify(result.package));' | gzip -n -9 > test/fixtures/canonical-process-package/process-package.json.gz"
   }
 }
