@@ -137,6 +137,14 @@ describe("initial product-intent resolution authority", () => {
         }),
       }));
       expect(inputRevision(resolution, "question")).toBe(openQuestion.revisionId);
+      const proposalSchema = resolution.packet.responseSchema.oneOf.find(
+        (candidate: { properties: { kind: { const: string } } }) =>
+          candidate.properties.kind.const === "proposal",
+      );
+      expect(proposalSchema.properties.proposal.properties.authoritySupplies)
+        .toEqual(expect.objectContaining({
+          items: { enum: ["stakeholder"] },
+        }));
       const answeredQuestion = `${openQuestion.id}-r00002`;
       const outputs = resolutionOutputs(answeredQuestion);
       const incomplete = structuredClone(outputs);
