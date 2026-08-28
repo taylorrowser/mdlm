@@ -259,7 +259,7 @@ describe("Phase-hardening domain route contracts", () => {
     const runWork = evaluateLifecycle(processPackage, { ...baseSnapshot, records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation] });
     expect(runWork.looseEnds.find((item) =>
       item.obligation === "verification-run-required" && item.subject === implementation.datum.revision_id
-    )).toEqual(expect.objectContaining({ eventualResolver: "execute-verification-run@1" }));
+    )).toEqual(expect.objectContaining({ eventualResolver: "execute-verification-run@2" }));
 
     const ajv = new Ajv2020({ allErrors: true, strict: false });
     formatsPlugin.default(ajv);
