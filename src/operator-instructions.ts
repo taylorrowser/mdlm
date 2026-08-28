@@ -61,7 +61,7 @@ export function operatorInstructions(
         "mdlm doctor --json",
         "mdlm next --json",
       ],
-      text: "Complete only this Assignment. Submit its exact response, run doctor, inspect and narrowly commit the published transaction, then run mdlm next --json again.",
+      text: "Begin this Assignment now. Complete only this Assignment within its exact authority and publication boundaries; do not replay it. Submit its exact response, run doctor, inspect and narrowly commit only the published transaction, then run mdlm next --json. Do not stop merely to report a fresh Assignment: begin that Assignment now and repeat this one-Assignment loop until attended authority is unavailable, an integrity failure occurs, or MDLM returns a package-declared stop, Profile Boundary Reached, Lifecycle Complete, Process Dead End, or Invalid.",
     };
   }
 

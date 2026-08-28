@@ -241,6 +241,23 @@ describe("self-guiding public CLI", () => {
 describe("mdlm-next@1 operator instruction contract", () => {
   const assignment = { id: "assignment-1" };
 
+  it("keeps a persistent coordinator moving through fresh Assignments", () => {
+    const instructions = operatorInstructions({
+      outcome: "assignment",
+      assignment,
+    });
+
+    expect(instructions.text).toContain("Begin this Assignment now");
+    expect(instructions.text).toContain(
+      "Do not stop merely to report a fresh Assignment",
+    );
+    expect(instructions.text).toContain("one-Assignment loop");
+    expect(instructions.text).toContain("attended authority is unavailable");
+    expect(instructions.text).toContain("integrity failure");
+    expect(instructions.text).toContain("Profile Boundary Reached");
+    expect(instructions.text).toContain("Lifecycle Complete");
+  });
+
   it.each([
     ["assignment", "prepare-assignment", "continuation"],
     ["attention-required", "obtain-attention", "continuation"],
