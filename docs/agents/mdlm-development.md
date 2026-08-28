@@ -36,7 +36,22 @@ gate is pending, change its runbook or design only to close an observed blocker.
 
 An eligible demo lane is initialized under the exact identity required by [Portfolio discipline](#portfolio-discipline), has clean Git state and valid integrity, has no uncertain-publication or provenance stop, and has one sole owner.
 
-When no exact quiet-window reservation is active under the host operating policy, keep a floor of two eligible lifecycle operators when two eligible lanes exist, target three, and cap them at three. Floor zero applies only while the host policy's exact reservation is authenticated as active. Follow that policy for slot selection, clearance, restoration, and restoration-breach reporting.
+When no exact quiet-window reservation is active under the host operating policy,
+keep exactly six eligible lifecycle operators: one persistent Codex reference
+lane and five ordinary Pi agent sessions using the current evaluation model.
+Treat every missing slot or manager as an operating incident. Follow the host
+policy for slot selection, clearance, restoration, and restoration-breach
+reporting.
+
+Keep old-qualified demos running while newer source is edited, merged, reviewed,
+preflighted, or qualified. Each running lane stays bound to its exact
+last-qualified identity. Never mutate that identity in place. Switch a slot only
+when its qualified replacement starts.
+
+Pause demos only during an authenticated active qualification quiet window.
+Restore the old-qualified fleet as soon as the window clears, whether
+qualification passes or fails, and replace slots only as qualified replacements
+start.
 
 Continue each lane through accepted Reviews, publications, qualification, and Phase entry. Its operational endpoint is the controller result `Lifecycle Complete` or `Profile Boundary Reached`, or a package-declared terminal outcome. The exact stop conditions in the host policy's linked recovery runbook mark the lane stopped or blocked, not complete.
 
@@ -114,7 +129,11 @@ release record and runbook to the new exact identity and obtain a fresh review.
 Restart every preflight on that replacement identity. Do not fold unrelated
 design or hardening into the failed gate.
 
-A Process Package or artifact change freezes old lanes. Runner-only recovery may continue a valid lane when authenticated evidence supports it, but a mixed-runner lane does not count toward a single-identity reliability gate.
+Source, Process Package, and artifact work does not freeze a running lane. Keep
+each lane on its exact last-qualified identity until a qualified replacement
+starts. Runner-only recovery may continue a valid lane when authenticated
+evidence supports it, but a mixed-runner lane does not count toward a
+single-identity reliability gate.
 
 ## Execution sequence
 
