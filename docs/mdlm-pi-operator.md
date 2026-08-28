@@ -37,12 +37,12 @@ reason to pause.
 ## Harness-owned work and authority
 
 Preparation is side-effect-free. It is the complete harness-neutral instruction
-packet for the exact leased Assignment. `mdlm-assignment-packet@2` includes each
+packet for the exact leased Assignment. `mdlm-assignment-packet@3` includes each
 package-authored review Policy evaluation with its exact invocation arguments and
 result. When that result references a versioned asset declared by the selected
-package, the packet includes the asset's exact reference, path, digest, and
-content in both the evaluation and the packet asset list. Its allowed projections
-also include resolved envelope, payload, and outgoing-link schemas for every exact
+package, the Policy evaluation includes the asset's exact reference, path,
+digest, and content. The packet's allowed projections also include resolved
+envelope, payload, and outgoing-link schemas for every exact
 input and expected output Lifecycle type, so packet-only work can interpret the
 supplied data without raw Process Package inspection. For a current planning-DWP
 Review, the packet supplies the exact allocated ASP, governing ICSP Revisions, and

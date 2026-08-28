@@ -74,7 +74,7 @@ export type AssignmentState = ({
 }) & JsonObject;
 
 export type AssignmentPacket = {
-  contract: "mdlm-assignment-packet@2";
+  contract: "mdlm-assignment-packet@3";
   ok: true;
   command: "scenario.prepare";
   assignment: JsonObject & { id: string };
@@ -518,7 +518,7 @@ function parseAssignmentState(output: JsonObject): AssignmentState {
 
 function parsePacket(output: JsonObject): AssignmentPacket {
   expectLiteral(output, "command", "scenario.prepare");
-  expectLiteral(output, "contract", "mdlm-assignment-packet@2");
+  expectLiteral(output, "contract", "mdlm-assignment-packet@3");
   expectLiteral(output, "ok", true);
   expectString(expectObject(output, "assignment"), "id");
   expectObject(output, "package");

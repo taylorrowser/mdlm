@@ -17,7 +17,7 @@ function packet(
   scenario = "independent-judgment@1",
 ): AssignmentPacket {
   return {
-    contract: "mdlm-assignment-packet@2",
+    contract: "mdlm-assignment-packet@3",
     ok: true,
     command: "scenario.prepare",
     assignment: { id },

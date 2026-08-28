@@ -430,7 +430,7 @@ if (args[0] === "scenario" && args[1] === "submit") {
   setInterval(() => {}, 1000);
 } else if (args[0] === "scenario" && args[1] === "prepare") {
   process.stdout.write(JSON.stringify({
-    contract: "mdlm-assignment-packet@2", command: "scenario.prepare", ok: true,
+    contract: "mdlm-assignment-packet@3", command: "scenario.prepare", ok: true,
     assignment: { id: assignmentId }, package: ${JSON.stringify(packageIdentity)},
     repository: ${JSON.stringify(repositoryFingerprint)},
     scenario: { reference: scenario }, responseSchema: { type: "object" }
@@ -719,7 +719,7 @@ if (args[0] === "scenario" && args[1] === "prepare" && prepareFailure !== null) 
   process.exitCode = 1;
 } else if (args[0] === "scenario" && args[1] === "prepare" && prepareAssignmentId !== null) {
   process.stdout.write(JSON.stringify({
-    contract: "mdlm-assignment-packet@2",
+    contract: "mdlm-assignment-packet@3",
     command: "scenario.prepare",
     ok: true,
     assignment: { id: prepareAssignmentId },

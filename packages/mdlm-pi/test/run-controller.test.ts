@@ -2808,7 +2808,7 @@ function executionRecord(digest: `sha256:${string}`): JsonObject & {
 
 function packet(id = assignmentId): AssignmentPacket {
   return {
-    contract: "mdlm-assignment-packet@2",
+    contract: "mdlm-assignment-packet@3",
     ok: true,
     command: "scenario.prepare",
     assignment: { id },

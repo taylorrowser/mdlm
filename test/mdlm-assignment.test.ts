@@ -502,7 +502,6 @@ describe("MDLM Assignment leasing and preparation", () => {
     const packet = JSON.parse(prepared.stdout);
     expect(Object.keys(packet).sort()).toEqual([
       "allowedProjections",
-      "assets",
       "assignment",
       "authority",
       "command",
@@ -527,7 +526,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(packet).toEqual(expect.objectContaining({
       ok: true,
       command: "scenario.prepare",
-      contract: "mdlm-assignment-packet@2",
+      contract: "mdlm-assignment-packet@3",
       assignment: { id: outcome.assignment.id },
       package: {
         reference: lease.package.reference,
@@ -544,15 +543,6 @@ describe("MDLM Assignment leasing and preparation", () => {
         reference: "prompts/establish-initial-wayfinding-map.md@2",
         content: expect.stringContaining("# Establish the initial wayfinding map"),
       }),
-      assets: expect.arrayContaining([
-        expect.objectContaining({
-          reference: "prompts/establish-initial-wayfinding-map.md@2",
-        }),
-        expect.objectContaining({ reference: "skills/lifecycle-data.md@1" }),
-        expect.objectContaining({ reference: "skills/wayfinding-map.md@1" }),
-        expect.objectContaining({ reference: "skills/clarification-protocol.md@1" }),
-        expect.objectContaining({ reference: "skills/scope-challenge.md@2" }),
-      ]),
       exactInputs: [{ inputs: [] }],
       allowedProjections: expect.objectContaining({
         exactLifecycleData: [],
@@ -606,6 +596,7 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(packet.prompt.skills.map((skill: { reference: string }) =>
       skill.reference
     )).toEqual(initialWayfindingSkillRefs);
+    expect(packet).not.toHaveProperty("assets");
     const proposalSchema = packet.responseSchema.oneOf[0].properties.proposal;
     expect(proposalSchema.required).toContain("loadedSkillRefs");
     expect(proposalSchema.properties.outputs.items.required).toContain("localId");

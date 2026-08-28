@@ -70,7 +70,7 @@ describe("clean onboarding transaction contract", () => {
     expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
     const packet = JSON.parse(prepared.stdout);
     expect(packet).toMatchObject({
-      contract: "mdlm-assignment-packet@2",
+      contract: "mdlm-assignment-packet@3",
       package: {
         reference: "mdlm-bootstrap@0.74.0",
         digest:
@@ -149,11 +149,29 @@ describe("clean onboarding transaction contract", () => {
     const subsequent = mdlm(repository, ["next"]);
     expect(subsequent.status, `${subsequent.stderr}${subsequent.stdout}`).toBe(0);
     const subsequentOutcome = JSON.parse(subsequent.stdout);
-    expect(subsequentOutcome.outcome).toBe("assignment");
+    expect(subsequentOutcome.outcome).toBe("publication-required");
+    expect(subsequentOutcome.materializedExecutions).toHaveLength(1);
+    expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
+    const materialized = git(
+      repository,
+      "-c", "user.name=MDLM Pilot",
+      "-c", "user.email=mdlm-pilot@example.invalid",
+      "-c", "commit.gpgSign=false",
+      "commit", "--quiet", "--no-verify", "-m", "Publish source boundary",
+    );
+    expect(materialized.status, `${materialized.stderr}${materialized.stdout}`).toBe(0);
+
+    const afterMaterialization = mdlm(repository, ["next"]);
+    expect(
+      afterMaterialization.status,
+      `${afterMaterialization.stderr}${afterMaterialization.stdout}`,
+    ).toBe(0);
+    const afterMaterializationOutcome = JSON.parse(afterMaterialization.stdout);
+    expect(afterMaterializationOutcome.outcome).toBe("assignment");
     const subsequentPacket = mdlm(repository, [
       "scenario",
       "prepare",
-      subsequentOutcome.assignment.id,
+      afterMaterializationOutcome.assignment.id,
     ]);
     expect(
       subsequentPacket.status,
@@ -166,7 +184,7 @@ describe("clean onboarding transaction contract", () => {
     const stale = mdlm(repository, [
       "scenario",
       "prepare",
-      subsequentOutcome.assignment.id,
+      afterMaterializationOutcome.assignment.id,
     ]);
     expect(stale.status).toBe(1);
     expect(JSON.parse(stale.stdout).diagnostics).toEqual([

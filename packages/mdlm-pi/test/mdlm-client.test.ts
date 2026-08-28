@@ -23,9 +23,9 @@ function assignmentResponse(
   packet: AssignmentPacket,
   includeAuthorPreflight = true,
 ): JsonObject {
-  const assets = packet.assets as JsonObject[];
-  const loadedSkillRefs = assets
-    .map((asset) => asset.reference)
+  const skills = (packet.prompt as JsonObject).skills as JsonObject[];
+  const loadedSkillRefs = skills
+    .map((skill) => skill.reference)
     .filter((reference): reference is string =>
       typeof reference === "string" && reference.startsWith("skills/")
     )
@@ -135,7 +135,7 @@ describe("MdlmClient", () => {
     });
 
     const packet = await client.prepare(allocated.assignment.id);
-    expect(packet.contract).toBe("mdlm-assignment-packet@2");
+    expect(packet.contract).toBe("mdlm-assignment-packet@3");
     expect(packet.assignment.id).toBe(allocated.assignment.id);
     expect(packet.scenario.reference).toBe("establish-initial-wayfinding-map@2");
     expect(packet.responseSchema).toMatchObject({

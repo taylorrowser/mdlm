@@ -70,12 +70,6 @@ type Packet = {
       }[];
     }[];
   }[];
-  assets: {
-    reference: string;
-    path: string;
-    digest: string;
-    content: string;
-  }[];
 };
 
 function git(repository: string, ...arguments_: string[]) {
@@ -281,7 +275,7 @@ describe("delegated Review Assignment packets", () => {
       );
       expectSuccess(preparedReview, "mdlm scenario prepare fresh Review");
       const reviewPacket = JSON.parse(preparedReview.stdout) as Packet;
-      expect(reviewPacket.contract).toBe("mdlm-assignment-packet@2");
+      expect(reviewPacket.contract).toBe("mdlm-assignment-packet@3");
       expect(reviewPacket.scenario.reference).toBe("review-datum-in-context@2");
       expect(reviewPacket.prompt.skills.map((skill) => skill.reference))
         .toContain("skills/review-correction-authority.md@1");
@@ -348,11 +342,12 @@ describe("delegated Review Assignment packets", () => {
           ],
         }),
       );
-      expect(reviewPacket.assets).toContainEqual(
+      expect(reviewPacket).not.toHaveProperty("assets");
+      expect(reviewPolicy?.evaluations?.[0]?.assets[0]).toEqual(
         expect.objectContaining({
           reference: "policies/rubrics/bootstrap-review.md@3",
-          digest: reviewPolicy?.evaluations?.[0]?.assets[0]?.digest,
-          content: reviewPolicy?.evaluations?.[0]?.assets[0]?.content,
+          digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+          content: expect.stringContaining("correction_authority: package-evidence"),
         }),
       );
 
@@ -364,7 +359,7 @@ describe("delegated Review Assignment packets", () => {
       const correctionReviewPacket = JSON.parse(
         preparedCorrectionReview.stdout,
       ) as Packet;
-      expect(correctionReviewPacket.contract).toBe("mdlm-assignment-packet@2");
+      expect(correctionReviewPacket.contract).toBe("mdlm-assignment-packet@3");
       expect(correctionReviewPacket.assignment.id).toBe(preCommitReviewAssignment);
       expect(correctionReviewPacket.scenario.reference).toBe(
         "review-datum-in-context@2",
