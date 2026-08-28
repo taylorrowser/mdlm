@@ -44,11 +44,6 @@ describe("clean onboarding transaction contract", () => {
     const initialized = mdlm(root, ["init", repository, "--json"]);
     expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
     expect(JSON.parse(initialized.stdout)).toMatchObject({
-      package: {
-        reference: "mdlm-bootstrap@0.76.0",
-        digest:
-          "sha256:8f2f25ec2776aa187e7fba0ebb0c64912dfced6e9d2397d8300ab89fc3ce8f1f",
-      },
       repository: { contract: "mdlm-repository@1" },
     });
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
@@ -71,11 +66,6 @@ describe("clean onboarding transaction contract", () => {
     const packet = JSON.parse(prepared.stdout);
     expect(packet).toMatchObject({
       contract: "mdlm-assignment-packet@3",
-      package: {
-        reference: "mdlm-bootstrap@0.76.0",
-        digest:
-          "sha256:8f2f25ec2776aa187e7fba0ebb0c64912dfced6e9d2397d8300ab89fc3ce8f1f",
-      },
       scenario: { reference: "establish-initial-wayfinding-map@2" },
     });
 

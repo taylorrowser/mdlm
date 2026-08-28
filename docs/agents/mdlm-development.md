@@ -73,6 +73,11 @@ In repository tests, drive the normal successful transaction through
 the lower-level command helpers only when a test must inspect malformed, stale,
 replay, authority, provenance, or other failure behavior.
 
+Assert the current Process Package version or digest only when package
+selection, provenance, or migration is the behavior under test. Transaction
+tests assert their own public contract and leave current package identity to
+the canonical package and initialization checks.
+
 The root runner writes a Markdown cost report under `artifacts/test-cost/` after
 each qualification. Set `MDLM_TEST_COST_REPORT` when the integration record
 needs an exact destination. Read the file table and runtime-class totals after
