@@ -1,6 +1,6 @@
 ---
 id: revise-pilot-vai-after-review
-version: 1
+version: 2
 scenario: revise-pilot-vai-after-review
 skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation.md@1, skills/verification-independence.md@1, skills/reproducibility.md@1, skills/verification-run-model.md@1, skills/author-preflight.md@2]
 ---
@@ -9,10 +9,22 @@ skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation
 
 Create the next Revision in the supplied VAI lineage. Cite and address every
 supplied failed Review, preserving the exact pilot claim class, declared cases,
-VER, ENV, ART, supported behavior, and intentionally unsupported behavior. The
-replacement may revise procedure and activity-binding text when needed to address
-an exact failed Review Finding. Do not mutate or reuse the failed VAI, Reviews,
-or prior RUN/RES evidence.
+VER, supported behavior, and intentionally unsupported behavior. When procedure
+text alone addresses the Finding, omit every optional boundary output and keep
+the exact supplied ENV and ART links.
+
+Only when the Review proves the supplied boundary inconsistent may you publish
+the next Revision of that exact ART and/or ENV lineage in the same transaction.
+Do not revise an unrelated lineage or widen the ART behavior scope. A replacement
+ART may reconcile its disposable command controls while preserving the exact
+requirement and pilot behavior boundary. A replacement ENV must still implement
+the exact supplied VSP profile and must include fresh `qualification_activity`
+and `qualification_implementation` outputs linked to that replacement; never
+borrow prior qualification evidence. Bind the replacement VAI to each emitted
+replacement and otherwise to the corresponding supplied Revision.
+
+Do not mutate or reuse the failed VAI, Reviews, ENV, ART, or prior RUN/RES
+evidence.
 
 Give checkout, environment checks, and each product case positive bounded
 infrastructure-safety deadlines. On timeout, terminate the process group with

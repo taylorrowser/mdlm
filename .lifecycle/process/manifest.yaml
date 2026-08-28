@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.77.0
+version: 0.78.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -84,6 +84,8 @@ catalog:
     - exercised-pilot-runs-for-implementation
     - failed-current-pilot-verification-implementations
     - corrected-pilot-verification-implementation-revisions-for
+    - valid-pilot-vai-environment-reconciliations
+    - valid-pilot-vai-target-reconciliations
     - environments-for-strategy
     - environments-for-strategy-review-context
     - complete-environment-assurance-for-strategy
@@ -612,7 +614,7 @@ assets:
     - prompts/revise-environment-assurance-after-review.md@1
     - prompts/revise-environment-after-failed-qualification.md@1
     - prompts/revise-pilot-verification-activity-after-review.md@2
-    - prompts/revise-pilot-vai-after-review.md@1
+    - prompts/revise-pilot-vai-after-review.md@2
     - prompts/define-system-architecture.md@2
     - prompts/define-interface-control-specification.md@2
     - prompts/define-decomposition-work-package.md@2
@@ -680,9 +682,9 @@ assets:
   rubrics:
     - policies/rubrics/bootstrap-review.md@3
 profiles:
-  default: bootstrap@39
+  default: bootstrap@40
   available:
-    - profiles/bootstrap.yaml@39
+    - profiles/bootstrap.yaml@40
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md
