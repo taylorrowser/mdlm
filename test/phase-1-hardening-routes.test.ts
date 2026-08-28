@@ -36,6 +36,7 @@ import {
   directoryDigest,
   inputRevision,
   inputRevisions,
+  LifecycleTransactionDriver,
   prepareNextAssignment,
   submitAssignment,
   type ProposedOutput,
@@ -1940,8 +1941,8 @@ describe("Phase 1 hardening route evidence", () => {
       }
       await publishFixtureHistory(repository, loaded.package, fixtureRecords);
 
-      const prepared = await prepareNextAssignment(
-        repository,
+      const driver = new LifecycleTransactionDriver(repository);
+      const prepared = await driver.assignment(
         "revise-environment-after-failed-qualification@1",
       );
       expect(prepared.outcome).toEqual(expect.objectContaining({
@@ -1963,7 +1964,7 @@ describe("Phase 1 hardening route evidence", () => {
       const implementationPayload = structuredClone(
         thirdQualification.implementation.datum.payload,
       );
-      const submitted = await submitAssignment(repository, prepared, [{
+      await driver.commit(prepared, [{
         localId: "replacement",
         name: "replacement",
         invocation: 0,
@@ -2027,8 +2028,7 @@ describe("Phase 1 hardening route evidence", () => {
           }],
           body: "Stakeholder authority for the exact attended correction.\n",
         },
-      }]);
-      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      }], { commitMessage: "Publish attended ENV correction" });
       const stored = await readRepositoryData(repository, loaded.package);
       if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
       const records = stored.value.map((item) => item.lifecycleDatum);
@@ -3819,6 +3819,7 @@ describe("Phase 1 hardening route evidence", () => {
         ),
       );
       await initializeProcessPackageFixture(repository, processRoot);
+      const driver = new LifecycleTransactionDriver(repository);
       const loadedFixture = await loadProcessPackage(processRoot);
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
 
@@ -3902,9 +3903,7 @@ describe("Phase 1 hardening route evidence", () => {
         JSON.stringify(acceptedIntentPublished.diagnostics),
       ).toBe(true);
 
-      const materialized = await executeCommandApplication(["next"], repository);
-      expect(materialized.exitCode, materialized.output).toBe(0);
-      const materializedOutcome = JSON.parse(materialized.output);
+      const materializedOutcome = await driver.materialize("Publish Review Context");
       expect(materializedOutcome).toEqual(expect.objectContaining({
         outcome: "publication-required",
         materializedExecutions: [expect.objectContaining({
@@ -3913,21 +3912,8 @@ describe("Phase 1 hardening route evidence", () => {
         })],
       }));
       expect(materializedOutcome.assignment).toBeUndefined();
-      const staged = spawnSync("git", ["-C", repository, "add", ".lifecycle/data"], {
-        encoding: "utf8",
-      });
-      expect(staged.status, staged.stderr).toBe(0);
-      const committed = spawnSync("git", [
-        "-C", repository,
-        "-c", "user.name=MDLM Test",
-        "-c", "user.email=mdlm-test@localhost",
-        "-c", "commit.gpgSign=false",
-        "commit", "--quiet", "--no-verify", "-m", "Publish Review Context",
-      ], { encoding: "utf8" });
-      expect(committed.status, committed.stderr).toBe(0);
 
-      const prepared = await prepareNextAssignment(
-        repository,
+      const prepared = await driver.assignment(
         "write-verification-activity@2",
       );
       expect(inputRevisions(prepared, "intent_support")).toEqual([
@@ -3937,7 +3923,7 @@ describe("Phase 1 hardening route evidence", () => {
         (input: { name: string }) => input.name === "requirement",
       )!.values[0]!.identity;
       const strategyRevision = inputRevision(prepared, "strategy");
-      const submitted = await submitAssignment(repository, prepared, [{
+      await driver.commit(prepared, [{
         localId: "activity",
         name: "activity",
         invocation: 0,
@@ -3967,8 +3953,7 @@ describe("Phase 1 hardening route evidence", () => {
           ],
           body: "Exercise only behavior stated by the exact STK and parent PSP.\n",
         },
-      }]);
-      expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+      }], { commitMessage: "Publish pilot verification activity" });
       const stored = await readRepositoryData(repository, loadedFixture.package);
       if (!stored.ok) throw new Error(JSON.stringify(stored.diagnostics));
       const activity = stored.value.map((item) => item.lifecycleDatum).find(
@@ -4194,6 +4179,7 @@ describe("Phase 1 hardening route evidence", () => {
     const processRoot = await phase1PilotRetryProcessPackage();
     try {
       await initializeProcessPackageFixture(repository, processRoot);
+      const driver = new LifecycleTransactionDriver(repository);
       const installedProcessRoot = await installCurrentLifecycleDataFixture(
         repository,
         "phase-1-pilot-retry-ready",
@@ -4202,8 +4188,7 @@ describe("Phase 1 hardening route evidence", () => {
       if (!loadedFixture.ok) throw new Error(JSON.stringify(loadedFixture.diagnostics));
       const fixtureProcessRef =
         "mdlm-bootstrap@0.74.0#sha256:e5e1533167c2d71be979d29e3f5898c16c47aa1d98e7d9c57de77d3b4d57da1b";
-      const retry = await prepareNextAssignment(
-        repository,
+      const retry = await driver.assignment(
         "execute-verification-run@1",
       );
       const implementation = inputRevision(retry, "implementation");
@@ -4227,7 +4212,7 @@ describe("Phase 1 hardening route evidence", () => {
         "case:supported:exit-0",
         "case:unsupported:exit-2",
       ];
-      const exercised = await submitAssignment(repository, retry, [{
+      await driver.commit(retry, [{
         localId: "run",
         name: "run",
         invocation: 0,
@@ -4280,8 +4265,7 @@ describe("Phase 1 hardening route evidence", () => {
           links: [{ type: "assessed-in", target: environmentRevision }],
           body: "Both declared behavior classes were observed.\n",
         },
-      }]);
-      expect(exercised.status, `${exercised.stderr}${exercised.stdout}`).toBe(0);
+      }], { commitMessage: "Publish exercised pilot run" });
       const afterInspection = await loadRepositoryInspection(
         repository,
         loadedFixture.package,

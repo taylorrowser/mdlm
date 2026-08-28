@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { executeCommandApplication } from "../../src/command-application.js";
@@ -21,6 +22,26 @@ export interface ProposedOutput {
   };
 }
 
+interface CommitOptions {
+  authoritySupplies?: string[];
+  commitMessage?: string;
+  completionEvidence?: unknown;
+}
+
+interface CommandResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+function requireSuccess(result: CommandResult, command: string): void {
+  if (result.status !== 0) {
+    throw new Error(
+      `${command} exited ${String(result.status)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    );
+  }
+}
+
 async function invokeCommandApplication(
   repository: string,
   arguments_: string[],
@@ -28,6 +49,130 @@ async function invokeCommandApplication(
 ) {
   const execution = await executeCommandApplication(arguments_, repository, input);
   return { status: execution.exitCode, stdout: execution.output, stderr: "" };
+}
+
+/**
+ * Drives the normal successful lifecycle transaction through the command
+ * application. Failure tests should keep using the lower-level helpers below.
+ */
+export class LifecycleTransactionDriver {
+  constructor(readonly repository: string) {}
+
+  static async initialize(repository: string): Promise<{
+    driver: LifecycleTransactionDriver;
+    result: Record<string, any>;
+  }> {
+    const initialized = await invokeCommandApplication(
+      path.dirname(repository),
+      ["init", repository, "--json"],
+    );
+    requireSuccess(initialized, "mdlm init");
+    return {
+      driver: new LifecycleTransactionDriver(repository),
+      result: JSON.parse(initialized.stdout),
+    };
+  }
+
+  async assignment(expectedScenario?: string): Promise<PreparedAssignment> {
+    const next = await invokeCommandApplication(this.repository, ["next"]);
+    requireSuccess(next, "mdlm next");
+    const outcome = JSON.parse(next.stdout);
+    if (outcome.outcome === "publication-required") {
+      throw new Error(
+        "mdlm next requires publication; call materialize() before assignment()",
+      );
+    }
+    const assignment = outcome.assignment?.id;
+    if (typeof assignment !== "string") {
+      throw new Error(`Expected an Assignment, received ${next.stdout}`);
+    }
+    const prepared = await invokeCommandApplication(
+      this.repository,
+      ["scenario", "prepare", assignment],
+    );
+    requireSuccess(prepared, "mdlm scenario prepare");
+    const packet = JSON.parse(prepared.stdout);
+    if (expectedScenario && packet.scenario?.reference !== expectedScenario) {
+      throw new Error(
+        `Expected ${expectedScenario}, received ${String(packet.scenario?.reference)}`,
+      );
+    }
+    return { outcome, packet };
+  }
+
+  async commit(
+    prepared: PreparedAssignment,
+    outputs: ProposedOutput[],
+    options: CommitOptions = {},
+  ): Promise<Record<string, any>> {
+    const response = assignmentResponse(
+      prepared,
+      outputs,
+      options.completionEvidence,
+      options.authoritySupplies,
+    );
+    const submitted = await invokeCommandApplication(
+      this.repository,
+      ["scenario", "submit"],
+      `${JSON.stringify(response)}\n`,
+    );
+    requireSuccess(submitted, "mdlm scenario submit");
+    await this.doctorAndCommit(
+      options.commitMessage ?? `Publish ${prepared.packet.scenario.reference}`,
+    );
+    return JSON.parse(submitted.stdout);
+  }
+
+  async materialize(
+    commitMessage = "Publish materialized Lifecycle Data",
+  ): Promise<Record<string, any>> {
+    const next = await invokeCommandApplication(this.repository, ["next"]);
+    requireSuccess(next, "mdlm next");
+    const outcome = JSON.parse(next.stdout);
+    if (
+      outcome.outcome !== "publication-required" ||
+      !Array.isArray(outcome.materializedExecutions) ||
+      outcome.materializedExecutions.length === 0
+    ) {
+      throw new Error(`Expected materialized publication, received ${next.stdout}`);
+    }
+    await this.doctorAndCommit(commitMessage);
+    return outcome;
+  }
+
+  private async doctorAndCommit(message: string): Promise<void> {
+    const doctor = await invokeCommandApplication(
+      this.repository,
+      ["doctor", "--json"],
+    );
+    requireSuccess(doctor, "mdlm doctor");
+    const staged = spawnSync(
+      "git",
+      ["-C", this.repository, "add", ".lifecycle/data"],
+      { encoding: "utf8" },
+    );
+    requireSuccess(staged, "git add .lifecycle/data");
+    const committed = spawnSync(
+      "git",
+      [
+        "-C",
+        this.repository,
+        "-c",
+        "user.name=MDLM Test",
+        "-c",
+        "user.email=mdlm-test@localhost",
+        "-c",
+        "commit.gpgSign=false",
+        "commit",
+        "--quiet",
+        "--no-verify",
+        "-m",
+        message,
+      ],
+      { encoding: "utf8" },
+    );
+    requireSuccess(committed, "git commit");
+  }
 }
 
 export async function prepareNextAssignment(
@@ -58,6 +203,10 @@ export function assignmentResponse(
   prepared: PreparedAssignment,
   outputs: ProposedOutput[],
   completionEvidence: unknown = { summary: "Completed the exact Assignment." },
+  authoritySupplies = prepared.packet.authority.requirements.map(
+    (requirement: { authorityRequirement: { authority: string } }) =>
+      requirement.authorityRequirement.authority,
+  ),
 ): Record<string, unknown> {
   return {
     contract: "mdlm-assignment-response@1",
@@ -69,10 +218,7 @@ export function assignmentResponse(
       loadedSkillRefs: prepared.packet.prompt.skills.map(
         (skill: { reference: string }) => skill.reference,
       ),
-      authoritySupplies: prepared.packet.authority.requirements.map(
-        (requirement: { authorityRequirement: { authority: string } }) =>
-          requirement.authorityRequirement.authority,
-      ),
+      authoritySupplies,
       standingDelegations: [],
     },
   };
