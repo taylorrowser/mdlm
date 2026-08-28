@@ -1185,13 +1185,16 @@ export async function publishScenarioMutationData(
     ...data.map(provisionalLifecycleRecord),
   ]);
   const validators = createDatumValidatorCache();
-  for (const datum of data) {
+  for (const [index, datum] of data.entries()) {
     diagnostics.push(...validateDatum(
       processPackage,
       datum,
       lifecycleData,
       validators,
-    ));
+    ).map((diagnostic) => ({
+      ...diagnostic,
+      path: `outputs[${index}]${diagnostic.path ? `.${diagnostic.path}` : ""}`,
+    })));
   }
   if (diagnostics.length > 0) return { ok: false, diagnostics };
 

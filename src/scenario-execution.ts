@@ -416,15 +416,32 @@ function expressionBindings(
   return bindings;
 }
 
-function remapPublicationDiagnostics(
+export function qualifyScenarioPublicationDiagnostics(
+  outputs: ScenarioOutputProposal[],
   diagnostics: ProcessDiagnostic[],
 ): ProcessDiagnostic[] {
-  return diagnostics.map((diagnostic) =>
-    diagnostic.code === "datum-payload" || diagnostic.code === "datum-envelope" ||
-        diagnostic.code === "datum-identity"
-      ? { ...diagnostic, code: "scenario-output-schema-invalid" }
-      : diagnostic
-  );
+  return diagnostics.map((diagnostic) => {
+    if (
+      diagnostic.code !== "datum-payload" &&
+      diagnostic.code !== "datum-envelope" &&
+      diagnostic.code !== "datum-identity"
+    ) return diagnostic;
+    const match = /^outputs\[([0-9]+)\](?:\.(.*))?$/.exec(diagnostic.path ?? "");
+    const index = match ? Number(match[1]) : undefined;
+    const output = index === undefined ? undefined : outputs[index];
+    const localName = output?.localId ?? output?.name;
+    return {
+      ...diagnostic,
+      code: "scenario-output-schema-invalid",
+      ...(output && match
+        ? {
+            path: `proposal.outputs[${index}](${localName}).lifecycleDatum${
+              match[2] ? `.${match[2]}` : ""
+            }`,
+          }
+        : {}),
+    };
+  });
 }
 
 type RepositoryScenarioPreparationResult =
@@ -1042,7 +1059,13 @@ async function submitScenario(
     kernelFinalizedOutputs,
   );
   if (!published.ok) {
-    return { ok: false, diagnostics: remapPublicationDiagnostics(published.diagnostics) };
+    return {
+      ok: false,
+      diagnostics: qualifyScenarioPublicationDiagnostics(
+        proposal.outputs,
+        published.diagnostics,
+      ),
+    };
   }
   execution.outputs = execution.outputs.map((output, index) => ({
     ...output,
