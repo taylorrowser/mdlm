@@ -1902,6 +1902,7 @@ export async function inspectOperatorStatus(
 /** Return the Assignment response contract, optionally bound to exact invocation groups. */
 export function assignmentResponseSchema(
   invocations?: readonly number[],
+  authoritySupplies?: readonly string[],
 ): Record<string, unknown> {
   const diagnostic = {
     type: "object",
@@ -1994,7 +1995,9 @@ export function assignmentResponseSchema(
               },
               authoritySupplies: {
                 type: "array",
-                items: { type: "string" },
+                items: authoritySupplies && authoritySupplies.length > 0
+                  ? { enum: [...authoritySupplies] }
+                  : { type: "string" },
                 uniqueItems: true,
               },
               standingDelegations: {
@@ -2194,6 +2197,11 @@ function packet(
     completion: exact.dryRun.completion,
     responseSchema: assignmentResponseSchema(
       exact.dryRun.invocations.map((_, invocation) => invocation),
+      [...new Set(participation.flatMap((value) =>
+        value.authorityRequirement.mode === "autonomous"
+          ? []
+          : [value.authorityRequirement.authority]
+      ))].sort(),
     ),
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation
