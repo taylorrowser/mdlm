@@ -71,7 +71,7 @@ async function attendedQualificationCorrectionProcessPackage(): Promise<string> 
     phase1Path,
     (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
       /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-      "scenarios:\n  - revise-environment-after-failed-qualification@1\n  - execute-verification-run@1\nobligations:\n  - environment-qualification-correction-required@1\noutputs:",
+      "scenarios:\n  - revise-environment-after-failed-qualification@1\n  - execute-verification-run@2\nobligations:\n  - environment-qualification-correction-required@1\noutputs:",
     ),
   );
   const obligationsRoot = path.join(processRoot, "obligations");
@@ -124,7 +124,7 @@ async function replacementEnvironmentReviewContextProcessPackage(): Promise<stri
     phase1Path,
     (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
       /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-      "scenarios:\n  - create-review-context@1\n  - execute-verification-run@1\nobligations:\n  - review-context-required@2\noutputs:",
+      "scenarios:\n  - create-review-context@1\n  - execute-verification-run@2\nobligations:\n  - review-context-required@2\noutputs:",
     ),
   );
   const obligationsRoot = path.join(processRoot, "obligations");
@@ -164,7 +164,7 @@ async function phase1RunProcessPackage(): Promise<string> {
     phase1Path,
     (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
       /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-      "scenarios:\n  - execute-verification-run@1\nobligations:\n  - verification-run-required@1\noutputs:",
+      "scenarios:\n  - execute-verification-run@2\nobligations:\n  - verification-run-required@2\noutputs:",
     ),
   );
   const obligationsRoot = path.join(processRoot, "obligations");
@@ -206,8 +206,8 @@ async function phase1VaiCorrectionProcessPackage(
       .replace("order: 1", "order: 0")
       .replace(
         /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-        "scenarios:\n  - review-datum-in-context@2\n  - execute-verification-run@1\n" +
-          "obligations:\n  - passing-review-required@2\n  - verification-run-required@1\noutputs:",
+        "scenarios:\n  - review-datum-in-context@2\n  - execute-verification-run@2\n" +
+          "obligations:\n  - passing-review-required@2\n  - verification-run-required@2\noutputs:",
       ),
   );
   const implementationObligationPath = path.join(
@@ -247,7 +247,7 @@ async function phase1PilotRetryProcessPackage(): Promise<string> {
     phase1Path,
     (await fs.readFile(phase1Path, "utf8")).replace("order: 1", "order: 0").replace(
       /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-      "scenarios:\n  - execute-verification-run@1\nobligations:\n  - verification-run-required@1\noutputs:",
+      "scenarios:\n  - execute-verification-run@2\nobligations:\n  - verification-run-required@2\noutputs:",
     ),
   );
   const runObligationPath = path.join(
@@ -266,7 +266,7 @@ async function phase1PilotRetryProcessPackage(): Promise<string> {
     profilePath,
     (await fs.readFile(profilePath, "utf8")).replace(
       /  profile_boundary:\n    condition: >-[\s\S]*?\n    explanation:/,
-      `  profile_boundary:\n    condition: >-\n      exists("verification-implementations-requiring-run@1", {})\n      && every("verification-implementations-requiring-run@1", {}, implementation =>\n        implementation.payload.kind != "pilot"\n        || exists("exercised-pilot-runs-for-implementation@1",\n          {implementation: implementation}))\n    explanation:`,
+      `  profile_boundary:\n    condition: >-\n      exists("verification-implementations-requiring-run@1", {})\n      && every("verification-implementations-requiring-run@1", {}, implementation =>\n        implementation.payload.kind != "pilot"\n        || exists("exercised-pilot-runs-for-implementation@2",\n          {implementation: implementation}))\n    explanation:`,
     ),
   );
   return processRoot;
@@ -599,7 +599,7 @@ function qualificationEvidence(
     evidence_refs: ["observation:qualification:exact-bytes"],
     assessor_ref: "runner:phase-1-qualification",
   }, {
-    scenario: "execute-verification-run@1",
+    scenario: "execute-verification-run@2",
     links: [{ type: "assessed-in", target: currentEnvironment.datum.revision_id }],
   });
   const run = record("RUN", `RUN-0HARDQUAL${generation}`, {
@@ -618,7 +618,7 @@ function qualificationEvidence(
     activities_invoked: [activity.datum.revision_id],
     evidence_locations: ["observation:qualification:exact-bytes"],
   }, {
-    scenario: "execute-verification-run@1",
+    scenario: "execute-verification-run@2",
     links: [
       { type: "executes", target: implementation.datum.revision_id },
       { type: "uses", target: currentEnvironment.datum.revision_id },
@@ -915,7 +915,7 @@ function pilotRun(
     evidence_refs: evidence,
     assessor_ref: "runner:phase-1-public-command",
   }, {
-    scenario: "execute-verification-run@1",
+    scenario: "execute-verification-run@2",
     links: [{ type: "assessed-in", target: "ENV-0HARDENP10-r00001" }],
   });
   const run = record("RUN", `RUN-0HARD${suffix}`, {
@@ -935,7 +935,7 @@ function pilotRun(
       : ["normal", "raw-malformed", "omitted-argument", "extra-argument"],
     evidence_locations: evidence,
   }, {
-    scenario: "execute-verification-run@1",
+    scenario: "execute-verification-run@2",
     links: [
       { type: "executes", target: implementation.datum.revision_id },
       { type: "uses", target: "ENV-0HARDENP10-r00001" },
@@ -1262,7 +1262,7 @@ describe("Phase 1 hardening route evidence", () => {
     )).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "execute-verification-run@1",
+      actionableResolver: "execute-verification-run@2",
     }));
     expect(incomplete.obligations.find((item) =>
       item.obligation === "review-context-required" &&
@@ -3271,7 +3271,7 @@ describe("Phase 1 hardening route evidence", () => {
       item.obligation === "verification-run-required" &&
       item.subject === implementation.datum.revision_id
     )).toEqual(expect.objectContaining({
-      eventualResolver: "execute-verification-run@1",
+      eventualResolver: "execute-verification-run@2",
     }));
   });
 
@@ -3558,7 +3558,7 @@ describe("Phase 1 hardening route evidence", () => {
     )).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "execute-verification-run@1",
+      actionableResolver: "execute-verification-run@2",
     }));
 
     const replacementExecution = pilotRun(replacement, { idSuffix: "NEWVAI" });
@@ -3804,7 +3804,7 @@ describe("Phase 1 hardening route evidence", () => {
       let phase1 = await fs.readFile(phase1Path, "utf8");
       phase1 = phase1.replace("order: 1", "order: 0").replace(
         /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
-        "scenarios:\n  - write-verification-activity@2\n  - execute-verification-run@1\nobligations:\n  - pilot-verification-activity-required@2\noutputs:",
+        "scenarios:\n  - write-verification-activity@2\n  - execute-verification-run@2\nobligations:\n  - pilot-verification-activity-required@2\noutputs:",
       );
       await fs.writeFile(phase1Path, phase1);
       const activityObligationPath = path.join(
@@ -4404,15 +4404,12 @@ describe("Phase 1 hardening route evidence", () => {
     )).toEqual(expect.objectContaining({
       status: "ready",
       satisfied: false,
-      actionableResolver: "execute-verification-run@1",
+      actionableResolver: "execute-verification-run@2",
       dispatchable: true,
     }));
   });
 
   it("keeps a completed setup-failure run without treating it as exercised pilot evidence", async () => {
-    expect(processPackage.scenarios["execute-verification-run"]?.prompt_ref).toBe(
-      "prompts/execute-verification-run.md@2",
-    );
     const executionPrompt = await fs.readFile(
       path.join(processPackage.root, "prompts/execute-verification-run.md"),
       "utf8",
@@ -4475,7 +4472,7 @@ describe("Phase 1 hardening route evidence", () => {
     )).toEqual(expect.objectContaining({
       status: "ready",
       satisfied: false,
-      actionableResolver: "execute-verification-run@1",
+      actionableResolver: "execute-verification-run@2",
     }));
     expect(evaluation.phase?.progression).toEqual(expect.objectContaining({
       nextPhase: "phase-2-system-definition",
@@ -4613,7 +4610,7 @@ setInterval(() => {}, 1000);
       status: "ready",
       satisfied: false,
       dispatchable: true,
-      actionableResolver: "execute-verification-run@1",
+      actionableResolver: "execute-verification-run@2",
     }));
     expect(timeoutEvaluation.phase?.progression).toEqual(expect.objectContaining({
       nextPhase: "phase-2-system-definition",

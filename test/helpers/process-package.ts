@@ -19,7 +19,105 @@ export async function restoreHistoricalFixtureProcessPackage(
     await fs.cp(processRoot, stagedPackage, { recursive: true });
 
     const currentManifestPath = path.join(stagedPackage, "manifest.yaml");
-    const pilotManifest = await fs.readFile(currentManifestPath, "utf8");
+    let pilotManifest = await fs.readFile(currentManifestPath, "utf8");
+    if (pilotManifest.includes("version: 0.77.0")) {
+      const preExecutableObservationsCommit =
+        "aa3243f87d83ff4b199c91535f0930bf822afedf";
+      const restoredFiles = [
+        "prompts/execute-verification-run.md",
+        "scenarios/execute-verification-run.yaml",
+        "selectors/exercised-pilot-runs-for-implementation.yaml",
+        "types/RES.yaml",
+        "types/RUN.yaml",
+      ];
+      await Promise.all(restoredFiles.map(async (relativePath) => {
+        const source = execFileSync(
+          "git",
+          ["show", `${preExecutableObservationsCommit}:.lifecycle/process/${relativePath}`],
+          { cwd: process.cwd(), encoding: "utf8" },
+        );
+        await fs.writeFile(path.join(stagedPackage, relativePath), source);
+      }));
+      const phasePath = path.join(
+        stagedPackage,
+        "phases/phase-1-product-assurance.yaml",
+      );
+      const currentPhase = await fs.readFile(phasePath, "utf8");
+      const currentPhaseOrder = /^order: .+$/m.exec(currentPhase)?.[0];
+      const currentPhaseRoutes =
+        /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/.exec(currentPhase)?.[0];
+      let restoredPhase = execFileSync(
+        "git",
+        [
+          "show",
+          `${preExecutableObservationsCommit}:.lifecycle/process/phases/phase-1-product-assurance.yaml`,
+        ],
+        { cwd: process.cwd(), encoding: "utf8" },
+      );
+      if (currentPhaseOrder) {
+        restoredPhase = restoredPhase.replace(/^order: .+$/m, currentPhaseOrder);
+      }
+      if (currentPhaseRoutes) {
+        restoredPhase = restoredPhase.replace(
+          /scenarios:\n(?:  - .+\n)+obligations:\n(?:  - .+\n)+outputs:/,
+          currentPhaseRoutes
+            .replace("execute-verification-run@2", "execute-verification-run@1")
+            .replace("verification-run-required@2", "verification-run-required@1"),
+        );
+      }
+      await fs.writeFile(phasePath, restoredPhase);
+      const issue291Replacements = new Map<string, Array<[string, string]>>([
+        ["manifest.yaml", [
+          ["version: 0.77.0", "version: 0.76.0"],
+          ["    - pilot-control-results-completing-run\n", ""],
+          [
+            "    - prompts/execute-verification-run.md@3\n",
+            "    - prompts/execute-verification-run.md@2\n",
+          ],
+        ]],
+        ["obligations/pilot-verification-implementation-required.yaml", [[
+          "      - obligation: verification-run-required@2\n",
+          "      - obligation: verification-run-required@1\n",
+        ]]],
+        ["obligations/review-context-required.yaml", [[
+          "      - obligation: verification-run-required@2\n",
+          "      - obligation: verification-run-required@1\n",
+        ]]],
+        ["obligations/verification-run-required.yaml", [
+          ["version: 2", "version: 1"],
+          [
+            'exists("exercised-pilot-runs-for-implementation@2",',
+            'exists("exercised-pilot-runs-for-implementation@1",',
+          ],
+          [
+            "      - obligation: verification-run-required@2\n",
+            "      - obligation: verification-run-required@1\n",
+          ],
+          [
+            "  scenario: execute-verification-run@2\n",
+            "  scenario: execute-verification-run@1\n",
+          ],
+        ]],
+        ["profiles/bootstrap.yaml", [[
+          'exists("exercised-pilot-runs-for-implementation@2",',
+          'exists("exercised-pilot-runs-for-implementation@1",',
+        ]]],
+      ]);
+      await Promise.all([...issue291Replacements].map(async ([relativePath, replacements]) => {
+        const target = path.join(stagedPackage, relativePath);
+        const source = await fs.readFile(target, "utf8");
+        const restored = replacements.reduce(
+          (value, [current, historical]) => value.replaceAll(current, historical),
+          source,
+        );
+        await fs.writeFile(target, restored);
+      }));
+      await fs.rm(path.join(
+        stagedPackage,
+        "selectors/pilot-control-results-completing-run.yaml",
+      ));
+      pilotManifest = await fs.readFile(currentManifestPath, "utf8");
+    }
     if (pilotManifest.includes("version: 0.76.0")) {
       const prePilotControlCommit = "d3939eb42ba4b57fe14419d4fbebf3cc207fcd17";
       const pilotTargetPath = path.join(
@@ -397,8 +495,11 @@ export async function ensureFixtureProcessPackage(
   }
   if (
     packageRoot &&
+    selection.package &&
     (selection.package?.reference === expected.reference ||
-      (selection.package?.reference === "mdlm-bootstrap@0.76.0" &&
+      (["mdlm-bootstrap@0.76.0", "mdlm-bootstrap@0.77.0"].includes(
+        selection.package?.reference ?? "",
+      ) &&
         expected.reference === "mdlm-bootstrap@0.74.0")) &&
     (selection.package.reference !== expected.reference ||
       selection.package.digest !== expected.digest)
