@@ -3909,6 +3909,100 @@ describe("Phase 1 hardening route evidence", () => {
         }),
       }),
     ]);
+
+    const safeStrategy = safeRecords.find((item) => item.datum.type === "VSP")!;
+    const priorQualificationActivity = safeRecords.find((item) =>
+      item.datum.type === "VER" && item.datum.payload.kind === "qualification"
+    )!;
+    const priorQualificationImplementation = safeRecords.find((item) =>
+      item.datum.type === "VAI" && item.datum.payload.kind === "qualification"
+    )!;
+    const replacementEnvironment = structuredClone(safeEnvironment);
+    replacementEnvironment.datum.revision = 2;
+    replacementEnvironment.datum.revision_id = `${safeEnvironment.datum.id}-r00002`;
+    replacementEnvironment.datum.created_by.scenario =
+      "revise-pilot-vai-after-review@2";
+    replacementEnvironment.datum.links = [
+      {type: "realizes", target: safeStrategy.datum.revision_id},
+      {type: "corrects-review", target: safeFailedReview.datum.revision_id},
+    ];
+    const freshQualificationActivity = structuredClone(priorQualificationActivity);
+    freshQualificationActivity.datum.id = "VER-0000000980";
+    freshQualificationActivity.datum.revision_id = "VER-0000000980-r00001";
+    freshQualificationActivity.datum.created_by.scenario =
+      "revise-pilot-vai-after-review@2";
+    freshQualificationActivity.datum.links = [
+      {type: "governed-by", target: safeStrategy.datum.revision_id},
+      {type: "qualifies", target: replacementEnvironment.datum.revision_id},
+    ];
+    const freshQualificationImplementation = structuredClone(
+      priorQualificationImplementation,
+    );
+    freshQualificationImplementation.datum.id = "VAI-0000000981";
+    freshQualificationImplementation.datum.revision_id = "VAI-0000000981-r00001";
+    freshQualificationImplementation.datum.created_by.scenario =
+      "revise-pilot-vai-after-review@2";
+    freshQualificationImplementation.datum.links = [
+      {type: "realizes", target: freshQualificationActivity.datum.revision_id},
+      {type: "uses", target: replacementEnvironment.datum.revision_id},
+      {type: "targets", target: replacementEnvironment.datum.revision_id},
+    ];
+    const environmentReconciliationSnapshot = {
+      ...snapshot,
+      records: [
+        ...snapshot.records,
+        replacementEnvironment,
+        freshQualificationActivity,
+        freshQualificationImplementation,
+      ],
+    };
+    const environmentReconciliationArguments = {
+      implementation: safeFirst.datum.revision_id,
+      environment: safeEnvironment.datum.revision_id,
+      strategy: safeStrategy.datum.revision_id,
+      replacement: replacementEnvironment.datum.revision_id,
+      qualification_activity: freshQualificationActivity.datum.revision_id,
+      qualification_implementation:
+        freshQualificationImplementation.datum.revision_id,
+    };
+    expect(evaluateProcessDefinition(
+      recoveryPackage,
+      environmentReconciliationSnapshot,
+      "selector",
+      "valid-pilot-vai-environment-reconciliations@1",
+      environmentReconciliationArguments,
+    ).result).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: replacementEnvironment.datum.revision_id,
+        }),
+      }),
+    ]);
+
+    const unrelatedTargetImplementation = structuredClone(
+      freshQualificationImplementation,
+    );
+    unrelatedTargetImplementation.datum.links =
+      unrelatedTargetImplementation.datum.links.map((link) =>
+        link.type === "targets"
+          ? {type: "targets", target: safeTarget.datum.revision_id}
+          : link
+      );
+    expect(evaluateProcessDefinition(
+      recoveryPackage,
+      {
+        ...environmentReconciliationSnapshot,
+        records: [
+          ...snapshot.records,
+          replacementEnvironment,
+          freshQualificationActivity,
+          unrelatedTargetImplementation,
+        ],
+      },
+      "selector",
+      "valid-pilot-vai-environment-reconciliations@1",
+      environmentReconciliationArguments,
+    ).result).toEqual([]);
   });
 
   it("executes and repository-validates exact RUN and RES outputs through the package Scenario", async () => {

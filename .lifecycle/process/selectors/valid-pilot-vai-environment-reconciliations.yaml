@@ -27,6 +27,10 @@ query:
         {subject: implementation, review: review}))
     && qualification_activity.payload.kind == "qualification"
     && qualification_activity.payload.claim.scope == "environment-capability"
+    && count("strategies-for-verification-activity@1",
+      {activity: qualification_activity}) == 1
+    && one("strategies-for-verification-activity@1",
+      {activity: qualification_activity}) == strategy
     && qualification_implementation.payload.kind == "qualification"
     && qualification_implementation.payload.independence_mode
       == "environment-capability"
@@ -40,5 +44,9 @@ query:
       {implementation: qualification_implementation}) == 1
     && one("verification-activities-for-implementation@1",
       {implementation: qualification_implementation}) == qualification_activity
+    && count("execution-targets-for-implementation@1",
+      {implementation: qualification_implementation}) == 1
+    && one("execution-targets-for-implementation@1",
+      {implementation: qualification_implementation}) == candidate
   distinct: true
   order_by: [identity.revision]

@@ -69,7 +69,9 @@ outputs:
   - name: qualification_activity
     types: [VER]
     cardinality: zero-or-one
-    required_links: []
+    required_links:
+      - {link: governed-by, target: {input: strategy}}
+      - {link: qualifies, target: {output: replacement_environment}}
   - name: qualification_implementation
     types: [VAI]
     cardinality: zero-or-one
