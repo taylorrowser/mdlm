@@ -62,7 +62,7 @@ documentation references to `mdlm`.
 
 | Issue #70 criterion | Evidence |
 | --- | --- |
-| Fresh initialization and exact selection | `mdlm init` records `mdlm-bootstrap@0.74.0` without a package flag or descriptor edit; the onboarding test asserts the exact clean-break package and clean setup commit. |
+| Fresh initialization and exact selection | `mdlm init` records `mdlm-bootstrap@0.75.0` without a package flag or descriptor edit; the onboarding test asserts the exact clean-break package and clean setup commit. |
 | Work discovery through assessment | `mdlm next` selects the initial Product Wayfinding Assignment in the fresh transaction repository. The compiled public Phase 0, Phase 1, Phase 2, and pilot-assessment routes listed above derive every continuation from reevaluation rather than a runbook. |
 | Public operation only | Normal progress uses only `mdlm init`, `status`, `next`, `scenario prepare`, `scenario submit`, `doctor`, read-only inspection and diff, and ordinary Git. Scenario Proposals, not Markdown edits, cross the publication seam. |
 | Exact same-lineage source boundary | The package-discovered source-boundary Assignment freezes the exact source Revision before a same-lineage Question replacement. |

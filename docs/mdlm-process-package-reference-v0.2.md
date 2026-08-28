@@ -1135,7 +1135,7 @@ and its cited frozen valid exact Review Context come from the current package an
 that context scopes the exact subject, contains every-and-only the currently selected
 members, and has no newer same-lineage Revision. Every blocking Finding requires an exact criterion, concrete
 evidence or counterexample, and material consequence; usable concerns remain
-triage or advisory. The clean 0.74.0 package requires every failed Review to
+triage or advisory. The clean 0.75.0 package requires every failed Review to
 classify its complete blocking finding set as `stakeholder` or
 `package-evidence`. It obtains exact attended initial product intent through a QST source boundary
 and reviewed scope Decision before PSP compilation. The answered QST stores one

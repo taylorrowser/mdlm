@@ -52,7 +52,7 @@ describe("mdlm process expression evaluation", () => {
       ok: true,
       command: "process.expression.evaluate",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.74.0",
+        reference: "mdlm-bootstrap@0.75.0",
         language: "mdlm-expression@1",
       }),
       selected: true,
@@ -332,7 +332,7 @@ describe("mdlm process expression evaluation", () => {
         ok: true,
         command: testCase.command,
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.74.0",
+          reference: "mdlm-bootstrap@0.75.0",
           language: "mdlm-expression@1",
         }),
         selected: true,
