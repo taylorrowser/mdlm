@@ -3,6 +3,7 @@ import { constants, promises as fs, watch } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { parse, stringify } from "yaml";
 import {
   PROCESS_REPOSITORY_HOOK_TIMEOUT_MS,
   PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
@@ -13,6 +14,8 @@ import {
   type ScenarioOutputProposal,
   validateScenarioSkillProvenance,
 } from "../src/scenario-execution.js";
+import { selectProcessPackageFixture } from "./helpers/mdlm.js";
+import { terminalProcessPackage } from "./helpers/terminal-process-package.js";
 
 const CONTENDED_INITIALIZATION_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
 const CONTENDED_SETUP_HOOK_TIMEOUT_MS = PROCESS_REPOSITORY_HOOK_TIMEOUT_MS;
@@ -599,6 +602,7 @@ describe("MDLM Assignment leasing and preparation", () => {
       skill.reference
     )).toEqual(initialWayfindingSkillRefs);
     expect(packet).not.toHaveProperty("assets");
+    expect(packet).not.toHaveProperty("responseSkeleton");
     const proposalSchema = packet.responseSchema.oneOf[0].properties.proposal;
     expect(proposalSchema.required).toContain("loadedSkillRefs");
     expect(proposalSchema.properties.outputs.items.required).toContain("localId");
@@ -615,6 +619,99 @@ describe("MDLM Assignment leasing and preparation", () => {
     expect(ignored.stdout).toBe(".lifecycle/work/active-assignment.json\n");
     expect((await fs.readdir(path.join(repository, ".lifecycle/data"))).sort())
       .toEqual([".gitkeep"]);
+  }, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS);
+
+  it("projects only one unambiguous autonomous Assignment Response skeleton", async () => {
+    const processRoot = await terminalProcessPackage(parent);
+    const typePath = path.join(processRoot, "types/ITM.yaml");
+    const type = parse(await fs.readFile(typePath, "utf8"));
+    type.outgoing_links = [{
+      id: "follows",
+      description: "Exact fixture item followed by this item.",
+      targets: [{ kind: "datum", types: ["ITM"], identity: "revision" }],
+      cardinality: { minimum: 1, maximum: 1 },
+      freeze_resolution: "already-exact",
+      inverse_label: "followed-by",
+    }];
+    await fs.writeFile(typePath, stringify(type));
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/record-terminal-item.yaml",
+    );
+    const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+    scenario.outputs = [{
+      name: "source",
+      types: ["ITM"],
+      cardinality: "one",
+      required_links: [],
+    }, {
+      name: "linked",
+      types: ["ITM"],
+      cardinality: "one",
+      required_links: [{ link: "follows", target: { output: "source" } }],
+    }];
+    await fs.writeFile(scenarioPath, stringify(scenario));
+    const obligationPath = path.join(
+      processRoot,
+      "obligations/terminal-check.yaml",
+    );
+    const obligation = parse(await fs.readFile(obligationPath, "utf8"));
+    obligation.satisfied_when = "false";
+    await fs.writeFile(obligationPath, stringify(obligation));
+
+    const fixtureRepository = path.join(parent, "eligible-skeleton");
+    await fs.mkdir(fixtureRepository);
+    await selectProcessPackageFixture(fixtureRepository, processRoot);
+
+    const next = await mdlm(fixtureRepository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+
+    const prepared = await mdlm(
+      fixtureRepository,
+      "scenario",
+      "prepare",
+      outcome.assignment.id,
+      "--json",
+    );
+    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
+    const packet = JSON.parse(prepared.stdout);
+    expect(packet.scenario.reference).toBe("record-terminal-item@1");
+    expect(packet.responseSkeleton).toEqual({
+      contract: "mdlm-assignment-response@1",
+      assignment: outcome.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          localId: "source",
+          name: "source",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "ITM",
+            payload: null,
+            links: [],
+            body: null,
+          },
+        }, {
+          localId: "linked",
+          name: "linked",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "ITM",
+            payload: null,
+            links: [{
+              type: "follows",
+              target: "$proposal.source.revision_id",
+            }],
+            body: null,
+          },
+        }],
+        completionEvidence: null,
+        loadedSkillRefs: null,
+        authoritySupplies: null,
+        standingDelegations: null,
+      },
+    });
   }, CONTENDED_ASSIGNMENT_TEST_TIMEOUT_MS);
 
   it("declares every typed inability and abandons one exact Assignment without publication", async () => {
