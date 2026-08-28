@@ -36,7 +36,15 @@ For an Assignment, use its exact ID:
 mdlm scenario prepare <assignment-id> --json
 ```
 
-Treat the prepared packet as the complete instruction bundle. Perform only its
+Capture the complete command output in an ignored working file such as
+`.lifecycle/work/assignment-<assignment-id>.json`; do not rely on a console or
+tool rendering that may truncate a large packet. Inspect the saved JSON in
+bounded sections: `prompt` and its skills, `exactInputs`,
+`allowedProjections.outputSchemas`, `policies`, `outputs`, `completion`, and
+`responseSchema`. Before authoring the response, make a checklist of every
+required payload property for each selected output type.
+
+Treat that complete prepared packet as the instruction bundle. Perform only its
 declared work, using only its inputs, prompt, skills, Policies, participation,
 output contracts, and completion conditions. Return one complete
 `mdlm-assignment-response@1` and submit it:
