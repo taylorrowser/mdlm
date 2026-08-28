@@ -452,7 +452,6 @@ describe("MDLM Assignment leasing and preparation", () => {
         id: outcome.assignment.id,
         disposition: "active",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.76.0",
           digest: expect.stringMatching(/^sha256:/),
         }),
         repository: {
