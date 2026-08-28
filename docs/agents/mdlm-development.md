@@ -43,6 +43,10 @@ Treat every missing retained slot or manager as an operating incident. Follow
 the host policy for slot selection, clearance, restoration, and
 restoration-breach reporting.
 
+A host-policy fleet transition may keep extra lanes running through their
+truthful boundaries. Those draining lanes retire without replacement and do not
+create slot incidents.
+
 Keep old-qualified demos running while newer source is edited, merged, reviewed,
 preflighted, or qualified. Each running lane stays bound to its exact
 last-qualified identity. Never mutate that identity in place. Switch a slot only

@@ -4,10 +4,10 @@
 
 At root-thread start and after compaction, read
 `/home/ubuntu/git/mdlm-orchestration/AGENTS.md#every-turn`. Before implementation,
-inspect and report the live one-Codex/two-Pi roster and its manager mapping,
-assign an owner to restore every missing slot or manager, and delegate each
-independent work stream. If the root takes an implementation-like action, state
-why no subagent can own it.
+inspect and report the live one-Codex/two-Pi target, any host-authorized draining
+lanes, and their manager mapping. Assign an owner to restore every missing
+retained slot or manager, and delegate each independent work stream. If the root
+takes an implementation-like action, state why no subagent can own it.
 
 ## MDLM development
 
