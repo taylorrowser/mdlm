@@ -22,7 +22,6 @@ import {
 } from "../src/evaluator.js";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
 import { finalizeExactBaselineScenarioOutput } from "../src/exact-baseline-repository.js";
-import { processPackageDigest } from "../src/process-package-digest.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import {
   scenarioOutputContractDiagnostics,
@@ -43,6 +42,7 @@ import {
 } from "./helpers/assignment-submission.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { installCurrentLifecycleDataFixture } from "./helpers/current-lifecycle-data-fixture.js";
+import { currentProcessPackageIdentity } from "./helpers/current-process-package-identity.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { initializeProcessPackageFixture } from "./helpers/mdlm.js";
 import {
@@ -1617,8 +1617,8 @@ describe("Phase 1 hardening route evidence", () => {
       const safeFailedQualification = fixtureRecords.slice(4, 8);
       const safeReplacement = fixtureRecords[8]!;
       const safeFreshQualification = fixtureRecords.slice(9, 13);
-      const fixtureProcessRef =
-        `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
+      const { processRef: fixtureProcessRef } =
+        await currentProcessPackageIdentity(processRoot);
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -1934,8 +1934,8 @@ describe("Phase 1 hardening route evidence", () => {
       const safeThirdResult = safeThirdQualification.find((item) =>
         item.datum.type === "RES"
       )!;
-      const fixtureProcessRef =
-        `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
+      const { processRef: fixtureProcessRef } =
+        await currentProcessPackageIdentity(processRoot);
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
@@ -3863,7 +3863,8 @@ describe("Phase 1 hardening route evidence", () => {
         currentStrategy,
         acceptedIntent,
       ]);
-      const fixtureProcessRef = `mdlm-bootstrap@0.75.0#${await processPackageDigest(processRoot)}`;
+      const { processRef: fixtureProcessRef } =
+        await currentProcessPackageIdentity(processRoot);
       for (const item of fixtureRecords) {
         item.datum.created_by.process_ref = fixtureProcessRef;
       }
