@@ -405,6 +405,26 @@ describe("Phase-hardening domain route contracts", () => {
       known_good: observation("known_good"),
       known_bad: observation("known_bad"),
     });
+    const publicResult = pilotResult("RES-HARDPBK001", "suitable", true);
+    delete publicResult.datum.payload.control_judgments;
+    const publicRun = record("RUN", "RUN-HARDPBK001", {
+      title: "Registered public-interface run",
+      kind: "pilot",
+      started_at: "2026-01-01T00:00:00.000Z",
+      completed_at: "2026-01-01T00:00:01.000Z",
+      execution_state: "completed",
+      execution_target: { kind: "prototype", ref: target.datum.revision_id },
+      runner_ref: "runner:compiled-route",
+      configuration_refs: [environment.datum.revision_id],
+      activities_expected: [activity.datum.revision_id],
+      activities_invoked: [activity.datum.revision_id],
+      evidence_locations: ["observation:registered-public-interface"],
+    }, [
+      { type: "executes", target: implementation.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: target.datum.revision_id },
+      { type: "produces", target: publicResult.datum.revision_id },
+    ], "execute-verification-run@2");
     const routeRecords = [
       psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review,
       activity, environment, target, implementation, controlTarget, controlImplementation,
@@ -473,13 +493,14 @@ describe("Phase-hardening domain route contracts", () => {
       name: string,
       run: ReturnType<typeof record>,
       result: ReturnType<typeof record>,
+      implementationRevision = controlImplementation.datum.revision_id,
     ) => {
       const snapshotPath = await snapshotFor(name, run, result);
       const evaluated = mdlm(
         cliRoot,
         "selector", "evaluate", "exercised-pilot-runs-for-implementation@2",
         "--snapshot", snapshotPath,
-        "--arg", `implementation=${controlImplementation.datum.revision_id}`,
+        "--arg", `implementation=${implementationRevision}`,
         "--json",
       );
       expect(evaluated.status, `${evaluated.stderr}${evaluated.stdout}`).toBe(0);
@@ -489,6 +510,14 @@ describe("Phase-hardening domain route contracts", () => {
     expect(await selected("partial-selector", partialRun, partialResult)).toEqual([]);
     expect(await selected("complete-selector", completeRun, completeResult)).toEqual([
       expect.objectContaining({ identity: expect.objectContaining({ revision_id: completeRun.datum.revision_id }) }),
+    ]);
+    expect(await selected(
+      "public-interface-selector",
+      publicRun,
+      publicResult,
+      implementation.datum.revision_id,
+    )).toEqual([
+      expect.objectContaining({ identity: expect.objectContaining({ revision_id: publicRun.datum.revision_id }) }),
     ]);
     await fs.rm(cliRoot, { recursive: true, force: true });
 
