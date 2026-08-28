@@ -1,49 +1,18 @@
-import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
   PROCESS_REPOSITORY_TEST_TIMEOUT_MS,
 } from "../scripts/root-test-observation-policy.mjs";
-
-const executable = path.join(process.cwd(), "dist/mdlm.js");
-
-function mdlm(repository: string, arguments_: string[], input?: string) {
-  return spawnSync(process.execPath, [executable, ...arguments_], {
-    cwd: repository,
-    encoding: "utf8",
-    maxBuffer: 10 * 1024 * 1024,
-    timeout: PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
-    ...(input === undefined ? {} : { input }),
-  });
-}
-
-function git(repository: string, ...arguments_: string[]) {
-  return spawnSync("git", ["-C", repository, ...arguments_], {
-    encoding: "utf8",
-    timeout: PROCESS_REPOSITORY_CHILD_TIMEOUT_MS,
-  });
-}
+import { executeCommandApplication } from "../src/command-application.js";
+import { withLifecycleTestRepository } from "./helpers/lifecycle-test-repository.js";
 
 describe("clean onboarding transaction contract", () => {
-  const roots: string[] = [];
-
-  afterEach(async () => {
-    await Promise.all(roots.splice(0).map((root) =>
-      fs.rm(root, { recursive: true, force: true })
-    ));
-  });
-
-  it("publishes the first transaction and binds later work to the committed state", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-zero-to-assessment-"));
-    roots.push(root);
-    const repository = path.join(root, "repository");
-
-    const initialized = mdlm(root, ["init", repository, "--json"]);
-    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
-    expect(JSON.parse(initialized.stdout)).toMatchObject({
+  it("publishes the first transaction and binds later work to the committed state", () =>
+    withLifecycleTestRepository(
+      "mdlm-zero-to-assessment-",
+      async (repository) => {
+    expect(repository.initialization).toMatchObject({
       package: {
         reference: "mdlm-bootstrap@0.75.0",
         digest:
@@ -51,25 +20,15 @@ describe("clean onboarding transaction contract", () => {
       },
       repository: { contract: "mdlm-repository@1" },
     });
-    expect(git(repository, "status", "--porcelain").stdout).toBe("");
-
-    const first = mdlm(repository, ["next"]);
-    expect(first.status, `${first.stderr}${first.stdout}`).toBe(0);
-    const firstOutcome = JSON.parse(first.stdout);
-    expect(firstOutcome).toMatchObject({
+    const first = await repository.nextAssignment(
+      "establish-initial-wayfinding-map@2",
+    );
+    expect(first.outcome).toMatchObject({
       contract: "mdlm-next@1",
       outcome: "assignment",
       assignment: { id: expect.any(String) },
     });
-
-    const prepared = mdlm(repository, [
-      "scenario",
-      "prepare",
-      firstOutcome.assignment.id,
-    ]);
-    expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-    const packet = JSON.parse(prepared.stdout);
-    expect(packet).toMatchObject({
+    expect(first.packet).toMatchObject({
       contract: "mdlm-assignment-packet@3",
       package: {
         reference: "mdlm-bootstrap@0.75.0",
@@ -79,12 +38,7 @@ describe("clean onboarding transaction contract", () => {
       scenario: { reference: "establish-initial-wayfinding-map@2" },
     });
 
-    const response = {
-      contract: "mdlm-assignment-response@1",
-      assignment: firstOutcome.assignment.id,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
+    await repository.publish(first, [{
           localId: "map",
           name: "map",
           invocation: 0,
@@ -115,80 +69,31 @@ describe("clean onboarding transaction contract", () => {
             links: [],
             body: "The initial product intent requires attended resolution.\n",
           },
-        }],
-        completionEvidence: { summary: "Established the exact pilot frontier." },
-        loadedSkillRefs: packet.prompt.skills.map(
-          (skill: { reference: string }) => skill.reference,
-        ),
-        authoritySupplies: [],
-        standingDelegations: [],
-      },
-    };
-    const submitted = mdlm(
-      repository,
-      ["scenario", "submit"],
-      `${JSON.stringify(response)}\n`,
+        }], {
+      commitMessage: "Publish clean pilot MAP",
+      completionEvidence: { summary: "Established the exact pilot frontier." },
+      authoritySupplies: [],
+    });
+    const materialized = await repository.publishMaterialization(
+      "Publish source boundary",
     );
-    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
-
-    const doctor = mdlm(repository, ["doctor", "--json"]);
-    expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
-    expect(git(repository, "add", "-N", ".lifecycle/data").status).toBe(0);
-    expect(git(repository, "diff", "--quiet", "--", ".lifecycle/data").status).toBe(1);
-    expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
-    const committed = git(
-      repository,
-      "-c", "user.name=MDLM Pilot",
-      "-c", "user.email=mdlm-pilot@example.invalid",
-      "-c", "commit.gpgSign=false",
-      "commit", "--quiet", "--no-verify", "-m", "Publish clean pilot MAP",
-    );
-    expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
-    expect(git(repository, "status", "--porcelain").stdout).toBe("");
-
-    const subsequent = mdlm(repository, ["next"]);
-    expect(subsequent.status, `${subsequent.stderr}${subsequent.stdout}`).toBe(0);
-    const subsequentOutcome = JSON.parse(subsequent.stdout);
-    expect(subsequentOutcome.outcome).toBe("publication-required");
-    expect(subsequentOutcome.materializedExecutions).toHaveLength(1);
-    expect(git(repository, "add", ".lifecycle/data").status).toBe(0);
-    const materialized = git(
-      repository,
-      "-c", "user.name=MDLM Pilot",
-      "-c", "user.email=mdlm-pilot@example.invalid",
-      "-c", "commit.gpgSign=false",
-      "commit", "--quiet", "--no-verify", "-m", "Publish source boundary",
-    );
-    expect(materialized.status, `${materialized.stderr}${materialized.stdout}`).toBe(0);
-
-    const afterMaterialization = mdlm(repository, ["next"]);
-    expect(
-      afterMaterialization.status,
-      `${afterMaterialization.stderr}${afterMaterialization.stdout}`,
-    ).toBe(0);
-    const afterMaterializationOutcome = JSON.parse(afterMaterialization.stdout);
-    expect(afterMaterializationOutcome.outcome).toBe("assignment");
-    const subsequentPacket = mdlm(repository, [
-      "scenario",
-      "prepare",
-      afterMaterializationOutcome.assignment.id,
-    ]);
-    expect(
-      subsequentPacket.status,
-      `${subsequentPacket.stderr}${subsequentPacket.stdout}`,
-    ).toBe(0);
+    expect(materialized.materializedExecutions).toHaveLength(1);
+    const subsequent = await repository.nextAssignment();
 
     // This is not pilot progress. It proves that an allocated Assignment cannot
     // silently cross a tracked-state boundary after the clean commit.
-    await fs.appendFile(path.join(repository, ".gitignore"), "# tracked drift\n");
-    const stale = mdlm(repository, [
-      "scenario",
-      "prepare",
-      afterMaterializationOutcome.assignment.id,
-    ]);
-    expect(stale.status).toBe(1);
-    expect(JSON.parse(stale.stdout).diagnostics).toEqual([
+    await fs.appendFile(
+      path.join(repository.path, ".gitignore"),
+      "# tracked drift\n",
+    );
+    const stale = await executeCommandApplication(
+      ["scenario", "prepare", subsequent.outcome.assignment.id],
+      repository.path,
+    );
+    expect(stale.exitCode).toBe(1);
+    expect(JSON.parse(stale.output).diagnostics).toEqual([
       expect.objectContaining({ code: "assignment-stale" }),
     ]);
-  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
+      },
+    ), PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });
