@@ -583,7 +583,7 @@ describe("public mdlm outcome and status seam", () => {
         command: "status",
         contract: "mdlm-status@1",
         package: expect.objectContaining({
-          reference: "mdlm-bootstrap@0.75.0",
+          reference: "mdlm-bootstrap@0.76.0",
         }),
         profile: expect.objectContaining({ reference: "bootstrap@39" }),
         integrity: { status: "valid", diagnostics: [] },
@@ -666,7 +666,7 @@ describe("public mdlm outcome and status seam", () => {
     await initializeRepository();
     const packageRoot = path.join(
       repository,
-      ".lifecycle/packages/mdlm-bootstrap@0.75.0",
+      ".lifecycle/packages/mdlm-bootstrap@0.76.0",
     );
     await fs.writeFile(
       path.join(packageRoot, "phases/phase-0-wayfinding.yaml"),
@@ -1068,7 +1068,7 @@ gate:
     await fs.appendFile(
       path.join(
         repository,
-        ".lifecycle/packages/mdlm-bootstrap@0.75.0/manifest.yaml",
+        ".lifecycle/packages/mdlm-bootstrap@0.76.0/manifest.yaml",
       ),
       "\n# integrity failure\n",
     );

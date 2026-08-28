@@ -130,7 +130,7 @@ describe("self-guiding public CLI", () => {
       command: "start",
       contract: "mdlm-start@1",
       package: expect.objectContaining({
-        reference: "mdlm-bootstrap@0.75.0",
+        reference: "mdlm-bootstrap@0.76.0",
         digest: expect.stringMatching(/^sha256:/),
       }),
       repository: {
