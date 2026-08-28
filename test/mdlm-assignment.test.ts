@@ -1292,4 +1292,57 @@ process.exit(result.status ?? 1);
     expect((await fs.readdir(path.join(identityRepository, ".lifecycle/data"))).sort())
       .toEqual([".gitkeep"]);
   }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
+
+  it("qualifies repeated payload schema failures with the proposal output", async () => {
+    await useRepositoryTemplate("active");
+    const invalid = structuredClone(templateState.validResponse);
+    invalid.proposal.outputs[0]!.lifecycleDatum.payload.frontier.push(
+      "$proposal.runtime-question.revision_id",
+    );
+    invalid.proposal.outputs[0]!.lifecycleDatum.links.push({
+      type: "indexes",
+      target: "$proposal.runtime-question.id",
+    });
+    invalid.proposal.outputs[1]!.lifecycleDatum.payload.evidence_available = true;
+    invalid.proposal.outputs.push({
+      localId: "runtime-question",
+      name: "questions",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "QST",
+        payload: {
+          title: "Clarify the runtime",
+          kind: "preferential",
+          state: "open",
+          question: "Which runtime does the product require?",
+          blocking_impact: "Runtime constraints remain unknown.",
+          evidence_available: true,
+        },
+        links: [],
+        body: "One exact runtime question.\n",
+      },
+    });
+
+    const rejected = await mdlmWithInput(
+      repository,
+      `${JSON.stringify(invalid)}\n`,
+      "scenario",
+      "submit",
+    );
+
+    expect(rejected.status).toBe(1);
+    const diagnostics = JSON.parse(rejected.stdout).diagnostics;
+    expect(diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "scenario-output-schema-invalid",
+        path:
+          "proposal.outputs[1](product-intent).lifecycleDatum.payload/kind",
+      }),
+      expect.objectContaining({
+        code: "scenario-output-schema-invalid",
+        path:
+          "proposal.outputs[2](runtime-question).lifecycleDatum.payload/kind",
+      }),
+    ]));
+  }, PROCESS_REPOSITORY_TEST_TIMEOUT_MS);
 });
