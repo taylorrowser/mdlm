@@ -786,7 +786,7 @@ function pilotImplementation(
     revision: number,
     scenario: number === 1
       ? "implement-verification-activity@1"
-      : "revise-pilot-vai-after-review@1",
+      : "revise-pilot-vai-after-review@2",
     links: [
       { type: "realizes", target: "VER-0HARDPILOT-r00001" },
       { type: "uses", target: "ENV-0HARDENP10-r00001" },
@@ -3223,7 +3223,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@39",
+          profile: "bootstrap@40",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
@@ -3257,7 +3257,7 @@ describe("Phase 1 hardening route evidence", () => {
         outcome: "profile-boundary-reached",
         explanation: expect.stringMatching(/multiple applicable/i),
         evidence: expect.objectContaining({
-          profile: "bootstrap@39",
+          profile: "bootstrap@40",
           condition: expect.objectContaining({ result: true }),
         }),
       }),
@@ -3730,6 +3730,182 @@ describe("Phase 1 hardening route evidence", () => {
       expect.objectContaining({
         identity: expect.objectContaining({
           revision_id: replacementExecution.run.datum.revision_id,
+        }),
+      }),
+    ]);
+  });
+
+  it("projects exact ART and ENV reconciliation authority after a failed VAI Review", async () => {
+    const {
+      currentStrategy,
+      strategyReview,
+      currentEnvironment,
+      qualification,
+      environmentReview,
+      activity,
+      activityReview,
+      exactTarget,
+      first,
+      firstAuthorization,
+      failed,
+    } = correctedPilotImplementationFixture();
+    const records = [
+      currentStrategy,
+      ...strategyReview,
+      currentEnvironment,
+      qualification.activity,
+      qualification.implementation,
+      qualification.run,
+      qualification.result,
+      ...environmentReview,
+      activity,
+      ...activityReview,
+      exactTarget,
+      first,
+      firstAuthorization,
+      ...failed,
+    ];
+    const safeRecords = repositorySafeRecords(records);
+    const safeEnvironment = safeRecords.find((item) => item.datum.type === "ENV")!;
+    const safeTarget = safeRecords.find((item) => item.datum.type === "ART")!;
+    const safeFirst = safeRecords.find((item) =>
+      item.datum.type === "VAI" && item.datum.payload.kind === "pilot"
+    )!;
+    const snapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: [...foundation(), ...safeRecords],
+      dependencyComparisons: [],
+    };
+    const obligation = evaluateLifecycle(recoveryPackage, snapshot).obligations.find(
+      (item) => item.obligation === "pilot-vai-review-correction-required" &&
+        item.subject === safeFirst.datum.revision_id,
+    );
+    expect(obligation).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "revise-pilot-vai-after-review@2",
+    }));
+
+    const prepared = await dryRunResolverScenario(
+      recoveryPackage,
+      snapshot,
+      "revise-pilot-vai-after-review@2",
+      obligation!.id,
+      [],
+    );
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs.map((input) => ({
+      name: input.name,
+      revisions: input.values.map((value) => value.identity.revision_id),
+    }))).toEqual(expect.arrayContaining([
+      {name: "environment", revisions: [safeEnvironment.datum.revision_id]},
+      {name: "execution_target", revisions: [safeTarget.datum.revision_id]},
+    ]));
+    expect(prepared.value.expectedOutputs.map((output) => ({
+      name: output.name,
+      types: output.types,
+      cardinality: output.cardinality,
+      requiredLinks: output.requiredLinks,
+    }))).toEqual(expect.arrayContaining([
+      {
+        name: "replacement_environment",
+        types: ["ENV"],
+        cardinality: "zero-or-one",
+        requiredLinks: expect.arrayContaining([
+          {link: "realizes", target: {input: "strategy"}},
+          {link: "corrects-review", target: {input: "failed_reviews"}},
+        ]),
+      },
+      {
+        name: "replacement_target",
+        types: ["ART"],
+        cardinality: "zero-or-one",
+        requiredLinks: [
+          {link: "derived-from", target: {input: "requirement"}},
+        ],
+      },
+    ]));
+    expect(prepared.value.prohibitedInputs).toEqual(expect.arrayContaining([
+      "unrelated ENV or ART",
+      "borrowed qualification evidence",
+      "ART behavior-scope change",
+    ]));
+
+    const safeActivity = safeRecords.find((item) =>
+      item.datum.type === "VER" && item.datum.payload.kind === "pilot"
+    )!;
+    const safeFailedReview = safeRecords.find((item) =>
+      item.datum.type === "REV" && item.datum.payload.outcome === "fail"
+    )!;
+    const replacementTarget = structuredClone(safeTarget);
+    replacementTarget.datum.revision = 2;
+    replacementTarget.datum.revision_id = `${safeTarget.datum.id}-r00002`;
+    replacementTarget.datum.created_by.scenario = "revise-pilot-vai-after-review@2";
+    replacementTarget.datum.payload = {
+      ...replacementTarget.datum.payload,
+      title: "Reconciled disposable pilot controls",
+    };
+    const replacementImplementation = structuredClone(safeFirst);
+    replacementImplementation.datum.revision = 2;
+    replacementImplementation.datum.revision_id = `${safeFirst.datum.id}-r00002`;
+    replacementImplementation.datum.created_by.scenario =
+      "revise-pilot-vai-after-review@2";
+    replacementImplementation.datum.links = [
+      {type: "realizes", target: safeActivity.datum.revision_id},
+      {type: "uses", target: safeEnvironment.datum.revision_id},
+      {type: "targets", target: replacementTarget.datum.revision_id},
+      {type: "corrects-review", target: safeFailedReview.datum.revision_id},
+    ];
+    const authorization = record("DEC", "DEC-0000000999", {
+      title: "Authorize the exact reconciled procedure",
+      rationale: "The failed Review identifies package-evidence inconsistency.",
+      kind: "decision",
+      decision: "Authorize the reconciled pilot procedure.",
+      alternatives: ["Do not authorize."],
+      effective_scope: replacementImplementation.datum.revision_id,
+    }, {
+      scenario: "revise-pilot-vai-after-review@2",
+      links: [{type: "justifies", target: replacementImplementation.datum.revision_id}],
+    });
+    const reconciledSnapshot = {
+      ...snapshot,
+      records: [
+        ...snapshot.records,
+        replacementTarget,
+        replacementImplementation,
+        authorization,
+      ],
+    };
+    expect(evaluateProcessDefinition(
+      recoveryPackage,
+      reconciledSnapshot,
+      "selector",
+      "valid-pilot-vai-target-reconciliations@1",
+      {
+        implementation: safeFirst.datum.revision_id,
+        target: safeTarget.datum.revision_id,
+        requirement: foundation()[1]!.datum.revision_id,
+        replacement: replacementTarget.datum.revision_id,
+      },
+    ).result).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: replacementTarget.datum.revision_id,
+        }),
+      }),
+    ]);
+    expect(evaluateProcessDefinition(
+      recoveryPackage,
+      reconciledSnapshot,
+      "selector",
+      "corrected-pilot-verification-implementation-revisions-for@1",
+      {implementation: safeFirst.datum.revision_id},
+    ).result).toEqual([
+      expect.objectContaining({
+        identity: expect.objectContaining({
+          revision_id: replacementImplementation.datum.revision_id,
         }),
       }),
     ]);

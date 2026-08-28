@@ -180,8 +180,8 @@ export async function restoreHistoricalFixtureProcessPackage(
           .replace("    - prompts/decide-pilot-expansion.md@3\n", "    - prompts/decide-pilot-expansion.md@2\n")
           .replace("    - prompts/build-pilot-control-prototype.md@1\n", "")
           .replace("    - skills/pilot-control-prototype.md@1\n", "")
-          .replace("bootstrap@39", "bootstrap@38")
-          .replace("profiles/bootstrap.yaml@39", "profiles/bootstrap.yaml@38"),
+          .replace("bootstrap@40", "bootstrap@38")
+          .replace("profiles/bootstrap.yaml@40", "profiles/bootstrap.yaml@38"),
       );
       const phasePath = path.join(stagedPackage, "phases/phase-1-product-assurance.yaml");
       await fs.writeFile(
@@ -194,7 +194,7 @@ export async function restoreHistoricalFixtureProcessPackage(
       await fs.writeFile(
         profilePath,
         (await fs.readFile(profilePath, "utf8"))
-          .replace("version: 39", "version: 38")
+          .replace("version: 40", "version: 38")
           .replace(
             "  - every current pilot activity requirement discovers one exact ART target, either a disposable inline good/bad control pair bound to its reviewed VER or an immutable bounded repository registration with deterministic exact-byte command observations",
             "  - every current pilot activity requirement discovers one exact immutable bounded ART registration whose typed normal, raw-malformed, omitted-argument, and extra-argument cases carry deterministic exact-byte observations before implementation",
@@ -497,7 +497,7 @@ export async function ensureFixtureProcessPackage(
     packageRoot &&
     selection.package &&
     (selection.package?.reference === expected.reference ||
-      (["mdlm-bootstrap@0.76.0", "mdlm-bootstrap@0.77.0"].includes(
+      (["mdlm-bootstrap@0.76.0", "mdlm-bootstrap@0.77.0", "mdlm-bootstrap@0.78.0"].includes(
         selection.package?.reference ?? "",
       ) &&
         expected.reference === "mdlm-bootstrap@0.74.0")) &&

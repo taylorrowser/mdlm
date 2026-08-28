@@ -2002,3 +2002,42 @@ next`, dry-run, and execution preserve the exact Obligation Instance. Once the
 - **Evidence/observations:** Issue #281 records the two Phase 1 stops. Focused
   package and Assignment coverage checks the autonomous route and exact control
   inputs before fresh demo qualification.
+
+## D-113 — Reconcile the exact pilot boundary inside VAI Review correction
+
+- **Status:** accepted and implemented
+- **Decision:** Publish `mdlm-bootstrap@0.78.0` with a single atomic failed-VAI
+  correction route. Procedure-only findings retain the reviewed ENV and ART.
+  When the same Review proves that exact boundary inconsistent, the Assignment
+  may additionally publish the next Revision of only the bound ART and/or ENV
+  lineage. ART replacement preserves the requirement and supported/unsupported
+  behavior scope. ENV replacement preserves the governing VSP profile and
+  atomically authors a fresh qualification VER/VAI pair. The replacement VAI
+  binds emitted successors and otherwise binds the reviewed exact Revisions.
+- **Alternatives:** Leave the lane at typed inability; ask the stakeholder to
+  override package evidence; add a separate reconciliation Assignment before
+  every VAI correction; mutate frozen ART or ENV evidence; allow unrelated
+  target/environment selection; or add pilot semantics to the kernel.
+- **Rationale:** ASCII Lower 031 reached failed Review
+  `REV-T2MBJA8KD9-r00001`, but Assignment
+  `057be31c-2fc1-4025-ba48-d86e176109b3` could revise only VAI even though the
+  Review proved its command inconsistent with frozen prototype ART and ENV.
+  Finding prose cannot safely decide which boundary record is implicated, so a
+  separate unconditional route would add ceremony and Lifecycle Data to every
+  correction. Optional same-lineage outputs keep the ordinary route unchanged.
+- **Expected behavior:** Public prepare exposes the exact current ART and ENV as
+  inputs and optional successor slots. Omitting both preserves both bindings.
+  Emitting ART or ENV outside those stable lineages, widening prototype behavior,
+  changing the VSP capability profile, omitting fresh ENV qualification design,
+  or binding the VAI to any other Revision rejects the transaction atomically.
+  Failed evidence and prior RUN/RES remain immutable; fresh Review and execution
+  are still required.
+- **Compatibility:** This is a fresh-only Process Package break. Published 0.77
+  repositories and the stopped ASCII Lower evidence remain immutable. A fresh
+  0.78-qualified demo may migrate the lane only through its public migration
+  boundary and must request a new Assignment rather than replay the abandoned
+  response.
+- **Evidence/observations:** Issue #325 and
+  `operations/ascii-lower-pi-glm-031-old-qualified/STATUS.md` preserve the exact
+  operational stop. The focused public-route regression prepares the resolver
+  and proves the optional authority is restricted to the exact bound ENV and ART.

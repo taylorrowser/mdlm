@@ -1,7 +1,7 @@
 kind: selector-definition
 id: corrected-pilot-verification-implementation-revisions-for
 version: 1
-description: Valid newer pilot VAI Revisions preserving exact VER, ENV, and ART links while citing every and only failed Review.
+description: Valid newer pilot VAI Revisions preserving exact VER and binding either the reviewed ENV/ART Revisions or their single exact same-transaction successors while citing every and only failed Review.
 parameters:
   - {name: implementation, kind: revision, types: [VAI]}
 result_kind: revision
@@ -23,11 +23,27 @@ query:
       {implementation: replacement})
       == one("verification-activities-for-implementation@1",
         {implementation: implementation})
-    && one("environments-for-implementation@1", {implementation: replacement})
-      == one("environments-for-implementation@1", {implementation: implementation})
-    && one("execution-targets-for-implementation@1", {implementation: replacement})
-      == one("execution-targets-for-implementation@1",
-        {implementation: implementation})
+    && (
+      one("environments-for-implementation@1", {implementation: replacement})
+        == one("environments-for-implementation@1", {implementation: implementation})
+      || (count("newer-revisions-for@1",
+          {subject: one("environments-for-implementation@1",
+            {implementation: implementation})}) == 1
+        && one("environments-for-implementation@1", {implementation: replacement})
+          == one("newer-revisions-for@1",
+            {subject: one("environments-for-implementation@1",
+              {implementation: implementation})})))
+    && (
+      one("execution-targets-for-implementation@1", {implementation: replacement})
+        == one("execution-targets-for-implementation@1",
+          {implementation: implementation})
+      || (count("newer-revisions-for@1",
+          {subject: one("execution-targets-for-implementation@1",
+            {implementation: implementation})}) == 1
+        && one("execution-targets-for-implementation@1", {implementation: replacement})
+          == one("newer-revisions-for@1",
+            {subject: one("execution-targets-for-implementation@1",
+              {implementation: implementation})})))
     && exists("pilot-implementation-authorizations-for@1",
       {implementation: replacement})
   distinct: true
