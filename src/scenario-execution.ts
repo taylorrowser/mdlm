@@ -229,10 +229,64 @@ export function scenarioOutputContractDiagnostics(
             });
           }
         }
+        const reviewContract = object(scenario.review_contract);
+        const reviewEvidence = authorityEvidenceContract(scenario.authority_evidence);
+        const allowedCorrectionAuthorities = array(
+          reviewContract?.correction_authorities,
+        );
+        const correctionAuthority = value.lifecycleDatum.payload.correction_authority;
+        if (
+          reviewContract &&
+          reviewEvidence?.output === name &&
+          reviewEvidence.type === value.lifecycleDatum.type &&
+          typeof correctionAuthority === "string" &&
+          allowedCorrectionAuthorities.length > 0 &&
+          !allowedCorrectionAuthorities.includes(correctionAuthority)
+        ) {
+          diagnostics.push({
+            code: "scenario-review-correction-authority-invalid",
+            path: `outputs.${name}.payload.correction_authority`,
+            message: `Scenario output '${name}' cannot grant correction authority '${correctionAuthority}'; expected one of ${JSON.stringify(allowedCorrectionAuthorities)}`,
+          });
+        }
       }
     }
   }
   return diagnostics;
+}
+
+/** Reject proposal identity that conflicts with an exact package-declared input lineage. */
+export function scenarioOutputIdentityDiagnostics(
+  scenario: VersionedDefinition,
+  invocations: ScenarioDryRunInvocation[],
+  outputs: ScenarioOutputProposal[],
+  existingIds: ReadonlySet<string>,
+): ProcessDiagnostic[] {
+  const definitions = array(scenario.outputs).map(object);
+  return outputs.flatMap((output, index) => {
+    const definition = definitions.find((candidate) => candidate?.name === output.name);
+    const identityInput = object(definition?.identity_from)?.input;
+    const boundIdentity = typeof identityInput === "string"
+      ? invocations[output.invocation]?.inputs.find((input) =>
+        input.name === identityInput
+      )?.values[0]?.identity
+      : undefined;
+    const requested = output.lifecycleDatum.id;
+    if (boundIdentity && requested && requested !== boundIdentity.id) {
+      return [{
+        code: "scenario-output-identity-binding-mismatch",
+        path: `proposal.outputs[${index}].lifecycleDatum.id`,
+        message: `Scenario output '${output.name}' must preserve Stable Datum identity '${boundIdentity.id}' from input '${String(identityInput)}'`,
+      }];
+    }
+    return requested && !existingIds.has(requested)
+      ? [{
+          code: "scenario-output-identity-kernel-managed",
+          path: `proposal.outputs[${index}].lifecycleDatum.id`,
+          message: `New Scenario output '${output.name}' must leave Stable Datum identity for the kernel to assign`,
+        }]
+      : [];
+  });
 }
 
 function requiredLinkDiagnostics(
@@ -758,15 +812,11 @@ async function submitScenario(
     existingById.set(record.datum.id, lineage);
   }
   const usedIds = new Set(existingById.keys());
-  const kernelIdentityDiagnostics = proposal.outputs.flatMap(
-    (output, index) => output.lifecycleDatum.id &&
-        !existingById.has(output.lifecycleDatum.id)
-      ? [{
-          code: "scenario-output-identity-kernel-managed",
-          path: `proposal.outputs[${index}].lifecycleDatum.id`,
-          message: `New Scenario output '${output.name}' must leave Stable Datum identity for the kernel to assign`,
-        }]
-      : [],
+  const kernelIdentityDiagnostics = scenarioOutputIdentityDiagnostics(
+    scenario,
+    dryRun.invocations,
+    proposal.outputs,
+    new Set(existingById.keys()),
   );
   if (kernelIdentityDiagnostics.length > 0) {
     return { ok: false, diagnostics: kernelIdentityDiagnostics };
@@ -775,9 +825,21 @@ async function submitScenario(
     ...dryRun.policies.map((policy) => policy.reference),
     ...participationPolicyReferences,
   ])].sort();
+  const outputDefinitions = Array.isArray(scenario.outputs)
+    ? scenario.outputs.map(object)
+    : [];
   const outputOccurrences = new Map<string, number>();
   const outputIdentities = proposal.outputs.map((proposal) => {
-    const requestedId = proposal.lifecycleDatum.id;
+    const definition = outputDefinitions.find((candidate) =>
+      candidate?.name === proposal.name
+    );
+    const identityInput = object(definition?.identity_from)?.input;
+    const boundIdentity = typeof identityInput === "string"
+      ? dryRun.invocations[proposal.invocation]?.inputs.find((input) =>
+        input.name === identityInput
+      )?.values[0]?.identity
+      : undefined;
+    const requestedId = boundIdentity?.id ?? proposal.lifecycleDatum.id;
     let id = requestedId;
     if (!id) {
       const occurrenceKey = `${proposal.invocation}\0${proposal.name}`;

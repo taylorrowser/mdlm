@@ -15,7 +15,7 @@ outputs:
     cardinality: zero-or-one
     required_links:
       - {link: resolves, target: {output: updated_question}}
-  - {name: updated_question, types: [QST], cardinality: one, required_links: []}
+  - {name: updated_question, types: [QST], cardinality: one, identity_from: {input: question}, required_links: []}
 prompt_ref: prompts/resolve-question.md@2
 review_policy_ref: review-applicability@1
 participation:

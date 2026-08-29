@@ -388,6 +388,7 @@ export interface AssignmentPacket {
   outputs: (Omit<ScenarioDryRun["expectedOutputs"][number], "types"> & {
     handle: string;
     type: string;
+    identity?: { input: string };
     payloadSummary: {
       required: string[];
       kernelManaged: string[];
@@ -2449,6 +2450,13 @@ function scenarioProposalFromResponse(
         `proposal.outputs.${output.handle}.type`,
       );
     }
+    if (JSON.stringify(output.links) !== JSON.stringify(expectedOutput.links)) {
+      return failure(
+        "assignment-response-links-invalid",
+        `Symbolic output '${output.handle}' must preserve the exact links in the Assignment packet`,
+        `proposal.outputs.${output.handle}.links`,
+      );
+    }
     const links = expectedOutput.links.map((link) => ({
       type: link.type,
       target: internalLinkTarget(exact, output.type, link, outputTypes),
@@ -2559,10 +2567,17 @@ function packet(
     },
     prohibitions: exact.dryRun.prohibitedInputs,
     outputs: exact.dryRun.expectedOutputs.map(({ types, ...output }) => {
+      const definition = (Array.isArray(exact.scenario.outputs)
+        ? exact.scenario.outputs.map(object)
+        : []).find((candidate) => candidate?.name === output.name);
+      const identityFrom = object(definition?.identity_from);
       return {
         ...output,
         handle: outputHandles.get(output.name) ?? output.name,
         type: types[0]!,
+        ...(typeof identityFrom?.input === "string"
+          ? { identity: { input: identityFrom.input } }
+          : {}),
         payloadSummary: {
           required: Array.isArray(schemas[types[0]!]?.payload.required)
             ? schemas[types[0]!]!.payload.required as string[]
@@ -2682,6 +2697,32 @@ function rejectedSubmission(
     diagnostics,
     retryable,
     correctionConsumed: false,
+  };
+}
+
+function pendingSettlementSubmission(
+  pending: PendingSettlement,
+): AssignmentSubmissionResult {
+  const diagnostics = [{
+    code: "submission-settlement-required",
+    path: pending.execution,
+    message: "The prior submission has uncertain publication closure; inspect its stable settlement identity and do not replay it",
+  }];
+  return {
+    ok: false,
+    value: {
+      contract: "mdlm-submission-outcome@1",
+      outcome: "settlement-required",
+      assignment: { id: pending.assignment },
+      responseDigest: pending.responseDigest,
+      settlement: {
+        assignment: pending.assignment,
+        execution: pending.execution,
+      },
+      reason: "publication-closure-uncertain",
+      orchestration: { action: "inspect-settlement", replay: false },
+    },
+    diagnostics,
   };
 }
 
@@ -2829,6 +2870,8 @@ export async function submitAssignmentResponse(
   responseSource: string,
   authoritySupplies: string[] = [],
 ): Promise<AssignmentSubmissionResult> {
+  const pendingSettlement = await readPendingSettlement(repositoryRoot);
+  if (pendingSettlement) return pendingSettlementSubmission(pendingSettlement);
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   const lease = persisted.value;
@@ -2905,6 +2948,10 @@ export async function submitAssignmentResponse(
     loadedSkillRefs: exact.value.dryRun.prompt.skills.map((skill) => skill.reference),
   };
   return withExactActiveLease(repositoryRoot, lease, async (lease, renew) => {
+    const lockedPendingSettlement = await readPendingSettlement(repositoryRoot);
+    if (lockedPendingSettlement) {
+      return pendingSettlementSubmission(lockedPendingSettlement);
+    }
     const verifyAssignment = async (): Promise<AssignmentResult<undefined>> => {
       await renew();
       const committedLease = await readLease(repositoryRoot);
