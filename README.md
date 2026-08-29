@@ -9,12 +9,15 @@ The kernel remains process-neutral. The bundled Example Process Package provides
 a bounded software V-model profile without making its types, phases, or Policies
 core semantics.
 
-## Current expansion goal
+## Current restoration gate
 
-The current goal is to establish reliable public operation through Phase 2, then
-expand the Example Process Package through Phases 3–6 using that operational
-evidence and the accepted v0.8 design baseline. See
-[`docs/phase-2-reliability-and-expansion-roadmap.md`](docs/phase-2-reliability-and-expansion-roadmap.md).
+The outcome-contract cutover deliberately stopped the demo fleet. Restore it
+through one fresh disposable canary built from exact source, runner, artifact,
+and Process Package identities. The canary must complete Phase 0, including one
+rejected then corrected Review proposal, and enter the first Phase 1 RUN/RES
+loop without a contract, authority-envelope, missing-input, generated-ID, or
+ambiguous-publication failure. Restore the one-Codex/two-Pi fleet only after that
+journey passes.
 
 ## Operator contract
 
@@ -24,24 +27,23 @@ one loop:
 1. initialize once with `mdlm init <destination>`;
 2. enter the repository and run `mdlm start --json` to read its portable
    `MDLM.md` guide, exact repository identity, and Git cleanliness;
-3. require a clean ordinary Git boundary, then run `mdlm next --json`; if it
-   reports `publication-required`, validate and commit those exact materialized
-   transactions before running `next` again;
-4. prepare the returned exact Assignment with
-   `mdlm scenario prepare <assignment-id> --json`;
-5. let the harness perform the declared agent work or attended conversation;
-6. return one complete `mdlm-assignment-response@1` with
+3. require a clean ordinary Git boundary, then run `mdlm next --json` once;
+4. when `mdlm-next@2` includes an `mdlm-assignment-packet@3`, let the harness
+   perform that exact packet and fill its response scaffold;
+5. return one complete `mdlm-assignment-response@2` with
    `mdlm scenario submit [response-file|-] --json`;
-7. validate the repository with `mdlm doctor --json`;
-8. inspect the Lifecycle Data diff and commit it with ordinary Git; and
-9. reevaluate explicitly with `mdlm next --json`.
+6. handle the `mdlm-submission-outcome@1` result;
+7. after acceptance, validate with `mdlm doctor --json`, inspect and commit the
+   Lifecycle Data diff with ordinary Git; and
+8. reevaluate explicitly with `mdlm next --json`.
 
-`mdlm status` classifies current repository truth without allocating an
-Assignment. `mdlm next` returns either a transient `publication-required` kernel
-boundary or one versioned Operator Outcome, and leases an exact Assignment only
-when work can advance. Preparation is side-effect-free and binds
-the Assignment to the exact selected Process Package, repository state, prompt,
-skills, inputs, participation, output contracts, and completion conditions.
+`mdlm status` remains read-only inspection. `mdlm next` authenticates one exact
+repository and Process Package, derives one of the six Operator Outcome
+families, and leases work only when it can advance. Assignment and Attention
+Required outcomes include the complete packet: prompt, skills, exact inputs,
+schemas, Policies, participation, authority requirements, outputs, completion
+conditions, response schema, and response scaffold. The included packet replaces
+the ordinary prepare step.
 
 Initialization installs `MDLM.md`, short `AGENTS.md` and `CLAUDE.md` discovery
 pointers, and equivalent local MDLM skills for Codex and Claude. `mdlm start` is
@@ -50,10 +52,12 @@ action in `operatorInstructions` so an agent can keep operating without a
 resident controller.
 
 The harness, not MDLM, performs agent work. It returns either a complete Scenario
-Proposal or a typed inability. Submission validates all outputs and links before
-publishing one atomic Scenario transaction. A rejected response or typed inability
-publishes no Lifecycle Data. One malformed response may be corrected against the
-same Assignment; exhaustion requires an explicit stop and report.
+Proposal or a typed inability. Proposal outputs use packet-local symbolic handles;
+MDLM allocates durable IDs and required links after validation. Submission returns
+`accepted`, `rejected`, or `settlement-required`. Rejected proposal bytes publish
+nothing and may be corrected without consuming a lifecycle correction allowance.
+Accepted publication is atomic. When closure is uncertain, inspect settlement by
+the stable Assignment or execution identity and never replay submission.
 
 ## Clean transaction example
 
@@ -62,11 +66,10 @@ mdlm init ./example-repository
 cd ./example-repository
 
 mdlm start --json
-mdlm next --json
-mdlm scenario prepare <assignment-id> --json > assignment.json
+mdlm next --json > .lifecycle/work/outcome.json
 
-# The harness reads assignment.json and writes a complete Assignment Response.
-mdlm scenario submit ./assignment-response.json --json
+# The harness performs the included packet and writes its complete response.
+mdlm scenario submit .lifecycle/work/assignment-response.json --json
 mdlm doctor --json
 
 git status --short
@@ -125,8 +128,8 @@ available. A runner must not turn its own judgment into stakeholder authority.
 
 Handle every Operator Outcome explicitly:
 
-- **Assignment** — prepare it, obtain a harness response, submit, validate, commit,
-  and reevaluate.
+- **Assignment** — perform its included packet, submit the complete response,
+  validate, commit, and reevaluate.
 - **Attention Required** — use only the projected Authority Requirement and
   `attentionContext` to conduct the attended conversation. Stop and report the
   exact requirement if its authority is unavailable; never infer authority.
@@ -142,13 +145,18 @@ Also stop on a dirty starting tree, failed doctor check, stale or exhausted
 Assignment, unexpected diff, or command failure. A Review, gate, commit, or phase
 change is not itself a stop: reevaluation determines the next Operator Outcome.
 
-When `next` reports `publication-required`, inspect every named materialized
-execution, run doctor, commit only that transaction, and run `mdlm next --json`
-again against the new repository identity. This transient kernel boundary does
-not lease or return an Assignment.
-
 Run `mdlm --help` to discover the agent-guided `init`, `start`, `next`, Scenario
-prepare and submit, and doctor commands.
+submit and settlement, and doctor commands.
+
+## Integrity boundary
+
+Exact Process Package, repository, Assignment, execution, Stable Datum, and
+Revision identities remain authoritative. Frozen Revisions and accepted
+publications are immutable. Package and schema validation precede atomic
+publication. Authority comes from the exact Scenario contract and Assignment
+boundary, not proposal prose. Process structure stays in the Process Package,
+and expression logic remains safe textual data. Accepted work and work with
+uncertain closure are never replayed.
 
 ## References
 

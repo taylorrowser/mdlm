@@ -61,11 +61,13 @@ describe("generic pi lifecycle operator instructions", () => {
 
     for (const instruction of [
       "git status --porcelain",
-      "mdlm status --json",
       "mdlm next --json",
-      "mdlm scenario prepare",
+      "mdlm-next@2",
+      "mdlm-assignment-packet@3",
       "mdlm scenario submit",
-      "mdlm-assignment-response@1",
+      "mdlm-assignment-response@2",
+      "mdlm-submission-outcome@1",
+      "mdlm scenario settlement",
       "mdlm doctor",
       "git diff --cached --check",
       "one atomic publication transaction",
@@ -79,11 +81,19 @@ describe("generic pi lifecycle operator instructions", () => {
     ]) {
       expect(normalized).toContain(instruction);
     }
+    for (const removed of [
+      "mdlm status --json",
+      "mdlm scenario prepare",
+      "mdlm-assignment-response@1",
+      "materializedExecutions",
+    ]) {
+      expect(combined).not.toContain(removed);
+    }
     expect(agentContext).toContain("public `mdlm` executable");
+    expect(agentContext).toContain("Lifecycle Data publication belongs to MDLM");
     expect(agentContext.replace(/\s+/g, " ")).toContain(
-      "Never inspect or edit Lifecycle Data directly",
+      "complete Assignment Packet",
     );
-    expect(agentContext).toContain("inspect raw Process Package definitions");
 
     for (const prohibited of [
       "./bin/req",
