@@ -292,6 +292,17 @@ describe("focused v2 fault-injection gate", () => {
       transactions: await transactionCount(repository),
     };
     const response = filledResponse(next);
+    const wrongAssignment = structuredClone(response);
+    wrongAssignment.assignment = "00000000-0000-4000-8000-000000000000";
+    const mismatched = await command(
+      repository,
+      ["scenario", "submit", "-", "--json"],
+      `${JSON.stringify(wrongAssignment)}\n`,
+    );
+    expect(mismatched.status).toBe(1);
+    expect(mismatched.value.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "assignment-unavailable" }),
+    ]));
     response.proposal.outputs[0].stableId = "MAP-agent-authored";
     response.proposal.outputs[0].revisionId = "MAP-agent-authored-r00001";
     response.proposal.outputs[1].payload = null;
@@ -384,6 +395,19 @@ describe("focused v2 fault-injection gate", () => {
       orchestration: { action: "inspect-settlement", replay: false },
     });
     expect(await filesDigest(dataRoot)).toBe(before);
+    expect(await transactionCount(repository)).toBe(0);
+
+    const replay = await command(
+      repository,
+      ["scenario", "submit", "-", "--json"],
+      `${JSON.stringify(response)}\n`,
+    );
+    expect(replay.status).toBe(1);
+    expect(replay.value).toMatchObject({
+      outcome: "settlement-required",
+      settlement: submitted.value.settlement,
+      orchestration: { replay: false },
+    });
     expect(await transactionCount(repository)).toBe(0);
 
     for (const identity of [

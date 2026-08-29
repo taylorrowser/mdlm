@@ -2829,6 +2829,30 @@ export async function submitAssignmentResponse(
   responseSource: string,
   authoritySupplies: string[] = [],
 ): Promise<AssignmentSubmissionResult> {
+  const pendingSettlement = await readPendingSettlement(repositoryRoot);
+  if (pendingSettlement) {
+    const diagnostics = [{
+      code: "submission-settlement-required",
+      path: pendingSettlement.execution,
+      message: "The prior submission has uncertain publication closure; inspect its stable settlement identity and do not replay it",
+    }];
+    return {
+      ok: false,
+      value: {
+        contract: "mdlm-submission-outcome@1",
+        outcome: "settlement-required",
+        assignment: { id: pendingSettlement.assignment },
+        responseDigest: pendingSettlement.responseDigest,
+        settlement: {
+          assignment: pendingSettlement.assignment,
+          execution: pendingSettlement.execution,
+        },
+        reason: "publication-closure-uncertain",
+        orchestration: { action: "inspect-settlement", replay: false },
+      },
+      diagnostics,
+    };
+  }
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   const lease = persisted.value;
