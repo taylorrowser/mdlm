@@ -144,6 +144,23 @@ describe("initial product-intent resolution authority", () => {
         .toEqual(expect.objectContaining({
           items: { enum: ["stakeholder"] },
         }));
+      expect(resolution.packet.responseSkeleton).toEqual(expect.objectContaining({
+        assignment: resolution.outcome.assignment.id,
+        proposal: expect.objectContaining({
+          outputs: expect.arrayContaining([
+            expect.objectContaining({
+              name: "decision",
+              lifecycleDatum: expect.objectContaining({
+                links: expect.arrayContaining([{
+                  type: "resolves",
+                  target: "$proposal.updated_question.revision_id",
+                }]),
+              }),
+            }),
+          ]),
+          authoritySupplies: null,
+        }),
+      }));
       const answeredQuestion = `${openQuestion.id}-r00002`;
       const outputs = resolutionOutputs(answeredQuestion);
       const before = await directoryDigest(path.join(repository, ".lifecycle", "data"));
