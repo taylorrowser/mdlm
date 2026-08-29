@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "command": "next",
+  "package": {
+    "id": "mdlm-bootstrap",
+    "version": "0.79.0",
+    "reference": "mdlm-bootstrap@0.79.0",
+    "language": "mdlm-expression@1",
+    "digest": "sha256:3268712b6a316bd378a485c894417f9013afd6529eddda1aaf19c37c7b467574"
+  },
+  "contract": "mdlm-next@1",
+  "phase": "phase-0-wayfinding@5",
+  "outcome": "publication-required",
+  "materializedExecutions": [
+    {
+      "id": "cd875951-8ad5-4075-87c4-0549df4f99fc",
+      "scenario": "create-review-context@1",
+      "status": "completed"
+    }
+  ],
+  "diagnostics": [],
+  "operatorInstructions": {
+    "contract": "mdlm-operator-instructions@1",
+    "guidePath": "MDLM.md",
+    "action": "publish-materialized-executions",
+    "disposition": "continuation",
+    "commands": [
+      "mdlm doctor --json",
+      "mdlm next --json"
+    ],
+    "materializedExecutions": [
+      {
+        "id": "cd875951-8ad5-4075-87c4-0549df4f99fc",
+        "scenario": "create-review-context@1",
+        "status": "completed"
+      }
+    ],
+    "text": "Inspect these materialized executions: cd875951-8ad5-4075-87c4-0549df4f99fc (create-review-context@1). Run doctor, inspect and commit only their exact transaction data, then run mdlm next --json for a fresh outcome. No Assignment is leased at this publication boundary."
+  }
+}

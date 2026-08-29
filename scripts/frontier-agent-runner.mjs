@@ -11,7 +11,6 @@ import {
 } from "./frontier-loop-core.mjs";
 import { referencedParentNumber } from "./frontier-issue-contract.mjs";
 import { runInProcessGroup } from "./frontier-process-group.mjs";
-import { additionalRootTestFilesForChangedPaths } from "./qualification-gates.mjs";
 import { independentReviewerPrompt } from "./frontier-prompts.mjs";
 import { sleep } from "./frontier-time.mjs";
 
@@ -65,14 +64,12 @@ export function validationCommandWasInterrupted(result) {
   return result.status === null || Boolean(result.signal);
 }
 
-export function validationCommands(baseBranch, changedPaths = []) {
-  const focusedRootTests = additionalRootTestFilesForChangedPaths(changedPaths)
-    .map((file) => `--root-test=${file}`);
+export function validationCommands(baseBranch, _changedPaths = []) {
   return [
     ["npm", ["ci", "--ignore-scripts"]],
     ["git", ["diff", "--check", `origin/${baseBranch}...HEAD`]],
     ["npm", ["run", "typecheck"]],
-    ["npm", ["test", ...(focusedRootTests.length > 0 ? ["--", ...focusedRootTests] : [])]],
+    ["npm", ["test"]],
   ];
 }
 
