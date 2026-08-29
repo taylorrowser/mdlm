@@ -283,39 +283,24 @@ function outputPayload(
   return generic;
 }
 
-function omitsOptionalEmpiricalDecision(
+function omitsUnusedOptionalOutput(
   packet: Record<string, any>,
   output: Record<string, unknown>,
-  questionKind: string,
 ): boolean {
-  return packet.scenario.reference.split("@")[0] === "resolve-question"
-    && questionKind === "empirical"
-    && output.type === "DEC"
-    && packet.outputs.find(
-      (declared: Record<string, unknown>) => declared.handle === output.handle,
-    )?.cardinality === "zero-or-one"
-    && packet.authority.evidence?.output !== output.handle;
+  return ["zero-or-one", "zero-or-more"].includes(packet.outputs.find(
+    (declared: Record<string, unknown>) => declared.handle === output.handle,
+  )?.cardinality)
+    && packet.authority?.evidence?.output !== output.handle;
 }
 
 function completedResponse(packet: Record<string, any>) {
   const scaffold = packet.responseScaffold;
-  const scenario = packet.scenario.reference.split("@")[0];
-  const questionKind = inputData(packet, "question")[0]?.payload.kind;
   return {
     ...scaffold,
     proposal: {
       ...scaffold.proposal,
       outputs: scaffold.proposal.outputs.map((output: Record<string, unknown>) => {
-        const cardinality = packet.outputs.find(
-          (declared: Record<string, unknown>) => declared.handle === output.handle,
-        )?.cardinality;
-        return (
-          omitsOptionalEmpiricalDecision(packet, output, questionKind)
-        ) || (
-          ["compile-psp", "draft-stakeholder-requirements"].includes(scenario)
-            && output.type === "QST"
-            && cardinality === "zero-or-more"
-        )
+        return omitsUnusedOptionalOutput(packet, output)
           ? output
           : {
               ...output,
@@ -376,6 +361,42 @@ describe("installed v2 cutover journey", () => {
     expect(preservedRoots.has(root)).toBe(false);
   });
 
+  it("keeps unused optional gate outputs null", () => {
+    const packet = {
+      scenario: { reference: "record-gate-signoff@3" },
+      exactInputs: [{
+        inputs: [{
+          name: "candidate",
+          values: [{ data: { revision_id: "BSL-CANDIDATE-r00001" } }],
+        }],
+      }],
+      outputs: [
+        { handle: "decision", type: "DEC", cardinality: "one" },
+        { handle: "questions", type: "QST", cardinality: "zero-or-more" },
+      ],
+      schemas: {
+        DEC: { payload: { required: [], properties: {} } },
+        QST: { payload: { required: [], properties: {} } },
+      },
+      responseScaffold: {
+        proposal: {
+          outputs: [
+            { handle: "decision", type: "DEC", payload: null, body: null },
+            { handle: "questions", type: "QST", payload: null, body: null },
+          ],
+        },
+      },
+    };
+
+    expect(completedResponse(packet).proposal.outputs).toEqual([
+      expect.objectContaining({
+        handle: "decision",
+        payload: expect.objectContaining({ gate_outcome: "approve" }),
+      }),
+      { handle: "questions", type: "QST", payload: null, body: null },
+    ]);
+  });
+
   it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
     expect(answeredQuestionPayload({ payload: { kind: "preferential", state: "open" } }))
       .toMatchObject({ kind: "preferential", state: "answered", attended_answer: expect.any(String) });
@@ -388,16 +409,14 @@ describe("installed v2 cutover journey", () => {
       outputs: [{ handle: "decision", cardinality: "zero-or-one" }],
       authority: { evidence: null },
     };
-    expect(omitsOptionalEmpiricalDecision(
+    expect(omitsUnusedOptionalOutput(
       resolverPacket,
       optionalDecision,
-      "empirical",
     )).toBe(true);
     resolverPacket.authority.evidence = { output: "decision", type: "DEC" };
-    expect(omitsOptionalEmpiricalDecision(
+    expect(omitsUnusedOptionalOutput(
       resolverPacket,
       optionalDecision,
-      "empirical",
     )).toBe(false);
     expect(requiredPayload({
       required: ["system_context"],
