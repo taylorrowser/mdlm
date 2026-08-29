@@ -163,6 +163,17 @@ function outputPayload(
     };
   }
   if (scenario === "resolve-question" && output.type === "DEC") {
+    if (question.payload.kind === "empirical") {
+      return {
+        ...generic,
+        title: "Record the empirical question resolution",
+        kind: "decision",
+        decision: "The declared evidence answers the exact empirical question.",
+        alternatives: ["Defer the question pending other evidence."],
+        rationale: "The evidence provider supplied the exact bounded answer.",
+        effective_scope: "$proposal.updated_question.revision_id",
+      };
+    }
     return {
       ...generic,
       title: "Record installed product intent",
@@ -212,12 +223,24 @@ function outputPayload(
   return generic;
 }
 
+function omitsOptionalEmpiricalDecision(
+  packet: Record<string, any>,
+  output: Record<string, unknown>,
+  questionKind: string,
+): boolean {
+  return packet.scenario.reference.split("@")[0] === "resolve-question"
+    && questionKind === "empirical"
+    && output.type === "DEC"
+    && packet.outputs.find(
+      (declared: Record<string, unknown>) => declared.handle === output.handle,
+    )?.cardinality === "zero-or-one"
+    && packet.authority.evidence?.output !== output.handle;
+}
+
 function completedResponse(packet: Record<string, any>) {
   const scaffold = packet.responseScaffold;
-  const omitOptionalEmpiricalDecision =
-    packet.scenario.reference.split("@")[0] === "resolve-question"
-    && inputData(packet, "question")[0]?.payload.kind === "empirical";
   const scenario = packet.scenario.reference.split("@")[0];
+  const questionKind = inputData(packet, "question")[0]?.payload.kind;
   return {
     ...scaffold,
     proposal: {
@@ -227,9 +250,7 @@ function completedResponse(packet: Record<string, any>) {
           (declared: Record<string, unknown>) => declared.handle === output.handle,
         )?.cardinality;
         return (
-          omitOptionalEmpiricalDecision
-            && output.type === "DEC"
-            && cardinality === "zero-or-one"
+          omitsOptionalEmpiricalDecision(packet, output, questionKind)
         ) || (
           ["compile-psp", "draft-stakeholder-requirements"].includes(scenario)
             && output.type === "QST"
@@ -259,6 +280,23 @@ describe("installed v2 cutover journey", () => {
     expect(answeredQuestionPayload({
       payload: { kind: "empirical", state: "open", attended_answer: "invalid carryover" },
     })).toEqual({ kind: "empirical", state: "answered", evidence_available: true });
+    const optionalDecision = { handle: "decision", type: "DEC" };
+    const resolverPacket = {
+      scenario: { reference: "resolve-question@2" },
+      outputs: [{ handle: "decision", cardinality: "zero-or-one" }],
+      authority: { evidence: null },
+    };
+    expect(omitsOptionalEmpiricalDecision(
+      resolverPacket,
+      optionalDecision,
+      "empirical",
+    )).toBe(true);
+    resolverPacket.authority.evidence = { output: "decision", type: "DEC" };
+    expect(omitsOptionalEmpiricalDecision(
+      resolverPacket,
+      optionalDecision,
+      "empirical",
+    )).toBe(false);
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-cutover-"));
     temporaryRoots.push(root);
     const packageRoot = path.join(root, "package");
