@@ -276,6 +276,7 @@ function outputPayload(
         .map((datum) => datum.revision_id),
       evidence: [
         ...inputData(packet, "candidate_reviews"),
+        ...inputData(packet, "gate_signoff"),
         ...inputData(packet, "signoff_reviews"),
       ].map((datum) => datum.revision_id),
     };
@@ -394,6 +395,57 @@ describe("installed v2 cutover journey", () => {
         payload: expect.objectContaining({ gate_outcome: "approve" }),
       }),
       { handle: "questions", type: "QST", payload: null, body: null },
+    ]);
+  });
+
+  it("preserves the approving gate Decision in accepted intent evidence", () => {
+    const packet = {
+      scenario: { reference: "accept-phase-0-intent@1" },
+      exactInputs: [{
+        inputs: [
+          {
+            name: "candidate",
+            values: [{ data: {
+              revision_id: "BSL-CANDIDATE-r00001",
+              payload: { scope: "product", group: "DEFAULT" },
+            } }],
+          },
+          {
+            name: "definition_members",
+            values: [{ data: { revision_id: "MAP-MEMBER-r00001" } }],
+          },
+          {
+            name: "candidate_reviews",
+            values: [{ data: { revision_id: "REV-CANDIDATE-r00001" } }],
+          },
+          {
+            name: "gate_signoff",
+            values: [{ data: { revision_id: "DEC-GATE-r00001" } }],
+          },
+          {
+            name: "signoff_reviews",
+            values: [{ data: { revision_id: "REV-GATE-r00001" } }],
+          },
+        ],
+      }],
+      outputs: [{ handle: "accepted_intent", type: "BSL", cardinality: "one" }],
+      schemas: { BSL: { payload: { required: [], properties: {} } } },
+      responseScaffold: {
+        proposal: {
+          outputs: [{
+            handle: "accepted_intent",
+            type: "BSL",
+            payload: null,
+            body: null,
+          }],
+        },
+      },
+    };
+
+    expect(completedResponse(packet).proposal.outputs[0].payload.evidence).toEqual([
+      "REV-CANDIDATE-r00001",
+      "DEC-GATE-r00001",
+      "REV-GATE-r00001",
     ]);
   });
 
