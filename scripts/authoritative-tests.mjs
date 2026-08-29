@@ -129,6 +129,13 @@ process.stdout.write(
 );
 
 let status = runAll([
+  [
+    "--disable-warning=ExperimentalWarning",
+    "--experimental-transform-types",
+    "scripts/process-fixture.mjs",
+    "check",
+  ],
+  ["--test", "scripts/process-fixture-tests.mjs"],
   ["./node_modules/typescript/bin/tsc", "-p", "tsconfig.build.json"],
   ["./node_modules/typescript/bin/tsc", "-p", "packages/mdlm-pi/tsconfig.build.json"],
   ["scripts/verify-test-suites.mjs"],

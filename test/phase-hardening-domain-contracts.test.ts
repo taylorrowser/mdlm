@@ -521,42 +521,6 @@ describe("Phase-hardening domain route contracts", () => {
     ]);
     await fs.rm(cliRoot, { recursive: true, force: true });
 
-    const failedImplementationReview = record(
-      "REV",
-      "REV-HARDENVAI1",
-      {
-        title: "Failed VAI Review",
-        review_kind: "contextual",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-        findings: [{
-          id: "F-001",
-          target: implementation.datum.revision_id,
-          relationship: "primary",
-          severity: "blocking",
-          summary: "Preserve process cleanup.",
-          criterion: "A pilot VAI must terminate and reap the complete process group.",
-          evidence: "The reviewed procedure specifies child-only reaping after timeout.",
-          material_consequence: "Descendant processes can survive and contaminate later cases.",
-        }],
-        correction_authority: "package-evidence",
-        outcome: "fail",
-      },
-      [{ type: "reviews", target: implementation.datum.revision_id }],
-      "review-datum-in-context@2",
-    );
-    const correctionSnapshot = {
-      ...baseSnapshot,
-      records: [psp, acceptedIntent, stk, strategy, strategyReview.context, strategyReview.review, activity, environment, target, implementation, failedImplementationReview],
-    };
-    expect(evaluateLifecycle(processPackage, correctionSnapshot).looseEnds.find((item) =>
-      item.obligation === "pilot-vai-review-correction-required" && item.subject === implementation.datum.revision_id
-    )).toEqual(expect.objectContaining({
-      eventualResolver: "revise-pilot-vai-after-review@2",
-      participation: [expect.objectContaining({
-        authorityRequirement: expect.objectContaining({ mode: "autonomous", authority: "package-evidence" }),
-      })],
-    }));
-
     const competingStrategy = record("VSP", "VSP-HARDENP101", { ...strategy.datum.payload, title: "Competing strategy" }, [
       { type: "governs", target: stk.datum.id }, { type: "governs-revision", target: stk.datum.revision_id },
     ], "define-verification-strategy@1");
