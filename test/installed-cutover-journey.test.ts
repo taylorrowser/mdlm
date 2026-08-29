@@ -200,6 +200,7 @@ function outputPayload(
   const source = inputData(packet, "source")[0]!;
   const question = inputData(packet, "question")[0]!;
   const candidate = inputData(packet, "candidate")[0]!;
+  const strategy = inputData(packet, "strategy")[0]!;
   const definitions = inputData(packet, "definition_members");
   const reviews = [
     ...inputData(packet, "member_reviews"),
@@ -264,6 +265,52 @@ function outputPayload(
         kind: "pilot",
         scope: "verification-design",
         formal_evidence_eligible: false,
+      },
+    };
+  }
+  if (scenario === "realize-verification-environment" && output.type === "ENV") {
+    return {
+      title: "Installed verification environment",
+      rationale: "Realize the exact declared strategy profile for qualification.",
+      strategy_revision: strategy.revision_id,
+      profile_id: strategy.payload.environment_profile.id,
+      capabilities: structuredClone(strategy.payload.environment_profile.capabilities),
+      reproducibility: {
+        environment_ref: "installed-fixture-environment@1",
+        configuration_digest: `sha256:${"0".repeat(64)}`,
+        reconstruction: "Recreate the installed fixture environment from this exact profile.",
+      },
+    };
+  }
+  if (scenario === "realize-verification-environment" && output.type === "VER") {
+    return {
+      ...generic(),
+      kind: "qualification",
+      claim: {
+        kind: "qualification",
+        scope: "environment-capability",
+        formal_evidence_eligible: false,
+      },
+    };
+  }
+  if (scenario === "realize-verification-environment" && output.type === "VAI") {
+    return {
+      title: "Installed environment qualification implementation",
+      rationale: "Exercise the declared environment capabilities and a negative control.",
+      kind: "qualification",
+      implementation_ref: `procedure:sha256:${"0".repeat(64)}`,
+      independence_mode: "environment-capability",
+      authoring_input_refs: [strategy.revision_id],
+      prohibited_inputs_observed: [
+        "product source code",
+        "product unit tests",
+        "private implementation details",
+        "uncontrolled implementation shortcuts",
+      ],
+      activity_bindings: ["positive capability check", "negative capability control"],
+      target_behavior: {
+        supported: ["declared environment capabilities"],
+        intentionally_unsupported: ["undeclared environment capabilities"],
       },
     };
   }
@@ -641,6 +688,88 @@ describe("installed v2 cutover journey", () => {
         formal_evidence_eligible: false,
       },
       acceptance_criteria: [expect.any(String)],
+    });
+  });
+
+  it("builds one coherent environment qualification transaction", () => {
+    const capabilities = {
+      controllability: ["controlled input"],
+      observability: ["captured output"],
+      external_services: [],
+      timing: "bounded execution",
+    };
+    const packet = {
+      scenario: { reference: "realize-verification-environment@1" },
+      exactInputs: [{
+        inputs: [{
+          name: "strategy",
+          values: [{ data: {
+            revision_id: "VSP-123456789A-r00001",
+            payload: {
+              environment_profile: { id: "pilot-cli", capabilities },
+            },
+          } }],
+        }],
+      }],
+      outputs: [
+        { handle: "environment", type: "ENV", cardinality: "one" },
+        { handle: "qualification_activity", type: "VER", cardinality: "one" },
+        { handle: "qualification_implementation", type: "VAI", cardinality: "one" },
+      ],
+      schemas: {
+        ENV: {
+          payload: {
+            type: "object",
+            required: ["reproducibility"],
+            properties: {
+              reproducibility: {
+                type: "object",
+                required: ["configuration_digest"],
+                properties: {
+                  configuration_digest: {
+                    type: "string",
+                    pattern: "^sha256:[a-f0-9]{64}$",
+                  },
+                },
+              },
+            },
+          },
+        },
+        VER: { payload: { type: "object", required: [], properties: {} } },
+        VAI: { payload: { type: "object", required: [], properties: {} } },
+      },
+      responseScaffold: {
+        proposal: {
+          outputs: [
+            { handle: "environment", type: "ENV", payload: null, body: null },
+            { handle: "qualification_activity", type: "VER", payload: null, body: null },
+            { handle: "qualification_implementation", type: "VAI", payload: null, body: null },
+          ],
+        },
+      },
+    };
+
+    const [environment, activity, implementation] = completedResponse(packet).proposal.outputs;
+    expect(environment.payload).toMatchObject({
+      strategy_revision: "VSP-123456789A-r00001",
+      profile_id: "pilot-cli",
+      capabilities,
+      reproducibility: {
+        configuration_digest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+      },
+    });
+    expect(activity.payload).toMatchObject({
+      kind: "qualification",
+      claim: {
+        kind: "qualification",
+        scope: "environment-capability",
+        formal_evidence_eligible: false,
+      },
+    });
+    expect(implementation.payload).toMatchObject({
+      kind: "qualification",
+      implementation_ref: expect.stringMatching(/^procedure:sha256:[a-f0-9]{64}$/),
+      independence_mode: "environment-capability",
     });
   });
 
