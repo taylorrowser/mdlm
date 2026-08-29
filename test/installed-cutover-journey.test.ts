@@ -192,13 +192,13 @@ function outputPayload(
     ...inputData(packet, "member_reviews"),
     ...inputData(packet, "candidate_reviews"),
   ];
-  const generic = requiredPayload(packet.schemas[output.type].payload);
+  const generic = () => requiredPayload(packet.schemas[output.type].payload);
   if (scenario === "resolve-question" && output.type === "QST") {
     return answeredQuestionPayload(question);
   }
   if (output.type === "QST") {
     return {
-      ...generic,
+      ...generic(),
       title: "Resolved supporting question",
       kind: "preferential",
       question: "What evidence bounds this product?",
@@ -233,7 +233,6 @@ function outputPayload(
   }
   if (output.type === "REV") {
     return {
-      ...generic,
       title: `Installed review of ${subject?.revision_id ?? candidate?.revision_id}`,
       review_kind: scenario === "review-phase-0-candidate"
         ? "phase-0-candidate"
@@ -249,7 +248,7 @@ function outputPayload(
   if (scenario === "resolve-question" && output.type === "DEC") {
     if (question.payload.kind === "empirical") {
       return {
-        ...generic,
+        ...generic(),
         title: "Record the empirical question resolution",
         kind: "decision",
         decision: "The declared evidence answers the exact empirical question.",
@@ -259,7 +258,7 @@ function outputPayload(
       };
     }
     return {
-      ...generic,
+      ...generic(),
       title: "Record installed product intent",
       kind: "scope",
       decision: "Build a CLI that counts ampersand bytes in UTF-8 input.",
@@ -269,7 +268,7 @@ function outputPayload(
   }
   if (scenario === "record-gate-signoff" && output.type === "DEC") {
     return {
-      ...generic,
+      ...generic(),
       title: "Approve installed Phase 0 intent",
       kind: "gate-signoff",
       decision: "Approve the exact candidate.",
@@ -305,7 +304,7 @@ function outputPayload(
       ].map((datum) => datum.revision_id),
     };
   }
-  return generic;
+  return generic();
 }
 
 function omitsUnusedOptionalOutput(
@@ -512,6 +511,43 @@ describe("installed v2 cutover journey", () => {
       },
       environment_profile: { id: "id" },
     });
+  });
+
+  it("uses the explicit Review payload without eager generic synthesis", () => {
+    const packet = {
+      scenario: { reference: "review-phase-0-foundation@1" },
+      exactInputs: [{
+        inputs: [{
+          name: "subject",
+          values: [{ data: { revision_id: "MAP-SUBJECT-r00001" } }],
+        }],
+      }],
+      outputs: [{ handle: "review", type: "REV", cardinality: "one" }],
+      schemas: {
+        REV: {
+          payload: {
+            type: "object",
+            required: ["title", "outcome", "rubric_ref"],
+            properties: {
+              title: { type: "string", minLength: 1 },
+              outcome: { enum: ["pass", "fail"] },
+              rubric_ref: {
+                type: "string",
+                pattern: "^policies/rubrics/.+\\.md@[1-9][0-9]*$",
+              },
+            },
+          },
+        },
+      },
+      responseScaffold: {
+        proposal: {
+          outputs: [{ handle: "review", type: "REV", payload: null, body: null }],
+        },
+      },
+    };
+
+    expect(completedResponse(packet).proposal.outputs[0].payload.rubric_ref)
+      .toBe("policies/rubrics/bootstrap-review.md@3");
   });
 
   it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
