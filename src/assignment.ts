@@ -2201,13 +2201,18 @@ function assignmentResponseSkeleton(
   lease: AssignmentLease,
 ): AssignmentResponseSkeleton | undefined {
   const { dryRun, processPackage, scenario } = exact;
+  const nonAutonomous = (dryRun.participation ?? []).some((item) =>
+    item.authorityRequirement.mode !== "autonomous"
+  );
+  const authorityOutput = authorityEvidenceContract(scenario.authority_evidence)?.output;
   if (
     dryRun.invocations.length !== 1 ||
-    (dryRun.participation ?? []).some((item) =>
-      item.authorityRequirement.mode !== "autonomous"
-    ) ||
     dryRun.expectedOutputs.some((output) =>
-      output.cardinality !== "one" || output.types.length !== 1
+      (output.cardinality !== "one" && !(
+        nonAutonomous &&
+        output.cardinality === "zero-or-one" &&
+        output.name === authorityOutput
+      )) || output.types.length !== 1
     )
   ) return undefined;
 
