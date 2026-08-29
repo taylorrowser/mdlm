@@ -212,21 +212,6 @@ async function resolvedAsset(
         },
       };
     }
-    const assetCatalog = object(processPackage.manifest.assets);
-    const declared = kind === "policy-asset"
-      ? Object.values(assetCatalog ?? {}).some((catalog) =>
-          array(catalog).includes(reference)
-        )
-      : array(assetCatalog?.[`${kind}s`]).includes(reference);
-    if (!declared) {
-      return {
-        diagnostic: {
-          code: `${kind}-not-declared`,
-          path: reference,
-          message: `Resolved ${kind} '${reference}' is not declared by the exact Process Package`,
-        },
-      };
-    }
     return {
       asset: {
         reference,
