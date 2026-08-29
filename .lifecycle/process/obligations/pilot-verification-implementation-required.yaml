@@ -12,7 +12,7 @@ status_rules:
     when: 'none("passing-reviews-for@1", {subject: activity})'
     reason: Independent implementation waits for contextual Review of the exact pilot activity design.
     blocked_by:
-      - obligation: passing-review-required@2
+      - obligation: phase-1-assurance-review-required@1
         subjects: '[activity]'
   - status: blocked
     priority: 400
@@ -32,7 +32,7 @@ status_rules:
         subjects: >-
           select("qualification-implementations-for-environment@1",
             {environment: one("pilot-environments-for-activity@1", {activity: activity})})
-      - obligation: passing-review-required@2
+      - obligation: phase-1-assurance-review-required@1
         subjects: 'select("pilot-environments-for-activity@1", {activity: activity})'
   - status: blocked
     priority: 200
